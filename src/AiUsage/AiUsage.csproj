@@ -40,14 +40,14 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- Only for reading Antigravity IDE's local state.vscdb - a plain read-only key lookup, no
          other use. MIT licensed (dotnet/efcore). -->
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <!-- Microsoft.Data.Sqlite 9.0.9 still pulls SQLitePCLRaw.lib.e_sqlite3 2.1.10, flagged with a
          known high-severity advisory (GHSA-2m69-gcr7-jv3q) - pinned up explicitly until upstream
          raises its own floor. -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.1" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <!-- The Claude web fallback only - a dedicated, persistent session separate from the user's
          real browser profile. -->
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
   </ItemGroup>
 
   <ItemGroup>
