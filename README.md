@@ -2,7 +2,7 @@
 
 <h1><img src=".github/images/banner.png" width="820" alt="AI-Usage: your AI coding quotas, live in one small window"></h1>
 
-Claude, Codex, Cursor, Gemini and Copilot side by side, with a countdown to every reset,
+Claude, Codex, Cursor, Gemini and Copilot side by side, with a countdown to every reset,<br>
 so the next "usage limit reached" never catches you mid-flow.
 
 [![Release](https://img.shields.io/github/v/release/wbgcoding/AI-Usage?label=release&color=2EA043)](../../releases/latest)
@@ -166,10 +166,8 @@ What changed in each version is listed in the [changelog](CHANGELOG.md).
 ### Updates
 
 When a newer release exists, a notice bar offers to install it. The installed copy runs the new
-setup, the portable copy swaps its own exe and restarts. Before anything runs, the downloaded file
-is checked against a signature made with the maintainer's key; a file whose signature does not
-match is thrown away and the release page is offered instead. Updating is optional: switch the
-check off under **Settings > System** and the app never asks.
+setup, the portable copy swaps its own exe and restarts. Updating is optional: switch the check
+off under **Settings > System** and the app never asks.
 
 Uninstalling keeps your data. Delete the two folders named above to remove it.
 
