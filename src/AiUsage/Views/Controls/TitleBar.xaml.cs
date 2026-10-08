@@ -148,7 +148,17 @@ public partial class TitleBar : UserControl
         PropertyChangedEventManager.AddHandler(LocalizationService.Instance, Localization_PropertyChanged, "Item[]");
     }
 
-    private void Localization_PropertyChanged(object? sender, PropertyChangedEventArgs e) => RefreshWindowMenuCollapseHeader();
+    private void Localization_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // The service is shared; a language switch raised on another thread reaches this bar on its own.
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RefreshWindowMenuCollapseHeader);
+            return;
+        }
+
+        RefreshWindowMenuCollapseHeader();
+    }
 
     private void TitleArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
