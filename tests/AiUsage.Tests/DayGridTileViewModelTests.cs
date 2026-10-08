@@ -15,17 +15,32 @@ namespace AiUsage.Tests;
 public class DayGridTileViewModelTests
 {
     [Fact]
-    public void ComputeVisibleWeeks_mini_is_always_exactly_one_week_whatever_the_width()
+    public void ComputeVisibleDays_fills_the_width_and_falls_back_to_a_week_without_one()
     {
-        Assert.Equal(1, DayGridTileViewModel.ComputeVisibleWeeks(TileDensity.Mini, 1000));
-        Assert.Equal(1, DayGridTileViewModel.ComputeVisibleWeeks(TileDensity.Mini, 50));
+        // 11 px cells with 3 px gaps: 20 cells take 20 * 11 + 19 * 3 = 277 px.
+        Assert.Equal(20, DayGridTileViewModel.ComputeVisibleDays(277));
+        Assert.Equal(19, DayGridTileViewModel.ComputeVisibleDays(276));
+        Assert.Equal(1, DayGridTileViewModel.ComputeVisibleDays(5));
+        Assert.Equal(7, DayGridTileViewModel.ComputeVisibleDays(0));
+    }
+
+    [Fact]
+    public void Mini_density_shows_as_many_days_as_the_width_fits()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var tile = new DayGridTileViewModel(null) { Density = TileDensity.Mini };
+        tile.Refresh();
+
+        tile.AvailableWidth = 277;
+        Assert.Equal(today.AddDays(-19), tile.RangeStart);
+        Assert.Equal(today, tile.RangeEnd);
     }
 
     [Fact]
     public void ComputeVisibleWeeks_has_no_cap_at_a_year()
     {
         // 22 px weekday column, then 11 px cells with 3 px gaps.
-        var weeks = DayGridTileViewModel.ComputeVisibleWeeks(TileDensity.Full, 22 + 120 * 14 - 3);
+        var weeks = DayGridTileViewModel.ComputeVisibleWeeks(22 + 120 * 14 - 3);
 
         Assert.Equal(120, weeks);
     }
@@ -33,7 +48,7 @@ public class DayGridTileViewModelTests
     [Fact]
     public void ComputeVisibleWeeks_never_drops_below_one_week_however_narrow()
     {
-        var weeks = DayGridTileViewModel.ComputeVisibleWeeks(TileDensity.Full, 0);
+        var weeks = DayGridTileViewModel.ComputeVisibleWeeks(0);
 
         Assert.Equal(1, weeks);
     }
@@ -81,19 +96,19 @@ public class DayGridTileViewModelTests
         var tile = new DayGridTileViewModel(store) { Density = TileDensity.Mini };
         await tile.RefreshAsync();
 
-        // Mini only ever shows the last seven days - the year-start record from months earlier must
+        // Mini shows only the most recent days - the year-start record from months earlier must
         // never be folded into the header's own "shown span" total.
         Assert.DoesNotContain("5", tile.TotalText.Replace(",", "").Replace(".", ""));
     }
 
     [Fact]
-    public void Mini_density_shows_only_the_last_seven_days()
+    public void Mini_density_is_a_strip_ending_today()
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var tile = new DayGridTileViewModel(null) { Density = TileDensity.Mini };
         tile.Refresh();
 
-        Assert.Equal(today.AddDays(-6), tile.RangeStart);
+        Assert.Equal(today.AddDays(-(DayGridTileViewModel.ComputeVisibleDays(tile.AvailableWidth) - 1)), tile.RangeStart);
         Assert.Equal(today, tile.RangeEnd);
         Assert.True(tile.ShowAsStrip);
         tile.Density = TileDensity.Full;

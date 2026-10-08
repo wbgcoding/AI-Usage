@@ -288,7 +288,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     }
 
     /// <summary>Lays the range out as one horizontal row of days, oldest on the left, instead of
-    /// week-columns - the widget's narrowest tile, which only ever shows the last seven days.</summary>
+    /// week-columns - the widget's small tile, which shows as many recent days as its width fits.</summary>
     public static readonly DependencyProperty SingleRowProperty = DependencyProperty.Register(
         nameof(SingleRow), typeof(bool), typeof(StatsMonthGrid),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
@@ -385,6 +385,16 @@ public sealed class StatsMonthGrid : FrameworkElement
         var usable = Math.Max(0, availableWidth - LeftLabelWidth);
         return Math.Max(1, (int)Math.Floor((usable + CellGap) / (DefaultCellSize + CellGap)));
     }
+    /// <summary>How many day cells fit <paramref name="availableWidth"/> in one row at <see
+    /// cref="DefaultCellSize"/> with no weekday column (the single-row strip), never less than 1.</summary>
+    internal static int StripCellsFitting(double availableWidth)
+    {
+        if (double.IsNaN(availableWidth) || availableWidth < 0)
+            availableWidth = 0;
+        availableWidth = Math.Min(availableWidth, 1_000_000);
+        return Math.Max(1, (int)Math.Floor((availableWidth + CellGap) / (DefaultCellSize + CellGap)));
+    }
+
     private const double TopLabelHeight = 14;
     private const double LegendGapTop = 10;
     private const double LegendRowHeight = 20;

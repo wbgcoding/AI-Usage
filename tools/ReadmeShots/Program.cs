@@ -177,9 +177,10 @@ internal static class Program
                 RenderWidget(dataDirectory, samples, now, all, TileDensity.Mini, Path.Combine(reviewDirectory, $"widget-{stem}-mini.png"));
                 RenderStatistics(Path.Combine(dataDirectory, "stats-" + counter++), records, busyDay, fullHeight: true,
                     Path.Combine(reviewDirectory, $"stats-{stem}.png"));
-                foreach (var tileWidth in new[] { 380, 900 })
-                    RenderDayTile(Path.Combine(dataDirectory, "daytile-" + counter++), records, tileWidth,
-                        Path.Combine(reviewDirectory, $"daytile-{stem}-{tileWidth}.png"));
+                foreach (var density in new[] { TileDensity.Full, TileDensity.Mini })
+                    foreach (var tileWidth in new[] { 380, 900 })
+                        RenderDayTile(Path.Combine(dataDirectory, "daytile-" + counter++), records, tileWidth, density,
+                            Path.Combine(reviewDirectory, $"daytile-{stem}-{density.ToString().ToLowerInvariant()}-{tileWidth}.png"));
                 ReviewSettings.Render(dataDirectory, reviewDirectory, stem);
                 ReviewDialogs.Render(stem, reviewDirectory);
             }
@@ -223,12 +224,12 @@ internal static class Program
 
     /// <summary>The widget's usage-per-day tile alone at a given width (the review mode's widget shots
     /// keep it hidden), so the week count that fits a wide widget can be looked at.</summary>
-    private static void RenderDayTile(string dataDirectory, IReadOnlyList<StatsRecord> records, double width, string outputPath)
+    private static void RenderDayTile(string dataDirectory, IReadOnlyList<StatsRecord> records, double width, TileDensity density, string outputPath)
     {
         Directory.CreateDirectory(dataDirectory);
         var store = new StatsStore(dataDirectory);
         store.AddDelta(records);
-        var tileViewModel = new DayGridTileViewModel(store) { Density = TileDensity.Full };
+        var tileViewModel = new DayGridTileViewModel(store) { Density = density };
         // Pump instead of blocking: the refresh resumes on this dispatcher after its background load.
         var refresh = tileViewModel.RefreshAsync();
         PumpUntil(() => refresh.IsCompleted, TimeSpan.FromSeconds(30), settle: TimeSpan.Zero);

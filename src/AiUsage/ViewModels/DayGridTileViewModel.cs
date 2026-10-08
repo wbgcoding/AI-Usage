@@ -61,8 +61,8 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     private bool canMoveDown = true;
 
     /// <summary>Full/Mini, assigned by MainWindow exactly like a provider tile's own <see
-    /// cref="ProviderTileViewModel.Density"/> - Mini is this spec's "Small": a single narrow strip of
-    /// the last seven days, no weekday/month labels, no legend (see <see cref="ShowAxisLabels"/>/
+    /// cref="ProviderTileViewModel.Density"/> - Mini is this spec's "Small": a single row of the most
+    /// recent days, as many as the width fits, no weekday/month labels, no legend (see <see cref="ShowAxisLabels"/>/
     /// <see cref="ShowLegend"/>).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowLegend))]
@@ -108,8 +108,8 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     /// column or the month row either.</summary>
     public bool ShowAxisLabels => Density != TileDensity.Mini;
 
-    /// <summary>Mini only: the last seven days as one row, not as the week-column that would split
-    /// them over two partial columns.</summary>
+    /// <summary>Mini only: the most recent days as one row across the whole width, not as
+    /// week-columns.</summary>
     public bool ShowAsStrip => Density == TileDensity.Mini;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
@@ -123,7 +123,7 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
         $"{HeaderDisplayName}: {LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]}";
 
     /// <summary>The header row's own right-hand figure: the total of whatever span is actually shown
-    /// (the visible weeks at Full, the last seven days at Mini) - not the whole year, so it
+    /// (the visible weeks at Full, the visible days at Mini) - not the whole year, so it
     /// always agrees with what the grid underneath it is drawing.</summary>
     public string TotalText => StatsAggregator.ShortenTokenCountCompact(
         _allDays.Where(day => day.Day >= RangeStart && day.Day <= RangeEnd).Sum(day => day.Total),
@@ -231,24 +231,26 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     }
 
     /// <summary>How many of the most recent weeks fit <paramref name="availableWidth"/> at the grid's
-    /// normal cell size - Mini always answers 1 (its single strip is always exactly the last seven
-    /// days, whatever the width). Not capped (the tile reaches back as far as its width allows) and
-    /// never less than 1 (at least the current week always shows, however narrow the tile).</summary>
-    internal static int ComputeVisibleWeeks(TileDensity density, double availableWidth)
-    {
-        if (density == TileDensity.Mini)
-            return 1;
+    /// normal cell size. Not capped (the tile reaches back as far as its width allows) and never less
+    /// than 1 (at least the current week always shows, however narrow the tile).</summary>
+    internal static int ComputeVisibleWeeks(double availableWidth) => StatsMonthGrid.ColumnsFitting(availableWidth);
 
-        return StatsMonthGrid.ColumnsFitting(availableWidth);
-    }
+    /// <summary>How many of the most recent days the Mini strip shows: as many as fit <paramref
+    /// name="availableWidth"/> in one row, the last seven while the tile has no width yet.</summary>
+    internal static int ComputeVisibleDays(double availableWidth) =>
+        availableWidth > 0 ? StatsMonthGrid.StripCellsFitting(availableWidth) : 7;
 
     /// <summary>The first day the current density and width show for <paramref name="today"/>.</summary>
     private DateOnly WantedRangeStart(DateOnly today)
     {
         if (Density == TileDensity.Mini)
-            return today.AddDays(-6);
+        {
+            // Never before the first representable day: a bogus width must not underflow the date.
+            var days = Math.Min(ComputeVisibleDays(AvailableWidth), today.DayNumber - DateOnly.MinValue.DayNumber + 1);
+            return today.AddDays(-(days - 1));
+        }
 
-        var weeks = ComputeVisibleWeeks(Density, AvailableWidth);
+        var weeks = ComputeVisibleWeeks(AvailableWidth);
         var weekStart = StatsAggregator.WeekStart(today);
         // Never before the first representable week: a bogus width must not underflow the date.
         weeks = Math.Min(weeks, Math.Max(1, (weekStart.DayNumber - DateOnly.MinValue.DayNumber) / 7));
