@@ -1,0 +1,141 @@
+<Window x:Class="AiUsage.Views.SignInWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+        xmlns:services="clr-namespace:AiUsage.Services"
+        Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Title]}"
+        Icon="pack://application:,,,/AI-Usage;component/Assets/app.ico"
+        RenderOptions.BitmapScalingMode="HighQuality"
+        WindowStyle="None"
+        Background="{DynamicResource Bg.Base}"
+        FontFamily="{DynamicResource Font.Ui}"
+        Width="480" Height="640"
+        WindowStartupLocation="CenterScreen"
+        Foreground="{DynamicResource Text.Primary}">
+    <!-- A plain opaque background, unlike the other windows' Bg.Window: the browser control is a
+         native child window that a translucent brush cannot compose behind, so this stays solid.
+         Rounded corners still come through fine (WindowChromeNative.Bootstrap in the code-behind) -
+         that is a window-manager-level clip, not WPF compositing, so it works the same here as
+         everywhere else. -->
+    <!-- WindowStyle="None" alone still leaves Windows 10/11 drawing a white resize strip along the
+         top edge. A shell WindowChrome with no caption and no glass frame takes over the whole
+         non-client area, so only the app's own title bar shows while the edges still resize the
+         window. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="6"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <!-- Same rounded-track geometry as the themed bar in Views/Controls/UsageBar.xaml (Track /
+             Border.Control / 4px corner radius), replicated here rather than referenced: that style
+             is scoped to UsageBar's own UserControl.Resources (not visible from this window) and,
+             like TitleBar.xaml/ProviderTile.xaml/UsageBar.xaml, a control used in exactly one place
+             keeps its style local rather than being promoted to a shared dictionary. Unlike the usage
+             bar's value-bound fill, this one actually needs an indeterminate animation, since there is
+             no percent to show while the page is still loading. -->
+        <!-- Not in Tokens.xaml, same as the equivalent radius in UsageBar.xaml: half of this bar's
+             own 8px height, geometry rather than a design token. Kept as a named resource (instead of
+             a bare literal) purely so the value is not typed twice below. -->
+        <CornerRadius x:Key="LoadingBarRadius">4</CornerRadius>
+        <Style x:Key="LoadingProgressBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="Width" Value="200"/>
+            <Setter Property="IsIndeterminate" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border Background="{DynamicResource Track}" CornerRadius="{StaticResource LoadingBarRadius}"
+                                    BorderBrush="{DynamicResource Border.Control}" BorderThickness="1"/>
+                            <Border CornerRadius="{StaticResource LoadingBarRadius}" ClipToBounds="True">
+                                <Rectangle x:Name="Indicator" Width="70" RadiusX="4" RadiusY="4"
+                                           HorizontalAlignment="Left" Fill="{DynamicResource Accent}">
+                                    <Rectangle.RenderTransform>
+                                        <TranslateTransform x:Name="IndicatorTransform" X="-70"/>
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsIndeterminate" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard Timeline.DesiredFrameRate="60">
+                                            <DoubleAnimation Storyboard.TargetName="IndicatorTransform" Storyboard.TargetProperty="X"
+                                                             From="-70" To="200" Duration="0:0:1.2" RepeatBehavior="Forever"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <DockPanel LastChildFill="True">
+        <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top" ShowEyeMenu="False" ShowRefresh="False"
+                           ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
+                           TitleText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Title]}"
+                           CloseRequested="TitleBarControl_CloseRequested"/>
+        <!-- An explicit arrow for everything the app draws here: the notices stand where the page
+             was, and the page's own cursor request must not carry over onto them. -->
+        <Grid Cursor="Arrow">
+            <wv2:WebView2 x:Name="Browser"/>
+            <StackPanel x:Name="LoadingPanel" Margin="{StaticResource Space.Xl}" VerticalAlignment="Center">
+                <ProgressBar Style="{StaticResource LoadingProgressBarStyle}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Loading]}"
+                           FontSize="{StaticResource Font.Size.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
+                           TextAlignment="Center" Foreground="{DynamicResource Text.Secondary}"/>
+            </StackPanel>
+            <!-- Takes the window the same way the runtime-missing panel does, and for the same
+                 reason: the page is a native child window that WPF content is never drawn over, so
+                 the code-behind hides the page while this stands and brings it back on dismiss. The
+                 blocked navigation never moved the page, so the user lands where the login stopped. -->
+            <StackPanel x:Name="BlockedPanel" Visibility="Collapsed" Margin="{StaticResource Space.Xl}" VerticalAlignment="Center">
+                <TextBlock x:Name="BlockedHeadText" FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold"
+                           TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock x:Name="BlockedReasonText" FontSize="{StaticResource Font.Size.Body}" Margin="0,8,0,0"
+                           TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource Text.Secondary}"/>
+                <WrapPanel HorizontalAlignment="Center" Margin="0,12,0,0">
+                    <!-- The safe choice comes first and is the prominent one. -->
+                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Blocked.Action]}"
+                            Style="{StaticResource AiUsageButton}" Margin="0,0,8,0"
+                            Click="DismissBlockedNotice_Click"/>
+                    <!-- The allow-list is the default and stays the default: this button is the one
+                         way past it, it is the user's own decision on a host the notice has just
+                         named, and it holds only for as long as this window is open. A provider that
+                         adds a step on a new host is a sign-in that can be finished today instead of
+                         waiting for the list to be corrected. It is a plain secondary button so it
+                         does not read as the recommended choice. -->
+                    <Button x:Name="AllowBlockedButton"
+                            Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Blocked.Allow]}"
+                            Style="{StaticResource AiUsageQuietButton}"
+                            Click="AllowBlockedHost_Click"/>
+                </WrapPanel>
+            </StackPanel>
+            <!-- Same reasoning and layout as BlockedPanel above: a session already signed in bounces
+                 straight back off the login page, and this stands in for the window that would
+                 otherwise have closed before the user saw anything. -->
+            <StackPanel x:Name="AlreadySignedInPanel" Visibility="Collapsed" Margin="{StaticResource Space.Xl}" VerticalAlignment="Center">
+                <TextBlock x:Name="AlreadySignedInHeadText" FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold"
+                           TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock x:Name="AlreadySignedInReasonText" FontSize="{StaticResource Font.Size.Body}" Margin="0,8,0,0"
+                           TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource Text.Secondary}"/>
+                <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Blocked.Action]}"
+                        Style="{StaticResource AiUsageButton}" HorizontalAlignment="Center" Margin="0,12,0,0"
+                        Click="CloseAlreadySignedIn_Click"/>
+            </StackPanel>
+            <StackPanel x:Name="RuntimeMissingPanel" Visibility="Collapsed" Margin="{StaticResource Space.Xl}" VerticalAlignment="Center">
+                <TextBlock x:Name="RuntimeMissingHeadText" FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
+                           TextAlignment="Center" Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock x:Name="RuntimeMissingReasonText" FontSize="{StaticResource Font.Size.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
+                           TextAlignment="Center" Foreground="{DynamicResource Text.Secondary}"/>
+                <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[State.RuntimeMissing.Action]}"
+                        Style="{StaticResource AiUsageButton}" HorizontalAlignment="Center" Margin="0,12,0,0"
+                        Click="OpenDownloadPage_Click"/>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+</Window>

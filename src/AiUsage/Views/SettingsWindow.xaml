@@ -1,0 +1,899 @@
+<Window x:Class="AiUsage.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+        xmlns:services="clr-namespace:AiUsage.Services"
+        Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Title]}"
+        Icon="pack://application:,,,/AI-Usage;component/Assets/app.ico"
+        RenderOptions.BitmapScalingMode="HighQuality"
+        WindowStyle="None"
+        Background="{DynamicResource Bg.Window}"
+        FontFamily="{DynamicResource Font.Ui}"
+        Width="560" SizeToContent="Height" MinWidth="480" MinHeight="230"
+        WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource Text.Primary}">
+    <!-- This window resizes, so it keeps the native sizing frame - and that frame is what Windows
+         10/11 draw a white strip along the top edge with while WindowStyle="None" leaves the rest of
+         the non-client area empty. A shell WindowChrome with no caption and no glass frame takes the
+         whole non-client area over, exactly as SignInWindow.xaml already does it: only this app's own
+         title bar shows, and every edge still resizes the window. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="6"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Bg.Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}"/>
+            <Setter Property="Padding" Value="{StaticResource Space.M}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="CardHeading" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Strong}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+        <Style TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="ThemeSwatch" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource Radius.Control}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                </DataTrigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The sidebar's own rows: flat, no default ListBox selection box, the selected row marked
+             by a 3 px accent bar on its left instead. -->
+        <Style x:Key="CategoryItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="8,4,4,4"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="BorderThickness" Value="3,0,0,0"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- One row style for the whole window: the vertical rhythm between rows lives
+             here, once, instead of a per-element Margin repeated at every call site. A style whose
+             TargetType is the common base (FrameworkElement/TextBlock/CheckBox/TextBox/Button) can
+             still be applied to any of that type's more specific subclasses; the *.GapS/GapM variants
+             are BasedOn the element's own already-styled type (never a plain FrameworkElement one) so
+             a CheckBox, TextBox or Button keeps its normal appearance and only gains the extra top
+             margin. -->
+        <Style x:Key="Gap.Top4" TargetType="FrameworkElement">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="Gap.Top8" TargetType="FrameworkElement">
+            <Setter Property="Margin" Value="0,8,0,0"/>
+        </Style>
+        <Style x:Key="Gap.Bottom8" TargetType="FrameworkElement">
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <!-- A group heading inside a settings card: the field label look, one weight stronger, with
+             the same 16 px gap the other pages leave between their card sections. -->
+        <Style x:Key="GroupHeading" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,16,0,0"/>
+        </Style>
+        <Style x:Key="GroupHeading.First" TargetType="TextBlock" BasedOn="{StaticResource GroupHeading}">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style x:Key="FieldLabel.Tight" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <!-- The one top gap every field label above a control uses now, replacing the 8 px and
+             12 px variants that used to disagree with each other for no reason. -->
+        <Style x:Key="FieldLabel.Top8" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+        <Style x:Key="TextBlock.GapS" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="CheckBox.GapS" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="CheckBox.GapM" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Margin" Value="0,8,0,0"/>
+        </Style>
+        <Style x:Key="TextBox.GapS" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="AiUsageButton.GapTop8" TargetType="Button" BasedOn="{StaticResource AiUsageButton}">
+            <Setter Property="Margin" Value="0,8,0,0"/>
+        </Style>
+        <!-- The row of buttons in a WrapPanel (data folder, logs, export/import, reset): each one
+             keeps its own right and bottom gap so a wrapped row keeps the same spacing regardless of
+             where it breaks. -->
+        <Style x:Key="AiUsageButton.Wrapped" TargetType="Button" BasedOn="{StaticResource AiUsageButton}">
+            <Setter Property="Margin" Value="0,0,8,8"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+    <Border x:Name="ChromeBorder" Style="{StaticResource WindowChrome}">
+        <DockPanel LastChildFill="True">
+            <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top" ShowEyeMenu="False" ShowRefresh="False"
+                               ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
+                               TitleText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Title]}"
+                               CloseRequested="TitleBarControl_CloseRequested"/>
+            <!-- HorizontalScrollBarVisibility stays at its Disabled default here, which is what
+                 pins the content to the window's own width: a scroll region that could scroll
+                 sideways would measure every wrapping label below at unlimited width, so the label
+                 would report the width of its longest single line and be cut off instead. -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          Padding="{StaticResource Space.M}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar: one category visible at a time on the right, switched here instead of
+                 five stacked cards. -->
+            <ListBox x:Name="CategoryList" Grid.Column="0" Margin="0,0,8,0" Background="Transparent" BorderThickness="0"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ItemsSource="{Binding Categories}" ItemContainerStyle="{StaticResource CategoryItem}"
+                     SelectedValuePath="Value" SelectedValue="{Binding SelectedCategory, Mode=TwoWay}"
+                     SelectionChanged="CategoryList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Label}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Content host: all six category panels share this one cell, but only the selected one
+                 is Visible - every other one is Collapsed, so it takes no space here at all. This
+                 cell therefore sizes to the ONE visible panel, and since it sits next to the sidebar
+                 in the same Grid row, the row (and with it the window, via SizeToContent="Height")
+                 comes out to whichever of the two is taller: the sidebar for a short category, the
+                 category itself for a tall one. See SettingsWindow.xaml.cs for why switching also
+                 has to re-assert SizeToContent explicitly. -->
+            <Grid Grid.Column="1">
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedCategory}" Value="Display">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <!-- 1. Anzeige -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Display]}" Style="{StaticResource CardHeading}"/>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Appearance]}" Style="{StaticResource GroupHeading.First}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Theme]}" Style="{StaticResource FieldLabel}"/>
+                    <ItemsControl ItemsSource="{Binding ThemeChoices}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource ThemeSwatch}"
+                                        Command="{Binding DataContext.SetThemeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding Value}"
+                                        AutomationProperties.Name="{Binding Label}">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <Ellipse Width="14" Height="14" Fill="{Binding BgPreview}" Margin="0,0,4,0"/>
+                                            <Ellipse Width="14" Height="14" Fill="{Binding AccentPreview}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Label}" FontSize="{StaticResource Font.Size.Micro}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Slider Grid.Row="0" Grid.Column="0" Minimum="20" Maximum="100" Value="{Binding WindowOpacityPercent, Mode=TwoWay}"
+                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding WindowOpacityLabel}" FontSize="{StaticResource Font.Size.Small}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <!-- Plain numerals, not localized text: the readable reference points the
+                             20-100 range needs (minimum, midpoint, maximum), same meaning in every
+                             language. -->
+                        <Grid Grid.Row="1" Grid.Column="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="20" HorizontalAlignment="Left"
+                                       FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Secondary}"/>
+                            <TextBlock Grid.Column="1" Text="60" HorizontalAlignment="Center"
+                                       FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Secondary}"/>
+                            <TextBlock Grid.Column="2" Text="100" HorizontalAlignment="Right"
+                                       FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Secondary}"/>
+                        </Grid>
+                    </Grid>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowTooltips]}"
+                              IsChecked="{Binding ShowTooltips}" Style="{StaticResource CheckBox.GapS}"/>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
+                    <!-- Arrangement and tile density sit side by side: two short pickers that belong to
+                         the same decision, and stacking them cost a whole row of the card for nothing. -->
+                    <Grid Style="{StaticResource Gap.Top4}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}" Style="{StaticResource FieldLabel.Tight}"/>
+                            <ComboBox ItemsSource="{Binding LayoutChoices}"
+                                      SelectedItem="{Binding SelectedLayoutChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}" Style="{StaticResource FieldLabel.Tight}"/>
+                            <ComboBox ItemsSource="{Binding Main.DensityChoices}"
+                                      SelectedItem="{Binding Main.SelectedDensityChoice, Mode=TwoWay}"
+                                      ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.TileDensity]}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
+                    <ItemsControl ItemsSource="{Binding Main.Tiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding DataContext.Main.ToggleHiddenCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding ProviderId}"
+                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Visibility]}"
+                                        AutomationProperties.Name="{Binding ToggleVisibilityActionText}"
+                                        Style="{StaticResource AiUsageQuietButton}"
+                                        Padding="4,4" MinHeight="28" MinWidth="0" Margin="0,0,4,4" Cursor="Hand"
+                                        HorizontalContentAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Width="18" Height="14" Stretch="Uniform" Margin="0,0,8,0"
+                                              Fill="{DynamicResource Text.Primary}">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Data" Value="{StaticResource Icon.Eye}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsHidden}" Value="True">
+                                                            <Setter Property="Data" Value="{StaticResource Icon.EyeOff}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                        <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Chart]}" Style="{StaticResource GroupHeading}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ComboBox ItemsSource="{Binding ChartRangeChoices}"
+                              SelectedItem="{Binding SelectedChartRangeChoice, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}"
+                              HorizontalAlignment="Left"/>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PreviousWeekLine]}" IsChecked="{Binding ShowPreviousWeekLine}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartPerProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ItemsControl ItemsSource="{Binding Main.Tiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding HeaderDisplayName}" IsChecked="{Binding ChartShown}"
+                                          Margin="0,4,16,4"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Window]}" Style="{StaticResource GroupHeading}"/>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AlwaysOnTop]}" IsChecked="{Binding Main.AlwaysOnTop}"/>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" IsChecked="{Binding Main.ClickThrough}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThroughHint]}"
+                               Style="{StaticResource Gap.Top4}"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Warn}"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding Main.ClickThrough, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tray]}" Style="{StaticResource GroupHeading}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TrayProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <!-- Whose usage, then which of its windows: the second list only offers the
+                         windows the first one's pick actually reports. -->
+                    <WrapPanel>
+                        <ComboBox ItemsSource="{Binding Main.TrayProviderChoices}"
+                                  SelectedItem="{Binding Main.SelectedTrayProviderChoice, Mode=TwoWay}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.TrayProvider]}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TrayProvider]}"
+                                  Margin="0,0,8,4"/>
+                        <ComboBox ItemsSource="{Binding Main.TrayWindowChoices}"
+                                  Visibility="{Binding Main.TrayWindowEnabled, Converter={StaticResource BoolToVis}}"
+                                  SelectedItem="{Binding Main.SelectedTrayWindowChoice, Mode=TwoWay}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.TrayWindow]}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TrayWindow]}"
+                                  Margin="0,0,0,4"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedCategory}" Value="Updates">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <!-- 2. Aktualisierung -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Updates]}" Style="{StaticResource CardHeading}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}" Style="{StaticResource FieldLabel}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0" Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}"
+                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding RefreshSecondsLabel}" FontSize="{StaticResource Font.Size.Small}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <Slider Minimum="1" Maximum="60" Value="{Binding RemoteRefreshMinutes, Mode=TwoWay}"
+                            AutomationProperties.Name="{Binding RemoteIntervalLabelText}"/>
+
+                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}" Style="{StaticResource AiUsageButton.GapTop8}"
+                            Command="{Binding RefreshNowCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LastSuccessfulUpdate]}" Style="{StaticResource FieldLabel}"/>
+                    <ItemsControl ItemsSource="{Binding Main.Tiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Margin="0,0,16,0"><Run Text="{Binding HeaderDisplayName, Mode=OneWay}"/><Run Text=": "/><Run Text="{Binding LastSuccessAgeText, Mode=OneWay}"/></TextBlock>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedCategory}" Value="Notifications">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <!-- 3. Meldungen -->
+            <Border Style="{StaticResource Card}">
+                <Border.Resources>
+                    <ResourceDictionary Source="Controls/CollapsibleSection.xaml"/>
+                </Border.Resources>
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Notifications]}" Style="{StaticResource CardHeading}"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding DefaultThresholdLabelText}" VerticalAlignment="Center"/>
+                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}"
+                                  IsChecked="{Binding DefaultThresholdEnabled}"
+                                  AutomationProperties.Name="{Binding DefaultThresholdEnabledFullLabel}"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding DefaultThreshold, Mode=TwoWay}"
+                                AutomationProperties.Name="{Binding DefaultThresholdLabelText}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding DefaultThresholdValueText}" FontSize="{StaticResource Font.Size.Small}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="{Binding LevelExplainerText}" FontSize="{StaticResource Font.Size.Small}"
+                               Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnReset]}"
+                              IsChecked="{Binding NotifyOnReset}" Style="{StaticResource CheckBox.GapS}"/>
+
+                    <Grid Style="{StaticResource Gap.Top8}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionMaxAge]}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding AttentionMaxAgeChoices}"
+                                  SelectedItem="{Binding SelectedAttentionMaxAgeChoice, Mode=TwoWay}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionMaxAge.Tip]}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionMaxAge]}"/>
+                    </Grid>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionPerProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ItemsControl ItemsSource="{Binding Main.Tiles}" IsEnabled="{Binding ShowAttentionMark}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding HeaderDisplayName}" IsChecked="{Binding AttentionEnabled}"
+                                          ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.AttentionPerProvider]}"
+                                          Margin="0,4,16,4"
+                                          Visibility="{Binding SupportsAttention, Converter={StaticResource BoolToVis}}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Orientation="Horizontal" Style="{StaticResource Gap.Top8}">
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}"
+                                  IsChecked="{Binding QuietHoursEnabled}" VerticalAlignment="Center"/>
+                        <TextBox Width="56" Margin="8,0,0,0" VerticalAlignment="Center"
+                                 Text="{Binding QuietHoursStartText, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding QuietHoursStartInvalid}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
+                                            <Setter Property="BorderThickness" Value="2"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHoursAnd]}"
+                                   VerticalAlignment="Center" Margin="8,0,8,0"/>
+                        <TextBox Width="56" VerticalAlignment="Center"
+                                 Text="{Binding QuietHoursEndText, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding QuietHoursEndInvalid}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
+                                            <Setter Property="BorderThickness" Value="2"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TimeInvalid]}"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}">
+                        <!-- One line for both fields: the two red borders already show which field is meant,
+                             so this only needs to appear, not repeat itself, when either flag is set. -->
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource TextBlock.GapS}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding QuietHoursStartInvalid}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding QuietHoursEndInvalid}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PerProvider]}"
+                               FontWeight="SemiBold" Margin="0,16,0,4"/>
+                    <!-- One collapsible row per tile (keyed by account key, so a second account gets its own row):
+                         collapsed it names the provider and a one-word summary, expanded it holds that provider's
+                         own switches and threshold override. -->
+                    <ItemsControl ItemsSource="{Binding NotificationRows}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <controls:CollapsibleSection Title="{Binding HeaderDisplayName}" Summary="{Binding SummaryText}"
+                                                             IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,4">
+                                    <StackPanel Margin="16,0,0,8">
+                                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotificationsForThisProvider]}"
+                                                  IsChecked="{Binding NotificationsEnabled}"
+                                                  AutomationProperties.Name="{Binding NotificationsEnabledFullLabel}"/>
+                                        <StackPanel IsEnabled="{Binding NotificationsEnabled}">
+                                            <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnResetForProvider]}"
+                                                      IsChecked="{Binding NotifyOnResetEnabled}" Style="{StaticResource CheckBox.GapS}"
+                                                      AutomationProperties.Name="{Binding NotifyOnResetEnabledFullLabel}"/>
+                                            <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OwnThreshold]}"
+                                                      IsChecked="{Binding Threshold.UseCustom}" Style="{StaticResource CheckBox.GapS}"
+                                                      AutomationProperties.Name="{Binding Threshold.OwnThresholdFullLabel}"/>
+                                            <StackPanel Visibility="{Binding Threshold.UseCustom, Converter={StaticResource BoolToVis}}">
+                                                <StackPanel Style="{StaticResource Gap.Top8}" Visibility="{Binding Tile.HasFiveHourWindow, Converter={StaticResource BoolToVis}, FallbackValue=Visible}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.FiveHour]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
+                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.FiveHourEnabled}"
+                                                                  AutomationProperties.Name="{Binding Threshold.FiveHourEnabledFullLabel}"/>
+                                                    </Grid>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.FiveHour, Mode=TwoWay}"
+                                                                AutomationProperties.Name="{Binding Threshold.FiveHourFullLabel}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Threshold.FiveHourLabel}" FontSize="{StaticResource Font.Size.Small}"
+                                                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                                <StackPanel Style="{StaticResource Gap.Top8}" Visibility="{Binding Tile.HasWeeklyWindow, Converter={StaticResource BoolToVis}, FallbackValue=Visible}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.Weekly]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
+                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.WeeklyEnabled}"
+                                                                  AutomationProperties.Name="{Binding Threshold.WeeklyEnabledFullLabel}"/>
+                                                    </Grid>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.Weekly, Mode=TwoWay}"
+                                                                AutomationProperties.Name="{Binding Threshold.WeeklyFullLabel}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Threshold.WeeklyLabel}" FontSize="{StaticResource Font.Size.Small}"
+                                                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                                <StackPanel Style="{StaticResource Gap.Top8}" Visibility="{Binding Tile.HasOtherWindow, Converter={StaticResource BoolToVis}, FallbackValue=Visible}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.Other]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
+                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.OtherEnabled}"
+                                                                  AutomationProperties.Name="{Binding Threshold.OtherEnabledFullLabel}"/>
+                                                    </Grid>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.Other, Mode=TwoWay}"
+                                                                AutomationProperties.Name="{Binding Threshold.OtherFullLabel}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Threshold.OtherLabel}" FontSize="{StaticResource Font.Size.Small}"
+                                                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </controls:CollapsibleSection>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedCategory}" Value="Providers">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <!-- 4. Anbieter -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Providers]}" Style="{StaticResource CardHeading}"/>
+                    <ItemsControl ItemsSource="{Binding Main.Tiles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Style="{StaticResource Gap.Bottom8}">
+                                    <TextBlock Text="{Binding HeaderDisplayName}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding SettingsRowText, Mode=OneWay}" TextWrapping="Wrap"
+                                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                                    <ItemsControl ItemsSource="{Binding WindowToggles}" Style="{StaticResource Gap.Top4}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsVisible}" Margin="0,4,16,4"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <!-- Sign in/out drive the exact same paths as the tile's own
+                                         header button and context-menu entry (WebSignInFlow.Open,
+                                         MainViewModel.SignOutAsync) - no second implementation, just
+                                         a second entry point into the same two calls. Visibility comes
+                                         straight from the tile's own ShowSignIn/ShowSignOut, never a
+                                         rule of this window's own. -->
+                                    <WrapPanel Style="{StaticResource Gap.Top4}">
+                                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SignIn]}"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" Margin="0,0,8,0"
+                                                Visibility="{Binding ShowSignIn, Converter={StaticResource BoolToVis}}"
+                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.SignIn]}"
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SignIn]}"
+                                                Click="SignIn_Click"/>
+                                        <controls:RefreshGlyph x:Name="SignInSpinner" Width="14" Height="14" Margin="0,0,8,0" Visibility="Collapsed"
+                                               Fill="{DynamicResource Text.Secondary}"/>
+                                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SignOut]}"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" Margin="0,0,8,0"
+                                                Visibility="{Binding ShowSignOut, Converter={StaticResource BoolToVis}}"
+                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.SignOut]}"
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SignOut]}"
+                                                Click="SignOut_Click"/>
+                                        <controls:RefreshGlyph x:Name="SignOutSpinner" Width="14" Height="14" Margin="0,0,8,0" Visibility="Collapsed"
+                                               Fill="{DynamicResource Text.Secondary}"/>
+                                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AddAccount]}"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" Margin="0,0,8,0"
+                                                Visibility="{Binding SupportsAddAccount, Converter={StaticResource BoolToVis}}"
+                                                Command="{Binding DataContext.AddAccountCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding RealProviderId}"/>
+                                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RemoveAccount]}"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4"
+                                                Visibility="{Binding IsExtraAccount, Converter={StaticResource BoolToVis}}"
+                                                Command="{Binding DataContext.RemoveAccountCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding ProviderId}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedCategory}" Value="System">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <!-- 5. System -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.System]}" Style="{StaticResource CardHeading}"/>
+                    <StackPanel>
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Autostart]}" IsChecked="{Binding Autostart}"/>
+
+                        <!-- The version check is about this installation, not about a message the app
+                             sends out - it belongs with autostart, the data folder and the logs rather
+                             than in the notifications card it used to sit in. -->
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.CheckForUpdates]}"
+                                  IsChecked="{Binding CheckForUpdates}" Style="{StaticResource CheckBox.GapS}"/>
+
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Hotkey]}"
+                                  IsChecked="{Binding Main.HotkeyEnabled}" Style="{StaticResource CheckBox.GapM}"/>
+                        <TextBox x:Name="HotkeyCaptureBox" Width="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
+                                 Text="{Binding Main.HotkeyText, Mode=OneWay}" IsReadOnly="True" Focusable="True"
+                                 PreviewKeyDown="HotkeyCaptureBox_PreviewKeyDown"
+                                 ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}"
+                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyTaken]}"
+                                   Style="{StaticResource TextBlock.GapS}"
+                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}"
+                                   Visibility="{Binding Main.HotkeyTaken, Converter={StaticResource BoolToVis}}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyNeedsModifier]}"
+                                   Style="{StaticResource TextBlock.GapS}"
+                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}"
+                                   Visibility="{Binding Main.HotkeyNeedsModifier, Converter={StaticResource BoolToVis}}"/>
+
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}" Style="{StaticResource FieldLabel.Top8}"/>
+                        <ComboBox ItemsSource="{Binding LanguageChoices}"
+                                  SelectedItem="{Binding SelectedLanguageChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}"
+                                  HorizontalAlignment="Left"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RetentionLabel]}" Style="{StaticResource FieldLabel}"/>
+                    <!-- The chosen span and the size on disk sit under the slider rather than beside
+                         it: the two of them together are longer than the slider itself at this window
+                         width, and a column that has to share the row with a slider can only cut them
+                         off. -->
+                    <Slider Minimum="7" Maximum="3650" Value="{Binding HistoryRetentionDays, Mode=TwoWay}"
+                            AutomationProperties.Name="{Binding RetentionFullLabel}"/>
+                    <TextBlock Text="{Binding RetentionSummaryText, Mode=OneWay}" TextWrapping="Wrap"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                               Margin="0,4,0,0"/>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.DataFolder]}" Style="{StaticResource FieldLabel.Top8}"
+                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.DataFolder]}"/>
+                    <!-- Read-only TextBox, not a TextBlock, for the same reason the old About window's own
+                         DataFolderBox is one: the path is the one fact here a user might actually need
+                         to select and copy. DataFolderDisplayText trims it to one line with a middle
+                         ellipsis; the full path always stays in the tooltip. -->
+                    <TextBox Text="{Binding DataFolderDisplayText, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                             FontSize="{StaticResource Font.Size.Body}" Cursor="IBeam"
+                             ToolTip="{Binding DataFolderToolTip}" AutomationProperties.Name="{Binding DataFolderPath}"/>
+                    <TextBlock Text="{Binding DataFolderKindText}" FontSize="{StaticResource Font.Size.Small}"
+                               Foreground="{DynamicResource Text.Secondary}" Style="{StaticResource Gap.Top4}"/>
+                    <!-- WrapPanels, not horizontal StackPanels: the German labels are long enough to
+                         run past a narrow window. Every button carries its own right and bottom gap, so
+                         a wrapped row keeps the same spacing; the rows below start 8 px closer to
+                         account for that bottom gap. -->
+                    <WrapPanel Style="{StaticResource Gap.Top8}">
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChooseDataFolder]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ChooseDataFolderCommand}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.MovingData]}" FontSize="{StaticResource Font.Size.Small}"
+                                   Foreground="{DynamicResource Text.Secondary}" VerticalAlignment="Center" Margin="0,0,8,8"
+                                   Visibility="{Binding IsMovingData, Converter={StaticResource BoolToVis}}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OpenDataFolder]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding OpenDataFolderCommand}"/>
+                    </WrapPanel>
+
+                    <WrapPanel Style="{StaticResource Gap.Top8}">
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OpenLogsFolder]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding OpenLogsFolderCommand}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ExportHistory]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ExportHistoryCommand}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ResetButton]}" Style="{StaticResource AiUsageButton.Wrapped}" Click="ResetSettings_Click"/>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Export]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ExportSettingsCommand}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Import]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ImportSettingsCommand}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedCategory}" Value="About">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <!-- 6. About -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.About]}" Style="{StaticResource CardHeading}"/>
+
+                    <Image Source="{StaticResource AppMarkImage}" Width="48" Height="48" HorizontalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                    <TextBlock x:Name="AboutProductNameText" FontSize="{StaticResource Font.Size.Display}" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="AboutVersionText" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="AboutCopyrightText" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" HorizontalAlignment="Center" Margin="0,4,0,8"/>
+                    <TextBlock x:Name="AboutDeliveryFormText" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" HorizontalAlignment="Center" Margin="0,0,0,0" Visibility="Collapsed"/>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Repository]}" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="AboutArchiveLinkBox" Grid.Column="0" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                 Foreground="{DynamicResource Accent}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center" Cursor="IBeam"/>
+                        <Button x:Name="AboutOpenArchiveButton" Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="8,4" Click="AboutOpenArchive_Click"
+                                Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Open]}"/>
+                    </Grid>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.License]}" FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Muted}" Margin="0,8,0,0"/>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.WhatThisReads]}" FontWeight="SemiBold" Margin="0,16,0,4"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.ReadsOnly]}"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" Margin="0,0,0,8"/>
+                    <StackPanel x:Name="AboutReadLocationsPanel"/>
+
+                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.CopyAll]}" Style="{StaticResource AiUsageButton}" HorizontalAlignment="Left" Margin="0,16,0,0" Click="AboutCopyAll_Click"/>
+
+                    <StackPanel x:Name="AboutUpdatePanel" Visibility="Collapsed" Margin="0,16,0,0">
+                        <TextBlock x:Name="AboutUpdateStatusText" FontSize="{StaticResource Font.Size.Small}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button x:Name="AboutInstallUpdateButton" Style="{StaticResource AiUsageButton}" Margin="0,0,8,0" Click="AboutInstallUpdate_Click"
+                                    AutomationProperties.AutomationId="AboutInstallUpdateButton"
+                                    IsEnabled="{Binding Main.Update.CanInstall}"
+                                    Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.InstallNow]}"/>
+                            <Button x:Name="AboutOpenReleasePageButton" Style="{StaticResource AiUsageButton}" Click="AboutOpenReleasePage_Click"
+                                    Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.OpenReleasePage]}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+            </Grid>
+        </Grid>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+    <Thumb Style="{StaticResource ResizeGrip}" Margin="{StaticResource Space.S}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
+    <Thumb Style="{StaticResource ResizeGrip}" Margin="{StaticResource Space.S}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
+    </Grid>
+</Window>

@@ -1,0 +1,400 @@
+<UserControl x:Class="AiUsage.Views.Controls.ProviderTile"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+             xmlns:services="clr-namespace:AiUsage.Services"
+             mc:Ignorable="d" d:DesignWidth="340">
+    <!-- The one template for every provider: density (Full/Mini)
+         and the eight tile states are all switched here through DataTriggers on the same
+         ProviderTileViewModel - never a second tile kind, never a provider name in this file. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <controls:TileWidthToVisibilityConverter x:Key="TileWidthToVisibility"/>
+
+        <!-- The provider name IS the refresh trigger now: a borderless button, hand cursor, a quiet
+             hover background, bound to RefreshCommand. It also shows a fetch in progress - a small
+             icon just after the name, invisible until IsFetching, then turning (RefreshGlyph, which stays
+             still when Windows itself has animations turned off). The icon lives in the template so
+             every tile does not share one instance.
+             HorizontalAlignment="Left" keeps the button exactly as wide as the name it carries: the
+             column it sits in is a star column, so a stretched button would light up the whole width
+             of the tile header on hover instead of just the word the pointer is over.
+             The left margin cancels the left padding, so the hover area keeps its inset while the
+             name text lines up with the window labels and bars below it. -->
+        <Style x:Key="TileNameButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="Margin" Value="-4,0,0,0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root" Background="{TemplateBinding Background}"
+                                CornerRadius="{StaticResource Radius.Control}" Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal">
+                                <ContentPresenter VerticalAlignment="Center"/>
+                                <controls:RefreshGlyph x:Name="RefreshIcon" Width="14" Height="14" Margin="4,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Fill="{DynamicResource Text.Muted}"
+                                                       IsSpinning="{Binding IsFetching}"
+                                                       Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsFetching}" Value="True">
+                                <Setter TargetName="RefreshIcon" Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The Full bar rows (one UsageBar per window). -->
+        <DataTemplate x:Key="FullRowTemplate">
+            <controls:UsageBar Margin="0,0,0,6"/>
+        </DataTemplate>
+
+        <!-- Mini's own compact row: no bar (too thin to read at a glance), just a large tabular
+             number coloured by level, an alert glyph at Warn and a warning glyph at Crit, and a thin divider between windows. -->
+        <DataTemplate x:Key="MiniRowTemplate">
+            <StackPanel Orientation="Horizontal" ToolTip="{Binding CountdownText}">
+                <!-- Hidden before the first window in the list (AlternationIndex 0) - shown before
+                     every one after that, so N windows get exactly N-1 dividers between them. -->
+                <Border Width="1" Margin="4,4,4,4" Background="{DynamicResource Border}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <DataTrigger Value="0">
+                                    <DataTrigger.Binding>
+                                        <Binding Path="(ItemsControl.AlternationIndex)" RelativeSource="{RelativeSource AncestorType=ContentPresenter}"/>
+                                    </DataTrigger.Binding>
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+                <!-- Purely decorative next to the number below, which already carries the window's
+                     automation name - no AutomationProperties.Name of its own (WPF has no
+                     AccessibilityView="Raw" the way UWP does; an unnamed Shape gets no automation
+                     peer at all here), so a screen reader no longer announces the label twice and
+                     never the percentage itself. -->
+                <Path Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                      Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
+                      Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
+                <Path Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                      Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+                <TextBlock Text="{Binding MiniPercentText}"
+                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold"
+                           Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"
+                           AutomationProperties.Name="{Binding MiniAccessibleName}">
+                    <TextBlock.Style>
+                        <!-- Ok stays Text.Primary rather than Level.Ok: that particular green fails
+                             WCAG 4.5:1 text contrast against the Light and Nebula tile background
+                             (measured ~3.8-4.0:1), even though it is a safe fill colour for the much
+                             larger area a bar covers. Warn/Crit both clear 4.5:1 in every theme, so
+                             only those two get an explicit colour on top of the shared Crit icon. -->
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Level}" Value="Warn">
+                                    <Setter Property="Foreground" Value="{DynamicResource Level.Warn}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                                    <Setter Property="Foreground" Value="{DynamicResource Level.Crit}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <!-- The reset instant's wall-clock time, next to the percent value - only once the
+                     tile is wide enough to hold both (TileWidthToVisibilityConverter on the tile's
+                     own ActualWidth); the percent value above never moves for it either way. Empty
+                     whenever no reset instant is known, regardless of width. -->
+                <TextBlock Text="{Binding ClockText}" FontFamily="{DynamicResource Font.Ui}"
+                           FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}"
+                           Typography.NumeralAlignment="Tabular" VerticalAlignment="Center" Margin="4,0,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility">
+                                <Setter.Value>
+                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=UserControl}"
+                                             Converter="{StaticResource TileWidthToVisibility}"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ClockText}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!-- MinWidth is the narrowest width that still fits the narrowest main window: a row of tiles
+         squeezed below it scrolls sideways instead of shredding every headline into two characters,
+         while a stacked tile (no sideways scrolling) can never be wider than the window. -->
+    <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}"
+            MinWidth="{StaticResource Tile.MinWidth}"
+            TextElement.Foreground="{DynamicResource Text.Primary}"
+            Focusable="True">
+        <!-- The one entry point for the usage page, the diagnostic lines and sign-out - a deliberate
+             choice to never add extra buttons on the tile itself for any of the three. Focusable="True"
+             above plus this ContextMenu is all a FrameworkElement needs for WPF's own context-menu key
+             (Shift+F10/Apps) to open it once the tile has keyboard focus - no extra key handling here. -->
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Menu.OpenUsagePage]}"
+                          Command="{Binding OpenUsagePageCommand}"/>
+                <MenuItem Header="{Binding DetailsMenuHeader}"
+                          Command="{Binding ToggleDetailsCommand}"
+                          Visibility="{Binding HasDiagnostics, Converter={StaticResource BoolToVis}}"/>
+                <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.CopyDetails]}"
+                          Command="{Binding CopyDetailsCommand}"/>
+                <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Hide]}"
+                          Command="{Binding HideCommand}"/>
+                <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SignOut]}"
+                          Command="{Binding SignOutCommand}"
+                          Visibility="{Binding ShowSignOut, Converter={StaticResource BoolToVis}}"/>
+            </ContextMenu>
+        </Border.ContextMenu>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Style.Triggers>
+                    <!-- Same dimming IsStale already uses on OkContent - one shared visual vocabulary
+                         for "this is old", whether the tile still has bars or only a placeholder. -->
+                    <DataTrigger Binding="{Binding IsSilent}" Value="True">
+                        <Setter Property="Opacity" Value="0.55"/>
+                    </DataTrigger>
+                    <!-- The one visual difference between "still climbing" (Crit, from 85%) and
+                         "actually stopped" (100%) - the existing padding already absorbs the extra
+                         pixel, so nothing else in the layout shifts. -->
+                    <DataTrigger Binding="{Binding IsLimitReached}" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
+                        <Setter Property="BorderThickness" Value="2"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header: name, plan, eye button. Collapsed in Mini - the name moves into
+                 MiniRow instead, to keep the whole tile to one line. -->
+            <Grid x:Name="HeaderRow" Grid.Row="0" Visibility="{Binding ShowHeader, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- A Grid, not a StackPanel: a StackPanel gives its children unlimited width, so a
+                     long provider name would simply run under the eye button instead of trimming. -->
+                <Grid VerticalAlignment="Center">
+                    <!-- The account name (when known) lives in this button's own tooltip now, second
+                         line after the refresh hint - see RefreshTooltipText - freeing this column's
+                         width for the name instead of a second trimmed label next to the plan. -->
+                    <Button Style="{StaticResource TileNameButtonStyle}" Command="{Binding RefreshCommand}"
+                            ToolTip="{Binding RefreshTooltipText}"
+                            AutomationProperties.Name="{Binding RefreshTooltipText}">
+                        <!-- The plan tier is a run of the same line, so it sits right after the name
+                             ("Claude Max") on a shared baseline and is the first thing trimmed. -->
+                        <TextBlock FontFamily="{DynamicResource Font.Ui}"
+                                   FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
+                                   TextTrimming="CharacterEllipsis">
+                            <Run Text="{Binding HeaderDisplayName, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding PlanText, Mode=OneWay}"
+                                 FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/>
+                        </TextBlock>
+                    </Button>
+                </Grid>
+                <!-- The gap ahead of this panel's own first child (the age line when shown, the waiting
+                     mark or the sign-in button otherwise) lives on the panel itself, not on either child - the plan/account
+                     text in the sibling name Grid carries no matching right margin, so a margin fixed to
+                     one particular child would leave whichever child ends up first touching it instead. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <!-- Kept visible through a failed fetch, deliberately: the age of the last GOOD number
+                         matters most exactly when the current one cannot be trusted, so this stays showing
+                         regardless of the Ok/placeholder/Mini content below it. Lives in the header row so
+                         the first bar starts right under the name row instead of leaving a gap above it. -->
+                    <TextBlock Text="{Binding LastUpdatedText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Micro}"
+                               Foreground="{DynamicResource Text.Muted}" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Visibility="{Binding ShowLastUpdated, Converter={StaticResource BoolToVis}}"
+                               ToolTip="{Binding LastUpdatedToolTip}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <!-- WPF only suppresses a tooltip for a null binding, not an empty string. -->
+                                    <DataTrigger Binding="{Binding LastUpdatedToolTip}" Value="">
+                                        <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <!-- The waiting mark: a borderless button around one Ellipse, visible only while
+                         IsWaitingForUser is true, that ticks the wait off on click (DismissWaitingCommand)
+                         instead of only ever clearing itself once a fresher one arrives. The tooltip and
+                         automation name both come from the same key, and no parent element repeats the
+                         name, so the screen reader reads it once. -->
+                    <Button Style="{StaticResource AiUsageQuietButton}" Padding="4" Margin="4,0,0,0"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding IsWaitingForUser, Converter={StaticResource BoolToVis}}"
+                            ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.WaitingForAnswer.Dismiss]}"
+                            AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.WaitingForAnswer.Dismiss]}"
+                            Command="{Binding DismissWaitingCommand}">
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource Level.Warn}"/>
+                    </Button>
+                    <!-- The sign-in button is the only one of the pair left here: sign-out moved into
+                         TileRoot's own context menu, since the usage page, the diagnostic lines and
+                         sign-out are all meant to be reachable only through that menu, never as extra
+                         buttons on the tile. ShowSignIn still comes from the same SignInState a
+                         provider with SupportsInAppSignIn sets once it knows either way. -->
+                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[State.NotSignedIn.Action]}"
+                            Style="{StaticResource AiUsageQuietButton}" Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"
+                            FontSize="{StaticResource Font.Size.Small}"
+                            Visibility="{Binding ShowHeaderSignIn, Converter={StaticResource BoolToVis}}"
+                            Command="{Binding RunActionCommand}"/>
+                    <!-- The per-tile hide button is gone (the context menu's "Tile.Hide" entry and the
+                         title bar's eye menu still route to the same hide command underneath), and the
+                         refresh button moved onto the provider name itself (see TileNameButtonStyle
+                         above) - one fewer control crowding the header. -->
+                </StackPanel>
+            </Grid>
+
+            <!-- Body: OK -> bars (+ diagram slot in Full) · everything else -> one shared placeholder,
+                 parameterised by HeadlineText/ReasonText/ActionLabelText. -->
+            <Grid x:Name="BodyGrid" Grid.Row="1" Margin="0,2,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Rows and the diagram slot must stack, not overlap - both can be visible together
+                     (Full density, Ok status). -->
+                <StackPanel x:Name="OkContent" Grid.Row="0" Visibility="{Binding ShowRows, Converter={StaticResource BoolToVis}}">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Style.Triggers>
+                                <!-- Dimmed, not hidden: the numbers are still the last ones that were
+                                     really read, and the age line right above says how old they are. -->
+                                <DataTrigger Binding="{Binding IsStale}" Value="True">
+                                    <Setter Property="Opacity" Value="0.55"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="{Binding ReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               Margin="0,0,0,8" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
+                               Visibility="{Binding ShowStaleNotice, Converter={StaticResource BoolToVis}}"/>
+                    <!-- Stale's own action, wired to the tile's existing refresh (not RunActionCommand,
+                         which is only for the placeholder states below) - a source that only moves
+                         through use (Codex) offers none, ErrorPresenter leaves ActionLabelText empty
+                         for it instead. -->
+                    <Button Content="{Binding ActionLabelText}" Command="{Binding RefreshCommand}"
+                            Style="{StaticResource AiUsageButton}" HorizontalAlignment="Left" Margin="0,0,0,8"
+                            Visibility="{Binding HasAction, Converter={StaticResource BoolToVis}}"/>
+                    <ItemsControl x:Name="RowsList" ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource FullRowTemplate}"/>
+
+                    <Border x:Name="DiagramPlaceholder" Height="64" Margin="0,4,0,0" CornerRadius="{StaticResource Radius.Card}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            Visibility="{Binding ShowDiagram, Converter={StaticResource BoolToVis}}">
+                        <controls:HistoryChart SizeChanged="HistoryChart_SizeChanged"
+                                                FiveHourValues="{Binding FiveHourValues}" WeeklyValues="{Binding WeeklyValues}"
+                                                PreviousWeekValues="{Binding PreviousWeekValues}"
+                                                RangeStart="{Binding RangeStart}" RangeEnd="{Binding RangeEnd}"
+                                                ShowAxes="{Binding ShowDiagram}"
+                                                FiveHourLabel="{Binding FiveHourLabelText}"
+                                                WeeklyLabel="{Binding WeeklyLabelText}"
+                                                AutomationProperties.Name="{Binding ChartSummaryText}"
+                                                EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.Empty]}"/>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel x:Name="PlaceholderPanel" Grid.Row="0" Visibility="{Binding ShowPlaceholder, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding HeadlineText}" FontFamily="{DynamicResource Font.Ui}"
+                               FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"/>
+                    <TextBlock Text="{Binding ReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Text.Secondary}"/>
+                    <TextBlock Text="{Binding SilentReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Text.Muted}"
+                               Visibility="{Binding IsSilent, Converter={StaticResource BoolToVis}}"/>
+                    <Button Content="{Binding ActionLabelText}" Command="{Binding RunPlaceholderActionCommand}"
+                            Style="{StaticResource AiUsageButton}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                            Visibility="{Binding HasAction, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+
+                <!-- Mini: one line, name + both windows' bars if OK, name + headline if not. -->
+                <Grid x:Name="MiniRow" Grid.Row="0" Visibility="{Binding IsMini, Converter={StaticResource BoolToVis}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- MaxWidth fits a numbered second account ("Claude (2)") even in the monospace
+                         theme at the smallest tile width; a longer name trims instead of pushing the
+                         numbers off. -->
+                    <TextBlock Grid.Column="0" Text="{Binding HeaderDisplayName}" FontFamily="{DynamicResource Font.Ui}"
+                               FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
+                               MaxWidth="110" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                               ToolTip="{Binding HeaderDisplayName}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding HeadlineText}" FontFamily="{DynamicResource Font.Ui}"
+                               FontSize="{StaticResource Font.Size.Small}" Margin="8,0,0,0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource Text.Secondary}"
+                               Visibility="{Binding ShowMiniHeadline, Converter={StaticResource BoolToVis}}"/>
+                    <ItemsControl Grid.Column="2" ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource MiniRowTemplate}"
+                                  Visibility="{Binding ShowMiniRows, Converter={StaticResource BoolToVis}}"
+                                  AlternationCount="100">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- The diagnostic lines, reachable from the context menu's "Tile.Menu.Details" entry
+                     in every state now, not only the empty one - a Grid row of its own rather than a
+                     child of PlaceholderPanel or OkContent, so it never overlaps either. An empty tile
+                     has to be able to say where it looked; the lines are already localised and already
+                     stripped of the user's own paths. -->
+                <StackPanel Grid.Row="1" Margin="0,8,0,0" Visibility="{Binding HasDiagnostics, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Visibility="{Binding DetailsExpanded, Converter={StaticResource BoolToVis}}">
+                        <TextBox Text="{Binding DiagnosticsText, Mode=OneWay}" IsReadOnly="True"
+                                 TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Small}" MaxHeight="120"
+                                 VerticalScrollBarVisibility="Auto" Background="Transparent"
+                                 BorderThickness="0" Padding="0"
+                                 Foreground="{DynamicResource Text.Secondary}"/>
+                        <Button Command="{Binding CopyDetailsCommand}" Style="{StaticResource AiUsageButton}"
+                                HorizontalAlignment="Left" Margin="0,8,0,0"
+                                Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.CopyDetails]}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

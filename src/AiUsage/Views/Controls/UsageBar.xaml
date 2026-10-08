@@ -1,0 +1,176 @@
+<UserControl x:Class="AiUsage.Views.Controls.UsageBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AiUsage.ViewModels"
+             xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+             mc:Ignorable="d" d:DesignWidth="316">
+    <!-- Bound entirely through the inherited DataContext (a UsageRowViewModel).
+         The fill colour swaps via DynamicResource Setters in DataTriggers, so a theme change or a
+         level change both stay live without any converter. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <vm:MarkerPositionConverter x:Key="MarkerPositionConverter"/>
+        <Style x:Key="LevelFillStyle" TargetType="Rectangle">
+            <Setter Property="Fill" Value="{DynamicResource Level.Ok.Fill}"/>
+            <Setter Property="MinWidth" Value="3"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Level}" Value="Warn">
+                    <Setter Property="Fill" Value="{DynamicResource Level.Warn.Fill}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                    <Setter Property="Fill" Value="{DynamicResource Level.Crit.Fill}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding UsedPercent}" Value="0">
+                    <Setter Property="MinWidth" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="UsageProgressBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="Value" Value="{Binding UsedPercent}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <!-- CornerRadius 4 = half of this 8 px bar's own height: geometry, not a
+                                 design token, so it is not in Tokens.xaml. The track carries no
+                                 outline in the literal themes (Track.BorderThickness 0): its own
+                                 colour sets it apart from the tile; high contrast keeps the line. -->
+                            <Border Background="{DynamicResource Track}" CornerRadius="4"
+                                    BorderBrush="{DynamicResource Border.Control}"
+                                    BorderThickness="{DynamicResource Track.BorderThickness}"/>
+                            <Border x:Name="PART_Track" Background="Transparent" CornerRadius="4" ClipToBounds="True">
+                                <Grid>
+                                    <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left" RadiusX="4" RadiusY="4"
+                                               Style="{StaticResource LevelFillStyle}"/>
+                                    <!-- The notification threshold, drawn as a thin line on top of the
+                                         fill - collapsed when that window's notification is off, and
+                                         only ever shown at Full density (ShowThresholdMarker). -->
+                                    <Rectangle x:Name="PART_ThresholdMarker" Width="1" HorizontalAlignment="Left"
+                                               Fill="{DynamicResource Text.Primary}" Opacity="0.55"
+                                               Visibility="{Binding ShowThresholdMarker, Converter={StaticResource BoolToVis}}"
+                                               ToolTip="{Binding ThresholdMarkerTooltip}">
+                                        <Rectangle.Margin>
+                                            <MultiBinding Converter="{StaticResource MarkerPositionConverter}">
+                                                <Binding Path="ThresholdPercent"/>
+                                                <Binding ElementName="PART_Track" Path="ActualWidth"/>
+                                            </MultiBinding>
+                                        </Rectangle.Margin>
+                                    </Rectangle>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <!-- ToolTip is bound even though it is empty most of the time (no Allowance on the window) - the
+         style below turns ToolTipService off entirely in that case, rather than showing an empty
+         popup, since WPF only suppresses a tooltip for a null/missing binding, not an empty string. -->
+    <Grid ToolTip="{Binding AllowanceText}">
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding AllowanceText}" Value="">
+                        <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <!-- The window label always stays (and trims itself); the token figure and the forecast
+                 sit beside it only when they fit entirely, so the percent and countdown on the right
+                 never have to give way to them. -->
+            <controls:FitOrHidePanel Grid.Column="0" Margin="0,0,8,0">
+                <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding LabelText}"
+                           FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"
+                           Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip}" VerticalAlignment="Bottom"
+                           FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                           Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding InlineTokensText}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding InlineTokensToolTip}" Value="">
+                                    <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding ForecastText}" VerticalAlignment="Bottom"
+                           FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                           Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ForecastText}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </controls:FitOrHidePanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                      Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
+                      Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
+                <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                      Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+                <!-- Never trimmed: this is the row's actual answer (percentage, state, time left and
+                     the clock), and an ellipsis here hides exactly the part that matters at the limit.
+                     The window label on the left holds the flexible column and gives way instead. The
+                     percentage leads; the countdown and clock follow smaller and greyer. -->
+                <TextBlock Text="{Binding PercentText}"
+                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Strong}" FontWeight="SemiBold"
+                           Typography.NumeralAlignment="Tabular"
+                           Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock Text="{Binding DetailText}" Margin="8,0,0,0" VerticalAlignment="Bottom"
+                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Small}"
+                           Typography.NumeralAlignment="Tabular"
+                           Foreground="{DynamicResource Text.Muted}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DetailText}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </Grid>
+        <ProgressBar Grid.Row="1" Style="{StaticResource UsageProgressBarStyle}"
+                     AutomationProperties.Name="{Binding BarAccessibleName}"/>
+    </Grid>
+</UserControl>

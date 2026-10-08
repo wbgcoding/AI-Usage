@@ -1,0 +1,2 @@
+{"timestamp":"2026-09-01T09:00:00Z","ordinal":1,"type":"event_msg","payload":{"type":"other_event"}}
+{"timestamp":"2026-09-01T09:05:00Z","ordinal":2,"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{},"last_token_usage":{},"model_context_window":258400}}}

@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyName>AI-Usage</AssemblyName>
+    <RootNamespace>AiUsage</RootNamespace>
+    <Version>1.1.0</Version>
+    <Product>AI-Usage</Product>
+    <Company>BGCoding</Company>
+    <Copyright>© 2026 BGCoding</Copyright>
+    <AssemblyTitle>AI-Usage</AssemblyTitle>
+    <Description>Shows the remaining usage limits of your AI coding assistants at a glance.</Description>
+    <InformationalVersion>1.1.0</InformationalVersion>
+    <!-- Without this the SDK appends the git commit, so the file properties read "1.0.0+50e12e2b2f...". -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- The SDK's own SourceControlManager target still shells out to git to read the commit even
+         though the line above keeps it out of the version string - a build agent isolated to its
+         own worktree cannot allow that, so this switches the query off outright. -->
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <NeutralLanguage>en</NeutralLanguage>
+    <!-- The app ships English and German only. Without this the self-contained publish bundles the
+         framework's own resource assemblies for a dozen more languages, about 9 MB per exe. -->
+    <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- Only for reading Antigravity IDE's local state.vscdb - a plain read-only key lookup, no
+         other use. MIT licensed (dotnet/efcore). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.9" />
+    <!-- Microsoft.Data.Sqlite 9.0.9 still pulls SQLitePCLRaw.lib.e_sqlite3 2.1.10, flagged with a
+         known high-severity advisory (GHSA-2m69-gcr7-jv3q) - pinned up explicitly until upstream
+         raises its own floor. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.1" />
+    <!-- The Claude web fallback only - a dedicated, persistent session separate from the user's
+         real browser profile. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AiUsage.Tests" />
+    <!-- The README screenshot tool builds the real windows from fake data through the same internal seams the tests use. -->
+    <InternalsVisibleTo Include="ReadmeShots" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Three finished tray icons, the app icon and the in-app logo - no runtime drawing. Baked into the
+         assembly as WPF pack resources so a single-file publish still finds them. -->
+    <Resource Include="Assets\tray-*.ico" />
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app-mark.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Strings.resx (EN, the fallback per NeutralLanguage above) embeds into the main assembly by
+         the SDK's own default convention. Strings.de.resx would normally route to a satellite
+         assembly (de\AI-Usage.resources.dll) because its name matches the "Name.culture.resx"
+         pattern - WithCulture=false + an explicit LogicalName instead force it into the SAME main
+         assembly under its own resource name, so a single-file publish never has to find a second
+         file on disk, and LocalizationService can pick between the two with a plain
+         ResourceManager each, no satellite/culture-fallback plumbing at all. -->
+    <EmbeddedResource Update="Resources\Strings.de.resx">
+      <WithCulture>false</WithCulture>
+      <LogicalName>AiUsage.Resources.Strings.de.resources</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

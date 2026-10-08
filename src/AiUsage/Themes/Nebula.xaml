@@ -1,0 +1,39 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Nebula (default, purple). Every theme file fills every token; none
+         inherits from another, so a theme switch is a single dictionary swap. -->
+    <SolidColorBrush x:Key="Bg.Base" Color="#1D1233"/>
+    <SolidColorBrush x:Key="Bg.Surface" Color="#291A47"/>
+    <SolidColorBrush x:Key="Bg.Raised" Color="#352259"/>
+    <SolidColorBrush x:Key="Border" Color="#4B3673"/>
+    <SolidColorBrush x:Key="Border.Window" Color="#10091F"/>
+    <SolidColorBrush x:Key="Border.Control" Color="#8A72C0"/>
+    <SolidColorBrush x:Key="Track" Color="#3C2B6A"/>
+    <Thickness x:Key="Track.BorderThickness">0</Thickness>
+    <SolidColorBrush x:Key="Text.Primary" Color="#F2EDFA"/>
+    <SolidColorBrush x:Key="Text.Secondary" Color="#B7ABCB"/>
+    <SolidColorBrush x:Key="Text.Muted" Color="#9A90AB"/>
+    <SolidColorBrush x:Key="Accent" Color="#AA58F7"/>
+    <SolidColorBrush x:Key="Accent.Hover" Color="#C084FC"/>
+    <SolidColorBrush x:Key="Level.Ok" Color="#9063F6"/>
+    <SolidColorBrush x:Key="Level.Warn" Color="#F59E0B"/>
+    <SolidColorBrush x:Key="Level.Crit" Color="#F43F5E"/>
+    <!-- Usage bar fill: same flat level color at the left, 15% lighter at the right. -->
+    <LinearGradientBrush x:Key="Level.Ok.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#9063F6" Offset="0"/>
+        <GradientStop Color="#A17AF7" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Level.Warn.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#F59E0B" Offset="0"/>
+        <GradientStop Color="#F7AD30" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Level.Crit.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#F43F5E" Offset="0"/>
+        <GradientStop Color="#F65C76" Offset="1"/>
+    </LinearGradientBrush>
+    <Color x:Key="Shadow">#73000000</Color>
+    <!-- WPF's text stack mismeasures the OS's newer, variable-weight Segoe build and clips
+         descenders (g, j, y, q) in a TextBox; the classic static Segoe UI renders those correctly. -->
+    <FontFamily x:Key="Font.Ui">Segoe UI, Arial</FontFamily>
+    <FontFamily x:Key="Font.Numeric">Segoe UI, Arial</FontFamily>
+</ResourceDictionary>

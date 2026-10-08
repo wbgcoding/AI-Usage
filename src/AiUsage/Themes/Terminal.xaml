@@ -1,0 +1,36 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Terminal (green-on-black). -->
+    <SolidColorBrush x:Key="Bg.Base" Color="#0A0E0A"/>
+    <SolidColorBrush x:Key="Bg.Surface" Color="#0F150F"/>
+    <SolidColorBrush x:Key="Bg.Raised" Color="#141C14"/>
+    <SolidColorBrush x:Key="Border" Color="#1F2E1F"/>
+    <SolidColorBrush x:Key="Border.Window" Color="#050805"/>
+    <SolidColorBrush x:Key="Border.Control" Color="#4A6E4A"/>
+    <SolidColorBrush x:Key="Track" Color="#272E24"/>
+    <Thickness x:Key="Track.BorderThickness">0</Thickness>
+    <SolidColorBrush x:Key="Text.Primary" Color="#D9FFD9"/>
+    <SolidColorBrush x:Key="Text.Secondary" Color="#8FCB8F"/>
+    <SolidColorBrush x:Key="Text.Muted" Color="#5C8E5C"/>
+    <SolidColorBrush x:Key="Accent" Color="#39FF6A"/>
+    <SolidColorBrush x:Key="Accent.Hover" Color="#6BFF93"/>
+    <SolidColorBrush x:Key="Level.Ok" Color="#39FF6A"/>
+    <SolidColorBrush x:Key="Level.Warn" Color="#F5D90A"/>
+    <SolidColorBrush x:Key="Level.Crit" Color="#FF4136"/>
+    <!-- Usage bar fill: same flat level color at the left, 15% lighter at the right. -->
+    <LinearGradientBrush x:Key="Level.Ok.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#39FF6A" Offset="0"/>
+        <GradientStop Color="#57FF80" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Level.Warn.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#F5D90A" Offset="0"/>
+        <GradientStop Color="#F7DF2F" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Level.Crit.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#FF4136" Offset="0"/>
+        <GradientStop Color="#FF5E54" Offset="1"/>
+    </LinearGradientBrush>
+    <Color x:Key="Shadow">#99000000</Color>
+    <FontFamily x:Key="Font.Ui">Cascadia Mono, Consolas, Courier New</FontFamily>
+    <FontFamily x:Key="Font.Numeric">Consolas, Courier New</FontFamily>
+</ResourceDictionary>

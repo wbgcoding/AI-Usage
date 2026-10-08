@@ -1,0 +1,440 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <data name="Window.FiveHour" xml:space="preserve"><value>5 Stunden</value></data>
+  <data name="Window.Weekly" xml:space="preserve"><value>7 Tage</value></data>
+  <data name="Level.WarnName" xml:space="preserve"><value>fast aufgebraucht</value></data>
+  <data name="Level.CritName" xml:space="preserve"><value>fast am Limit</value></data>
+  <data name="Window.Other" xml:space="preserve"><value>Sonstiges</value></data>
+  <data name="Window.TokensThisSession" xml:space="preserve"><value>{0} Token in diesem Zeitfenster</value></data>
+  <data name="Window.TokensInline" xml:space="preserve"><value>{0} Token</value></data>
+  <data name="Window.ForecastFull" xml:space="preserve"><value>in etwa {0} voll</value></data>
+  <data name="Window.UsedPercent" xml:space="preserve"><value>{0} % genutzt</value></data>
+  <data name="Window.Allowance" xml:space="preserve"><value>{0} % von {2} {3} verbraucht ({1} bisher)</value></data>
+  <data name="Reset.InHoursMinutes" xml:space="preserve"><value>noch {0}h {1}m</value></data>
+  <data name="Reset.InMinutes" xml:space="preserve"><value>noch {0}m</value></data>
+  <data name="Reset.LessThanMinute" xml:space="preserve"><value>noch &lt;1m</value></data>
+  <data name="Reset.Now" xml:space="preserve"><value>wird gerade zurückgesetzt</value></data>
+  <data name="Reset.InDays" xml:space="preserve"><value>noch {0}d</value></data>
+  <data name="Reset.InHours" xml:space="preserve"><value>noch {0}h</value></data>
+  <data name="Reset.InDaysHours" xml:space="preserve"><value>noch {0}d {1}h</value></data>
+  <data name="Source.Local" xml:space="preserve"><value>lokale Dateien</value></data>
+  <data name="Source.Web" xml:space="preserve"><value>Websitzung</value></data>
+  <data name="Source.None" xml:space="preserve"><value>nicht verbunden</value></data>
+  <data name="Source.LocalLogin" xml:space="preserve"><value>CLI-Anmeldung</value></data>
+  <data name="State.NoLocalData.Head" xml:space="preserve"><value>Noch keine lokalen Daten</value></data>
+  <data name="State.NoLocalData.Reason" xml:space="preserve"><value>Auf diesem PC ist noch nichts auslesbar. Es wird automatisch weiter geprüft.</value></data>
+  <data name="State.SourceUnavailable.Head" xml:space="preserve"><value>Keine auslesbare Quelle</value></data>
+  <data name="State.SourceUnavailable.Reason" xml:space="preserve"><value>Dieser Anbieter hält seine Verbrauchswerte auf seinen Servern, lokal ist nichts auslesbar.</value></data>
+  <data name="State.GitHubCliMissing.Reason" xml:space="preserve"><value>Diese Kachel liest den Copilot-Verbrauch über die GitHub-CLI, die auf diesem PC nicht installiert ist. Installiere sie von cli.github.com und melde dich mit „gh auth login“ an.</value></data>
+  <data name="State.GitHubCliMissing.Head" xml:space="preserve"><value>GitHub-CLI fehlt</value></data>
+  <data name="State.GitHubCliMissing.Action" xml:space="preserve"><value>Downloadseite öffnen</value></data>
+  <data name="State.GitHubCliNotSignedIn.Reason" xml:space="preserve"><value>Die GitHub-CLI ist installiert, aber niemand ist darüber angemeldet. Führe „gh auth login“ in einem Terminal aus und melde dich danach hier erneut an.</value></data>
+  <data name="State.NotSignedIn.Head" xml:space="preserve"><value>Anmeldung nötig</value></data>
+  <data name="State.NotSignedIn.Reason" xml:space="preserve"><value>Einmal anmelden, dann werden die Limits gelesen. Die Sitzung bleibt auf diesem PC.</value></data>
+  <data name="State.NotSignedIn.Action" xml:space="preserve"><value>Anmelden</value></data>
+  <data name="State.NotSignedIn.ClaudeCode" xml:space="preserve"><value>Claude Code ist auf diesem PC nicht angemeldet. Melde dich dort an, dann erscheinen die Zahlen hier.</value></data>
+  <data name="State.NotSignedIn.WebSession" xml:space="preserve"><value>Dieses Konto wird über den Browser gelesen. Melde dich an, dann erscheinen die Zahlen.</value></data>
+  <data name="State.NotSignedIn.ClaudeExpired" xml:space="preserve"><value>Die Anmeldung von Claude Code auf diesem PC ist abgelaufen. Claude Code erneuert sie von selbst, sobald es wieder läuft; nur wenn das nicht klappt, melde dich dort neu an.</value></data>
+  <data name="State.Blocked.Head" xml:space="preserve"><value>Abfrage abgewiesen</value></data>
+  <data name="State.Blocked.Reason" xml:space="preserve"><value>Der Anbieter hat die Abfrage abgewiesen, meist weil die Anmeldung abgelaufen ist oder eine Bot-Prüfung erschien. Erneutes Anmelden behebt das meist.</value></data>
+  <data name="State.Offline.Reason" xml:space="preserve"><value>Dieser PC hat gerade keine Internetverbindung. Die Kachel füllt sich von selbst, sobald die Verbindung wieder steht.</value></data>
+  <data name="State.Silent.Reason" xml:space="preserve"><value>Seit {0} kam keine brauchbare Antwort. Die Kachel versucht es weiter.</value></data>
+  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>Einige Dateien der Browsersitzung sind noch in Benutzung. Schließe das Anmeldefenster und versuche es erneut.</value></data>
+  <data name="State.RuntimeMissing.Head" xml:space="preserve"><value>Browser-Laufzeit fehlt</value></data>
+  <data name="State.RuntimeMissing.Reason" xml:space="preserve"><value>Für diesen Anbieter wird die WebView2-Laufzeit gebraucht. Installiere sie und aktualisiere danach.</value></data>
+  <data name="State.RuntimeMissing.Action" xml:space="preserve"><value>Downloadseite öffnen</value></data>
+  <data name="WebView2.Install.Prompt" xml:space="preserve"><value>Für die Anmeldung braucht AI-Usage die Microsoft WebView2-Laufzeit. Sie fehlt auf diesem PC. Jetzt installieren?</value></data>
+  <data name="WebView2.Install.Confirm" xml:space="preserve"><value>Installieren</value></data>
+  <data name="WebView2.Install.Downloading" xml:space="preserve"><value>Die WebView2-Laufzeit wird heruntergeladen …</value></data>
+  <data name="WebView2.Install.Installing" xml:space="preserve"><value>Die WebView2-Laufzeit wird installiert …</value></data>
+  <data name="WebView2.Install.Failed" xml:space="preserve"><value>Die WebView2-Laufzeit ließ sich nicht installieren. Du kannst sie bei Microsoft herunterladen und danach erneut anmelden.</value></data>
+  <data name="WebView2.Install.OpenDownloadPage" xml:space="preserve"><value>Downloadseite öffnen</value></data>
+  <data name="State.Stale.Head" xml:space="preserve"><value>Veraltete Daten</value></data>
+  <data name="State.Stale.Reason" xml:space="preserve"><value>Letzte Aktualisierung vor {0}</value></data>
+  <data name="State.Stale.Meaning" xml:space="preserve"><value>Die Zahlen stammen aus einem Fenster, das inzwischen abgelaufen ist.</value></data>
+  <data name="State.Stale.Action" xml:space="preserve"><value>Jetzt abrufen</value></data>
+  <data name="State.Failed.Head" xml:space="preserve"><value>Abruf fehlgeschlagen</value></data>
+  <data name="State.Failed.Reason" xml:space="preserve"><value>Der Abruf ist fehlgeschlagen. Der nächste Versuch folgt automatisch.</value></data>
+  <data name="State.Failed.ReasonWithDetail" xml:space="preserve"><value>Der Abruf ist fehlgeschlagen ({0}). Der nächste Versuch folgt automatisch.</value></data>
+  <data name="State.Failed.Detail.Timeout" xml:space="preserve"><value>keine Antwort in der Zeit</value></data>
+  <data name="State.Failed.Detail.Http" xml:space="preserve"><value>HTTP {0}</value></data>
+  <data name="State.Failed.Detail.Network" xml:space="preserve"><value>keine Verbindung</value></data>
+  <data name="State.LimitReached" xml:space="preserve"><value>Limit erreicht</value></data>
+  <data name="Chart.Empty" xml:space="preserve"><value>Der Verlauf wird ab dem ersten Messpunkt aufgebaut.</value></data>
+  <data name="Stats.Chart.Empty" xml:space="preserve"><value>Für diesen Zeitraum sind noch keine Token gezählt.</value></data>
+  <data name="Chart.Summary" xml:space="preserve"><value>Verlauf {0}: {1} Werte, Höchstwert {2} %.</value></data>
+  <data name="Settings.ResetConfirm" xml:space="preserve"><value>Alle Einstellungen auf die Vorgaben zurücksetzen? Das lässt sich nicht rückgängig machen. Für eine Sicherung vorher "Einstellungen exportieren" wählen.</value></data>
+  <data name="Settings.NewerFile" xml:space="preserve"><value>Die Einstellungsdatei stammt aus einer neueren Version. Sie bleibt unangetastet, in dieser Sitzung wird nichts gespeichert; es gelten die Vorgaben.</value></data>
+  <data name="Notify.Threshold" xml:space="preserve"><value>{0}: {1} bei {2} % ({3})</value></data>
+  <data name="Notify.ThresholdNoReset" xml:space="preserve"><value>{0}: {1} bei {2} %</value></data>
+  <data name="Notify.Reset" xml:space="preserve"><value>{0}: Das Fenster „{1}“ ist wieder frei.</value></data>
+  <data name="Empty.AllHidden.Head" xml:space="preserve"><value>Alle Anbieter sind ausgeblendet</value></data>
+  <data name="Empty.AllHidden.Reason" xml:space="preserve"><value>Im Hintergrund werden weiter Daten gesammelt. Blende einen Anbieter wieder ein, um ihn zu sehen.</value></data>
+  <data name="Empty.AllHidden.Action" xml:space="preserve"><value>Einstellungen öffnen</value></data>
+  <data name="About.Repository" xml:space="preserve"><value>GitHub</value></data>
+  <data name="About.Version" xml:space="preserve"><value>Version {0}</value></data>
+  <data name="About.Open" xml:space="preserve"><value>Öffnen</value></data>
+  <data name="About.License" xml:space="preserve"><value>MIT-Lizenz</value></data>
+  <data name="About.CopyAll" xml:space="preserve"><value>Alle Angaben kopieren</value></data>
+  <data name="About.ReadLocationWebSession" xml:space="preserve"><value>eine angemeldete Websitzung</value></data>
+  <data name="About.ReadLocationClaudeCode" xml:space="preserve"><value>die Anmeldung von Claude Code auf diesem PC</value></data>
+  <data name="About.ReadLocationAntigravity" xml:space="preserve"><value>die Anmeldung der Antigravity-CLI auf diesem PC</value></data>
+  <data name="About.ReadLocationGitHubCli" xml:space="preserve"><value>die Anmeldung der GitHub-CLI auf diesem PC</value></data>
+  <data name="About.WhatThisReads" xml:space="preserve"><value>Was dieses Programm liest</value></data>
+  <data name="About.ProviderSource" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="About.ProviderSourceSkipped" xml:space="preserve"><value>{0}: {1} ({2})</value></data>
+  <data name="About.UpdateAvailable" xml:space="preserve"><value>Version {0} ist verfügbar.</value></data>
+  <data name="About.OpenReleasePage" xml:space="preserve"><value>Downloadseite öffnen</value></data>
+  <data name="Update.InstallNow" xml:space="preserve"><value>Jetzt installieren</value></data>
+  <data name="Update.Later" xml:space="preserve"><value>Später</value></data>
+  <data name="Update.NotNewer" xml:space="preserve"><value>Die heruntergeladene Datei ist nicht neuer als deine Version und wurde deshalb nicht installiert. Details stehen auf der Release-Seite.</value></data>
+  <data name="Update.NotVerified" xml:space="preserve"><value>Dieses Update ließ sich nicht als echt bestätigen und wurde nicht installiert. Prüfe auf der Release-Seite, ob die Quelle stimmt, bevor du es von Hand installierst.</value></data>
+  <data name="Update.NotLoaded" xml:space="preserve"><value>Das Update konnte nicht geladen werden. Du kannst es auf der Release-Seite von Hand herunterladen.</value></data>
+  <data name="About.UpToDate" xml:space="preserve"><value>Das ist die neueste Version.</value></data>
+  <data name="Crash.Title" xml:space="preserve"><value>Unerwarteter Fehler</value></data>
+  <data name="Crash.Headline" xml:space="preserve"><value>Es ist ein unerwarteter Fehler aufgetreten.</value></data>
+  <data name="Crash.Message" xml:space="preserve"><value>Die Anwendung wird jetzt beendet. Die Einzelheiten unten helfen bei der Ursachensuche.</value></data>
+  <data name="Crash.CopyDetails" xml:space="preserve"><value>Einzelheiten kopieren</value></data>
+  <data name="Crash.OpenLogFolder" xml:space="preserve"><value>Protokollordner öffnen</value></data>
+  <data name="Crash.Close" xml:space="preserve"><value>Schließen</value></data>
+  <data name="Settings.Title" xml:space="preserve"><value>Einstellungen</value></data>
+  <data name="Settings.Retention" xml:space="preserve"><value>Verlauf {0} aufbewahren</value></data>
+  <data name="Settings.RetentionLabel" xml:space="preserve"><value>Verlaufsdauer</value></data>
+  <data name="Settings.HistorySize" xml:space="preserve"><value>Speicherbedarf des Verlaufs: {0}</value></data>
+  <data name="Slider.Decrease" xml:space="preserve"><value>Wert verringern</value></data>
+  <data name="Slider.Increase" xml:space="preserve"><value>Wert erhöhen</value></data>
+  <data name="Tile.ThresholdMarker" xml:space="preserve"><value>Meldung ab {0} %</value></data>
+  <data name="Tile.Menu.OpenUsagePage" xml:space="preserve"><value>Nutzungsseite öffnen</value></data>
+  <data name="Tile.Menu.Details" xml:space="preserve"><value>Einzelheiten anzeigen</value></data>
+  <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Einzelheiten ausblenden</value></data>
+  <data name="Tile.CopyDetails" xml:space="preserve"><value>Einzelheiten kopieren</value></data>
+  <data name="Diag.SearchedIn" xml:space="preserve"><value>Gesucht in: {0}</value></data>
+  <data name="Diag.FilesChecked" xml:space="preserve"><value>Geprüfte Dateien: {0}</value></data>
+  <data name="Diag.NewestFile" xml:space="preserve"><value>Neueste Datei: {0}</value></data>
+  <data name="Diag.NothingFound" xml:space="preserve"><value>In diesen Dateien wurde kein verwertbarer Eintrag gefunden.</value></data>
+  <data name="Diag.DirectoryMissing" xml:space="preserve"><value>Diesen Ordner gibt es auf diesem PC nicht.</value></data>
+  <data name="Dialog.Filter.Json" xml:space="preserve"><value>JSON-Dateien (*.json)|*.json</value></data>
+  <data name="Error.StatusSuffix" xml:space="preserve"><value>Status {0}</value></data>
+  <data name="Duration.Day" xml:space="preserve"><value>1 Tag</value></data>
+  <data name="Duration.Days" xml:space="preserve"><value>{0} Tage</value></data>
+  <data name="Duration.Year" xml:space="preserve"><value>1 Jahr</value></data>
+  <data name="Duration.Years" xml:space="preserve"><value>{0} Jahre</value></data>
+  <data name="Age.Bare" xml:space="preserve"><value>vor {0}</value></data>
+  <data name="Chart.Range.Day" xml:space="preserve"><value>24 Stunden</value></data>
+  <data name="Chart.Range.Week" xml:space="preserve"><value>7 Tage</value></data>
+  <data name="Chart.Range.Month" xml:space="preserve"><value>30 Tage</value></data>
+  <data name="Chart.Range.Year" xml:space="preserve"><value>1 Jahr</value></data>
+  <data name="Chart.Range.All" xml:space="preserve"><value>Gesamter Verlauf</value></data>
+  <data name="StatsWindow.Title" xml:space="preserve"><value>Tokenverbrauch</value></data>
+  <data name="StatsWindow.Range.TwelveMonths" xml:space="preserve"><value>12 Monate</value></data>
+  <data name="StatsWindow.ExportCsv" xml:space="preserve"><value>Als CSV speichern…</value></data>
+  <data name="StatsWindow.ColumnTotal" xml:space="preserve"><value>Gesamt</value></data>
+  <data name="StatsWindow.ExportFailed" xml:space="preserve"><value>Die Datei konnte nicht gespeichert werden.</value></data>
+  <data name="Stats.Section.Figures" xml:space="preserve"><value>Kennzahlen</value></data>
+  <data name="Stats.Total" xml:space="preserve"><value>Gesamt</value></data>
+  <data name="Stats.Section.Breakdown" xml:space="preserve"><value>Aufschlüsselung</value></data>
+  <data name="Stats.Input" xml:space="preserve"><value>Eingabe</value></data>
+  <data name="Stats.Output" xml:space="preserve"><value>Ausgabe</value></data>
+  <data name="Stats.Cached" xml:space="preserve"><value>Zwischengespeichert</value></data>
+  <data name="Stats.LabelValue" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="Stats.ByDay" xml:space="preserve"><value>Tag</value></data>
+  <data name="Stats.ByWeek" xml:space="preserve"><value>Woche</value></data>
+  <data name="Stats.ByModel" xml:space="preserve"><value>Modell</value></data>
+  <data name="Stats.ByProject" xml:space="preserve"><value>Projekt</value></data>
+  <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
+  <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Unbekannt</value></data>
+  <data name="Tile.Hide" xml:space="preserve"><value>Diesen Anbieter ausblenden</value></data>
+  <data name="Tile.Show" xml:space="preserve"><value>Diesen Anbieter einblenden</value></data>
+  <data name="Tile.SourceTip" xml:space="preserve"><value>Quelle: {0}</value></data>
+  <data name="Tile.RefreshHint" xml:space="preserve"><value>Diesen Anbieter jetzt aktualisieren</value></data>
+  <data name="Eye.Menu" xml:space="preserve"><value>Anbieter und Darstellung</value></data>
+  <data name="Eye.HiddenCount" xml:space="preserve"><value>{0} ausgeblendet</value></data>
+  <data name="Eye.MoveUp" xml:space="preserve"><value>Nach oben</value></data>
+  <data name="Eye.MoveDown" xml:space="preserve"><value>Nach unten</value></data>
+  <data name="Density.Auto" xml:space="preserve"><value>Automatisch</value></data>
+  <data name="Density.Full" xml:space="preserve"><value>Voll</value></data>
+  <data name="Density.Mini" xml:space="preserve"><value>Klein</value></data>
+  <data name="Window.AutoHeight" xml:space="preserve"><value>Höhe automatisch</value></data>
+  <data name="Window.AutoWidth" xml:space="preserve"><value>Breite automatisch</value></data>
+  <data name="Action.RefreshNow" xml:space="preserve"><value>Aktualisieren</value></data>
+  <data name="Action.Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="Tray.ShowHide" xml:space="preserve"><value>Einblenden/Ausblenden</value></data>
+  <data name="Tray.AlwaysOnTop" xml:space="preserve"><value>Immer im Vordergrund</value></data>
+  <data name="Tray.Settings" xml:space="preserve"><value>Einstellungen</value></data>
+  <data name="Tray.Stats" xml:space="preserve"><value>Tokenverbrauch</value></data>
+  <data name="Tray.Exit" xml:space="preserve"><value>Beenden</value></data>
+  <data name="Tray.Short.FiveHour" xml:space="preserve"><value>5 Std.</value></data>
+  <data name="Tray.Short.Week" xml:space="preserve"><value>7 T.</value></data>
+  <data name="Tray.ResetPosition" xml:space="preserve"><value>Fenster zurück in die Mitte holen</value></data>
+  <data name="Tray.ClickThrough" xml:space="preserve"><value>Klicks durchlassen</value></data>
+  <data name="Tray.StillRunning" xml:space="preserve"><value>AI-Usage läuft im Infobereich weiter.</value></data>
+  <data name="TitleBar.Minimize" xml:space="preserve"><value>Minimieren</value></data>
+  <data name="TitleBar.Close" xml:space="preserve"><value>Schließen</value></data>
+  <data name="TitleBar.Collapse" xml:space="preserve"><value>Zusammenklappen</value></data>
+  <data name="TitleBar.Expand" xml:space="preserve"><value>Aufklappen</value></data>
+  <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
+  <data name="Theme.Terminal" xml:space="preserve"><value>Terminal</value></data>
+  <data name="Theme.Dark" xml:space="preserve"><value>Dunkel</value></data>
+  <data name="Theme.Light" xml:space="preserve"><value>Hell</value></data>
+  <data name="Theme.System" xml:space="preserve"><value>System</value></data>
+  <data name="Layout.Vertical" xml:space="preserve"><value>Vertikal</value></data>
+  <data name="Layout.Horizontal" xml:space="preserve"><value>Horizontal</value></data>
+  <data name="Language.System" xml:space="preserve"><value>Systemsprache</value></data>
+  <data name="Language.German" xml:space="preserve"><value>Deutsch</value></data>
+  <data name="Language.English" xml:space="preserve"><value>English</value></data>
+  <data name="Settings.Section.Display" xml:space="preserve"><value>Anzeige</value></data>
+  <data name="Settings.Section.Updates" xml:space="preserve"><value>Abruf</value></data>
+  <data name="Settings.Section.Notifications" xml:space="preserve"><value>Meldungen</value></data>
+  <data name="Settings.Section.Providers" xml:space="preserve"><value>Anbieter</value></data>
+  <data name="Settings.Section.System" xml:space="preserve"><value>System</value></data>
+  <data name="Settings.Section.About" xml:space="preserve"><value>Über</value></data>
+  <data name="Settings.Group.Appearance" xml:space="preserve"><value>Aussehen</value></data>
+  <data name="Settings.Group.Tiles" xml:space="preserve"><value>Kacheln</value></data>
+  <data name="Settings.Group.Chart" xml:space="preserve"><value>Diagramm</value></data>
+  <data name="Settings.Group.Window" xml:space="preserve"><value>Fenster</value></data>
+  <data name="Settings.Group.Tray" xml:space="preserve"><value>Infobereich</value></data>
+  <data name="Settings.Theme" xml:space="preserve"><value>Design</value></data>
+  <data name="Settings.Layout" xml:space="preserve"><value>Anordnung</value></data>
+  <data name="Settings.VisibilityPerProvider" xml:space="preserve"><value>Sichtbarkeit je Anbieter</value></data>
+  <data name="Settings.AddAccount" xml:space="preserve"><value>Weiteren Zugang hinzufügen</value></data>
+  <data name="Settings.RemoveAccount" xml:space="preserve"><value>Diesen Zugang entfernen</value></data>
+  <data name="Settings.Via.WebSession" xml:space="preserve"><value>über die Websitzung</value></data>
+  <data name="Settings.Via.ClaudeCode" xml:space="preserve"><value>über Claude Code</value></data>
+  <data name="Settings.Via.Antigravity" xml:space="preserve"><value>über Antigravity-CLI</value></data>
+  <data name="Settings.Via.GitHubCli" xml:space="preserve"><value>über die GitHub-CLI</value></data>
+  <data name="Settings.Via.CodexFiles" xml:space="preserve"><value>über die Codex-Sitzungsdateien</value></data>
+  <data name="Settings.Via.ClaudeFiles" xml:space="preserve"><value>über die Dateien von Claude Code</value></data>
+  <data name="Settings.Via.None" xml:space="preserve"><value>noch nicht verbunden</value></data>
+  <data name="Settings.Via.WebAlsoSignedIn" xml:space="preserve"><value>Websitzung angemeldet</value></data>
+  <data name="Settings.Copilot.NoCandidates" xml:space="preserve"><value>Jedes bei der GitHub-CLI angemeldete Konto ist hier schon hinzugefügt. Für ein weiteres führe zuerst „gh auth login“ in einem Terminal aus und versuche es dann erneut.</value></data>
+  <data name="Settings.Copilot.ConfirmLogin" xml:space="preserve"><value>Das GitHub-CLI-Konto „{0}“ als weiteren Copilot-Zugang hinzufügen?</value></data>
+  <data name="Action.Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Settings.AccountRemoved" xml:space="preserve"><value>Der Zugang ist entfernt.</value></data>
+  <data name="Settings.RemoveAccount.Confirm" xml:space="preserve"><value>Diesen Zugang aus AI-Usage entfernen? Seine Anmeldung in AI-Usage wird gelöscht. Das Konto beim Anbieter bleibt unberührt.</value></data>
+  <data name="Settings.RemoveAccount.AlsoHistory" xml:space="preserve"><value>Aufgezeichneten Verlauf ebenfalls löschen</value></data>
+  <data name="Settings.RemoveAccount.HistoryFailed" xml:space="preserve"><value>Der Zugang ist entfernt, sein aufgezeichneter Verlauf ließ sich aber nicht löschen.</value></data>
+  <data name="Settings.RemoveAccount.Failed" xml:space="preserve"><value>Der Zugang wurde nicht entfernt: seine Anmeldedateien ließen sich nicht löschen. Versuche es gleich noch einmal.</value></data>
+  <data name="Settings.TileDensity" xml:space="preserve"><value>Kacheldichte</value></data>
+  <data name="Settings.AlwaysOnTop" xml:space="preserve"><value>Immer im Vordergrund</value></data>
+  <data name="Settings.ClickThrough" xml:space="preserve"><value>Klicks durchlassen</value></data>
+  <data name="Settings.ClickThroughHint" xml:space="preserve"><value>Solange das aktiv ist, nimmt das Widget keine Mausklicks an. Ausschalten lässt es sich über das Symbol im Infobereich.</value></data>
+  <data name="Settings.ChartRange" xml:space="preserve"><value>Diagrammzeitraum</value></data>
+  <data name="Settings.TrayProvider" xml:space="preserve"><value>Symbol im Infobereich zeigt</value></data>
+  <data name="Settings.TrayProvider.Auto" xml:space="preserve"><value>Automatisch</value></data>
+  <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>App-Symbol</value></data>
+  <data name="Settings.TrayWindow" xml:space="preserve"><value>Zeitfenster im Symbol</value></data>
+  <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Automatisch</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Vorwoche als Vergleichslinie zeigen</value></data>
+  <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Diagramm anzeigen für</value></data>
+  <data name="Settings.WindowOpacity" xml:space="preserve"><value>Deckkraft des Fensters</value></data>
+  <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0} %</value></data>
+  <data name="Settings.RefreshInterval" xml:space="preserve"><value>Aktualisierungsintervall</value></data>
+  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Websitzungen höchstens alle {0} min</value></data>
+  <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Letzte erfolgreiche Aktualisierung</value></data>
+  <data name="Settings.NeverUpdated" xml:space="preserve"><value>noch nie</value></data>
+  <data name="Settings.On" xml:space="preserve"><value>Ein</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Melden, wenn ein Limit nach einer Warnung wieder frei ist</value></data>
+  <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Meldungen für {0}</value></data>
+  <data name="Settings.PerProvider" xml:space="preserve"><value>Je Anbieter</value></data>
+  <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Meldungen für diesen Anbieter</value></data>
+  <data name="Settings.NotifySummary.Off" xml:space="preserve"><value>Aus</value></data>
+  <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Standardwert</value></data>
+  <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Eigene Werte</value></data>
+  <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Auch melden, wenn wieder frei</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Einmal täglich auf eine neuere Version prüfen</value></data>
+  <data name="Settings.QuietHours" xml:space="preserve"><value>Keine Meldungen zwischen</value></data>
+  <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>und</value></data>
+  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Bitte in der Form 22:00 angeben.</value></data>
+  <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Meldung ab {0} %</value></data>
+  <data name="Settings.OwnThreshold" xml:space="preserve"><value>Eigener Wert für diesen Anbieter</value></data>
+  <data name="Settings.LevelExplainer" xml:space="preserve"><value>Der Balken wird über {0} gelb und über {1} rot. Die Vorgabe für die Meldung entspricht Rot.</value></data>
+  <data name="Settings.SignOut" xml:space="preserve"><value>Abmelden</value></data>
+  <data name="Settings.Autostart" xml:space="preserve"><value>Mit Windows starten</value></data>
+  <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows hat die Änderung des Autostart-Eintrags abgelehnt.</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Globaler Kurzbefehl zum Ein-/Ausblenden des Fensters</value></data>
+  <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Klicken, dann die neue Tastenkombination drücken</value></data>
+  <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Diese Kombination benutzt bereits ein anderes Programm.</value></data>
+  <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Bitte zusätzlich Strg, Alt oder Win halten.</value></data>
+  <data name="Settings.Language" xml:space="preserve"><value>Sprache</value></data>
+  <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Protokollordner öffnen</value></data>
+  <data name="Settings.ExportHistory" xml:space="preserve"><value>Verlauf als CSV speichern…</value></data>
+  <data name="Settings.ExportFailed" xml:space="preserve"><value>Die Datei konnte nicht geschrieben werden. Wähle einen anderen Ordner.</value></data>
+  <data name="Settings.ResetButton" xml:space="preserve"><value>Einstellungen zurücksetzen</value></data>
+  <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Aufgezeichneten Verlauf ebenfalls löschen</value></data>
+  <data name="Settings.Export" xml:space="preserve"><value>Einstellungen exportieren…</value></data>
+  <data name="Settings.Import" xml:space="preserve"><value>Einstellungen importieren…</value></data>
+  <data name="Settings.ImportDone" xml:space="preserve"><value>Einstellungen übernommen. Fensterposition und -größe sind geblieben.</value></data>
+  <data name="Settings.ImportRefused" xml:space="preserve"><value>Diese Datei ist keine brauchbare Einstellungsdatei.</value></data>
+  <data name="Settings.DataFolder" xml:space="preserve"><value>Datenordner</value></data>
+  <data name="Settings.ChooseDataFolder" xml:space="preserve"><value>Ordner wählen…</value></data>
+  <data name="Settings.MovingData" xml:space="preserve"><value>Daten werden verschoben…</value></data>
+  <data name="Settings.OpenDataFolder" xml:space="preserve"><value>Datenordner öffnen</value></data>
+  <data name="Settings.DataFolderMoved" xml:space="preserve"><value>Die Daten liegen jetzt in {0}. Der alte Ordner kann von Hand gelöscht werden.</value></data>
+  <data name="Settings.DataFolderRefused" xml:space="preserve"><value>In diesen Ordner kann nicht geschrieben werden. Es wurde nichts geändert.</value></data>
+  <data name="About.Installed" xml:space="preserve"><value>Installierte Version</value></data>
+  <data name="About.Portable" xml:space="preserve"><value>Tragbare Version</value></data>
+  <data name="About.DataFolder" xml:space="preserve"><value>Datenordner: {0}</value></data>
+  <data name="About.DataFolder.Default" xml:space="preserve"><value>Standardordner im Benutzerprofil</value></data>
+  <data name="About.DataFolder.Chosen" xml:space="preserve"><value>Von dir gewählter Ordner</value></data>
+  <data name="About.DataFolder.Fallback" xml:space="preserve"><value>Notfallordner, weil das Benutzerprofil nicht beschreibbar war</value></data>
+  <data name="SignIn.Title" xml:space="preserve"><value>Anmelden</value></data>
+  <data name="SignIn.Loading" xml:space="preserve"><value>Anmeldeseite wird geöffnet …</value></data>
+  <data name="SignIn.Blocked.Head" xml:space="preserve"><value>Seite blockiert</value></data>
+  <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Die Anmeldung wollte {0} öffnen. Diese Seite gehört nicht zu den erlaubten Zielen dieses Fensters, geladen wurde nichts. Gehört sie zur Anmeldung, kannst du sie hier für dieses Fenster laden; beim nächsten Öffnen gilt wieder die übliche Liste.</value></data>
+  <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Verstanden</value></data>
+  <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Seite trotzdem laden</value></data>
+  <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Unverschlüsselte http-Seiten lädt dieses Fenster nie.</value></data>
+  <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
+  <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Duration.MinutesSeconds" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="Unit.Messages" xml:space="preserve"><value>Nachrichten</value></data>
+  <data name="Unit.Requests" xml:space="preserve"><value>Anfragen</value></data>
+  <data name="Welcome.Title" xml:space="preserve"><value>Willkommen bei AI-Usage</value></data>
+  <data name="Welcome.WhatItDoes" xml:space="preserve"><value>Dieses Widget zeigt, wie viel von deinem Nutzungsfenster bei jedem Anbieter noch übrig ist. Außerdem zeigt es, wann sich dieses Fenster zurücksetzt.</value></data>
+  <data name="Welcome.WhatItReads" xml:space="preserve"><value>Es liest die Nutzungsdateien, die diese Werkzeuge ohnehin auf diesem PC führen. Wo du dich unten anmeldest, liest es zusätzlich deine eigene Nutzungsseite beim Anbieter.</value></data>
+  <data name="Welcome.WhatItNever" xml:space="preserve"><value>Deine Nutzungsdaten bleiben auf diesem PC. AI-Usage spricht nur mit der Nutzungsseite des jeweiligen Anbieters, mit Google zum Erneuern einer abgelaufenen Antigravity-Anmeldung und mit GitHub für die Update-Prüfung. Es ruft nie einen Chat-Endpunkt auf und kann deshalb nie etwas von deinem Kontingent verbrauchen.</value></data>
+  <data name="Welcome.Start" xml:space="preserve"><value>Los</value></data>
+  <data name="StatsWindow.Loading" xml:space="preserve"><value>Daten werden geladen …</value></data>
+  <data name="StatsWindow.RangeLabel" xml:space="preserve"><value>Zeitraum</value></data>
+  <data name="StatsWindow.GroupingLabel" xml:space="preserve"><value>Gruppieren nach</value></data>
+  <data name="Stats.PerDay" xml:space="preserve"><value>Pro Tag</value></data>
+  <data name="Stats.BusiestDay" xml:space="preserve"><value>Stärkster Tag</value></data>
+  <data name="Stats.VsPrevious" xml:space="preserve"><value>gegenüber Vorzeitraum</value></data>
+  <data name="Stats.VsPreviousValue" xml:space="preserve"><value>gegenüber {0} im Vorzeitraum</value></data>
+  <data name="Number.Thousand" xml:space="preserve"><value>Tsd.</value></data>
+  <data name="Number.Million" xml:space="preserve"><value>Mio</value></data>
+  <data name="Number.Billion" xml:space="preserve"><value>Mrd</value></data>
+  <data name="Number.Percent" xml:space="preserve"><value>{0} %</value></data>
+  <data name="Stats.RingCompact.Thousand" xml:space="preserve"><value> Tsd</value></data>
+  <data name="Stats.RingCompact.Million" xml:space="preserve"><value> Mio</value></data>
+  <data name="Stats.RingCompact.Billion" xml:space="preserve"><value> Mrd</value></data>
+  <data name="Stats.Ring.Largest" xml:space="preserve"><value>Größter Anteil: {0}, {1}</value></data>
+  <data name="Tile.SnapshotAge" xml:space="preserve"><value>Stand der Daten: vor {0}</value></data>
+  <data name="Stats.Chart.PerDay" xml:space="preserve"><value>Pro Tag</value></data>
+  <data name="Stats.Chart.PerWeek" xml:space="preserve"><value>Pro Woche</value></data>
+  <data name="Stats.Chart.ByProvider" xml:space="preserve"><value>Anteil je Anbieter</value></data>
+  <data name="Stats.Chart.ByModel" xml:space="preserve"><value>Anteil je Modell</value></data>
+  <data name="Stats.Chart.ByEffort" xml:space="preserve"><value>Anteil je Effort-Stufe</value></data>
+  <data name="Stats.Other" xml:space="preserve"><value>Andere</value></data>
+  <data name="Stats.Chart.CacheShare" xml:space="preserve"><value>Cache-Anteil</value></data>
+  <data name="Stats.Cache.New" xml:space="preserve"><value>Neue Eingabe</value></data>
+  <data name="Stats.Cache.Write" xml:space="preserve"><value>Cache schreiben</value></data>
+  <data name="Stats.Cache.Read" xml:space="preserve"><value>Cache lesen</value></data>
+  <data name="Stats.Cache.Output" xml:space="preserve"><value>Ausgabe</value></data>
+  <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Stärkste Projekte</value></data>
+  <data name="Stats.NoProject" xml:space="preserve"><value>Ohne Projekt</value></data>
+  <data name="Stats.OtherProjects" xml:space="preserve"><value>Weitere Projekte</value></data>
+  <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} Projekte</value></data>
+  <data name="Stats.Project.Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Stats.Project.Tip.Folder" xml:space="preserve"><value>Ordner: {0}</value></data>
+  <data name="Stats.Project.Tip.Tokens" xml:space="preserve"><value>Token: {0} ({1} %)</value></data>
+  <data name="Stats.Project.Tip.InputOutputCache" xml:space="preserve"><value>Eingabe {0} · Ausgabe {1} · Cache {2}</value></data>
+  <data name="Stats.Project.Tip.Providers" xml:space="preserve"><value>Anbieter: {0}</value></data>
+  <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Hauptmodell: {0}</value></data>
+  <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Aktiv: {0}</value></data>
+  <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sitzungen: {0}</value></data>
+  <data name="Stats.Chart.ByWeekday" xml:space="preserve"><value>Nach Wochentag</value></data>
+  <data name="Stats.Chart.ByHour" xml:space="preserve"><value>Nach Stunde</value></data>
+  <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0 Uhr</value></data>
+  <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6 Uhr</value></data>
+  <data name="Stats.Hour.Axis12" xml:space="preserve"><value>12 Uhr</value></data>
+  <data name="Stats.Hour.Axis18" xml:space="preserve"><value>18 Uhr</value></data>
+  <data name="Stats.Chart.ViewSwitch" xml:space="preserve"><value>Ansicht wählen</value></data>
+  <data name="Settings.SignIn" xml:space="preserve"><value>Anmelden</value></data>
+  <data name="Settings.ShowTooltips" xml:space="preserve"><value>Tooltips anzeigen</value></data>
+  <data name="Tip.Stats.Total" xml:space="preserve"><value>Alle Token im gewählten Zeitraum, über alle gezeigten Anbieter.</value></data>
+  <data name="Tip.Stats.PerDay" xml:space="preserve"><value>Die Summe geteilt durch die Tage im Zeitraum, ab dem ersten erfassten Tag gezählt, nicht nur durch die Tage, an denen du gearbeitet hast.</value></data>
+  <data name="Tip.Stats.BusiestDay" xml:space="preserve"><value>Der einzelne Tag mit den meisten Token im Zeitraum.</value></data>
+  <data name="Tip.Stats.VsPrevious" xml:space="preserve"><value>Verglichen mit dem gleich langen Zeitraum direkt davor.</value></data>
+  <data name="Tip.Stats.Range" xml:space="preserve"><value>Legt fest, wie weit die Zahlen und die Diagramme zurückreichen.</value></data>
+  <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>Nach oben verschieben</value></data>
+  <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>Nach unten verschieben</value></data>
+  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Pfeil hoch</value></data>
+  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Pfeil runter</value></data>
+  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Pfeil hoch, Alt+Pfeil runter</value></data>
+  <data name="Stats.Layout.Reset" xml:space="preserve"><value>Anordnung zurücksetzen</value></data>
+  <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Stellt alle Abschnitte wieder an ihren ursprünglichen Platz.</value></data>
+  <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Legt fest, wonach Diagramm und Tabelle darunter gruppiert werden.</value></data>
+  <data name="Tip.Stats.Chart.PerDay" xml:space="preserve"><value>Eine Säule je Tag, aufgeteilt nach Anbieter.</value></data>
+  <data name="Tip.Stats.Chart.PerWeek" xml:space="preserve"><value>Eine Säule je Woche, aufgeteilt nach Anbieter.</value></data>
+  <data name="Tip.Stats.Chart.ByProvider" xml:space="preserve"><value>Wie sich die Token dieses Zeitraums auf die Anbieter verteilen.</value></data>
+  <data name="Tip.Stats.Chart.ByModel" xml:space="preserve"><value>Wie sich die Token auf die Modelle verteilen. Die sechs größten stehen einzeln, der Rest ist zusammengefasst.</value></data>
+  <data name="Tip.Stats.Chart.ByEffort" xml:space="preserve"><value>Wie sich die Token auf die Effort-Stufen verteilen.</value></data>
+  <data name="Tip.Stats.Chart.CacheShare" xml:space="preserve"><value>Wie viel der Summe neuer Text war, in den Cache geschrieben, aus dem Cache gelesen oder als Ausgabe erzeugt.</value></data>
+  <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>Die Projekte mit den meisten Token. Sitzungen ohne Ordner sind zusammengefasst.</value></data>
+  <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Auf welche Wochentage die Token fallen, über den ganzen Zeitraum summiert.</value></data>
+  <data name="Tip.Stats.Chart.ByHour" xml:space="preserve"><value>Auf welche Tagesstunden die Token fallen.</value></data>
+  <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Legt fest, wie hoch eine Kachel ist. Bei automatischer Einstellung passen sich die Kacheln an die Fensterhöhe an.</value></data>
+  <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Legt fest, wessen Verbrauch das Symbol im Infobereich der Taskleiste zeigt. Auf automatisch zeigt es den höchsten Verbrauch aller Kacheln.</value></data>
+  <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Legt fest, welches Zeitfenster das Symbol zeigt. Auf automatisch zeigt es den höchsten Wert.</value></data>
+  <data name="Tip.Settings.DataFolder" xml:space="preserve"><value>Hier liegen deine Einstellungen, dein Verlauf und der Token-Index.</value></data>
+  <data name="Tip.Settings.SignIn" xml:space="preserve"><value>Öffnet die Anmeldeseite dieses Anbieters in einem eigenen Fenster. Die Sitzung bleibt auf diesem PC.</value></data>
+  <data name="Tip.Settings.SignOut" xml:space="preserve"><value>Löscht die gespeicherte Browsersitzung dieses Anbieters von diesem PC.</value></data>
+  <data name="Tip.Settings.Visibility" xml:space="preserve"><value>Zeigt oder verbirgt die Kachel dieses Anbieters im Hauptfenster. Die Daten werden so oder so weiter gesammelt.</value></data>
+  <data name="Settings.AttentionMaxAge" xml:space="preserve"><value>Wartemarke anzeigen für</value></data>
+  <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>So lange ohne Antwort markiert die Kachel den Anbieter als wartend. Auf Aus wird nichts markiert.</value></data>
+  <data name="Settings.AttentionMaxAge.Off" xml:space="preserve"><value>Aus</value></data>
+  <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 Stunde</value></data>
+  <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 Stunden</value></data>
+  <data name="Settings.AttentionMaxAge.4h" xml:space="preserve"><value>4 Stunden</value></data>
+  <data name="Settings.AttentionMaxAge.8h" xml:space="preserve"><value>8 Stunden</value></data>
+  <data name="Settings.AttentionMaxAge.24h" xml:space="preserve"><value>24 Stunden</value></data>
+  <data name="Settings.AttentionPerProvider" xml:space="preserve"><value>Wartemarke zeigen bei</value></data>
+  <data name="Tip.Settings.AttentionPerProvider" xml:space="preserve"><value>Markiert die Kachel dieses Anbieters, wenn ein Agent auf eine Antwort von dir wartet.</value></data>
+  <data name="Window.CopilotChat" xml:space="preserve"><value>Chat</value></data>
+  <data name="Window.CopilotCompletions" xml:space="preserve"><value>Code-Vervollständigungen</value></data>
+  <data name="Window.CopilotPremium" xml:space="preserve"><value>Premium-Anfragen</value></data>
+  <data name="Window.Month" xml:space="preserve"><value>Monat</value></data>
+  <data name="Window.CursorModels" xml:space="preserve"><value>Cursor-Modelle</value></data>
+  <data name="Window.OtherModels" xml:space="preserve"><value>API-Modelle</value></data>
+  <data name="Window.GrokBotWeekly" xml:space="preserve"><value>Grok Bot</value></data>
+  <data name="About.ProviderGroupHeader" xml:space="preserve"><value>Liest: {0}</value></data>
+  <data name="About.ReadsOnly" xml:space="preserve"><value>AI-Usage greift auf diese Dateien und Seiten nur lesend zu.</value></data>
+  <data name="Settings.SizeKilobytes" xml:space="preserve"><value>{0:0} kB</value></data>
+  <data name="Settings.SizeMegabytes" xml:space="preserve"><value>{0:0.#} MB</value></data>
+  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>Der Anbieter hat seine Seite geändert, ein App-Update behebt das.</value></data>
+  <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>Du bist schon angemeldet.</value></data>
+  <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>Diese Sitzung hat bereits einen gültigen Zugang. Die Kachel holt ihre Zahlen ab der nächsten Aktualisierung darüber.</value></data>
+  <data name="Stats.TokenUnit" xml:space="preserve"><value>Token</value></data>
+  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Schnitt je aktivem Tag</value></data>
+  <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>Die Summe geteilt durch die Tage, an denen wirklich Token angefallen sind.</value></data>
+  <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>an {0} von {1} Tagen</value></data>
+  <data name="Stats.MonthGrid.Head" xml:space="preserve"><value>Verbrauch je Tag</value></data>
+  <data name="Stats.MonthGrid.Empty" xml:space="preserve"><value>Für diesen Zeitraum sind noch keine Tage gezählt.</value></data>
+  <data name="Stats.MonthGrid.LegendLess" xml:space="preserve"><value>weniger</value></data>
+  <data name="Stats.MonthGrid.LegendMore" xml:space="preserve"><value>mehr</value></data>
+  <data name="Stats.MonthGrid.NoUsage" xml:space="preserve"><value>keine Nutzung</value></data>
+  <data name="Stats.DayDetail.ByProvider" xml:space="preserve"><value>Anbieter</value></data>
+  <data name="Stats.DayDetail.ByModel" xml:space="preserve"><value>Modell</value></data>
+  <data name="Stats.DayDetail.ByProject" xml:space="preserve"><value>Projekt</value></data>
+  <data name="Stats.DayDetail.ByHour" xml:space="preserve"><value>Stunde</value></data>
+  <data name="Stats.DayDetail.NoUsage" xml:space="preserve"><value>An diesem Tag gab es keinen Verbrauch.</value></data>
+  <data name="Stats.DayDetail.Hint" xml:space="preserve"><value>Klicke auf einen Tag, um die Einzelheiten zu sehen.</value></data>
+  <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Ausgewählter Tag · {0}</value></data>
+  <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Tagesdetail schließen</value></data>
+  <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Wartet auf eine Antwort. Zum Ausblenden anklicken.</value></data>
+  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token diese Woche</value></data>
+</root>

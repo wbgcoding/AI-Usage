@@ -1,0 +1,21 @@
+<Application x:Class="AiUsage.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Tokens carries no colours, so a theme swap (Services/ThemeService.cs) never
+                     touches it - it stays first and is never removed. -->
+                <ResourceDictionary Source="Themes/Tokens.xaml"/>
+                <!-- Nebula is the default theme; Services/ThemeService.cs
+                     swaps this entry, never recreating a window. -->
+                <ResourceDictionary Source="Themes/Nebula.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.xaml"/>
+                <!-- Icons are plain geometry and take their colour from whatever draws them, so this
+                     one dictionary serves every theme. -->
+                <ResourceDictionary Source="Themes/Icons.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,250 @@
+using System.Diagnostics;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
+
+namespace AiUsage.Services;
+
+/// <summary>
+/// The real machine behind <see cref="UpdateInstaller"/>: the download, the swap of the running exe,
+/// the silent setup and the exit. Downloads are plain GET requests, never anything else; every
+/// address, redirects included, has to be on <see cref="UpdateInstaller.AllowedHosts"/>.
+/// This file is on the HTTP client allow-list in <c>TokenSafetyTests</c>.
+/// </summary>
+public sealed class UpdateHost(Action exitApplication) : IUpdateHost
+{
+    /// <summary>The restart switch of a portable update: the new copy waits for the old one to end
+    /// before it takes the single-instance lock.</summary>
+    public const string AfterUpdateSwitch = "--after-update";
+
+    private const int MaxRedirects = 5;
+    private const long MaxDownloadBytes = 600L * 1024 * 1024;
+
+    // A download ends when no byte has arrived for this long, so a slow link still finishes; the overall
+    // cap is only the last resort against a connection that trickles forever.
+    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan OverallTimeout = TimeSpan.FromHours(2);
+    private static readonly TimeSpan StaleAfter = TimeSpan.FromDays(1);
+
+    public bool IsInstalled => AppInfo.IsInstalled;
+
+    public Architecture Architecture => RuntimeInformation.ProcessArchitecture;
+
+    public string WorkFolder => DefaultWorkFolder;
+
+    public string PublicKey => UpdatePublicKey.Value;
+
+    public Version RunningVersion => Version.TryParse(AppInfo.Version, out var running) ? running : new Version(0, 0, 0);
+
+    public Version? ReadFileVersion(string path)
+    {
+        try
+        {
+            var info = FileVersionInfo.GetVersionInfo(path);
+            return info.FileMajorPart == 0 && info.FileMinorPart == 0 && info.FileBuildPart == 0 && info.FilePrivatePart == 0
+                ? null
+                : new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FileNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    public static string DefaultWorkFolder => Path.Combine(Path.GetTempPath(), AppInfo.ProductName, "update");
+
+    public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct) =>
+        DownloadAsync(url, destination, new HttpClientHandler { AllowAutoRedirect = false }, StallTimeout, OverallTimeout, ct);
+
+    /// <summary>The handler and the limits are parameters so a test can stall the body: the stall limit
+    /// restarts with the headers and after every chunk read, so a connection that goes quiet ends the
+    /// download instead of holding the update open; the overall cap bounds the whole transfer.</summary>
+    internal static async Task<bool> DownloadAsync(
+        string url, string destination, HttpMessageHandler handler, TimeSpan stallLimit, TimeSpan overallLimit, CancellationToken ct)
+    {
+        using var overall = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        overall.CancelAfter(overallLimit);
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(overall.Token);
+        try
+        {
+            // Redirects are followed by hand (the handler must not follow them) so every hop is
+            // checked against the host list.
+            using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(AppInfo.ProductName, AppInfo.Version));
+
+            var current = url;
+            for (var hop = 0; hop <= MaxRedirects; hop++)
+            {
+                if (!UpdateInstaller.IsAllowedUrl(current))
+                    return false;
+
+                limit.CancelAfter(stallLimit);
+                using var response = await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, limit.Token);
+                if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
+                {
+                    current = new Uri(new Uri(current), location).AbsoluteUri;
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxDownloadBytes)
+                    return false;
+
+                await using var source = await response.Content.ReadAsStreamAsync(limit.Token);
+                await using var target = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+                return await CopyCappedAsync(source, target, limit, stallLimit);
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException
+            or UnauthorizedAccessException or UriFormatException)
+        {
+            // The caller's own cancellation propagates; the time limit running out is a failed download.
+            if (ct.IsCancellationRequested)
+                throw;
+            return false;
+        }
+    }
+
+    private static async Task<bool> CopyCappedAsync(Stream source, Stream target, CancellationTokenSource limit, TimeSpan stallLimit)
+    {
+        var ct = limit.Token;
+        var buffer = new byte[81920];
+        long total = 0;
+        int read;
+        limit.CancelAfter(stallLimit);
+        while ((read = await source.ReadAsync(buffer, ct)) > 0)
+        {
+            limit.CancelAfter(stallLimit);
+            total += read;
+            if (total > MaxDownloadBytes)
+                return false;
+            await target.WriteAsync(buffer.AsMemory(0, read), ct);
+        }
+
+        return total > 0;
+    }
+
+    public void StartSetupAndExit(string setupPath)
+    {
+        Process.Start(new ProcessStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)) { UseShellExecute = true });
+        exitApplication();
+    }
+
+    /// <summary>The setup's command line. The setup does not reuse the previous install scope on its
+    /// own, so the scope of the running copy is passed along. The uninstall entries the setup wrote
+    /// say which scope owns this folder (it works for a folder the user picked); only when neither
+    /// names it does a copy under Program Files count as per-machine and any other as per-user.</summary>
+    internal static string BuildSetupArguments(string? exePath) => BuildSetupArguments(exePath,
+    [
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+    ], ReadInstallLocation);
+
+    internal static string BuildSetupArguments(string? exePath, IEnumerable<string> programFilesRoots, Func<bool, string?>? readInstallLocation = null)
+    {
+        var directory = string.IsNullOrEmpty(exePath) ? null : Path.GetDirectoryName(ExpandShortPath(exePath));
+        if (directory is not null && readInstallLocation is not null)
+        {
+            if (SameFolder(readInstallLocation(true), directory))
+                return "/SILENT /ALLUSERS";
+            if (SameFolder(readInstallLocation(false), directory))
+                return "/SILENT /CURRENTUSER";
+        }
+
+        var perMachine = directory is not null && programFilesRoots
+            .Where(root => !string.IsNullOrEmpty(root))
+            .Any(root => (directory + Path.DirectorySeparatorChar).StartsWith(
+                root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+        return perMachine ? "/SILENT /ALLUSERS" : "/SILENT /CURRENTUSER";
+    }
+
+    private static bool SameFolder(string? recorded, string directory) =>
+        !string.IsNullOrWhiteSpace(recorded)
+        && string.Equals(recorded.Trim().TrimEnd(Path.DirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+
+    private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{9FF5FEED-5C44-428A-97A9-028E7614B137}_is1";
+
+    /// <summary>The folder the setup recorded for a per-machine (<paramref name="perMachine"/>) or
+    /// per-user installation, or null when that scope has none.</summary>
+    private static string? ReadInstallLocation(bool perMachine)
+    {
+        try
+        {
+            using var key = (perMachine ? Microsoft.Win32.Registry.LocalMachine : Microsoft.Win32.Registry.CurrentUser).OpenSubKey(UninstallKeyPath);
+            return key?.GetValue("InstallLocation") as string ?? key?.GetValue("Inno Setup: App Path") as string;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The long form of an 8.3 path (C:\PROGRA~1\...), so the prefix and registry
+    /// comparisons see the same spelling the setup recorded. The input when it cannot be expanded.</summary>
+    private static string ExpandShortPath(string path)
+    {
+        try
+        {
+            var buffer = new char[1024];
+            var length = GetLongPathNameW(path, buffer, buffer.Length);
+            return length > 0 && length < buffer.Length ? new string(buffer, 0, length) : path;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return path;
+        }
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetLongPathNameW(string shortPath, char[] longPath, int bufferLength);
+
+    public void ReplaceRunningAndRestart(byte[] verifiedExe)
+    {
+        var running = Environment.ProcessPath;
+        if (running is null || !PortableSwap.Replace(running, verifiedExe))
+            throw new IOException("The program file could not be replaced.");
+
+        Process.Start(new ProcessStartInfo(running, $"{AfterUpdateSwitch} {Environment.ProcessId}") { UseShellExecute = false });
+        exitApplication();
+    }
+
+    /// <summary>The restart after a portable update: the old copy still holds the single-instance
+    /// lock for a moment, so the new one waits for it to end (bounded) before asking for the lock.</summary>
+    public static void WaitForPreviousCopy(string[] args)
+    {
+        var index = Array.FindIndex(args, a => string.Equals(a, AfterUpdateSwitch, StringComparison.OrdinalIgnoreCase));
+        if (index < 0 || index + 1 >= args.Length || !int.TryParse(args[index + 1], out var pid))
+            return;
+
+        try
+        {
+            using var previous = Process.GetProcessById(pid);
+            previous.WaitForExit(TimeSpan.FromSeconds(15));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // Already gone.
+        }
+    }
+
+    /// <summary>Removes update files a finished or abandoned run left in the work folder.</summary>
+    public static void CleanUpStaleFiles()
+    {
+        try
+        {
+            if (!Directory.Exists(DefaultWorkFolder))
+                return;
+
+            foreach (var file in Directory.EnumerateFiles(DefaultWorkFolder))
+            {
+                if (DateTime.UtcNow - File.GetLastWriteTimeUtc(file) > StaleAfter)
+                    File.Delete(file);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: whatever is still in use is picked up at the next start.
+        }
+    }
+}

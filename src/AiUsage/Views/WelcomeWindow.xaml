@@ -1,0 +1,68 @@
+<Window x:Class="AiUsage.Views.WelcomeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+        xmlns:services="clr-namespace:AiUsage.Services"
+        Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Title]}"
+        Icon="pack://application:,,,/AI-Usage;component/Assets/app.ico"
+        RenderOptions.BitmapScalingMode="HighQuality"
+        WindowStyle="None"
+        Background="{DynamicResource Bg.Window}"
+        FontFamily="{DynamicResource Font.Ui}"
+        Width="480" MinWidth="480" SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual"
+        Foreground="{DynamicResource Text.Primary}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+    <Border x:Name="ChromeBorder" Style="{StaticResource WindowChrome}">
+        <DockPanel LastChildFill="True">
+            <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top" ShowEyeMenu="False" ShowRefresh="False"
+                               ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
+                               CloseRequested="TitleBarControl_CloseRequested"/>
+            <StackPanel Margin="{StaticResource Space.Xl}">
+                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Title]}"
+                           FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItDoes]}"
+                           Margin="0,12,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
+                           Foreground="{DynamicResource Text.Secondary}"/>
+                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItReads]}"
+                           Margin="0,8,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
+                           Foreground="{DynamicResource Text.Secondary}"/>
+                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItNever]}"
+                           Margin="0,8,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
+                           Foreground="{DynamicResource Text.Secondary}"/>
+                <ItemsControl x:Name="ProviderList" Margin="0,16,0,0" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                               FontSize="{StaticResource Font.Size.Body}"
+                                               Foreground="{DynamicResource Text.Primary}"/>
+                                    <TextBlock Text="{Binding HeadlineText}" TextWrapping="Wrap"
+                                               FontSize="{StaticResource Font.Size.Small}"
+                                               Foreground="{DynamicResource Text.Secondary}"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="12,4"
+                                        VerticalAlignment="Center"
+                                        Content="{Binding ActionLabelText}" Command="{Binding RunActionCommand}"
+                                        Visibility="{Binding ShowSignIn, Converter={StaticResource BoolToVis}}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button x:Name="StartButton" Style="{StaticResource AiUsageButton}" Padding="16,4"
+                        HorizontalAlignment="Right" Margin="0,24,0,0" IsDefault="True"
+                        Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Start]}"
+                        Click="StartButton_Click"/>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>

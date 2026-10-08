@@ -1,0 +1,49 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+    <!-- Type scale, spacing, radii and the one shared mono font - no colours here, so a theme swap
+         (Services/ThemeService.cs) never touches this dictionary. -->
+
+    <!-- Type scale -->
+    <system:Double x:Key="Font.Size.Micro">10</system:Double>
+    <system:Double x:Key="Font.Size.Small">11</system:Double>
+    <system:Double x:Key="Font.Size.Body">12</system:Double>
+    <system:Double x:Key="Font.Size.Strong">13</system:Double>
+    <system:Double x:Key="Font.Size.Title">14</system:Double>
+    <system:Double x:Key="Font.Size.Display">16</system:Double>
+    <!-- One clear step above Display, for a figure card's own headline number - the one number on
+         the whole window meant to be read from across the room, not alongside its own label. -->
+    <system:Double x:Key="Font.Size.Figure">24</system:Double>
+
+    <!-- Spacing. Thickness, not Double: every use is a Margin or a Padding, and WPF does not run a
+         type converter on a resource value, so a Double here throws while the window loads. -->
+    <Thickness x:Key="Space.Xs">4</Thickness>
+    <Thickness x:Key="Space.S">8</Thickness>
+    <Thickness x:Key="Space.M">12</Thickness>
+    <Thickness x:Key="Space.L">16</Thickness>
+    <Thickness x:Key="Space.Xl">24</Thickness>
+
+    <!-- Radii. The progress-bar radii (UsageBar's 8 px bar, ProviderTile mini's 4 px bar, and the
+         Slider track in Controls.xaml, all rounded to exactly half their own bar height) are not
+         listed here on purpose: a bar radius is geometry, not a design token, so those stay as
+         local literals next to each bar. -->
+    <CornerRadius x:Key="Radius.S">4</CornerRadius>
+    <CornerRadius x:Key="Radius.Control">6</CornerRadius>
+    <CornerRadius x:Key="Radius.Card">8</CornerRadius>
+    <CornerRadius x:Key="Radius.Window">8</CornerRadius>
+    <!-- Radius.Window is the rounding Windows itself applies to a top-level window (8 at 96 dpi), so
+         the frame's border and the system's clip coincide. Radius.Window.Top is that minus the 1 px
+         frame border, top corners only, for the title bar's own background (the one surface actually
+         painted at the window's top edge) - kept next to Radius.Window so the two are changed
+         together. -->
+    <CornerRadius x:Key="Radius.Window.Top">7,7,0,0</CornerRadius>
+
+    <!-- The narrowest a provider tile may get: the main window's minimum width (300) less its shadow
+         gutter (2 x 8), window border (2), tile list padding (2 x 8) and the 8 px vertical scrollbar,
+         so a stacked tile always fits the narrowest window instead of losing its right edge. The
+         tile's normal width (340) stays in WindowPlacementService, which sizes the window from it. -->
+    <system:Double x:Key="Tile.MinWidth">258</system:Double>
+
+    <!-- Fonts -->
+    <FontFamily x:Key="Font.Mono">Consolas, Courier New</FontFamily>
+</ResourceDictionary>

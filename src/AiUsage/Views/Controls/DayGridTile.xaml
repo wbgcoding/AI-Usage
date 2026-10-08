@@ -1,0 +1,78 @@
+<UserControl x:Class="AiUsage.Views.Controls.DayGridTile"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+             xmlns:services="clr-namespace:AiUsage.Services"
+             xmlns:stats="clr-namespace:AiUsage.Stats"
+             mc:Ignorable="d" d:DesignWidth="340">
+    <!-- The widget's own "Verbrauch je Tag"/"Usage per day" tile - the very same StatsMonthGrid the
+         statistics window draws its year grid with, fed by the very same ViewModels.DayGridTileViewModel,
+         which in turn reads through Stats.StatsMonthGridBuilder exactly as the statistics window's own
+         view model does - so a day never shows a different total here than it does there.
+         Takes part in the widget's own tile order/hide mechanism exactly like a ProviderTile (see
+         DayGridTileViewModel.ProviderId), never a second mechanism of its own. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <!-- Same shape as ProviderTile's own root: same background/border/radius/padding/min width, so
+         the day-grid tile reads as one more tile among the provider ones, never a special case. -->
+    <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.M}"
+            MinWidth="{StaticResource Tile.MinWidth}"
+            TextElement.Foreground="{DynamicResource Text.Primary}"
+            Focusable="True"
+            AutomationProperties.Name="{Binding HeaderDisplayName}"
+            SizeChanged="TileRoot_SizeChanged" Loaded="TileRoot_Loaded">
+        <!-- The one entry this tile needs: no usage page, no sign-out, no diagnostics - it is not a
+             real provider. -->
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Hide]}"
+                          Command="{Binding HideCommand}"/>
+            </ContextMenu>
+        </Border.ContextMenu>
+        <StackPanel>
+            <!-- Header: title left, the shown span's own total right - empty until Refresh has ever
+                 found a single record, so a genuinely unused install shows no stray "0". -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding HeaderDisplayName}" FontFamily="{DynamicResource Font.Ui}"
+                           FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding TotalText}" FontFamily="{DynamicResource Font.Numeric}"
+                           FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Secondary}"
+                           Typography.NumeralAlignment="Tabular" VerticalAlignment="Center" Margin="8,0,0,0"
+                           Visibility="{Binding HasAnyData, Converter={StaticResource BoolToVis}}"/>
+            </Grid>
+
+            <!-- The grid never scrolls here (unlike the statistics window's own copy): RangeStart
+                 already narrows to however many of the most recent weeks fit AvailableWidth at the
+                 current density, and the control's own shrink-to-fit is the last-resort safety net -
+                 nothing is ever clipped. Days itself stays the whole loaded year of weeks, unsliced, so the
+                 quantile color scale does not shift while the tile is resized. -->
+            <controls:StatsMonthGrid x:Name="MonthGrid" Days="{Binding Days}"
+                                      RangeStart="{Binding RangeStart}" RangeEnd="{Binding RangeEnd}"
+                                      Today="{Binding Today}" ColorScaleTotals="{Binding ColorScaleTotals}"
+                                      ShowLegend="{Binding ShowLegend}" ShowAxisLabels="{Binding ShowAxisLabels}" SingleRow="{Binding ShowAsStrip}"
+                                      DaySelected="MonthGrid_DaySelected"
+                                      ProviderDisplayNames="{x:Static stats:StatsViewModel.ProviderDisplayNames}"
+                                      EmptyCellBrush="{DynamicResource Border}"
+                                      TextBrush="{DynamicResource Text.Muted}"
+                                      EmptyTextBrush="{DynamicResource Text.Muted}"
+                                      AccentBrush="{DynamicResource Accent}"
+                                      TooltipBackground="{DynamicResource Bg.Raised}"
+                                      EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.Empty]}"
+                                      TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"
+                                      TotalLabel="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total]}"
+                                      NoUsageText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.NoUsage]}"
+                                      LegendLessText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.LegendLess]}"
+                                      LegendMoreText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.LegendMore]}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

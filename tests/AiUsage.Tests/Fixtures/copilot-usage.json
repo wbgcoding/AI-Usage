@@ -1,0 +1,5 @@
+{
+  "quotas": [
+    { "label": "premium_interactions", "used_percent": 30.0, "resets_at": "2026-10-01T00:00:00Z" }
+  ]
+}

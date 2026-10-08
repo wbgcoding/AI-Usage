@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- later layout tests render the real windows through WPF's own renderer -->
+    <UseWPF>true</UseWPF>
+    <!-- See AiUsage.csproj's own comment - keeps a build agent isolated to its own worktree from
+         ever needing git during a build. -->
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.0.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <!-- UseWPF drops System.IO from the implicit usings; tests read fixtures from disk -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AiUsage\AiUsage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The real theme files, not copies - ThemeTokenTests/ThemeContrastTests read the same
+         source src/AiUsage ships, so there is one truth for the token values. -->
+    <None Include="..\..\src\AiUsage\Themes\*.xaml" LinkBase="ThemeFixtures" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- RenderedTextContrastTests builds real Window/UserControl instances through
+       ThemeService.Apply's own test seam, using the assembly-qualified pack URI form
+       (pack://application:,,,/AI-Usage;component/...) so theme lookups resolve against the
+       production assembly regardless of which assembly the vstest host makes
+       Application.ResourceAssembly. App.xaml's own theme merges (Themes/Tokens.xaml etc.), loaded
+       through Application.InitializeComponent(), still use bare relative Sources though - those
+       need a matching resource embedded in THIS assembly at the same logical path. -->
+
+  <!-- A Resource item pointing outside the project directory does not become reachable under
+       Themes/<name>.xaml no matter what Link is given, so the theme files are physically copied into
+       this project first. Runs before resources are gathered for the build, so the freshly-copied
+       files are still picked up by this same build - nobody hand-maintains a second copy by hand. -->
+  <Target Name="CopyThemeXamlForResourceEmbedding" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <_ThemeSourceFile Include="..\..\src\AiUsage\Themes\*.xaml" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ThemeSourceFile)" DestinationFolder="$(MSBuildProjectDirectory)\Themes" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <Resource Include="Themes\*.xaml" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Once the target above has run at least once, the copies physically exist under the project
+       directory, so the SDK's own default globs would otherwise also auto-include them as Page
+       (compiled, needing MarkupCompilePass to resolve every clr-namespace they use) - fighting with
+       the plain Resource embedding this project actually wants for them. -->
+  <ItemGroup>
+    <Page Remove="Themes\**\*.xaml" />
+    <Compile Remove="Themes\**\*.cs" />
+    <None Remove="Themes\**\*.xaml" />
+  </ItemGroup>
+
+</Project>

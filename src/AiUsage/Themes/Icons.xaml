@@ -1,0 +1,65 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The app's own icons, drawn by hand on a 24x24 grid and used as Path data so they take the
+         foreground colour of whatever hosts them. They replace the text glyphs the title bar used to
+         show: two of those were colour emoji that ignored the theme, and the gear character was an
+         unreadable smudge at 16 px. No icon font and no third-party set, so nothing here can go
+         missing on a machine that lacks a particular font.
+
+         "F0" is the even-odd fill rule and is what punches the holes: the gear's hub, the eye's
+         pupil and the gap the slash cuts through the closed eye all come from a second (or third)
+         loop drawn inside the first. -->
+
+    <!-- Eight teeth on an 11-unit tip circle over an 8-unit root circle, hub hole 3.3. -->
+    <Geometry x:Key="Icon.Gear">F0 M 19.65,9.66 L 22.8,9.9 A 11,11 0 0 1 22.8,14.1 L 19.65,14.34 A 8,8 0 0 1 19.06,15.76 L 21.12,18.15 A 11,11 0 0 1 18.15,21.12 L 15.76,19.06 A 8,8 0 0 1 14.34,19.65 L 14.1,22.8 A 11,11 0 0 1 9.9,22.8 L 9.66,19.65 A 8,8 0 0 1 8.24,19.06 L 5.85,21.12 A 11,11 0 0 1 2.88,18.15 L 4.94,15.76 A 8,8 0 0 1 4.35,14.34 L 1.2,14.1 A 11,11 0 0 1 1.2,9.9 L 4.35,9.66 A 8,8 0 0 1 4.94,8.24 L 2.88,5.85 A 11,11 0 0 1 5.85,2.88 L 8.24,4.94 A 8,8 0 0 1 9.66,4.35 L 9.9,1.2 A 11,11 0 0 1 14.1,1.2 L 14.34,4.35 A 8,8 0 0 1 15.76,4.94 L 18.15,2.88 A 11,11 0 0 1 21.12,5.85 L 19.06,8.24 A 8,8 0 0 1 19.65,9.66 Z M 8.7,12 A 3.3,3.3 0 1 0 15.3,12 A 3.3,3.3 0 1 0 8.7,12 Z</Geometry>
+
+    <Geometry x:Key="Icon.Eye">F0 M 1.5,12 C 4.5,6.2 8.1,3.4 12,3.4 C 15.9,3.4 19.5,6.2 22.5,12 C 19.5,17.8 15.9,20.6 12,20.6 C 8.1,20.6 4.5,17.8 1.5,12 Z M 4.2,12 C 6.6,7.7 9.2,5.6 12,5.6 C 14.8,5.6 17.4,7.7 19.8,12 C 17.4,16.3 14.8,18.4 12,18.4 C 9.2,18.4 6.6,16.3 4.2,12 Z M 9,12 A 3,3 0 1 0 15,12 A 3,3 0 1 0 9,12 Z</Geometry>
+
+    <!-- Three slider tracks with offset knobs: the "providers and layout" menu's button (Icon.Eye stays the per-provider on/off toggle). Tracks and knobs all wind clockwise, so the nonzero fill joins them instead of cutting holes. -->
+    <Geometry x:Key="Icon.Layout">F1 M3,5 L21,5 A1,1 0 0 1 21,7 L3,7 A1,1 0 0 1 3,5 Z M3,11 L21,11 A1,1 0 0 1 21,13 L3,13 A1,1 0 0 1 3,11 Z M3,17 L21,17 A1,1 0 0 1 21,19 L3,19 A1,1 0 0 1 3,17 Z M12.25,6 A2.75,2.75 0 1 1 17.75,6 A2.75,2.75 0 1 1 12.25,6 Z M5.25,12 A2.75,2.75 0 1 1 10.75,12 A2.75,2.75 0 1 1 5.25,12 Z M14.25,18 A2.75,2.75 0 1 1 19.75,18 A2.75,2.75 0 1 1 14.25,18 Z</Geometry>
+
+    <!-- Same eye plus a diagonal bar; where the bar crosses the outline or the pupil the even-odd
+         rule turns the overlap back into a gap, which is exactly the cut-out a slashed icon needs. -->
+    <Geometry x:Key="Icon.EyeOff">F0 M 1.5,12 C 4.5,6.2 8.1,3.4 12,3.4 C 15.9,3.4 19.5,6.2 22.5,12 C 19.5,17.8 15.9,20.6 12,20.6 C 8.1,20.6 4.5,17.8 1.5,12 Z M 4.2,12 C 6.6,7.7 9.2,5.6 12,5.6 C 14.8,5.6 17.4,7.7 19.8,12 C 17.4,16.3 14.8,18.4 12,18.4 C 9.2,18.4 6.6,16.3 4.2,12 Z M 9,12 A 3,3 0 1 0 15,12 A 3,3 0 1 0 9,12 Z M 3.9,2.5 L 21.5,20.1 L 20.1,21.5 L 2.5,3.9 Z</Geometry>
+
+    <!-- An open ring with a triangular head, so the arrow reads as a loop rather than a full circle. -->
+    <Geometry x:Key="Icon.Refresh">F1 M 17.16,4.63 A 9,9 0 1 1 3.54,8.92 L 5.99,9.81 A 6.4,6.4 0 1 0 15.67,6.76 Z M 0.91,7.96 L 7.47,5.77 L 8.62,10.77 Z</Geometry>
+
+    <Geometry x:Key="Icon.Minimize">F1 M 4,11.2 L 20,11.2 L 20,12.8 L 4,12.8 Z</Geometry>
+
+    <Geometry x:Key="Icon.Close">F1 M 5.4,4 L 12,10.6 L 18.6,4 L 20,5.4 L 13.4,12 L 20,18.6 L 18.6,20 L 12,13.4 L 5.4,20 L 4,18.6 L 10.6,12 L 4,5.4 Z</Geometry>
+
+    <!-- A filled triangle with the exclamation mark cut out by the even-odd fill rule (F0), so the
+         background shows through the gap - same technique the gear's hub and the eye's pupil already
+         use in this file. The exclamation's dot is a true circle (the same two-arc construction
+         Icon.Eye's own pupil already uses successfully); its bar is a plain rectangle rather than a
+         hand-tuned rounded-cap shape, a deliberate simplification since nobody building this icon can
+         preview the render - a straight-sided bar next to a round dot still reads unambiguously as an
+         exclamation mark, with zero risk of a wrong arc-sweep flag distorting the shape. -->
+    <!-- The milder sibling of Icon.Warning for the Warn level: a ring with the exclamation mark cut out
+         (even-odd), so a window nearing its limit differs from one at it by shape as well as colour. -->
+    <Geometry x:Key="Icon.Alert">F0 M12,2 A10,10 0 1 0 12,22 A10,10 0 1 0 12,2 Z M11,6 L13,6 L13,14 L11,14 Z M11,16 L13,16 L13,18 L11,18 Z</Geometry>
+
+    <Geometry x:Key="Icon.Warning">F0 M 12,2.8 L 22,21.2 L 2,21.2 Z M 11,8 L 13,8 L 13,15 L 11,15 Z M 10.7,17.7 A 1.3,1.3 0 1 0 13.3,17.7 A 1.3,1.3 0 1 0 10.7,17.7 Z</Geometry>
+
+    <!-- One closed outline: both 45-degree arms (2.4 units thick) share a mitred apex, so there is no
+         seam where two separate bars would meet and anti-aliasing would leave a notch at the tip. -->
+    <Geometry x:Key="Icon.ChevronUp">F1 M 12,7.22 L 19.85,15.07 L 18.15,16.77 L 12,10.62 L 5.85,16.77 L 4.15,15.07 Z</Geometry>
+
+    <!-- Icon.ChevronUp flipped vertically about the 24x24 grid's center. -->
+    <Geometry x:Key="Icon.ChevronDown">F1 M 12,16.78 L 19.85,8.93 L 18.15,7.23 L 12,13.38 L 5.85,7.23 L 4.15,8.93 Z</Geometry>
+
+    <!-- A shaft plus a triangular head, arrow pointing straight up. -->
+    <Geometry x:Key="Icon.ArrowUp">F1 M 11,10 L 11,20 L 13,20 L 13,10 L 17,10 L 12,4 L 7,10 Z</Geometry>
+
+    <!-- Icon.ArrowUp flipped vertically about the 24x24 grid's center. -->
+    <Geometry x:Key="Icon.ArrowDown">F1 M 13,14 L 13,4 L 11,4 L 11,14 L 7,14 L 12,20 L 17,14 Z</Geometry>
+
+    <!-- An L-shaped axis with a rising zigzag line: two parallel climbs around one short dip, the second one long and ending in an arrowhead at the top right. -->
+    <Geometry x:Key="Icon.Stats">F1 M3,3 L5,3 L5,19 L21,19 L21,21 L3,21 Z M6.22,16.37 L11.06,10.38 L13.67,12.58 L17.83,7.43 L19.39,8.68 L13.93,15.42 L11.34,13.22 L7.78,17.63 Z M16.06,6.76 L21,5.1 L20.41,10.28 Z</Geometry>
+
+    <!-- The product mark: the real logo at 256 px (tools/make-icon.py writes it next to app.ico).
+         Drawn at 48 px or less, so high-quality downsampling keeps it crisp at every DPI, where the
+         .ico would hand WPF its nearest smaller frame to upscale. -->
+    <BitmapImage x:Key="AppMarkImage" UriSource="pack://application:,,,/AI-Usage;component/Assets/app-mark.png"/>
+</ResourceDictionary>

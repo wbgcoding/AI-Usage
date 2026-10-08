@@ -1,0 +1,206 @@
+﻿<Window x:Class="AiUsage.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:AiUsage.Views.Controls"
+        xmlns:vm="clr-namespace:AiUsage.ViewModels"
+        xmlns:services="clr-namespace:AiUsage.Services"
+        Title="{x:Static services:AppInfo.ProductName}"
+        Icon="pack://application:,,,/AI-Usage;component/Assets/app.ico"
+        RenderOptions.BitmapScalingMode="HighQuality"
+        WindowStyle="None"
+        Background="{DynamicResource Bg.Window}"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        SizeToContent="Height"
+        Foreground="{DynamicResource Text.Primary}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+    <!-- ResizeMode=NoResize disables WPF/Win32's native non-client resize-border loop entirely.
+         Resize is therefore done by hand with eight Thumb grips (WPF's own drag-delta control, not a
+         custom mouse-capture reimplementation), one per edge and corner. -->
+    <Grid>
+        <Border x:Name="ChromeBorder" Style="{StaticResource WindowChrome}">
+            <DockPanel LastChildFill="True">
+                <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top"
+                                    EyeSource="{Binding}"
+                                    ShowWindowMenu="True"
+                                    ShowStats="True"
+                                    RefreshRequested="TitleBarControl_RefreshRequested"
+                                    SettingsRequested="TitleBarControl_SettingsRequested"
+                                    StatsRequested="TitleBarControl_StatsRequested"
+                                    MinimizeRequested="TitleBarControl_MinimizeRequested"
+                                    CloseRequested="TitleBarControl_CloseRequested"
+                                    CollapseToggleRequested="TitleBarControl_CollapseToggleRequested"
+                                    AlwaysOnTopToggleRequested="TitleBarControl_AlwaysOnTopToggleRequested"/>
+                <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto" DockPanel.Dock="Top">
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+                            <Style.Triggers>
+                                <!-- Only a row of tiles can outgrow the window sideways; stacked tiles
+                                     always get the full width and must never offer a sideways bar. -->
+                                <DataTrigger Binding="{Binding IsHorizontal}" Value="True">
+                                    <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
+                    <StackPanel>
+                        <Border Margin="8,8,8,0" Padding="{StaticResource Space.S}" CornerRadius="{StaticResource Radius.Control}"
+                                Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Level.Warn}" BorderThickness="1"
+                                Visibility="{Binding ShowNewerVersionWarning, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding NewerVersionWarningText}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Text.Secondary}"
+                                       FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"/>
+                        </Border>
+                        <Border Margin="8,8,8,0" Padding="{StaticResource Space.S}" CornerRadius="{StaticResource Radius.Control}"
+                                Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+                                Visibility="{Binding Update.ShowNotice, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Update.NoticeText}" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Text.Primary}"
+                                           FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="UpdateInstallButton" Style="{StaticResource AiUsageButton}" Margin="0,0,8,0"
+                                            AutomationProperties.AutomationId="UpdateInstallButton"
+                                            IsEnabled="{Binding Update.CanInstall}"
+                                            Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.InstallNow]}"
+                                            Click="UpdateInstall_Click"/>
+                                    <Button x:Name="UpdateLaterButton" Style="{StaticResource AiUsageButton}"
+                                            AutomationProperties.AutomationId="UpdateLaterButton"
+                                            Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.Later]}"
+                                            Click="UpdateLater_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    <Grid>
+                        <!-- All tiles stay in the ItemsSource even while hidden (a hidden
+                             provider keeps polling in the background) - only the container's own
+                             Visibility collapses, via ItemContainerStyle below, so hiding never needs
+                             a second filtered collection to stay in sync with the real one. -->
+                        <!-- DisplayRows, not Tiles: the widget's own mixed provider-plus-day-grid
+                             order (see MainViewModel.DisplayRows). Two implicit templates, one per
+                             row kind, live in this ItemsControl's own Resources instead of a single
+                             ItemTemplate - WPF then picks between them by each row's own runtime
+                             type, never a converter or a type check in code. -->
+                        <ItemsControl x:Name="ProviderList" ItemsSource="{Binding DisplayRows}">
+                            <ItemsControl.Resources>
+                                <DataTemplate DataType="{x:Type vm:ProviderTileViewModel}">
+                                    <controls:ProviderTile>
+                                        <!-- IsHorizontal lives on MainViewModel (the window's own
+                                             DataContext), not on this template's tile DataContext, so
+                                             a plain {Binding IsHorizontal} would bind to nothing here -
+                                             reach the window explicitly instead, the same flag the
+                                             panel swap above already switches on. The stacked layout's
+                                             bottom gap does not carry over to the row layout, where the
+                                             tiles instead need a trailing right-hand gap. -->
+                                        <controls:ProviderTile.Style>
+                                            <Style TargetType="controls:ProviderTile">
+                                                <Setter Property="Margin" Value="0,0,0,4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DataContext.IsHorizontal, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
+                                                        <Setter Property="Margin" Value="0,0,4,0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </controls:ProviderTile.Style>
+                                    </controls:ProviderTile>
+                                </DataTemplate>
+                                <DataTemplate DataType="{x:Type vm:DayGridTileViewModel}">
+                                    <controls:DayGridTile>
+                                        <controls:DayGridTile.Style>
+                                            <Style TargetType="controls:DayGridTile">
+                                                <Setter Property="Margin" Value="0,0,0,4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DataContext.IsHorizontal, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
+                                                        <Setter Property="Margin" Value="0,0,4,0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </controls:DayGridTile.Style>
+                                    </controls:DayGridTile>
+                                </DataTemplate>
+                            </ItemsControl.Resources>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsHidden}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <!-- The list's own gap on the side the tiles already carry one on
+                                         is left to the tiles: every tile keeps a trailing gap of its
+                                         own (below when stacked, to its right in a row), and the last
+                                         one's used to land on top of the list's own, so the window
+                                         closed twice as far below the last tile as above the first. -->
+                                    <Setter Property="Margin" Value="8,8,8,0"/>
+                                    <Setter Property="ItemsPanel">
+                                        <Setter.Value>
+                                            <ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsHorizontal}" Value="True">
+                                            <Setter Property="Margin" Value="8,8,0,8"/>
+                                            <Setter Property="ItemsPanel">
+                                                <Setter.Value>
+                                                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                        </ItemsControl>
+
+                        <!-- Every provider hidden: never an empty rectangle. -->
+                        <StackPanel Margin="{StaticResource Space.L}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Empty.AllHidden.Head]}"
+                                       TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource Text.Primary}" FontWeight="SemiBold"
+                                       FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}" Margin="0,0,0,4"/>
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Empty.AllHidden.Reason]}"
+                                       TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource Text.Secondary}"
+                                       FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,8"/>
+                            <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Empty.AllHidden.Action]}"
+                                    Click="EmptyStateSettings_Click" Style="{StaticResource AiUsageButton}"
+                                    Padding="8,4" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- No margin, exactly like the chrome above, so every grab area sits on the edge the user
+             can actually see. The grips come after the chrome
+             Border: a later sibling in the same cell wins hit testing, and the chrome's own opaque
+             background would otherwise swallow every drag. The top grip is only 4 px so the title
+             bar buttons right under it keep almost all of their clickable area. The right and bottom
+             grips are 3 px for the same reason: the 8 px scroll bars sit flush against those edges. -->
+        <!-- PreviewMouseLeftButtonDown, not MouseLeftButtonDown: Thumb's own OnMouseLeftButtonDown
+             starts its drag capture and marks the bubbling event Handled before a plain sibling
+             handler on the same element ever sees it - confirmed on the test machine, where a
+             temporary probe showed zero hits on the bubbling event even for a drag Thumb itself
+             visibly acted on. The tunnelling Preview version reaches this handler first, ahead of
+             Thumb's own processing, so the click count is never lost. -->
+        <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeTop_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeHeightGrip_MouseLeftButtonDown"/>
+        <!-- The same 4 pixels as the top grip above: both carry the double click that sets the
+             height back to "fits the content", and a 3 pixel target made the bottom one noticeably
+             harder to hit than the top one for no reason. -->
+        <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeHeightGrip_MouseLeftButtonDown"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeWidthGrip_MouseLeftButtonDown"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeWidthGrip_MouseLeftButtonDown"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNWSE" DragDelta="ResizeTopLeft_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeCornerGrip_MouseLeftButtonDown"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNESW" DragDelta="ResizeTopRight_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeCornerGrip_MouseLeftButtonDown"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNESW" DragDelta="ResizeBottomLeft_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeCornerGrip_MouseLeftButtonDown"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNWSE" DragDelta="ResizeBottomRight_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeCornerGrip_MouseLeftButtonDown"/>
+    </Grid>
+</Window>

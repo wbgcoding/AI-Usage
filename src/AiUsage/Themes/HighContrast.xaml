@@ -1,0 +1,35 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Used instead of any of the four literal themes while Windows high-contrast mode is on
+ - every token maps to the matching SystemColors brush/font so the
+         app follows the user's chosen high-contrast palette rather than a fixed one. Snapshot at
+         the moment ThemeService.Apply runs; a high-contrast palette change while the app is
+         already running needs a re-apply (no window exists yet to wire that up). -->
+    <SolidColorBrush x:Key="Bg.Base" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Bg.Surface" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Bg.Raised" Color="{x:Static SystemColors.ControlColor}"/>
+    <SolidColorBrush x:Key="Border" Color="{x:Static SystemColors.ActiveBorderColor}"/>
+    <SolidColorBrush x:Key="Border.Window" Color="{x:Static SystemColors.WindowFrameColor}"/>
+    <SolidColorBrush x:Key="Border.Control" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Track" Color="{x:Static SystemColors.ControlDarkColor}"/>
+    <Thickness x:Key="Track.BorderThickness">1</Thickness>
+    <SolidColorBrush x:Key="Text.Primary" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Text.Secondary" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Text.Muted" Color="{x:Static SystemColors.GrayTextColor}"/>
+    <SolidColorBrush x:Key="Accent" Color="{x:Static SystemColors.HighlightColor}"/>
+    <SolidColorBrush x:Key="Accent.Hover" Color="{x:Static SystemColors.HotTrackColor}"/>
+    <SolidColorBrush x:Key="Level.Ok" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Level.Warn" Color="{x:Static SystemColors.HotTrackColor}"/>
+    <SolidColorBrush x:Key="Level.Crit" Color="{x:Static SystemColors.HighlightColor}"/>
+    <!-- A gradient is wrong in high-contrast mode, and a system color cannot be lightened at
+         design time - these mirror the flat Level.* colors above as plain solid brushes so a
+         theme swap never leaves a dangling DynamicResource in UsageBar.xaml. -->
+    <SolidColorBrush x:Key="Level.Ok.Fill" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Level.Warn.Fill" Color="{x:Static SystemColors.HotTrackColor}"/>
+    <SolidColorBrush x:Key="Level.Crit.Fill" Color="{x:Static SystemColors.HighlightColor}"/>
+    <Color x:Key="Shadow">#00000000</Color>
+    <!-- WPF's text stack mismeasures the OS's newer, variable-weight Segoe build and clips
+         descenders (g, j, y, q) in a TextBox; the classic static Segoe UI renders those correctly. -->
+    <FontFamily x:Key="Font.Ui">Segoe UI, Arial</FontFamily>
+    <FontFamily x:Key="Font.Numeric">Segoe UI, Arial</FontFamily>
+</ResourceDictionary>
