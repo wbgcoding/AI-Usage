@@ -237,11 +237,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool micaEnabled;
 
-    /// <summary>Whether this Windows can show Mica at all; the option is hidden below that build and its
-    /// value stays as it was.</summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
-        Justification = "Bound from XAML against this instance.")]
-    public bool MicaSupported => Environment.OSVersion.Version.Build >= MicaPolicy.MinimumBuild;
+    /// <summary>Whether the Mica option is shown: only while the theme is "follow Windows" (the only
+    /// theme Mica acts in) and on a Windows build that can show it. Hidden otherwise, the stored value
+    /// stays as it was.</summary>
+    public bool MicaOptionVisible => IsMicaOptionVisible(Environment.OSVersion.Version.Build, _settings.Theme);
+
+    internal static bool IsMicaOptionVisible(int osBuild, string? theme) =>
+        osBuild >= MicaPolicy.MinimumBuild
+        && string.Equals(theme, nameof(AppTheme.System), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The live value of <see cref="Storage.AppPaths.DataDirectory"/> - re-read after a
     /// successful <see cref="ChooseDataFolderAsync"/> so the data folder row (Settings.DataFolder) shows the new location
@@ -719,6 +722,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         RefreshSystemThemePreview();
 
         _settings.Theme = theme.ToString();
+        OnPropertyChanged(nameof(MicaOptionVisible));
         if (Application.Current is not null) // guards unit tests, which run with no live WPF Application
             ThemeService.Apply(theme);
         _store.RequestSave(_settings);

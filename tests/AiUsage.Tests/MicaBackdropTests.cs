@@ -200,3 +200,16 @@ public class MicaBackdropTests
         Assert.False(transparent[^1]);
     }
 }
+
+public class MicaOptionVisibilityTests
+{
+    [Theory]
+    [InlineData(22631, "System", true)]
+    [InlineData(22631, "system", true)]
+    [InlineData(22631, "Dark", false)]
+    [InlineData(22631, "Nebula", false)]
+    [InlineData(19045, "System", false)]
+    [InlineData(22000, "System", false)]
+    public void The_option_shows_only_in_theme_System_on_a_supporting_build(int build, string theme, bool expected) =>
+        Assert.Equal(expected, AiUsage.ViewModels.SettingsViewModel.IsMicaOptionVisible(build, theme));
+}

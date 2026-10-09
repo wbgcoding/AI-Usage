@@ -77,6 +77,19 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void PickingATheme_updates_the_Mica_option_visibility_live()
+    {
+        var (vm, _) = Build();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.SetThemeCommand.Execute(AppTheme.Dark);
+
+        Assert.Contains(nameof(SettingsViewModel.MicaOptionVisible), changed);
+        Assert.False(vm.MicaOptionVisible);
+    }
+
+    [Fact]
     public void TheZoomPickerOffersTheFourStepsAndStoresTheChosenOne()
     {
         var (vm, settings) = Build();
