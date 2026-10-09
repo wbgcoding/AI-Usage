@@ -112,6 +112,7 @@
   <data name="Update.Later" xml:space="preserve"><value>Später</value></data>
   <data name="Update.NotNewer" xml:space="preserve"><value>Die heruntergeladene Datei ist nicht neuer als deine Version und wurde deshalb nicht installiert. Details stehen auf der Release-Seite.</value></data>
   <data name="Update.NotVerified" xml:space="preserve"><value>Dieses Update ließ sich nicht als echt bestätigen und wurde nicht installiert. Prüfe auf der Release-Seite, ob die Quelle stimmt, bevor du es von Hand installierst.</value></data>
+  <data name="Update.InstalledRestart" xml:space="preserve"><value>Das Update ist installiert. Starte AI-Usage neu, um die neue Version zu nutzen.</value></data>
   <data name="Update.NotLoaded" xml:space="preserve"><value>Das Update konnte nicht geladen werden. Du kannst es auf der Release-Seite von Hand herunterladen.</value></data>
   <data name="About.UpToDate" xml:space="preserve"><value>Das ist die neueste Version.</value></data>
   <data name="Crash.Title" xml:space="preserve"><value>Unerwarteter Fehler</value></data>

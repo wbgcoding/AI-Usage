@@ -27,6 +27,12 @@ public class UpdateNoticeTests
 
         public Version? ReadFileVersion(string path) => new(9, 0, 0, 0);
 
+        public string? ReadOriginalFilename(string path) => "AI-Usage.dll";
+
+        public string? ReadFileDescription(string path) => "AI-Usage Setup";
+
+        public ushort? ReadPeMachine(string path) => 0x8664;
+
         public List<string> Ran { get; } = [];
 
         public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct)
@@ -37,7 +43,11 @@ public class UpdateNoticeTests
 
         public void StartSetupAndExit(string setupPath) => Ran.Add("setup");
 
-        public void ReplaceRunningAndRestart(byte[] verifiedExe) => Ran.Add("replace");
+        public bool ReplaceRunningAndRestart(byte[] verifiedExe)
+        {
+            Ran.Add("replace");
+            return true;
+        }
     }
 
     private static UpdateCheck.Release Newer() => new("v9.0.0", Page,

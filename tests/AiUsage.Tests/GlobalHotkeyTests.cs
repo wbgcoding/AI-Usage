@@ -24,6 +24,35 @@ public class GlobalHotkeyTests
         Assert.False(ok);
     }
 
+    [Theory]
+    [InlineData("Ctrl+None")]
+    [InlineData("Ctrl+Alt+LeftCtrl")]
+    [InlineData("Ctrl+RightShift")]
+    [InlineData("Alt+LWin")]
+    [InlineData("Ctrl+System")]
+    public void TryParse_rejects_no_key_and_modifier_keys(string text)
+    {
+        Assert.False(GlobalHotkey.TryParse(text, out _, out _));
+    }
+
+    [Theory]
+    [InlineData("Ctrl+Alt+Left")]
+    [InlineData("Alt+Ctrl+Right")]
+    [InlineData("Ctrl+Alt+Up")]
+    [InlineData("Ctrl+Alt+Down")]
+    public void TryParse_rejects_the_window_snap_combinations(string text)
+    {
+        Assert.False(GlobalHotkey.TryParse(text, out _, out _));
+    }
+
+    [Fact]
+    public void TryParse_still_accepts_arrow_keys_with_other_modifiers()
+    {
+        Assert.True(GlobalHotkey.TryParse("Ctrl+Alt+Shift+Left", out _, out _));
+        Assert.True(GlobalHotkey.TryParse("Ctrl+Left", out _, out _));
+        Assert.True(GlobalHotkey.TryParse("Win+Alt+Up", out _, out _));
+    }
+
     [Fact]
     public void TryParse_rejects_a_bare_key_with_no_modifier()
     {

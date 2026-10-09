@@ -26,7 +26,7 @@ public sealed class AutostartServiceTests : IDisposable
     {
         AutostartService.Enable(TestKeyPath, @"C:\Program Files\AI-Usage\AI-Usage.exe");
 
-        Assert.True(AutostartService.IsEnabled(TestKeyPath));
+        Assert.True(AutostartService.IsEnabled(TestKeyPath, currentExePath: @"C:\Program Files\AI-Usage\AI-Usage.exe"));
         using var key = Registry.CurrentUser.OpenSubKey(TestKeyPath);
         Assert.Equal("\"C:\\Program Files\\AI-Usage\\AI-Usage.exe\" --tray", key!.GetValue("AI-Usage"));
     }
@@ -45,7 +45,7 @@ public sealed class AutostartServiceTests : IDisposable
         AutostartService.Enable(TestKeyPath, @"C:\x.exe");
         WriteApprovalMarker(0x03);
 
-        Assert.False(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath));
+        Assert.False(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath, @"C:\x.exe"));
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class AutostartServiceTests : IDisposable
         AutostartService.Enable(TestKeyPath, @"C:\x.exe");
         WriteApprovalMarker(0x02);
 
-        Assert.True(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath));
+        Assert.True(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath, @"C:\x.exe"));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class AutostartServiceTests : IDisposable
     {
         WriteApprovalMarker(0x02);
 
-        Assert.False(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath));
+        Assert.False(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath, @"C:\x.exe"));
     }
 
     [Fact]
@@ -75,7 +75,71 @@ public sealed class AutostartServiceTests : IDisposable
 
         using var key = Registry.CurrentUser.OpenSubKey(TestApprovedKeyPath);
         Assert.Null(key!.GetValue("AI-Usage"));
-        Assert.True(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath));
+        Assert.True(AutostartService.IsEnabled(TestKeyPath, TestApprovedKeyPath, @"C:\x.exe"));
+    }
+
+    [Fact]
+    public void IsEnabledIsFalseForAnEntryThatStartsAnotherProgramFile()
+    {
+        AutostartService.Enable(TestKeyPath, @"C:\Old\AI-Usage.exe");
+
+        Assert.False(AutostartService.IsEnabled(TestKeyPath, currentExePath: @"C:\New\AI-Usage.exe"));
+        Assert.True(AutostartService.IsEnabled(TestKeyPath, currentExePath: @"c:\old\ai-usage.EXE"));
+    }
+
+    [Fact]
+    public void IsEnabledReadsTheRegistryAndChangesNothing()
+    {
+        AutostartService.Enable(TestKeyPath, @"C:\Old\AI-Usage.exe");
+
+        AutostartService.IsEnabled(TestKeyPath, currentExePath: @"C:\New\AI-Usage.exe");
+
+        using var key = Registry.CurrentUser.OpenSubKey(TestKeyPath);
+        Assert.Equal("\"C:\\Old\\AI-Usage.exe\" --tray", key!.GetValue("AI-Usage"));
+    }
+
+    [Fact]
+    public void RepairIfMovedPointsAnEntryForAMissingFileAtTheCurrentCopy()
+    {
+        AutostartService.Enable(TestKeyPath, @"C:\Old\AI-Usage.exe");
+
+        var repaired = AutostartService.RepairIfMoved(TestKeyPath, @"C:\New\AI-Usage.exe", _ => false);
+
+        Assert.True(repaired);
+        Assert.True(AutostartService.IsEnabled(TestKeyPath, currentExePath: @"C:\New\AI-Usage.exe"));
+    }
+
+    [Fact]
+    public void RepairIfMovedLeavesAnEntryForAnotherCopyThatStillExists()
+    {
+        AutostartService.Enable(TestKeyPath, @"C:\Old\AI-Usage.exe");
+
+        var repaired = AutostartService.RepairIfMoved(TestKeyPath, @"C:\New\AI-Usage.exe", _ => true);
+
+        Assert.False(repaired);
+        Assert.True(AutostartService.IsEnabled(TestKeyPath, currentExePath: @"C:\Old\AI-Usage.exe"));
+    }
+
+    [Fact]
+    public void RepairIfMovedDoesNothingWithoutAnEntryOrWhenItAlreadyMatches()
+    {
+        Assert.False(AutostartService.RepairIfMoved(TestKeyPath, @"C:\New\AI-Usage.exe", _ => false));
+        using (var key = Registry.CurrentUser.OpenSubKey(TestKeyPath))
+            Assert.Null(key?.GetValue("AI-Usage"));
+
+        AutostartService.Enable(TestKeyPath, @"C:\New\AI-Usage.exe");
+        Assert.False(AutostartService.RepairIfMoved(TestKeyPath, @"C:\New\AI-Usage.exe", _ => false));
+    }
+
+    [Theory]
+    [InlineData("\"C:\\Program Files\\AI-Usage\\AI-Usage.exe\" --tray", "C:\\Program Files\\AI-Usage\\AI-Usage.exe")]
+    [InlineData("C:\\Tools\\AI-Usage.exe --tray", "C:\\Tools\\AI-Usage.exe")]
+    [InlineData("C:\\Tools\\AI-Usage.exe", "C:\\Tools\\AI-Usage.exe")]
+    [InlineData("\"unterminated", null)]
+    [InlineData("", null)]
+    public void ExtractExePathReadsTheProgramOutOfARunValue(string value, string? expected)
+    {
+        Assert.Equal(expected, AutostartService.ExtractExePath(value));
     }
 
     [Fact]

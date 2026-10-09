@@ -172,12 +172,19 @@ public sealed class GlobalHotkey : IDisposable
             }
         }
 
-        if (parsedKey is null || !HasRequiredModifier(modifiers, parsedKey.Value))
+        if (parsedKey is null || !HasRequiredModifier(modifiers, parsedKey.Value) || !IsUsableHotkeyKey(modifiers, parsedKey.Value))
             return false;
 
         key = parsedKey.Value;
         return true;
     }
+
+    /// <summary>Not a key by itself (none, or a modifier key) and not one of the four window snap
+    /// combinations (Ctrl+Alt+arrow) this app registers on its own.</summary>
+    private static bool IsUsableHotkeyKey(ModifierKeys modifiers, Key key) =>
+        key is not (Key.None or Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
+            or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.System)
+        && !(modifiers == SnapModifiers && key is Key.Left or Key.Right or Key.Up or Key.Down);
 
     /// <summary>A global hotkey needs Control, Alt or Windows: with Shift alone it would swallow the
     /// plain capital letter in every program. Shift alone is fine with F1-F24, which type nothing.</summary>

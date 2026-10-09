@@ -69,6 +69,41 @@ public class TrayTooltipTests
     }
 
     [Fact]
+    public void ShortenedNamesThatEndUpAlikeAreNumbered()
+    {
+        var lines = new[]
+        {
+            new TrayTooltipBuilder.ProviderLine("Claude work account", 10, 20),
+            new TrayTooltipBuilder.ProviderLine("Claude private account", 30, 40),
+            new TrayTooltipBuilder.ProviderLine("Codex enterprise account", 50, 60),
+            new TrayTooltipBuilder.ProviderLine("Gemini advanced account", 70, 80),
+        };
+
+        var text = TrayTooltipBuilder.Build(lines);
+        var rows = text.Split('\n');
+
+        Assert.StartsWith("Cla1 ", rows[0]);
+        Assert.StartsWith("Cla2 ", rows[1]);
+        Assert.StartsWith("Cod ", rows[2]);
+        Assert.StartsWith("Gem ", rows[3]);
+    }
+
+    [Fact]
+    public void WholeTrailingLinesAreDroppedInsteadOfSlicingTheText()
+    {
+        var lines = Enumerable.Range(0, 20)
+            .Select(i => new TrayTooltipBuilder.ProviderLine($"Provider{i}", 99, 99))
+            .ToArray();
+
+        var rows = TrayTooltipBuilder.Build(lines).Split('\n');
+
+        Assert.True(rows.Length < 20);
+        Assert.True(rows.Length >= 1);
+        Assert.All(rows, row => Assert.Matches(@"^\S+ .+ 99 ?% · .+ 99 ?%$", row)); // every kept line is complete
+        Assert.StartsWith("Pro", rows[0]);
+    }
+
+    [Fact]
     public void AMissingWindowShowsADashNotAnInventedZeroPercent()
     {
         var text = TrayTooltipBuilder.Build([new TrayTooltipBuilder.ProviderLine("Claude", null, 63)]);

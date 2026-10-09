@@ -25,7 +25,31 @@ public sealed class SingleInstanceService(
     private RegisteredWaitHandle? _registeredWait;
 
     /// <summary>True when this process should proceed as the one and only instance.</summary>
-    public bool AcquireOwnership(string[] args) => AcquireOwnership(args, NewInstanceAllowed);
+    public bool AcquireOwnership(string[] args) => AcquireOwnership(args, NewInstanceAllowed,
+        UpdateHost.IsAfterUpdateStart(args) ? AfterUpdateRetryWindow : TimeSpan.Zero);
+
+    /// <summary>How long the copy a portable update starts keeps asking for the lock while the copy
+    /// that started it is still shutting down.</summary>
+    internal static readonly TimeSpan AfterUpdateRetryWindow = TimeSpan.FromSeconds(30);
+
+    /// <summary>Asks for ownership again every <paramref name="step"/> until <paramref name="retryFor"/>
+    /// has passed. A failed attempt gives its handle back first: a named mutex lives as long as any
+    /// handle to it, so a kept handle would make the lock look taken after the old owner is gone.</summary>
+    internal bool AcquireOwnership(string[] args, bool allowNewInstance, TimeSpan retryFor, TimeSpan? step = null)
+    {
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            if (AcquireOwnership(args, allowNewInstance))
+                return true;
+            if (waited.Elapsed >= retryFor)
+                return false;
+
+            _mutex?.Dispose();
+            _mutex = null;
+            Thread.Sleep(step ?? TimeSpan.FromMilliseconds(250));
+        }
+    }
 
     internal bool AcquireOwnership(string[] args, bool allowNewInstance)
     {
@@ -45,8 +69,23 @@ public sealed class SingleInstanceService(
         {
             // Some other process already owns a same-named mutex under different privileges - the
             // single-instance check itself must never be why the app fails to start.
-            CreateShowEvent();
+            TryCreateShowEvent();
             return true;
+        }
+    }
+
+    /// <summary>The same access problem can hit the show event (a first copy running elevated owns it
+    /// too): the event then stays null, a later start cannot wake this copy, and the start goes on.</summary>
+    private void TryCreateShowEvent()
+    {
+        try
+        {
+            CreateShowEvent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _showEvent = null;
+            LogService.Shared.LogInfo("Single instance: the show event belongs to a more privileged copy; a second start cannot raise this window.");
         }
     }
 

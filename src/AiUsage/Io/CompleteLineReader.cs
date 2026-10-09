@@ -136,6 +136,11 @@ internal static class CompleteLineReader
             consumedOffset = endOffset;
         }
 
+        // An unterminated final record past the cap was counted but never delivered; once its writer
+        // has stopped, the whole tail is consumed so the next run does not meet it again.
+        if (acceptTrailingLineWithoutNewline && discarding)
+            consumedOffset = endOffset;
+
         return consumedOffset;
     }
 

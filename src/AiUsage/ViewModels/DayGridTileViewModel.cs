@@ -155,7 +155,19 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     /// <summary>Reloads from <see cref="_statsStore"/> - called once at startup and again every time
     /// <see cref="Services.StatsIndexerService.IndexCompleted"/> fires, so the tile never needs the
     /// statistics window to have been opened even once to show real numbers.</summary>
-    public void Refresh() => _ = RefreshAsync();
+    public void Refresh() => _ = RefreshAndLogAsync();
+
+    private async Task RefreshAndLogAsync()
+    {
+        try
+        {
+            await RefreshAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogService.Shared.LogError($"Day grid refresh failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+        }
+    }
 
     /// <summary>The awaitable form of <see cref="Refresh"/>: the index is read and the grid built on a
     /// pool thread, the result is assigned back on the caller's context. A newer call makes an older

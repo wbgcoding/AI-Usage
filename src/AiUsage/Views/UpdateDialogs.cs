@@ -14,12 +14,29 @@ internal static class UpdateDialogs
     /// offers the release page.</summary>
     public static async Task InstallAsync(Window owner, UpdateNoticeViewModel update)
     {
-        var result = await update.InstallAsync(CancellationToken.None);
+        UpdateInstallResult result;
+        try
+        {
+            result = await update.InstallAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogService.Shared.LogError($"Update install failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+            result = new UpdateInstallResult(UpdateOutcome.DownloadFailed, update.ReleaseUrl);
+        }
+
         if (result.Outcome == UpdateOutcome.Started)
             return;
 
         var loc = LocalizationService.Instance;
         var message = loc[MessageKey(result.Outcome)];
+        if (result.Outcome == UpdateOutcome.InstalledRestartNeeded)
+        {
+            // The new version is already in place: nothing to download, so only a close button.
+            ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["TitleBar.Close"], "");
+            return;
+        }
+
         if (ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["About.OpenReleasePage"], loc["TitleBar.Close"]))
             OpenReleasePage(result.ReleaseUrl);
     }
@@ -28,6 +45,7 @@ internal static class UpdateDialogs
     {
         UpdateOutcome.NotVerified => "Update.NotVerified",
         UpdateOutcome.NotNewer => "Update.NotNewer",
+        UpdateOutcome.InstalledRestartNeeded => "Update.InstalledRestart",
         _ => "Update.NotLoaded",
     };
 

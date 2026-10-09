@@ -34,16 +34,18 @@ public static class SnapshotChooser
             return usable
                 .OrderByDescending(candidate => candidate.Windows.Count)
                 .ThenByDescending(candidate => candidate.DataTimestamp ?? DateTimeOffset.MinValue)
-                .ThenBy(candidate => Cost[candidate.SourceKind])
+                .ThenBy(candidate => CostOf(candidate.SourceKind))
                 .First();
 
         // Nothing usable: the state that explains itself (asking to sign in) beats one that merely
         // failed, so the tile points at the actual problem instead of a generic error.
         return candidates
             .OrderBy(candidate => candidate.Status == ProviderStatus.NotSignedIn ? 0 : 1)
-            .ThenBy(candidate => Cost[candidate.SourceKind])
+            .ThenBy(candidate => CostOf(candidate.SourceKind))
             .First();
     }
+
+    private static int CostOf(SourceKind kind) => Cost.GetValueOrDefault(kind, int.MaxValue);
 
     private static bool IsUsable(ProviderSnapshot snapshot) =>
         snapshot.Status == ProviderStatus.Ok && snapshot.Windows.Count > 0;

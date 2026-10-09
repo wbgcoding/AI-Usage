@@ -24,6 +24,20 @@ public class SnapshotChooserTests
         Error: null);
 
     [Fact]
+    public void Pick_ranks_a_source_kind_without_a_cost_entry_last_instead_of_throwing()
+    {
+        var unknown = Snapshot(sourceKind: (SourceKind)99);
+        var known = Snapshot(sourceKind: SourceKind.WebSession);
+
+        Assert.Same(known, SnapshotChooser.Pick([unknown, known]));
+        Assert.Same(known, SnapshotChooser.Pick([known, unknown]));
+
+        var failedUnknown = Snapshot(status: ProviderStatus.Failed, sourceKind: (SourceKind)99, windowCount: 0);
+        var failedKnown = Snapshot(status: ProviderStatus.Failed, sourceKind: SourceKind.LocalFile, windowCount: 0);
+        Assert.Same(failedKnown, SnapshotChooser.Pick([failedUnknown, failedKnown]));
+    }
+
+    [Fact]
     public void Pick_returns_the_sole_candidate_when_only_one_is_given()
     {
         var only = Snapshot(status: ProviderStatus.NotSignedIn, windowCount: 0);

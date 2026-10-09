@@ -267,6 +267,60 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_of_a_newer_schema_file_yields_the_same_provider_entries_as_the_defaults()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(Path.Combine(directory, "settings.json"), """{"schemaVersion":99}""");
+        using var store = new SettingsStore(directory);
+
+        var settings = store.Load();
+
+        Assert.Equal(AppSettings.KnownProviderIds.OrderBy(id => id), settings.Providers.Keys.OrderBy(id => id));
+        Assert.All(settings.Providers.Values, provider => Assert.True(provider.Order >= 0));
+    }
+
+    [Fact]
+    public void SaveNow_replaces_a_queued_older_save_so_Dispose_cannot_write_it_back()
+    {
+        var directory = TempDirectory();
+        var store = new SettingsStore(directory, debounceDelay: TimeSpan.FromHours(1));
+        var older = new AppSettings { RefreshSeconds = 30 };
+        var final = new AppSettings { RefreshSeconds = 120 };
+
+        store.RequestSave(older);
+        Assert.True(store.SaveNow(final));
+        store.Dispose();
+
+        using var reloadStore = new SettingsStore(directory);
+        Assert.Equal(120, reloadStore.Load().RefreshSeconds);
+    }
+
+    [Fact]
+    public async Task RequestSave_does_not_wait_for_a_file_write_that_is_in_progress()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory, debounceDelay: TimeSpan.FromHours(1));
+        using var writeStarted = new ManualResetEventSlim();
+        using var releaseWrite = new ManualResetEventSlim();
+        store.RequestSave(new AppSettings()); // warms up the snapshot path so only the gate is measured below
+        store.BeforeWrite = () =>
+        {
+            writeStarted.Set();
+            releaseWrite.Wait(TimeSpan.FromSeconds(30));
+        };
+
+        var slowWrite = Task.Run(() => store.SaveNow(new AppSettings { RefreshSeconds = 30 }));
+        Assert.True(writeStarted.Wait(TimeSpan.FromSeconds(10)));
+
+        var request = Task.Run(() => store.RequestSave(new AppSettings { RefreshSeconds = 45 }));
+        var finishedInTime = request.Wait(TimeSpan.FromMilliseconds(100));
+
+        releaseWrite.Set();
+        Assert.True(await slowWrite);
+        Assert.True(finishedInTime, "RequestSave blocked behind the file write");
+    }
+
+    [Fact]
     public void Load_ignores_a_backup_from_a_newer_schema_version_when_there_is_no_primary_file_and_sets_the_flag()
     {
         var directory = TempDirectory();

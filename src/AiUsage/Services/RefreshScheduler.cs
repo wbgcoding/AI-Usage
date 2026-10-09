@@ -20,6 +20,7 @@ public sealed class RefreshScheduler
     private readonly Dictionary<string, ProviderState> _state;
     private readonly TimeSpan _minFetchTimeout;
     private readonly TimeSpan _maxFetchTimeout;
+    private readonly Action<string>? _log;
 
     // Every read and write of a ProviderState's fields (and of _baseInterval) takes this - Tick's
     // one-second timer reads them from the UI thread while RunOneAsync writes them from whichever
@@ -47,11 +48,12 @@ public sealed class RefreshScheduler
     /// 60s/5min floor and cap; a test can inject a much shorter pair so a "provider never completes"
     /// scenario does not have to wait out a real 60 real seconds - the timeout itself always fires on
     /// the real clock (CancellationTokenSource has no fake-time hook), only the configured duration is
-    /// test-controlled.
+    /// test-controlled. <paramref name="log"/> receives one line for each subscriber that throws.
     /// </summary>
     public RefreshScheduler(IReadOnlyList<IUsageProvider> providers, TimeSpan baseInterval, TimeProvider? timeProvider = null,
-        TimeSpan? minFetchTimeout = null, TimeSpan? maxFetchTimeout = null)
+        TimeSpan? minFetchTimeout = null, TimeSpan? maxFetchTimeout = null, Action<string>? log = null)
     {
+        _log = log;
         _providers = providers.ToList();
         _baseInterval = baseInterval;
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -309,13 +311,12 @@ public sealed class RefreshScheduler
                     state.CurrentInterval = ResolveIntervalLocked(provider);
                     state.NextDueAt = _timeProvider.GetUtcNow() + state.CurrentInterval;
                 }
-                SnapshotReady?.Invoke(new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None,
+                RaiseSnapshotReady(new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None,
                     attemptStartedAt, null, ProviderStatus.NotSignedIn, null));
                 return;
             }
 
-            // Inside the try: a throwing subscriber must still reach the finally that clears InFlight.
-            FetchStarted?.Invoke(provider.AccountKey);
+            RaiseFetchStarted(provider.AccountKey);
 
             TimeSpan baseForTimeout;
             lock (_gate)
@@ -401,7 +402,7 @@ public sealed class RefreshScheduler
                 state.NextDueAt = _timeProvider.GetUtcNow() + state.CurrentInterval;
             }
 
-            SnapshotReady?.Invoke(snapshot);
+            RaiseSnapshotReady(snapshot);
         }
         finally
         {
@@ -417,6 +418,30 @@ public sealed class RefreshScheduler
             // caller cancelled) is told to stop before the source goes away.
             timeoutCts.Cancel();
             timeoutCts.Dispose();
+        }
+    }
+
+    private void RaiseSnapshotReady(ProviderSnapshot snapshot) => RaiseEach(SnapshotReady, handler => handler(snapshot));
+
+    private void RaiseFetchStarted(string accountKey) => RaiseEach(FetchStarted, handler => handler(accountKey));
+
+    /// <summary>Calls each subscriber on its own: one that throws is logged and neither skips the
+    /// others nor loses the snapshot or the fetch it was told about.</summary>
+    private void RaiseEach<T>(T? handlers, Action<T> invoke) where T : Delegate
+    {
+        if (handlers is null)
+            return;
+
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                invoke((T)(object)handler);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _log?.Invoke($"A refresh subscriber failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+            }
         }
     }
 
