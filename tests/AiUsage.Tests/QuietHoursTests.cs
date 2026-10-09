@@ -55,15 +55,15 @@ public class QuietHoursTests
     {
         var settings = new AppSettings { QuietHoursEnabled = false, QuietHoursStart = "00:00", QuietHoursEnd = "23:59" };
 
-        Assert.False(QuietHours.IsQuiet(settings, DateTimeOffset.Now));
+        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(5)));
     }
 
     [Fact]
-    public void EnabledSettingUsesTheStoredHoursAgainstLocalNow()
+    public void EnabledSettingUsesTheStoredHoursAgainstTheGivenLocalTime()
     {
         var settings = new AppSettings { QuietHoursEnabled = true, QuietHoursStart = "00:00", QuietHoursEnd = "23:59" };
 
-        Assert.True(QuietHours.IsQuiet(settings, DateTimeOffset.Now));
+        Assert.True(QuietHours.IsQuiet(settings, LocalNoon(5)));
     }
 
     private static DateTimeOffset LocalNoon(int day) =>
@@ -104,7 +104,7 @@ public class QuietHoursTests
         var settings = new AppSettings { QuietHoursEnabled = true, QuietHoursStart = "not-a-time", QuietHoursEnd = "also-not-a-time" };
         // Falls back to 22:00-08:00 - noon sits outside that window regardless of what the broken
         // strings said.
-        var noonLocal = DateTimeOffset.Now.Date.AddHours(12);
+        var noonLocal = LocalNoon(5);
 
         Assert.False(QuietHours.IsQuiet(settings, noonLocal));
     }
