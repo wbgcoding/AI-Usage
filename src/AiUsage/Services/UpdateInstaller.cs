@@ -82,12 +82,18 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
         {
             return assets.FirstOrDefault(a =>
                 a.Name.StartsWith(SetupPrefix, StringComparison.OrdinalIgnoreCase)
-                && a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                && a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                && IsPlainFileName(a.Name));
         }
 
         var portableName = architecture == Architecture.Arm64 ? PortableArm64Name : PortableX64Name;
         return assets.FirstOrDefault(a => string.Equals(a.Name, portableName, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>An asset name becomes a path on disk, so only a bare file name qualifies: no folder
+    /// parts, no drive or stream separator, no parent-folder step.</summary>
+    private static bool IsPlainFileName(string name) =>
+        name.Length > 0 && Path.GetFileName(name) == name && !name.Contains(':') && !name.Contains("..");
 
     public async Task<UpdateOutcome> InstallAsync(UpdateCheck.Release release, CancellationToken ct)
     {

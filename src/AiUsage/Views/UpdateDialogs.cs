@@ -14,7 +14,17 @@ internal static class UpdateDialogs
     /// offers the release page.</summary>
     public static async Task InstallAsync(Window owner, UpdateNoticeViewModel update)
     {
-        var result = await update.InstallAsync(CancellationToken.None);
+        UpdateInstallResult result;
+        try
+        {
+            result = await update.InstallAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogService.Shared.LogError($"Update install failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+            result = new UpdateInstallResult(UpdateOutcome.DownloadFailed, update.ReleaseUrl);
+        }
+
         if (result.Outcome == UpdateOutcome.Started)
             return;
 

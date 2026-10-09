@@ -1481,6 +1481,26 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Reconnect_a_timer_tick_and_a_manual_refresh_after_DisposeAsync_do_not_throw()
+    {
+        var settings = SettingsWithVisibility(("codex", true));
+        var providers = new List<FakeProvider> { new("codex") };
+        var settingsStore = new SettingsStore(TempDirectory());
+        var historyStore = new HistoryStore(TempDirectory(), () => Now);
+        var vm = new MainViewModel(settingsStore, settings, providers, historyStore);
+
+        await vm.DisposeAsync();
+
+        var thrown = Record.Exception(() =>
+        {
+            vm.Reconnect("codex");
+            vm.Tick(Now);
+            vm.RefreshNow();
+        });
+        Assert.Null(thrown);
+    }
+
+    [Fact]
     public async Task DisposeAsync_disposes_the_claude_runner_exactly_once_even_if_called_twice()
     {
         var settings = SettingsWithVisibility(("codex", true));

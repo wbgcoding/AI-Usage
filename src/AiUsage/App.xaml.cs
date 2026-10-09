@@ -270,7 +270,11 @@ public partial class App : Application, IDisposable
             FatalHandler.Show(
                 () => new CrashWindow(details, AppPaths.LogsDirectory).ShowDialog(),
                 Dispatcher.CheckAccess,
-                action => Dispatcher.Invoke(action),
+                action =>
+                {
+                    if (!FatalHandler.InvokeWhenResponsive(Dispatcher, action, TimeSpan.FromSeconds(5)))
+                        _logService?.LogError("Crash dialog skipped: the interface did not respond.");
+                },
                 () => Dispatcher.HasShutdownStarted,
                 () => _logService?.LogError("Crash dialog skipped: the application is already shutting down."));
         }

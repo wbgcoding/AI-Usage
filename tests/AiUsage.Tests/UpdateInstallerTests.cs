@@ -325,6 +325,18 @@ public class UpdateInstallerTests
         Assert.Empty(host.Ran);
     }
 
+    [Theory]
+    [InlineData("Setup-AI-Usage-1.2.0:x.exe")]
+    [InlineData("Setup-AI-Usage-1.2.0/../x.exe")]
+    [InlineData("Setup-AI-Usage-1.2.0\\x.exe")]
+    [InlineData("Setup-AI-Usage-1.2.0..exe")]
+    public void AnAssetNameThatIsNotAPlainFileNameIsNeverPicked(string name)
+    {
+        UpdateCheck.ReleaseAsset[] assets = [new(name, "https://github.com/x/setup.exe")];
+
+        Assert.Null(UpdateInstaller.PickAsset(assets, installed: true, Architecture.X64));
+    }
+
     [Fact]
     public void AssetsAreChosenByDeliveryFormAndProcessor()
     {

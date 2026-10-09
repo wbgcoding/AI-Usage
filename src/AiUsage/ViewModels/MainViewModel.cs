@@ -1417,8 +1417,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         // Synchronous Cancel, not CancelAsync: MainWindow blocks the UI thread on this method, and an
         // awaited CancelAsync would post its continuation back to that very thread and never finish.
+        // Only cancelled, never disposed: UI and timer callbacks still read its Token for a moment
+        // after this, and a disposed source throws from Token.
         _lifetimeCts.Cancel();
-        _lifetimeCts.Dispose();
 
         foreach (var runner in _webRunners.Values)
         {

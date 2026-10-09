@@ -156,11 +156,18 @@ public partial class ConfirmWindow : Window
         OwnerWindowResolver.ApplyOwner(dialog, owner);
 
         T result = default!;
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
         dialog.Loaded += async (_, _) =>
         {
             try
             {
                 result = await work(new Progress<double>(dialog.ReportShare), dialog.EnterWorkPhase, cancellation.Token);
+            }
+            catch (Exception ex)
+            {
+                // An async void handler's exception would go straight to the crash path; the caller
+                // gets it from this method instead, once the dialog has closed.
+                failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex);
             }
             finally
             {
@@ -168,6 +175,7 @@ public partial class ConfirmWindow : Window
             }
         };
         dialog.ShowDialog();
+        failure?.Throw();
         return result;
     }
 
