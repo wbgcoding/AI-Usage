@@ -35,6 +35,16 @@ public partial class App : Application, IDisposable
             typeof(FrameworkElement),
             new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
 
+        // --status: prints the last status file and leaves. Headless and before everything else on
+        // purpose: no log service, no data cleanup, no single-instance check, so it answers while the
+        // widget runs and when it does not.
+        if (StatusCommand.IsRequested(e.Args))
+        {
+            var exitCode = StatusCommand.Run(e.Args, AppPaths.DataDirectory, DateTimeOffset.Now, StatusCommand.OpenOutput());
+            Shutdown(exitCode);
+            return;
+        }
+
         // --set-autostart: the installer's own "Mit Windows
         // starten" task runs the just-installed exe with this switch instead of writing the
         // registry value itself, so there is exactly one place - AutostartService.Enable - that

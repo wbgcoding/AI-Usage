@@ -76,6 +76,18 @@ public class SettingsViewModelTests : IDisposable
         return (vm, settings);
     }
 
+    /// <summary>Records the property names the view model raises. The view model's history-size load
+    /// raises HistorySizeText from a pool thread once it finishes, which would append to the list
+    /// while the test thread does the same; waiting for that load first leaves the test thread the
+    /// only writer.</summary>
+    private static List<string?> RecordChanges(SettingsViewModel vm)
+    {
+        vm.HistorySizeLoadTask.GetAwaiter().GetResult();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        return changed;
+    }
+
     [Fact]
     public void PickingATheme_updates_the_Mica_option_visibility_live()
     {
@@ -93,8 +105,7 @@ public class SettingsViewModelTests : IDisposable
     public void TheZoomPickerOffersTheFourStepsAndStoresTheChosenOne()
     {
         var (vm, settings) = Build();
-        var changed = new List<string?>();
-        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        var changed = RecordChanges(vm);
 
         Assert.Equal(["90 %", "100 %", "125 %", "150 %"], vm.ZoomChoices.Select(c => c.Label));
         Assert.Equal(100, vm.SelectedZoomChoice?.Value);
@@ -114,8 +125,7 @@ public class SettingsViewModelTests : IDisposable
     public void TheFullscreenHideSettingIsSavedAndReportedToTheWindow()
     {
         var (vm, settings) = Build();
-        var changed = new List<string?>();
-        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        var changed = RecordChanges(vm);
         Assert.True(vm.HideOnFullscreen);
 
         vm.HideOnFullscreen = false;

@@ -141,6 +141,74 @@ showing a guess.
 | Token usage window | Alt+Up, Alt+Down | Move the focused section up or down |
 | Token usage window | Arrow keys, Home, End | Move through the bars and days of a chart |
 
+## Use it in your terminal
+
+While AI-Usage runs, it keeps a small file up to date with the numbers it shows:
+`%APPDATA%\AI-Usage\status.json` (in the data folder you chose, if you moved it). It is written a
+couple of seconds after each reading, and always as a whole, so a program reading it never sees half
+a file. Hidden tiles are in it too.
+
+```json
+{
+  "version": 1,
+  "updated": "2026-10-10T14:03:09+02:00",
+  "providers": [
+    {
+      "id": "claude",
+      "name": "Claude",
+      "account": "Work",
+      "status": "ok",
+      "windows": [
+        { "kind": "fiveHour", "label": "5 hours", "usedPercent": 42, "resetsAt": "2026-10-10T16:17:00+02:00", "tokens": 1823457 }
+      ]
+    }
+  ]
+}
+```
+
+- `status` is `ok`, `stale`, `failed`, `signin` (signed out or blocked) or `unavailable` (nothing to
+  read on this PC). After a failed reading the last numbers stay in `windows`.
+- `kind` is `fiveHour`, `weekly` or `other`; `label` is the text the widget shows, in its language. `resetsAt` and `tokens` are `null` when unknown.
+- `account` is the name you gave the account in the settings, or `null`.
+
+`AI-Usage.exe --status` prints one line per provider from that file and exits. It opens no window and
+works whether the widget is running or not; when the file is older than 15 minutes, each line says how
+old it is. `--status --json` prints the file itself. Without a status file the exit code is 1.
+
+```text
+Claude (Work) 42% 5h (2h 14m) · 63% week (3d 4h)
+Codex 7% 5h (45m)
+```
+
+AI-Usage is a window program, so in a plain console the lines can show up after the prompt is back.
+Pipe the output (`AI-Usage.exe --status | more`) or use it from a script, where it behaves as usual.
+
+PowerShell:
+
+```powershell
+Get-Content "$env:APPDATA\AI-Usage\status.json" | ConvertFrom-Json | ForEach-Object providers
+```
+
+Bash with `jq`:
+
+```bash
+jq -r '.providers[] | "\(.name) \(.windows[0].usedPercent)%"' "$APPDATA/AI-Usage/status.json"
+```
+
+Claude Code status line (use the full path of your copy):
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "C:/path/to/AI-Usage.exe --status"
+  }
+}
+```
+
+The file holds only numbers and the names you chose. It never contains an e-mail address or the
+account name a provider reports, and it stays on your PC.
+
 ## Private by design
 
 - **Reads usage numbers only.** AI-Usage only calls the usage pages and endpoints each agent

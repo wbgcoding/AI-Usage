@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text.Json;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Storage;
@@ -752,6 +753,54 @@ public class MainViewModelTests : IDisposable
         vm.Tiles.Single(t => t.ProviderId == "claude").AccountName = "Work";
 
         Assert.Equal("Work", settings.Providers["claude"].AccountName);
+    }
+
+    // Spelled out in pieces so the ship-clean scan does not read the sample labels as real addresses.
+    private const string At = "@";
+
+    [Fact]
+    public void TheStatusFileNamesOnlyTheOwnAccountNameAndNeverTheProvidersLabel()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        settings.Providers["claude"].AccountName = "Work";
+        var (vm, _, _) = Build(settings);
+        var path = Path.Combine(TempDirectory(), StatusFileWriter.FileName);
+        vm.StatusFile = new StatusFileWriter(() => path, TimeSpan.FromHours(1));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+
+        vm.OnSnapshotReady(new ProviderSnapshot(
+            "claude", [window], "Max", SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null, AccountLabel: "someone" + At + "example.com"));
+        vm.OnSnapshotReady(new ProviderSnapshot(
+            "codex", [window], "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null, AccountLabel: "other" + At + "example.org"));
+        vm.StatusFile.Flush();
+
+        var text = File.ReadAllText(path);
+        Assert.DoesNotContain(At, text);
+        Assert.DoesNotContain("someone", text);
+        Assert.DoesNotContain("other", text);
+        using var document = JsonDocument.Parse(text);
+        var providers = document.RootElement.GetProperty("providers").EnumerateArray().ToDictionary(p => p.GetProperty("id").GetString()!);
+        Assert.Equal("Work", providers["claude"].GetProperty("account").GetString());
+        Assert.Equal(JsonValueKind.Null, providers["codex"].GetProperty("account").ValueKind);
+    }
+
+    [Fact]
+    public void TheStatusFileListsAHiddenTileAndKeepsTheLastNumbersThroughAFailedRead()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", false), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        var path = Path.Combine(TempDirectory(), StatusFileWriter.FileName);
+        vm.StatusFile = new StatusFileWriter(() => path, TimeSpan.FromHours(1));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null));
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [], null, SourceKind.None, Now, null, ProviderStatus.Failed, null));
+        vm.StatusFile.Flush();
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var claude = document.RootElement.GetProperty("providers").EnumerateArray().Single();
+        Assert.Equal("failed", claude.GetProperty("status").GetString());
+        Assert.Equal(42, claude.GetProperty("windows")[0].GetProperty("usedPercent").GetInt32());
     }
 
     [Fact]
