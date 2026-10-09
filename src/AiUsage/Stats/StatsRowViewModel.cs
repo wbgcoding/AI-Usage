@@ -5,4 +5,18 @@ namespace AiUsage.Stats;
 /// whose <see cref="Label"/> is already the whole story (a day, a week, a provider, a model); a
 /// project row that had its own full path shortened down to <see cref="Label"/> carries that full
 /// path back here instead, so a hover can still name it exactly.</summary>
-public sealed record StatsRowViewModel(string Label, long TotalTokens, string TotalText, string ToolTip = "");
+public sealed record StatsRowViewModel(
+    string Label, long TotalTokens, string TotalText, string ToolTip = "",
+    StatsFilterKind FilterKind = StatsFilterKind.None, string FilterKey = "")
+{
+    /// <summary>True when a click on this row narrows the whole window to what the row names.</summary>
+    public bool CanFilter => FilterKind != StatsFilterKind.None && FilterKey.Length > 0;
+}
+
+/// <summary>What a click on a model or a project narrows every figure to.</summary>
+public enum StatsFilterKind
+{
+    None,
+    Model,
+    Project,
+}

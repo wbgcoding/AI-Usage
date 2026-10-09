@@ -520,6 +520,9 @@
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Eigener Zeitraum…</value></data>
   <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Alle Anbieter</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Anbieter</value></data>
+  <data name="Stats.Filter.Model" xml:space="preserve"><value>Modell: {0}</value></data>
+  <data name="Stats.Filter.Project" xml:space="preserve"><value>Projekt: {0}</value></data>
+  <data name="Stats.Filter.Remove" xml:space="preserve"><value>Filter entfernen</value></data>
   <data name="Tip.Stats.Provider" xml:space="preserve"><value>Beschränkt alle Zahlen und Diagramme auf einen Anbieter.</value></data>
   <data name="Stats.Range.From" xml:space="preserve"><value>Von</value></data>
   <data name="Stats.Range.To" xml:space="preserve"><value>Bis</value></data>

@@ -228,6 +228,40 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private string selectedProvider = "";
 
+    /// <summary>The model (its display name) a click narrowed every figure to; empty for none. Not
+    /// remembered between sessions.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasModelFilter), nameof(ModelFilterText), nameof(HasAnyFilter))]
+    private string selectedModelFilter = "";
+
+    /// <summary>The project (its grouping key) a click narrowed every figure to; empty for none. Not
+    /// remembered between sessions.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProjectFilter), nameof(ProjectFilterText), nameof(HasAnyFilter))]
+    private string selectedProjectFilter = "";
+
+    public bool HasModelFilter => SelectedModelFilter.Length > 0;
+
+    public bool HasProjectFilter => SelectedProjectFilter.Length > 0;
+
+    public bool HasAnyFilter => HasModelFilter || HasProjectFilter;
+
+    /// <summary>The filter chip's text, for example "Model: Opus 4.5".</summary>
+    public string ModelFilterText => LocalizationService.Instance.Format("Stats.Filter.Model", SelectedModelFilter);
+
+    public string ProjectFilterText => LocalizationService.Instance.Format(
+        "Stats.Filter.Project",
+        StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(SelectedProjectFilter), StatsAggregator.ProjectLabelMaxChars));
+
+    /// <summary>True while the breakdown chart draws one bar per model or project, so a click on a bar
+    /// can filter.</summary>
+    [ObservableProperty]
+    private bool barsFilterable;
+
+    // What each drawn bar of the breakdown chart narrows to when clicked; null for a bar that names
+    // neither a model nor a project (the pooled "other projects" bar).
+    private List<(StatsFilterKind Kind, string Key)?> _barTargets = [];
+
     /// <summary>What the segments of a day or week column stand for.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsModelStack), nameof(IsAgentStack))]
@@ -882,11 +916,90 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>Keeps what the active filters let through.</summary>
-    private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all) =>
-        SelectedProvider.Length == 0 ? all : all.Where(record => record.Provider == SelectedProvider).ToList();
+    private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all)
+    {
+        if (SelectedProvider.Length == 0 && !HasAnyFilter)
+            return all;
 
-    private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all) =>
-        SelectedProvider.Length == 0 ? all : all.Where(record => record.Provider == SelectedProvider).ToList();
+        var noProject = LocalizationService.Instance["Stats.NoProject"];
+        return all.Where(record =>
+                (SelectedProvider.Length == 0 || record.Provider == SelectedProvider)
+                && (!HasModelFilter || ModelDisplayNames.Resolve(record.Model) == SelectedModelFilter)
+                && (!HasProjectFilter || MatchesProject(record.Project, noProject)))
+            .ToList();
+    }
+
+    private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all)
+    {
+        if (SelectedProvider.Length == 0 && !HasAnyFilter)
+            return all;
+
+        var noProject = LocalizationService.Instance["Stats.NoProject"];
+        return all.Where(session =>
+                (SelectedProvider.Length == 0 || session.Provider == SelectedProvider)
+                && (!HasModelFilter || ModelDisplayNames.Resolve(session.MainModel) == SelectedModelFilter)
+                && (!HasProjectFilter || MatchesProject(session.Project, noProject)))
+            .ToList();
+    }
+
+    private bool MatchesProject(string project, string noProjectLabel) => string.Equals(
+        string.IsNullOrEmpty(project) ? noProjectLabel : StatsAggregator.ProjectKey(project),
+        SelectedProjectFilter, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>A click on a model or a project: narrows every figure to it, or lifts that filter
+    /// when it is already the one applied.</summary>
+    public void ToggleFilter(StatsFilterKind kind, string key)
+    {
+        if (key.Length == 0)
+            return;
+
+        switch (kind)
+        {
+            case StatsFilterKind.Model:
+                SelectedModelFilter = SelectedModelFilter == key ? "" : key;
+                break;
+            case StatsFilterKind.Project:
+                SelectedProjectFilter = string.Equals(SelectedProjectFilter, key, StringComparison.OrdinalIgnoreCase) ? "" : key;
+                break;
+            default:
+                return;
+        }
+
+        if (_recordsLoaded)
+            RecomputeFrom(_sourceRecords);
+    }
+
+    /// <summary>A click on bar <paramref name="index"/> of the breakdown chart.</summary>
+    public void ActivateBar(int index)
+    {
+        if (index >= 0 && index < _barTargets.Count && _barTargets[index] is { } target)
+            ToggleFilter(target.Kind, target.Key);
+    }
+
+    /// <summary>A click on slice <paramref name="index"/> of the model ring; the pooled "other" slice
+    /// names no model and does nothing.</summary>
+    public void ActivateModelSlice(int index)
+    {
+        if (index < 0 || index >= ModelShareSlices.Count)
+            return;
+
+        var slice = ModelShareSlices[index];
+        if (slice.Label != LocalizationService.Instance["Stats.Other"])
+            ToggleFilter(StatsFilterKind.Model, slice.Label);
+    }
+
+    /// <summary>A click on row <paramref name="index"/> of the top projects panel.</summary>
+    public void ActivateTopProject(int index)
+    {
+        if (index >= 0 && index < TopProjectRows.Count)
+            ToggleFilter(StatsFilterKind.Project, TopProjectRows[index].FullPath);
+    }
+
+    [RelayCommand]
+    private void ClearModelFilter() => ToggleFilter(StatsFilterKind.Model, SelectedModelFilter);
+
+    [RelayCommand]
+    private void ClearProjectFilter() => ToggleFilter(StatsFilterKind.Project, SelectedProjectFilter);
 
     // Every run takes the next number; only the newest run may publish its result or clear
     // IsLoading, so two overlapping runs can never leave the older one's data on screen.
@@ -1071,6 +1184,20 @@ public sealed partial class StatsViewModel : ObservableObject
             ? StatsAggregator.TrailingMean(barRows.Select(row => row.Total).ToList(), 7)
             : [];
 
+        var filterKind = SelectedGrouping switch
+        {
+            StatsGrouping.Model => StatsFilterKind.Model,
+            StatsGrouping.Project => StatsFilterKind.Project,
+            _ => StatsFilterKind.None,
+        };
+        var otherProjectsLabel = LocalizationService.Instance["Stats.OtherProjects"];
+        BarsFilterable = filterKind != StatsFilterKind.None && !IsModelStack && !IsAgentStack;
+        _barTargets = BarsFilterable
+            ? barRows.Select(row => row.Label == otherProjectsLabel && filterKind == StatsFilterKind.Project
+                ? ((StatsFilterKind Kind, string Key)?)null
+                : (filterKind, row.Label)).ToList()
+            : [];
+
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
             row.Label, row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
             barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null)).ToList();
@@ -1091,11 +1218,13 @@ public sealed partial class StatsViewModel : ObservableObject
             .Select(row =>
             {
                 var totalText = row.Total.ToString("N0", CultureInfo.CurrentCulture);
+                if (SelectedGrouping == StatsGrouping.Model)
+                    return new StatsRowViewModel(row.Label, row.Total, totalText, FilterKind: StatsFilterKind.Model, FilterKey: row.Label);
                 if (SelectedGrouping != StatsGrouping.Project)
                     return new StatsRowViewModel(row.Label, row.Total, totalText);
 
                 var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
-                return new StatsRowViewModel(shortened, row.Total, totalText, ToolTip: row.Label);
+                return new StatsRowViewModel(shortened, row.Total, totalText, ToolTip: row.Label, FilterKind: StatsFilterKind.Project, FilterKey: row.Label);
             })
             .ToList();
 
@@ -1277,6 +1406,8 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in ProviderChoices)
             choice.RefreshLabel();
+        OnPropertyChanged(nameof(ModelFilterText));
+        OnPropertyChanged(nameof(ProjectFilterText));
         UpdateCustomChoiceLabel();
         OnPropertyChanged(nameof(ChartTooltip));
         RecomputeFrom(_sourceRecords);

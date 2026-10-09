@@ -521,6 +521,9 @@
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Custom range…</value></data>
   <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>All providers</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Provider</value></data>
+  <data name="Stats.Filter.Model" xml:space="preserve"><value>Model: {0}</value></data>
+  <data name="Stats.Filter.Project" xml:space="preserve"><value>Project: {0}</value></data>
+  <data name="Stats.Filter.Remove" xml:space="preserve"><value>Remove filter</value></data>
   <data name="Tip.Stats.Provider" xml:space="preserve"><value>Limits every figure and chart to one provider.</value></data>
   <data name="Stats.Range.From" xml:space="preserve"><value>From</value></data>
   <data name="Stats.Range.To" xml:space="preserve"><value>To</value></data>

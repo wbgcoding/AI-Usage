@@ -424,6 +424,36 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private int _focusedRowIndex = -1;
     private ChartTooltipPopup? _tooltipPopup;
 
+    /// <summary>True when a click (or Enter) on a row means something - the top projects panel sets
+    /// it so a project can be picked as a filter.</summary>
+    public static readonly DependencyProperty IsActivatableProperty = DependencyProperty.Register(
+        nameof(IsActivatable), typeof(bool), typeof(StatsHorizontalBarChart),
+        new PropertyMetadata(false, (d, e) => ((StatsHorizontalBarChart)d).Cursor = (bool)e.NewValue ? Cursors.Hand : null));
+
+    public bool IsActivatable
+    {
+        get => (bool)GetValue(IsActivatableProperty);
+        set => SetValue(IsActivatableProperty, value);
+    }
+
+    /// <summary>Raised with the index of the row that was clicked or confirmed with Enter.</summary>
+    public event EventHandler<int>? RowActivated;
+
+    protected override void OnMouseLeftButtonUp(System.Windows.Input.MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonUp(e);
+        var rows = Rows;
+        if (!IsActivatable || rows.Count == 0)
+            return;
+
+        var index = (int)(e.GetPosition(this).Y / CurrentRowHeight);
+        if (index < 0 || index >= rows.Count)
+            return;
+
+        RowActivated?.Invoke(this, index);
+        e.Handled = true;
+    }
+
     protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
     {
         base.OnMouseMove(e);
@@ -491,7 +521,13 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (!ShowProjectDetails || rows.Count == 0)
             return;
 
-        if (e.Key == System.Windows.Input.Key.Down)
+        if (e.Key is System.Windows.Input.Key.Enter or System.Windows.Input.Key.Space
+            && IsActivatable && _focusedRowIndex >= 0 && _focusedRowIndex < rows.Count)
+        {
+            RowActivated?.Invoke(this, _focusedRowIndex);
+            e.Handled = true;
+        }
+        else if (e.Key == System.Windows.Input.Key.Down)
         {
             _focusedRowIndex = Math.Min(rows.Count - 1, Math.Max(0, _focusedRowIndex) + 1);
             UpdateFocusedRowAutomationName();

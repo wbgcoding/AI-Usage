@@ -535,9 +535,41 @@ public sealed class StatsBarChart : FrameworkElement
         };
     }
 
+    /// <summary>True when a click (or Enter) on a bar means something - the breakdown chart sets it
+    /// while its bars stand for models or projects.</summary>
+    public static readonly DependencyProperty IsActivatableProperty = DependencyProperty.Register(
+        nameof(IsActivatable), typeof(bool), typeof(StatsBarChart),
+        new PropertyMetadata(false, (d, e) => ((StatsBarChart)d).Cursor = (bool)e.NewValue ? Cursors.Hand : null));
+
+    public bool IsActivatable
+    {
+        get => (bool)GetValue(IsActivatableProperty);
+        set => SetValue(IsActivatableProperty, value);
+    }
+
+    /// <summary>Raised with the index of the bar that was clicked or confirmed with Enter.</summary>
+    public event EventHandler<int>? BarActivated;
+
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonUp(e);
+        if (!IsActivatable || _hoverIndex < 0 || _hoverIndex >= Bars.Count)
+            return;
+
+        BarActivated?.Invoke(this, _hoverIndex);
+        e.Handled = true;
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (e.Key is Key.Enter or Key.Space && IsActivatable && _focusedIndex >= 0 && _focusedIndex < Bars.Count)
+        {
+            BarActivated?.Invoke(this, _focusedIndex);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key is not (Key.Left or Key.Right or Key.Home or Key.End) || Bars.Count == 0)
             return;
 

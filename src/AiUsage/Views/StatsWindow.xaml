@@ -145,6 +145,42 @@
                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"/>
                         </Grid>
 
+                        <!-- The filters a click on a model or a project set; one chip each, with a button to lift it. -->
+                        <WrapPanel Margin="0,0,0,12" Visibility="{Binding HasAnyFilter, Converter={StaticResource BoolToVis}}">
+                                <Border Margin="0,0,8,0" Padding="8,4" VerticalAlignment="Center"
+                                        Visibility="{Binding HasModelFilter, Converter={StaticResource BoolToVis}}"
+                                        Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding ModelFilterText}" VerticalAlignment="Center"
+                                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                                        <Button Command="{Binding ClearModelFilterCommand}" Margin="8,0,0,0" Padding="4,0"
+                                                Style="{StaticResource AiUsageQuietButton}" VerticalAlignment="Center"
+                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}">
+                                            <Path Width="10" Height="10" Stretch="Uniform" Data="{StaticResource Icon.Close}"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,8,0" Padding="8,4" VerticalAlignment="Center"
+                                        Visibility="{Binding HasProjectFilter, Converter={StaticResource BoolToVis}}"
+                                        Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding ProjectFilterText}" VerticalAlignment="Center"
+                                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                                        <Button Command="{Binding ClearProjectFilterCommand}" Margin="8,0,0,0" Padding="4,0"
+                                                Style="{StaticResource AiUsageQuietButton}" VerticalAlignment="Center"
+                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}">
+                                            <Path Width="10" Height="10" Stretch="Uniform" Data="{StaticResource Icon.Close}"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                        </WrapPanel>
+
                         <StackPanel x:Name="SectionHost">
                             <!-- The year grid: always visible, independent of grouping - one square per
                                  calendar day of the current year, colored by whichever provider led
@@ -450,6 +486,7 @@
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsBarChart x:Name="Chart" Margin="8,4,8,0" Bars="{Binding Bars}"
+                                                             IsActivatable="{Binding BarsFilterable}" BarActivated="Chart_BarActivated"
                                                              OverlayLine="{Binding ChartOverlay}"
                                                              MaxAxisLabels="{Binding ChartMaxAxisLabels}"
                                                              IsHourAxis="{Binding IsHourAxis}"
@@ -552,7 +589,8 @@
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByModel]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ModelRing" Margin="8" Slices="{Binding ModelShareSlices}"
+                                    <controls:StatsRingChart x:Name="ModelRing" Margin="8" Slices="{Binding ModelShareSlices}" IsActivatable="True"
+                                                              SliceActivated="ModelRing_SliceActivated"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
@@ -586,6 +624,7 @@
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsHorizontalBarChart x:Name="TopProjectsChart" Rows="{Binding TopProjectRows}"
+                                                                       IsActivatable="True" RowActivated="TopProjectsChart_RowActivated"
                                                                        ShowProjectDetails="True"
                                                                        TextBrush="{DynamicResource Text.Secondary}"
                                                                        MutedBrush="{DynamicResource Text.Muted}"
@@ -632,7 +671,18 @@
                                     </ItemsControl.ItemContainerStyle>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Margin="0,4" ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}">
+                                            <Grid Margin="0,4" Background="Transparent" ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}"
+                                                  MouseLeftButtonUp="TableRow_MouseLeftButtonUp" KeyDown="TableRow_KeyDown">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CanFilter}" Value="True">
+                                                                <Setter Property="Cursor" Value="Hand"/>
+                                                                <Setter Property="Focusable" Value="True"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>

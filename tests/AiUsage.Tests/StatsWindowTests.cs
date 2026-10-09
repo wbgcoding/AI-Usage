@@ -1357,6 +1357,37 @@ public class StatsHorizontalBarChartGeometryTests
         Assert.Equal(radius / 2, stroke, 3);
     }
 
+    /// <summary>A click on the ring picks the slice under it by angle (clockwise from twelve o'clock)
+    /// and a click on a legend entry picks that entry; the hole and the corners pick nothing.</summary>
+    [Fact]
+    public void ARingClickFindsTheSliceByAngleAndTheLegendRowByHeight()
+    {
+        IReadOnlyList<StatsRingChart.Slice> slices =
+        [
+            new StatsRingChart.Slice("A", 75, Total: 75),
+            new StatsRingChart.Slice("B", 25, Total: 25),
+        ];
+        const double width = 320;
+        const double height = 200;
+        var center = new Point((width - 120) / 2, height / 2);
+        var (radius, _) = StatsRingChart.RingGeometry(Math.Min(width - 120, height));
+
+        // Twelve o'clock plus a little is the start of slice A; the last quarter (left of the top) is B.
+        Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(center.X + 10, center.Y - radius), width, height, slices));
+        Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(center.X + radius, center.Y), width, height, slices));
+        Assert.Equal(1, StatsRingChart.SliceIndexAt(new Point(center.X - 10, center.Y - radius), width, height, slices));
+
+        // The hole and the far corner name nothing.
+        Assert.Equal(-1, StatsRingChart.SliceIndexAt(center, width, height, slices));
+        Assert.Equal(-1, StatsRingChart.SliceIndexAt(new Point(2, 2), width, height, slices));
+
+        // The legend: two rows of 18 px, centered in the height.
+        var legendTop = (height - 2 * 18) / 2;
+        Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 5), width, height, slices));
+        Assert.Equal(1, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 25), width, height, slices));
+        Assert.Equal(-1, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 40), width, height, slices));
+    }
+
     /// <summary>The donut center text never clips: content already inside the box is never enlarged
     /// (a scale of exactly 1), and content too wide or too tall is shrunk down by whichever axis
     /// needs it more, never past the caller's own floor.</summary>

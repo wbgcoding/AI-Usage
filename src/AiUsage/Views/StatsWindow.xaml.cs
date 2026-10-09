@@ -629,6 +629,30 @@ public partial class StatsWindow : Window
         return null;
     }
 
+    private void ModelRing_SliceActivated(object? sender, int index) => _viewModel.ActivateModelSlice(index);
+
+    private void TopProjectsChart_RowActivated(object? sender, int index) => _viewModel.ActivateTopProject(index);
+
+    private void Chart_BarActivated(object? sender, int index) => _viewModel.ActivateBar(index);
+
+    private void TableRow_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: StatsRowViewModel { CanFilter: true } row })
+        {
+            _viewModel.ToggleFilter(row.FilterKind, row.FilterKey);
+            e.Handled = true;
+        }
+    }
+
+    private void TableRow_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Enter or Key.Space && sender is FrameworkElement { DataContext: StatsRowViewModel { CanFilter: true } row })
+        {
+            _viewModel.ToggleFilter(row.FilterKind, row.FilterKey);
+            e.Handled = true;
+        }
+    }
+
     private void MonthGrid_DaySelected(object? sender, DateOnly day) => _viewModel.ToggleSelectedDay(day);
 
     /// <summary>The widget's own day-grid tile reaches this on a click - always lands on that exact

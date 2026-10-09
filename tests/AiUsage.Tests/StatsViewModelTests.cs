@@ -1534,6 +1534,119 @@ public class StatsViewModelCaptionTests
         Assert.Equal("", other.SelectedProvider);
     }
 
+    private static StatsViewModel ThreeModelViewModel(string name)
+    {
+        var dataDir = TestPaths.CreateDisposableDirectory(name);
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "claude-opus-4-5", "C:/Projects/One", 1000, 0, 0, 0),
+            new StatsRecord("claude", today, "claude-sonnet-4-5", "C:/Projects/Two", 400, 0, 0, 0),
+            new StatsRecord("codex", today, "gpt-5", "C:/Projects/One", 300, 0, 0, 0),
+        ]);
+        return StatsVm.Create(store);
+    }
+
+    [Fact]
+    public async Task AClickOnAModelNarrowsEveryAggregateAndASecondClickClearsIt()
+    {
+        var viewModel = ThreeModelViewModel("stats-viewmodel-model-filter");
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Model);
+        Assert.Equal(1700, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.True(viewModel.BarsFilterable);
+        Assert.Equal(3, viewModel.Rows.Count);
+        Assert.All(viewModel.Rows, row => Assert.True(row.CanFilter));
+
+        var opus = viewModel.Rows[0];
+        viewModel.ToggleFilter(opus.FilterKind, opus.FilterKey);
+
+        Assert.True(viewModel.HasModelFilter);
+        Assert.Equal(opus.Label, viewModel.SelectedModelFilter);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Filter.Model"], opus.Label), viewModel.ModelFilterText);
+        Assert.Single(viewModel.Rows);
+        Assert.Equal(1000, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.Equal(1000, viewModel.MonthGridDays.Sum(day => day.Total));
+        Assert.Equal(1000, viewModel.PeriodTotalRaw);
+        Assert.Equal(100.0, viewModel.ModelShareSlices.Sum(slice => slice.Percent), 6);
+        Assert.Single(viewModel.ModelShareSlices);
+        Assert.Equal(1000, viewModel.TopProjectRows.Sum(row => row.Total));
+
+        viewModel.ToggleFilter(StatsFilterKind.Model, opus.FilterKey);
+
+        Assert.False(viewModel.HasModelFilter);
+        Assert.Equal(3, viewModel.Rows.Count);
+        Assert.Equal(1700, viewModel.PeriodTotalRaw);
+    }
+
+    [Fact]
+    public async Task AClickOnAProjectNarrowsEverySectionAndCombinesWithTheProviderAndModelFilters()
+    {
+        var viewModel = ThreeModelViewModel("stats-viewmodel-project-filter");
+        viewModel.ActivateTopProject(0);
+
+        Assert.True(viewModel.HasProjectFilter);
+        Assert.Equal("C:/Projects/One", viewModel.SelectedProjectFilter, ignoreCase: true);
+        Assert.Equal(1300, viewModel.PeriodTotalRaw);
+        Assert.Single(viewModel.TopProjectRows);
+
+        viewModel.SetProviderCommand.Execute("codex");
+        Assert.Equal(300, viewModel.PeriodTotalRaw);
+
+        viewModel.SetProviderCommand.Execute("");
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Model);
+        viewModel.ToggleFilter(StatsFilterKind.Model, viewModel.Rows[0].FilterKey);
+        Assert.Equal(1000, viewModel.PeriodTotalRaw);
+        Assert.True(viewModel.HasAnyFilter);
+
+        viewModel.ClearProjectFilterCommand.Execute(null);
+        viewModel.ClearModelFilterCommand.Execute(null);
+        Assert.False(viewModel.HasAnyFilter);
+        Assert.Equal(1700, viewModel.PeriodTotalRaw);
+    }
+
+    [Fact]
+    public async Task ABarOfTheModelOrProjectBreakdownFiltersButADayBarAndThePooledProjectBarDoNot()
+    {
+        var viewModel = ThreeModelViewModel("stats-viewmodel-bar-filter");
+        Assert.False(viewModel.BarsFilterable);
+        viewModel.ActivateBar(0);
+        Assert.False(viewModel.HasAnyFilter);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Project);
+        Assert.True(viewModel.BarsFilterable);
+        viewModel.ActivateBar(0);
+        Assert.True(viewModel.HasProjectFilter);
+        Assert.Equal(1300, viewModel.PeriodTotalRaw);
+        viewModel.ActivateBar(0);
+        Assert.False(viewModel.HasProjectFilter);
+
+        // The ring's pooled entry names no model.
+        viewModel.ActivateModelSlice(99);
+        Assert.False(viewModel.HasModelFilter);
+        viewModel.ActivateModelSlice(0);
+        Assert.True(viewModel.HasModelFilter);
+    }
+
+    [Fact]
+    public async Task TheFiltersAlsoLimitTheSessionList()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-filter-sessions");
+        var store = new StatsStore(dataDir);
+        var noon = DateTimeOffset.UtcNow.Date.AddHours(12);
+        SeedSession(store, "a", noon, 500, "C:/Projects/One", "claude-opus-4-5");
+        SeedSession(store, "b", noon.AddMinutes(10), 700, "C:/Projects/Two", "claude-sonnet-4-5");
+        var viewModel = StatsVm.Create(store);
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session);
+        Assert.Equal(2, viewModel.SessionRows.Count);
+
+        viewModel.ToggleFilter(StatsFilterKind.Project, "C:/Projects/Two");
+        Assert.Single(viewModel.SessionRows);
+        Assert.Equal((700L).ToString("N0", CultureInfo.CurrentCulture), viewModel.SessionRows[0].Tokens);
+
+        viewModel.ToggleFilter(StatsFilterKind.Model, ModelDisplayNames.Resolve("claude-opus-4-5"));
+        Assert.Empty(viewModel.SessionRows);
+    }
+
     private static void SeedSession(StatsStore store, string id, DateTimeOffset start, long tokens, string project = "C:/Projects/Sample", string model = "modelA")
     {
         var delta = new StatsSessionDelta(

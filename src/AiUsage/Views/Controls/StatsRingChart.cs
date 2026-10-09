@@ -232,12 +232,90 @@ public sealed class StatsRingChart : FrameworkElement
         return (Math.Max(0, outerRadius - strokeThickness / 2), strokeThickness);
     }
 
+    private const double LegendWidth = 120;
+    private const double LegendRowHeight = 18;
+
+    /// <summary>True when a click on a slice or a legend entry means something.</summary>
+    public static readonly DependencyProperty IsActivatableProperty = DependencyProperty.Register(
+        nameof(IsActivatable), typeof(bool), typeof(StatsRingChart),
+        new PropertyMetadata(false, (d, e) => ((StatsRingChart)d).Cursor = (bool)e.NewValue ? System.Windows.Input.Cursors.Hand : null));
+
+    public bool IsActivatable
+    {
+        get => (bool)GetValue(IsActivatableProperty);
+        set => SetValue(IsActivatableProperty, value);
+    }
+
+    /// <summary>Raised with the index of the slice whose arc or legend entry was clicked.</summary>
+    public event EventHandler<int>? SliceActivated;
+
+    protected override void OnMouseLeftButtonUp(System.Windows.Input.MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonUp(e);
+        if (!IsActivatable)
+            return;
+
+        var index = SliceIndexAt(e.GetPosition(this), ActualWidth, ActualHeight, Slices);
+        if (index < 0)
+            return;
+
+        SliceActivated?.Invoke(this, index);
+        e.Handled = true;
+    }
+
+    /// <summary>The slice a point lands on: its arc on the ring or its entry in the legend beside it,
+    /// -1 anywhere else (the hole, the empty corners, a ring that draws nothing). Pure so the geometry
+    /// is unit testable without a visual tree; it mirrors the layout <see cref="OnRender"/> draws.</summary>
+    internal static int SliceIndexAt(Point point, double width, double height, IReadOnlyList<Slice> slices)
+    {
+        if (width <= 0 || height <= 0 || slices.Count == 0 || slices.All(slice => slice.Percent <= 0))
+            return -1;
+
+        var ringArea = Math.Max(0, width - LegendWidth);
+        var diameter = Math.Min(ringArea, height);
+        var center = new Point(ringArea / 2, height / 2);
+        var (radius, strokeThickness) = RingGeometry(diameter);
+
+        var dx = point.X - center.X;
+        var dy = point.Y - center.Y;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+        if (diameter > 0 && distance >= radius - strokeThickness / 2 && distance <= radius + strokeThickness / 2)
+        {
+            // Clockwise from twelve o'clock, like the arcs themselves.
+            var angle = Math.Atan2(dx, -dy) * 180 / Math.PI;
+            if (angle < 0)
+                angle += 360;
+            var sweeps = SweepAngles(slices.Select(slice => slice.Percent).ToList());
+            for (var i = 0; i < slices.Count; i++)
+            {
+                if (sweeps[i].SweepAngle > 0 && angle >= sweeps[i].StartAngle && angle < sweeps[i].StartAngle + sweeps[i].SweepAngle)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        var legendX = Math.Min(ringArea + 8, Math.Max(0, width - 4));
+        var legendTop = Math.Max(0, (height - slices.Count * LegendRowHeight) / 2);
+        if (point.X >= legendX && point.Y >= legendTop)
+        {
+            var row = (int)((point.Y - legendTop) / LegendRowHeight);
+            if (row < slices.Count)
+                return row;
+        }
+
+        return -1;
+    }
+
     protected override void OnRender(DrawingContext drawingContext)
     {
         var width = ActualWidth;
         var height = ActualHeight;
         if (width <= 0 || height <= 0)
             return;
+
+        // The hit-test area: without a fill, only the drawn arcs would take a click.
+        drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));
 
         var slices = Slices;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
@@ -254,8 +332,7 @@ public sealed class StatsRingChart : FrameworkElement
             return;
         }
 
-        const double legendWidth = 120;
-        var ringArea = Math.Max(0, width - legendWidth);
+        var ringArea = Math.Max(0, width - LegendWidth);
         var diameter = Math.Min(ringArea, height);
         var center = new Point(ringArea / 2, height / 2);
         var (radius, strokeThickness) = RingGeometry(diameter);
@@ -423,7 +500,7 @@ public sealed class StatsRingChart : FrameworkElement
         DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes, double legendX, double width, double height, double dpi, Typeface typeface)
     {
         const double swatch = 10;
-        const double rowHeight = 18;
+        const double rowHeight = LegendRowHeight;
         var totalHeight = slices.Count * rowHeight;
         var y = Math.Max(0, (height - totalHeight) / 2);
         var x = Math.Min(legendX + 8, Math.Max(0, width - 4));
