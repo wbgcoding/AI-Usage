@@ -21,6 +21,7 @@ public partial class App : Application, IDisposable
     private LogService? _logService;
     private StatsIndexerService? _statsIndexerService;
     private DispatcherTimer? _statsIndexerReindexTimer;
+    private DispatcherTimer? _startupDelayTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -141,6 +142,38 @@ public partial class App : Application, IDisposable
         WindowOpacity.ApplyToAllOpenWindows(settings.WindowOpacityPercent);
         _logService.LogInfo($"Language {settings.Language}, theme {settings.Theme} applied.");
 
+        // Autostart starts the tray copy while the desktop is still loading: everything below this point
+        // (indexer, window, tray, first fetches) waits so logon stays quick. Ownership of the single-
+        // instance lock and its show event are already held, so a second start during the wait is not
+        // lost: its request stays signalled and is answered the moment the handler is registered.
+        LogService logService = _logService;
+        SettingsStore settingsStore = _settingsStore;
+        var delay = StartupMode.StartDelay(e.Args);
+        if (delay > TimeSpan.Zero)
+        {
+            logService.LogInfo($"Autostart: waiting {delay.TotalSeconds:0} s before the window, tray and background work start.");
+            var timer = new DispatcherTimer { Interval = delay };
+            _startupDelayTimer = timer;
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                _startupDelayTimer = null;
+                if (!Dispatcher.HasShutdownStarted)
+                    CompleteStartup(e.Args, settings, settingsStore, logService);
+            };
+            timer.Start();
+        }
+        else
+        {
+            CompleteStartup(e.Args, settings, settingsStore, logService);
+        }
+    }
+
+    /// <summary>The second half of the start: the stats indexer, the main window with its tray icon and
+    /// first fetches, and the handler that answers a later start. Runs at once for an ordinary start and
+    /// after the autostart delay for a <c>--tray</c> start.</summary>
+    private void CompleteStartup(string[] args, AppSettings settings, SettingsStore settingsStore, LogService logService)
+    {
         // One instance for the whole app's lifetime, walking session logs on its own background
         // thread so a fresh install with years of history never blocks startup - never built per
         // window, since a StartInBackground call while a walk is already running is a no op. Shared
@@ -150,7 +183,7 @@ public partial class App : Application, IDisposable
         // the tiles' week token figures read this same database, so without it usage made while the
         // app just keeps running would only show up after the next start or the next time the
         // statistics window opens.
-        _statsIndexerService = new StatsIndexerService(new StatsStore(), _logService);
+        _statsIndexerService = new StatsIndexerService(new StatsStore(), logService);
         StatsIndexerService.Shared = _statsIndexerService;
         _statsIndexerService.StartInBackground();
         _statsIndexerReindexTimer = new DispatcherTimer
@@ -160,7 +193,7 @@ public partial class App : Application, IDisposable
         _statsIndexerReindexTimer.Tick += (_, _) => _statsIndexerService?.StartInBackground();
         _statsIndexerReindexTimer.Start();
 
-        _mainWindow = new MainWindow(_settingsStore, settings, _logService);
+        _mainWindow = new MainWindow(settingsStore, settings, logService);
         // The previous program a portable update left beside the exe is the way back if this copy
         // cannot run, so it goes only once the window has rendered.
         if (Environment.ProcessPath is { } runningExe)
@@ -179,7 +212,7 @@ public partial class App : Application, IDisposable
         // already start inside MainWindow's own constructor - only the visible window is skipped.
         // Kept in a field (not a local) so the running instance has an explicit GC root regardless
         // of Show() being called.
-        if (!e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase))
+        if (!args.Contains("--tray", StringComparer.OrdinalIgnoreCase))
         {
             // Shown once, on the very first real start on a fresh profile - before the widget itself
             // appears, so the very first thing shown is an explanation rather than a wall of empty
@@ -189,7 +222,7 @@ public partial class App : Application, IDisposable
             {
                 new WelcomeWindow(_mainWindow.ViewModel.Tiles).ShowDialog();
                 settings.WelcomeShown = true;
-                _settingsStore.SaveNow(settings);
+                settingsStore.SaveNow(settings);
             }
 
             // A crash mid-startup (e.g. during the modal welcome dialog above) can already have run
@@ -211,7 +244,7 @@ public partial class App : Application, IDisposable
         // Test-only, undocumented: forces a real DispatcherUnhandledException after startup so the
         // crash dialog and logging path can be proven end-to-end. Debug-only - a product has no
         // business shipping its own crash switch.
-        if (e.Args.Contains("--force-crash-for-test", StringComparer.OrdinalIgnoreCase))
+        if (args.Contains("--force-crash-for-test", StringComparer.OrdinalIgnoreCase))
             Dispatcher.BeginInvoke(() => throw new InvalidOperationException(
                 "Forced crash for end-to-end crash-dialog verification (test-only)."));
 #endif
@@ -243,6 +276,7 @@ public partial class App : Application, IDisposable
 
     public void Dispose()
     {
+        _startupDelayTimer?.Stop();
         _statsIndexerReindexTimer?.Stop();
         if (ReferenceEquals(StatsIndexerService.Shared, _statsIndexerService))
             StatsIndexerService.Shared = null;

@@ -24,6 +24,22 @@ public class AppStartupTests
         Assert.False(StartupMode.ShouldShowWelcome(settings));
     }
 
+    [Theory]
+    [InlineData("--tray")]
+    [InlineData("--TRAY")]
+    public void AnAutostartWaitsTenSecondsBeforeAnythingStarts(string flag)
+    {
+        Assert.Equal(TimeSpan.FromSeconds(10), StartupMode.StartDelay([flag]));
+        Assert.Equal(TimeSpan.FromSeconds(10), StartupMode.StartDelay(["--second-instance", flag]));
+    }
+
+    [Fact]
+    public void AnOrdinaryStartDoesNotWait()
+    {
+        Assert.Equal(TimeSpan.Zero, StartupMode.StartDelay([]));
+        Assert.Equal(TimeSpan.Zero, StartupMode.StartDelay(["--second-instance"]));
+    }
+
     // The crash this guards against: a crash mid-startup (e.g. during the modal welcome dialog) can
     // already have run Shutdown() by the time OnStartup gets back to showing the main window - Show()
     // on a window WPF has already closed as part of that shutdown throws InvalidOperationException
