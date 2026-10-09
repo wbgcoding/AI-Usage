@@ -437,4 +437,7 @@
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Tagesdetail schließen</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Wartet auf eine Antwort. Zum Ausblenden anklicken.</value></data>
   <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token diese Woche</value></data>
+  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darüber.</value></data>
+  <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt im Plan.</value></data>
+  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darunter.</value></data>
 </root>

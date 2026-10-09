@@ -63,20 +63,44 @@
                                     </Rectangle>
                                 </Grid>
                             </Border>
+                            <!-- The pace tick: where the clock stands in this window. It sits outside the
+                                 clipped track so it can stick out 3 px above and below it; collapsed
+                                 while there is no pace. Drawn after the fill, so above the indicator. -->
+                            <Grid Margin="0,-3" IsHitTestVisible="False">
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding PacePercent}" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+                                <Rectangle x:Name="PART_PaceMarker" Width="2" HorizontalAlignment="Left"
+                                           Fill="{DynamicResource Text.Secondary}">
+                                    <Rectangle.Margin>
+                                        <MultiBinding Converter="{StaticResource MarkerPositionConverter}" ConverterParameter="2">
+                                            <Binding Path="PacePercent"/>
+                                            <Binding ElementName="PART_Track" Path="ActualWidth"/>
+                                        </MultiBinding>
+                                    </Rectangle.Margin>
+                                </Rectangle>
+                            </Grid>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
     </UserControl.Resources>
-    <!-- ToolTip is bound even though it is empty most of the time (no Allowance on the window) - the
+    <!-- ToolTip is bound even though it is empty most of the time (no allowance and no pace) - the
          style below turns ToolTipService off entirely in that case, rather than showing an empty
          popup, since WPF only suppresses a tooltip for a null/missing binding, not an empty string. -->
-    <Grid ToolTip="{Binding AllowanceText}">
+    <Grid ToolTip="{Binding BarTooltipText}">
         <Grid.Style>
             <Style TargetType="Grid">
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding AllowanceText}" Value="">
+                    <DataTrigger Binding="{Binding BarTooltipText}" Value="">
                         <Setter Property="ToolTipService.IsEnabled" Value="False"/>
                     </DataTrigger>
                 </Style.Triggers>

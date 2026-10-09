@@ -438,4 +438,7 @@
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Close day detail</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Waiting for an answer. Click to dismiss.</value></data>
   <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} tokens this week</value></data>
+  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % of the time has passed, usage is ahead of it.</value></data>
+  <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % of the time has passed, usage is on pace.</value></data>
+  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % of the time has passed, usage is below it.</value></data>
 </root>

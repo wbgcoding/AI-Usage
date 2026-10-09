@@ -13,6 +13,10 @@ public partial class UsageRowViewModel : ObservableObject
 {
     private DateTimeOffset? _resetsAt;
 
+    /// <summary>Length of this window in minutes, null when the provider does not say - the other half
+    /// (next to <see cref="_resetsAt"/>) of what <see cref="PacePercent"/> is computed from.</summary>
+    private int? _windowMinutes;
+
     /// <summary>The tile's own density, mirrored here only because <see cref="ClockText"/> depends on
     /// it (Full only) - this row never decides its own density, it is always handed in by <see
     /// cref="ProviderTileViewModel"/> through the constructor or <see cref="Update"/>.</summary>
@@ -38,6 +42,8 @@ public partial class UsageRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(RightLabelText))]
     [NotifyPropertyChangedFor(nameof(PercentText))]
     [NotifyPropertyChangedFor(nameof(AllowanceText))]
+    [NotifyPropertyChangedFor(nameof(PaceText))]
+    [NotifyPropertyChangedFor(nameof(BarTooltipText))]
     [NotifyPropertyChangedFor(nameof(MiniPercentText))]
     [NotifyPropertyChangedFor(nameof(MiniAccessibleName))]
     private double usedPercent;
@@ -153,6 +159,57 @@ public partial class UsageRowViewModel : ObservableObject
             Loc[allowance.UnitKey])
         : "";
 
+    /// <summary>How far through its window the clock is, in percent (0-100 exclusive), or null when the
+    /// window length or the reset instant is unknown or the result falls outside the window (a reset
+    /// that already passed). The bar draws it as a tick; usage beyond it means the window is being
+    /// used faster than time passes.</summary>
+    public double? PacePercent { get; private set; }
+
+    /// <summary>"60 % of the time has passed, usage is ahead of it." - how the used percentage compares
+    /// with <see cref="PacePercent"/>; empty when there is no pace.</summary>
+    public string PaceText
+    {
+        get
+        {
+            if (PacePercent is not { } pace)
+                return "";
+            var difference = UsedPercent - pace;
+            var key = difference > PaceTolerance ? "Tile.Pace.Above" : difference < -PaceTolerance ? "Tile.Pace.Below" : "Tile.Pace.On";
+            return Loc.Format(key, StatusTextMap.UsagePercent(pace).ToString(CultureInfo.CurrentCulture));
+        }
+    }
+
+    /// <summary>Percentage points the usage may sit away from the pace before it counts as ahead or below.</summary>
+    private const double PaceTolerance = 3;
+
+    /// <summary>The bar's tooltip: the allowance line, then the pace line; empty (no tooltip) only when
+    /// both are.</summary>
+    public string BarTooltipText => AllowanceText.Length > 0 && PaceText.Length > 0
+        ? AllowanceText + Environment.NewLine + PaceText
+        : AllowanceText.Length > 0 ? AllowanceText : PaceText;
+
+    private double? ComputePacePercent(DateTimeOffset now)
+    {
+        if (_resetsAt is not { } reset || _windowMinutes is null or <= 0)
+            return null;
+        var pace = 100 * (1 - (reset - now).TotalMinutes / _windowMinutes.Value);
+        return pace is > 0 and < 100 ? pace : null;
+    }
+
+    /// <summary>Recomputes <see cref="PacePercent"/> and raises the dependent properties only when the
+    /// marker would visibly move (a tenth of a percent), so the once-a-second tick does not churn bindings.</summary>
+    private void UpdatePace(DateTimeOffset now)
+    {
+        var pace = ComputePacePercent(now);
+        var sameState = pace is null ? PacePercent is null : PacePercent is { } old && Math.Abs(pace.Value - old) < 0.1;
+        if (sameState)
+            return;
+        PacePercent = pace;
+        OnPropertyChanged(nameof(PacePercent));
+        OnPropertyChanged(nameof(PaceText));
+        OnPropertyChanged(nameof(BarTooltipText));
+    }
+
     /// <summary>"42 %" - the bare rounded percentage in the active language's percent convention.
     /// The first part of <see cref="RightLabelText"/>.</summary>
     public string PercentText => RoundedPercentText();
@@ -217,8 +274,10 @@ public partial class UsageRowViewModel : ObservableObject
         Label = window.Label;
         Kind = window.Kind;
         _resetsAt = window.ResetsAt;
+        _windowMinutes = window.WindowMinutes;
         _density = density;
         _allowance = window.Allowance;
+        PacePercent = ComputePacePercent(now);
         UsedPercent = window.UsedPercent;
         Level = Classify(window.UsedPercent);
         CountdownText = ComputeCountdownText(now);
@@ -271,6 +330,7 @@ public partial class UsageRowViewModel : ObservableObject
     public void RefreshCountdown(DateTimeOffset now, TileDensity density)
     {
         SetDensity(density);
+        UpdatePace(now);
         var countdownText = ComputeCountdownText(now);
         if (countdownText != CountdownText)
             CountdownText = countdownText;
@@ -309,8 +369,10 @@ public partial class UsageRowViewModel : ObservableObject
         OnPropertyChanged(nameof(BarAccessibleName));
         OnPropertyChanged(nameof(MiniAccessibleName));
         _resetsAt = window.ResetsAt;
+        _windowMinutes = window.WindowMinutes;
         SetDensity(density);
         _allowance = window.Allowance;
+        PacePercent = ComputePacePercent(now);
         UsedPercent = window.UsedPercent;
         Level = Classify(window.UsedPercent);
         CountdownText = ComputeCountdownText(now);
@@ -327,6 +389,9 @@ public partial class UsageRowViewModel : ObservableObject
         OnPropertyChanged(nameof(InlineTokensText));
         OnPropertyChanged(nameof(InlineTokensToolTip));
         OnPropertyChanged(nameof(AllowanceText));
+        OnPropertyChanged(nameof(PacePercent));
+        OnPropertyChanged(nameof(PaceText));
+        OnPropertyChanged(nameof(BarTooltipText));
     }
 
     /// <summary>The colour boundaries, also shown to the user next to the notification threshold
