@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using AiUsage.Io;
 
@@ -161,8 +160,7 @@ public static class SessionTurnReader
 
     private static bool TryGetTimestamp(JsonElement root, out DateTimeOffset timestamp)
     {
-        if (TryGetString(root, "timestamp", out var text) && DateTimeOffset.TryParse(
-                text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out timestamp))
+        if (TryGetString(root, "timestamp", out var text) && SessionLineAge.TryParse(text, out timestamp))
             return true;
 
         timestamp = default;

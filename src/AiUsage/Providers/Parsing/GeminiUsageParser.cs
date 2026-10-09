@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using AiUsage.Models;
 
@@ -95,10 +94,8 @@ public static class GeminiUsageParser
     {
         if (!bucket.TryGetProperty("resetTime", out var resetEl) || resetEl.ValueKind != JsonValueKind.String)
             return null;
-        return DateTimeOffset.TryParse(
-            resetEl.GetString(), CultureInfo.InvariantCulture,
-            DateTimeStyles.RoundtripKind | DateTimeStyles.AssumeUniversal, out var parsed)
-            ? parsed.ToUniversalTime()
+        return SessionLineAge.TryParse(resetEl.GetString(), out var parsed)
+            ? UnixTimeConversion.PlausibleOrNull(parsed.ToUniversalTime())
             : null;
     }
 }

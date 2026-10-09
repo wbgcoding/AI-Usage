@@ -189,15 +189,15 @@ public class CursorUsageParserTests
     [Fact]
     public void A_request_pair_nested_under_a_model_key_with_a_unix_reset_is_read_too()
     {
-        const string json = """
-            {"gpt-4-1": {"numRequests": 30, "maxRequestUsage": 120, "inputTokens": 100, "outputTokens": 50}, "startOfMonth": 1756684800}
-            """;
+        // A cycle that started ten days ago, so the reset stays plausible whenever the test runs.
+        var start = DateTimeOffset.UtcNow.AddDays(-10).ToUnixTimeSeconds();
+        var json = "{\"gpt-4-1\": {\"numRequests\": 30, \"maxRequestUsage\": 120, \"inputTokens\": 100, \"outputTokens\": 50}, \"startOfMonth\": " + start + "}";
 
         var windows = CursorUsageParser.Parse(json);
 
         var window = Assert.Single(windows);
         Assert.Equal(25, window.UsedPercent, precision: 3);
-        Assert.Equal(DateTimeOffset.Parse("2025-10-01T00:00:00Z"), window.ResetsAt);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(start).AddMonths(1), window.ResetsAt);
         Assert.Equal(150, window.Tokens?.TotalTokens);
     }
 
@@ -247,7 +247,7 @@ public class CursorUsageParserTests
     }
 
     [Fact]
-    public void Several_models_without_a_request_limit_sum_only_their_token_counts()
+    public void Several_models_without_a_request_limit_yield_no_month_window()
     {
         const string json = """
             {"gpt-4-1": {"numRequests": 10, "maxRequestUsage": null, "numTokens": 1000},
@@ -256,10 +256,22 @@ public class CursorUsageParserTests
 
         var windows = CursorUsageParser.Parse(json);
 
-        var window = Assert.Single(windows);
-        Assert.Equal(0, window.UsedPercent);
+        Assert.DoesNotContain(windows, window => window.Label == "Window_Month");
+        Assert.Empty(windows);
+    }
+
+    [Fact]
+    public void Several_models_with_one_limit_still_carry_the_token_sum_of_all_of_them()
+    {
+        const string json = """
+            {"gpt-4-1": {"numRequests": 10, "maxRequestUsage": 100, "numTokens": 1000},
+             "gpt-5": {"numRequests": 20, "maxRequestUsage": null, "numTokens": 2500}}
+            """;
+
+        var window = Assert.Single(CursorUsageParser.Parse(json));
+
+        Assert.Equal(10, window.UsedPercent, precision: 3);
         Assert.Equal(3500, window.Tokens?.TotalTokens);
-        Assert.Null(window.Allowance);
     }
 
     [Fact]
@@ -314,5 +326,31 @@ public class CursorUsageParserTests
         const string json = """{"gpt-4-1": {"somethingElse": 1}, "gpt-5": {"somethingElse": 2}}""";
 
         Assert.Empty(CursorUsageParser.Parse(json));
+    }
+
+    [Fact]
+    public void A_cycle_end_in_the_year_58000_shows_no_countdown()
+    {
+        // Milliseconds since the epoch, but ten thousand times too large.
+        const string json = """
+            {"billingCycleEnd": 1770000000000000, "individualUsage": {"plan": {"totalPercentUsed": 40}}}
+            """;
+
+        var window = Assert.Single(CursorUsageParser.Parse(json));
+
+        Assert.Equal(40, window.UsedPercent, precision: 3);
+        Assert.Null(window.ResetsAt);
+    }
+
+    [Fact]
+    public void A_start_of_month_far_in_the_past_shows_no_countdown()
+    {
+        const string json = """
+            {"gpt-4": {"numRequests": 12, "maxRequestUsage": 100}, "startOfMonth": "1971-01-05T10:00:00.000Z"}
+            """;
+
+        var window = Assert.Single(CursorUsageParser.Parse(json));
+
+        Assert.Null(window.ResetsAt);
     }
 }

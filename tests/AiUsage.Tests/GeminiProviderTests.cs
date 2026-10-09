@@ -332,4 +332,14 @@ public class GeminiProviderTests : IDisposable
         foreach (var directory in _tempDirectories)
             directory.Dispose();
     }
+
+    [Fact]
+    public void A_reset_time_far_from_now_shows_no_countdown()
+    {
+        var windows = AiUsage.Providers.Parsing.GeminiUsageParser.Parse(
+            """{"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","resetTime":"9999-12-30T00:00:00Z","remainingFraction":0.5}]}]}""");
+
+        var window = Assert.Single(windows);
+        Assert.Null(window.ResetsAt);
+    }
 }

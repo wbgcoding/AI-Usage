@@ -58,6 +58,18 @@ public class SessionTurnReaderTests : IDisposable
     }
 
     [Fact]
+    public void ReadNewestClaudeTurn_reads_a_timestamp_without_an_offset_as_UTC()
+    {
+        var path = WriteFile(
+            """{"type":"user","timestamp":"2026-10-08T10:00:00","message":{"role":"user","content":"hi"}}""");
+
+        var (_, timestamp) = SessionTurnReader.ReadNewestClaudeTurn(path);
+
+        Assert.Equal(TimeSpan.Zero, timestamp!.Value.Offset);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-08T10:00:00Z"), timestamp);
+    }
+
+    [Fact]
     public void ReadNewestClaudeTurn_classifies_a_tool_result_line_as_ToolCall_not_UserTurn()
     {
         // A tool result comes back wrapped in a "user"-type line in Claude's own transcript shape -

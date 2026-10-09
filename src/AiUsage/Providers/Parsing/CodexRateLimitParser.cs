@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 namespace AiUsage.Providers.Parsing;
@@ -57,8 +56,7 @@ public static class CodexRateLimitParser
                 return false;
 
             if (!TryGetString(root, "timestamp", out var timestampText)
-                || !DateTimeOffset.TryParse(
-                    timestampText, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var timestamp))
+                || !SessionLineAge.TryParse(timestampText, out var timestamp))
                 return false;
 
             var primaryUsedPercent = TryGetDouble(primary, "used_percent");
