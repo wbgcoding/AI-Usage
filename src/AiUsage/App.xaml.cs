@@ -77,10 +77,9 @@ public partial class App : Application, IDisposable
 
         // A portable update restarts through this switch while the old copy is still shutting down; the
         // new one waits for it so the single-instance check below does not hand over to a dying copy.
-        // The previous program file and the downloaded update files are cleaned up here too.
+        // The downloaded update files are cleaned up here too; the previous program file stays until
+        // the new copy has shown its window.
         UpdateHost.WaitForPreviousCopy(e.Args);
-        if (Environment.ProcessPath is { } ownExe)
-            PortableSwap.DeleteLeftover(ownExe);
         UpdateHost.CleanUpStaleFiles();
 
         // The single-instance check is the one thing a second instance must skip - it exists so a
@@ -161,6 +160,20 @@ public partial class App : Application, IDisposable
         _statsIndexerReindexTimer.Start();
 
         _mainWindow = new MainWindow(_settingsStore, settings, _logService);
+        // The previous program a portable update left beside the exe is the way back if this copy
+        // cannot run, so it goes only once the window has rendered.
+        if (Environment.ProcessPath is { } runningExe)
+        {
+            var window = _mainWindow;
+            void DeleteLeftoverOnce(object? sender, EventArgs args)
+            {
+                window.ContentRendered -= DeleteLeftoverOnce;
+                PortableSwap.DeleteLeftover(runningExe);
+            }
+
+            window.ContentRendered += DeleteLeftoverOnce;
+        }
+
         // --tray (Autostart): the tray icon and background polling
         // already start inside MainWindow's own constructor - only the visible window is skipped.
         // Kept in a field (not a local) so the running instance has an explicit GC root regardless

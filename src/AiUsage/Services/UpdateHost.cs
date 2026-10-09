@@ -182,9 +182,23 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     public void StartSetupAndExit(string setupPath)
     {
-        Process.Start(new ProcessStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)) { UseShellExecute = true })?.Dispose();
+        // The caller holds its lock on the file until this returns, so the process is created from the
+        // verified file; a declined administrator prompt throws before anything is ended.
+        Process.Start(BuildSetupStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)))?.Dispose();
 
         exitApplication();
+    }
+
+    /// <summary>A per-machine setup is started elevated right away, from the verified file: left to
+    /// start unelevated it would relaunch itself with administrator rights after this app ended and
+    /// the file lock was gone.</summary>
+    internal static ProcessStartInfo BuildSetupStartInfo(string setupPath, string arguments)
+    {
+        var start = new ProcessStartInfo(setupPath, arguments) { UseShellExecute = true };
+        if (arguments.Contains("/ALLUSERS", StringComparison.OrdinalIgnoreCase))
+            start.Verb = "runas";
+
+        return start;
     }
 
     /// <summary>The setup's command line. The setup does not reuse the previous install scope on its
@@ -257,8 +271,11 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     public bool ReplaceRunningAndRestart(byte[] verifiedExe)
     {
-        var running = Environment.ProcessPath;
-        if (running is null || !PortableSwap.Replace(running, verifiedExe))
+        var running = Environment.ProcessPath ?? throw new IOException("The program file could not be replaced.");
+        var swap = PortableSwap.Replace(running, verifiedExe);
+        if (swap == SwapResult.RestoreNeeded)
+            throw new UpdateRestoreNeededException(PortableSwap.OldPathFor(running));
+        if (swap != SwapResult.Replaced)
             throw new IOException("The program file could not be replaced.");
 
         try

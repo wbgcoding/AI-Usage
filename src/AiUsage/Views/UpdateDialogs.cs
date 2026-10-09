@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using AiUsage.Services;
 using AiUsage.ViewModels;
@@ -30,9 +31,13 @@ internal static class UpdateDialogs
 
         var loc = LocalizationService.Instance;
         var message = loc[MessageKey(result.Outcome)];
-        if (result.Outcome == UpdateOutcome.InstalledRestartNeeded)
+        if (result.Outcome == UpdateOutcome.SwapFailedRestoreNeeded)
+            message = string.Format(CultureInfo.CurrentCulture, message, PortableSwap.OldPathFor(Environment.ProcessPath ?? AppInfo.ProductName));
+
+        if (result.Outcome is UpdateOutcome.InstalledRestartNeeded or UpdateOutcome.SwapFailedRestoreNeeded or UpdateOutcome.NotStarted)
         {
-            // The new version is already in place: nothing to download, so only a close button.
+            // Nothing a download would fix (the new version is in place, the program file needs renaming,
+            // or the setup only has to be started again): only a close button.
             ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["TitleBar.Close"], "");
             return;
         }
@@ -46,6 +51,8 @@ internal static class UpdateDialogs
         UpdateOutcome.NotVerified => "Update.NotVerified",
         UpdateOutcome.NotNewer => "Update.NotNewer",
         UpdateOutcome.InstalledRestartNeeded => "Update.InstalledRestart",
+        UpdateOutcome.SwapFailedRestoreNeeded => "Update.RestoreNeeded",
+        UpdateOutcome.NotStarted => "Update.NotStarted",
         _ => "Update.NotLoaded",
     };
 

@@ -437,4 +437,6 @@
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Tagesdetail schließen</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Wartet auf eine Antwort. Zum Ausblenden anklicken.</value></data>
   <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token diese Woche</value></data>
+  <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update konnte nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
+  <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuch es noch einmal.</value></data>
 </root>

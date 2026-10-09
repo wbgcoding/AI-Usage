@@ -438,4 +438,6 @@
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Close day detail</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Waiting for an answer. Click to dismiss.</value></data>
   <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} tokens this week</value></data>
+  <data name="Update.RestoreNeeded" xml:space="preserve"><value>The update could not finish. Your program file is now at {0}. Rename it back to AI-Usage.exe to start the app again.</value></data>
+  <data name="Update.NotStarted" xml:space="preserve"><value>The installer did not start. If you closed the administrator prompt, try again.</value></data>
 </root>
