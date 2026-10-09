@@ -1149,7 +1149,11 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (visibleWindows.Count == Rows.Count && SameKindOrder(visibleWindows))
         {
             for (var i = 0; i < visibleWindows.Count; i++)
-                Rows[i].Update(visibleWindows[i], now, Density, ThresholdPercentFor(visibleWindows[i].Kind, thresholds));
+            {
+                var key = Rows[i].Update(visibleWindows[i], now, Density, ThresholdPercentFor(visibleWindows[i].Kind, thresholds));
+                if (key is not null && !IsHidden)
+                    AnnounceLevel(Rows[i], key);
+            }
         }
         else
         {
@@ -1163,6 +1167,14 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         // Rebuilt rows start without a forecast: hand them the series the last history read produced.
         RefreshForecastsFromLastSeries();
     }
+
+    /// <summary>Raised with the finished sentence when a shown window rises into yellow, red or full;
+    /// the main window hands it to screen readers. Never raised for a hidden tile.</summary>
+    internal event Action<string>? LevelAnnounced;
+
+    private void AnnounceLevel(UsageRowViewModel row, string key) =>
+        LevelAnnounced?.Invoke(LocalizationService.Instance.Format(
+            key, HeaderDisplayName, row.LabelText, StatusTextMap.UsagePercent(row.UsedPercent)));
 
     /// <summary>Re-filters <see cref="Rows"/> against the last snapshot the instant a
     /// window-visibility check box changes, instead of waiting for the next scheduled fetch (up to a

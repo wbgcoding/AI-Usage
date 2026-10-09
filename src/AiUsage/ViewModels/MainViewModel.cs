@@ -129,6 +129,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>A shown window rose a color level: the sentence for a screen reader (see
+    /// <see cref="ProviderTileViewModel.LevelAnnounced"/>).</summary>
+    public event Action<string>? LevelAnnounced;
+
     private void ForwardThresholdNotification(ThresholdNotification notification)
     {
         if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
@@ -579,6 +583,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 RebuildTrayWindowChoices();
         };
         _tilesById[provider.AccountKey] = tile;
+        tile.LevelAnnounced += text => LevelAnnounced?.Invoke(text);
         Tiles.Add(tile);
         // Mirrors Tiles.Add: a freshly built tile (startup, or a further account added later) always
         // joins at the very end of the on-screen order too - RebuildDisplayRowsInitial (constructor

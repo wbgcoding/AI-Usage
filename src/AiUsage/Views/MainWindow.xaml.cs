@@ -183,6 +183,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
         ViewModel.ResetRaised += ViewModel_ResetRaised;
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
+        ViewModel.LevelAnnounced += AnnounceToScreenReader;
 
         // Startup tiles here; an account added later is wired the moment it joins the collection
         // (ViewModel_Tiles_CollectionChanged), or its sign-in and sign-out buttons would do nothing.
@@ -226,6 +227,22 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ForecastRaised(ForecastNotification notification) =>
         _tray.ShowBalloon(notification.Text());
+
+    /// <summary>Tells a running screen reader that a window changed color level. Only while the
+    /// window is on screen: a hidden or minimized widget has nobody looking at it, and the balloon
+    /// alerts already cover that case.</summary>
+    private void AnnounceToScreenReader(string text)
+    {
+        if (!IsVisible || WindowState == WindowState.Minimized)
+            return;
+
+        var peer = System.Windows.Automation.Peers.UIElementAutomationPeer.FromElement(this)
+            ?? System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(this);
+        peer?.RaiseNotificationEvent(
+            System.Windows.Automation.AutomationNotificationKind.Other,
+            System.Windows.Automation.AutomationNotificationProcessing.ImportantMostRecent,
+            text, "AiUsage.Level");
+    }
 
     /// <summary>Tray double-click / "Anzeigen/Verstecken" - also restores a
     /// minimized window, the usual Windows convention for a tray toggle.</summary>
