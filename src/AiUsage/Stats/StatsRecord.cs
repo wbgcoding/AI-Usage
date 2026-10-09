@@ -2,10 +2,11 @@ namespace AiUsage.Stats;
 
 /// <summary>
 /// One summed row of the token usage index: a provider's token counts for one day, one hour of that
-/// day, one model and one project. Additive by design - two records with the same key (<see
-/// cref="Provider"/>, <see cref="Day"/>, <see cref="Hour"/>, <see cref="Model"/>, <see
-/// cref="Project"/>) are meant to be summed together, never replaced, so a re-read of a file that
-/// grew since the last index run only ever adds to what is already stored.
+/// day, one model and one project, split by machine and by main agent versus subagent. Additive by
+/// design - two records with the same key (<see cref="Provider"/>, <see cref="Day"/>, <see
+/// cref="Hour"/>, <see cref="Model"/>, <see cref="Project"/>, <see cref="Effort"/>, <see
+/// cref="Machine"/>, <see cref="Subagent"/>) are meant to be summed together, never replaced, so a
+/// re-read of a file that grew since the last index run only ever adds to what is already stored.
 ///
 /// Deliberately narrow: every field is either a short label (provider id, model name, project name),
 /// a plain token count, or the day/hour a source line's own timestamp fell on. Nothing here can ever
@@ -23,7 +24,9 @@ public sealed record StatsRecord(
     long CacheCreationTokens,
     long CacheReadTokens,
     int Hour = 0,
-    string Effort = "")
+    string Effort = "",
+    string Machine = "",
+    bool Subagent = false)
 {
     public long TotalTokens => InputTokens + OutputTokens + CacheCreationTokens + CacheReadTokens;
 

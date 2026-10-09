@@ -25,7 +25,11 @@ public sealed class StatsStore
     // its usage/source_file tables dropped and rebuilt (see EnsureSchema) since the older rows carry
     // nothing to migrate from; v4 migrates in place. Schema v6 gives schema_version a single-row
     // constraint (id = 1) so two first opens can never leave two version rows; every row stays.
-    internal const int SchemaVersion = 6;
+    // Schema v7 adds the `machine` and `subagent` columns to the usage table's own primary key (a
+    // table rebuild that keeps every row; Claude rows filed under the project "subagents" are marked
+    // as subagent rows) and the session tables; the sessions of rows already stored are filled in
+    // once from the source files that still exist (see StatsIndexer).
+    internal const int SchemaVersion = 7;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved
     // data folder takes the index along without rebuilding any store that already exists.
@@ -77,9 +81,9 @@ public sealed class StatsStore
     /// touching a file a newer build understands better than this one does.</summary>
     public bool IsUsable { get; private set; } = true;
 
-    // Set once the v4 backup could not be written: this instance then stays unusable instead of
+    // Set once a migration backup could not be written: this instance then stays unusable instead of
     // copying the whole database again on every later open (the indexer opens once per file).
-    private bool _v4BackupFailed;
+    private bool _backupFailed;
 
     private SqliteConnection Open()
     {
@@ -134,8 +138,8 @@ public sealed class StatsStore
     /// <summary>Brings the file up to <see cref="SchemaVersion"/> in one <c>BEGIN IMMEDIATE</c>
     /// transaction, so two first opens (the indexer and the window) cannot both create the version
     /// row: the second waits for the write lock and then finds the first one's work already done.
-    /// A database at v4 keeps its Codex rows; older ones are rebuilt from the session files. A file
-    /// from a newer build is left entirely alone.</summary>
+    /// A database at v4 keeps its Codex rows; older ones are rebuilt from the session files; from v5
+    /// on every row stays. A file from a newer build is left entirely alone.</summary>
     private void EnsureSchema(SqliteConnection connection)
     {
         SetBusyTimeout(connection);
@@ -166,8 +170,8 @@ public sealed class StatsStore
     }
 
     /// <summary>The schema work itself, run inside <see cref="EnsureSchema"/>'s transaction. False
-    /// means nothing may change: a newer build's file, or a v4 backup that could not be written
-    /// (this instance then sits out the session instead of clearing rows that exist nowhere else).</summary>
+    /// means nothing may change: a newer build's file, or a migration backup that could not be written
+    /// (this instance then sits out the session instead of changing rows that exist nowhere else).</summary>
     private bool ApplySchema(SqliteConnection connection)
     {
         Execute(connection, "CREATE TABLE IF NOT EXISTS schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);");
@@ -210,16 +214,30 @@ public sealed class StatsStore
 
         // Future version jumps migrate and keep the rows that stay valid; they never wipe the
         // tables wholesale again (the index is the only copy of past usage).
+        var originalVersion = existingVersion;
         if (existingVersion == 4)
         {
-            if (_v4BackupFailed || !MigrateFromV4(connection))
+            if (_backupFailed || !MigrateFromV4(connection))
             {
-                _v4BackupFailed = true;
+                _backupFailed = true;
                 IsUsable = false;
                 return false;
             }
 
             existingVersion = 5;
+        }
+
+        // The v4 step already left a backup of the untouched file; v5 and v6 files get theirs here.
+        if (existingVersion is 5 or 6)
+        {
+            if (_backupFailed || (originalVersion != 4 && !BackUpBeforeMigration(originalVersion!.Value)))
+            {
+                _backupFailed = true;
+                IsUsable = false;
+                return false;
+            }
+
+            MigrateToV7(connection);
         }
 
         // A database written at an older schema version has usage rows this version cannot
@@ -239,11 +257,13 @@ public sealed class StatsStore
                 model TEXT NOT NULL,
                 project TEXT NOT NULL,
                 effort TEXT NOT NULL DEFAULT '',
+                machine TEXT NOT NULL DEFAULT '',
+                subagent INTEGER NOT NULL DEFAULT 0,
                 input_tokens INTEGER NOT NULL DEFAULT 0,
                 output_tokens INTEGER NOT NULL DEFAULT 0,
                 cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
                 cache_read_tokens INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (provider, day, hour, model, project, effort)
+                PRIMARY KEY (provider, day, hour, model, project, effort, machine, subagent)
             );
             CREATE TABLE IF NOT EXISTS source_file (
                 path TEXT PRIMARY KEY,
@@ -259,7 +279,39 @@ public sealed class StatsStore
                 current_effort TEXT NOT NULL DEFAULT '',
                 last_message_key TEXT NOT NULL DEFAULT ''
             );
+            CREATE TABLE IF NOT EXISTS session (
+                provider TEXT NOT NULL,
+                machine TEXT NOT NULL DEFAULT '',
+                session_id TEXT NOT NULL,
+                project TEXT NOT NULL DEFAULT '',
+                first_utc TEXT NOT NULL,
+                last_utc TEXT NOT NULL,
+                input INTEGER NOT NULL DEFAULT 0,
+                output INTEGER NOT NULL DEFAULT 0,
+                cache_creation INTEGER NOT NULL DEFAULT 0,
+                cache_read INTEGER NOT NULL DEFAULT 0,
+                main_model TEXT NOT NULL DEFAULT '',
+                subagent_tokens INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (provider, machine, session_id)
+            );
+            CREATE TABLE IF NOT EXISTS session_model (
+                provider TEXT NOT NULL,
+                machine TEXT NOT NULL DEFAULT '',
+                session_id TEXT NOT NULL,
+                model TEXT NOT NULL,
+                tokens INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (provider, machine, session_id, model)
+            );
+            CREATE TABLE IF NOT EXISTS meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             """);
+
+        // A database that held no usage has nothing to backfill: the walk fills the sessions in
+        // together with the usage. Only a migrated one needs the one-time pass.
+        if (originalVersion is null or < 4)
+            Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{SessionsBackfilledKey}', '1')");
 
         using (var writeVersion = connection.CreateCommand())
         {
@@ -270,6 +322,8 @@ public sealed class StatsStore
 
         return true;
     }
+
+    private const string SessionsBackfilledKey = "sessions_backfilled";
 
     private static void Execute(SqliteConnection connection, string sql)
     {
@@ -308,6 +362,53 @@ public sealed class StatsStore
         return true;
     }
 
+    /// <summary>Copies the database next to itself as <c>stats.v{old}.bak</c> before a migration
+    /// changes it. False when the copy cannot be written.</summary>
+    private bool BackUpBeforeMigration(long oldVersion)
+    {
+        var backupPath = Path.Combine(Path.GetDirectoryName(DatabasePath)!, $"stats.v{oldVersion}.bak");
+        try
+        {
+            File.Copy(DatabasePath, backupPath, overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Version 5 or 6 to 7: rebuilds the usage table with the <c>machine</c> and
+    /// <c>subagent</c> key columns, keeping every row and every token count. Claude rows filed under
+    /// the project "subagents" (a transcript of a subagent that carried no path of its own) become
+    /// subagent rows and keep that label. Runs inside <see cref="EnsureSchema"/>'s write
+    /// transaction; the session tables come from the table creation that follows.</summary>
+    private static void MigrateToV7(SqliteConnection connection) => Execute(connection, """
+        CREATE TABLE usage_v7 (
+            provider TEXT NOT NULL,
+            day TEXT NOT NULL,
+            hour INTEGER NOT NULL DEFAULT 0,
+            model TEXT NOT NULL,
+            project TEXT NOT NULL,
+            effort TEXT NOT NULL DEFAULT '',
+            machine TEXT NOT NULL DEFAULT '',
+            subagent INTEGER NOT NULL DEFAULT 0,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (provider, day, hour, model, project, effort, machine, subagent)
+        );
+        INSERT INTO usage_v7 (provider, day, hour, model, project, effort, machine, subagent,
+            input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+        SELECT provider, day, hour, model, project, effort, '',
+            CASE WHEN provider = 'claude' AND project = 'subagents' THEN 1 ELSE 0 END,
+            input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens
+        FROM usage;
+        DROP TABLE usage;
+        ALTER TABLE usage_v7 RENAME TO usage;
+        """);
+
     /// <summary>Test fixture helper: seeds usage rows the way a finished index walk would. Adds every
     /// record's token counts to whatever is already stored under its key - never replaces a row, so
     /// calling this twice with the same records doubles the totals. The indexer itself writes through
@@ -333,11 +434,12 @@ public sealed class StatsStore
         }
     }
 
-    /// <summary>What <see cref="StatsIndexer"/> actually calls: a walk's new usage rows and its
-    /// source file's new offset, written in one transaction over one connection - so a crash between
+    /// <summary>What <see cref="StatsIndexer"/> actually calls: a walk's new usage rows, the session
+    /// totals they belong to and its source file's new offset, written in one transaction over one connection - so a crash between
     /// the two writes can never leave a range counted without its marker having moved, which would
     /// count that same range again on the next run.</summary>
-    public void ApplyIndexResult(IReadOnlyList<StatsRecord> records, StatsSourceFileState sourceFileState)
+    public void ApplyIndexResult(
+        IReadOnlyList<StatsRecord> records, StatsSourceFileState sourceFileState, IReadOnlyList<StatsSessionDelta>? sessions = null)
     {
         try
         {
@@ -347,6 +449,8 @@ public sealed class StatsStore
 
             using var transaction = connection.BeginTransaction();
             AddDeltaWithinTransaction(connection, transaction, records);
+            if (sessions is { Count: > 0 })
+                AddSessionDeltasWithinTransaction(connection, transaction, sessions, replace: false);
             SetSourceFileWithinTransaction(connection, transaction, sourceFileState);
             transaction.Commit();
         }
@@ -364,9 +468,9 @@ public sealed class StatsStore
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            INSERT INTO usage (provider, day, hour, model, project, effort, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
-            VALUES ($provider, $day, $hour, $model, $project, $effort, $input, $output, $cacheCreation, $cacheRead)
-            ON CONFLICT (provider, day, hour, model, project, effort) DO UPDATE SET
+            INSERT INTO usage (provider, day, hour, model, project, effort, machine, subagent, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+            VALUES ($provider, $day, $hour, $model, $project, $effort, $machine, $subagent, $input, $output, $cacheCreation, $cacheRead)
+            ON CONFLICT (provider, day, hour, model, project, effort, machine, subagent) DO UPDATE SET
                 input_tokens = input_tokens + excluded.input_tokens,
                 output_tokens = output_tokens + excluded.output_tokens,
                 cache_creation_tokens = cache_creation_tokens + excluded.cache_creation_tokens,
@@ -378,6 +482,8 @@ public sealed class StatsStore
         var model = AddParameter(command, "$model", SqliteType.Text);
         var project = AddParameter(command, "$project", SqliteType.Text);
         var effort = AddParameter(command, "$effort", SqliteType.Text);
+        var machine = AddParameter(command, "$machine", SqliteType.Text);
+        var subagent = AddParameter(command, "$subagent", SqliteType.Integer);
         var input = AddParameter(command, "$input", SqliteType.Integer);
         var output = AddParameter(command, "$output", SqliteType.Integer);
         var cacheCreation = AddParameter(command, "$cacheCreation", SqliteType.Integer);
@@ -392,11 +498,190 @@ public sealed class StatsStore
             model.Value = record.Model;
             project.Value = record.Project;
             effort.Value = record.Effort;
+            machine.Value = record.Machine;
+            subagent.Value = record.Subagent ? 1 : 0;
             input.Value = record.InputTokens;
             output.Value = record.OutputTokens;
             cacheCreation.Value = record.CacheCreationTokens;
             cacheRead.Value = record.CacheReadTokens;
             command.ExecuteNonQuery();
+        }
+    }
+
+    private static string FormatUtc(DateTimeOffset value) =>
+        value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'", CultureInfo.InvariantCulture);
+
+    /// <summary>Adds each session delta to its stored session (or, with <paramref name="replace"/>,
+    /// replaces the stored session by it) and brings the session's main model up to date from the
+    /// per-model totals. A delta without main agent tokens never replaces a project that is already
+    /// known.</summary>
+    private static void AddSessionDeltasWithinTransaction(
+        SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsSessionDelta> deltas, bool replace)
+    {
+        using var clear = connection.CreateCommand();
+        clear.Transaction = transaction;
+        clear.CommandText = """
+            DELETE FROM session_model WHERE provider = $provider AND machine = $machine AND session_id = $session;
+            DELETE FROM session WHERE provider = $provider AND machine = $machine AND session_id = $session;
+            """;
+
+        using var upsert = connection.CreateCommand();
+        upsert.Transaction = transaction;
+        upsert.CommandText = """
+            INSERT INTO session (provider, machine, session_id, project, first_utc, last_utc,
+                input, output, cache_creation, cache_read, main_model, subagent_tokens)
+            VALUES ($provider, $machine, $session, $project, $first, $last, $input, $output, $cacheCreation, $cacheRead, '', $subagent)
+            ON CONFLICT (provider, machine, session_id) DO UPDATE SET
+                project = CASE WHEN excluded.project <> '' AND ($main = 1 OR session.project = '')
+                               THEN excluded.project ELSE session.project END,
+                first_utc = MIN(first_utc, excluded.first_utc),
+                last_utc = MAX(last_utc, excluded.last_utc),
+                input = input + excluded.input,
+                output = output + excluded.output,
+                cache_creation = cache_creation + excluded.cache_creation,
+                cache_read = cache_read + excluded.cache_read,
+                subagent_tokens = subagent_tokens + excluded.subagent_tokens
+            """;
+
+        using var model = connection.CreateCommand();
+        model.Transaction = transaction;
+        model.CommandText = """
+            INSERT INTO session_model (provider, machine, session_id, model, tokens)
+            VALUES ($provider, $machine, $session, $model, $tokens)
+            ON CONFLICT (provider, machine, session_id, model) DO UPDATE SET tokens = tokens + excluded.tokens
+            """;
+
+        using var mainModel = connection.CreateCommand();
+        mainModel.Transaction = transaction;
+        mainModel.CommandText = """
+            UPDATE session SET main_model = COALESCE((
+                SELECT model FROM session_model
+                WHERE provider = $provider AND machine = $machine AND session_id = $session
+                ORDER BY tokens DESC, model LIMIT 1), '')
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+            """;
+
+        foreach (var delta in deltas)
+        {
+            foreach (var command in new[] { clear, upsert, model, mainModel })
+            {
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$provider", delta.Provider);
+                command.Parameters.AddWithValue("$machine", delta.Machine);
+                command.Parameters.AddWithValue("$session", delta.SessionId);
+            }
+
+            if (replace)
+                clear.ExecuteNonQuery();
+
+            upsert.Parameters.AddWithValue("$project", delta.Project);
+            upsert.Parameters.AddWithValue("$first", FormatUtc(delta.FirstUtc));
+            upsert.Parameters.AddWithValue("$last", FormatUtc(delta.LastUtc));
+            upsert.Parameters.AddWithValue("$input", delta.InputTokens);
+            upsert.Parameters.AddWithValue("$output", delta.OutputTokens);
+            upsert.Parameters.AddWithValue("$cacheCreation", delta.CacheCreationTokens);
+            upsert.Parameters.AddWithValue("$cacheRead", delta.CacheReadTokens);
+            upsert.Parameters.AddWithValue("$subagent", delta.SubagentTokens);
+            upsert.Parameters.AddWithValue("$main", delta.HasMainThreadTokens ? 1 : 0);
+            upsert.ExecuteNonQuery();
+
+            foreach (var (name, tokens) in delta.ModelTokens)
+            {
+                model.Parameters.Clear();
+                model.Parameters.AddWithValue("$provider", delta.Provider);
+                model.Parameters.AddWithValue("$machine", delta.Machine);
+                model.Parameters.AddWithValue("$session", delta.SessionId);
+                model.Parameters.AddWithValue("$model", name);
+                model.Parameters.AddWithValue("$tokens", tokens);
+                model.ExecuteNonQuery();
+            }
+
+            mainModel.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>True once the sessions of the usage rows an older version left behind were filled in.</summary>
+    public bool IsSessionBackfillDone()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return true;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM meta WHERE key = $key";
+            command.Parameters.AddWithValue("$key", SessionsBackfilledKey);
+            return command.ExecuteScalar() as string == "1";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            // Unreadable: do not start a pass that could not be written either.
+            return true;
+        }
+    }
+
+    /// <summary>Writes the sessions found by the one-time backfill, replacing whatever the store holds
+    /// for the same sessions, and marks the backfill done - in one transaction, so a failed write
+    /// leaves the pass to be repeated. The usage rows are not touched. False when nothing was written.</summary>
+    public bool ReplaceSessionsAndMarkBackfilled(IReadOnlyList<StatsSessionDelta> sessions)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var transaction = connection.BeginTransaction();
+            AddSessionDeltasWithinTransaction(connection, transaction, sessions, replace: true);
+            using var mark = connection.CreateCommand();
+            mark.Transaction = transaction;
+            mark.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, '1')";
+            mark.Parameters.AddWithValue("$key", SessionsBackfilledKey);
+            mark.ExecuteNonQuery();
+            transaction.Commit();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Every stored session, unfiltered; the window filters them by their start day.</summary>
+    public IReadOnlyList<StatsSessionRecord> LoadSessions()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return [];
+
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT provider, machine, session_id, project, first_utc, last_utc,
+                       input, output, cache_creation, cache_read, main_model, subagent_tokens
+                FROM session
+                """;
+            using var reader = command.ExecuteReader();
+
+            var results = new List<StatsSessionRecord>();
+            while (reader.Read())
+            {
+                if (!DateTimeOffset.TryParse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var first)
+                    || !DateTimeOffset.TryParse(reader.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var last))
+                    continue;
+
+                results.Add(new StatsSessionRecord(
+                    reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), first, last,
+                    reader.GetInt64(6), reader.GetInt64(7), reader.GetInt64(8), reader.GetInt64(9), reader.GetString(10), reader.GetInt64(11)));
+            }
+
+            return results;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or FormatException)
+        {
+            return [];
         }
     }
 
@@ -421,7 +706,7 @@ public sealed class StatsStore
 
             using var command = connection.CreateCommand();
             command.CommandText =
-                "SELECT provider, day, model, project, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, hour, effort FROM usage";
+                "SELECT provider, day, model, project, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, hour, effort, machine, subagent FROM usage";
             using var reader = command.ExecuteReader();
 
             var results = new List<StatsRecord>();
@@ -443,7 +728,9 @@ public sealed class StatsStore
                     CacheCreationTokens: reader.GetInt64(6),
                     CacheReadTokens: reader.GetInt64(7),
                     Hour: reader.GetInt32(8),
-                    Effort: reader.GetString(9)));
+                    Effort: reader.GetString(9),
+                    Machine: reader.GetString(10),
+                    Subagent: reader.GetInt32(11) != 0));
             }
 
             return results;

@@ -26,12 +26,14 @@ internal static class CompleteLineReader
     /// this run's read nothing, since it never reaches the caller's own write of the new offset - the
     /// next run simply reads it again from where it last actually finished. A line the optional
     /// <paramref name="prefilter"/> rejects is consumed like any other but never decoded or
-    /// delivered; <paramref name="onFiltered"/> is told about it instead.</summary>
+    /// delivered; <paramref name="onFiltered"/> is told about it instead. <paramref name="endLimit"/>, when
+    /// given, ends the read at that offset instead of the stream's length.</summary>
     internal static long Read(
         FileStream stream, long startOffset, bool acceptTrailingLineWithoutNewline, int maxRecordBytes, Action onOversized,
-        Action<string> onLine, CancellationToken cancellationToken, LinePrefilter? prefilter = null, Action? onFiltered = null)
+        Action<string> onLine, CancellationToken cancellationToken, LinePrefilter? prefilter = null, Action? onFiltered = null,
+        long? endLimit = null)
     {
-        var endOffset = stream.Length;
+        var endOffset = endLimit is { } limit ? Math.Min(limit, stream.Length) : stream.Length;
         if (startOffset < 0 || startOffset > endOffset)
             startOffset = 0;
 

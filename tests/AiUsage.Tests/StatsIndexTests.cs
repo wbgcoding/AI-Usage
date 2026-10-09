@@ -221,16 +221,18 @@ public class StatsIndexTests
             pathLine,
             """{"type":"assistant","cwd":"C:\\Projects\\Sample","timestamp":"2026-01-01T00:00:00Z","message":{"model":"modelA","usage":{"input_tokens":10,"output_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}""" + "\n");
 
-        var noCwdDir = Directory.CreateDirectory(Path.Combine(claudeRoot, "subagents")).FullName;
-        var pathNoCwd = Path.Combine(noCwdDir, "no-cwd.jsonl");
+        // A subagent transcript with no path of its own takes the project of its session's folder.
+        var noCwdDir = Directory.CreateDirectory(Path.Combine(claudeRoot, "SanitisedFolderName", "session-1", "subagents")).FullName;
+        var pathNoCwd = Path.Combine(noCwdDir, "agent-a1.jsonl");
         File.WriteAllText(pathNoCwd, ClaudeLine("2026-01-01T00:00:00Z", "modelA", 5, 0, 0, 0) + "\n");
 
         var store = new StatsStore(dataDir);
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
 
         var all = store.LoadAll();
-        Assert.Contains(all, record => record.Project == "C:\\Projects\\Sample");
-        Assert.Contains(all, record => record.Project == "subagents");
+        Assert.Contains(all, record => record.Project == "C:\\Projects\\Sample" && !record.Subagent);
+        Assert.Contains(all, record => record.Project == "SanitisedFolderName" && record.Subagent && record.InputTokens == 5);
+        Assert.DoesNotContain(all, record => record.Project == "subagents");
     }
 
     [Fact]
@@ -450,7 +452,8 @@ public class StatsIndexTests
     {
         var allowedFieldNames = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Provider", "Day", "Hour", "Model", "Project", "Effort", "InputTokens", "OutputTokens", "CacheCreationTokens", "CacheReadTokens",
+            "Provider", "Day", "Hour", "Model", "Project", "Effort", "Machine", "Subagent",
+            "InputTokens", "OutputTokens", "CacheCreationTokens", "CacheReadTokens",
         };
 
         var actualFieldNames = typeof(StatsRecord).GetProperties().Select(property => property.Name)

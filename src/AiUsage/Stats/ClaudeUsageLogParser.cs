@@ -14,7 +14,7 @@ public static class ClaudeUsageLogParser
 {
     public readonly record struct UsageEvent(
         DateTimeOffset Timestamp, string Model, long InputTokens, long OutputTokens, long CacheCreationTokens, long CacheReadTokens,
-        string Effort = "", string MessageKey = "");
+        string Effort = "", string MessageKey = "", string SessionId = "", bool IsSidechain = false);
 
     /// <summary>Cheap raw-byte test run before a line is decoded: <see cref="TryParse"/> only accepts a
     /// line with a <c>usage</c> object inside <c>message</c>, so a line without the quoted key
@@ -76,7 +76,14 @@ public static class ClaudeUsageLogParser
                 : "";
             var messageKey = messageId.Length > 0 && requestId.Length > 0 ? messageId + "|" + requestId : "";
 
-            result = new UsageEvent(timestamp, model, input, output, cacheCreation, cacheRead, effort, messageKey);
+            // The session the line belongs to (a subagent line names its parent's) and whether a
+            // subagent wrote it.
+            var sessionId = root.TryGetProperty("sessionId", out var sessionProperty) && sessionProperty.ValueKind == JsonValueKind.String
+                ? sessionProperty.GetString() ?? ""
+                : "";
+            var isSidechain = root.TryGetProperty("isSidechain", out var sidechainProperty) && sidechainProperty.ValueKind == JsonValueKind.True;
+
+            result = new UsageEvent(timestamp, model, input, output, cacheCreation, cacheRead, effort, messageKey, sessionId, isSidechain);
             return true;
         }
         catch (JsonException)
@@ -91,8 +98,31 @@ public static class ClaudeUsageLogParser
     /// reads the real path straight from the transcript and is preferred whenever a line carries it,
     /// since a folder name cannot be turned back into a path (a hyphen already in the real project
     /// name, e.g. <c>AI-Usage</c>, looks exactly like a replaced path separator).</summary>
-    public static string ExtractProjectFromFilePath(string filePath) =>
-        Path.GetFileName(Path.GetDirectoryName(Path.GetFullPath(filePath))) ?? "";
+    public static string ExtractProjectFromFilePath(string filePath)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(filePath));
+        if (!IsSubagentFile(filePath))
+            return Path.GetFileName(directory) ?? "";
+
+        // <project folder>/<session>/subagents/agent-*.jsonl: the project is the session's own.
+        var projectFolder = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(directory)));
+        return string.IsNullOrEmpty(projectFolder) ? Path.GetFileName(directory) ?? "" : projectFolder;
+    }
+
+    /// <summary>True for a subagent's own transcript, which Claude Code keeps in a <c>subagents</c>
+    /// folder inside the parent session's folder.</summary>
+    public static bool IsSubagentFile(string filePath) =>
+        string.Equals(Path.GetFileName(Path.GetDirectoryName(Path.GetFullPath(filePath))), "subagents", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The session a transcript belongs to when its lines name none: the file name for a main
+    /// transcript, the parent session's folder name for a subagent's.</summary>
+    public static string FallbackSessionId(string filePath)
+    {
+        var full = Path.GetFullPath(filePath);
+        return IsSubagentFile(full)
+            ? Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(full))) ?? ""
+            : Path.GetFileNameWithoutExtension(full);
+    }
 
     /// <summary>Reads the real project path from one transcript line's own <c>cwd</c> field, verbatim
     /// (never trimmed to a folder name; the Codex parser's <see cref="CodexUsageLogParser.TryExtractProjectFromSessionMetaLine"/>

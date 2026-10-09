@@ -131,6 +131,7 @@ public sealed class StatsIndexer
         // One query for every remembered file instead of one database open per file: most walks find
         // thousands of files and change none of them.
         var known = _store.LoadSourceFiles();
+        BackfillSessionsOnce(known, cancellationToken);
 
         foreach (var claudeRoot in _claudeProjectsRoots)
         {
@@ -284,7 +285,10 @@ public sealed class StatsIndexer
         if (lastMessageKey.Length > 0)
             countedKeys.Add(lastMessageKey);
         var project = ClaudeUsageLogParser.ExtractProjectFromFilePath(path);
-        var buckets = new Dictionary<(DateOnly Day, int Hour, string Model, string Effort), StatsRecord>();
+        var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
+        var fallbackSessionId = ClaudeUsageLogParser.FallbackSessionId(path);
+        var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
+        var sessions = new StatsSessionAccumulator();
         var acceptTrailingLineWithoutNewline = _clock() - info.LastWriteTimeUtc >= StatsSourceFileState.SettlingWindow;
         long consumedOffset;
         long openLength;
@@ -293,19 +297,7 @@ public sealed class StatsIndexer
 
         try
         {
-            // The real project path lives inside the transcript itself, on whichever line first
-            // carries a "cwd" field - preferred over the sanitised folder name above whenever such a
-            // line exists at all. A transcript with no such line (the "subagents" folder, which
-            // carries no path of its own) keeps that folder name instead.
-            foreach (var probeLine in ReadProbeLines(path, ProbeBytes, cancellationToken))
-            {
-                var fromLine = ClaudeUsageLogParser.TryExtractProjectFromLine(probeLine);
-                if (fromLine is not null)
-                {
-                    project = fromLine;
-                    break;
-                }
-            }
+            project = ProbeClaudeProject(path, project, cancellationToken);
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             openLength = stream.Length;
@@ -326,9 +318,13 @@ public sealed class StatsIndexer
                     }
 
                     linesParsed++;
+                    var subagent = fileIsSubagent || usageEvent.IsSidechain;
                     Accumulate(buckets, ClaudeProviderId, project, usageEvent.Timestamp, usageEvent.Model,
                         usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens,
-                        usageEvent.Effort);
+                        usageEvent.Effort, subagent);
+                    sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,
+                        usageEvent.Timestamp, usageEvent.Model, subagent,
+                        usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens);
                 }
                 else
                 {
@@ -344,7 +340,8 @@ public sealed class StatsIndexer
         _store.ApplyIndexResult(
             [.. buckets.Values],
             new StatsSourceFileState(
-                path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc, LastMessageKey: lastMessageKey));
+                path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc, LastMessageKey: lastMessageKey),
+            sessions.ToDeltas());
         return (true, linesParsed, linesSkipped);
     }
 
@@ -381,7 +378,9 @@ public sealed class StatsIndexer
             effort: existing?.CurrentEffort ?? "");
 
         var project = "";
-        var buckets = new Dictionary<(DateOnly Day, int Hour, string Model, string Effort), StatsRecord>();
+        var sessionId = Path.GetFileNameWithoutExtension(path);
+        var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
+        var sessions = new StatsSessionAccumulator();
         var acceptTrailingLineWithoutNewline = _clock() - info.LastWriteTimeUtc >= StatsSourceFileState.SettlingWindow;
         long consumedOffset;
         long openLength;
@@ -399,7 +398,10 @@ public sealed class StatsIndexer
             {
                 var firstLine = probeReader.ReadLine();
                 if (firstLine is not null)
+                {
                     project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
+                    sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
+                }
             }
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -411,7 +413,9 @@ public sealed class StatsIndexer
                     linesParsed++;
                     Accumulate(buckets, CodexProviderId, project, usageEvent.Timestamp, usageEvent.Model,
                         usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens,
-                        usageEvent.Effort);
+                        usageEvent.Effort, subagent: false);
+                    sessions.Add(CodexProviderId, sessionId, project, usageEvent.Timestamp, usageEvent.Model, subagent: false,
+                        usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens);
                 }
                 else
                 {
@@ -430,8 +434,100 @@ public sealed class StatsIndexer
             new StatsSourceFileState(
                 path, CodexProviderId, consumedOffset, openLength, info.LastWriteTimeUtc,
                 state.Model, state.CumulativeInput, state.CumulativeOutput, state.CumulativeCacheCreation, state.CumulativeCacheRead,
-                state.Effort));
+                state.Effort),
+            sessions.ToDeltas());
         return (true, linesParsed, linesSkipped);
+    }
+
+    /// <summary>The one-time pass after a migration that left usage rows without sessions: every
+    /// remembered file that still exists is read again, up to the offset the usage rows already
+    /// cover, into session totals only. The usage rows and the file markers are not touched, so the
+    /// sessions add up to the usage they belong to, and a file that grew meanwhile contributes its new
+    /// part through the normal walk that follows. A file that is gone or shorter than its marker (it
+    /// was replaced) stays out. Nothing is marked done when the pass is cancelled or cannot be
+    /// written, so the next walk repeats it.</summary>
+    private void BackfillSessionsOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    {
+        if (_store.IsSessionBackfillDone())
+            return;
+
+        var sessions = new StatsSessionAccumulator();
+        foreach (var state in known.Values)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (state.Offset <= 0)
+                continue;
+
+            try
+            {
+                if (state.Provider == ClaudeProviderId)
+                    BackfillClaudeFile(state, sessions, cancellationToken);
+                else if (state.Provider == CodexProviderId)
+                    BackfillCodexFile(state, sessions, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A file that vanished or is locked has no session data to give.
+            }
+        }
+
+        _store.ReplaceSessionsAndMarkBackfilled(sessions.ToDeltas());
+    }
+
+    private void BackfillClaudeFile(StatsSourceFileState state, StatsSessionAccumulator sessions, CancellationToken cancellationToken)
+    {
+        var path = state.Path;
+        var project = ProbeClaudeProject(path, ClaudeUsageLogParser.ExtractProjectFromFilePath(path), cancellationToken);
+        var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
+        var fallbackSessionId = ClaudeUsageLogParser.FallbackSessionId(path);
+        var countedKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < state.Offset)
+            return;
+
+        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        {
+            if (!ClaudeUsageLogParser.TryParse(line, out var usageEvent))
+                return;
+            if (usageEvent.MessageKey.Length > 0 && !countedKeys.Add(usageEvent.MessageKey))
+                return;
+
+            sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,
+                usageEvent.Timestamp, usageEvent.Model, fileIsSubagent || usageEvent.IsSidechain,
+                usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens);
+        }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
+    }
+
+    private void BackfillCodexFile(StatsSourceFileState state, StatsSessionAccumulator sessions, CancellationToken cancellationToken)
+    {
+        var path = state.Path;
+        var project = "";
+        var sessionId = Path.GetFileNameWithoutExtension(path);
+        using (var probeStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        using (var probeReader = new StreamReader(probeStream, Utf8NoBom))
+        {
+            var firstLine = probeReader.ReadLine();
+            if (firstLine is not null)
+            {
+                project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
+                sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
+            }
+        }
+
+        var parser = new CodexUsageLogParser();
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < state.Offset)
+            return;
+
+        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        {
+            if (parser.TryParseLine(line, out var usageEvent))
+            {
+                sessions.Add(CodexProviderId, sessionId, project, usageEvent.Timestamp, usageEvent.Model, subagent: false,
+                    usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens);
+            }
+        }, cancellationToken, line => CodexUsageLogParser.MayAffectState(line), endLimit: state.Offset);
     }
 
     /// <summary>How much of a transcript's start the project probe looks at.</summary>
@@ -489,15 +585,34 @@ public sealed class StatsIndexer
     /// own week start in local time, so this makes the index consistent with it rather than the other
     /// way around.</summary>
     private static void Accumulate(
-        Dictionary<(DateOnly Day, int Hour, string Model, string Effort), StatsRecord> buckets, string provider, string project,
-        DateTimeOffset timestamp, string model, long input, long output, long cacheCreation, long cacheRead, string effort)
+        Dictionary<UsageBucketKey, StatsRecord> buckets, string provider, string project,
+        DateTimeOffset timestamp, string model, long input, long output, long cacheCreation, long cacheRead, string effort, bool subagent)
     {
         var local = timestamp.ToLocalTime();
         var day = DateOnly.FromDateTime(local.DateTime);
         var hour = local.Hour;
-        var key = (day, hour, model, effort);
-        var record = new StatsRecord(provider, day, model, project, input, output, cacheCreation, cacheRead, hour, effort);
+        var key = new UsageBucketKey(day, hour, model, effort, subagent);
+        var record = new StatsRecord(provider, day, model, project, input, output, cacheCreation, cacheRead, hour, effort, Subagent: subagent);
         buckets[key] = buckets.TryGetValue(key, out var already) ? already.Add(record) : record;
+    }
+
+    /// <summary>What one file's lines are summed under: everything else of the usage key is the same
+    /// for the whole file.</summary>
+    private readonly record struct UsageBucketKey(DateOnly Day, int Hour, string Model, string Effort, bool Subagent);
+
+    /// <summary>The real project path from the first transcript line that carries a "cwd" field,
+    /// preferred over the sanitised folder name (<paramref name="fallback"/>) whenever such a line
+    /// exists at all; a transcript with no such line keeps the folder name.</summary>
+    private static string ProbeClaudeProject(string path, string fallback, CancellationToken cancellationToken)
+    {
+        foreach (var probeLine in ReadProbeLines(path, ProbeBytes, cancellationToken))
+        {
+            var fromLine = ClaudeUsageLogParser.TryExtractProjectFromLine(probeLine);
+            if (fromLine is not null)
+                return fromLine;
+        }
+
+        return fallback;
     }
 
     /// <summary>The remembered state from this walk's snapshot, else straight from the index (a file

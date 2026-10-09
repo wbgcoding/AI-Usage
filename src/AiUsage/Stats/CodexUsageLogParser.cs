@@ -185,6 +185,32 @@ public sealed class CodexUsageLogParser
         }
     }
 
+    /// <summary>The session id the file's "session_meta" line carries (<c>id</c>, or <c>session_id</c>
+    /// in an older shape). Null when the line is not a session_meta line or names none.</summary>
+    public static string? TryExtractSessionIdFromSessionMetaLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || GetString(root, "type") != "session_meta")
+                return null;
+            if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
+                return null;
+
+            return GetString(payload, "id") is { Length: > 0 } id ? id
+                : GetString(payload, "session_id") is { Length: > 0 } legacy ? legacy
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static string? GetString(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
