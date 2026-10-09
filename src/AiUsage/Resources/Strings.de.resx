@@ -485,4 +485,9 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Abrufe 1 Stunde pausieren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Abrufe fortsetzen (pausiert bis {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausiert bis {0}</value></data>
+  <data name="Welcome.Found" xml:space="preserve"><value>Gefunden</value></data>
+  <data name="Welcome.GeminiHint" xml:space="preserve"><value>Liest das Konto der Antigravity-CLI (agy). Melde dich dort an oder hier über den Browser.</value></data>
+  <data name="Welcome.CopilotHint" xml:space="preserve"><value>Braucht die angemeldete GitHub-CLI (gh): führe gh auth login aus.</value></data>
+  <data name="About.Help" xml:space="preserve"><value>Hilfe und häufige Fragen</value></data>
+  <data name="Tile.Menu.Help" xml:space="preserve"><value>Hilfe</value></data>
 </root>
