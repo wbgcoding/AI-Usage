@@ -492,6 +492,9 @@
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastAlert]}"
                               IsChecked="{Binding ForecastAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LimitReachedAlert]}"
+                              IsChecked="{Binding LimitReachedAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
+
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnReset]}"
                               IsChecked="{Binding NotifyOnReset}" Style="{StaticResource CheckBox.GapS}"/>
 

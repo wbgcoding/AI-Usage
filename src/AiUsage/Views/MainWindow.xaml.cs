@@ -183,6 +183,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
         ViewModel.ResetRaised += ViewModel_ResetRaised;
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
+        ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
         ViewModel.LevelAnnounced += AnnounceToScreenReader;
 
         // Startup tiles here; an account added later is wired the moment it joins the collection
@@ -227,6 +228,10 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ForecastRaised(ForecastNotification notification) =>
         _tray.ShowBalloon(notification.Text());
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
+    private void ViewModel_LimitReachedRaised(LimitReachedNotification notification) =>
+        _tray.ShowBalloon(notification.Text(DateTimeOffset.Now));
 
     /// <summary>Tells a running screen reader that a window changed color level. Only while the
     /// window is on screen: a hidden or minimized widget has nobody looking at it, and the balloon

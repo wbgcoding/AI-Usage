@@ -161,11 +161,14 @@ public class NotificationForecastTests : IDisposable
         public Task<ProviderSnapshot> FetchAsync(CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private async Task<List<ForecastNotification>> RunViewModel(Action<AppSettings> configure)
+    private async Task<List<ForecastNotification>> RunViewModel(Action<AppSettings, string> configure)
     {
+        // The view model keeps its alert state in the real data folder, so every run uses a provider id
+        // of its own instead of meeting the period a previous run already used up.
+        var id = $"forecast-test-{Guid.NewGuid():N}";
         var settings = new AppSettings();
-        settings.Providers["codex"] = new ProviderSettings { Visible = true };
-        configure(settings);
+        settings.Providers[id] = new ProviderSettings { Visible = true };
+        configure(settings, id);
         var clock = DateTimeOffset.Now;
         var store = new HistoryStore(TempDirectory(), () => clock);
         var now = DateTimeOffset.Now;
@@ -174,16 +177,16 @@ public class NotificationForecastTests : IDisposable
         for (var i = 0; i < 8; i++)
         {
             clock = now.AddMinutes(-49 + (i * 7));
-            store.Append("codex", WindowKind.FiveHour, 40 + (i * 7), resetsAt);
+            store.Append(id, WindowKind.FiveHour, 40 + (i * 7), resetsAt);
         }
 
         clock = now;
-        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [new SteadyProvider("codex")], store);
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [new SteadyProvider(id)], store);
         var raised = new List<ForecastNotification>();
         vm.ForecastRaised += raised.Add;
 
         vm.OnSnapshotReady(new ProviderSnapshot(
-            "codex", [FiveHour(89, resetsAt)], "Plus", SourceKind.LocalFile, now, now, ProviderStatus.Ok, null));
+            id, [FiveHour(89, resetsAt)], "Plus", SourceKind.LocalFile, now, now, ProviderStatus.Ok, null));
         await vm.WaitForPendingHistoryReadsAsync();
         return raised;
     }
@@ -191,19 +194,19 @@ public class NotificationForecastTests : IDisposable
     [Fact]
     public async Task The_view_model_raises_it_from_the_tile_history()
     {
-        var raised = await RunViewModel(_ => { });
+        var raised = await RunViewModel((_, _) => { });
 
         var only = Assert.Single(raised);
-        Assert.Equal("codex", only.ProviderId);
+        Assert.StartsWith("forecast-test-", only.ProviderId);
         Assert.True(only.Remaining < TimeSpan.FromMinutes(30));
     }
 
     [Fact]
     public async Task The_settings_switch_the_provider_switch_and_quiet_hours_suppress_it()
     {
-        Assert.Empty(await RunViewModel(s => s.ForecastAlertEnabled = false));
-        Assert.Empty(await RunViewModel(s => s.Providers["codex"].NotificationsEnabled = false));
-        Assert.Empty(await RunViewModel(s =>
+        Assert.Empty(await RunViewModel((s, _) => s.ForecastAlertEnabled = false));
+        Assert.Empty(await RunViewModel((s, id) => s.Providers[id].NotificationsEnabled = false));
+        Assert.Empty(await RunViewModel((s, _) =>
         {
             s.QuietHoursEnabled = true;
             s.QuietHoursStart = "00:00";

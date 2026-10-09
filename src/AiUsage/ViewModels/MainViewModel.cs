@@ -106,6 +106,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     // What the forecast alert needs from the latest usable snapshot of each provider; the history
     // series it also needs arrives later, when the tile's history read completes (UI thread only).
+    /// <summary>The "limit reached (100 %)" alert, forwarded like <see cref="NotificationRaised"/>
+    /// (quiet hours included).</summary>
+    public event Action<LimitReachedNotification>? LimitReachedRaised;
+
+    private void ForwardLimitReachedNotification(LimitReachedNotification notification)
+    {
+        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+            LimitReachedRaised?.Invoke(notification);
+    }
+
     private sealed record ForecastInput(string DisplayName, IReadOnlyList<UsageWindow> Windows);
 
     private readonly Dictionary<string, ForecastInput> _forecastInputs = [];
@@ -532,6 +542,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _notifications.NotificationRaised += ForwardThresholdNotification;
         _notifications.ResetRaised += ForwardResetNotification;
         _notifications.ForecastRaised += ForwardForecastNotification;
+        _notifications.LimitReachedRaised += ForwardLimitReachedNotification;
 
         // MainViewModel lives for the whole process (one instance, created once in MainWindow's own
         // constructor) - never unsubscribed, same as TrayService's identical subscription.
@@ -1161,7 +1172,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 var (threshold, enabled) = SettingsRanges.ResolveThreshold(_settings, snapshot.ProviderId, window.Kind);
                 _notifications.Evaluate(
                     snapshot.ProviderId, displayName, window, threshold, enabled && providerSettings.NotificationsEnabled,
-                    notifyOnReset && providerSettings.NotificationsEnabled, now);
+                    notifyOnReset && providerSettings.NotificationsEnabled, now, _settings.LimitReachedAlertEnabled);
             }
 
             RefreshTileHistory(snapshot.ProviderId);

@@ -467,4 +467,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, running low</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, limit almost reached</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit reached</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notify when a limit is reached (100 %)</value></data>
+  <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} limit reached, resets in {2}</value></data>
+  <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
 </root>

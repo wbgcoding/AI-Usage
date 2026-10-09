@@ -63,6 +63,21 @@ public sealed record ForecastNotification(
     }
 }
 
+/// <summary>A window that has reached 100 %. <paramref name="Label"/> plays the same role as on
+/// <see cref="ThresholdNotification"/>.</summary>
+public sealed record LimitReachedNotification(
+    string ProviderId, string ProviderDisplayName, WindowKind Kind, DateTimeOffset? ResetsAt, string Label = "")
+{
+    public string Text(DateTimeOffset now)
+    {
+        var windowLabel = StatusTextMap.Resolve(Label.Length > 0 ? Label : ThresholdNotification.FallbackLabel(Kind));
+        var countdown = CountdownFormatter.Format(ResetsAt, now);
+        return countdown.Length > 0
+            ? LocalizationService.Instance.Format("Notify.LimitReached", ProviderDisplayName, windowLabel, countdown)
+            : LocalizationService.Instance.Format("Notify.LimitReachedNoReset", ProviderDisplayName, windowLabel);
+    }
+}
+
 /// <summary>
 /// Threshold notifications: one rising-edge alert per window period,
 /// independently per provider and per window (5 hours / weekly). A dip back below the threshold, or
@@ -91,6 +106,8 @@ public sealed class NotificationService
     public event Action<ResetNotification>? ResetRaised;
 
     public event Action<ForecastNotification>? ForecastRaised;
+
+    public event Action<LimitReachedNotification>? LimitReachedRaised;
 
     /// <summary>How close to full the projection must be before the early warning fires.</summary>
     internal static readonly TimeSpan ForecastLead = TimeSpan.FromMinutes(30);
@@ -129,13 +146,15 @@ public sealed class NotificationService
     // Threshold/enabled arrive already resolved (see SettingsRanges.ResolveThreshold) - this method
     // has no opinion on where a provider's number came from, global default or its own override, and
     // treats every WindowKind (including Other) exactly alike.
-    public void Evaluate(string providerId, string providerDisplayName, UsageWindow window, double threshold, bool enabled, bool notifyOnReset, DateTimeOffset now)
+    public void Evaluate(string providerId, string providerDisplayName, UsageWindow window, double threshold, bool enabled, bool notifyOnReset, DateTimeOffset now,
+        bool limitReachedEnabled = true)
     {
         if (!enabled)
             return;
 
         ThresholdNotification? notification = null;
         ResetNotification? resetNotification = null;
+        LimitReachedNotification? limitNotification = null;
         bool changed;
 
         lock (_gate)
@@ -147,7 +166,7 @@ public sealed class NotificationService
                 state = new State();
                 _state[key] = state;
             }
-            var before = (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor);
+            var before = (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor, state.LimitFired, state.LimitFiredFor);
 
             // A reset counts only once the window reports a different reset time. A stale snapshot
             // keeps repeating the old, already-passed one, and treating that as a fresh reset on every
@@ -183,7 +202,30 @@ public sealed class NotificationService
                 }
             }
 
-            changed = isNew || before != (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor);
+            // The 100 % alert has its own once-per-period mark, independent of the threshold arm: both
+            // can fire in one period (and at once when the threshold itself is 100). A period ends when
+            // the window reports a different reset time; without one, when usage falls below 100.
+            if (limitReachedEnabled)
+            {
+                if (state.LimitFired)
+                {
+                    var periodOver = window.ResetsAt is null ? window.UsedPercent < 100 : !SamePeriod(state.LimitFiredFor, window.ResetsAt);
+                    if (periodOver)
+                    {
+                        state.LimitFired = false;
+                        state.LimitFiredFor = null;
+                    }
+                }
+
+                if (!state.LimitFired && window.UsedPercent >= 100)
+                {
+                    state.LimitFired = true;
+                    state.LimitFiredFor = window.ResetsAt;
+                    limitNotification = new LimitReachedNotification(providerId, providerDisplayName, window.Kind, window.ResetsAt, window.Label);
+                }
+            }
+
+            changed = isNew || before != (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor, state.LimitFired, state.LimitFiredFor);
         }
 
         // Every fetch of every provider lands here; rewriting an unchanged file each time is wasted work.
@@ -192,6 +234,8 @@ public sealed class NotificationService
 
         if (notification is not null)
             NotificationRaised?.Invoke(notification);
+        if (limitNotification is not null)
+            LimitReachedRaised?.Invoke(limitNotification);
         if (resetNotification is not null)
             ResetRaised?.Invoke(resetNotification);
     }
@@ -340,6 +384,8 @@ public sealed class NotificationService
                     LastNotifiedAt = entry.LastNotifiedAt,
                     LastResetsAt = entry.LastResetsAt,
                     ForecastFiredFor = entry.ForecastFiredFor,
+                    LimitFired = entry.LimitFired,
+                    LimitFiredFor = entry.LimitFiredFor,
                 };
             }
         }
@@ -363,7 +409,7 @@ public sealed class NotificationService
 
                 var entries = _state.Select(kvp => new PersistedEntry(
                     kvp.Key.ProviderId, kvp.Key.Kind, kvp.Value.Armed, kvp.Value.LastNotifiedAt, kvp.Value.LastResetsAt, kvp.Key.Label,
-                    kvp.Value.ForecastFiredFor)).ToList();
+                    kvp.Value.ForecastFiredFor, kvp.Value.LimitFired, kvp.Value.LimitFiredFor)).ToList();
                 var json = JsonSerializer.Serialize(entries, JsonOptions);
 
                 var tempPath = $"{_filePath}.tmp";
@@ -380,7 +426,7 @@ public sealed class NotificationService
 
     private sealed record PersistedEntry(
         string ProviderId, WindowKind Kind, bool Armed, DateTimeOffset? LastNotifiedAt, DateTimeOffset? LastResetsAt, string? Label = null,
-        DateTimeOffset? ForecastFiredFor = null);
+        DateTimeOffset? ForecastFiredFor = null, bool LimitFired = false, DateTimeOffset? LimitFiredFor = null);
 
     private sealed class State
     {
@@ -388,5 +434,7 @@ public sealed class NotificationService
         public DateTimeOffset? LastNotifiedAt;
         public DateTimeOffset? LastResetsAt;
         public DateTimeOffset? ForecastFiredFor;
+        public bool LimitFired;
+        public DateTimeOffset? LimitFiredFor;
     }
 }

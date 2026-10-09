@@ -277,6 +277,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool forecastAlertEnabled;
 
     [ObservableProperty]
+    private bool limitReachedAlertEnabled;
+
+    [ObservableProperty]
     private bool quietWeekend;
 
     [ObservableProperty]
@@ -442,6 +445,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
         notifyOnReset = settings.NotifyOnReset;
         forecastAlertEnabled = settings.ForecastAlertEnabled;
+        limitReachedAlertEnabled = settings.LimitReachedAlertEnabled;
         showAttentionMark = settings.ShowAttentionMark;
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
@@ -824,6 +828,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnForecastAlertEnabledChanged(bool value)
     {
         _settings.ForecastAlertEnabled = value;
+        _store.RequestSave(_settings);
+    }
+
+    partial void OnLimitReachedAlertEnabledChanged(bool value)
+    {
+        _settings.LimitReachedAlertEnabled = value;
         _store.RequestSave(_settings);
     }
 
@@ -1244,6 +1254,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
+        _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
@@ -1315,6 +1326,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
         ForecastAlertEnabled = _settings.ForecastAlertEnabled;
+        LimitReachedAlertEnabled = _settings.LimitReachedAlertEnabled;
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
