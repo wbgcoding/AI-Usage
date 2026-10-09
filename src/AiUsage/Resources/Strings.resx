@@ -470,4 +470,5 @@
   <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notify when a limit is reached (100 %)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} limit reached, resets in {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
+  <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
 </root>

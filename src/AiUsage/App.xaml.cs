@@ -70,6 +70,7 @@ public partial class App : Application, IDisposable
         // Wired before anything else can throw, so every failure below
         // is caught and logged instead of surfacing a native Windows crash dialog.
         _logService = LogService.Shared;
+        ToastRegistration.SetProcessId();
         _logService.LogInfo($"Start: version {AppInfo.Version}, {RuntimeInformation.ProcessArchitecture}.");
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
