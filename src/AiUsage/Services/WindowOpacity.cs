@@ -41,6 +41,7 @@ public static class WindowOpacity
         if (HwndSource.FromHwnd(hwnd) is { } source)
         {
             source.AddHook(HideLayeringFromRenderer);
+            AppearanceHook.Attach(source);
             source.Disposed += (_, _) => Followers.Remove(hwnd);
         }
         Apply(hwnd, CurrentPercent);

@@ -724,6 +724,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         var previewTheme = ThemeService.IsWindowsUsingLightTheme() ? AppTheme.Light : AppTheme.Dark;
         var dictionary = _loadThemeDictionary(ThemeUris[previewTheme]);
+        ThemeService.ApplySystemAccent(dictionary, previewTheme == AppTheme.Dark, AccentColors.ReadSystemAccent);
         systemChoice.RefreshPreview(dictionary["Bg.Base"] as Brush, dictionary["Accent"] as Brush);
     }
 
@@ -1465,6 +1466,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ? (ThemeService.IsWindowsUsingLightTheme() ? AppTheme.Light : AppTheme.Dark)
             : theme;
         var dictionary = load(ThemeUris[previewTheme]);
+        if (theme == AppTheme.System)
+            ThemeService.ApplySystemAccent(dictionary, previewTheme == AppTheme.Dark, AccentColors.ReadSystemAccent);
         return new Choice<AppTheme>(labelKey, theme, dictionary["Bg.Base"] as Brush, dictionary["Accent"] as Brush)
         {
             IsSelected = string.Equals(selectedTheme, theme.ToString(), StringComparison.OrdinalIgnoreCase)

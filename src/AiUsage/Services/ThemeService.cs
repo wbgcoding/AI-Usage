@@ -82,7 +82,7 @@ public static class ThemeService
     public static void Apply(AppTheme theme)
     {
         Apply(theme, Application.Current.Resources.MergedDictionaries, uri => new ResourceDictionary { Source = uri },
-            () => SystemParameters.HighContrast, IsWindowsUsingLightTheme);
+            () => SystemParameters.HighContrast, IsWindowsUsingLightTheme, AccentColors.ReadSystemAccent);
         Applied?.Invoke(null, EventArgs.Empty);
     }
 
@@ -99,8 +99,13 @@ public static class ThemeService
         Apply(theme, mergedDictionaries, load, isHighContrast, () => true);
 
     /// <summary>Test seam: as above, plus an injected "is Windows using its light theme" check for
-    /// <see cref="AppTheme.System"/>.</summary>
-    internal static void Apply(AppTheme theme, Collection<ResourceDictionary> mergedDictionaries, Func<Uri, ResourceDictionary> load, Func<bool> isHighContrast, Func<bool> isWindowsUsingLightTheme)
+    /// <see cref="AppTheme.System"/>. No Windows accent color is read here.</summary>
+    internal static void Apply(AppTheme theme, Collection<ResourceDictionary> mergedDictionaries, Func<Uri, ResourceDictionary> load, Func<bool> isHighContrast, Func<bool> isWindowsUsingLightTheme) =>
+        Apply(theme, mergedDictionaries, load, isHighContrast, isWindowsUsingLightTheme, () => null);
+
+    /// <summary>Test seam: as above, plus an injected read of the Windows accent color, used only
+    /// while the requested theme is <see cref="AppTheme.System"/>.</summary>
+    internal static void Apply(AppTheme theme, Collection<ResourceDictionary> mergedDictionaries, Func<Uri, ResourceDictionary> load, Func<bool> isHighContrast, Func<bool> isWindowsUsingLightTheme, Func<Color?> readWindowsAccent)
     {
         // Two ways an old theme dictionary can be sitting in the collection: marked by a previous
         // Apply, or App.xaml's own unmarked Nebula default that started the process - without the
@@ -130,6 +135,39 @@ public static class ThemeService
             windowBrush.Freeze();
             dictionary[WindowBrushKey] = windowBrush;
         }
+
+        // Only "follow Windows" takes Windows' accent; every other theme keeps its own.
+        if (theme == AppTheme.System && resolved is ResolvedTheme.Light or ResolvedTheme.Dark)
+            ApplySystemAccent(dictionary, resolved == ResolvedTheme.Dark, readWindowsAccent);
+    }
+
+    private const string AccentKey = "Accent";
+    private const string AccentHoverKey = "Accent.Hover";
+    private static readonly string[] SurfaceKeys = ["Bg.Base", "Bg.Surface", "Bg.Raised"];
+
+    /// <summary>Replaces <c>Accent</c> and <c>Accent.Hover</c> in a Light or Dark theme dictionary with
+    /// the Windows accent color, corrected for contrast against that theme's surfaces (never the raw
+    /// color). Leaves the dictionary alone when Windows reports no accent.</summary>
+    internal static void ApplySystemAccent(ResourceDictionary dictionary, bool dark, Func<Color?> readWindowsAccent)
+    {
+        if (readWindowsAccent() is not { } windowsAccent)
+            return;
+
+        var surfaces = SurfaceKeys
+            .Select(key => dictionary.Contains(key) ? dictionary[key] as SolidColorBrush : null)
+            .Where(brush => brush is not null)
+            .Select(brush => brush!.Color)
+            .ToList();
+        var accent = AccentColors.EnsureContrast(windowsAccent, surfaces, lighten: dark);
+        dictionary[AccentKey] = Frozen(accent);
+        dictionary[AccentHoverKey] = Frozen(AccentColors.Hover(accent, lighten: dark));
+    }
+
+    private static SolidColorBrush Frozen(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
     }
 
     /// <summary>Reads <c>HKCU\...\Personalize\AppsUseLightTheme</c> directly rather than through
