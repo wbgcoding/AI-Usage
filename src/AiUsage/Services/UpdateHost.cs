@@ -51,6 +51,60 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
         }
     }
 
+    public string? ReadOriginalFilename(string path) => ReadVersionText(path, info => info.OriginalFilename);
+
+    public string? ReadFileDescription(string path) => ReadVersionText(path, info => info.FileDescription);
+
+    /// <summary>Version texts of a setup built by the installer tool come padded with blanks; blank
+    /// only means none.</summary>
+    internal static string? NormalizeVersionText(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+    private static string? ReadVersionText(string path, Func<FileVersionInfo, string?> pick)
+    {
+        try
+        {
+            return NormalizeVersionText(pick(FileVersionInfo.GetVersionInfo(path)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FileNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    public ushort? ReadPeMachine(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return ReadPeMachine(stream);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The machine field of a PE file: the DOS header's offset at 0x3C points at the PE
+    /// signature ("PE" and two zero bytes), the machine value follows it. Null for anything that does not fit that layout.</summary>
+    internal static ushort? ReadPeMachine(Stream stream)
+    {
+        Span<byte> dos = stackalloc byte[0x40];
+        if (stream.Read(dos) < dos.Length || dos[0] != (byte)'M' || dos[1] != (byte)'Z')
+            return null;
+
+        var peOffset = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(dos[0x3C..]);
+        if (peOffset < dos.Length || peOffset > stream.Length - 6)
+            return null;
+
+        stream.Position = peOffset;
+        Span<byte> pe = stackalloc byte[6];
+        if (stream.Read(pe) < pe.Length || pe[0] != (byte)'P' || pe[1] != (byte)'E' || pe[2] != 0 || pe[3] != 0)
+            return null;
+
+        return System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(pe[4..]);
+    }
+
     public static string DefaultWorkFolder => Path.Combine(Path.GetTempPath(), AppInfo.ProductName, "update");
 
     public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct) =>

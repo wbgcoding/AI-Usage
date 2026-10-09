@@ -44,6 +44,16 @@ public interface IUpdateHost
     /// <summary>The file version a downloaded program carries in its version resource; null when it has none.</summary>
     Version? ReadFileVersion(string path);
 
+    /// <summary>The original file name in a program's version resource; null when it has none.</summary>
+    string? ReadOriginalFilename(string path);
+
+    /// <summary>The file description in a program's version resource; null when it has none.</summary>
+    string? ReadFileDescription(string path);
+
+    /// <summary>The processor a program is built for, from its PE header (<c>IMAGE_FILE_HEADER.Machine</c>);
+    /// null when the file is not a readable PE file.</summary>
+    ushort? ReadPeMachine(string path);
+
     /// <summary>Loads <paramref name="url"/> into <paramref name="destination"/>; false on any failure.</summary>
     Task<bool> DownloadAsync(string url, string destination, CancellationToken ct);
 
@@ -75,6 +85,10 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     private const string PortableX64Name = "AI-Usage.exe";
     private const string PortableArm64Name = "AI-Usage-arm64.exe";
     private const string SetupPrefix = "Setup-AI-Usage-";
+    private const string SetupFileDescription = "AI-Usage Setup";
+    private const string PortableOriginalFilename = "AI-Usage.dll";
+    private const ushort MachineX64 = 0x8664;
+    private const ushort MachineArm64 = 0xAA64;
 
     public static bool IsAllowedUrl(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
@@ -168,6 +182,16 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
                 log?.Invoke($"Update refused: the downloaded file is version {offered}, the running version is {host.RunningVersion}.");
                 return UpdateOutcome.NotNewer;
             }
+
+            // A genuinely signed file can still be the wrong kind (a setup for a portable copy, the other
+            // processor's build): it is read from the same held file whose bytes were just verified.
+            if (!MatchesRole(filePath))
+            {
+                lease.Dispose();
+                CleanUpRun(runFolder, filePath, signaturePath);
+                log?.Invoke("Update refused: the downloaded file is not the kind this copy installs.");
+                return UpdateOutcome.DownloadFailed;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -219,6 +243,24 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
 
         held.Dispose();
         return UpdateOutcome.Started;
+    }
+
+    /// <summary>An installed copy takes only a setup; a portable copy only the portable program built for
+    /// its own processor.</summary>
+    private bool MatchesRole(string path)
+    {
+        if (host.IsInstalled)
+            return string.Equals(host.ReadFileDescription(path), SetupFileDescription, StringComparison.Ordinal);
+
+        ushort? expectedMachine = host.Architecture switch
+        {
+            Architecture.X64 => MachineX64,
+            Architecture.Arm64 => MachineArm64,
+            _ => null,
+        };
+        return expectedMachine is not null
+            && string.Equals(host.ReadOriginalFilename(path), PortableOriginalFilename, StringComparison.Ordinal)
+            && host.ReadPeMachine(path) == expectedMachine;
     }
 
     /// <summary>A new, empty folder under the work folder for this run, or null (with one log line)

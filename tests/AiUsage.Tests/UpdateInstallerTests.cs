@@ -38,6 +38,36 @@ public class UpdateInstallerTests
             return FileVersion;
         }
 
+        /// <summary>What a portable build reports as its original file name.</summary>
+        public string? OriginalFilename { get; init; } = "AI-Usage.dll";
+
+        /// <summary>What a setup reports as its file description.</summary>
+        public string? FileDescription { get; init; } = "AI-Usage Setup";
+
+        /// <summary>The processor the downloaded file is built for; null means the one this copy runs on.</summary>
+        public ushort? FileMachine { get; init; }
+
+        /// <summary>Models a file whose PE header cannot be read.</summary>
+        public bool NoPeHeader { get; init; }
+
+        public string? ReadOriginalFilename(string path)
+        {
+            OnInspect?.Invoke(path);
+            return OriginalFilename;
+        }
+
+        public string? ReadFileDescription(string path)
+        {
+            OnInspect?.Invoke(path);
+            return FileDescription;
+        }
+
+        public ushort? ReadPeMachine(string path)
+        {
+            OnInspect?.Invoke(path);
+            return NoPeHeader ? null : FileMachine ?? (Architecture == Architecture.Arm64 ? (ushort)0xAA64 : (ushort)0x8664);
+        }
+
         public Dictionary<string, byte[]> Files { get; } = [];
 
         public List<string> Downloads { get; } = [];
@@ -343,6 +373,153 @@ public class UpdateInstallerTests
         Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
         Assert.Empty(host.Downloads);
         Assert.Empty(host.Ran);
+    }
+
+    private const ushort MachineX64 = 0x8664;
+    private const ushort MachineArm64 = 0xAA64;
+    private const string Arm64Url = "https://github.com/wbgcoding/AI-Usage/releases/download/v9.0.0/AI-Usage-arm64.exe";
+
+    private static UpdateCheck.Release ReleaseWithArm64() => new("v9.0.0", "https://github.com/wbgcoding/AI-Usage/releases/tag/v9.0.0",
+    [
+        new("AI-Usage.exe", ExeUrl), new("AI-Usage.exe.sig", SigUrl),
+        new("AI-Usage-arm64.exe", Arm64Url), new("AI-Usage-arm64.exe.sig", Arm64Url + ".sig"),
+        new(SetupName, SetupUrl), new(SetupName + ".sig", SetupUrl + ".sig"),
+    ]);
+
+    private static FakeHost Serving(FakeHost host, ECDsa key, string url)
+    {
+        host.Files[url] = Payload;
+        host.Files[url + ".sig"] = [.. System.Text.Encoding.ASCII.GetBytes(Sign(key, Payload))];
+        return host;
+    }
+
+    [Fact]
+    public async Task AnX64BuildOfferedToAnArm64PortableCopyIsRefusedBeforeAnythingRuns()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, Architecture = Architecture.Arm64, PublicKey = publicKey, FileMachine = MachineX64 }, key, Arm64Url);
+        var logged = new List<string>();
+
+        var outcome = await new UpdateInstaller(host, logged.Add).InstallAsync(ReleaseWithArm64(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
+        Assert.Single(logged);
+    }
+
+    [Fact]
+    public async Task AnArm64BuildOfferedToAnX64PortableCopyIsRefused()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, PublicKey = publicKey, FileMachine = MachineArm64 }, key, ExeUrl);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(ReleaseWithArm64(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+    }
+
+    [Fact]
+    public async Task APortableBuildOfferedToAnInstalledCopyIsRefused()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = true, PublicKey = publicKey, FileDescription = "AI-Usage" }, key, SetupUrl);
+        var logged = new List<string>();
+
+        var outcome = await new UpdateInstaller(host, logged.Add).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
+        Assert.Single(logged);
+    }
+
+    [Fact]
+    public async Task ASetupOfferedToAPortableCopyIsRefused()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, PublicKey = publicKey, OriginalFilename = null }, key, ExeUrl);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("ai-usage.dll")]
+    [InlineData("AI-Usage.exe")]
+    public async Task APortableFileWithAnotherOriginalNameIsRefused(string? original)
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, PublicKey = publicKey, OriginalFilename = original }, key, ExeUrl);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+    }
+
+    [Fact]
+    public async Task APortableFileWithoutAReadableHeaderIsRefused()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, PublicKey = publicKey, NoPeHeader = true }, key, ExeUrl);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+    }
+
+    [Fact]
+    public async Task APortableCopyOnAProcessorWithoutAReleaseBuildNeverInstalls()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, Architecture = Architecture.X86, PublicKey = publicKey }, key, ExeUrl);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.NotEqual(UpdateOutcome.Started, outcome);
+        Assert.Empty(host.Ran);
+    }
+
+    [Fact]
+    public async Task AMatchingArm64BuildIsAcceptedByAnArm64PortableCopy()
+    {
+        var (publicKey, key) = NewKey();
+        var host = Serving(new FakeHost { IsInstalled = false, Architecture = Architecture.Arm64, PublicKey = publicKey }, key, Arm64Url);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(ReleaseWithArm64(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.Started, outcome);
+        Assert.Equal(["replace"], host.Ran);
+    }
+
+    [Fact]
+    public async Task EveryReadOfTheFilesRoleHappensWhileItIsHeldAgainstChange()
+    {
+        var host = SignedSetup();
+        var attempts = 0;
+        var changed = false;
+        host.OnInspect = path =>
+        {
+            attempts++;
+            try { File.WriteAllBytes(path, [.. "evil"u8]); changed = true; }
+            catch (IOException) { }
+            try { File.Delete(path); changed = true; }
+            catch (IOException) { }
+        };
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.Started, outcome);
+        Assert.True(attempts >= 2); // version and description
+        Assert.False(changed);
+        Assert.Equal([Payload], host.SeenAtLaunch);
     }
 
     private static FakeHost SignedPortable(out ECDsa key)
