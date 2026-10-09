@@ -3,9 +3,10 @@ using Microsoft.Web.WebView2.Core;
 namespace AiUsage.Web;
 
 /// <summary>
-/// Checks whether the WebView2 runtime is installed, without installing or downloading anything -
-/// a missing runtime shows a plain-text hint and a link to Microsoft's own download page instead
-/// (the "RuntimeMissing" state). The user clicks that link themselves.
+/// Checks whether the WebView2 runtime is installed. This class only probes and never downloads
+/// anything; a missing runtime is the "RuntimeMissing" state, where the app offers to install it
+/// through Microsoft's signed bootstrapper (see WebViewRuntimeInstaller), with a link to Microsoft's
+/// own download page as the manual alternative.
 /// </summary>
 public static class WebViewAvailability
 {

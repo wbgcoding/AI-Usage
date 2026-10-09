@@ -20,9 +20,10 @@ if exist "%DIST%\data" rmdir /s /q "%DIST%\data"
 rem A test run that was interrupted (window closed, run cancelled) leaves its own testhost.exe
 rem behind, and that process keeps the test project's output files open - the next build then fails
 rem while copying its own assemblies, with an error that names a process nobody started on purpose.
-rem testhost.exe belongs to the test runner and to nothing else, so ending a leftover is safe; when
-rem there is none, taskkill just reports nothing and the build carries on.
-taskkill /f /im testhost.exe >nul 2>nul
+rem testhost.exe belongs to the test runner and to nothing else, so ending a leftover is safe, but
+rem only one that was started from this checkout: a test run of another project is left alone.
+rem When there is none, nothing happens and the build carries on.
+powershell -NoProfile -Command "Get-Process testhost -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%ROOT%', [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force" >nul 2>nul
 
 rem The signing key must never be committable: refuse to build when the default key path is not
 rem ignored by git (skipped when git is not installed or this is not a checkout).
@@ -41,7 +42,7 @@ if errorlevel 1 goto :error
 
 echo.
 echo === test ===
-dotnet test "%ROOT%tests\AiUsage.Tests\AiUsage.Tests.csproj" -c %CONFIG%
+dotnet test "%ROOT%tests\AiUsage.Tests\AiUsage.Tests.csproj" -c %CONFIG% --no-build
 if errorlevel 1 goto :error
 
 rem A copy running OUT OF dist\ holds that one file open, and only that one file: an installed copy
@@ -189,8 +190,11 @@ if not defined SIGNKEY set "SIGNKEY=%ROOT%.signing\ai-usage-update.pem"
 if not exist "%SIGNKEY%" (
     echo WARNING: Unsigned build: in-app update will refuse this release.
 ) else (
+    rem Built once here, then run per file; "dotnet run" would build it again for every exe.
+    dotnet build "%ROOT%tools\UpdateSigner\UpdateSigner.csproj" -c %CONFIG%
+    if errorlevel 1 goto :error
     for %%f in ("%DIST%\*.exe") do (
-        dotnet run --project "%ROOT%tools\UpdateSigner\UpdateSigner.csproj" -c %CONFIG% -- sign --key "%SIGNKEY%" "%%f"
+        dotnet "%ROOT%tools\UpdateSigner\bin\%CONFIG%\net10.0\UpdateSigner.dll" sign --key "%SIGNKEY%" "%%f"
         if errorlevel 1 goto :error
         if not exist "%%f.sig" (
             echo ERROR: no signature was produced for %%~nxf.

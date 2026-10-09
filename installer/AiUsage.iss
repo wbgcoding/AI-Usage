@@ -8,7 +8,7 @@
 ; Everything downstream reads IsPortableMode in [Code]. The foreground-activation plumbing below
 ; is a proven pattern, hardened across many rounds of real installer testing on an earlier project
 ; - trimmed here of everything specific to that project's own self-updater (no relaunch parameter,
-; no dev update channel: AI-Usage has no in-place self-update).
+; no dev update channel). The in-app update downloads this setup and runs it silently.
 
 #ifndef AppVersion
   #define AppVersion "1.1.0"
@@ -146,9 +146,9 @@ de.AutostartTask={#AppName} automatisch bei der Windows-Anmeldung starten
 de.DesktopShortcutTask=Verknüpfung auf dem Desktop erstellen
 de.LaunchAfter={#AppName} jetzt starten
 de.PortableCheck=Portable
-de.PortableDirDescription=Wählen Sie einen Ordner für die portable Version von {#AppName}. Setup schlägt einen eigenen Ordner neben diesem Installationsprogramm vor und legt {#AppExeName} darin ab. Sonst wird nichts auf diesem PC gespeichert.
+de.PortableDirDescription=Wähle einen Ordner für die portable Version von {#AppName}. Setup schlägt einen eigenen Ordner neben diesem Installationsprogramm vor und legt {#AppExeName} darin ab. Sonst wird nichts auf diesem PC gespeichert.
 de.SourceLink=Quelltext und Fehlermeldungen: github.com/wbgcoding/AI-Usage
-de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wird im unten angezeigten Ordner aktualisiert. Klicken Sie auf Weiter, oder auf Durchsuchen, um einen anderen Ordner zu wählen.
+de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wird im unten angezeigten Ordner aktualisiert. Klicke auf Weiter, oder auf Durchsuchen, um einen anderen Ordner zu wählen.
 de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen und der Verlauf von {#AppName} für den aktuellen Benutzer in %APPDATA%\{#AppName}\ entfernt werden?
 de.DowngradeQuestion=Version {0} ist bereits installiert, dieses Installationsprogramm enthält die ältere Version {1}. Trotzdem fortfahren?
 

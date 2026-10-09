@@ -140,8 +140,13 @@ showing a guess.
 - **Stays on your machine.** Settings, history and the statistics index live in
   `%APPDATA%\AI-Usage\`. Browser sign-ins get their own profile per agent under
   `%LOCALAPPDATA%\AI-Usage\webview\`. Apart from the requests to each agent's usage pages, the
-  Google token refresh for an expired Antigravity CLI sign-in and the update check, nothing leaves
-  your computer. No telemetry.
+  Google token refresh for an expired Antigravity CLI sign-in, the update check and, only when you
+  agree to it, the download of Microsoft's WebView2 installer, nothing leaves your computer. No
+  telemetry.
+- **Speaks like your CLI.** To read your limits, the Claude usage request identifies as Claude
+  Code, and the Antigravity token refresh uses the client id and secret that ship inside your
+  installed Antigravity CLI. Nothing else is sent, and nothing is read from the CLIs' files except
+  what that request needs.
 
 ## Get started
 
@@ -162,8 +167,8 @@ What changed in each version is listed in the [changelog](CHANGELOG.md).
 
 - Windows 10 (version 1809, build 17763) or Windows 11, x64 or ARM64
 - Nothing to install first: both files are self-contained
-- Browser sign-in uses the Microsoft Edge WebView2 runtime, which ships with current Windows;
-  without it the app says so and everything else keeps working
+- Browser sign-in uses the Microsoft Edge WebView2 runtime; if it is missing, the app offers to
+  install it with Microsoft's signed installer and everything else keeps working
 - Copilot needs the GitHub CLI (`gh`) signed in; Gemini reads the Antigravity CLI's (`agy`) active
   account
 

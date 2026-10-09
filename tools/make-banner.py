@@ -1,7 +1,6 @@
 """Builds the README title banner (1280 x 420) from the app logo.
 
-design/logo.png is the source artwork (kept outside the repository), the same file make-icon.py
-reads. Writes .github/images/banner.png. Kept short so the README opens without a tall empty band.
+The source artwork is not part of this repository; make-icon.py reads the same file. Writes .github/images/banner.png. Kept short so the README opens without a tall empty band.
 
 Requires Pillow (`pip install pillow`) and the Segoe UI fonts that ship with Windows. Run from the
 repository root:

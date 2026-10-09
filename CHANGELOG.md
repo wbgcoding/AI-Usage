@@ -40,7 +40,7 @@ A calmer, tighter widget, a token usage window you can arrange yourself and a da
 - Tiles are tighter, the bar track has no outline, and the density "Compact" is gone (a saved Compact becomes Automatic).
 - The tile chart draws the weekly line in the accent colour, keeps its dates below the curves and leaves out the year.
 - The usage per day grids reach back as far as the window is wide, beyond one year, at least the last twelve months in the token usage window; a day keeps its shade while resizing, and January shows its year once the grid spans more than one.
-- Token figures keep three digits ("33.5 M", "1.00 B"), with the exact count in the tooltip; chart axes use round steps and the hour axis is labelled 0, 6, 12 and 18.
+- Token figures keep three digits ("33.5 M", "1.00 B"), with the exact count in the tooltip; chart axes use round steps and the hour axis shows four marks (0, 6, 12 and 18 o'clock).
 - Bars in the day detail carry their model and project colours, and "Save as CSV" sits next to "Group by".
 - New title bar icons for the layout menu and the statistics; a second click on the layout icon closes its menu.
 - The Nebula theme is clearly violet.
