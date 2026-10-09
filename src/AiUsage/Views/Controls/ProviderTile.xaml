@@ -13,11 +13,12 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <controls:TileWidthToVisibilityConverter x:Key="TileWidthToVisibility"/>
 
-        <!-- The provider name IS the refresh trigger now: a borderless button, hand cursor, a quiet
-             hover background, bound to RefreshCommand. It also shows a fetch in progress - a small
-             icon just after the name, invisible until IsFetching, then turning (RefreshGlyph, which stays
-             still when Windows itself has animations turned off). The icon lives in the template so
-             every tile does not share one instance.
+        <!-- The provider name opens the tile's details: a borderless button, hand cursor, a quiet
+             hover background, bound to ToggleDetailsCommand. While there are no details the same button
+             is plain text (the command cannot run, no hover, no hand). It also shows a fetch the user
+             started - a small icon just after the name, invisible until ShowRefreshSpinner, then turning
+             (RefreshGlyph, which stays still when Windows itself has animations turned off). The icon
+             lives in the template so it shows in both forms and every tile does not share one instance.
              HorizontalAlignment="Left" keeps the button exactly as wide as the name it carries: the
              column it sits in is a star column, so a stretched button would light up the whole width
              of the tile header on hover instead of just the word the pointer is over.
@@ -27,10 +28,12 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="True"/>
             <Setter Property="Padding" Value="4,0"/>
             <Setter Property="Margin" Value="-4,0,0,0"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -41,21 +44,35 @@
                                 <controls:RefreshGlyph x:Name="RefreshIcon" Width="14" Height="14" Margin="4,0,0,0"
                                                        VerticalAlignment="Center"
                                                        Fill="{DynamicResource Text.Muted}"
-                                                       IsSpinning="{Binding IsFetching}"
+                                                       IsSpinning="{Binding ShowRefreshSpinner}"
                                                        Visibility="Collapsed"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                    <Condition Binding="{Binding HasDiagnostics}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
-                            </Trigger>
-                            <DataTrigger Binding="{Binding IsFetching}" Value="True">
+                            </MultiDataTrigger>
+                            <DataTrigger Binding="{Binding ShowRefreshSpinner}" Value="True">
                                 <Setter TargetName="RefreshIcon" Property="Visibility" Value="Visible"/>
                             </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <!-- No details to open: the name is plain text. WPF only suppresses a tooltip for a null
+                     binding, not an empty string, hence the switch. -->
+                <DataTrigger Binding="{Binding HasDiagnostics}" Value="False">
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding NameTooltipText}" Value="">
+                    <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- A text-only link under a message: accent colour, no inset, so it lines up with the text above. -->
@@ -176,6 +193,9 @@
              (Shift+F10/Apps) to open it once the tile has keyboard focus - no extra key handling here. -->
         <Border.ContextMenu>
             <ContextMenu>
+                <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
+                          Command="{Binding RefreshCommand}"/>
+                <Separator/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Menu.OpenUsagePage]}"
                           Command="{Binding OpenUsagePageCommand}"/>
                 <MenuItem Header="{Binding DetailsMenuHeader}"
@@ -224,12 +244,13 @@
                 <!-- A Grid, not a StackPanel: a StackPanel gives its children unlimited width, so a
                      long provider name would simply run under the eye button instead of trimming. -->
                 <Grid VerticalAlignment="Center">
-                    <!-- The account name (when known) lives in this button's own tooltip now, second
-                         line after the refresh hint - see RefreshTooltipText - freeing this column's
+                    <!-- The account name (when known) lives in this button's own tooltip, after the
+                         "click for details" line - see NameTooltipText - freeing this column's
                          width for the name instead of a second trimmed label next to the plan. -->
-                    <Button Style="{StaticResource TileNameButtonStyle}" Command="{Binding RefreshCommand}"
-                            ToolTip="{Binding RefreshTooltipText}"
-                            AutomationProperties.Name="{Binding RefreshTooltipText}">
+                    <Button Style="{StaticResource TileNameButtonStyle}" Command="{Binding ToggleDetailsCommand}"
+                            ToolTip="{Binding NameTooltipText}"
+                            AutomationProperties.Name="{Binding HeaderDisplayName}">
+
                         <!-- The plan tier is a run of the same line, so it sits right after the name
                              ("Claude Max") on a shared baseline and is the first thing trimmed. -->
                         <TextBlock FontFamily="{DynamicResource Font.Ui}"

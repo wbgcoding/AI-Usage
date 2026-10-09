@@ -165,7 +165,7 @@ public partial class MainWindow : Window, IDisposable
 
         _tray = new TrayService(_settings.AlwaysOnTop, _settings.ClickThrough);
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
-        _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow();
+        _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow(userStarted: true);
         _tray.SettingsRequested += (_, _) => TitleBarControl_SettingsRequested(this, EventArgs.Empty);
         _tray.StatsRequested += (_, _) => TitleBarControl_StatsRequested(this, EventArgs.Empty);
         _tray.ResetPositionRequested += (_, _) => ResetPosition();
@@ -1264,7 +1264,7 @@ public partial class MainWindow : Window, IDisposable
     {
         if (IsRefreshShortcut(e.Key))
         {
-            ViewModel.RefreshNow();
+            ViewModel.RefreshNow(userStarted: true);
             e.Handled = true;
         }
         else if (IsSettingsShortcut(e.Key, Keyboard.Modifiers))
@@ -1288,7 +1288,7 @@ public partial class MainWindow : Window, IDisposable
     /// that would normally open it.</summary>
     internal static bool IsWindowMenuShortcut(Key key, ModifierKeys modifiers) => key == Key.Space && modifiers == ModifierKeys.Alt;
 
-    private void TitleBarControl_RefreshRequested(object? sender, EventArgs e) => ViewModel.RefreshNow();
+    private void TitleBarControl_RefreshRequested(object? sender, EventArgs e) => ViewModel.RefreshNow(userStarted: true);
 
     private SettingsWindow? _settingsWindow;
 

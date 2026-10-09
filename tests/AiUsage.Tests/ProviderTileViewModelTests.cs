@@ -19,37 +19,73 @@ public class ProviderTileViewModelTests
         return Path.Combine(repoRoot, "src", "AiUsage", "Views", "Controls", "ProviderTile.xaml");
     }
 
-    // The per-tile refresh button was folded into the provider name itself - a plain text scan over
-    // the XAML (see WindowTitleBindingTests for why not a live visual tree) proves the header's own
-    // name button is still the one wired to RefreshCommand, not silently dropped.
+    // A plain text scan over the XAML (see WindowTitleBindingTests for why not a live visual tree)
+    // proves the header's own name button opens the details and the refresh moved into the tile menu.
     [Fact]
-    public void TheHeaderNameButtonIsBoundToRefreshCommand()
+    public void TheHeaderNameButtonIsBoundToToggleDetailsCommand()
     {
         var text = File.ReadAllText(ProviderTileXamlPath());
 
-        var match = Regex.Match(text, @"<Button Style=""\{StaticResource TileNameButtonStyle\}""[^>]*Command=""\{Binding RefreshCommand\}""", RegexOptions.Singleline);
-        Assert.True(match.Success, "ProviderTile.xaml: the header name button is not bound to RefreshCommand.");
+        var match = Regex.Match(text, @"<Button Style=""\{StaticResource TileNameButtonStyle\}""[^>]*Command=""\{Binding ToggleDetailsCommand\}""", RegexOptions.Singleline);
+        Assert.True(match.Success, "ProviderTile.xaml: the header name button is not bound to ToggleDetailsCommand.");
+    }
+
+    [Fact]
+    public void TheTileMenuStartsWithRefreshThenASeparator()
+    {
+        var text = File.ReadAllText(ProviderTileXamlPath());
+
+        var match = Regex.Match(
+            text, @"<ContextMenu>\s*<MenuItem Header=""[^""]*Action\.RefreshNow\][^>]*Command=""\{Binding RefreshCommand\}""\s*/>\s*<Separator/>", RegexOptions.Singleline);
+        Assert.True(match.Success, "ProviderTile.xaml: the tile menu does not start with the refresh item and a separator.");
+    }
+
+    [Fact]
+    public void TheNameCommandTogglesTheDetailsOnlyWhileThereAreDetails()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { Diagnostics = [] }, Now);
+        Assert.False(tile.ToggleDetailsCommand.CanExecute(null));
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { Diagnostics = ["a line"] }, Now);
+        Assert.True(tile.ToggleDetailsCommand.CanExecute(null));
+        tile.ToggleDetailsCommand.Execute(null);
+        Assert.True(tile.DetailsExpanded);
+        tile.ToggleDetailsCommand.Execute(null);
+        Assert.False(tile.DetailsExpanded);
+    }
+
+    [Fact]
+    public void TheNameTooltipSaysClickForDetailsOnlyWhileThereAreDetails()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10, sourceKind: SourceKind.None) with { Diagnostics = [] }, Now);
+        Assert.DoesNotContain(loc["Tile.NameTooltip"], tile.NameTooltipText);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10, sourceKind: SourceKind.None) with { Diagnostics = ["a line"] }, Now);
+        Assert.Equal(loc["Tile.NameTooltip"], tile.NameTooltipText);
     }
 
     // The account name no longer has a dedicated header column, so the name button's tooltip is the
     // only place left that shows it - these two cases prove the composition itself (hint alone, hint
     // plus account on its own line), not just that a value exists.
     [Fact]
-    public void RefreshTooltipTextIsJustTheHintWithoutAKnownAccount()
+    public void NameTooltipTextIsEmptyWithoutDetailsAccountOrSource()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
 
-        Assert.Equal(LocalizationService.Instance["Tile.RefreshHint"], tile.RefreshTooltipText);
+        Assert.Equal("", tile.NameTooltipText);
     }
 
     [Fact]
-    public void RefreshTooltipTextAddsTheAccountOnASecondLineWhenKnown()
+    public void NameTooltipTextAddsTheAccountOnASecondLineWhenKnown()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
-        tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.None) with { AccountLabel = "Work account" }, Now);
+        tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.None) with { AccountLabel = "Work account", Diagnostics = ["a line"] }, Now);
 
-        var expected = $"{LocalizationService.Instance["Tile.RefreshHint"]}{Environment.NewLine}Work account";
-        Assert.Equal(expected, tile.RefreshTooltipText);
+        var expected = $"{LocalizationService.Instance["Tile.NameTooltip"]}{Environment.NewLine}Work account";
+        Assert.Equal(expected, tile.NameTooltipText);
     }
 
     [Fact]
@@ -59,8 +95,8 @@ public class ProviderTileViewModelTests
         var tile = new ProviderTileViewModel("claude", "Claude");
         tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.WebSession) with { AccountLabel = "Work account" }, Now);
 
-        var expected = $"{loc["Tile.RefreshHint"]}{Environment.NewLine}Work account{Environment.NewLine}Quelle: Websitzung";
-        Assert.Equal(expected, tile.RefreshTooltipText);
+        var expected = $"Work account{Environment.NewLine}Quelle: Websitzung";
+        Assert.Equal(expected, tile.NameTooltipText);
     }
 
     [Theory]
@@ -75,7 +111,7 @@ public class ProviderTileViewModelTests
             var tile = new ProviderTileViewModel("claude", "Claude");
             tile.Apply(Snapshot(ProviderStatus.NotSignedIn, sourceKind: SourceKind.None), Now);
 
-            Assert.Equal(loc["Tile.RefreshHint"], tile.RefreshTooltipText);
+            Assert.Equal("", tile.NameTooltipText);
             Assert.Equal(expectedDiagnostic, tile.SourceDiagnosticText);
         }
         finally
@@ -89,10 +125,10 @@ public class ProviderTileViewModelTests
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
         tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.LocalFile), Now);
-        Assert.EndsWith("Quelle: lokale Dateien", tile.RefreshTooltipText, StringComparison.Ordinal);
+        Assert.EndsWith("Quelle: lokale Dateien", tile.NameTooltipText, StringComparison.Ordinal);
 
         tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.LocalLogin), Now);
-        Assert.EndsWith("Quelle: CLI-Anmeldung", tile.RefreshTooltipText, StringComparison.Ordinal);
+        Assert.EndsWith("Quelle: CLI-Anmeldung", tile.NameTooltipText, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -178,25 +178,26 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(HeaderDisplayName))]
     [NotifyPropertyChangedFor(nameof(ToggleVisibilityActionText))]
     [NotifyPropertyChangedFor(nameof(SettingsRowText))]
-    [NotifyPropertyChangedFor(nameof(RefreshTooltipText))]
+    [NotifyPropertyChangedFor(nameof(NameTooltipText))]
     private string? accountText;
 
-    /// <summary>The header's own name button doubles as the refresh trigger (see
-    /// <c>TileNameButtonStyle</c> in ProviderTile.xaml) - its tooltip carries the refresh hint always,
-    /// plus the known account name on its own second line, since the account's dedicated column was
-    /// removed to give the name more room, and the data source on a further line once one answered.
-    /// Nothing known -> the hint alone, no empty line.</summary>
-    public string RefreshTooltipText
+    /// <summary>The header's name button opens the tile's details (see <c>TileNameButtonStyle</c> in
+    /// ProviderTile.xaml) - its tooltip says so while there are details to open, then names the known
+    /// account on its own line (the account has no column of its own, to give the name more room) and
+    /// the data source on a further line once one answered. Nothing to say -> empty, no tooltip.</summary>
+    public string NameTooltipText
     {
         get
         {
             var loc = LocalizationService.Instance;
-            var text = loc["Tile.RefreshHint"];
+            var lines = new List<string>();
+            if (HasDiagnostics)
+                lines.Add(loc["Tile.NameTooltip"]);
             if (AccountText is { Length: > 0 } label)
-                text += Environment.NewLine + label;
+                lines.Add(label);
             if (HasSource)
-                text += Environment.NewLine + loc.Format("Tile.SourceTip", SourceBadgeText);
-            return text;
+                lines.Add(loc.Format("Tile.SourceTip", SourceBadgeText));
+            return string.Join(Environment.NewLine, lines);
         }
     }
 
@@ -258,13 +259,13 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SourceDiagnosticText))]
-    [NotifyPropertyChangedFor(nameof(RefreshTooltipText))]
+    [NotifyPropertyChangedFor(nameof(NameTooltipText))]
     private string sourceBadgeText = "";
 
     /// <summary>Whether the latest answer came from any source at all; a tile with nothing to show yet
     /// has none, and its source line would only read "not connected" beside the call to action.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RefreshTooltipText))]
+    [NotifyPropertyChangedFor(nameof(NameTooltipText))]
     private bool hasSource;
 
     /// <summary>A plain, stable word naming why this tile's primary read route was skipped instead of
@@ -310,6 +311,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowStatusLink))]
     [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
     private FailureKind failureKind;
+
+    /// <summary>True while a fetch the user started (tile menu, F5, tray, title bar menu) runs for this
+    /// tile, for at least a short minimum so it can be seen; automatic fetches never set it. Drives the
+    /// small turning icon next to the name.</summary>
+    [ObservableProperty]
+    private bool showRefreshSpinner;
 
     /// <summary>True while a failed fetch is on the tile but the last good rows and chart are still
     /// shown (dimmed), with <see cref="FailureNoticeText"/> as one muted line above them. The next Ok or
@@ -764,7 +771,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [RelayCommand]
     private void SignOut() => SignOutRequested?.Invoke(this, EventArgs.Empty);
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasDiagnostics))]
     private void ToggleDetails() => DetailsExpanded = !DetailsExpanded;
 
     /// <summary>Ticks off the currently shown wait: remembers its <see
@@ -845,7 +852,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             ShowKeptFailure(keptFailure);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
         OnPropertyChanged(nameof(StatusLinkText));
-        OnPropertyChanged(nameof(RefreshTooltipText));
+        OnPropertyChanged(nameof(NameTooltipText));
         OnPropertyChanged(nameof(SettingsRowText));
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
@@ -964,6 +971,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (Diagnostics.Count == 0)
             DetailsExpanded = false;
         OnPropertyChanged(nameof(HasDiagnostics));
+        OnPropertyChanged(nameof(NameTooltipText));
+        ToggleDetailsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(DiagnosticsText));
         // ShowSignIn reads the landed snapshot and the row count as well as SignInState, and the
         // generated notification for SignInState only fires when that value actually changes - a

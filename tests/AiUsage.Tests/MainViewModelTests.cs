@@ -503,6 +503,61 @@ public class MainViewModelTests : IDisposable
         Assert.All(providers.Where(p => p.Id != "codex"), p => Assert.False(p.WasFetched));
     }
 
+    private (MainViewModel Vm, FakeTimeProvider Clock) BuildWithClock()
+    {
+        var clock = new FakeTimeProvider(Now);
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now), timeProvider: clock);
+        return (vm, clock);
+    }
+
+    [Fact]
+    public void AUserStartedRefreshShowsTheSpinnerForAtLeastSixHundredMilliseconds()
+    {
+        var (vm, clock) = BuildWithClock();
+        var tile = vm.Tiles.Single(t => t.ProviderId == "codex");
+
+        vm.RefreshNow(userStarted: true);
+
+        Assert.True(tile.ShowRefreshSpinner);
+        clock.Advance(TimeSpan.FromMilliseconds(599));
+        vm.Tick(Now);
+        Assert.True(tile.ShowRefreshSpinner);
+        Assert.True(tile.IsFetching);
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        vm.Tick(Now);
+        Assert.False(tile.ShowRefreshSpinner);
+        Assert.False(tile.IsFetching);
+    }
+
+    [Fact]
+    public void ARefreshFromTheTileMenuShowsTheSpinnerOnThatTileOnly()
+    {
+        var (vm, _) = BuildWithClock();
+
+        vm.Tiles.Single(t => t.ProviderId == "codex").RefreshCommand.Execute(null);
+
+        Assert.True(vm.Tiles.Single(t => t.ProviderId == "codex").ShowRefreshSpinner);
+        Assert.All(vm.Tiles.Where(t => t.ProviderId != "codex"), t => Assert.False(t.ShowRefreshSpinner));
+    }
+
+    [Fact]
+    public void AScheduledOrStartupFetchNeverShowsTheSpinner()
+    {
+        var (vm, clock) = BuildWithClock();
+        var tile = vm.Tiles.Single(t => t.ProviderId == "codex");
+
+        vm.Tick(Now);
+        Assert.True(tile.IsFetching);
+        Assert.False(tile.ShowRefreshSpinner);
+
+        clock.Advance(TimeSpan.FromMinutes(10));
+        vm.RefreshNow();
+        Assert.All(vm.Tiles, t => Assert.False(t.ShowRefreshSpinner));
+    }
+
     [Fact]
     public void IsFetchingStaysTrueForAtLeastFiveHundredMillisecondsAfterTheSnapshotArrives()
     {

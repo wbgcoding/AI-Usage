@@ -59,6 +59,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     // still short of the floor when its snapshot lands is re-checked on every later Tick instead of a
     // real timer, so this stays deterministically testable against the injected TimeProvider.
     private static readonly TimeSpan MinFetchingDuration = TimeSpan.FromMilliseconds(500);
+
+    // A fetch the user asked for keeps its turning icon a little longer, so the click visibly did something.
+    private static readonly TimeSpan MinManualSpinnerDuration = TimeSpan.FromMilliseconds(600);
+
+    // Providers whose next started fetch is one the user asked for; filled only around the scheduler
+    // call that starts it (the start event is raised synchronously inside that call).
+    private readonly HashSet<string> _userStartedFetches = new();
     private readonly Dictionary<string, DateTimeOffset> _fetchStartedAt = new();
     private readonly HashSet<string> _pendingFetchClear = new();
 
@@ -632,8 +639,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         RefreshWeekTokens(now);
     }
 
-    /// <summary>F5 / tray "refresh now" - bypasses every provider's remaining wait once.</summary>
-    public void RefreshNow() => _scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+    /// <summary>F5 / tray "refresh now" - bypasses every provider's remaining wait once.
+    /// <paramref name="userStarted"/> is true for the entry points a person triggers (F5, the tray item,
+    /// the title bar menu), which show the turning icon on every tile that fetches; the start-up and
+    /// window-show refreshes leave it false.</summary>
+    public void RefreshNow(bool userStarted = false)
+    {
+        if (userStarted)
+            _userStartedFetches.UnionWith(Tiles.Select(tile => tile.ProviderId));
+        try
+        {
+            _scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+        }
+        finally
+        {
+            _userStartedFetches.Clear();
+        }
+    }
 
     /// <summary>Queries <see cref="_statsStore"/> for every tile whose real provider <see
     /// cref="ProviderCoverage.HasLocalTokenData"/> says has a local token index, at most once per
@@ -704,7 +726,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>One tile's own refresh button - bypasses only that provider's remaining wait, every
     /// other provider's schedule stays untouched.</summary>
     [RelayCommand]
-    private void RefreshProvider(string providerId) => _scheduler.RefreshNow(providerId, _lifetimeCts.Token);
+    private void RefreshProvider(string providerId)
+    {
+        _userStartedFetches.Add(providerId);
+        try
+        {
+            _scheduler.RefreshNow(providerId, _lifetimeCts.Token);
+        }
+        finally
+        {
+            _userStartedFetches.Clear();
+        }
+    }
 
     /// <summary>A sign-in window that ran its whole flow through and landed back on the provider's
     /// own site is proof of a session, whatever the next read manages to do with it - without this
@@ -1026,12 +1059,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     // off the UI thread the same way OnSnapshotReady can, hence the same dispatcher check.
     private void OnFetchStarted(string providerId)
     {
+        // Read here, on the calling thread: only the scheduler call a person triggered has it set.
+        var userStarted = _userStartedFetches.Contains(providerId);
+
         void Mark()
         {
             _fetchStartedAt[providerId] = _timeProvider.GetUtcNow();
             _pendingFetchClear.Remove(providerId);
             if (_tilesById.TryGetValue(providerId, out var tile))
+            {
                 tile.IsFetching = true;
+                if (userStarted)
+                    tile.ShowRefreshSpinner = true;
+            }
         }
 
         var dispatcher = Application.Current?.Dispatcher;
@@ -1071,9 +1111,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         var startedAt = _fetchStartedAt.TryGetValue(providerId, out var at) ? at : _timeProvider.GetUtcNow();
-        if (_timeProvider.GetUtcNow() - startedAt >= MinFetchingDuration)
+        var minDuration = tile.ShowRefreshSpinner ? MinManualSpinnerDuration : MinFetchingDuration;
+        if (_timeProvider.GetUtcNow() - startedAt >= minDuration)
         {
             tile.IsFetching = false;
+            tile.ShowRefreshSpinner = false;
             _pendingFetchClear.Remove(providerId);
         }
         else
