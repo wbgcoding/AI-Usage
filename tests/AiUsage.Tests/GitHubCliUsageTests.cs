@@ -105,4 +105,38 @@ public class GitHubCliUsageTests
         Assert.Equal("tok-from-env", output);
         Assert.DoesNotContain(arguments, a => a.Contains("tok-from-env", StringComparison.Ordinal));
     }
+
+    [Theory]
+    [InlineData("To get started with GitHub CLI, please run:  gh auth login", true)]
+    [InlineData("gh: Bad credentials (HTTP 401)", true)]
+    [InlineData("error: could not read the authentication settings", false)]
+    [InlineData("gh: API rate limit exceeded (HTTP 403)", false)]
+    [InlineData("dial tcp: lookup api.github.com: no such host", false)]
+    public void A_failed_run_is_signed_out_only_on_the_login_hint_or_a_401(string output, bool signedOut)
+    {
+        Assert.Equal(signedOut ? GitHubCliOutcome.NotSignedIn : GitHubCliOutcome.Failed, GitHubCliUsage.ClassifyFailure(output));
+    }
+
+    [Fact]
+    public void The_token_request_names_the_github_com_host()
+    {
+        var arguments = GitHubCliUsage.TokenArguments("octocat");
+
+        Assert.Equal(["auth", "token", "--hostname", "github.com", "--user", "octocat"], arguments);
+    }
+
+    [Fact]
+    public void Only_github_com_accounts_are_offered()
+    {
+        GitHubAccount[] accounts =
+        [
+            new("github.com", "octocat", Active: true),
+            new("ghe.example.org", "corp-user", Active: true),
+            new("GitHub.com", "second", Active: false),
+        ];
+
+        var offered = GitHubCliUsage.OnlyGitHubDotCom(accounts);
+
+        Assert.Equal(["octocat", "second"], offered.Select(account => account.Login));
+    }
 }

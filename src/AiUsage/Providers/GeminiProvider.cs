@@ -20,6 +20,10 @@ public sealed class GeminiProvider : IUsageProvider
     // session is the expensive part, not re-reading the CLI's own local sign-in.
     private static readonly TimeSpan WebReadInterval = TimeSpan.FromMinutes(5);
 
+    // After a discovery walk that found no usable address, the page is left alone this long: asking
+    // every candidate again every few minutes would only repeat the same answers.
+    internal static readonly TimeSpan FailedDiscoveryPause = TimeSpan.FromMinutes(30);
+
     private readonly Func<CancellationToken, Task<AntigravityUsage>>? _read;
     private readonly Func<DateTimeOffset> _now;
     private readonly WebUsageSource? _webSource;
@@ -30,6 +34,7 @@ public sealed class GeminiProvider : IUsageProvider
 
     private ProviderSnapshot? _lastWebSnapshot;
     private DateTimeOffset? _lastWebReadAt;
+    private DateTimeOffset? _discoveryPausedUntil;
     private int _signInCompleted;
     private bool? _webSessionSignedIn;
     private string? _lastWebAccountLabel;
@@ -195,6 +200,10 @@ public sealed class GeminiProvider : IUsageProvider
         // Taken here, before the read, so a sign-in finishing while a read is already running still
         // counts for the next one.
         var signInJustCompleted = Interlocked.Exchange(ref _signInCompleted, 0) == 1;
+        if (signInJustCompleted)
+            _discoveryPausedUntil = null;
+        if (_discoveryPausedUntil is { } pausedUntil && fetchedAt < pausedUntil)
+            return null;
         if (!signInJustCompleted && _lastWebReadAt is { } lastReadAt && fetchedAt - lastReadAt < WebReadInterval)
             return _lastWebSnapshot is { } cached
                 ? ProviderSnapshots.ExpirePastWindows(cached, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
@@ -216,6 +225,14 @@ public sealed class GeminiProvider : IUsageProvider
         }
 
         _lastWebReadAt = fetchedAt;
+
+        // A walk that ended without a usable address while the machine is online: the next tries wait.
+        // Offline says nothing about the page, so it never starts the pause.
+        if (result.Outcome == WebUsageOutcome.Failed && !result.SessionSignedIn && NetworkStatus.HasInternet())
+            _discoveryPausedUntil = fetchedAt + FailedDiscoveryPause;
+        else if (result.Outcome != WebUsageOutcome.Failed)
+            _discoveryPausedUntil = null;
+
         if (result.AccountLabel is { } webLabel)
             _lastWebAccountLabel = webLabel;
 

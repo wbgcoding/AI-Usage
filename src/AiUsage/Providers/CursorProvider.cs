@@ -76,6 +76,11 @@ public sealed class CursorProvider : IUsageProvider
         {
             web = await _read(ct);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Sign-out or exit cut the read short: that is no offline error to show.
+            throw;
+        }
         catch (Exception)
         {
             // The read never throws in production (WebUsageSource.FetchAsync catches everything
