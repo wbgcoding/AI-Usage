@@ -500,6 +500,11 @@
   <data name="Stats.ColorBy" xml:space="preserve"><value>Color by</value></data>
   <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Provider</value></data>
   <data name="Stats.ColorBy.Model" xml:space="preserve"><value>Model</value></data>
+  <data name="Stats.ColorBy.Agent" xml:space="preserve"><value>Main or subagent</value></data>
+  <data name="Stats.Agent.Main" xml:space="preserve"><value>Main agent</value></data>
+  <data name="Stats.SubagentShare" xml:space="preserve"><value>Subagents</value></data>
+  <data name="Stats.SubagentShare.Caption" xml:space="preserve"><value>of Claude tokens</value></data>
+  <data name="Tip.Stats.SubagentShare" xml:space="preserve"><value>The share of the Claude tokens that subagents used.</value></data>
   <data name="Stats.Average7" xml:space="preserve"><value>7-day average</value></data>
   <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>This month</value></data>
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Last month</value></data>

@@ -1025,4 +1025,59 @@ public class StatsAggregatorTests
         Assert.Equal(6.0, means[9]);
         Assert.Empty(StatsAggregator.TrailingMean([], 7));
     }
+
+    private static StatsRecord Agent(string provider, DateOnly day, long total, bool subagent) =>
+        new(provider, day, "modelA", "projA", total, 0, 0, 0, Subagent: subagent);
+
+    [Fact]
+    public void SubagentShare_counts_only_claude_tokens_and_both_roles()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Agent("claude", day, 300, subagent: false),
+            Agent("claude", day, 100, subagent: true),
+            Agent("codex", day, 5000, subagent: false),
+        };
+
+        var share = StatsAggregator.SubagentShare(records);
+
+        Assert.Equal(100, share.SubagentTokens);
+        Assert.Equal(400, share.ClaudeTokens);
+        Assert.True(share.HasClaudeTokens);
+        Assert.Equal(25.0, share.Percent);
+    }
+
+    [Fact]
+    public void SubagentShare_has_no_claude_tokens_without_claude_records()
+    {
+        var share = StatsAggregator.SubagentShare([Agent("codex", new DateOnly(2026, 1, 1), 50, subagent: false)]);
+
+        Assert.False(share.HasClaudeTokens);
+        Assert.Equal(0, share.Percent);
+        Assert.False(StatsAggregator.SubagentShare([]).HasClaudeTokens);
+    }
+
+    [Fact]
+    public void GroupStackedByAgent_splits_every_period_into_main_and_subagent_and_keeps_the_provider_totals()
+    {
+        var first = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Agent("claude", first, 300, subagent: false),
+            Agent("claude", first, 100, subagent: true),
+            Agent("codex", first, 40, subagent: false),
+            Agent("claude", first.AddDays(2), 7, subagent: true),
+        };
+
+        var split = StatsAggregator.GroupStackedByAgent(records, StatsGrouping.Day, first, first.AddDays(2), "Main", "Sub");
+        var plain = StatsAggregator.Group(records, StatsGrouping.Day, first, first.AddDays(2));
+
+        Assert.Equal(["Main", "Sub"], split.Series);
+        Assert.False(split.HasOther);
+        Assert.Equal([340L, 100L], split.Rows[0].StackedValues);
+        Assert.Equal([0L, 0L], split.Rows[1].StackedValues);
+        Assert.Equal([0L, 7L], split.Rows[2].StackedValues);
+        Assert.Equal(plain.Select(row => row.Total), split.Rows.Select(row => row.Total));
+    }
 }

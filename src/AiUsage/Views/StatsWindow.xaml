@@ -351,6 +351,24 @@
                                                    FontSize="{StaticResource Font.Size.Micro}" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
+                                <!-- Shown only while the range holds Claude tokens: how much of them subagents used. -->
+                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
+                                        Visibility="{Binding HasSubagentShare, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.SubagentShare]}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding SubagentShareText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                   FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.SubagentShare]}"
+                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <controls:StatsFigureMiniChart Kind="Progress" Numerator="{Binding SubagentTokensRaw}"
+                                                                        Denominator="{Binding ClaudeTokensRaw}"
+                                                                        AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
+                                                                        Height="28" Margin="0,4,0,0"/>
+                                        <TextBlock Text="{Binding SubagentShareCaption}" Foreground="{DynamicResource Text.Muted}"
+                                                   FontSize="{StaticResource Font.Size.Micro}" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
                             </UniformGrid>
                             </controls:CollapsibleSection>
 

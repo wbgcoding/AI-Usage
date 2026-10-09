@@ -109,8 +109,8 @@ public class StatsViewModelTests
         var store = new StatsStore(dataDir);
         var today = DateOnly.FromDateTime(DateTime.Now);
         store.AddDelta([
-            new StatsRecord("claude", today.AddDays(-1), "modelA", "projA", 100, 50, 0, 0),
-            new StatsRecord("claude", today, "modelA", "projA", 100, 50, 0, 0),
+            new StatsRecord("codex", today.AddDays(-1), "modelA", "projA", 100, 50, 0, 0),
+            new StatsRecord("codex", today, "modelA", "projA", 100, 50, 0, 0),
         ]);
         var viewModel = StatsVm.Create(store);
 
@@ -127,8 +127,8 @@ public class StatsViewModelTests
         var store = new StatsStore(dataDir);
         var today = DateOnly.FromDateTime(DateTime.Now);
         store.AddDelta([
-            new StatsRecord("claude", today.AddDays(-2), "modelA", "projA", 100, 50, 0, 0),
-            new StatsRecord("claude", today, "modelA", "projA", 100, 50, 0, 0),
+            new StatsRecord("codex", today.AddDays(-2), "modelA", "projA", 100, 50, 0, 0),
+            new StatsRecord("codex", today, "modelA", "projA", 100, 50, 0, 0),
         ]);
         var viewModel = StatsVm.Create(store);
 
@@ -1188,12 +1188,12 @@ public class StatsViewModelTests
     }
 
     [Fact]
-    public void TheColorByListOffersProviderAndModel()
+    public void TheColorByListOffersProviderModelAndAgent()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-color-by-list");
         var viewModel = StatsVm.Create(new StatsStore(dataDir));
 
-        Assert.Equal([StatsColorBy.Provider, StatsColorBy.Model], viewModel.ColorByChoices.Select(choice => choice.Value).ToArray());
+        Assert.Equal([StatsColorBy.Provider, StatsColorBy.Model, StatsColorBy.Agent], viewModel.ColorByChoices.Select(choice => choice.Value).ToArray());
         Assert.Equal(StatsColorBy.Provider, viewModel.SelectedColorByChoice?.Value);
     }
 
@@ -1394,5 +1394,74 @@ public class StatsViewModelCaptionTests
         {
             LocalizationService.Instance.SetLanguage("de");
         }
+    }
+
+    // Codex tokens carry no subagent role, so this card's own count stays out of the per-active-day tests above.
+    [Fact]
+    public void SubagentShareCardShowsTheShareOfClaudeTokensAndHidesWithoutClaudeTokens()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-subagent-share");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "modelA", "projA", 750, 0, 0, 0),
+            new StatsRecord("claude", today, "modelA", "projA", 250, 0, 0, 0, Subagent: true),
+            new StatsRecord("codex", today, "modelB", "projA", 9000, 0, 0, 0),
+        ]);
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = StatsVm.Create(store);
+
+            Assert.True(viewModel.HasSubagentShare);
+            Assert.Equal("25%", viewModel.SubagentShareText);
+            Assert.Equal("of Claude tokens", viewModel.SubagentShareCaption);
+            Assert.Equal(250, viewModel.SubagentTokensRaw);
+            Assert.Equal(1000, viewModel.ClaudeTokensRaw);
+            Assert.Equal(4 + (viewModel.ShowPerActiveDay ? 1 : 0) + 1, viewModel.FigureCardColumns);
+
+            LocalizationService.Instance.SetLanguage("de");
+            viewModel.RefreshLanguage();
+            Assert.Equal("25 %", viewModel.SubagentShareText);
+            Assert.Equal("der Claude-Token", viewModel.SubagentShareCaption);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+
+        using var codexDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-subagent-share-none");
+        var codexOnly = new StatsStore(codexDir);
+        codexOnly.AddDelta([new StatsRecord("codex", today, "modelB", "projA", 100, 0, 0, 0)]);
+
+        var hidden = StatsVm.Create(codexOnly);
+
+        Assert.False(hidden.HasSubagentShare);
+        Assert.Equal("", hidden.SubagentShareText);
+    }
+
+    [Fact]
+    public void ColoringByAgentStacksTheColumnsIntoMainAndSubagent()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-color-agent");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "modelA", "projA", 700, 0, 0, 0),
+            new StatsRecord("claude", today, "modelA", "projA", 300, 0, 0, 0, Subagent: true),
+        ]);
+        var viewModel = StatsVm.Create(store);
+
+        viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Agent);
+
+        Assert.True(viewModel.IsAgentStack);
+        Assert.False(viewModel.IsModelStack);
+        Assert.Equal(["cat:0", "cat:1"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal([700L, 300L], viewModel.Bars[^1].StackedValues.ToArray());
+        Assert.Equal(1000, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+
+        viewModel.SetColorByCommand.Execute(StatsColorBy.Provider);
+        Assert.False(viewModel.IsAgentStack);
+        Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
     }
 }

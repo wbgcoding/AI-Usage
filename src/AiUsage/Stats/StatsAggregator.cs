@@ -28,6 +28,16 @@ public readonly record struct StatsGroupedRow(string Label, IReadOnlyList<long> 
 /// values follow that order.</summary>
 public readonly record struct StatsModelSplit(IReadOnlyList<string> Series, bool HasOther, IReadOnlyList<StatsGroupedRow> Rows);
 
+/// <summary>How much of the Claude tokens in a set of records subagents used. <see
+/// cref="ClaudeTokens"/> counts the main agent and its subagents together; other providers do not
+/// count here at all.</summary>
+public readonly record struct StatsSubagentShare(long SubagentTokens, long ClaudeTokens)
+{
+    public bool HasClaudeTokens => ClaudeTokens > 0;
+
+    public double Percent => ClaudeTokens > 0 ? SubagentTokens * 100.0 / ClaudeTokens : 0;
+}
+
 /// <summary>The token totals for one period, split into the input/output/cache breakdown line and
 /// the headline total, plus the same total for the immediately preceding period of equal length -
 /// what the change-vs-previous-period figure is computed from.</summary>
@@ -186,6 +196,44 @@ public static class StatsAggregator
             })
             .ToList();
         return new StatsModelSplit(series, hasOther, rows);
+    }
+
+    /// <summary>The share of Claude tokens that subagents used in <paramref name="records"/>.</summary>
+    public static StatsSubagentShare SubagentShare(IReadOnlyList<StatsRecord> records)
+    {
+        var claude = records.Where(record => record.Provider == StatsIndexer.ClaudeProviderId).ToList();
+        return new StatsSubagentShare(claude.Where(record => record.Subagent).Sum(record => record.TotalTokens), claude.Sum(record => record.TotalTokens));
+    }
+
+    /// <summary>The day or week rows of <see cref="Group"/>, each stacked into two segments: the main
+    /// agent first, subagents second. The rows are exactly those <see cref="Group"/> returns for the
+    /// same arguments, so each row's total is the same total the provider stack shows.</summary>
+    public static StatsModelSplit GroupStackedByAgent(
+        IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd,
+        string mainLabel, string subagentLabel)
+    {
+        var periods = Group(records, grouping, rangeStart, rangeEnd);
+        string KeyOf(StatsRecord record) => grouping == StatsGrouping.Week
+            ? IsoWeekLabel(record.Day)
+            : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var stacks = new Dictionary<string, long[]>();
+        foreach (var record in records)
+        {
+            var key = KeyOf(record);
+            if (!stacks.TryGetValue(key, out var stack))
+                stacks[key] = stack = new long[2];
+            stack[record.Subagent ? 1 : 0] += record.TotalTokens;
+        }
+
+        var rows = periods
+            .Select(period =>
+            {
+                var stacked = stacks.TryGetValue(period.Label, out var values) ? values : new long[2];
+                return new StatsGroupedRow(period.Label, stacked, stacked.Sum());
+            })
+            .ToList();
+        return new StatsModelSplit([mainLabel, subagentLabel], false, rows);
     }
 
     /// <summary>The mean of each value and the <c>window - 1</c> values before it; the first

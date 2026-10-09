@@ -16,6 +16,7 @@ public enum StatsColorBy
 {
     Provider,
     Model,
+    Agent,
 }
 
 /// <summary>One stacked series of the chart: its name and the key its color is looked up by (a
@@ -207,7 +208,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>What the segments of a day or week column stand for.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsModelStack))]
+    [NotifyPropertyChangedFor(nameof(IsModelStack), nameof(IsAgentStack))]
     private StatsColorBy selectedColorBy = StatsColorBy.Provider;
 
     /// <summary>The series of the stacked chart, in stacking order; empty for the groupings that draw
@@ -229,11 +230,14 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>True while the stacked columns are split by model.</summary>
     public bool IsModelStack => CanChooseColor && SelectedColorBy == StatsColorBy.Model;
 
+    /// <summary>True while the stacked columns are split into main agent and subagents.</summary>
+    public bool IsAgentStack => CanChooseColor && SelectedColorBy == StatsColorBy.Agent;
+
     /// <summary>The most models a stacked column names on its own; the rest are pooled.</summary>
     private const int MaxStackedModels = 6;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack))]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
@@ -340,8 +344,28 @@ public sealed partial class StatsViewModel : ObservableObject
     /// usage it would only repeat the "per day" card.</summary>
     public bool ShowPerActiveDay => ActiveDayCountRaw < PeriodDayCountRaw;
 
-    /// <summary>The figure cards' column count: five with the "per active day" card, four without.</summary>
-    public int FigureCardColumns => ShowPerActiveDay ? 5 : 4;
+    /// <summary>The figure cards' column count: four, plus the "per active day" card and the subagent
+    /// share card whenever they are shown.</summary>
+    public int FigureCardColumns => 4 + (ShowPerActiveDay ? 1 : 0) + (HasSubagentShare ? 1 : 0);
+
+    /// <summary>False when the range holds no Claude tokens: the subagent share card is then left out.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FigureCardColumns))]
+    private bool hasSubagentShare;
+
+    /// <summary>The subagents' share of the Claude tokens in the range, as a percentage text.</summary>
+    [ObservableProperty]
+    private string subagentShareText = "";
+
+    [ObservableProperty]
+    private string subagentShareCaption = "";
+
+    /// <summary>The raw numbers behind the share, for the card's progress bar.</summary>
+    [ObservableProperty]
+    private double subagentTokensRaw;
+
+    [ObservableProperty]
+    private double claudeTokensRaw;
 
     [ObservableProperty]
     private string activeDaysOfText = "";
@@ -739,6 +763,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Provider", StatsColorBy.Provider));
         ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Model", StatsColorBy.Model));
+        ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Agent", StatsColorBy.Agent));
         Choice.Select(ColorByChoices, SelectedColorBy);
 
         // Nothing is read here: the window loads once it is shown (see StatsWindow), so opening it
@@ -938,7 +963,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // Day and week columns are stacked by provider or, on request, by model.
         var series = new List<ChartSeriesInfo>();
-        if (IsStackedByProvider && !IsModelStack)
+        if (IsStackedByProvider && !IsModelStack && !IsAgentStack)
         {
             series.AddRange(StatsAggregator.StackedProviderOrder.Select(id =>
                 new ChartSeriesInfo(ProviderDisplayNames.GetValueOrDefault(id, id), id)));
@@ -951,6 +976,15 @@ public sealed partial class StatsViewModel : ObservableObject
             barRows = stack.Rows;
             series.AddRange(stack.Series.Select((name, index) =>
                 new ChartSeriesInfo(name, stack.HasOther && index == stack.Series.Count - 1 ? "other" : "cat:" + index)));
+        }
+        else if (IsAgentStack)
+        {
+            var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+            var mainLabel = LocalizationService.Instance["Stats.Agent.Main"];
+            var subagentLabel = LocalizationService.Instance["Stats.SubagentShare"];
+            barRows = StatsAggregator.GroupStackedByAgent(inRange, stackGrouping, gapFillFrom, to, mainLabel, subagentLabel).Rows;
+            series.Add(new ChartSeriesInfo(mainLabel, "cat:0"));
+            series.Add(new ChartSeriesInfo(subagentLabel, "cat:1"));
         }
         ChartSeries = series;
         ChartOverlay = SelectedGrouping == StatsGrouping.Day && !weeklyPerDay && barRows.Count >= OverlayMinDays
@@ -1038,6 +1072,16 @@ public sealed partial class StatsViewModel : ObservableObject
         EffortShareSlices = effortShares
             .Select(slice => new Views.Controls.StatsRingChart.Slice(ResolveEffortLabel(slice.Label), slice.Percent, ProviderId: slice.Label, Total: slice.Total))
             .ToList();
+
+        // The subagent share card: left out while the range holds no Claude tokens.
+        var subagentShare = StatsAggregator.SubagentShare(inRange);
+        HasSubagentShare = subagentShare.HasClaudeTokens;
+        SubagentTokensRaw = subagentShare.SubagentTokens;
+        ClaudeTokensRaw = subagentShare.ClaudeTokens;
+        SubagentShareText = subagentShare.HasClaudeTokens
+            ? StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(subagentShare.Percent).ToString(CultureInfo.CurrentCulture))
+            : "";
+        SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
 
         // The cache-share bar.
         var cacheShare = StatsAggregator.CacheShare(inRange);
