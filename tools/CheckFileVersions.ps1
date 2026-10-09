@@ -15,7 +15,7 @@ function ConvertTo-FourParts([version]$v) {
 try {
     $expected = ConvertTo-FourParts ([version]$Version)
 
-    $files = @(Join-Path $Dist 'AI-Usage.exe')
+    $files = @(Join-Path $Dist 'AI-Usage.exe'; Join-Path $Dist 'AI-Usage-arm64.exe')
     $files += @(Get-ChildItem -Path $Dist -Filter 'Setup-AI-Usage-*.exe' -File | ForEach-Object { $_.FullName })
 
     $report = @()

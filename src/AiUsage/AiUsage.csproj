@@ -25,8 +25,8 @@
          own worktree cannot allow that, so this switches the query off outright. -->
     <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
     <NeutralLanguage>en</NeutralLanguage>
-    <!-- The app ships English and German only. Without this the self-contained publish bundles the
-         framework's own resource assemblies for a dozen more languages, about 9 MB per exe. -->
+    <!-- The app ships English and German only. Without this the publish bundles the resource
+         assemblies of its dependencies for a dozen more languages. -->
     <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
     <InvariantGlobalization>false</InvariantGlobalization>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
