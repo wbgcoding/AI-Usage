@@ -404,6 +404,7 @@
                                      nested in this section's own Content, it now hides and reappears
                                      with everything else here. -->
                                 <Border Height="140" Margin="0,12,0,0"
+                                        Visibility="{Binding IsBarChart, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsBarChart x:Name="Chart" Margin="8,4,8,0" Bars="{Binding Bars}"
@@ -417,6 +418,20 @@
                                                              MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                              BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
                                                              TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
+                                </Border>
+
+                                <!-- The weekday by hour grouping draws a grid instead of columns. -->
+                                <Border Margin="0,12,0,0" Padding="8"
+                                        Visibility="{Binding IsHeatmap, Converter={StaticResource BoolToVis}}"
+                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
+                                    <controls:StatsHeatmap x:Name="Heatmap" Values="{Binding HeatmapValues}" FirstDay="{Binding HeatmapFirstDay}"
+                                                            AccentBrush="{DynamicResource Accent}"
+                                                            EmptyCellBrush="{DynamicResource Border}"
+                                                            TextBrush="{DynamicResource Text.Muted}"
+                                                            TooltipBackground="{DynamicResource Bg.Raised}"
+                                                            TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
+                                                            EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"/>
                                 </Border>
                             </StackPanel>
                             </controls:CollapsibleSection>

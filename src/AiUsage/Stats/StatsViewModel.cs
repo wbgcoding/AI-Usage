@@ -59,7 +59,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private string selectedRange = "Week";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip))]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
@@ -89,8 +89,24 @@ public sealed partial class StatsViewModel : ObservableObject
         StatsGrouping.Week => LocalizationService.Instance["Tip.Stats.Chart.PerWeek"],
         StatsGrouping.Weekday => LocalizationService.Instance["Tip.Stats.Chart.ByWeekday"],
         StatsGrouping.Hour => LocalizationService.Instance["Tip.Stats.Chart.ByHour"],
+        StatsGrouping.WeekdayHour => LocalizationService.Instance["Tip.Stats.Chart.ByWeekdayHour"],
         _ => "",
     };
+
+    /// <summary>True while the chart area shows the weekday by hour grid instead of columns.</summary>
+    public bool IsHeatmap => SelectedGrouping == StatsGrouping.WeekdayHour;
+
+    /// <summary>True while the chart area shows columns.</summary>
+    public bool IsBarChart => !IsHeatmap;
+
+    /// <summary>The weekday by hour totals, 168 values row by row, the first row being <see
+    /// cref="HeatmapFirstDay"/>.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<long> heatmapValues = [];
+
+    /// <summary>The culture's first day of the week, the weekday of the grid's first row.</summary>
+    [ObservableProperty]
+    private DayOfWeek heatmapFirstDay = DayOfWeek.Monday;
 
     // The figures bar's own five cards. BusiestDayDateText and the two Change properties are
     // "" / false whenever their underlying figure has nothing to show (an empty period, or - for the
@@ -538,6 +554,7 @@ public sealed partial class StatsViewModel : ObservableObject
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeek", StatsGrouping.Week));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeekday", StatsGrouping.Weekday));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByHour", StatsGrouping.Hour));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeekdayHour", StatsGrouping.WeekdayHour));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByModel", StatsGrouping.Model));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByProject", StatsGrouping.Project));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByEffort", StatsGrouping.Effort));
@@ -811,6 +828,10 @@ public sealed partial class StatsViewModel : ObservableObject
         // The "top projects" panel.
         TopProjectRows = StatsAggregator.TopProjectsDetailed(inRange, limit: 12, loc["Stats.NoProject"]);
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
+
+        // The weekday by hour grid, in the culture's own week order.
+        HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
+        HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
 
         var periodDayCount = PeriodDayCount(SelectedRange, from, today, all);
         // The preceding period always has the range's fixed length, unlike periodDayCount, which a

@@ -11,6 +11,7 @@ public enum StatsGrouping
     Week,
     Weekday,
     Hour,
+    WeekdayHour,
     Model,
     Project,
     Effort,
@@ -129,6 +130,7 @@ public static class StatsAggregator
         StatsGrouping.Week => GroupByWeek(records, rangeStart, rangeEnd),
         StatsGrouping.Weekday => GroupByWeekday(records, CultureInfo.CurrentCulture),
         StatsGrouping.Hour => GroupByHour(records, CultureInfo.CurrentCulture),
+        StatsGrouping.WeekdayHour => GroupByWeekday(records, CultureInfo.CurrentCulture),
         StatsGrouping.Model => GroupBySingleValueKey(records, record => ModelDisplayNames.Resolve(record.Model)),
         StatsGrouping.Project => GroupBySingleValueKey(
             records, record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase),
@@ -647,6 +649,34 @@ public static class StatsAggregator
             rows.Add(new StatsGroupedRow(label, [total], total));
         }
         return rows;
+    }
+
+    /// <summary>The weekday by hour grid: the token totals of every weekday and hour of the day,
+    /// indexed <c>[(int)DayOfWeek, hour]</c> (Sunday is 0), hours in the same local time as <see
+    /// cref="StatsRecord.Day"/>.</summary>
+    public static long[,] GroupByWeekdayHour(IReadOnlyList<StatsRecord> records)
+    {
+        var grid = new long[7, 24];
+        foreach (var record in records)
+        {
+            if (record.Hour is >= 0 and < 24)
+                grid[(int)record.Day.DayOfWeek, record.Hour] += record.TotalTokens;
+        }
+        return grid;
+    }
+
+    /// <summary>The grid of <see cref="GroupByWeekdayHour"/> as 168 values, row by row, the first row
+    /// being <paramref name="firstDay"/>, then the days after it.</summary>
+    public static IReadOnlyList<long> FlattenWeekdayHour(long[,] grid, DayOfWeek firstDay)
+    {
+        var values = new List<long>(7 * 24);
+        for (var row = 0; row < 7; row++)
+        {
+            var day = ((int)firstDay + row) % 7;
+            for (var hour = 0; hour < 24; hour++)
+                values.Add(grid[day, hour]);
+        }
+        return values;
     }
 
     /// <summary>The month grid's day-detail panel: <paramref name="day"/>'s own records broken down

@@ -946,13 +946,35 @@ public class StatsViewModelTests
     }
 
     [Fact]
-    public void TheGroupingListNamesWeekdayAndHourRightAfterWeek()
+    public async Task WeekdayHourGroupingShowsTheGridInTheCulturesWeekOrder()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-heatmap");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([new StatsRecord("claude", today, "modelA", "projA", 1000, 0, 0, 0) with { Hour = 14 }]);
+        var viewModel = StatsVm.Create(store);
+
+        Assert.False(viewModel.IsHeatmap);
+        Assert.True(viewModel.IsBarChart);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.WeekdayHour);
+
+        Assert.True(viewModel.IsHeatmap);
+        Assert.False(viewModel.IsBarChart);
+        Assert.Equal(168, viewModel.HeatmapValues.Count);
+        var row = ((int)today.DayOfWeek - (int)viewModel.HeatmapFirstDay + 7) % 7;
+        Assert.Equal(1000, viewModel.HeatmapValues[row * 24 + 14]);
+        Assert.Equal(1000, viewModel.HeatmapValues.Sum());
+    }
+
+    [Fact]
+    public void TheGroupingListNamesWeekdayHourAndTheGridRightAfterWeek()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-grouping-order");
         var viewModel = StatsVm.Create(new StatsStore(dataDir));
 
         Assert.Equal(
-            [StatsGrouping.Day, StatsGrouping.Week, StatsGrouping.Weekday, StatsGrouping.Hour, StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Effort],
+            [StatsGrouping.Day, StatsGrouping.Week, StatsGrouping.Weekday, StatsGrouping.Hour, StatsGrouping.WeekdayHour, StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Effort],
             viewModel.GroupingChoices.Select(choice => choice.Value).ToArray());
     }
 

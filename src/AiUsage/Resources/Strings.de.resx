@@ -483,4 +483,7 @@
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Widget zeigen</value></data>
   <data name="Stats.ByWeekday" xml:space="preserve"><value>Wochentag</value></data>
   <data name="Stats.ByHour" xml:space="preserve"><value>Stunde</value></data>
+  <data name="Stats.ByWeekdayHour" xml:space="preserve"><value>Wochentag × Stunde</value></data>
+  <data name="Stats.Heatmap.Tooltip" xml:space="preserve"><value>{0}, {1}-{2} Uhr: {3} Token</value></data>
+  <data name="Tip.Stats.Chart.ByWeekdayHour" xml:space="preserve"><value>Auf welche Wochentage und Tagesstunden die Token fallen.</value></data>
 </root>
