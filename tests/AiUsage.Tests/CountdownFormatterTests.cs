@@ -145,7 +145,7 @@ public class CountdownFormatterTests
 
     [Theory]
     [InlineData("en-US", "Oct 22 9:32 PM")]
-    [InlineData("de-DE", "22. Okt. 21:32")]
+    [InlineData("de-DE", "22. Okt 21:32")]
     public void ClockUsesTheDateFromSixDaysOut(string culture, string expected)
     {
         var reset = new DateTimeOffset(new DateTime(2026, 10, 22, 21, 32, 0, DateTimeKind.Local));

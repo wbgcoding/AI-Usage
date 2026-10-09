@@ -276,6 +276,20 @@ public class StatsMonthGridTests
     }
 
     [Fact]
+    public void MonthLabels_use_the_standalone_abbreviation_in_german()
+    {
+        var gridStart = new DateOnly(2026, 8, 31); // a Monday
+        var rangeEnd = new DateOnly(2026, 11, 30);
+        var columns = StatsMonthGrid.BuildColumns(gridStart, rangeEnd, rangeEnd, [], StatsMonthGrid.TotalColumns(gridStart, rangeEnd));
+
+        var labels = StatsMonthGrid.MonthLabels(columns, new CultureInfo("de-DE"));
+
+        Assert.Contains(labels, entry => entry.Label == "Sep");
+        Assert.Contains(labels, entry => entry.Label == "Okt");
+        Assert.DoesNotContain(labels, entry => entry.Label.StartsWith("Sept", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void MonthLabels_skips_a_month_whose_own_label_would_sit_too_close_to_the_one_before_it()
     {
         // The grid's very first (partial) column falls in August, and September starts only one

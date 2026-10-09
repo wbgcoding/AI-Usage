@@ -309,6 +309,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private const double RowHeight = 22;
     private const double NameColumnWidth = 0.35;
     private const double FigureColumnWidth = 56;
+    private const double NameBarGap = 6;
+    private const double MinBarWidth = 4;
 
     // The rich row (852): an icon/dot plus two text lines on top of a thin colored share bar,
     // taller than the plain single-line row above.
@@ -321,6 +323,31 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private const double RichFigureGap = 8;
 
     private double CurrentRowHeight => ShowProjectDetails ? RichRowHeight : RowHeight;
+
+    /// <summary>The width of the name column of a plain row: at least its fixed share of the chart,
+    /// widened toward the widest name so a short model name is not cut while the bar still has room,
+    /// but never so wide that the bar shrinks below <see cref="MinBarWidth"/>. Pure so it is unit
+    /// testable without a visual tree.</summary>
+    internal static double NameColumnWidthFor(double chartWidth, double widestName)
+    {
+        var share = chartWidth * NameColumnWidth;
+        var roomForNames = chartWidth - FigureColumnWidth - NameBarGap - MinBarWidth;
+        return Math.Max(share, Math.Min(widestName + 2, roomForNames));
+    }
+
+    /// <summary>The font size of the names in a plain row: the regular size while the widest name fits
+    /// its column, stepping down in proportion to a lower limit when it does not, so a narrow chart
+    /// shows as much of every name as it can before the ellipsis takes over. Pure so it is unit
+    /// testable without a visual tree.</summary>
+    internal static double NameFontSizeFor(double widestNameAtRegular, double nameColumnWidth)
+    {
+        if (widestNameAtRegular <= 0 || widestNameAtRegular <= nameColumnWidth)
+            return NameFontSize;
+        return Math.Clamp(NameFontSize * nameColumnWidth / widestNameAtRegular, NameFontSizeMin, NameFontSize);
+    }
+
+    private const double NameFontSize = 11;
+    private const double NameFontSizeMin = 8.5;
 
     /// <summary>Every row's own top Y position for a chart <paramref name="rowCount"/> rows tall -
     /// pure so it is unit testable without a visual tree.</summary>
@@ -539,7 +566,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var rows = Rows;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var typeface = new Typeface("Segoe UI");
+        var typeface = ChartFonts.UiTypeface(this);
 
         if (rows.Count == 0)
         {
@@ -568,8 +595,14 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             return;
         }
 
-        var nameWidth = width * NameColumnWidth;
-        var barAreaX = nameWidth + 8;
+        var widestName = rows
+            .Select(row => new FormattedText(
+                row.ShortLabel, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, NameFontSize, TextBrush, dpi).Width)
+            .DefaultIfEmpty(0)
+            .Max();
+        var nameWidth = NameColumnWidthFor(width, widestName);
+        var nameFontSize = NameFontSizeFor(widestName, nameWidth);
+        var barAreaX = nameWidth + NameBarGap;
         var barAreaWidth = Math.Max(0, width - barAreaX - FigureColumnWidth);
         var plainTops = RowTops(rows.Count);
 
@@ -580,10 +613,10 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
                 break;
 
             var nameText = new FormattedText(
-                rows[i].ShortLabel, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 11, TextBrush, dpi)
+                rows[i].ShortLabel, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, nameFontSize, TextBrush, dpi)
             {
                 MaxTextWidth = Math.Max(1, nameWidth),
-                MaxTextHeight = RowHeight,
+                MaxLineCount = 1,
                 Trimming = TextTrimming.CharacterEllipsis,
             };
             drawingContext.DrawText(nameText, new Point(0, y + (RowHeight - nameText.Height) / 2));

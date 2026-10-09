@@ -319,7 +319,7 @@ public sealed class StatsBarChart : FrameworkElement
         if (!DateOnly.TryParseExact(dayKey, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
             return dayKey;
 
-        var name = day.ToString("MMM", culture);
+        var name = DateLabels.MonthShort(day, culture);
         return day.Month == 1 ? name + " " + day.Year.ToString(culture) : name;
     }
 
@@ -581,7 +581,7 @@ public sealed class StatsBarChart : FrameworkElement
 
         var bars = Bars;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var tickTypeface = new Typeface("Segoe UI");
+        var tickTypeface = ChartFonts.UiTypeface(this);
 
         if (bars.Count == 0)
         {
@@ -595,7 +595,7 @@ public sealed class StatsBarChart : FrameworkElement
             {
                 var formatted = new FormattedText(
                     EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-                    new Typeface("Segoe UI"), 12, EmptyTextBrush, dpi);
+                    ChartFonts.UiTypeface(this), 12, EmptyTextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (emptyChartHeight - formatted.Height) / 2));
             }
             return;
@@ -681,11 +681,11 @@ public sealed class StatsBarChart : FrameworkElement
         // right by the left margin, or one on a narrow chart, can reach the one before it; it is left
         // out rather than drawn over it.
         const double labelGap = 6;
-        var previousRight = double.NegativeInfinity;
         var hourIndices = IsHourAxis ? HourAxisLabelIndices(bars.Count) : null;
         var monthIndices = hourIndices is null ? MonthLabelIndices(bars) : null;
+        var bareHours = false;
         string LabelString(int index) =>
-            hourIndices is not null ? HourAxisLabel(index)
+            hourIndices is not null ? (bareHours ? index.ToString(CultureInfo.CurrentCulture) : HourAxisLabel(index))
             : monthIndices is null ? FormatAxisLabel(bars[index].Label, CultureInfo.CurrentCulture)
             : FormatMonthAxisLabel(bars[index].Label, CultureInfo.CurrentCulture);
         FormattedText MakeLabel(int index) => new(
@@ -705,22 +705,78 @@ public sealed class StatsBarChart : FrameworkElement
             labelIndices = LabelIndices(bars.Count, MaxAxisLabels, chartWidth / bars.Count, widest, labelGap);
         }
 
-        foreach (var index in labelIndices)
+        List<(int Index, FormattedText Text, double Left)> PlaceLabels()
         {
-            var (barX, barWidth) = columns[index];
-            var labelText = measured.TryGetValue(index, out var cached) ? cached : MakeLabel(index);
-            var centerX = barX + _leftMargin + barWidth / 2;
-            var left = ClampLabelLeft(centerX - labelText.Width / 2, labelText.Width, _leftMargin, width);
-            // The four fixed hour labels are never dropped, even where they would touch.
-            if (hourIndices is null && left < previousRight + labelGap)
-                continue;
-            drawingContext.DrawText(labelText, new Point(left, chartHeight + BottomLabelGap));
-            previousRight = left + labelText.Width;
+            var result = new List<(int Index, FormattedText Text, double Left)>();
+            foreach (var index in labelIndices)
+            {
+                var (barX, barWidth) = columns[index];
+                var labelText = measured.TryGetValue(index, out var cached) && !bareHours ? cached : MakeLabel(index);
+                var centerX = barX + _leftMargin + barWidth / 2;
+                var left = ClampLabelLeft(centerX - labelText.Width / 2, labelText.Width, _leftMargin, width);
+                result.Add((index, labelText, left));
+            }
+            return result;
+        }
+
+        var placements = PlaceLabels();
+
+        // The hour axis labels midnight and noon always and 6 and 18 only where they leave a gap;
+        // every other axis simply skips a label that would reach the one before it. Where even
+        // midnight and noon would touch (a wide font in a narrow chart), the hour axis falls back to
+        // bare hour numbers.
+        IReadOnlyCollection<int> required = hourIndices is null ? [] : HourAxisHours.Where(hour => hour % 12 == 0).ToList();
+        if (hourIndices is not null && RequiredLabelsTouch(placements.Select(p => (p.Index, p.Left, p.Text.Width)).ToList(), required, labelGap))
+        {
+            bareHours = true;
+            placements = PlaceLabels();
+        }
+
+        var drawn = NonOverlappingLabels(placements.Select(p => (p.Index, p.Left, p.Text.Width)).ToList(), required, labelGap).ToHashSet();
+
+        foreach (var (index, labelText, left) in placements)
+        {
+            if (drawn.Contains(index))
+                drawingContext.DrawText(labelText, new Point(left, chartHeight + BottomLabelGap));
         }
     }
 
+    /// <summary>Whether two of the <paramref name="required"/> labels come closer than <paramref
+    /// name="gap"/>. Pure so it is unit testable without a visual tree.</summary>
+    internal static bool RequiredLabelsTouch(
+        IReadOnlyList<(int Index, double Left, double Width)> candidates, IReadOnlyCollection<int> required, double gap)
+    {
+        var ordered = candidates.Where(c => required.Contains(c.Index)).OrderBy(c => c.Left).ToList();
+        for (var i = 1; i < ordered.Count; i++)
+        {
+            if (ordered[i].Left < ordered[i - 1].Left + ordered[i - 1].Width + gap)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Which of the axis labels (index, left edge, width) get drawn: the <paramref
+    /// name="required"/> ones always, every other one only where it keeps <paramref name="gap"/>
+    /// clear of the labels already kept. Required labels are placed first, the rest left to right.
+    /// Pure so it is unit testable without a visual tree.</summary>
+    internal static IReadOnlyList<int> NonOverlappingLabels(
+        IReadOnlyList<(int Index, double Left, double Width)> candidates, IReadOnlyCollection<int> required, double gap)
+    {
+        var kept = candidates.Where(c => required.Contains(c.Index)).ToList();
+        foreach (var candidate in candidates.OrderBy(c => c.Left))
+        {
+            if (required.Contains(candidate.Index))
+                continue;
+            var clear = kept.All(other =>
+                candidate.Left >= other.Left + other.Width + gap || other.Left >= candidate.Left + candidate.Width + gap);
+            if (clear)
+                kept.Add(candidate);
+        }
+        return kept.Select(c => c.Index).OrderBy(i => i).ToList();
+    }
+
     /// <summary>A day-grouped bar's label is a raw "yyyy-MM-dd" key - shown as a locale-correct
-    /// month and day without the year (<see cref="DateLabels.ShortMonthDay"/>) instead, since this
+    /// month and day without the year (<see cref="DateLabels.DayMonthShort"/>) instead, since this
     /// is the one place it actually reaches the screen. A
     /// week-grouped bar's own "yyyy-Www" key becomes that week's own Monday-to-Sunday date range,
     /// compact range (see <see cref="StatsTooltipDateFormatter.FormatRange"/>).
@@ -729,7 +785,7 @@ public sealed class StatsBarChart : FrameworkElement
     internal static string FormatAxisLabel(string label, CultureInfo culture)
     {
         if (DateOnly.TryParseExact(label, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
-            return DateLabels.ShortMonthDay(day.ToDateTime(TimeOnly.MinValue), culture);
+            return DateLabels.DayMonthShort(day, culture);
 
         if (TryParseIsoWeekLabel(label, out var start))
             return StatsTooltipDateFormatter.FormatRange(start, start.AddDays(6), culture);

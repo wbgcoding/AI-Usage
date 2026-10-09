@@ -165,7 +165,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         var values = Values;
         var labels = SegmentLabels;
         var total = values.Sum();
-        var typeface = new Typeface("Segoe UI");
+        var typeface = ChartFonts.UiTypeface(this);
         var texts = new List<FormattedText>(values.Count);
         for (var i = 0; i < values.Count; i++)
         {
@@ -202,7 +202,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
 
         var values = Values;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var typeface = new Typeface("Segoe UI");
+        var typeface = ChartFonts.UiTypeface(this);
 
         var total = values.Sum();
         if (values.Count == 0 || total <= 0)

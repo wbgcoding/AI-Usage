@@ -863,6 +863,16 @@ public class StatsBarChartGeometryTests
     }
 
     [Fact]
+    public void FormatMonthAxisLabelUsesTheStandaloneAbbreviationInGerman()
+    {
+        var culture = new System.Globalization.CultureInfo("de-DE");
+
+        Assert.Equal("Sep", StatsBarChart.FormatMonthAxisLabel("2026-09-01", culture));
+        Assert.Equal("Okt", StatsBarChart.FormatMonthAxisLabel("2026-10-01", culture));
+        Assert.Equal("Mär", StatsBarChart.FormatMonthAxisLabel("2026-03-01", culture));
+    }
+
+    [Fact]
     public void LabelIndicesLabelsEveryThreeHoursWhenTheWidestLabelFits()
     {
         // 24 bars of 30 px: a 3-bar step spans 90 px, a 40 px label plus gap fits.
@@ -937,7 +947,7 @@ public class StatsBarChartGeometryTests
     public void DayAxisLabelHasNoYear()
     {
         Assert.Equal("Sep 3", StatsBarChart.FormatAxisLabel("2026-09-03", new System.Globalization.CultureInfo("en-US")));
-        Assert.Equal("3. Sept.", StatsBarChart.FormatAxisLabel("2026-09-03", new System.Globalization.CultureInfo("de-DE")));
+        Assert.Equal("3. Sep", StatsBarChart.FormatAxisLabel("2026-09-03", new System.Globalization.CultureInfo("de-DE")));
     }
 
     [Fact]

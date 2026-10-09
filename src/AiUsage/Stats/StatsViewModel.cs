@@ -1009,7 +1009,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (figures.BusiestDay is { } busiestDay)
         {
             BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
-            BusiestDayDateText = StatsTooltipDateFormatter.FormatInstant(busiestDay, StatsTooltipGranularity.Day, CultureInfo.CurrentCulture);
+            BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, CultureInfo.CurrentCulture);
         }
         else
         {
