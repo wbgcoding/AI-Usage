@@ -72,7 +72,7 @@ public class SettingsStoreTests : IDisposable
         var original = new AppSettings
         {
             RefreshSeconds = 30,
-            AlwaysOnTop = false,
+            WindowLayer = WindowLayers.Desktop,
             Layout = "Horizontal",
             Theme = "Terminal",
             Language = "de",
@@ -93,7 +93,7 @@ public class SettingsStoreTests : IDisposable
         var loaded = reloadStore.Load();
 
         Assert.Equal(30, loaded.RefreshSeconds);
-        Assert.False(loaded.AlwaysOnTop);
+        Assert.Equal(WindowLayers.Desktop, loaded.WindowLayer);
         Assert.Equal("Horizontal", loaded.Layout);
         Assert.Equal("Terminal", loaded.Theme);
         Assert.Equal("de", loaded.Language);

@@ -25,12 +25,12 @@ namespace ReadmeShots;
 
 internal static class ReviewMenus
 {
-    /// <summary>The title bar's window menu (minimize, collapse, always on top, close).</summary>
+    /// <summary>The title bar's window menu (refresh, minimize, collapse, window level, close).</summary>
     internal static void RenderTitleBarMenu(SurfaceContext context, string id)
     {
         using var main = OpenMain(context);
         var titleBar = new TitleBar { ShowWindowMenu = true, ShowStats = true, EyeSource = main.ViewModel, DataContext = main.ViewModel };
-        titleBar.SetAlwaysOnTop(true);
+        titleBar.SetWindowLayer(WindowLayers.OnTop);
         RenderMenu(titleBar.WindowMenu, main.ViewModel, context.OutputPath(id));
     }
 
@@ -47,7 +47,7 @@ internal static class ReviewMenus
 
     /// <summary>The tray icon's menu, from the same factory the tray service builds it with.</summary>
     internal static void RenderTrayMenu(SurfaceContext context, string id) =>
-        RenderMenu(TrayService.BuildMenu(alwaysOnTop: true, clickThrough: false, hotkeyShortcutText: null), null, context.OutputPath(id));
+        RenderMenu(TrayService.BuildMenu(windowLayer: WindowLayers.OnTop, clickThrough: false, hotkeyShortcutText: null), null, context.OutputPath(id));
 
     /// <summary>The right-click menu of a provider tile that is signed in and has detail lines, so
     /// every entry shows.</summary>

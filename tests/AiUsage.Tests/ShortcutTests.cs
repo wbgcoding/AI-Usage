@@ -1,4 +1,3 @@
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -126,47 +125,5 @@ public class ShortcutTests
 
     private static string Tip(FrameworkElement element) => (string)element.ToolTip;
 
-    private static T OnSta<T>(Func<T> work)
-    {
-        T? result = default;
-        Exception? failure = null;
-        var worker = new Thread(() =>
-        {
-            try
-            {
-                result = RunWithApp(work);
-            }
-            catch (Exception ex)
-            {
-                failure = ex;
-            }
-        })
-        {
-            IsBackground = true,
-        };
-        worker.SetApartmentState(ApartmentState.STA);
-        worker.Start();
-        if (!worker.Join(TimeSpan.FromSeconds(30)))
-            throw new TimeoutException("shortcut test did not finish");
-        if (failure is not null)
-            throw new InvalidOperationException("shortcut test failed.", failure);
-        return result!;
-    }
-
-    private static T RunWithApp<T>(Func<T> work)
-    {
-        typeof(Application).GetField("_appCreatedInThisAppDomain", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.SetValue(null, false);
-        var app = new App();
-        app.InitializeComponent();
-        try
-        {
-            return work();
-        }
-        finally
-        {
-            Application.Current?.Shutdown();
-            System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown();
-            typeof(Application).GetField("_appInstance", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.SetValue(null, null);
-        }
-    }
+    private static T OnSta<T>(Func<T> work) => StaTestRunner.Run(work);
 }

@@ -66,9 +66,7 @@
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Minimize]}"
                           Click="MinimizeButton_Click"/>
                 <MenuItem x:Name="CollapseMenuItem" Click="CollapseMenuItem_Click"/>
-                <MenuItem x:Name="AlwaysOnTopMenuItem" IsCheckable="True"
-                          Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tray.AlwaysOnTop]}"
-                          Click="AlwaysOnTopMenuItem_Click"/>
+                <!-- The window level submenu is inserted here from code (WindowLayerMenu). -->
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Close]}"
                           Click="CloseButton_Click"/>
             </ContextMenu>

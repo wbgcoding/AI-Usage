@@ -300,18 +300,41 @@
                     <Border x:Name="Root" Background="Transparent" CornerRadius="{StaticResource Radius.S}"
                             Padding="{TemplateBinding Padding}" TextElement.Foreground="{TemplateBinding Foreground}">
                         <!-- The check glyph sits right of the label and only takes room while checked, so
-                             the label never shifts and an unchecked menu is no wider than its text. -->
-                        <DockPanel>
-                            <Path x:Name="CheckGlyph" DockPanel.Dock="Right" Width="12" Height="12" Margin="12,0,0,0"
-                                  VerticalAlignment="Center" Data="M2,6 L5,9 L10,3" Stroke="{TemplateBinding Foreground}"
-                                  StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                  Visibility="Collapsed"/>
-                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True"/>
-                        </DockPanel>
+                             the label never shifts and an unchecked menu is no wider than its text. The
+                             shortcut text and the submenu arrow sit there too, each only when it has
+                             something to show. -->
+                        <Grid>
+                            <DockPanel>
+                                <Path x:Name="CheckGlyph" DockPanel.Dock="Right" Width="12" Height="12" Margin="12,0,0,0"
+                                      VerticalAlignment="Center" Data="M2,6 L5,9 L10,3" Stroke="{TemplateBinding Foreground}"
+                                      StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Visibility="Collapsed"/>
+                                <Path x:Name="SubmenuArrow" DockPanel.Dock="Right" Width="8" Height="10" Margin="12,0,0,0"
+                                      VerticalAlignment="Center" Data="M2,1 L6,5 L2,9" Stroke="{TemplateBinding Foreground}"
+                                      StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Visibility="Collapsed"/>
+                                <TextBlock x:Name="GestureText" DockPanel.Dock="Right" Margin="24,0,0,0" VerticalAlignment="Center"
+                                           Text="{TemplateBinding InputGestureText}" Foreground="{DynamicResource Text.Secondary}"/>
+                                <ContentPresenter ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                            </DockPanel>
+                            <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-2" AllowsTransparency="True" Focusable="False"
+                                   PopupAnimation="None" IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                        CornerRadius="{StaticResource Radius.Control}" Padding="4">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="InputGestureText" Value="">
+                            <Setter TargetName="GestureText" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="Role" Value="SubmenuHeader">
+                            <Setter TargetName="SubmenuArrow" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <!-- IsHighlighted covers both mouse hover and arrow-key selection, so keyboard
                              users see the same feedback a pointer gives. -->

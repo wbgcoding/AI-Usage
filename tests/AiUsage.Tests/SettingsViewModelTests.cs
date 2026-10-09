@@ -76,6 +76,24 @@ public class SettingsViewModelTests : IDisposable
         return (vm, settings);
     }
 
+    [Fact]
+    public void TheWindowLevelPickerFollowsAndDrivesTheMainWindowLevel()
+    {
+        var (vm, settings) = Build();
+        Assert.Equal(WindowLayers.Normal, vm.SelectedWindowLayerChoice?.Value);
+        Assert.False(vm.WindowLayerIsDesktop);
+
+        vm.SelectedWindowLayerChoice = vm.WindowLayerChoices.Single(c => c.Value == WindowLayers.Desktop);
+        Assert.Equal(WindowLayers.Desktop, vm.Main.WindowLayer);
+        Assert.Equal(WindowLayers.Desktop, settings.WindowLayer);
+        Assert.True(vm.WindowLayerIsDesktop);
+
+        // The tray or the title bar menu changes it while the window is open.
+        vm.Main.WindowLayer = WindowLayers.OnTop;
+        Assert.Equal(WindowLayers.OnTop, vm.SelectedWindowLayerChoice?.Value);
+        Assert.False(vm.WindowLayerIsDesktop);
+    }
+
     [Theory]
     [InlineData(14, 15)]
     [InlineData(16 * 60, 15 * 60)]

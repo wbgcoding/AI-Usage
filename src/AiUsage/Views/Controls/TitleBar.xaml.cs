@@ -21,12 +21,13 @@ public partial class TitleBar : UserControl
     public event EventHandler? MinimizeRequested;
     public event EventHandler? CloseRequested;
     public event EventHandler? CollapseToggleRequested;
-    public event EventHandler<bool>? AlwaysOnTopToggleRequested;
+    public event EventHandler<string>? WindowLayerRequested;
 
     /// <summary>A press outside a StaysOpen=False popup closes it before the button's click arrives,
     /// so a click shortly after a close is the second click of a toggle and must not reopen it.</summary>
     private const long EyeReopenGuardMs = 300;
 
+    private readonly WindowLayerMenu _windowLayerMenu = new(Models.WindowLayers.Normal);
     private long _eyeClosedAtTicks = long.MinValue / 2;
     private bool _eyeOpenedByKeyboard;
 
@@ -156,6 +157,9 @@ public partial class TitleBar : UserControl
     public TitleBar()
     {
         InitializeComponent();
+        // Before "Close", the last entry of the menu.
+        WindowMenu.Items.Insert(WindowMenu.Items.Count - 1, _windowLayerMenu.Header);
+        _windowLayerMenu.Chosen += (_, layer) => WindowLayerRequested?.Invoke(this, layer);
         RefreshWindowMenuCollapseHeader();
         RefreshButtonTooltips();
         // The collapse entry's header is set from code (a context menu cannot reach IsCollapsed
@@ -173,12 +177,14 @@ public partial class TitleBar : UserControl
             {
                 RefreshWindowMenuCollapseHeader();
                 RefreshButtonTooltips();
+                _windowLayerMenu.RefreshText();
             });
             return;
         }
 
         RefreshWindowMenuCollapseHeader();
         RefreshButtonTooltips();
+        _windowLayerMenu.RefreshText();
     }
 
     /// <summary>The tooltip with its shortcut in parentheses, e.g. "Token usage (Ctrl+T)".</summary>
@@ -256,7 +262,7 @@ public partial class TitleBar : UserControl
 
     /// <summary>Refuses the window menu entirely for every window that leaves
     /// <see cref="ShowWindowMenu"/> at its default - a dialog built on this same control never shows
-    /// entries (snap, always-on-top) that make no sense for it.</summary>
+    /// entries (snap, window level) that make no sense for it.</summary>
     private void TitleGrid_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         if (!ShowWindowMenu)
@@ -283,9 +289,9 @@ public partial class TitleBar : UserControl
         WindowMenu.IsOpen = true;
     }
 
-    /// <summary>Set by MainWindow only - keeps the window menu's checkable entry in sync when
-    /// "always on top" changes from the tray or Settings instead of from this menu itself.</summary>
-    internal void SetAlwaysOnTop(bool value) => AlwaysOnTopMenuItem.IsChecked = value;
+    /// <summary>Set by MainWindow only - keeps the window menu's checked level in sync when it changes
+    /// from the tray or Settings instead of from this menu itself.</summary>
+    internal void SetWindowLayer(string layer) => _windowLayerMenu.Select(layer);
 
     private void RefreshWindowMenuCollapseHeader()
     {
@@ -294,11 +300,6 @@ public partial class TitleBar : UserControl
         var loc = LocalizationService.Instance;
         CollapseMenuItem.Header = IsCollapsed ? loc["TitleBar.Expand"] : loc["TitleBar.Collapse"];
     }
-
-    /// <summary>IsCheckable="True" already flips IsChecked before Click fires, so this just reports
-    /// the new state onward - the same "checked value wins" contract TrayService's CheckOnClick
-    /// item uses.</summary>
-    private void AlwaysOnTopMenuItem_Click(object sender, RoutedEventArgs e) => AlwaysOnTopToggleRequested?.Invoke(this, AlwaysOnTopMenuItem.IsChecked);
 
     internal static bool ShouldOpenEyePopup(bool isOpen, long msSinceClose) =>
         !isOpen && msSinceClose > EyeReopenGuardMs;

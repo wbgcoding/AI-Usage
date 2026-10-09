@@ -24,7 +24,15 @@ public sealed class AppSettings
     /// UI for this value lands in a later step; today it is the fetch-side clamp only.</summary>
     public int RemoteRefreshMinutes { get; set; } = 5;
 
-    public bool AlwaysOnTop { get; set; }
+    /// <summary>One of <see cref="WindowLayers"/>; null means the file does not say yet (a file written
+    /// before this setting existed), which <see cref="Storage.SettingsStore"/> resolves on load.</summary>
+    public string? WindowLayer { get; set; }
+
+    /// <summary>The old on/off "always on top" flag, read only to migrate it into <see cref="WindowLayer"/>
+    /// and then cleared, so it is never written back.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("AlwaysOnTop")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? LegacyAlwaysOnTop { get; set; }
 
     public string Layout { get; set; } = "Vertical";
 
@@ -149,7 +157,7 @@ public sealed class AppSettings
     public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>Off by default: makes the window ignore the mouse entirely (<c>WS_EX_TRANSPARENT</c>).
-    /// See <see cref="Services.ClickThroughPolicy"/> for the always-on-top/opacity implications this
+    /// See <see cref="Services.ClickThroughPolicy"/> for the window-level/opacity implications this
     /// forces while it is on.</summary>
     public bool ClickThrough { get; set; }
 

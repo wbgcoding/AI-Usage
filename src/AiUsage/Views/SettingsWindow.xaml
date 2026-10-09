@@ -371,7 +371,16 @@
                     </ItemsControl>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Window]}" Style="{StaticResource GroupHeading}"/>
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AlwaysOnTop]}" IsChecked="{Binding Main.AlwaysOnTop}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ComboBox ItemsSource="{Binding WindowLayerChoices}"
+                              SelectedItem="{Binding SelectedWindowLayerChoice, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}"
+                              HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[WindowLayer.Desktop.Hint]}"
+                               Style="{StaticResource Gap.Top4}"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding WindowLayerIsDesktop, Converter={StaticResource BoolToVis}}"/>
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" IsChecked="{Binding Main.ClickThrough}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThroughHint]}"
                                Style="{StaticResource Gap.Top4}"

@@ -201,7 +201,7 @@ public sealed class SettingsStore : IDisposable
     /// that used to remember to fill it in.</summary>
     private static AppSettings CreateDefaultSettings()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings { WindowLayer = WindowLayers.Normal };
         FillMissingProviders(settings);
         return settings;
     }
@@ -239,8 +239,18 @@ public sealed class SettingsStore : IDisposable
 
         FillMissingProviders(loaded, onDroppedAccount);
         LegacyWindowLabels.Migrate(loaded, MainViewModel.TrayWindowLabelPrefix);
+        MigrateWindowLayer(loaded);
         ClampToValidRanges(loaded);
         return (loaded, null);
+    }
+
+    /// <summary>A file that does not name a window level yet takes it from the old always-on-top flag
+    /// (no flag either: a normal window); the flag is cleared so it is never written back. A named level
+    /// that is not one of the three falls back to a normal window.</summary>
+    internal static void MigrateWindowLayer(AppSettings settings)
+    {
+        settings.WindowLayer = WindowLayers.Normalize(settings.WindowLayer ?? WindowLayers.FromLegacy(settings.LegacyAlwaysOnTop));
+        settings.LegacyAlwaysOnTop = null;
     }
 
     /// <summary>Debounced entry point: a burst of changes (a dragged slider) collapses into one write.</summary>

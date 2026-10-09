@@ -33,7 +33,7 @@
                                     MinimizeRequested="TitleBarControl_MinimizeRequested"
                                     CloseRequested="TitleBarControl_CloseRequested"
                                     CollapseToggleRequested="TitleBarControl_CollapseToggleRequested"
-                                    AlwaysOnTopToggleRequested="TitleBarControl_AlwaysOnTopToggleRequested"/>
+                                    WindowLayerRequested="TitleBarControl_WindowLayerRequested"/>
                 <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto" DockPanel.Dock="Top">
                     <ScrollViewer.Style>
                         <Style TargetType="ScrollViewer">

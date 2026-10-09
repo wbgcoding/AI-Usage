@@ -32,6 +32,10 @@ public partial class MainWindow : Window, IDisposable
     private readonly MonitorAreaCache _monitorAreas = new(() => NativeMonitors.WorkAreas());
     private readonly TrayTooltipMemo _trayTooltipMemo = new();
     private readonly ClickThroughPolicy _clickThroughPolicy = new();
+    private DesktopLayer? _desktopLayer;
+    // True from the title bar's own minimize until the window is restored, so that showing the
+    // desktop can tell a minimize by the person from one Show Desktop did.
+    private bool _minimizedByUser;
     private double _uncollapsedHeight;
 
     // The one place that now carries the "is the height automatic" meaning: SizeToContent itself no
@@ -137,7 +141,7 @@ public partial class MainWindow : Window, IDisposable
         // that starts collapsed needs the floor at 0 from its very first layout pass, not just from
         // the next Collapse() call.
         MinHeight = WindowPlacementService.MinHeightFor(_settings.Window.Collapsed);
-        Topmost = _settings.AlwaysOnTop;
+        Topmost = WindowLayers.Normalize(_settings.WindowLayer) == WindowLayers.OnTop;
 
         SystemEvents.DisplaySettingsChanged += SystemEvents_DisplaySettingsChanged;
         SystemParameters.StaticPropertyChanged += SystemParameters_HighContrastChanged;
@@ -164,7 +168,7 @@ public partial class MainWindow : Window, IDisposable
         LocationChanged += MainWindow_LocationChanged;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
 
-        _tray = new TrayService(_settings.AlwaysOnTop, _settings.ClickThrough);
+        _tray = new TrayService(WindowLayers.Normalize(_settings.WindowLayer), _settings.ClickThrough);
         _toasts = new ToastNotifier(
             new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line),
             () => LocalizationService.Instance["Toast.ShowWidget"]);
@@ -176,14 +180,14 @@ public partial class MainWindow : Window, IDisposable
         _tray.StatsRequested += (_, _) => TitleBarControl_StatsRequested(this, EventArgs.Empty);
         _tray.ResetPositionRequested += (_, _) => ResetPosition();
         _tray.ExitRequested += (_, _) => ShutdownFromTray();
-        _tray.AlwaysOnTopChanged += (_, value) => ViewModel.AlwaysOnTop = value;
-        ViewModel.AlwaysOnTopChanged += (_, value) =>
+        _tray.WindowLayerChanged += (_, layer) => ViewModel.WindowLayer = layer;
+        ViewModel.WindowLayerChanged += (_, layer) =>
         {
-            Topmost = value;
-            _tray.UpdateAlwaysOnTop(value);
-            TitleBarControl.SetAlwaysOnTop(value);
+            ApplyWindowLayer(layer);
+            _tray.UpdateWindowLayer(layer);
+            TitleBarControl.SetWindowLayer(layer);
         };
-        TitleBarControl.SetAlwaysOnTop(_settings.AlwaysOnTop);
+        TitleBarControl.SetWindowLayer(ViewModel.WindowLayer);
         _tray.ClickThroughChanged += (_, value) => ViewModel.ClickThrough = value;
         ViewModel.ClickThroughChanged += (_, value) => ApplyClickThrough(value);
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
@@ -936,6 +940,9 @@ public partial class MainWindow : Window, IDisposable
 
         WindowChromeNative.Bootstrap(this, followsOpacity: true);
 
+        _desktopLayer = new DesktopLayer(hwndSource.Handle, () => Visibility != Visibility.Visible || _minimizedByUser);
+        ApplyWindowLayer(ViewModel.WindowLayer);
+
         _globalHotkey = new GlobalHotkey(hwndSource.Handle);
         ApplyHotkeySettings();
         ViewModel.HotkeySettingsChanged += (_, _) => ApplyHotkeySettings();
@@ -946,7 +953,7 @@ public partial class MainWindow : Window, IDisposable
 
         // The extended window style itself only exists on the real HWND SourceInitialized just
         // handed over - a fresh window otherwise starts fully clickable even when the setting says
-        // otherwise. Idempotent: re-running the always-on-top/opacity implications against values a
+        // otherwise. Idempotent: re-running the window-level/opacity implications against values a
         // previous session already resolved never changes anything.
         ApplyClickThrough(_settings.ClickThrough);
     }
@@ -976,8 +983,20 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
+    /// <summary>Puts the real window on the chosen level: above everything, an ordinary window, or
+    /// behind everything on the desktop (see <see cref="DesktopLayer"/>).</summary>
+    private void ApplyWindowLayer(string layer)
+    {
+        var desktop = layer == WindowLayers.Desktop;
+        if (!desktop)
+            _desktopLayer?.SetActive(false);
+        Topmost = layer == WindowLayers.OnTop;
+        if (desktop)
+            _desktopLayer?.SetActive(true);
+    }
+
     /// <summary>Applies click-through both ways: the extended window style itself, and the
-    /// always-on-top/opacity implications <see cref="ClickThroughPolicy"/> resolves purely. Called
+    /// window-level/opacity implications <see cref="ClickThroughPolicy"/> resolves purely. Called
     /// once at startup and again every time <see cref="MainViewModel.ClickThrough"/> changes, so the
     /// live window is never out of sync with the setting.</summary>
     private void ApplyClickThrough(bool clickThrough)
@@ -985,9 +1004,9 @@ public partial class MainWindow : Window, IDisposable
         if (PresentationSource.FromVisual(this) is HwndSource hwndSource)
             NativeWindowStyle.SetClickThrough(hwndSource.Handle, clickThrough);
 
-        var resolution = _clickThroughPolicy.Resolve(clickThrough, ViewModel.AlwaysOnTop, _settings.WindowOpacityPercent);
-        if (resolution.AlwaysOnTop != ViewModel.AlwaysOnTop)
-            ViewModel.AlwaysOnTop = resolution.AlwaysOnTop;
+        var resolution = _clickThroughPolicy.Resolve(clickThrough, ViewModel.WindowLayer, _settings.WindowOpacityPercent);
+        if (resolution.WindowLayer != ViewModel.WindowLayer)
+            ViewModel.WindowLayer = resolution.WindowLayer;
 
         var resolvedOpacity = (int)resolution.WindowOpacityPercent;
         if (resolvedOpacity != _settings.WindowOpacityPercent)
@@ -1014,6 +1033,9 @@ public partial class MainWindow : Window, IDisposable
     // below for why height changes are handled entirely in managed code instead.
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == DesktopLayer.WmWindowPosChanging)
+            _desktopLayer?.OnWindowPosChanging(lParam);
+
         if (_globalHotkey is not null && msg == GlobalHotkey.WM_HOTKEY && GlobalHotkey.Matches(wParam))
         {
             // One of click-through's three ways out: the window is already visible and ignoring the
@@ -1388,7 +1410,11 @@ public partial class MainWindow : Window, IDisposable
         _statsWindow.Activate();
     }
 
-    private void TitleBarControl_MinimizeRequested(object? sender, EventArgs e) => WindowState = WindowState.Minimized;
+    private void TitleBarControl_MinimizeRequested(object? sender, EventArgs e)
+    {
+        _minimizedByUser = true;
+        WindowState = WindowState.Minimized;
+    }
 
     /// <summary>Minimized counts as not visible for the refresh cadence, the same as hidden into the
     /// tray; restoring from the taskbar makes it visible again and refreshes once, like
@@ -1399,6 +1425,9 @@ public partial class MainWindow : Window, IDisposable
         // A state change while the constructor still runs happens before the view model exists.
         if (ViewModel is null)
             return;
+        if (WindowState != WindowState.Minimized)
+            _minimizedByUser = false;
+
         if (WindowState == WindowState.Minimized)
         {
             ViewModel.WindowVisible = false;
@@ -1413,7 +1442,7 @@ public partial class MainWindow : Window, IDisposable
 
     private bool _showingAndActivating;
 
-    private void TitleBarControl_AlwaysOnTopToggleRequested(object? sender, bool value) => ViewModel.AlwaysOnTop = value;
+    private void TitleBarControl_WindowLayerRequested(object? sender, string layer) => ViewModel.WindowLayer = layer;
 
     /// <summary>Called from the Ctrl+Alt+Arrow global hotkeys (see WndProc). A snapped window is
     /// exactly as manual as one dragged by hand: both dimensions stop following automatic sizing
@@ -1552,6 +1581,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.Tiles.CollectionChanged -= ViewModel_Tiles_CollectionChanged;
         _updateTimer?.Stop();
         _globalHotkey?.Dispose();
+        _desktopLayer?.Dispose();
         _tray.Dispose();
         // Blocking is safe here: this only ever runs from MainWindow_Closing on the UI thread, and
         // nothing DisposeAsync awaits needs to marshal back onto that same thread to complete.

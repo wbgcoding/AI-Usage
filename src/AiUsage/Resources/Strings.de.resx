@@ -183,7 +183,6 @@
   <data name="Action.RefreshNow" xml:space="preserve"><value>Aktualisieren</value></data>
   <data name="Action.Cancel" xml:space="preserve"><value>Abbrechen</value></data>
   <data name="Tray.ShowHide" xml:space="preserve"><value>Einblenden/Ausblenden</value></data>
-  <data name="Tray.AlwaysOnTop" xml:space="preserve"><value>Immer im Vordergrund</value></data>
   <data name="Tray.Settings" xml:space="preserve"><value>Einstellungen</value></data>
   <data name="Tray.Stats" xml:space="preserve"><value>Tokenverbrauch</value></data>
   <data name="Tray.Exit" xml:space="preserve"><value>Beenden</value></data>
@@ -219,6 +218,11 @@
   <data name="Settings.Group.Tiles" xml:space="preserve"><value>Kacheln</value></data>
   <data name="Settings.Group.Chart" xml:space="preserve"><value>Diagramm</value></data>
   <data name="Settings.Group.Window" xml:space="preserve"><value>Fenster</value></data>
+  <data name="Settings.WindowLayer" xml:space="preserve"><value>Fensterebene</value></data>
+  <data name="WindowLayer.OnTop" xml:space="preserve"><value>Immer im Vordergrund</value></data>
+  <data name="WindowLayer.Normal" xml:space="preserve"><value>Normal</value></data>
+  <data name="WindowLayer.Desktop" xml:space="preserve"><value>Auf dem Desktop</value></data>
+  <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Liegt hinter allen Fenstern, sichtbar beim Blick auf den Desktop.</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Infobereich</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Design</value></data>
   <data name="Settings.Layout" xml:space="preserve"><value>Anordnung</value></data>
@@ -242,7 +246,6 @@
   <data name="Settings.RemoveAccount.HistoryFailed" xml:space="preserve"><value>Der Zugang ist entfernt, sein aufgezeichneter Verlauf ließ sich aber nicht löschen.</value></data>
   <data name="Settings.RemoveAccount.Failed" xml:space="preserve"><value>Der Zugang wurde nicht entfernt: seine Anmeldedateien ließen sich nicht löschen. Versuche es gleich noch einmal.</value></data>
   <data name="Settings.TileDensity" xml:space="preserve"><value>Kacheldichte</value></data>
-  <data name="Settings.AlwaysOnTop" xml:space="preserve"><value>Immer im Vordergrund</value></data>
   <data name="Settings.ClickThrough" xml:space="preserve"><value>Klicks durchlassen</value></data>
   <data name="Settings.ClickThroughHint" xml:space="preserve"><value>Solange das aktiv ist, nimmt das Widget keine Mausklicks an. Ausschalten lässt es sich über das Symbol im Infobereich.</value></data>
   <data name="Settings.ChartRange" xml:space="preserve"><value>Diagrammzeitraum</value></data>

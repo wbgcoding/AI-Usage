@@ -399,13 +399,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private bool isEmpty;
 
+    /// <summary>The window level (one of <see cref="WindowLayers"/>), persisted in <see
+    /// cref="Models.AppSettings.WindowLayer"/> - MainWindow alone applies it to the real window.</summary>
     [ObservableProperty]
-    private bool alwaysOnTop;
+    private string windowLayer = WindowLayers.Normal;
 
     /// <summary>The click-through overlay mode (persisted in <see
     /// cref="Models.AppSettings.ClickThrough"/>) - MainWindow alone applies the actual extended
-    /// window style and the always-on-top/opacity implications (<see cref="Services.ClickThroughPolicy"/>),
-    /// same split as <see cref="AlwaysOnTop"/>.</summary>
+    /// window style and the window-level/opacity implications (<see cref="Services.ClickThroughPolicy"/>),
+    /// same split as <see cref="WindowLayer"/>.</summary>
     [ObservableProperty]
     private bool clickThrough;
 
@@ -500,7 +502,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tileOrderMode = settings.TileOrderMode;
         heightAutomatic = CurrentSizes.Height is null;
         widthAutomatic = !CurrentSizes.WidthIsManual;
-        alwaysOnTop = settings.AlwaysOnTop;
+        windowLayer = WindowLayers.Normalize(settings.WindowLayer);
         clickThrough = settings.ClickThrough;
         hotkeyEnabled = settings.HotkeyEnabled;
         hotkeyText = settings.Hotkey;
@@ -1497,24 +1499,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public event EventHandler<bool>? WidthAutomaticChanged;
 
     /// <summary>
-    /// Single source of truth for the always-on-top option: both the tray menu checkbox and
-    /// the Settings window's own checkbox write here, and both are kept in sync via
-    /// <see cref="AlwaysOnTopChanged"/> - MainWindow is the only place that actually sets
-    /// Window.Topmost or the tray checkbox, so neither surface can ever drift from the other.
+    /// Single source of truth for the window level: the tray menu, the title bar menu and the
+    /// Settings window all write here, and all are kept in sync via <see cref="WindowLayerChanged"/> -
+    /// MainWindow is the only place that actually applies it to the window and the menus, so no
+    /// surface can ever drift from another.
     /// </summary>
-    partial void OnAlwaysOnTopChanged(bool value)
+    partial void OnWindowLayerChanged(string value)
     {
-        _settings.AlwaysOnTop = value;
+        _settings.WindowLayer = value;
         _settingsStore.RequestSave(_settings);
-        AlwaysOnTopChanged?.Invoke(this, value);
+        WindowLayerChanged?.Invoke(this, value);
     }
 
-    public event EventHandler<bool>? AlwaysOnTopChanged;
+    public event EventHandler<string>? WindowLayerChanged;
 
     /// <summary>Single source of truth for click-through: the tray checkbox, the Settings checkbox
     /// and the global hotkey (see MainWindow.WndProc) all write here, and MainWindow is the only
-    /// place that actually flips the extended window style or resolves the always-on-top/opacity
-    /// implications - same split as <see cref="OnAlwaysOnTopChanged"/>.</summary>
+    /// place that actually flips the extended window style or resolves the window-level/opacity
+    /// implications - same split as <see cref="OnWindowLayerChanged"/>.</summary>
     partial void OnClickThroughChanged(bool value)
     {
         _settings.ClickThrough = value;

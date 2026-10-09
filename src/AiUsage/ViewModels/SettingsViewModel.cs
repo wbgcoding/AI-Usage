@@ -79,6 +79,37 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<Choice<string>> ChartRangeChoices { get; } = [];
 
+    /// <summary>The window levels offered in the Window group, in the order they are listed.</summary>
+    public ObservableCollection<Choice<string>> WindowLayerChoices { get; } =
+    [
+        new("WindowLayer.OnTop", WindowLayers.OnTop),
+        new("WindowLayer.Normal", WindowLayers.Normal),
+        new("WindowLayer.Desktop", WindowLayers.Desktop),
+    ];
+
+    /// <summary>Same shape as <see cref="SelectedLayoutChoice"/>, for the window-level ComboBox.</summary>
+    public Choice<string>? SelectedWindowLayerChoice
+    {
+        get => WindowLayerChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null && value.Value != Main.WindowLayer)
+                Main.WindowLayer = value.Value;
+        }
+    }
+
+    /// <summary>Whether the "stays behind all windows" hint shows under the window-level picker.</summary>
+    public bool WindowLayerIsDesktop => Main.WindowLayer == WindowLayers.Desktop;
+
+    /// <summary>The tray, the title bar menu or click-through changed the level while this window is
+    /// open: the picker follows.</summary>
+    private void OnMainWindowLayerChanged(object? sender, string layer)
+    {
+        Choice.Select(WindowLayerChoices, layer);
+        OnPropertyChanged(nameof(SelectedWindowLayerChoice));
+        OnPropertyChanged(nameof(WindowLayerIsDesktop));
+    }
+
     public ObservableCollection<Choice<string>> LayoutChoices { get; } =
     [
         new("Layout.Vertical", "Vertical"),
@@ -474,6 +505,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         Choice.Select(LanguageChoices, settings.Language);
         Choice.Select(LayoutChoices, settings.Layout);
+        Choice.Select(WindowLayerChoices, Main.WindowLayer);
+        Main.WindowLayerChanged += OnMainWindowLayerChanged;
         Choice.Select(TileOrderChoices, settings.TileOrderMode);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
 
@@ -495,6 +528,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
         Main.Tiles.CollectionChanged -= OnTilesChanged;
+        Main.WindowLayerChanged -= OnMainWindowLayerChanged;
         UnwatchTileNames();
     }
 
@@ -617,6 +651,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         foreach (var choice in ChartRangeChoices)
             choice.RefreshLabel();
         foreach (var choice in LayoutChoices)
+            choice.RefreshLabel();
+        foreach (var choice in WindowLayerChoices)
             choice.RefreshLabel();
         foreach (var choice in TileOrderChoices)
             choice.RefreshLabel();
@@ -1237,7 +1273,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.RefreshSeconds = source.RefreshSeconds;
         _settings.RemoteRefreshMinutes = source.RemoteRefreshMinutes;
-        _settings.AlwaysOnTop = source.AlwaysOnTop;
+        _settings.WindowLayer = WindowLayers.Normalize(source.WindowLayer);
         _settings.Layout = source.Layout;
         _settings.TileOrderMode = source.TileOrderMode;
         _settings.Theme = source.Theme;
@@ -1290,7 +1326,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         SetLayout(_settings.Layout);
         SetTileOrder(_settings.TileOrderMode);
-        Main.AlwaysOnTop = _settings.AlwaysOnTop;
+        Main.WindowLayer = WindowLayers.Normalize(_settings.WindowLayer);
         Main.ClickThrough = _settings.ClickThrough;
         Main.ReloadTraySelection();
         Main.HotkeyEnabled = _settings.HotkeyEnabled;

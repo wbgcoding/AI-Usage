@@ -184,7 +184,6 @@
   <data name="Action.RefreshNow" xml:space="preserve"><value>Refresh</value></data>
   <data name="Action.Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="Tray.ShowHide" xml:space="preserve"><value>Show/Hide</value></data>
-  <data name="Tray.AlwaysOnTop" xml:space="preserve"><value>Always on top</value></data>
   <data name="Tray.Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="Tray.Stats" xml:space="preserve"><value>Token usage</value></data>
   <data name="Tray.Exit" xml:space="preserve"><value>Exit</value></data>
@@ -220,6 +219,11 @@
   <data name="Settings.Group.Tiles" xml:space="preserve"><value>Tiles</value></data>
   <data name="Settings.Group.Chart" xml:space="preserve"><value>Chart</value></data>
   <data name="Settings.Group.Window" xml:space="preserve"><value>Window</value></data>
+  <data name="Settings.WindowLayer" xml:space="preserve"><value>Window level</value></data>
+  <data name="WindowLayer.OnTop" xml:space="preserve"><value>Always on top</value></data>
+  <data name="WindowLayer.Normal" xml:space="preserve"><value>Normal</value></data>
+  <data name="WindowLayer.Desktop" xml:space="preserve"><value>On the desktop</value></data>
+  <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Stays behind all windows, visible when you look at the desktop.</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Notification area</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Theme</value></data>
   <data name="Settings.Layout" xml:space="preserve"><value>Layout</value></data>
@@ -243,7 +247,6 @@
   <data name="Settings.RemoveAccount.HistoryFailed" xml:space="preserve"><value>The account is removed, but its recorded history could not be deleted.</value></data>
   <data name="Settings.RemoveAccount.Failed" xml:space="preserve"><value>The account was not removed: its sign-in files could not be deleted. Try again in a moment.</value></data>
   <data name="Settings.TileDensity" xml:space="preserve"><value>Tile density</value></data>
-  <data name="Settings.AlwaysOnTop" xml:space="preserve"><value>Always on top</value></data>
   <data name="Settings.ClickThrough" xml:space="preserve"><value>Click-through</value></data>
   <data name="Settings.ClickThroughHint" xml:space="preserve"><value>While this is on, the widget ignores the mouse. Switch it off again from the tray icon.</value></data>
   <data name="Settings.ChartRange" xml:space="preserve"><value>Chart range</value></data>

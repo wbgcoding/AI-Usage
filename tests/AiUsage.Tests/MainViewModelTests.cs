@@ -2684,4 +2684,31 @@ public class MainViewModelTests : IDisposable
         Assert.Equal(SignInState.SignedIn, tile.SignInState);
         Assert.False(tile.ShowSignIn);
     }
+
+    [Fact]
+    public void TheWindowLevelStartsFromTheSettingAndAChangeIsStoredAndAnnounced()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        settings.WindowLayer = WindowLayers.Desktop;
+        var (vm, _, _) = Build(settings);
+        var announced = new List<string>();
+        vm.WindowLayerChanged += (_, layer) => announced.Add(layer);
+
+        Assert.Equal(WindowLayers.Desktop, vm.WindowLayer);
+
+        vm.WindowLayer = WindowLayers.OnTop;
+        vm.WindowLayer = WindowLayers.OnTop;
+
+        Assert.Equal(WindowLayers.OnTop, settings.WindowLayer);
+        Assert.Equal([WindowLayers.OnTop], announced);
+    }
+
+    [Fact]
+    public void ASettingWithoutAWindowLevelMeansANormalWindow()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+
+        Assert.Equal(WindowLayers.Normal, vm.WindowLayer);
+    }
 }

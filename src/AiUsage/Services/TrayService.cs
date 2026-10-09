@@ -81,7 +81,7 @@ public sealed class TrayService : IDisposable
     private readonly HwndSource _hwndSource;
     private readonly uint _taskbarCreatedMessage;
     private readonly ContextMenu _menu;
-    private readonly MenuItem _alwaysOnTopItem;
+    private readonly WindowLayerMenu _windowLayerMenu;
     private readonly MenuItem _clickThroughItem;
     private readonly MenuItem _showHideItem;
     private readonly MenuItem _refreshItem;
@@ -127,10 +127,10 @@ public sealed class TrayService : IDisposable
     public event EventHandler? StatsRequested;
     public event EventHandler? ResetPositionRequested;
     public event EventHandler? ExitRequested;
-    public event EventHandler<bool>? AlwaysOnTopChanged;
+    public event EventHandler<string>? WindowLayerChanged;
     public event EventHandler<bool>? ClickThroughChanged;
 
-    public TrayService(bool alwaysOnTop, bool clickThrough)
+    public TrayService(string windowLayer, bool clickThrough)
     {
         (_okIcon, _okIconStream) = LoadIcon("tray-ok.ico");
         (_warnIcon, _warnIconStream) = LoadIcon("tray-warn.ico");
@@ -152,19 +152,18 @@ public sealed class TrayService : IDisposable
         _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
         var loc = LocalizationService.Instance;
-        var parts = CreateMenu(alwaysOnTop, clickThrough, hotkeyShortcutText: null);
+        var parts = CreateMenu(windowLayer, clickThrough, hotkeyShortcutText: null);
         _menu = parts.Menu;
         _showHideItem = parts.ShowHide;
         _refreshItem = parts.Refresh;
-        _alwaysOnTopItem = parts.AlwaysOnTop;
+        _windowLayerMenu = parts.WindowLayer;
         _clickThroughItem = parts.ClickThrough;
         _settingsItem = parts.Settings;
         _statsItem = parts.Stats;
         _resetPositionItem = parts.ResetPosition;
         _exitItem = parts.Exit;
 
-        _alwaysOnTopItem.Checked += (_, _) => RaiseCheckChanged(AlwaysOnTopChanged, true);
-        _alwaysOnTopItem.Unchecked += (_, _) => RaiseCheckChanged(AlwaysOnTopChanged, false);
+        _windowLayerMenu.Chosen += (_, layer) => WindowLayerChanged?.Invoke(this, layer);
         _clickThroughItem.Checked += (_, _) => RaiseCheckChanged(ClickThroughChanged, true);
         _clickThroughItem.Unchecked += (_, _) => RaiseCheckChanged(ClickThroughChanged, false);
         _showHideItem.Click += (_, _) => ShowHideRequested?.Invoke(this, EventArgs.Empty);
@@ -192,7 +191,7 @@ public sealed class TrayService : IDisposable
     }
 
     /// <summary>Suppresses the Checked/Unchecked event while a caller-driven update
-    /// (<see cref="UpdateAlwaysOnTop"/>/<see cref="UpdateClickThrough"/>) sets the checkbox, so that
+    /// (<see cref="UpdateClickThrough"/>) sets the checkbox, so that
     /// update never loops back out as a fake user click.</summary>
     private void RaiseCheckChanged(EventHandler<bool>? handler, bool value)
     {
@@ -203,7 +202,7 @@ public sealed class TrayService : IDisposable
 
     private void RefreshMenuText() =>
         RefreshMenuText(
-            new MenuParts(_menu, _showHideItem, _refreshItem, _alwaysOnTopItem, _clickThroughItem,
+            new MenuParts(_menu, _showHideItem, _refreshItem, _windowLayerMenu, _clickThroughItem,
                 _settingsItem, _statsItem, _resetPositionItem, _exitItem),
             _hotkeyShortcutText);
 
@@ -213,7 +212,7 @@ public sealed class TrayService : IDisposable
         parts.ShowHide.Header = loc["Tray.ShowHide"];
         parts.ShowHide.InputGestureText = hotkeyShortcutText ?? "";
         parts.Refresh.Header = loc["Action.RefreshNow"];
-        parts.AlwaysOnTop.Header = loc["Tray.AlwaysOnTop"];
+        parts.WindowLayer.RefreshText();
         parts.ClickThrough.Header = loc["Tray.ClickThrough"];
         parts.Settings.Header = loc["Tray.Settings"];
         parts.Stats.Header = loc["Tray.Stats"];
@@ -222,22 +221,22 @@ public sealed class TrayService : IDisposable
     }
 
     private sealed record MenuParts(
-        ContextMenu Menu, MenuItem ShowHide, MenuItem Refresh, MenuItem AlwaysOnTop, MenuItem ClickThrough,
+        ContextMenu Menu, MenuItem ShowHide, MenuItem Refresh, WindowLayerMenu WindowLayer, MenuItem ClickThrough,
         MenuItem Settings, MenuItem Stats, MenuItem ResetPosition, MenuItem Exit);
 
     /// <summary>The right-click menu with its texts in the current language and the two check marks
     /// set, without any click handler. Separate from the constructor so a tool can draw the menu
     /// without creating a notify icon.</summary>
-    internal static ContextMenu BuildMenu(bool alwaysOnTop, bool clickThrough, string? hotkeyShortcutText) =>
-        CreateMenu(alwaysOnTop, clickThrough, hotkeyShortcutText).Menu;
+    internal static ContextMenu BuildMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText) =>
+        CreateMenu(windowLayer, clickThrough, hotkeyShortcutText).Menu;
 
-    private static MenuParts CreateMenu(bool alwaysOnTop, bool clickThrough, string? hotkeyShortcutText)
+    private static MenuParts CreateMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText)
     {
         var parts = new MenuParts(
             new ContextMenu(),
             new MenuItem(),
             new MenuItem(),
-            new MenuItem { IsCheckable = true, IsChecked = alwaysOnTop },
+            new WindowLayerMenu(windowLayer),
             new MenuItem { IsCheckable = true, IsChecked = clickThrough },
             new MenuItem(),
             new MenuItem(),
@@ -245,7 +244,7 @@ public sealed class TrayService : IDisposable
             new MenuItem());
         parts.Menu.Items.Add(parts.ShowHide);
         parts.Menu.Items.Add(parts.Refresh);
-        parts.Menu.Items.Add(parts.AlwaysOnTop);
+        parts.Menu.Items.Add(parts.WindowLayer.Header);
         parts.Menu.Items.Add(parts.ClickThrough);
         parts.Menu.Items.Add(parts.Settings);
         parts.Menu.Items.Add(parts.Stats);
@@ -299,9 +298,9 @@ public sealed class TrayService : IDisposable
         _menu.IsOpen = true;
     }
 
-    /// <summary>Keeps the tray checkbox in sync when the always-on-top option (Tray.AlwaysOnTop) was
-    /// changed from the Settings window instead of the tray menu itself.</summary>
-    public void UpdateAlwaysOnTop(bool value) => SetChecked(_alwaysOnTopItem, value);
+    /// <summary>Keeps the checked window level in sync when it was changed from the Settings window
+    /// or the title bar menu instead of the tray menu itself.</summary>
+    public void UpdateWindowLayer(string layer) => _windowLayerMenu.Select(layer);
 
     /// <summary>Keeps the tray checkbox in sync when click-through was changed from Settings or the
     /// global hotkey instead of the tray menu itself.</summary>

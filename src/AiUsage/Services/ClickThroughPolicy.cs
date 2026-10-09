@@ -1,11 +1,13 @@
+using AiUsage.Models;
+
 namespace AiUsage.Services;
 
-/// <summary>The corrected (ClickThrough, AlwaysOnTop, WindowOpacityPercent) triple after switching
+/// <summary>The corrected (ClickThrough, WindowLayer, WindowOpacityPercent) triple after switching
 /// click-through on or off. ClickThrough itself is always echoed back unchanged - it is the input
 /// that decides the other two, never something this policy itself would flip.</summary>
-public readonly record struct ClickThroughResolution(bool ClickThrough, bool AlwaysOnTop, double WindowOpacityPercent);
+public readonly record struct ClickThroughResolution(bool ClickThrough, string WindowLayer, double WindowOpacityPercent);
 
-/// <summary>Resolves the always-on-top/opacity side effects of switching click-through on or off.
+/// <summary>Resolves the window-level/opacity side effects of switching click-through on or off.
 /// One instance per window: it remembers, only for as long as click-through stays on, whichever
 /// opacity was active right before it was switched on, so switching it back off can put that value
 /// back. Stateful on purpose - see <see cref="Resolve"/> for why a call still counts as pure given
@@ -20,20 +22,20 @@ public sealed class ClickThroughPolicy
     private double? _opacityBeforeClickThrough;
     private double? _opacityLastAppliedForClickThrough;
 
-    /// <summary>Click-through implies always-on-top (an overlay hidden behind other windows is
+    /// <summary>Click-through implies the "on top" window level (an overlay hidden behind other windows is
     /// pointless) and implies an opacity below 100 (see <see cref="FallbackOpacityPercent"/>).
     /// Switching click-through back off restores whatever opacity was active right before it was
     /// switched on - unless <paramref name="opacity"/> no longer matches the value this policy set
     /// while click-through was on, which means the user changed it themselves in the meantime, so
     /// that later, explicit choice is kept instead.</summary>
-    public ClickThroughResolution Resolve(bool clickThrough, bool alwaysOnTop, double opacity)
+    public ClickThroughResolution Resolve(bool clickThrough, string windowLayer, double opacity)
     {
         if (clickThrough)
         {
             _opacityBeforeClickThrough ??= opacity;
             var resolvedOpacity = opacity >= 100 ? FallbackOpacityPercent : opacity;
             _opacityLastAppliedForClickThrough = resolvedOpacity;
-            return new ClickThroughResolution(clickThrough, AlwaysOnTop: true, resolvedOpacity);
+            return new ClickThroughResolution(clickThrough, WindowLayers.OnTop, resolvedOpacity);
         }
 
         var userChangedOpacityWhileClickThroughWasOn =
@@ -44,6 +46,6 @@ public sealed class ClickThroughPolicy
 
         _opacityBeforeClickThrough = null;
         _opacityLastAppliedForClickThrough = null;
-        return new ClickThroughResolution(clickThrough, alwaysOnTop, restoredOpacity);
+        return new ClickThroughResolution(clickThrough, windowLayer, restoredOpacity);
     }
 }
