@@ -17,6 +17,8 @@ public sealed class CodexUsageEndpoint : IWebUsageEndpoint
 
     public string Fetch(string path) => CodexDiscoveryScript.Fetch(path);
 
+    public string Fetch(string path, CachedAccountExtras cached) => CodexDiscoveryScript.Fetch(path, cached.Email is not null);
+
     public bool IsAllowedUsagePath(string? path) => CodexDiscoveryScript.IsAllowedUsagePath(path);
 
     public WebUsageResult ParseBody(string body)

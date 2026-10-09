@@ -17,6 +17,10 @@ public interface IWebUsageEndpoint
     /// never hand it an unvalidated value.</summary>
     string Fetch(string path);
 
+    /// <summary>The same read, leaving out the extra requests whose answers are already held (see
+    /// <see cref="CachedAccountExtras"/>). Providers without such extras read exactly as before.</summary>
+    string Fetch(string path, CachedAccountExtras cached) => Fetch(path);
+
     /// <summary>True only for one of this provider's own usage paths - the gate every cached or
     /// discovered path passes before it is stored or fetched again.</summary>
     bool IsAllowedUsagePath(string? path);

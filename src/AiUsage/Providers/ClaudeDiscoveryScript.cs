@@ -102,7 +102,7 @@ internal static class ClaudeDiscoveryScript
     /// organisation-then-candidates walk. Throws for any path outside <see
     /// cref="IsAllowedUsagePath"/>: the caller must never hand this an unvalidated value, because
     /// it runs inside a signed-in claude.ai session.</summary>
-    public static string Fetch(string path)
+    public static string Fetch(string path, bool planHeld = false)
     {
         if (!IsAllowedUsagePath(path))
             throw new ArgumentException("Path is not an allowed Claude usage endpoint.", nameof(path));
@@ -110,6 +110,8 @@ internal static class ClaudeDiscoveryScript
         // Belt and braces: the allow-list above is the real gate, and this serializes the value as
         // a proper JSON string literal so nothing in it can close the literal early even so.
         var pathJson = JsonSerializer.Serialize(path);
+        // The plan comes from a request of its own; while a recent answer is held the script leaves it out.
+        var planCall = planHeld ? "null" : "await readPlan()";
         return PlanFromOrgSnippet + $$"""
             (async () => {
                 try {
@@ -119,7 +121,7 @@ internal static class ClaudeDiscoveryScript
                     const ct = res.headers.get('content-type') || '';
                     const text = await res.text();
                     if (!res.ok) return {status: 'failed'};
-                    if (ct.includes('json')) return {status: 'ok', path: {{pathJson}}, body: text, plan: await readPlan()};
+                    if (ct.includes('json')) return {status: 'ok', path: {{pathJson}}, body: text, plan: {{planCall}}};
                     return {status: 'blocked'};
                 } catch (e) {
                     return {status: 'failed'};

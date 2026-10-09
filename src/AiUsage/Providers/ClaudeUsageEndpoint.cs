@@ -13,6 +13,8 @@ public sealed class ClaudeUsageEndpoint : IWebUsageEndpoint
 
     public string Fetch(string path) => ClaudeDiscoveryScript.Fetch(path);
 
+    public string Fetch(string path, CachedAccountExtras cached) => ClaudeDiscoveryScript.Fetch(path, cached.Plan is not null);
+
     public bool IsAllowedUsagePath(string? path) => ClaudeDiscoveryScript.IsAllowedUsagePath(path);
 
     public WebUsageResult ParseBody(string body)

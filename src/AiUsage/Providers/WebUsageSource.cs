@@ -38,6 +38,7 @@ public sealed class WebUsageSource
     private readonly Func<string, CancellationToken, Task<string>> _executeScript;
     private readonly IWebUsageEndpoint _endpoint;
     private readonly Action<string>? _log;
+    private readonly AccountExtrasCache _extras;
 
     /// <summary>Which provider this instance reads for - carried mainly so callers and future
     /// providers have one place to confirm which session a given instance belongs to.</summary>
@@ -56,8 +57,10 @@ public sealed class WebUsageSource
         WebSessionDescriptor descriptor,
         IWebUsageEndpoint endpoint,
         Func<string, CancellationToken, Task<string>> executeScript,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        TimeProvider? timeProvider = null)
     {
+        _extras = new AccountExtrasCache(timeProvider);
         Descriptor = descriptor;
         _executeScript = executeScript;
         _endpoint = endpoint;
@@ -78,7 +81,21 @@ public sealed class WebUsageSource
             }
             else
             {
-                var cached = await RunAsync(_endpoint.Fetch(cachedPath), ct);
+                var held = _extras.Current();
+                var (envelopeJson, (cached, _)) = await RunEnvelopeAsync(_endpoint.Fetch(cachedPath, held), ct);
+                switch (cached.Outcome)
+                {
+                    case WebUsageOutcome.NotSignedIn:
+                        _extras.Clear();
+                        break;
+                    case WebUsageOutcome.Ok:
+                        // What this read fetched is held from now on; what it left out comes from the hold.
+                        if (envelopeJson is not null)
+                            RememberExtras(envelopeJson);
+                        cached = cached with { AccountLabel = cached.AccountLabel ?? held.Email, PlanType = cached.PlanType ?? held.Plan };
+                        break;
+                }
+
                 if (cached.Outcome != WebUsageOutcome.Failed)
                     return cached;
             }
@@ -87,6 +104,8 @@ public sealed class WebUsageSource
             // this app ever being told.
         }
 
+        // A discovery starts over: whatever was held may belong to a session that has changed.
+        _extras.Clear();
         var (result, discoveredPath) = await RunDiscoveryAsync(ct);
         if (result.Outcome == WebUsageOutcome.Ok && discoveredPath is not null)
         {
@@ -96,10 +115,40 @@ public sealed class WebUsageSource
         return result;
     }
 
-    private async Task<WebUsageResult> RunAsync(string script, CancellationToken ct)
+    private void RememberExtras(string envelopeJson)
     {
-        var (result, _) = await RunWithPathAsync(script, ct);
-        return result;
+        try
+        {
+            using var document = JsonDocument.Parse(envelopeJson);
+            var root = document.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+                _extras.Store(ReadPlan(root), ReadAccountLabel(root), ReadGrokBot(root));
+        }
+        catch (JsonException)
+        {
+        }
+    }
+
+    /// <summary>The Grok Bot answer a Cursor read fetched, rebuilt from its two values so that what is
+    /// held (and later written back into a script) is a JSON object this app made, never page text:
+    /// a finite percentage, and a reset that is a short string or a finite number.</summary>
+    private static string? ReadGrokBot(JsonElement root)
+    {
+        if (!root.TryGetProperty("grokBot", out var grokBot) || grokBot.ValueKind != JsonValueKind.Object
+            || !grokBot.TryGetProperty("usagePercent", out var percentEl) || percentEl.ValueKind != JsonValueKind.Number
+            || !percentEl.TryGetDouble(out var percent) || !double.IsFinite(percent))
+            return null;
+
+        object? reset = null;
+        if (grokBot.TryGetProperty("nextResetTimestampUtc", out var resetEl))
+        {
+            if (resetEl.ValueKind == JsonValueKind.String && resetEl.GetString() is { Length: <= 64 } text)
+                reset = text;
+            else if (resetEl.ValueKind == JsonValueKind.Number && resetEl.TryGetDouble(out var number) && double.IsFinite(number))
+                reset = number;
+        }
+
+        return JsonSerializer.Serialize(new Dictionary<string, object?> { ["usagePercent"] = percent, ["nextResetTimestampUtc"] = reset });
     }
 
     private async Task<(WebUsageResult Result, string? Path)> RunDiscoveryAsync(CancellationToken ct)

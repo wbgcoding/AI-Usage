@@ -62,6 +62,16 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
     // untouched - the summary itself still counts even when this extra read does not answer. Copies
     // only the two fields the parser reads, never the upgrade links the endpoint also carries.
     private const string MergeGrokBotFunction = """
+        let freshGrokBot = null;
+        const applyGrokBot = (text, grokBot) => {
+            try {
+                const s = JSON.parse(text);
+                s.grokBot = grokBot;
+                return JSON.stringify(s);
+            } catch (e) {
+                return text;
+            }
+        };
         const mergeGrokBot = async (text) => {
             try {
                 const gRes = await fetch('/api/dashboard/get-sand-usage-status', {
@@ -75,6 +85,7 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
                 const g = await gRes.json();
                 const s = JSON.parse(text);
                 s.grokBot = {usagePercent: g.usagePercent, nextResetTimestampUtc: g.nextResetTimestampUtc};
+                freshGrokBot = s.grokBot;
                 return JSON.stringify(s);
             } catch (e) {
                 return text;
@@ -133,7 +144,10 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
     /// read plus the whole candidate walk. Throws for any path outside <see
     /// cref="IsAllowedUsagePath"/>: the caller must never hand this an unvalidated value, because it
     /// runs inside a signed-in cursor.com session.</summary>
-    public static string Fetch(string path)
+    /// <param name="emailHeld">True while a recent e-mail answer is held: the script leaves that request out.</param>
+    /// <param name="grokBotJson">A held Grok Bot answer as a JSON object the app wrote itself (never page
+    /// text), merged in place of a request; null asks the site.</param>
+    public static string Fetch(string path, bool emailHeld = false, string? grokBotJson = null)
     {
         if (!IsAllowedUsagePath(path))
             throw new ArgumentException("Path is not an allowed Cursor usage endpoint.", nameof(path));
@@ -143,7 +157,10 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
         var pathJson = JsonSerializer.Serialize(path);
         // path is fixed at this point (already validated above), so whether to merge the Grok Bot
         // read is decided here rather than by a runtime check in the generated script.
-        var mergeCall = path == "/api/usage-summary" ? "await mergeGrokBot(text)" : "text";
+        var mergeCall = path != "/api/usage-summary"
+            ? "text"
+            : grokBotJson is null ? "await mergeGrokBot(text)" : $"applyGrokBot(text, {grokBotJson})";
+        var emailCall = emailHeld ? "null" : "await readEmail()";
         return $$"""
             (async () => {
                 {{MergeGrokBotFunction}}
@@ -169,8 +186,8 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
                     const ct = res.headers.get('content-type') || '';
                     const text = await res.text();
                     if (!ct.includes('json')) return {status: 'blocked'};
-                    const email = await readEmail();
-                    return {status: 'ok', path: {{pathJson}}, body: {{mergeCall}}, email: email};
+                    const email = {{emailCall}};
+                    return {status: 'ok', path: {{pathJson}}, body: {{mergeCall}}, email: email, grokBot: freshGrokBot};
                 } catch (e) {
                     return {status: 'failed'};
                 }
@@ -181,6 +198,9 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
     string IWebUsageEndpoint.Discover() => Discover();
 
     string IWebUsageEndpoint.Fetch(string path) => Fetch(path);
+
+    string IWebUsageEndpoint.Fetch(string path, CachedAccountExtras cached) =>
+        Fetch(path, cached.Email is not null, cached.GrokBotJson);
 
     bool IWebUsageEndpoint.IsAllowedUsagePath(string? path) => IsAllowedUsagePath(path);
 
