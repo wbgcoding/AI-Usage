@@ -349,20 +349,30 @@ begin
     Result := 'x64';
 end;
 
-{ Whether one registry view lists a 10.x version under the runtime key. }
+{ Whether one registry view lists a 10.x version under the runtime key AND that version is still
+  on disk. The listing alone is not enough: uninstalling the runtime leaves its version values
+  behind, so a PC without the runtime can still list it. The folder is looked up under the install
+  location the installers record, or the standard one when none is recorded. }
 function RuntimeListedIn(Root: Integer): Boolean;
 var
   Names: TArrayOfString;
+  Location: String;
   I: Integer;
 begin
   Result := False;
-  if RegGetValueNames(Root, RuntimeKeyRoot + RuntimeArch + RuntimeKeyTail, Names) then
-    for I := 0 to GetArrayLength(Names) - 1 do
-      if Copy(Names[I], 1, 3) = '10.' then
-      begin
-        Result := True;
-        Exit;
-      end;
+  if not RegGetValueNames(Root, RuntimeKeyRoot + RuntimeArch + RuntimeKeyTail, Names) then
+    Exit;
+  if not RegQueryStringValue(Root, RuntimeKeyRoot + RuntimeArch, 'InstallLocation', Location)
+     or (Location = '') then
+    Location := ExpandConstant('{commonpf64}\dotnet');
+
+  for I := 0 to GetArrayLength(Names) - 1 do
+    if (Copy(Names[I], 1, 3) = '10.')
+       and DirExists(AddBackslash(Location) + 'shared\Microsoft.WindowsDesktop.App\' + Names[I]) then
+    begin
+      Result := True;
+      Exit;
+    end;
 end;
 
 { Whether a .NET 10 Desktop Runtime for this processor type is installed. Microsoft's installers
@@ -387,7 +397,7 @@ begin
   Script := ExpandConstant('{tmp}\RuntimeSetup.ps1');
   LogPath := ExpandConstant('{tmp}\runtime-setup.log');
   Parameters :=
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + Script + '"' +
+    '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + Script + '"' +
     ' -Url "' + RuntimeUrlBase + RuntimeArch + '.exe"' +
     ' -Folder "' + ExpandConstant('{tmp}') + '"' +
     ' -LogFile "' + LogPath + '"';

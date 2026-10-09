@@ -174,6 +174,7 @@ public class RuntimeSetupScriptTests
         Assert.Contains(@"\sharedfx\Microsoft.WindowsDesktop.App", text);
         Assert.Contains("https://aka.ms/dotnet/10.0/windowsdesktop-runtime-win-", text);
         Assert.Contains("HKLM32", text);
+        Assert.Contains(@"shared\Microsoft.WindowsDesktop.App\", text);
         Assert.Contains("function PrepareToInstall(var NeedsRestart: Boolean): String;", text);
         Assert.Contains("function ShouldSkipPage(PageID: Integer): Boolean;", text);
         Assert.Contains("Source: \"RuntimeSetup.ps1\"; Flags: dontcopy", text);
