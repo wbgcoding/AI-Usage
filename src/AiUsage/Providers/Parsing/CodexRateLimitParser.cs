@@ -1,4 +1,5 @@
 using System.Text.Json;
+using static AiUsage.Providers.Parsing.JsonReading;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -93,24 +94,6 @@ public static class CodexRateLimitParser
         value = null;
         return false;
     }
-
-    /// <summary>A missing property and an explicit JSON null both mean "no block here".</summary>
-    private static JsonElement? TryGetObject(JsonElement parent, string propertyName) =>
-        parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Object
-            ? value
-            : null;
-
-    private static double? TryGetDouble(JsonElement? element, string propertyName) =>
-        element is { } parent && parent.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
-            ? value
-            : null;
-
-    private static int? TryGetInt32(JsonElement? element, string propertyName) =>
-        element is { } parent && parent.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var value)
-            ? value
-            : null;
 
     // "info" is null on some lines (e.g. no usage measured yet); "total_token_usage" can be an
     // empty object early in a session. Both are "not measured", not zero - the tile must be able

@@ -113,7 +113,7 @@ public class CursorDiscoveryScriptTests
     [Fact]
     public void Implements_the_web_usage_endpoint_contract_through_the_interface()
     {
-        IWebUsageEndpoint endpoint = new CursorDiscoveryScript();
+        IWebUsageEndpoint endpoint = new CursorUsageEndpoint();
 
         Assert.Equal(CursorDiscoveryScript.Discover(), endpoint.Discover());
         Assert.True(endpoint.IsAllowedUsagePath(CursorDiscoveryScript.CandidatePaths[2]));

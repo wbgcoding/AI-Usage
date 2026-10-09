@@ -303,7 +303,12 @@ public class TokenSafetyTests
         Assert.Contains("ClaudeConfigRoot.", text, StringComparison.Ordinal);
         Assert.Contains("\".claude\"", claudeRoot, StringComparison.Ordinal);
         Assert.Contains("\"projects\"", claudeRoot, StringComparison.Ordinal);
-        Assert.Contains("\".codex\", \"sessions\"", text, StringComparison.Ordinal);
+        var codexPaths = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/AiUsage/Providers/CodexPaths.cs"));
+        Assert.Contains("CodexPaths.Sessions", text, StringComparison.Ordinal);
+        Assert.Contains("CodexPaths.ArchivedSessions", text, StringComparison.Ordinal);
+        Assert.Contains("\".codex\"", codexPaths, StringComparison.Ordinal);
+        Assert.Contains("\"sessions\"", codexPaths, StringComparison.Ordinal);
+        Assert.Contains("\"archived_sessions\"", codexPaths, StringComparison.Ordinal);
     }
 
     // Settings.SignOut disconnects only this app - it must never sign the user out of

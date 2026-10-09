@@ -7,12 +7,15 @@ namespace AiUsage.Services;
 /// </summary>
 public static class ProviderLinks
 {
+    // The web-backed providers open the very address their session descriptor names (Claude's names the
+    // site root, so its usage page hangs off that); only Copilot, which has no web session, is spelled
+    // out here.
     private static readonly IReadOnlyDictionary<string, Uri> UsagePages = new Dictionary<string, Uri>
     {
-        ["claude"] = new Uri("https://claude.ai/settings/usage"),
-        ["codex"] = new Uri("https://chatgpt.com/codex/settings/usage"),
-        ["cursor"] = new Uri("https://cursor.com/dashboard/usage"),
-        ["gemini"] = new Uri("https://aistudio.google.com/usage"),
+        ["claude"] = new Uri(new Uri(ProviderRegistry.WebSessionFor("claude").BaseUrl), "settings/usage"),
+        ["codex"] = new Uri(ProviderRegistry.CodexWebSession.BaseUrl),
+        ["cursor"] = new Uri(ProviderRegistry.CursorWebSession.BaseUrl),
+        ["gemini"] = new Uri(ProviderRegistry.GeminiWebSession.BaseUrl),
         ["copilot"] = new Uri("https://github.com/settings/copilot"),
     };
 

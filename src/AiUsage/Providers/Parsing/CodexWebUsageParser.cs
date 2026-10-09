@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiUsage.Models;
+using static AiUsage.Providers.Parsing.JsonReading;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -96,9 +97,8 @@ public static class CodexWebUsageParser
     {
         if ((TryGetInt64(window, "resets_at") ?? TryGetInt64(window, "reset_at")) is { } unixTime)
         {
-            // Same seconds/milliseconds split as the other parsers: nothing in this century is a
-            // twelve-digit second count, and an out-of-range number reads as no reset, never a throw.
-            var instant = UnixTimeConversion.FromUnixSecondsOrNull(unixTime >= 100_000_000_000 ? unixTime / 1000 : unixTime);
+            // An out-of-range number reads as no reset, never a throw.
+            var instant = UnixTimeConversion.FromUnixSecondsOrMillisecondsOrNull(unixTime);
             return instant is { } value && value > now ? UnixTimeConversion.PlausibleOrNull(value) : null;
         }
 
@@ -109,27 +109,4 @@ public static class CodexWebUsageParser
 
         return null;
     }
-
-    private static JsonElement? TryGetObject(JsonElement parent, string propertyName) =>
-        parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Object
-            ? value
-            : null;
-
-    private static double? TryGetDouble(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
-            ? value
-            : null;
-
-    private static int? TryGetInt32(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var value)
-            ? value
-            : null;
-
-    private static long? TryGetInt64(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetInt64(out var value)
-            ? value
-            : null;
 }

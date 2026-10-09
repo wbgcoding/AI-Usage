@@ -172,10 +172,8 @@ public static class ClaudeUsageParser
 
             if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var rawNumber))
             {
-                // A mixed API-version fleet may hand back milliseconds instead of seconds; a value
-                // this large can never be a plausible seconds count, so treat it as milliseconds.
-                var seconds = rawNumber >= 100_000_000_000 ? rawNumber / 1000 : rawNumber;
-                var converted = UnixTimeConversion.FromUnixSecondsOrNull(seconds);
+                // A mixed API-version fleet may hand back milliseconds instead of seconds.
+                var converted = UnixTimeConversion.FromUnixSecondsOrMillisecondsOrNull(rawNumber);
                 return converted is { } instant ? UnixTimeConversion.PlausibleOrNull(instant) : null;
             }
         }

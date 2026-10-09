@@ -191,7 +191,7 @@ public class AccountExtrasCacheTests
         var clock = new TestClock(Start);
         var scripts = new List<string>();
         var source = new WebUsageSource(
-            DescriptorFor("cursor", "cursor.com"), new CursorDiscoveryScript(),
+            DescriptorFor("cursor", "cursor.com"), new CursorUsageEndpoint(),
             (script, _) =>
             {
                 scripts.Add(script);
@@ -225,7 +225,7 @@ public class AccountExtrasCacheTests
         var scripts = new List<string>();
         var grokBot = JsonSerializer.Deserialize<JsonElement>(grokBotJson);
         var source = new WebUsageSource(
-            DescriptorFor("cursor", "cursor.com"), new CursorDiscoveryScript(),
+            DescriptorFor("cursor", "cursor.com"), new CursorUsageEndpoint(),
             (script, _) =>
             {
                 scripts.Add(script);

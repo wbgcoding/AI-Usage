@@ -64,7 +64,7 @@ public sealed class CopilotProvider : IUsageProvider
     // sessions, a further Copilot account costs no new sign-in at all.
     public bool SupportsMultipleAccounts => true;
 
-    public TimeSpan? MinRefreshInterval => TimeSpan.FromMinutes(5);
+    public TimeSpan? MinRefreshInterval => ProviderRegistry.RemoteReadFloor;
 
     public IReadOnlyList<string> ReadLocations => [LocalizationService.Instance["About.ReadLocationGitHubCli"]];
 
@@ -76,7 +76,7 @@ public sealed class CopilotProvider : IUsageProvider
         // Copilot has exactly one source (the GitHub CLI's own sign-in), so the chooser has nothing
         // to pick between - wrapping the single result still routes it through the same rule every
         // other provider follows, rather than a source-specific exception.
-        return SnapshotChooser.Pick([BuildSnapshot(result, fetchedAt)]);
+        return BuildSnapshot(result, fetchedAt);
     }
 
     private ProviderSnapshot BuildSnapshot(CopilotFetch result, DateTimeOffset fetchedAt)

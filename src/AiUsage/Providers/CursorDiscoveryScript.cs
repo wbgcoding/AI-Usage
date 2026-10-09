@@ -1,19 +1,17 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using AiUsage.Providers.Parsing;
 
 namespace AiUsage.Providers;
 
 /// <summary>
 /// The JavaScript run inside the widget's own hidden, signed-in cursor.com session (see
-/// Web/WebViewHost.cs) to find and then read Cursor's usage endpoint, plus this provider's own half
-/// of <see cref="IWebUsageEndpoint"/> - the role <see cref="CodexUsageEndpoint"/> plays for Codex,
-/// kept in one file here because nothing else needs the scripts on their own. <see cref="Discover"/>
-/// reads the signed-in account id once, then walks a short list of candidate addresses and
-/// remembers the first whose answer parses - a wrong guess here costs one request, never a wrong
-/// number.
+/// Web/WebViewHost.cs) to find and then read Cursor's usage endpoint; <see cref="CursorUsageEndpoint"/>
+/// is its half of <see cref="IWebUsageEndpoint"/>, as <see cref="CodexUsageEndpoint"/> is Codex's.
+/// <see cref="Discover"/> reads the signed-in account id once, then walks a short list of candidate
+/// addresses and remembers the first whose answer parses - a wrong guess here costs one request,
+/// never a wrong number.
 /// </summary>
-public sealed class CursorDiscoveryScript : IWebUsageEndpoint
+internal static class CursorDiscoveryScript
 {
     // {0} is the account id read from /api/auth/me's "sub" field. The usage summary comes first: it
     // carries the plan's spend against its monthly allowance, which every current plan is billed
@@ -193,22 +191,5 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
                 }
             })()
             """;
-    }
-
-    string IWebUsageEndpoint.Discover() => Discover();
-
-    string IWebUsageEndpoint.Fetch(string path) => Fetch(path);
-
-    string IWebUsageEndpoint.Fetch(string path, CachedAccountExtras cached) =>
-        Fetch(path, cached.Email is not null, cached.GrokBotJson);
-
-    bool IWebUsageEndpoint.IsAllowedUsagePath(string? path) => IsAllowedUsagePath(path);
-
-    public WebUsageResult ParseBody(string body)
-    {
-        var windows = CursorUsageParser.Parse(body);
-        return windows.Count == 0
-            ? WebUsageResult.Failed
-            : new WebUsageResult(WebUsageOutcome.Ok, windows, PlanType: CursorUsageParser.ParsePlan(body));
     }
 }

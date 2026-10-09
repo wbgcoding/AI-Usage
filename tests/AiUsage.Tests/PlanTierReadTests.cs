@@ -158,7 +158,7 @@ public class PlanTierReadTests
             """;
 
         Assert.Equal("pro", CursorUsageParser.ParsePlan(body));
-        Assert.Equal("pro", new CursorDiscoveryScript().ParseBody(body).PlanType);
+        Assert.Equal("pro", new CursorUsageEndpoint().ParseBody(body).PlanType);
         Assert.Equal("Pro", Header("cursor", "Cursor", CursorUsageParser.ParsePlan(body)));
     }
 

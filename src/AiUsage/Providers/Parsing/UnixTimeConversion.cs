@@ -17,6 +17,12 @@ internal static class UnixTimeConversion
         }
     }
 
+    /// <summary>An epoch count that may be in seconds or in milliseconds: nothing in this century is a
+    /// twelve-digit second count, so the length tells them apart. Null when the result is out of
+    /// range.</summary>
+    internal static DateTimeOffset? FromUnixSecondsOrMillisecondsOrNull(long value) =>
+        FromUnixSecondsOrNull(value >= 100_000_000_000 ? value / 1000 : value);
+
     /// <summary>Null instead of the value itself when it falls more than 400 days from now - far
     /// enough that a seconds/milliseconds unit mix-up can never slip through as a valid-looking but
     /// wildly wrong countdown.</summary>

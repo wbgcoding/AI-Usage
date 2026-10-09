@@ -155,13 +155,13 @@ public sealed class ClaudeProvider : IUsageProvider
         get
         {
             if (_settings is null)
-                return _localLogin is not null ? TimeSpan.FromMinutes(5) : null;
+                return _localLogin is not null ? ProviderRegistry.RemoteReadFloor : null;
 
             var settingsFloor = TimeSpan.FromMinutes(SettingsRanges.ClampRemoteRefreshMinutes(_settings.RemoteRefreshMinutes));
             if (_webSource is null)
                 return settingsFloor;
 
-            var webFloor = TimeSpan.FromMinutes(5);
+            var webFloor = ProviderRegistry.RemoteReadFloor;
             return settingsFloor > webFloor ? settingsFloor : webFloor;
         }
     }

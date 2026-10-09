@@ -116,11 +116,9 @@ public sealed class StatsIndexer
     internal static List<string> ClaudeProjectsRootsFor(string? configDirValue, string userProfile) =>
         ClaudeConfigRoot.ExistingProjectsRoots(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
 
-    private static string DefaultCodexSessionsRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex", "sessions");
+    private static string DefaultCodexSessionsRoot => Providers.CodexPaths.Sessions;
 
-    private static string DefaultCodexArchivedRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex", "archived_sessions");
+    private static string DefaultCodexArchivedRoot => Providers.CodexPaths.ArchivedSessions;
 
     public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default)
     {

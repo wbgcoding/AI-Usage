@@ -16,28 +16,12 @@ namespace AiUsage.Providers;
 /// </summary>
 public sealed class GeminiProvider : IUsageProvider
 {
-    // One browser read per this span, however often the tile ticks: a page load in the hidden
-    // session is the expensive part, not re-reading the CLI's own local sign-in.
-    private static readonly TimeSpan WebReadInterval = TimeSpan.FromMinutes(5);
-
-    // After a discovery walk that found no usable address, the page is left alone this long: asking
-    // every candidate again every few minutes would only repeat the same answers.
-    internal static readonly TimeSpan FailedDiscoveryPause = TimeSpan.FromMinutes(30);
-
     private readonly Func<CancellationToken, Task<AntigravityUsage>>? _read;
     private readonly Func<DateTimeOffset> _now;
     private readonly WebUsageSource? _webSource;
-    private readonly AppSettings? _settings;
-    private readonly Action<AppSettings>? _saveSettings;
+    private readonly ThrottledWebReader? _webReader;
     private readonly string _accountKey;
     private readonly Func<string?> _readAccountLabel;
-
-    private ProviderSnapshot? _lastWebSnapshot;
-    private DateTimeOffset? _lastWebReadAt;
-    private DateTimeOffset? _discoveryPausedUntil;
-    private int _signInCompleted;
-    private bool? _webSessionSignedIn;
-    private string? _lastWebAccountLabel;
 
     public GeminiProvider() : this(AntigravityLocalLogin.FetchAsync, now: null)
     {
@@ -74,9 +58,9 @@ public sealed class GeminiProvider : IUsageProvider
         _read = fetch;
         _now = now ?? (() => DateTimeOffset.Now);
         _webSource = webSource;
-        _settings = settings;
-        _saveSettings = saveSettings;
         _accountKey = accountKey ?? Id;
+        if (webSource is not null && settings is not null && saveSettings is not null)
+            _webReader = new ThrottledWebReader(_accountKey, webSource, settings, saveSettings, showsReportedPlan: false, pausesAfterFailedDiscovery: true);
         // Only the primary account owns the CLI's own sign-in, so only it may take that account's
         // address; a further, web-only account names itself through its own web read or not at all.
         _readAccountLabel = readAccountLabel ?? (fetch is not null ? GeminiAccountLabelReader.Read : () => null);
@@ -98,7 +82,7 @@ public sealed class GeminiProvider : IUsageProvider
 
     /// <summary>A sign-in just finished: the cached answer from before it (usually "not signed in")
     /// must not stand for the rest of the throttle interval.</summary>
-    public void SignInCompleted() => Interlocked.Exchange(ref _signInCompleted, 1);
+    public void SignInCompleted() => _webReader?.SignInCompleted();
 
     // The web read below marshals its own work onto the WebView2 thread it owns and expects to start
     // on the calling thread, so with a web session the fetch stays on the UI thread. The local read
@@ -108,7 +92,7 @@ public sealed class GeminiProvider : IUsageProvider
 
     // Two lightweight reads against a remote endpoint - hold to the same web-session floor Claude
     // uses rather than the local-file default, so it is not polled every tick.
-    public TimeSpan? MinRefreshInterval => TimeSpan.FromMinutes(5);
+    public TimeSpan? MinRefreshInterval => ProviderRegistry.RemoteReadFloor;
 
     // Only the primary account (the one with the Antigravity CLI's own local sign-in) can hold a
     // further, web-only account - that further account can never itself sprout a third layer.
@@ -134,16 +118,16 @@ public sealed class GeminiProvider : IUsageProvider
         {
             var webOnly = await ReadWebAsync(fetchedAt, ct);
             return webOnly is not null
-                ? SnapshotChooser.Pick([webOnly]) with
+                ? webOnly with
                 {
-                    WebSessionSignedIn = _webSessionSignedIn,
-                    AccountLabel = webOnly.AccountLabel ?? _lastWebAccountLabel,
+                    WebSessionSignedIn = _webReader?.SessionSignedIn,
+                    AccountLabel = webOnly.AccountLabel ?? _webReader?.LastAccountLabel,
                 }
                 : new ProviderSnapshot(
                     ProviderId: AccountKey, Windows: [], PlanType: null, SourceKind: SourceKind.None,
                     FetchedAt: fetchedAt, DataTimestamp: null,
-                    Status: _webSessionSignedIn == false ? ProviderStatus.NotSignedIn : ProviderStatus.Failed,
-                    Error: null, WebSessionSignedIn: _webSessionSignedIn);
+                    Status: _webReader?.SessionSignedIn == false ? ProviderStatus.NotSignedIn : ProviderStatus.Failed,
+                    Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn);
         }
 
         var readLocal = _read;
@@ -151,7 +135,7 @@ public sealed class GeminiProvider : IUsageProvider
         var local = BuildSnapshot(usage, fetchedAt);
 
         if (_webSource is null)
-            return await WithAccountLabelAsync(SnapshotChooser.Pick([local]));
+            return await WithAccountLabelAsync(local);
 
         var web = await ReadWebAsync(fetchedAt, ct);
 
@@ -164,7 +148,7 @@ public sealed class GeminiProvider : IUsageProvider
         // The sign-in state belongs to the browser session, not to whichever source happened to win:
         // the local sign-in answers perfectly well while the session is signed out, and the tile
         // still has to be able to offer the sign-in that makes the numbers live.
-        return (await WithAccountLabelAsync(chosen)) with { WebSessionSignedIn = _webSessionSignedIn };
+        return (await WithAccountLabelAsync(chosen)) with { WebSessionSignedIn = _webReader?.SessionSignedIn };
     }
 
     /// <summary>The account's address does not depend on which source won the numbers: whichever
@@ -172,78 +156,17 @@ public sealed class GeminiProvider : IUsageProvider
     /// its active account.</summary>
     private async Task<ProviderSnapshot> WithAccountLabelAsync(ProviderSnapshot chosen)
     {
-        var label = chosen.AccountLabel ?? _lastWebAccountLabel;
+        var label = chosen.AccountLabel ?? _webReader?.LastAccountLabel;
         // The CLI record is a file read: only taken when nothing else named the account, and off the UI thread.
         label ??= await Task.Run(_readAccountLabel);
         return chosen with { AccountLabel = label };
     }
 
-    /// <summary>The web read, throttled to <see cref="WebReadInterval"/>: in between, the snapshot
+    /// <summary>The web read, throttled (see <see cref="ThrottledWebReader"/>): in between, the snapshot
     /// from the last real read is offered again, so the cheap local read can keep ticking at the
     /// scheduler's own pace without paying for a page load every time.</summary>
-    private async Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct)
-    {
-        if (_webSource is null || _settings is null || _saveSettings is null)
-            return null;
-
-        // Nothing was ever signed in here: starting a browser session would cost a whole WebView2
-        // process and a request to the provider's site for a user who may never want that route at
-        // all. Reporting "signed out" without asking is both honest and free - it is exactly what the
-        // tile needs to offer the sign-in, and the moment that sign-in happens the profile folder
-        // exists and the read below starts.
-        if (!Directory.Exists(WebViewHost.ResolveUserDataFolder(_webSource.Descriptor.ProfileFolderName)))
-        {
-            _webSessionSignedIn = false;
-            return null;
-        }
-
-        // Taken here, before the read, so a sign-in finishing while a read is already running still
-        // counts for the next one.
-        var signInJustCompleted = Interlocked.Exchange(ref _signInCompleted, 0) == 1;
-        if (signInJustCompleted)
-            _discoveryPausedUntil = null;
-        if (_discoveryPausedUntil is { } pausedUntil && fetchedAt < pausedUntil)
-            return null;
-        if (!signInJustCompleted && _lastWebReadAt is { } lastReadAt && fetchedAt - lastReadAt < WebReadInterval)
-            return _lastWebSnapshot is { } cached
-                ? ProviderSnapshots.ExpirePastWindows(cached, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
-                : null;
-
-        WebUsageResult result;
-        try
-        {
-            result = await _webSource.FetchAsync(_settings, _saveSettings, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            if (signInJustCompleted)
-                Interlocked.Exchange(ref _signInCompleted, 1);
-            // Cancelled mid-read (a refresh cut short, a sign-out, shutdown): the local snapshot this
-            // tick already produced still stands, and the next tick may read the web again - the
-            // throttle below is deliberately not advanced for a read that never finished.
-            return null;
-        }
-
-        _lastWebReadAt = fetchedAt;
-
-        // A walk that ended without a usable address while the machine is online: the next tries wait.
-        // Offline says nothing about the page, so it never starts the pause.
-        if (result.Outcome == WebUsageOutcome.Failed && !result.SessionSignedIn && NetworkStatus.HasInternet())
-            _discoveryPausedUntil = fetchedAt + FailedDiscoveryPause;
-        else if (result.Outcome != WebUsageOutcome.Failed)
-            _discoveryPausedUntil = null;
-
-        if (result.AccountLabel is { } webLabel)
-            _lastWebAccountLabel = webLabel;
-
-        _webSessionSignedIn = ProviderSnapshots.SessionSignedIn(result, _webSessionSignedIn);
-
-        _lastWebSnapshot = result.Outcome == WebUsageOutcome.Ok && result.Windows.Count > 0
-            ? ProviderSnapshots.FromWeb(AccountKey, result, fetchedAt, planType: null)
-            : null;
-
-        return _lastWebSnapshot;
-    }
+    private Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
+        _webReader is null ? Task.FromResult<ProviderSnapshot?>(null) : _webReader.ReadAsync(fetchedAt, ct);
 
     private ProviderSnapshot BuildSnapshot(AntigravityUsage usage, DateTimeOffset fetchedAt)
     {

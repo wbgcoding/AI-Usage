@@ -14,7 +14,7 @@ public static class ProviderCoverage
 
     /// <summary>All five providers this app knows, in the order the statistics window lists them -
     /// same order the main tile list itself uses (Claude, Codex, Cursor, Gemini, Copilot).</summary>
-    public static readonly IReadOnlyList<string> AllProviderIds = ["claude", "codex", "cursor", "gemini", "copilot"];
+    public static readonly IReadOnlyList<string> AllProviderIds = Models.AppSettings.KnownProviderIds;
 
     /// <summary>True for a provider <see cref="StatsIndexer"/> can ever have written a row for.</summary>
     public static bool HasLocalTokenData(string providerId) => IndexedProviderIds.Contains(providerId);

@@ -28,10 +28,6 @@ public sealed partial class CodexProvider : IUsageProvider
 
     private static readonly TimeSpan OldestFileToOpen = SessionLineAge.MaxAge;
 
-    // One browser read per this span, however often the tile ticks: the session files are free to
-    // re-read and move with every turn, a page load in the hidden session is the expensive part.
-    private static readonly TimeSpan WebReadInterval = TimeSpan.FromMinutes(5);
-
     // A single local reading that jumps this many points within the same reset window, unconfirmed
     // by the very next reading, is held back rather than shown - see ApplyPlausibilityGuard.
     private const double PlausibilityJumpThreshold = 40;
@@ -43,24 +39,17 @@ public sealed partial class CodexProvider : IUsageProvider
     private readonly string _sessionsRoot;
     private readonly Func<DateTimeOffset> _now;
     private readonly WebUsageSource? _webSource;
-    private readonly AppSettings? _settings;
-    private readonly Action<AppSettings>? _saveSettings;
+    private readonly ThrottledWebReader? _webReader;
     private readonly Func<TimeSpan> _attentionMaxAge;
     private readonly string _accountKey;
     private readonly LogService _log = LogService.Shared;
-
-    private ProviderSnapshot? _lastWebSnapshot;
-    private DateTimeOffset? _lastWebReadAt;
-    private int _signInCompleted;
-    private bool? _webSessionSignedIn;
-    private string? _lastWebAccountLabel;
 
     // Per window kind: the last reading this provider actually showed/stored, and - while one
     // reading is being held back as a suspected outlier - the value it was held back in favour of.
     private readonly Dictionary<WindowKind, (double UsedPercent, DateTimeOffset? ResetsAt)> _lastAcceptedLocalReading = new();
     private readonly Dictionary<WindowKind, (double UsedPercent, DateTimeOffset? ResetsAt, DateTimeOffset? DataTimestamp, DateTimeOffset FirstSeen)> _pendingLocalOutlier = new();
 
-    public CodexProvider() : this(DefaultSessionsRoot(), now: null)
+    public CodexProvider() : this(CodexPaths.Sessions, now: null)
     {
     }
 
@@ -74,7 +63,7 @@ public sealed partial class CodexProvider : IUsageProvider
     /// keeps compiling unchanged. <see cref="Services.ProviderRegistry"/> is the one caller that ever
     /// passes a delegate reading the user's own configured value.</summary>
     public CodexProvider(AppSettings settings, Action<AppSettings> saveSettings, WebUsageSource webSource, Func<TimeSpan>? attentionMaxAge = null)
-        : this(DefaultSessionsRoot(), now: null, webSource, settings, saveSettings, attentionMaxAge)
+        : this(CodexPaths.Sessions, now: null, webSource, settings, saveSettings, attentionMaxAge)
     {
     }
 
@@ -99,10 +88,10 @@ public sealed partial class CodexProvider : IUsageProvider
         _sessionsRoot = sessionsRoot;
         _now = now ?? (() => DateTimeOffset.Now);
         _webSource = webSource;
-        _settings = settings;
-        _saveSettings = saveSettings;
         _attentionMaxAge = attentionMaxAge ?? (() => AttentionDetector.DefaultMaxAge);
         _accountKey = accountKey ?? Id;
+        if (webSource is not null && settings is not null && saveSettings is not null)
+            _webReader = new ThrottledWebReader(_accountKey, webSource, settings, saveSettings, showsReportedPlan: true, pausesAfterFailedDiscovery: false);
     }
 
     public string Id => "codex";
@@ -127,7 +116,7 @@ public sealed partial class CodexProvider : IUsageProvider
 
     /// <summary>A sign-in just finished: the cached answer from before it (usually "not signed in")
     /// must not stand for the rest of the throttle interval.</summary>
-    public void SignInCompleted() => Interlocked.Exchange(ref _signInCompleted, 1);
+    public void SignInCompleted() => _webReader?.SignInCompleted();
 
     // The primary account can hold no further account of its own kind (Codex's own CLI sign-in is
     // one machine-wide account) - but a further, web-only Codex account can itself never sprout a
@@ -138,9 +127,6 @@ public sealed partial class CodexProvider : IUsageProvider
     // on the calling thread; the local scan that runs alongside it moves itself onto the thread pool
     // instead (see FetchAsync), so nothing blocks the UI thread either way.
     public bool RunsOnUiThread => _webSource is not null;
-
-    private static string DefaultSessionsRoot() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex", "sessions");
 
     /// <summary>Both sources are offered to the shared chooser (available beats nothing, more windows
     /// beat fewer, newer beats older), never merged. Without a web session that is a single result -
@@ -156,16 +142,16 @@ public sealed partial class CodexProvider : IUsageProvider
         {
             var webOnly = await ReadWebAsync(fetchedAt, ct);
             return webOnly is not null
-                ? SnapshotChooser.Pick([webOnly]) with { WebSessionSignedIn = _webSessionSignedIn }
+                ? webOnly with { WebSessionSignedIn = _webReader?.SessionSignedIn }
                 : new ProviderSnapshot(
                     ProviderId: AccountKey, Windows: [], PlanType: null, SourceKind: SourceKind.None,
                     FetchedAt: fetchedAt, DataTimestamp: null,
-                    Status: _webSessionSignedIn == false ? ProviderStatus.NotSignedIn : ProviderStatus.Failed,
-                    Error: null, WebSessionSignedIn: _webSessionSignedIn);
+                    Status: _webReader?.SessionSignedIn == false ? ProviderStatus.NotSignedIn : ProviderStatus.Failed,
+                    Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn);
         }
 
         if (_webSource is null)
-            return SnapshotChooser.Pick([FetchCore(fetchedAt, ct).Snapshot]);
+            return FetchCore(fetchedAt, ct).Snapshot;
 
         // This provider stays off the scheduler's thread-pool wrap (see RunsOnUiThread) so the web
         // read keeps starting on the calling thread it needs - which would otherwise leave the
@@ -204,66 +190,18 @@ public sealed partial class CodexProvider : IUsageProvider
         {
             // The address belongs to the signed-in account, not to whichever source won the numbers:
             // a local session file that outranks the web read this tick must not blank it again.
-            AccountLabel = chosen.AccountLabel ?? _lastWebAccountLabel,
-            WebSessionSignedIn = _webSessionSignedIn,
+            AccountLabel = chosen.AccountLabel ?? _webReader?.LastAccountLabel,
+            WebSessionSignedIn = _webReader?.SessionSignedIn,
             IsWaitingForUser = chosen.IsWaitingForUser || local.Snapshot.IsWaitingForUser,
             WaitingSince = combinedWaitingSince,
         };
     }
 
-    /// <summary>The web read, throttled to <see cref="WebReadInterval"/>: in between, the snapshot
+    /// <summary>The web read, throttled (see <see cref="ThrottledWebReader"/>): in between, the snapshot
     /// from the last real read is offered again, so the cheap local source can keep ticking at the
     /// scheduler's own pace without paying for a page load every time.</summary>
-    private async Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct)
-    {
-        if (_webSource is null || _settings is null || _saveSettings is null)
-            return null;
-
-        // Nothing was ever signed in here: starting a browser session would cost a whole WebView2
-        // process and a request to the provider's site for a user who may never want that route at
-        // all. Reporting "signed out" without asking is both honest and free - it is exactly what the
-        // tile needs to offer the sign-in, and the moment that sign-in happens the profile folder
-        // exists and the read below starts.
-        if (!Directory.Exists(WebViewHost.ResolveUserDataFolder(_webSource.Descriptor.ProfileFolderName)))
-        {
-            _webSessionSignedIn = false;
-            return null;
-        }
-
-        // Taken here, before the read, so a sign-in finishing while a read is already running still
-        // counts for the next one.
-        var signInJustCompleted = Interlocked.Exchange(ref _signInCompleted, 0) == 1;
-        if (!signInJustCompleted && _lastWebReadAt is { } lastReadAt && fetchedAt - lastReadAt < WebReadInterval)
-            // A window that reset since that read is over, the same as for a session file.
-            return _lastWebSnapshot is { } cached ? ProviderSnapshots.ExpirePastWindows(cached, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true } : null;
-
-        WebUsageResult result;
-        try
-        {
-            result = await _webSource.FetchAsync(_settings, _saveSettings, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            if (signInJustCompleted)
-                Interlocked.Exchange(ref _signInCompleted, 1);
-            // Cancelled mid-read (a refresh cut short, a sign-out, shutdown): the local snapshot this
-            // tick already produced still stands, and the next tick may read the web again - the
-            // throttle below is deliberately not advanced for a read that never finished.
-            return null;
-        }
-
-        _lastWebReadAt = fetchedAt;
-        if (result.AccountLabel is { } webLabel)
-            _lastWebAccountLabel = webLabel;
-
-        _webSessionSignedIn = ProviderSnapshots.SessionSignedIn(result, _webSessionSignedIn);
-
-        _lastWebSnapshot = result.Outcome == WebUsageOutcome.Ok && result.Windows.Count > 0
-            ? ProviderSnapshots.FromWeb(AccountKey, result, fetchedAt, result.PlanType)
-            : null;
-
-        return _lastWebSnapshot;
-    }
+    private Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
+        _webReader is null ? Task.FromResult<ProviderSnapshot?>(null) : _webReader.ReadAsync(fetchedAt, ct);
 
     /// <summary>One local read: the snapshot, plus whether it actually came off a rate-limit line in
     /// a session file. False for both honest stand-ins - the empty "no local data" placeholder and

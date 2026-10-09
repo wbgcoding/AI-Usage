@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiUsage.Models;
+using static AiUsage.Providers.Parsing.JsonReading;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -157,9 +158,8 @@ public static class CursorUsageParser
         }
         else if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number))
         {
-            // Epoch numbers show up both in seconds and in milliseconds; nothing in this century is a
-            // twelve-digit second count, so the length tells them apart.
-            instant = UnixTimeConversion.FromUnixSecondsOrNull(number >= 100_000_000_000 ? number / 1000 : number);
+            // Epoch numbers show up both in seconds and in milliseconds.
+            instant = UnixTimeConversion.FromUnixSecondsOrMillisecondsOrNull(number);
         }
 
         return instant is { } found ? UnixTimeConversion.PlausibleOrNull(found) : null;
@@ -267,17 +267,5 @@ public static class CursorUsageParser
     private static DateTimeOffset? ReadResetsAt(JsonElement root) =>
         ReadDate(root, "startOfMonth") is { } start && start <= DateTimeOffset.MaxValue.AddMonths(-1)
             ? start.AddMonths(1)
-            : null;
-
-    private static double? TryGetDouble(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
-            ? value
-            : null;
-
-    private static long? TryGetInt64(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetInt64(out var value)
-            ? value
             : null;
 }
