@@ -662,7 +662,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             return new Size(width, ContentHeight(layout.Fit.CellSize));
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var legendRows = LegendFitsOneRow(layout.ProviderLegend, width, dpi, new Typeface("Segoe UI")) ? 1 : 2;
+        var legendRows = LegendFitsOneRow(layout.ProviderLegend, width, dpi, ChartFonts.UiTypeface(this)) ? 1 : 2;
         return new Size(width, ContentHeight(layout.Fit.CellSize) + LegendGapTop + legendRows * LegendRowHeight);
     }
 
@@ -687,7 +687,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         }
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var typeface = new Typeface("Segoe UI");
+        var typeface = ChartFonts.UiTypeface(this);
 
         if (ShowAxisLabels)
         {
@@ -882,7 +882,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var formatted = new FormattedText(
-            EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 12, EmptyTextBrush, dpi);
+            EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, ChartFonts.UiTypeface(this), 12, EmptyTextBrush, dpi);
         dc.DrawText(formatted, new Point(Math.Max(0, (width - formatted.Width) / 2), 20));
     }
 

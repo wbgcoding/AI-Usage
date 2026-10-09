@@ -581,7 +581,7 @@ public sealed class StatsBarChart : FrameworkElement
 
         var bars = Bars;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var tickTypeface = new Typeface("Segoe UI");
+        var tickTypeface = ChartFonts.UiTypeface(this);
 
         if (bars.Count == 0)
         {
@@ -595,7 +595,7 @@ public sealed class StatsBarChart : FrameworkElement
             {
                 var formatted = new FormattedText(
                     EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-                    new Typeface("Segoe UI"), 12, EmptyTextBrush, dpi);
+                    ChartFonts.UiTypeface(this), 12, EmptyTextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (emptyChartHeight - formatted.Height) / 2));
             }
             return;

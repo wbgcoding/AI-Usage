@@ -539,7 +539,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var rows = Rows;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var typeface = new Typeface("Segoe UI");
+        var typeface = ChartFonts.UiTypeface(this);
 
         if (rows.Count == 0)
         {

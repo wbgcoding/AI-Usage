@@ -241,7 +241,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         var slices = Slices;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var typeface = new Typeface("Segoe UI");
+        var typeface = ChartFonts.UiTypeface(this);
 
         if (slices.Count == 0 || slices.All(slice => slice.Percent <= 0))
         {
