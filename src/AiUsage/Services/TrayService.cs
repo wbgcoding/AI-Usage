@@ -85,6 +85,7 @@ public sealed class TrayService : IDisposable
     private readonly MenuItem _clickThroughItem;
     private readonly MenuItem _showHideItem;
     private readonly MenuItem _refreshItem;
+    private readonly MenuItem _pauseItem;
     private readonly MenuItem _settingsItem;
     private readonly MenuItem _statsItem;
     private readonly MenuItem _resetPositionItem;
@@ -112,6 +113,7 @@ public sealed class TrayService : IDisposable
     // restart puts back.
     private Icon? _currentIcon;
     private string? _hotkeyShortcutText;
+    private DateTimeOffset? _pausedUntil;
     // False until the dispatcher's own startup burst has drained: a fresh tray icon can
     // receive a stray WM_RBUTTONUP the instant the message pump starts pumping - Explorer replaying
     // a queued click meant for whatever previously sat at this same taskbar slot, a known quirk right
@@ -123,6 +125,8 @@ public sealed class TrayService : IDisposable
 
     public event EventHandler? ShowHideRequested;
     public event EventHandler? RefreshRequested;
+    /// <summary>The pause entry was picked: pauses fetching, or ends a running pause.</summary>
+    public event EventHandler? PauseRequested;
     public event EventHandler? SettingsRequested;
     public event EventHandler? StatsRequested;
     public event EventHandler? ResetPositionRequested;
@@ -152,10 +156,11 @@ public sealed class TrayService : IDisposable
         _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
         var loc = LocalizationService.Instance;
-        var parts = CreateMenu(windowLayer, clickThrough, hotkeyShortcutText: null);
+        var parts = CreateMenu(windowLayer, clickThrough, hotkeyShortcutText: null, pausedUntil: null);
         _menu = parts.Menu;
         _showHideItem = parts.ShowHide;
         _refreshItem = parts.Refresh;
+        _pauseItem = parts.Pause;
         _windowLayerMenu = parts.WindowLayer;
         _clickThroughItem = parts.ClickThrough;
         _settingsItem = parts.Settings;
@@ -168,6 +173,7 @@ public sealed class TrayService : IDisposable
         _clickThroughItem.Unchecked += (_, _) => RaiseCheckChanged(ClickThroughChanged, false);
         _showHideItem.Click += (_, _) => ShowHideRequested?.Invoke(this, EventArgs.Empty);
         _refreshItem.Click += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
+        _pauseItem.Click += (_, _) => PauseRequested?.Invoke(this, EventArgs.Empty);
         _settingsItem.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
         _statsItem.Click += (_, _) => StatsRequested?.Invoke(this, EventArgs.Empty);
         _resetPositionItem.Click += (_, _) => ResetPositionRequested?.Invoke(this, EventArgs.Empty);
@@ -202,16 +208,19 @@ public sealed class TrayService : IDisposable
 
     private void RefreshMenuText() =>
         RefreshMenuText(
-            new MenuParts(_menu, _showHideItem, _refreshItem, _windowLayerMenu, _clickThroughItem,
+            new MenuParts(_menu, _showHideItem, _refreshItem, _pauseItem, _windowLayerMenu, _clickThroughItem,
                 _settingsItem, _statsItem, _resetPositionItem, _exitItem),
-            _hotkeyShortcutText);
+            _hotkeyShortcutText, _pausedUntil);
 
-    private static void RefreshMenuText(MenuParts parts, string? hotkeyShortcutText)
+    private static void RefreshMenuText(MenuParts parts, string? hotkeyShortcutText, DateTimeOffset? pausedUntil)
     {
         var loc = LocalizationService.Instance;
         parts.ShowHide.Header = loc["Tray.ShowHide"];
         parts.ShowHide.InputGestureText = hotkeyShortcutText ?? "";
         parts.Refresh.Header = loc["Action.RefreshNow"];
+        parts.Pause.Header = pausedUntil is { } until
+            ? loc.Format("Tray.Resume", TrayTooltipBuilder.ShortTime(until))
+            : loc["Tray.Pause"];
         parts.WindowLayer.RefreshText();
         parts.ClickThrough.Header = loc["Tray.ClickThrough"];
         parts.Settings.Header = loc["Tray.Settings"];
@@ -221,19 +230,21 @@ public sealed class TrayService : IDisposable
     }
 
     private sealed record MenuParts(
-        ContextMenu Menu, MenuItem ShowHide, MenuItem Refresh, WindowLayerMenu WindowLayer, MenuItem ClickThrough,
+        ContextMenu Menu, MenuItem ShowHide, MenuItem Refresh, MenuItem Pause, WindowLayerMenu WindowLayer, MenuItem ClickThrough,
         MenuItem Settings, MenuItem Stats, MenuItem ResetPosition, MenuItem Exit);
 
     /// <summary>The right-click menu with its texts in the current language and the two check marks
     /// set, without any click handler. Separate from the constructor so a tool can draw the menu
     /// without creating a notify icon.</summary>
-    internal static ContextMenu BuildMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText) =>
-        CreateMenu(windowLayer, clickThrough, hotkeyShortcutText).Menu;
+    internal static ContextMenu BuildMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText,
+        DateTimeOffset? pausedUntil = null) =>
+        CreateMenu(windowLayer, clickThrough, hotkeyShortcutText, pausedUntil).Menu;
 
-    private static MenuParts CreateMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText)
+    private static MenuParts CreateMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText, DateTimeOffset? pausedUntil)
     {
         var parts = new MenuParts(
             new ContextMenu(),
+            new MenuItem(),
             new MenuItem(),
             new MenuItem(),
             new WindowLayerMenu(windowLayer),
@@ -244,13 +255,14 @@ public sealed class TrayService : IDisposable
             new MenuItem());
         parts.Menu.Items.Add(parts.ShowHide);
         parts.Menu.Items.Add(parts.Refresh);
+        parts.Menu.Items.Add(parts.Pause);
         parts.Menu.Items.Add(parts.WindowLayer.Header);
         parts.Menu.Items.Add(parts.ClickThrough);
         parts.Menu.Items.Add(parts.Settings);
         parts.Menu.Items.Add(parts.Stats);
         parts.Menu.Items.Add(parts.ResetPosition);
         parts.Menu.Items.Add(parts.Exit);
-        RefreshMenuText(parts, hotkeyShortcutText);
+        RefreshMenuText(parts, hotkeyShortcutText, pausedUntil);
         return parts;
     }
 
@@ -311,6 +323,14 @@ public sealed class TrayService : IDisposable
         _suppressCheckEvents = true;
         item.IsChecked = value;
         _suppressCheckEvents = false;
+    }
+
+    /// <summary>Switches the pause entry between "pause" and "resume (paused until ...)" when a pause
+    /// starts or ends; null when no pause runs.</summary>
+    public void UpdatePause(DateTimeOffset? pausedUntil)
+    {
+        _pausedUntil = pausedUntil;
+        RefreshMenuText();
     }
 
     /// <summary>Names the active global shortcut (e.g. "Ctrl+Alt+U") in the "Anzeigen/Verstecken"

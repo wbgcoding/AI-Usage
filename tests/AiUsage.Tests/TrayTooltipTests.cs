@@ -13,6 +13,43 @@ public class TrayTooltipTests
     }
 
     [Fact]
+    public void ANoticeLineGoesAboveTheProviderLinesAndTheWholeStaysWithinTheShellLimit()
+    {
+        var lines = Enumerable.Range(0, 6).Select(i => new TrayTooltipBuilder.ProviderLine("Provider" + i, 42, 63)).ToArray();
+
+        var text = TrayTooltipBuilder.Build(lines, "Pausiert bis 14:30");
+
+        Assert.StartsWith("Pausiert bis 14:30\n", text);
+        Assert.True(text.Length <= TrayTooltipBuilder.MaxLength);
+    }
+
+    [Fact]
+    public void ANoticeAloneRemainsWhenNoProviderLineFitsBesideIt()
+    {
+        var notice = new string('x', TrayTooltipBuilder.MaxLength - 3);
+
+        Assert.Equal(notice, TrayTooltipBuilder.Build([new TrayTooltipBuilder.ProviderLine("Claude", 42, 63)], notice));
+    }
+
+    [Fact]
+    public void ThePausedLineNamesTheEndTimeInBothLanguages()
+    {
+        var until = new DateTimeOffset(2026, 10, 9, 14, 30, 0, TimeSpan.Zero);
+        var time = TrayTooltipBuilder.ShortTime(until);
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            Assert.Equal("Paused until " + time, TrayTooltipBuilder.PausedLine(until));
+            LocalizationService.Instance.SetLanguage("de");
+            Assert.Equal("Pausiert bis " + time, TrayTooltipBuilder.PausedLine(until));
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
     public void OneProviderFormatsFiveHourAndWeekly()
     {
         var text = TrayTooltipBuilder.Build([new TrayTooltipBuilder.ProviderLine("Claude", 42, 63)]);

@@ -186,6 +186,7 @@ public partial class MainWindow : Window, IDisposable
         _toasts.Activated += () => Dispatcher.BeginInvoke(new Action(ShowAndActivate));
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
         _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow(userStarted: true);
+        _tray.PauseRequested += (_, _) => ViewModel.TogglePause();
         _tray.SettingsRequested += (_, _) => TitleBarControl_SettingsRequested(this, EventArgs.Empty);
         _tray.StatsRequested += (_, _) => TitleBarControl_StatsRequested(this, EventArgs.Empty);
         _tray.ResetPositionRequested += (_, _) => ResetPosition();
@@ -356,7 +357,7 @@ public partial class MainWindow : Window, IDisposable
     /// used to run separately, so there is no second, redundant comparison here.</summary>
     private void UpdateTray()
     {
-        if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow))
+        if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow, ViewModel.PausedUntil))
         {
             _tray.UpdateTooltip(tooltipText);
             if (ViewModel.TrayProvider == MainViewModel.TrayProviderAppIcon)
@@ -377,10 +378,10 @@ public partial class MainWindow : Window, IDisposable
     internal static bool TryComputeTraySummary(
         IEnumerable<ProviderTileViewModel> tiles, TrayTooltipMemo memo,
         out string tooltipText, out UsageLevel highestLevel, out int? highestPercent,
-        string? trayProvider = null, string? trayWindow = null)
+        string? trayProvider = null, string? trayWindow = null, DateTimeOffset? pausedUntil = null)
     {
         var lines = BuildTrayLines(tiles);
-        tooltipText = TrayTooltipBuilder.Build(lines);
+        tooltipText = TrayTooltipBuilder.Build(lines, pausedUntil is { } until ? TrayTooltipBuilder.PausedLine(until) : null);
 
         var shown = tiles.Where(t => !t.IsHidden && t.HasNumbers).ToList();
         var pinned = shown.FirstOrDefault(t => t.ProviderId == trayProvider);
@@ -433,6 +434,12 @@ public partial class MainWindow : Window, IDisposable
 
         if (e.PropertyName is nameof(MainViewModel.TrayProvider) or nameof(MainViewModel.TrayWindow))
             UpdateTray();
+
+        if (e.PropertyName == nameof(MainViewModel.PausedUntil))
+        {
+            _tray.UpdatePause(ViewModel.PausedUntil);
+            UpdateTray();
+        }
     }
 
     /// <summary>Adding or removing an account changes <see cref="MainViewModel.Tiles"/> itself, not

@@ -745,6 +745,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // re-checked here every second instead of on a real timer - see MinFetchingDuration.
         foreach (var providerId in _pendingFetchClear.ToList())
             TryClearFetching(providerId);
+        PausedUntil = _scheduler.PausedUntil;
         _scheduler.Tick(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWeekTokens(now);
         if (OrderedByUsage)
@@ -884,6 +885,29 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.RefreshSeconds = seconds;
         _scheduler.UpdateBaseInterval(TimeSpan.FromSeconds(seconds));
         _settingsStore.RequestSave(_settings);
+    }
+
+    /// <summary>How long the tray's pause entry stops the network fetches.</summary>
+    internal static readonly TimeSpan PauseDuration = TimeSpan.FromHours(1);
+
+    private DateTimeOffset? _pausedUntil;
+
+    /// <summary>When the running pause ends, or null when fetching is not paused. Not remembered
+    /// across restarts; it clears itself once the time passes (see <see cref="Tick"/>).</summary>
+    public DateTimeOffset? PausedUntil
+    {
+        get => _pausedUntil;
+        private set => SetProperty(ref _pausedUntil, value);
+    }
+
+    /// <summary>The tray's pause entry: pauses the network fetches for an hour, or ends a running pause.</summary>
+    public void TogglePause()
+    {
+        if (_scheduler.PausedUntil is null)
+            _scheduler.PauseFor(PauseDuration);
+        else
+            _scheduler.Resume();
+        PausedUntil = _scheduler.PausedUntil;
     }
 
     /// <summary>Hands the scheduler the machine's current power state (battery, energy saver).</summary>

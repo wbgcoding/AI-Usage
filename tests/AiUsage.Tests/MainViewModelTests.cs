@@ -88,6 +88,38 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheTrayPauseEntryPausesForAnHourAndSecondPickEndsIt()
+    {
+        var (vm, _, _) = Build(new AppSettings());
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        var before = DateTimeOffset.Now;
+
+        vm.TogglePause();
+
+        Assert.NotNull(vm.PausedUntil);
+        Assert.InRange(vm.PausedUntil!.Value - before, TimeSpan.FromMinutes(59), TimeSpan.FromMinutes(61));
+        Assert.Contains(nameof(MainViewModel.PausedUntil), changed);
+
+        vm.TogglePause();
+
+        Assert.Null(vm.PausedUntil);
+    }
+
+    [Fact]
+    public void TheTrayTooltipPutsThePauseNoticeOnTopOfTheProviderLines()
+    {
+        var (vm, _, _) = Build(new AppSettings());
+        vm.Tick(Now);
+        var until = DateTimeOffset.Now.AddHours(1);
+
+        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, pausedUntil: until);
+
+        Assert.StartsWith(TrayTooltipBuilder.PausedLine(until) + "\n", tooltipText);
+        Assert.True(tooltipText.Length <= TrayTooltipBuilder.MaxLength);
+    }
+
+    [Fact]
     public void TrayTooltipNamesTheTileWithTheHighestPercent()
     {
         var settings = new AppSettings();
