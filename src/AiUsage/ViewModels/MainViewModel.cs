@@ -36,6 +36,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly ConcurrentDictionary<string, ProviderStatus> _lastStatusById = new();
     private readonly TimeProvider _timeProvider;
 
+    // What the status file shows per account: the newest state and the newest windows that carried
+    // any, so a failed read still lists the last numbers next to its state, like the tile does.
+    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows)> _statusReadings = new();
+
+    /// <summary>Writes <c>status.json</c> after snapshots; null (no file) in every test and design-time path.</summary>
+    internal StatusFileWriter? StatusFile { get; set; }
+
     /// <summary>The token usage index, read only for the weekly line each tile's <see
     /// cref="ProviderTileViewModel.WeekTokens"/> shows - null in every test that never passes one
     /// (see the test-seam constructor), which simply turns <see cref="RefreshWeekTokens"/> into a
@@ -457,6 +464,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // optional claudeRunner stays the simple shape every existing test already uses.
         foreach (var (accountKey, runner) in created.Runners)
             _webRunners[accountKey] = runner;
+        StatusFile = new StatusFileWriter(
+            () => StatusFileWriter.PathIn(AppPaths.DataDirectory),
+            log: line => (_logService ?? LogService.Shared).LogInfo(line));
     }
 
     /// <summary>Test seam: caller-supplied providers (no real network/file access) and history store.
@@ -515,7 +525,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         foreach (var provider in providers.OrderBy(GetProviderOrder))
             BuildTile(provider);
         RebuildTrayProviderChoices();
-        Tiles.CollectionChanged += (_, _) => RebuildTrayProviderChoices();
+        Tiles.CollectionChanged += (_, _) =>
+        {
+            RebuildTrayProviderChoices();
+            QueueStatusFile(DateTimeOffset.Now);
+        };
 
         DayGridTile = new DayGridTileViewModel(_statsStore)
         {
@@ -1137,6 +1151,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         return providerSettings;
     }
 
+    /// <summary>Hands the writer the current status document: every tile that has a reading, hidden
+    /// ones too. Only the person's own account name goes in, never the label a provider reported.</summary>
+    private void QueueStatusFile(DateTimeOffset now)
+    {
+        if (StatusFile is not { } writer)
+            return;
+
+        foreach (var gone in _statusReadings.Keys.Where(key => !_tilesById.ContainsKey(key)).ToList())
+            _statusReadings.Remove(gone);
+
+        var entries = Tiles
+            .Where(tile => _statusReadings.ContainsKey(tile.ProviderId))
+            .Select(tile => new StatusEntry(
+                tile.ProviderId, tile.DisplayName, tile.HasOwnAccountName ? tile.AccountName : null,
+                _statusReadings[tile.ProviderId].Status, _statusReadings[tile.ProviderId].Windows));
+        writer.Schedule(StatusFileWriter.BuildJson(entries, now));
+    }
+
     // A provider's FetchAsync completes on its own ThreadPool thread, and RefreshScheduler.Tick
     // starts all four providers at once - so this can run concurrently for up to four providers.
     // The whole tail (tile apply, history append, notification evaluation, chart reload) is
@@ -1209,6 +1241,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
 
             RefreshTileHistory(snapshot.ProviderId);
+
+            var windows = snapshot.Windows.Count > 0 || !_statusReadings.TryGetValue(snapshot.ProviderId, out var before)
+                ? snapshot.Windows
+                : before.Windows;
+            _statusReadings[snapshot.ProviderId] = (snapshot.Status, windows);
+            QueueStatusFile(now);
         }
 
         var dispatcher = Application.Current?.Dispatcher;
@@ -1628,6 +1666,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // Only cancelled, never disposed: UI and timer callbacks still read its Token for a moment
         // after this, and a disposed source throws from Token.
         _lifetimeCts.Cancel();
+        StatusFile?.Dispose();
 
         foreach (var runner in _webRunners.Values)
         {

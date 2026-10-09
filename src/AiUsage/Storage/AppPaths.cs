@@ -244,6 +244,7 @@ public static class AppPaths
 
     private static bool IsOwnTempFileName(string name) =>
         name.StartsWith("settings.json.", StringComparison.OrdinalIgnoreCase)
+        || name.StartsWith("status.json.", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith("notifications.json", StringComparison.OrdinalIgnoreCase)
         || (name.StartsWith("history-", StringComparison.OrdinalIgnoreCase)
             && name.Contains(".jsonl.", StringComparison.OrdinalIgnoreCase));
