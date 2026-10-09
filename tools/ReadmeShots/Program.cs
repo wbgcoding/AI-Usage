@@ -348,16 +348,20 @@ internal static class Program
     }
 
     /// <summary>The statistics window on its 30 day range with the busy day selected, never shown.</summary>
-    internal static StatsWindow BuildStatisticsWindow(string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay)
+    internal static StatsWindow BuildStatisticsWindow(
+        string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay,
+        Action<StatsStore>? seed = null, Action<StatsViewModel>? configure = null)
     {
         Directory.CreateDirectory(dataDirectory);
         var store = new StatsStore(dataDirectory);
         store.AddDelta(records);
+        seed?.Invoke(store);
 
         var viewModel = new StatsViewModel(store);
         viewModel.Recompute();
         viewModel.SelectedRangeChoice = viewModel.RangeChoices.Single(choice => choice.Value == "Month");
         PumpUntil(() => !viewModel.IsLoading, TimeSpan.FromSeconds(10), settle: TimeSpan.FromSeconds(1));
+        configure?.Invoke(viewModel);
 
         var window = new StatsWindow(viewModel);
         viewModel.SelectDay(busyDay);
@@ -368,9 +372,9 @@ internal static class Program
 
     internal static void RenderStatistics(
         string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay, bool fullHeight, string outputPath,
-        bool minWidth = false)
+        bool minWidth = false, Action<StatsStore>? seed = null, Action<StatsViewModel>? configure = null)
     {
-        var window = BuildStatisticsWindow(dataDirectory, records, busyDay);
+        var window = BuildStatisticsWindow(dataDirectory, records, busyDay, seed, configure);
         var viewModel = (StatsViewModel)window.DataContext;
 
         // Cut just above the provider section, and

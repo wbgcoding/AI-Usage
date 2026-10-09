@@ -694,22 +694,23 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <!-- The session table: a header over the same five columns the rows use. The
+                                <!-- The session table: a header over the same four columns the rows use (the model sits
+                                     under the project name, so a narrow window never squeezes the name). The
                                      list scrolls inside its own box and draws only the rows in view, since a
-                                     long range holds thousands of sessions. Both sides keep the width of a
-                                     scroll bar free so the header stays over its columns. -->
+                                     long range holds thousands of sessions. The scroll bar is always there and
+                                     the header keeps its width free, so the header stays over its columns. -->
                                 <StackPanel Visibility="{Binding IsSessionGrouping, Converter={StaticResource BoolToVis}}">
                                     <Grid Margin="0,0,16,4">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="72"/>
+                                            <ColumnDefinition Width="96"/>
                                             <ColumnDefinition Width="88"/>
-                                            <ColumnDefinition Width="110"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Project]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Project], Mode=OneWay}"/><Run Text=" / "/><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Model], Mode=OneWay}"/>
+                                        </TextBlock>
                                         <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Start]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
@@ -718,16 +719,13 @@
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Tokens]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="4" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Model]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   Margin="12,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                   Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <ItemsControl x:Name="SessionTable" ItemsSource="{Binding SessionRows}"
                                                   PreviewMouseWheel="SessionTable_PreviewMouseWheel">
                                         <ItemsControl.Template>
                                             <ControlTemplate TargetType="ItemsControl">
-                                                <ScrollViewer MaxHeight="360" CanContentScroll="True" VerticalScrollBarVisibility="Auto">
+                                                <ScrollViewer MaxHeight="360" CanContentScroll="True" VerticalScrollBarVisibility="Visible">
                                                     <ItemsPresenter/>
                                                 </ScrollViewer>
                                             </ControlTemplate>
@@ -750,23 +748,24 @@
                                         </ItemsControl.ItemContainerStyle>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid Margin="0,4,16,4" ToolTip="{Binding ToolTip}">
+                                                <Grid Margin="0,4" ToolTip="{Binding ToolTip}">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="120"/>
-                                                        <ColumnDefinition Width="72"/>
+                                                        <ColumnDefinition Width="96"/>
                                                         <ColumnDefinition Width="88"/>
-                                                        <ColumnDefinition Width="110"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Model}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
                                                     <TextBlock Grid.Column="1" Text="{Binding Start}" Foreground="{DynamicResource Text.Secondary}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Grid.Column="2" Text="{Binding Duration}" Foreground="{DynamicResource Text.Secondary}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding Tokens}" TextAlignment="Right"
+                                                    <TextBlock Grid.Column="3" Text="{Binding Tokens}" TextAlignment="Right" Margin="0,0,8,0"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="4" Text="{Binding Model}" Foreground="{DynamicResource Text.Secondary}"
-                                                               Margin="12,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

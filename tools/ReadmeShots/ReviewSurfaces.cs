@@ -121,6 +121,19 @@ internal static class ReviewSurfaces
             new("stats.window", GroupStats, context => Program.RenderStatistics(
                 context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
                 context.OutputPath("stats.window"), minWidth: context.Size == SizeKind.Min), HasMinSize: true),
+            new("stats.agents", GroupStats, context => Program.RenderStatistics(
+                context.NextDataFolder("stats"), WithSubagents(context.Records), context.BusyDay, fullHeight: true,
+                context.OutputPath("stats.agents"), minWidth: context.Size == SizeKind.Min,
+                configure: viewModel => viewModel.SetColorByCommand.Execute(StatsColorBy.Agent)), HasMinSize: true),
+            new("stats.sessions", GroupStats, context => Program.RenderStatistics(
+                context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
+                context.OutputPath("stats.sessions"), minWidth: context.Size == SizeKind.Min,
+                seed: store => SeedSessions(store, context.Records),
+                configure: viewModel => viewModel.SetGroupingCommand.Execute(StatsGrouping.Session)), HasMinSize: true),
+            new("stats.filtered", GroupStats, context => Program.RenderStatistics(
+                context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
+                context.OutputPath("stats.filtered"), minWidth: context.Size == SizeKind.Min,
+                configure: ApplySampleFilters), HasMinSize: true),
         };
 
         foreach (var category in settingsCategories)
@@ -147,6 +160,39 @@ internal static class ReviewSurfaces
         list.Add(new Surface("menu.daytile", GroupMenus, context => ReviewMenus.RenderDayTileMenu(context, "menu.daytile")));
         list.Add(new Surface("menu.stats-section", GroupMenus, context => ReviewMenus.RenderStatsSectionMenu(context, "menu.stats-section")));
         return list;
+    }
+
+    /// <summary>Every fourth Claude record counted as subagent work, so the share card has something to show.</summary>
+    private static IReadOnlyList<StatsRecord> WithSubagents(IReadOnlyList<StatsRecord> records) =>
+        records.Select((record, index) => record.Provider == "claude" && index % 4 == 0 ? record with { Subagent = true } : record).ToList();
+
+    /// <summary>The newest sample days as a few dozen invented sessions, so the session table and bars fill.</summary>
+    private static void SeedSessions(StatsStore store, IReadOnlyList<StatsRecord> records)
+    {
+        var projects = records.Select(record => record.Project).Where(project => project.Length > 0).Distinct().ToList();
+        var random = new Random(7);
+        var deltas = new List<StatsSessionDelta>();
+        for (var i = 0; i < 40; i++)
+        {
+            var start = DateTimeOffset.Now.AddDays(-random.Next(0, 28)).AddHours(-random.Next(0, 10));
+            var tokens = (long)(2_000_000 * Math.Exp(0.9 * (random.NextDouble() * 2 - 1)) * 5);
+            var model = i % 3 == 0 ? "claude-sonnet-4-5" : "claude-opus-4-5";
+            deltas.Add(new StatsSessionDelta(
+                "claude", "sample-" + i, projects[random.Next(projects.Count)], start, start.AddMinutes(10 + random.Next(0, 240)),
+                tokens, tokens / 8, tokens / 5, tokens * 3, 0,
+                new Dictionary<string, long> { [model] = tokens + tokens / 8 + tokens / 5 + tokens * 3 }));
+        }
+
+        store.ApplyIndexResult([], new StatsSourceFileState("sample-sessions", "claude", 0, 0, DateTime.UtcNow), deltas);
+    }
+
+    /// <summary>One provider, the largest model and the largest project picked, as after a few clicks.</summary>
+    private static void ApplySampleFilters(StatsViewModel viewModel)
+    {
+        viewModel.SetProviderCommand.Execute("claude");
+        viewModel.ToggleFilter(StatsFilterKind.Model, viewModel.ModelShareSlices[0].Label);
+        if (viewModel.TopProjectRows.Count > 0)
+            viewModel.ToggleFilter(StatsFilterKind.Project, viewModel.TopProjectRows[0].FullPath);
     }
 
     /// <summary>The widget at a zoom step: the window is as wide as the content needs at that zoom (the
