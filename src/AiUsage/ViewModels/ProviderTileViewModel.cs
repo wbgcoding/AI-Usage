@@ -307,6 +307,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowStatusLink))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
     private FailureKind failureKind;
 
     /// <summary>True while a failed fetch is on the tile but the last good rows and chart are still
@@ -314,6 +316,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// Stale snapshot clears it, and so does any other status.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
     [NotifyPropertyChangedFor(nameof(DimLastValues))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
     private bool isShowingLastValues;
@@ -323,6 +326,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     private string failureNoticeText = "";
 
     public bool ShowFailureNotice => IsShowingLastValues && !IsMini;
+
+    /// <summary>The status page link under the failure line that sits above the last values.</summary>
+    public bool ShowFailureLink => ShowFailureNotice && ShowStatusLink;
 
     /// <summary>Rows and chart dim for last values on their own only when the stale look does not
     /// already dim the whole body.</summary>
@@ -353,6 +359,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
     [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
     [NotifyPropertyChangedFor(nameof(ShowLastUpdated))]
@@ -791,9 +798,29 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [RelayCommand(CanExecute = nameof(CanOpenUsagePage))]
     private void OpenUsagePage()
     {
-        if (ProviderLinks.UsagePage(RealProviderId) is not { } uri)
-            return;
+        if (ProviderLinks.UsagePage(RealProviderId) is { } uri)
+            OpenInBrowser(uri);
+    }
 
+    /// <summary>Whether the failure on the tile is one the provider's own status page can explain:
+    /// the server answered with an error or did not answer. Also true while the last good values stay
+    /// on show under the failure line.</summary>
+    public bool ShowStatusLink => FailureKind is FailureKind.ServerError or FailureKind.Timeout
+        && ProviderLinks.StatusPage(RealProviderId) is not null;
+
+    /// <summary>"Check Claude status" - the label of the status page link.</summary>
+    public string StatusLinkText => LocalizationService.Instance.Format("Tile.CheckStatus", DisplayName);
+
+    /// <summary>Opens the provider's status page in the system browser.</summary>
+    [RelayCommand]
+    private void OpenStatusPage()
+    {
+        if (ProviderLinks.StatusPage(RealProviderId) is { } uri)
+            OpenInBrowser(uri);
+    }
+
+    private static void OpenInBrowser(Uri uri)
+    {
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
@@ -817,6 +844,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (keptFailure is not null)
             ShowKeptFailure(keptFailure);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
+        OnPropertyChanged(nameof(StatusLinkText));
         OnPropertyChanged(nameof(RefreshTooltipText));
         OnPropertyChanged(nameof(SettingsRowText));
         OnPropertyChanged(nameof(DetailsMenuHeader));

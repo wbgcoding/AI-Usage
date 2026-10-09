@@ -58,6 +58,14 @@
             </Setter>
         </Style>
 
+        <!-- A text-only link under a message: accent colour, no inset, so it lines up with the text above. -->
+        <Style x:Key="TileLinkButtonStyle" TargetType="Button" BasedOn="{StaticResource AiUsageQuietButton}">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+            <Setter Property="Padding" Value="0,4"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+        </Style>
+
         <!-- The Full bar rows (one UsageBar per window). -->
         <DataTemplate x:Key="FullRowTemplate">
             <controls:UsageBar Margin="0,0,0,6"/>
@@ -316,6 +324,9 @@
                     <TextBlock Text="{Binding FailureNoticeText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                Margin="0,0,0,8" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
                                Visibility="{Binding ShowFailureNotice, Converter={StaticResource BoolToVis}}"/>
+                    <Button Content="{Binding StatusLinkText}" Command="{Binding OpenStatusPageCommand}"
+                            Style="{StaticResource TileLinkButtonStyle}" Margin="0,0,0,8"
+                            Visibility="{Binding ShowFailureLink, Converter={StaticResource BoolToVis}}"/>
                     <!-- Stale's own action, wired to the tile's existing refresh (not RunActionCommand,
                          which is only for the placeholder states below) - a source that only moves
                          through use (Codex) offers none, ErrorPresenter leaves ActionLabelText empty
@@ -364,6 +375,9 @@
                                FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"/>
                     <TextBlock Text="{Binding ReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Text.Secondary}"/>
+                    <Button Content="{Binding StatusLinkText}" Command="{Binding OpenStatusPageCommand}"
+                            Style="{StaticResource TileLinkButtonStyle}" Margin="0,4,0,0"
+                            Visibility="{Binding ShowStatusLink, Converter={StaticResource BoolToVis}}"/>
                     <TextBlock Text="{Binding SilentReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Text.Muted}"
                                Visibility="{Binding IsSilent, Converter={StaticResource BoolToVis}}"/>

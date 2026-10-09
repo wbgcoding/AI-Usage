@@ -449,4 +449,5 @@
   <data name="State.Failed.Timeout.Reason" xml:space="preserve"><value>No answer in time. The next attempt follows automatically.</value></data>
   <data name="State.Failed.Network.Head" xml:space="preserve"><value>No connection</value></data>
   <data name="State.Failed.Network.Reason" xml:space="preserve"><value>AI-Usage cannot reach {0}. Check your internet connection.</value></data>
+  <data name="Tile.CheckStatus" xml:space="preserve"><value>Check {0} status</value></data>
 </root>

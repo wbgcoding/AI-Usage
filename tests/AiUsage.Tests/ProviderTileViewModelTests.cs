@@ -183,6 +183,46 @@ public class ProviderTileViewModelTests
         Assert.True(tile.ShowPlaceholder);
     }
 
+    [Theory]
+    [InlineData(FailureKind.ServerError, true)]
+    [InlineData(FailureKind.Timeout, true)]
+    [InlineData(FailureKind.Network, false)]
+    [InlineData(FailureKind.Refused, false)]
+    [InlineData(FailureKind.Other, false)]
+    public void TheStatusLinkShowsOnlyForServerErrorsAndTimeouts(FailureKind kind, bool shown)
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.Apply(FailedSnapshot(kind, kind == FailureKind.ServerError ? 502 : null), Now);
+
+        Assert.Equal(shown, tile.ShowStatusLink);
+        Assert.Equal(LocalizationService.Instance.Format("Tile.CheckStatus", "Claude"), tile.StatusLinkText);
+    }
+
+    [Fact]
+    public void TheStatusLinkAlsoShowsWhileTheLastValuesStayOnShow()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.Timeout), Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.True(tile.ShowStatusLink);
+        Assert.True(tile.ShowFailureLink);
+    }
+
+    [Fact]
+    public void TheStatusLinkGoesAwayWithTheFailure()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 503), Now);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now.AddMinutes(5));
+
+        Assert.False(tile.ShowStatusLink);
+    }
+
     private static ProviderSnapshot FailedSnapshot(FailureKind kind, int? httpStatus = null, string reasonKey = "Status_Failed_Reason") =>
         Snapshot(ProviderStatus.Failed, error: new ProviderError(reasonKey, "Action_Retry", Kind: kind, HttpStatus: httpStatus))
             with { Windows = [], SourceKind = SourceKind.None, DataTimestamp = null };
