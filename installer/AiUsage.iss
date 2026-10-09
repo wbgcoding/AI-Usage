@@ -224,6 +224,9 @@ Type: files; Name: "{autodesktop}\{#AppName}.lnk"
 ; runasoriginaluser flag, so it would look at the elevating account's hive rather than the user's.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; \
     ValueName: "AI-Usage"; Flags: uninsdeletevalue; Check: not IsPortableMode
+; The app registers its notification identity itself on the first alert; this entry only removes it.
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\BGCoding.AI-Usage"; ValueType: none; \
+    Flags: dontcreatekey uninsdeletekey; Check: not IsPortableMode
 
 [Code]
 const

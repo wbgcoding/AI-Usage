@@ -28,6 +28,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _tickTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
     private readonly TrayService _tray;
+    private readonly ToastNotifier _toasts;
     private readonly MonitorAreaCache _monitorAreas = new(() => NativeMonitors.WorkAreas());
     private readonly TrayTooltipMemo _trayTooltipMemo = new();
     private readonly ClickThroughPolicy _clickThroughPolicy = new();
@@ -164,6 +165,11 @@ public partial class MainWindow : Window, IDisposable
         PreviewKeyDown += MainWindow_PreviewKeyDown;
 
         _tray = new TrayService(_settings.AlwaysOnTop, _settings.ClickThrough);
+        _toasts = new ToastNotifier(
+            new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line),
+            () => LocalizationService.Instance["Toast.ShowWidget"]);
+        // A click arrives on a platform thread; the window is brought forward on the UI thread.
+        _toasts.Activated += () => Dispatcher.BeginInvoke(new Action(ShowAndActivate));
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
         _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow(userStarted: true);
         _tray.SettingsRequested += (_, _) => TitleBarControl_SettingsRequested(this, EventArgs.Empty);
@@ -182,6 +188,9 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ClickThroughChanged += (_, value) => ApplyClickThrough(value);
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
         ViewModel.ResetRaised += ViewModel_ResetRaised;
+        ViewModel.ForecastRaised += ViewModel_ForecastRaised;
+        ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
+        ViewModel.LevelAnnounced += AnnounceToScreenReader;
 
         // Startup tiles here; an account added later is wired the moment it joins the collection
         // (ViewModel_Tiles_CollectionChanged), or its sign-in and sign-out buttons would do nothing.
@@ -216,11 +225,43 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Raised from the snapshot tail, which always runs on the UI thread, the one
     /// <c>ShowBalloonTip</c> needs.</summary>
     private void ViewModel_NotificationRaised(ThresholdNotification notification) =>
-        _tray.ShowBalloon(notification.Text(DateTimeOffset.Now));
+        ShowAlert(notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
+
+    /// <summary>One alert as a Windows toast with a button that brings the widget forward; the tray
+    /// balloon takes over for this and every later alert once toasts are unavailable.</summary>
+    private void ShowAlert(string title, string text)
+    {
+        if (!_toasts.TryShow(title, text))
+            _tray.ShowBalloon(text);
+    }
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ResetRaised(ResetNotification notification) =>
-        _tray.ShowBalloon(notification.Text());
+        ShowAlert(notification.ProviderDisplayName, notification.Text());
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
+    private void ViewModel_ForecastRaised(ForecastNotification notification) =>
+        ShowAlert(notification.ProviderDisplayName, notification.Text());
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
+    private void ViewModel_LimitReachedRaised(LimitReachedNotification notification) =>
+        ShowAlert(notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
+
+    /// <summary>Tells a running screen reader that a window changed color level. Only while the
+    /// window is on screen: a hidden or minimized widget has nobody looking at it, and the balloon
+    /// alerts already cover that case.</summary>
+    private void AnnounceToScreenReader(string text)
+    {
+        if (!IsVisible || WindowState == WindowState.Minimized)
+            return;
+
+        var peer = System.Windows.Automation.Peers.UIElementAutomationPeer.FromElement(this)
+            ?? System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(this);
+        peer?.RaiseNotificationEvent(
+            System.Windows.Automation.AutomationNotificationKind.Other,
+            System.Windows.Automation.AutomationNotificationProcessing.ImportantMostRecent,
+            text, "AiUsage.Level");
+    }
 
     /// <summary>Tray double-click / "Anzeigen/Verstecken" - also restores a
     /// minimized window, the usual Windows convention for a tray toggle.</summary>

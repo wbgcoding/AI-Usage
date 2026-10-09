@@ -274,6 +274,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool notifyOnReset;
 
     [ObservableProperty]
+    private bool forecastAlertEnabled;
+
+    [ObservableProperty]
+    private bool limitReachedAlertEnabled;
+
+    [ObservableProperty]
+    private bool quietWeekend;
+
+    [ObservableProperty]
     private bool showAttentionMark;
 
     [ObservableProperty]
@@ -435,9 +444,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         defaultThreshold = settings.DefaultThreshold;
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
         notifyOnReset = settings.NotifyOnReset;
+        forecastAlertEnabled = settings.ForecastAlertEnabled;
+        limitReachedAlertEnabled = settings.LimitReachedAlertEnabled;
         showAttentionMark = settings.ShowAttentionMark;
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
+        quietWeekend = settings.QuietWeekend;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -813,6 +825,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
     }
 
+    partial void OnForecastAlertEnabledChanged(bool value)
+    {
+        _settings.ForecastAlertEnabled = value;
+        _store.RequestSave(_settings);
+    }
+
+    partial void OnLimitReachedAlertEnabledChanged(bool value)
+    {
+        _settings.LimitReachedAlertEnabled = value;
+        _store.RequestSave(_settings);
+    }
+
     /// <summary>Re-applies the marker to every tile's last snapshot immediately, the same reasoning
     /// as <see cref="ProviderTileViewModel.OnShowFiveHourChanged"/> - a setting flip must not wait for
     /// the next scheduled fetch (up to a minute away) to show or hide the mark.</summary>
@@ -836,6 +860,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnQuietHoursEnabledChanged(bool value)
     {
         _settings.QuietHoursEnabled = value;
+        _store.RequestSave(_settings);
+    }
+
+    partial void OnQuietWeekendChanged(bool value)
+    {
+        _settings.QuietWeekend = value;
         _store.RequestSave(_settings);
     }
 
@@ -1223,10 +1253,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThreshold = source.DefaultThreshold;
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
+        _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
+        _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
+        _settings.QuietWeekend = source.QuietWeekend;
         _settings.QuietHoursStart = source.QuietHoursStart;
         _settings.QuietHoursEnd = source.QuietHoursEnd;
         _settings.HotkeyEnabled = source.HotkeyEnabled;
@@ -1292,9 +1325,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThreshold = _settings.DefaultThreshold;
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
+        ForecastAlertEnabled = _settings.ForecastAlertEnabled;
+        LimitReachedAlertEnabled = _settings.LimitReachedAlertEnabled;
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
+        QuietWeekend = _settings.QuietWeekend;
         QuietHoursStartText = _settings.QuietHoursStart;
         QuietHoursEndText = _settings.QuietHoursEnd;
         QuietHoursStartInvalid = false;

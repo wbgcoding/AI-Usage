@@ -5,6 +5,7 @@ using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Stats;
 using AiUsage.Storage;
+using AiUsage.Views.Controls;
 using AiUsage.Web;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -92,6 +93,55 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// cref="NotificationRaised"/> (quiet hours included) - only ever raised at all when <see
     /// cref="Models.AppSettings.NotifyOnReset"/> is on (see <see cref="OnSnapshotReady"/>).</summary>
     public event Action<ResetNotification>? ResetRaised;
+
+    /// <summary>The early "will likely be full soon" warning, forwarded like <see
+    /// cref="NotificationRaised"/> (quiet hours included).</summary>
+    public event Action<ForecastNotification>? ForecastRaised;
+
+    private void ForwardForecastNotification(ForecastNotification notification)
+    {
+        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+            ForecastRaised?.Invoke(notification);
+    }
+
+    // What the forecast alert needs from the latest usable snapshot of each provider; the history
+    // series it also needs arrives later, when the tile's history read completes (UI thread only).
+    /// <summary>The "limit reached (100 %)" alert, forwarded like <see cref="NotificationRaised"/>
+    /// (quiet hours included).</summary>
+    public event Action<LimitReachedNotification>? LimitReachedRaised;
+
+    private void ForwardLimitReachedNotification(LimitReachedNotification notification)
+    {
+        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+            LimitReachedRaised?.Invoke(notification);
+    }
+
+    private sealed record ForecastInput(string DisplayName, IReadOnlyList<UsageWindow> Windows);
+
+    private readonly Dictionary<string, ForecastInput> _forecastInputs = [];
+
+    private void EvaluateForecasts(string providerId, IReadOnlyList<HistoryPoint> points, DateTimeOffset now)
+    {
+        if (!_forecastInputs.TryGetValue(providerId, out var input))
+            return;
+
+        foreach (var window in input.Windows)
+        {
+            if (window.Kind is not (WindowKind.FiveHour or WindowKind.Weekly))
+                continue;
+
+            // The same series and look-back the tile's own forecast line is drawn from.
+            var series = points.Where(p => p.Window == window.Kind)
+                .Select(p => new HistoryChart.ChartPoint(p.Timestamp, p.Percent)).ToArray();
+            var lookback = window.Kind == WindowKind.FiveHour ? TimeSpan.FromHours(2) : TimeSpan.FromHours(24);
+            var timeToFull = UsageForecast.TimeToFull(series, now, window.ResetsAt, lookback: lookback);
+            _notifications.EvaluateForecast(providerId, input.DisplayName, window, timeToFull, enabled: true, now);
+        }
+    }
+
+    /// <summary>A shown window rose a color level: the sentence for a screen reader (see
+    /// <see cref="ProviderTileViewModel.LevelAnnounced"/>).</summary>
+    public event Action<string>? LevelAnnounced;
 
     private void ForwardThresholdNotification(ThresholdNotification notification)
     {
@@ -491,6 +541,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _scheduler.FetchEnded += OnFetchEnded;
         _notifications.NotificationRaised += ForwardThresholdNotification;
         _notifications.ResetRaised += ForwardResetNotification;
+        _notifications.ForecastRaised += ForwardForecastNotification;
+        _notifications.LimitReachedRaised += ForwardLimitReachedNotification;
 
         // MainViewModel lives for the whole process (one instance, created once in MainWindow's own
         // constructor) - never unsubscribed, same as TrayService's identical subscription.
@@ -542,6 +594,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 RebuildTrayWindowChoices();
         };
         _tilesById[provider.AccountKey] = tile;
+        tile.LevelAnnounced += text => LevelAnnounced?.Invoke(text);
         Tiles.Add(tile);
         // Mirrors Tiles.Add: a freshly built tile (startup, or a further account added later) always
         // joins at the very end of the on-screen order too - RebuildDisplayRowsInitial (constructor
@@ -1102,6 +1155,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var notifyOnReset = _settings.NotifyOnReset && providerSettings.NotifyOnResetEnabled;
             // A snapshot that repeats an older reading (a held-over or cached read) adds no chart point.
             var recordHistory = !snapshot.HeldOver;
+            // A forecast on a held-over or failed read would be a guess on old numbers.
+            if (snapshot.Status == ProviderStatus.Ok && recordHistory && _settings.ForecastAlertEnabled && providerSettings.NotificationsEnabled)
+                _forecastInputs[snapshot.ProviderId] = new ForecastInput(displayName, snapshot.Windows);
+            else
+                _forecastInputs.Remove(snapshot.ProviderId);
             using var notificationSaves = _notifications.BatchSaves();
             foreach (var window in snapshot.Windows)
             {
@@ -1114,7 +1172,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 var (threshold, enabled) = SettingsRanges.ResolveThreshold(_settings, snapshot.ProviderId, window.Kind);
                 _notifications.Evaluate(
                     snapshot.ProviderId, displayName, window, threshold, enabled && providerSettings.NotificationsEnabled,
-                    notifyOnReset && providerSettings.NotificationsEnabled, now);
+                    notifyOnReset && providerSettings.NotificationsEnabled, now, _settings.LimitReachedAlertEnabled);
             }
 
             RefreshTileHistory(snapshot.ProviderId);
@@ -1306,6 +1364,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 if (!_tilesById.TryGetValue(providerId, out var tile))
                     return;
                 tile.UpdateHistory(points, previousWeek, decision.RangeStart, now);
+                EvaluateForecasts(providerId, points, now);
             }
 
             var dispatcher = Application.Current?.Dispatcher;

@@ -90,6 +90,15 @@ public sealed class AppSettings
     /// this one.</summary>
     public bool NotifyOnReset { get; set; } = true;
 
+    /// <summary>Early warning when a window is projected to fill within 30 minutes (see
+    /// <see cref="Services.NotificationService.EvaluateForecast"/>) - default on, gated by the same
+    /// per-provider switch and quiet hours as the threshold alert.</summary>
+    public bool ForecastAlertEnabled { get; set; } = true;
+
+    /// <summary>Alert once per window period when a window reaches 100 % - default on, gated by
+    /// the same global threshold switch, per-provider switch and quiet hours as the threshold alert.</summary>
+    public bool LimitReachedAlertEnabled { get; set; } = true;
+
     /// <summary>Whether a tile marks itself once its own session file's newest turn reads as
     /// "waiting for the user" (see <see cref="Providers.Parsing.AttentionDetector"/>). Defaults on:
     /// unlike the reset balloon above, this is a passive marker on a surface already open, not an
@@ -110,6 +119,10 @@ public sealed class AppSettings
     public string QuietHoursStart { get; set; } = "22:00";
 
     public string QuietHoursEnd { get; set; } = "08:00";
+
+    /// <summary>Whole Saturday and Sunday (local time) without notifications, whatever the daily
+    /// window above says.</summary>
+    public bool QuietWeekend { get; set; }
 
     /// <summary>True once the one-time "still running in the tray" balloon has been shown.</summary>
     public bool TrayHintShown { get; set; }

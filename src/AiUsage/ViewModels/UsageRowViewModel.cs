@@ -291,7 +291,7 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>Matches the display rounding that shows "100 %" - the row reports itself as at its
     /// limit exactly when the number on screen would already read 100, never at the merely-Crit 95%
     /// that used to look identical to it.</summary>
-    private const double LimitReachedPercent = 99.5;
+    internal const double LimitReachedPercent = 99.5;
 
     private bool IsAtLimit => UsedPercent >= LimitReachedPercent;
 
@@ -358,8 +358,11 @@ public partial class UsageRowViewModel : ObservableObject
     /// this same row (and any live focus/tooltip inside its bound `UsageBar` visual) across a refresh
     /// whose window kinds did not change. Caller (<see cref="ProviderTileViewModel.Apply"/>) only
     /// calls this once it has already confirmed <paramref name="window"/>.Kind matches <see cref="Kind"/>.</summary>
-    internal void Update(UsageWindow window, DateTimeOffset now, TileDensity density, double? thresholdPercent)
+    /// <returns>The screen reader announcement key when this refresh moved the row up a color level
+    /// (see <see cref="AnnouncementKeyFor"/>), otherwise null.</returns>
+    internal string? Update(UsageWindow window, DateTimeOffset now, TileDensity density, double? thresholdPercent)
     {
+        var previousPercent = UsedPercent;
         // Rows are matched by kind alone, so two "other" rows (one per model) can swap their labels
         // between refreshes - the raw label must follow, or the tray's label choice reads the wrong row.
         Label = window.Label;
@@ -392,6 +395,23 @@ public partial class UsageRowViewModel : ObservableObject
         OnPropertyChanged(nameof(PacePercent));
         OnPropertyChanged(nameof(PaceText));
         OnPropertyChanged(nameof(BarTooltipText));
+        return AnnouncementKeyFor(previousPercent, window.UsedPercent);
+    }
+
+    /// <summary>What a screen reader should hear when a window moves from <paramref name="previousPercent"/>
+    /// to <paramref name="percent"/>: the resource key of the text for a rise into yellow, red or full,
+    /// null for anything else (no change, a fall, a rise inside one level).</summary>
+    internal static string? AnnouncementKeyFor(double previousPercent, double percent)
+    {
+        if (percent >= LimitReachedPercent && previousPercent < LimitReachedPercent)
+            return "A11y.Level.Full";
+
+        var before = Classify(previousPercent);
+        var after = Classify(percent);
+        if (after <= before)
+            return null;
+
+        return after == UsageLevel.Crit ? "A11y.Level.Critical" : "A11y.Level.Warn";
     }
 
     /// <summary>The colour boundaries, also shown to the user next to the notification threshold

@@ -462,4 +462,14 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>z. B. Arbeit</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update konnte nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuch es noch einmal.</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, wenn ein Limit voraussichtlich in weniger als 30 Minuten erreicht ist</value></data>
+  <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
+  <data name="Settings.QuietWeekend" xml:space="preserve"><value>Am Wochenende (Samstag und Sonntag) ganz ruhig</value></data>
+  <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, wird knapp</value></data>
+  <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, Limit fast erreicht</value></data>
+  <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: Limit erreicht</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Melden, wenn ein Limit erreicht ist (100 %)</value></data>
+  <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: Limit für {1} erreicht, wieder frei in {2}</value></data>
+  <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: Limit für {1} erreicht</value></data>
+  <data name="Toast.ShowWidget" xml:space="preserve"><value>Widget zeigen</value></data>
 </root>
