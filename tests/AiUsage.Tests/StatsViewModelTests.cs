@@ -150,7 +150,9 @@ public class StatsViewModelTests
         store.AddDelta([
             new StatsRecord("claude", DateOnly.FromDateTime(DateTime.UtcNow), "modelA", "projA", 100, 50, 0, 0),
         ]);
-        var viewModel = StatsVm.Create(store);
+        // The default delay is a wall-clock budget; on a loaded machine a quick run can outlast it, so
+        // the test pushes the delay out of reach and asserts the ordering, not the speed.
+        var viewModel = StatsVm.Create(store, vm => vm.LoadingDelay = TimeSpan.FromMinutes(10));
 
         var loadingStates = new List<bool>();
         var barsChanges = 0;

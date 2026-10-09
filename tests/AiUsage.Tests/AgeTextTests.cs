@@ -3,6 +3,7 @@ using Xunit;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class AgeTextTests
 {
     private static string Convert(DateTimeOffset? value) => AgeText.Describe(value);
