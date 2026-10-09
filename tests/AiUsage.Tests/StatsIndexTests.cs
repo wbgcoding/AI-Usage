@@ -83,7 +83,7 @@ public class StatsIndexTests
     {
         const string turnContext = """{"type":"turn_context","payload":{"model":"gpt-5.6-sol","reasoning_effort":"low"}}""";
         const string tokenCount = """
-            {"type":"event_msg","timestamp":"2026-07-29T18:33:50.308Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}}}
+            {"type":"event_msg","timestamp":"2026-07-29T18:33:50.308Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":5,"total_tokens":15}}}}
             """;
 
         var parser = new CodexUsageLogParser();
@@ -96,7 +96,7 @@ public class StatsIndexTests
     public void CodexUsageLogParser_reseeded_with_a_saved_effort_keeps_reporting_it()
     {
         const string tokenCount = """
-            {"type":"event_msg","timestamp":"2026-07-29T18:33:50.308Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}}}
+            {"type":"event_msg","timestamp":"2026-07-29T18:33:50.308Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":5,"total_tokens":15}}}}
             """;
 
         var parser = new CodexUsageLogParser(effort: "medium");
@@ -130,7 +130,7 @@ public class StatsIndexTests
         // The real shape from the reported bug: input_tokens already includes the cached_input_tokens
         // share, so the naive sum of every field would double count it (85,809 instead of 51,505).
         const string tokenCount = """
-            {"type":"event_msg","timestamp":"2026-09-01T10:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":51066,"cached_input_tokens":34304,"output_tokens":439,"total_tokens":51505}}}}
+            {"type":"event_msg","timestamp":"2026-09-01T10:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":51066,"cached_input_tokens":34304,"cache_write_input_tokens":0,"output_tokens":439,"total_tokens":51505}}}}
             """;
 
         var parser = new CodexUsageLogParser();
@@ -1037,7 +1037,7 @@ public class StatsIndexTests
 
     private static string CodexTokenLine(string timestamp, long input, long output) =>
         "{\"type\":\"event_msg\",\"timestamp\":\"" + timestamp + "\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":"
-        + input + ",\"cached_input_tokens\":0,\"output_tokens\":" + output + "}}}}";
+        + input + ",\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":" + output + "}}}}";
 
     [Fact]
     public void Indexer_counts_an_archived_codex_session_once()
@@ -1224,8 +1224,87 @@ public class StatsIndexTests
             Assert.Equal("4:1", query.ExecuteScalar());
         }
 
-        // A second open (the window next to the indexer) finds version 5 and leaves everything alone.
+        // A second open (the window next to the indexer) finds the current version and leaves everything alone.
         Assert.Single(new StatsStore(dataDir).LoadAll());
+    }
+
+    [Fact]
+    public void Store_migrates_v5_to_v6_keeping_every_row_and_collapsing_the_version_rows()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v5-migrate");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteV4Database(dbPath);
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = dbPath, Pooling = false }.ToString()))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            // The v5 shape, including the duplicate version row the old open race could leave.
+            command.CommandText = """
+                ALTER TABLE source_file ADD COLUMN last_message_key TEXT NOT NULL DEFAULT '';
+                UPDATE schema_version SET version = 5;
+                INSERT INTO schema_version (version) VALUES (5);
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        var store = new StatsStore(dataDir);
+        var rows = store.LoadAll();
+
+        Assert.True(store.IsUsable);
+        Assert.Equal(["claude", "codex"], rows.Select(row => row.Provider).Order());
+        Assert.NotNull(store.GetSourceFile("c.jsonl"));
+        Assert.NotNull(store.GetSourceFile("x.jsonl"));
+        Assert.False(File.Exists(Path.Combine(dataDir, "stats.v4.bak")));
+
+        using var check = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = dbPath, Pooling = false }.ToString());
+        check.Open();
+        using var query = check.CreateCommand();
+        query.CommandText = "SELECT COUNT(*) || ':' || MIN(version) || ':' || MIN(id) FROM schema_version";
+        Assert.Equal($"1:{StatsStore.SchemaVersion}:1", query.ExecuteScalar());
+
+        // The constraint itself: a second version row is refused.
+        using var duplicate = check.CreateCommand();
+        duplicate.CommandText = "INSERT INTO schema_version (id, version) VALUES (2, 6)";
+        Assert.Throws<SqliteException>(() => duplicate.ExecuteNonQuery());
+    }
+
+    [Fact]
+    public void Store_first_opens_racing_each_other_leave_exactly_one_version_row()
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var dataDir = TestPaths.CreateDisposableDirectory("stats-open-race");
+            const int openers = 8;
+            using var barrier = new Barrier(openers);
+            var failures = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+            var usable = new System.Collections.Concurrent.ConcurrentBag<bool>();
+
+            var threads = Enumerable.Range(0, openers).Select(_ => new Thread(() =>
+            {
+                try
+                {
+                    var store = new StatsStore(dataDir);
+                    barrier.SignalAndWait();
+                    store.LoadAll();
+                    usable.Add(store.IsUsable);
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
+            })).ToList();
+            threads.ForEach(thread => thread.Start());
+            threads.ForEach(thread => thread.Join());
+
+            Assert.Empty(failures);
+            Assert.All(usable, isUsable => Assert.True(isUsable));
+
+            using var check = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path.Combine(dataDir, "stats.db"), Pooling = false }.ToString());
+            check.Open();
+            using var query = check.CreateCommand();
+            query.CommandText = "SELECT COUNT(*) FROM schema_version";
+            Assert.Equal(1L, query.ExecuteScalar());
+        }
     }
 
     private static string KeyedClaudeLine(string messageId, string requestId, long input) =>
