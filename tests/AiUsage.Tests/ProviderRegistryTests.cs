@@ -128,6 +128,27 @@ public class ProviderRegistryTests : IDisposable
     public void TheGoogleSignInIsAllowedToFinishItsWholeFlow(string accountKey, string url) =>
         Assert.True(SignInNavigationPolicy.IsAllowedUri(url, ProviderRegistry.WebSessionFor(accountKey).AllowedHosts), url);
 
+    /// <summary>The sign-in hosts are named one by one: a user-content host of the same site never
+    /// loads in the sign-in window, and GitHub counts only as its own host.</summary>
+    [Theory]
+    [InlineData("codex", "https://sites.google.com/view/fake-login")]
+    [InlineData("claude", "https://sites.google.com/view/fake-login")]
+    [InlineData("cursor", "https://sites.google.com/view/fake-login")]
+    [InlineData("gemini", "https://sites.google.com/view/fake-login")]
+    [InlineData("codex", "https://www.youtube.com/watch")]
+    [InlineData("cursor", "https://gist.github.com/someone/abc")]
+    public void AUserContentHostOfAGoogleOrGitHubSiteIsNotAllowed(string accountKey, string url) =>
+        Assert.False(SignInNavigationPolicy.IsAllowedUri(url, ProviderRegistry.WebSessionFor(accountKey).AllowedHosts), url);
+
+    [Theory]
+    [InlineData("codex", "https://accounts.youtube.com/accounts/SetSID")]
+    [InlineData("claude", "https://myaccount.google.com/signinoptions")]
+    [InlineData("gemini", "https://accounts.youtube.com/accounts/SetSID")]
+    [InlineData("cursor", "https://github.com/login/oauth/authorize")]
+    [InlineData("cursor", "https://github.com/sessions/two-factor")]
+    public void TheRestOfTheGoogleAndGitHubSignInStillFinishes(string accountKey, string url) =>
+        Assert.True(SignInNavigationPolicy.IsAllowedUri(url, ProviderRegistry.WebSessionFor(accountKey).AllowedHosts), url);
+
     /// <summary>Cursor's sign-in runs on a hosted identity service, and that service's own api host
     /// is a step in the middle of the flow: it was turned away there, which left the user on a
     /// blocked notice with no way to finish signing in. The login form and the authorize step sit on
@@ -207,7 +228,8 @@ public class ProviderRegistryTests : IDisposable
         Assert.Equal("gemini", session.ProviderId);
         Assert.Equal("gemini", session.ProfileFolderName);
         Assert.StartsWith("https://aistudio.google.com/", session.BaseUrl, StringComparison.Ordinal);
-        Assert.Contains("google.com", session.AllowedHosts);
+        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://aistudio.google.com/usage", session.AllowedHosts));
+        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.com/ServiceLogin", session.AllowedHosts));
         Assert.True(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.de/signin/v2", session.AllowedHosts));
         Assert.True(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.co.uk/signin/v2", session.AllowedHosts));
         Assert.False(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.de.evil.com/", session.AllowedHosts));
@@ -351,7 +373,7 @@ public class ProviderRegistryTests : IDisposable
     [Theory]
     [InlineData("codex#2", "chatgpt.com")]
     [InlineData("cursor#2", "cursor.com")]
-    [InlineData("gemini#2", "google.com")]
+    [InlineData("gemini#2", "aistudio.google.com")]
     public void AFurtherAccountsWebSessionIsItsOwnProfileOnTheProvidersOwnSite(string accountKey, string host)
     {
         var primary = ProviderRegistry.WebSessionFor(ProviderRegistry.BaseProviderId(accountKey));

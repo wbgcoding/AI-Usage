@@ -46,13 +46,24 @@ public class SessionHardeningTests
     }
 
     private static readonly string[] ProviderHosts = ["cursor.com"];
+    private const string ProviderHost = "cursor.com";
 
     [Fact]
     public void The_title_is_plain_on_the_providers_own_hosts_and_before_any_page_is_known()
     {
-        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", null, ProviderHosts, ["auth.example"]));
-        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", "https://www.cursor.com/login", ProviderHosts, ["auth.example"]));
-        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", "not a url", ProviderHosts, ["auth.example"]));
+        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", null, ProviderHost));
+        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", "https://cursor.com/dashboard", ProviderHost));
+        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", "https://www.cursor.com/login", ProviderHost));
+        Assert.Equal("Sign in", SignInWindow.TitleFor("Sign in", "not a url", ProviderHost));
+    }
+
+    [Theory]
+    [InlineData("https://sites.google.com/view/fake", "sites.google.com")]
+    [InlineData("https://accounts.google.com/signin", "accounts.google.com")]
+    [InlineData("https://cursor.com.evil.test/", "cursor.com.evil.test")]
+    public void The_title_names_every_host_that_is_not_the_providers_own_even_when_the_list_allows_it(string address, string host)
+    {
+        Assert.Equal("Sign in · " + host, SignInWindow.TitleFor("Sign in", address, ProviderHost));
     }
 
     [Fact]
@@ -60,16 +71,14 @@ public class SessionHardeningTests
     {
         Assert.Equal(
             "Sign in \u00B7 auth.example",
-            SignInWindow.TitleFor("Sign in", "https://auth.example/path?x=1", ProviderHosts, ["auth.example"]));
+            SignInWindow.TitleFor("Sign in", "https://auth.example/path?x=1", ProviderHost));
     }
 
     [Fact]
     public void The_title_shows_an_international_host_in_its_ascii_form_so_a_look_alike_is_visible()
     {
         // Cyrillic a in place of the Latin one.
-        var ascii = new System.Globalization.IdnMapping().GetAscii("\u0430uth.example");
-
-        var title = SignInWindow.TitleFor("Sign in", "https://\u0430uth.example/", ProviderHosts, [ascii]);
+        var title = SignInWindow.TitleFor("Sign in", "https://\u0430uth.example/", ProviderHost);
 
         Assert.StartsWith("Sign in \u00B7 xn--", title, StringComparison.Ordinal);
     }
@@ -79,7 +88,7 @@ public class SessionHardeningTests
     {
         var host = string.Join('.', Enumerable.Repeat("sub", 30)) + ".evil.example";
 
-        var title = SignInWindow.TitleFor("Sign in", "https://" + host + "/", ProviderHosts, [host]);
+        var title = SignInWindow.TitleFor("Sign in", "https://" + host + "/", ProviderHost);
 
         Assert.EndsWith(".evil.example", title, StringComparison.Ordinal);
         Assert.Contains("\u2026", title, StringComparison.Ordinal);

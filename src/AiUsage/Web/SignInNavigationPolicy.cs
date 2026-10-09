@@ -18,6 +18,19 @@ public static class SignInNavigationPolicy
     /// or a country domain Google does not own never matches.</summary>
     public const string GoogleCountryAccounts = "accounts.google.*";
 
+    /// <summary>The Google hosts a sign-in walks through: the account host, the two-factor
+    /// confirmation hosts and the account host of YouTube that confirms the account before the session
+    /// is handed back, plus the country account hosts. Named one by one instead of the whole
+    /// <c>google.com</c>, which would also admit user-content hosts such as <c>sites.google.com</c>.</summary>
+    public static readonly IReadOnlyList<string> GoogleSignInHosts =
+    [
+        "accounts.google.com", "gds.google.com", "myaccount.google.com", "accounts.youtube.com", GoogleCountryAccounts,
+    ];
+
+    /// <summary>Marks an allow-list entry that names one host and none of its subdomains
+    /// (<c>=github.com</c>).</summary>
+    public const string ExactPrefix = "=";
+
     private const string GoogleAccountsPrefix = "accounts.google.";
 
     // The country suffixes of Google's own search domains (google.com/supported_domains), without the
@@ -44,7 +57,8 @@ public static class SignInNavigationPolicy
     /// <summary>True for an allowed host or any of its subdomains (e.g. <c>www.example.com</c>,
     /// <c>login.example.com</c>); false for anything else, including a look-alike such as
     /// <c>example.com.attacker.test</c>. The <see cref="GoogleCountryAccounts"/> entry is matched by
-    /// its own rule instead.</summary>
+    /// its own rule instead, and an entry starting with <see cref="ExactPrefix"/> matches that one
+    /// host only.</summary>
     public static bool IsAllowedHost(string host, IReadOnlyList<string> allowedHosts)
     {
         foreach (var allowed in allowedHosts)
@@ -52,6 +66,13 @@ public static class SignInNavigationPolicy
             if (allowed == GoogleCountryAccounts)
             {
                 if (IsGoogleCountryAccountsHost(host))
+                    return true;
+                continue;
+            }
+
+            if (allowed.StartsWith(ExactPrefix, StringComparison.Ordinal))
+            {
+                if (host.Equals(allowed[ExactPrefix.Length..], StringComparison.OrdinalIgnoreCase))
                     return true;
                 continue;
             }

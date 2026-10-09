@@ -403,7 +403,9 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     /// <summary>Runs in every document of the hidden session before the page's own scripts. A page
     /// calling <c>print()</c> would open the browser's print dialog and hold the page's script thread until
     /// somebody closed it, and nobody ever sees this window. The function is replaced on the window itself,
-    /// where it lives, and cannot be put back by the page.</summary>
+    /// where it lives, and cannot be put back by the page. A frame the page adds itself starts with a
+    /// blank document this script never reaches, so its <c>print()</c> is not covered; the timeout of the
+    /// script run is the backstop there and ends the stall.</summary>
     internal const string DocumentCreatedScript =
         "Object.defineProperty(window,'print',{value:function(){},writable:false,configurable:false});";
 
@@ -609,14 +611,24 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     /// on any page but the provider's own site (https, the host or one of its subdomains) the script
     /// does not run and the answer names the address instead, for <see cref="OffOriginEnvelope"/> to
     /// classify. Without it, a navigation landing between a check made from outside and the evaluation
-    /// would run the script - which fetches with the session's cookies - against a foreign page.</summary>
+    /// would run the script - which fetches with the session's cookies - against a foreign page. The
+    /// guard runs in the page's own world, so it uses no method of a built-in prototype (a page can
+    /// replace those): only the length of the host name, single characters and <c>===</c>.</summary>
     internal static string WrapWithOriginGuard(string script, string usageHost)
     {
         var host = JsonSerializer.Serialize(usageHost);
         // A block rather than a wrapping function: a script may open with function declarations before its
-        // own async call, and the value of the last statement is what the evaluation hands back.
+        // own async call, and the value of the last statement is what the evaluation hands back. The
+        // comparison itself sits in an arrow function so it declares nothing in the page's global scope.
         return $$"""
-            if (location.protocol !== 'https:' || (location.hostname !== {{host}} && !location.hostname.endsWith('.' + {{host}})))
+            if (!((h, u) => {
+                if (location.protocol !== 'https:') return false;
+                if (h === u) return true;
+                const d = h.length - u.length - 1;
+                if (d < 1 || h[d] !== '.') return false;
+                for (let i = 0; i < u.length; i++) if (h[d + 1 + i] !== u[i]) return false;
+                return true;
+            })(location.hostname, {{host}}))
                 ({status: '{{OffOriginStatus}}', href: location.href});
             else {
             {{script}}
