@@ -89,14 +89,14 @@ public sealed class StatsRingChart : FrameworkElement
     /// single center figure already used. Empty/empty when <see cref="LargestSliceIndex"/> finds
     /// nothing.</summary>
     internal static (string Name, string Value) CenterHeadline(
-        IReadOnlyList<Slice> slices, string thousandSuffix, string millionSuffix, string billionSuffix)
+        IReadOnlyList<Slice> slices, string thousandSuffix, string millionSuffix, string billionSuffix, bool wholeNumbers = false)
     {
         var index = LargestSliceIndex(slices);
         if (index < 0)
             return ("", "");
 
         var slice = slices[index];
-        return (slice.Label, StatsAggregator.ShortenTokenCountCompact(slice.Total, thousandSuffix, millionSuffix, billionSuffix));
+        return (slice.Label, StatsAggregator.ShortenTokenCountCompact(slice.Total, thousandSuffix, millionSuffix, billionSuffix, wholeNumbers));
     }
 
     /// <summary>"Largest share: {0}, {1}" (DE "Größter Anteil: {0}, {1}") filled in from <see
@@ -309,33 +309,68 @@ public sealed class StatsRingChart : FrameworkElement
 
         var boldTypeface = new Typeface(typeface.FontFamily, typeface.Style, FontWeights.Bold, typeface.Stretch);
 
-        FormattedText BuildNameLine(double fontSize) => new(
+        // A hole too small for the figure even at the smallest font drops its decimal.
+        var fitWidth = innerDiameter * 0.95;
+        double ValueWidthAtMinimum(string text) => new FormattedText(
+            text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, boldTypeface, CenterTextMinFontSize, CenterTextBrush, dpi).Width;
+        if (ValueWidthAtMinimum(value) > fitWidth)
+            value = CenterHeadline(slices, ThousandSuffix, MillionSuffix, BillionSuffix, wholeNumbers: true).Value;
+
+        // Measured untrimmed: a line trimmed to the hole reports the trimmed width and would always
+        // look as if it fit, so the font step below would never kick in.
+        FormattedText BuildNameLine(double fontSize, int maxLines, bool trim) => new(
             name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, CenterTextBrush, dpi)
         {
-            MaxTextWidth = innerDiameter,
-            MaxLineCount = 1,
-            Trimming = TextTrimming.CharacterEllipsis,
+            MaxTextWidth = trim ? innerDiameter : 0,
+            MaxLineCount = maxLines,
+            Trimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
         };
-        FormattedText BuildValueLine(double fontSize) => new(
+        FormattedText BuildValueLine(double fontSize, bool trim) => new(
             value, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, boldTypeface, fontSize, CenterTextBrush, dpi)
         {
-            MaxTextWidth = innerDiameter,
+            MaxTextWidth = trim ? innerDiameter : 0,
             MaxLineCount = 1,
-            Trimming = TextTrimming.CharacterEllipsis,
+            Trimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
         };
 
-        var nameLine = BuildNameLine(CenterNameBaseFontSize);
-        var valueLine = BuildValueLine(CenterValueBaseFontSize);
+        var naturalName = BuildNameLine(CenterNameBaseFontSize, 1, trim: false);
+        var naturalValue = BuildValueLine(CenterValueBaseFontSize, trim: false);
 
-        var maxLineWidth = Math.Max(nameLine.Width, valueLine.Width);
-        var totalHeight = nameLine.Height + valueLine.Height;
-        var scale = FitScale(maxLineWidth, totalHeight, innerDiameter, innerDiameter, CenterTextMinFontSize / CenterValueBaseFontSize);
-
-        if (scale < 1.0)
+        // A few percent of slack: text scaled to exactly the hole's width can still be trimmed by
+        // the layout's own rounding.
+        const double comfortableScale = 0.85;
+        var nameScale = FitScale(naturalName.Width, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / CenterNameBaseFontSize);
+        var nameLines = 1;
+        if (fitWidth / naturalName.Width < comfortableScale && name.Contains(' '))
         {
-            nameLine = BuildNameLine(CenterNameBaseFontSize * scale);
-            valueLine = BuildValueLine(CenterValueBaseFontSize * scale);
+            // A long multi-word name would shrink to nothing on one line: wrap it onto a second line
+            // and size it to the widest word instead.
+            var widestWord = name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(word => new FormattedText(
+                    word, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, CenterNameBaseFontSize, CenterTextBrush, dpi).Width)
+                .Max();
+            nameLines = 2;
+            nameScale = FitScale(widestWord, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / CenterNameBaseFontSize);
         }
+
+        var valueScale = FitScale(naturalValue.Width, naturalValue.Height, fitWidth, innerDiameter, CenterTextMinFontSize / CenterValueBaseFontSize);
+        var pairHeight = naturalName.Height * nameScale * nameLines + naturalValue.Height * valueScale;
+        var heightScale = pairHeight > innerDiameter ? innerDiameter / pairHeight : 1.0;
+
+        // The proportional step above is an estimate; walk the size down until the measured line
+        // really fits the hole (or the minimum size is reached).
+        var nameSize = Math.Max(CenterTextMinFontSize, CenterNameBaseFontSize * nameScale * heightScale);
+        var valueSize = Math.Max(CenterTextMinFontSize, CenterValueBaseFontSize * valueScale * heightScale);
+        while (valueSize > CenterTextMinFontSize && BuildValueLine(valueSize, trim: false).Width > fitWidth)
+            valueSize = Math.Max(CenterTextMinFontSize, valueSize - 0.25);
+        if (nameLines == 1)
+        {
+            while (nameSize > CenterTextMinFontSize && BuildNameLine(nameSize, 1, trim: false).Width > fitWidth)
+                nameSize = Math.Max(CenterTextMinFontSize, nameSize - 0.25);
+        }
+
+        var nameLine = BuildNameLine(nameSize, nameLines, trim: true);
+        var valueLine = BuildValueLine(valueSize, trim: true);
 
         nameLine.TextAlignment = TextAlignment.Center;
         valueLine.TextAlignment = TextAlignment.Center;

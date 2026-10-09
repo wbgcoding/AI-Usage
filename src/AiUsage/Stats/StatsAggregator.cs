@@ -357,16 +357,20 @@ public static class StatsAggregator
     /// reaches a thousand - the ring's hole is narrow enough that a bare six-digit number would
     /// force the font down further than a "12 Tsd"/"12K" shorthand needs to. Every suffix already
     /// carries its own locale-correct spacing (DE leads with a space, EN does not, matching how "12
-    /// Tsd" and "12K" are actually written), so this never inserts a separator of its own.</summary>
-    public static string ShortenTokenCountCompact(long value, string thousandSuffix, string millionSuffix, string billionSuffix)
+    /// Tsd" and "12K" are actually written), so this never inserts a separator of its own. With
+    /// <paramref name="wholeNumbers"/> the figure drops its decimal ("474 Mio"), for a space too
+    /// tight for "474,1 Mio".</summary>
+    public static string ShortenTokenCountCompact(
+        long value, string thousandSuffix, string millionSuffix, string billionSuffix, bool wholeNumbers = false)
     {
+        var format = wholeNumbers ? "0" : "0.#";
         var magnitude = Math.Abs(value);
         if (magnitude >= 1_000_000_000)
-            return $"{(value / 1_000_000_000.0).ToString("0.#", CultureInfo.CurrentCulture)}{billionSuffix}";
+            return $"{(value / 1_000_000_000.0).ToString(format, CultureInfo.CurrentCulture)}{billionSuffix}";
         if (magnitude >= 1_000_000)
-            return $"{(value / 1_000_000.0).ToString("0.#", CultureInfo.CurrentCulture)}{millionSuffix}";
+            return $"{(value / 1_000_000.0).ToString(format, CultureInfo.CurrentCulture)}{millionSuffix}";
         if (magnitude >= 1_000)
-            return $"{(value / 1_000.0).ToString("0.#", CultureInfo.CurrentCulture)}{thousandSuffix}";
+            return $"{(value / 1_000.0).ToString(format, CultureInfo.CurrentCulture)}{thousandSuffix}";
         return value.ToString("N0", CultureInfo.CurrentCulture);
     }
 

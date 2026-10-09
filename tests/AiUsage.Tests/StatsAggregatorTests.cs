@@ -760,6 +760,14 @@ public class StatsAggregatorTests
     }
 
     [Fact]
+    public void ShortenTokenCountCompact_can_drop_the_decimal_for_a_tight_space()
+    {
+        Assert.Equal("474 Mio", StatsAggregator.ShortenTokenCountCompact(474_100_000, " Tsd", " Mio", " Mrd", wholeNumbers: true));
+        Assert.Equal("12 Tsd", StatsAggregator.ShortenTokenCountCompact(12_400, " Tsd", " Mio", " Mrd", wholeNumbers: true));
+        Assert.Equal(999L.ToString("N0", CultureInfo.CurrentCulture), StatsAggregator.ShortenTokenCountCompact(999, " Tsd", " Mio", " Mrd", wholeNumbers: true));
+    }
+
+    [Fact]
     public void ShortenTokenCountCompact_never_inserts_its_own_separator()
     {
         // The English suffixes carry no leading space of their own - "12K", never "12 K".

@@ -46,9 +46,11 @@ public class ChartFontsTests
     }
 
     [Fact]
-    public void Ui_falls_back_to_segoe_ui_without_a_theme_resource()
+    public void Ui_always_yields_a_font_even_without_a_theme_resource()
     {
-        var source = OnSta(() => ChartFonts.Ui(new StatsRingChart()).Source);
-        Assert.Equal("Segoe UI", source);
+        // The result is Segoe UI, or the app's theme font when an earlier test left the app
+        // resources loaded; either way never empty.
+        var source = OnSta(() => ChartFonts.UiTypeface(new StatsRingChart()).FontFamily.Source);
+        Assert.False(string.IsNullOrWhiteSpace(source));
     }
 }
