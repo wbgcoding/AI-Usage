@@ -267,6 +267,35 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_of_a_newer_schema_file_yields_the_same_provider_entries_as_the_defaults()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(Path.Combine(directory, "settings.json"), """{"schemaVersion":99}""");
+        using var store = new SettingsStore(directory);
+
+        var settings = store.Load();
+
+        Assert.Equal(AppSettings.KnownProviderIds.OrderBy(id => id), settings.Providers.Keys.OrderBy(id => id));
+        Assert.All(settings.Providers.Values, provider => Assert.True(provider.Order >= 0));
+    }
+
+    [Fact]
+    public void SaveNow_replaces_a_queued_older_save_so_Dispose_cannot_write_it_back()
+    {
+        var directory = TempDirectory();
+        var store = new SettingsStore(directory, debounceDelay: TimeSpan.FromHours(1));
+        var older = new AppSettings { RefreshSeconds = 30 };
+        var final = new AppSettings { RefreshSeconds = 120 };
+
+        store.RequestSave(older);
+        Assert.True(store.SaveNow(final));
+        store.Dispose();
+
+        using var reloadStore = new SettingsStore(directory);
+        Assert.Equal(120, reloadStore.Load().RefreshSeconds);
+    }
+
+    [Fact]
     public void Load_ignores_a_backup_from_a_newer_schema_version_when_there_is_no_primary_file_and_sets_the_flag()
     {
         var directory = TempDirectory();

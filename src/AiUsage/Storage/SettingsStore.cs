@@ -114,7 +114,7 @@ public sealed class SettingsStore : IDisposable
             {
                 LastLoadWasFromNewerVersion = true;
                 _readOnly = true;
-                return new AppSettings();
+                return CreateDefaultSettings();
             }
 
             if (loaded is null)
@@ -367,7 +367,7 @@ public sealed class SettingsStore : IDisposable
             _pendingSave = null;
             _flushAttempts = 0;
             _debounceTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            return SaveNow(snapshot);
+            return WriteSnapshot(snapshot);
         }
     }
 
@@ -378,6 +378,21 @@ public sealed class SettingsStore : IDisposable
     {
         if (_readOnly)
             return false; // loaded from a newer version - never overwrite it with this session's defaults
+
+        lock (_saveGate)
+        {
+            // Whatever RequestSave queued earlier is older than this state and must not land after it.
+            _pendingSave = null;
+            _flushAttempts = 0;
+            _debounceTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            return WriteSnapshot(settings);
+        }
+    }
+
+    private bool WriteSnapshot(AppSettings settings)
+    {
+        if (_readOnly)
+            return false;
 
         lock (_saveGate)
         {
@@ -464,7 +479,7 @@ public sealed class SettingsStore : IDisposable
             if (settings is null)
                 return;
 
-            if (SaveNow(settings))
+            if (WriteSnapshot(settings))
             {
                 _pendingSave = null;
                 _flushAttempts = 0;
