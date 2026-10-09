@@ -23,6 +23,11 @@ public enum StatsGrouping
 /// belongs to exactly one provider, so stacking would add nothing there).</summary>
 public readonly record struct StatsGroupedRow(string Label, IReadOnlyList<long> StackedValues, long Total);
 
+/// <summary>A day or week chart stacked by model: the model names in stacking order (largest
+/// first, the pooled remainder last when <see cref="HasOther"/>) and one row per period whose stacked
+/// values follow that order.</summary>
+public readonly record struct StatsModelSplit(IReadOnlyList<string> Series, bool HasOther, IReadOnlyList<StatsGroupedRow> Rows);
+
 /// <summary>The token totals for one period, split into the input/output/cache breakdown line and
 /// the headline total, plus the same total for the immediately preceding period of equal length -
 /// what the change-vs-previous-period figure is computed from.</summary>
@@ -137,6 +142,68 @@ public static class StatsAggregator
         StatsGrouping.Effort => GroupBySingleValueKey(records, record => record.Effort),
         _ => [],
     };
+
+    /// <summary>The day or week rows of <see cref="Group"/>, each stacked by model instead of by
+    /// provider: the <paramref name="topCount"/> models with the most tokens in <paramref
+    /// name="records"/> keep their own segment, every other model is pooled into one last segment
+    /// named <paramref name="otherLabel"/>. The rows are exactly those <see cref="Group"/> returns for
+    /// the same arguments, so each row's total is the same total the provider stack shows.</summary>
+    public static StatsModelSplit GroupStackedByModel(
+        IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd, int topCount, string otherLabel)
+    {
+        var periods = Group(records, grouping, rangeStart, rangeEnd);
+
+        var modelTotals = records
+            .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
+            .Select(group => (Name: group.Key, Total: group.Sum(record => record.TotalTokens)))
+            .OrderByDescending(entry => entry.Total)
+            .ThenBy(entry => entry.Name, StringComparer.Ordinal)
+            .ToList();
+        var named = modelTotals.Take(topCount).Select(entry => entry.Name).ToList();
+        var hasOther = modelTotals.Count > topCount;
+        var series = hasOther ? named.Append(otherLabel).ToList() : named;
+        var slotOf = named.Select((name, index) => (name, index)).ToDictionary(pair => pair.name, pair => pair.index);
+
+        string KeyOf(StatsRecord record) => grouping == StatsGrouping.Week
+            ? IsoWeekLabel(record.Day)
+            : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var stacks = new Dictionary<string, long[]>();
+        foreach (var record in records)
+        {
+            var key = KeyOf(record);
+            if (!stacks.TryGetValue(key, out var stack))
+                stacks[key] = stack = new long[Math.Max(1, series.Count)];
+            var slot = slotOf.TryGetValue(ModelDisplayNames.Resolve(record.Model), out var found) ? found : series.Count - 1;
+            stack[slot] += record.TotalTokens;
+        }
+
+        var rows = periods
+            .Select(period =>
+            {
+                var stacked = stacks.TryGetValue(period.Label, out var values) ? values : new long[Math.Max(1, series.Count)];
+                return new StatsGroupedRow(period.Label, stacked, stacked.Sum());
+            })
+            .ToList();
+        return new StatsModelSplit(series, hasOther, rows);
+    }
+
+    /// <summary>The mean of each value and the <c>window - 1</c> values before it; the first
+    /// <c>window - 1</c> entries have no full window yet and are null.</summary>
+    public static IReadOnlyList<double?> TrailingMean(IReadOnlyList<long> totals, int window)
+    {
+        var means = new double?[totals.Count];
+        long sum = 0;
+        for (var i = 0; i < totals.Count; i++)
+        {
+            sum += totals[i];
+            if (i >= window)
+                sum -= totals[i - window];
+            if (i >= window - 1)
+                means[i] = (double)sum / window;
+        }
+        return means;
+    }
 
     private static List<StatsGroupedRow> GroupByDay(IReadOnlyList<StatsRecord> records, DateOnly? rangeStart, DateOnly? rangeEnd)
     {

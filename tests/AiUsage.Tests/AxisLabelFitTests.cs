@@ -84,4 +84,18 @@ public class AxisLabelFitTests
         Assert.False(StatsBarChart.RequiredLabelsTouch(apart, [0, 12], 6));
         Assert.True(StatsBarChart.RequiredLabelsTouch(touching, [0, 12], 6));
     }
+
+    [Fact]
+    public void OverlayPoints_sit_on_the_middle_of_their_bar_at_the_height_of_their_value()
+    {
+        var columns = new List<(double X, double Width)> { (0, 10), (20, 10), (40, 10) };
+
+        var points = StatsBarChart.OverlayPoints([null, 50.0, 100.0], columns, leftMargin: 30, chartHeight: 200, plotHeight: 100, scaleMax: 100);
+
+        Assert.Equal(3, points.Count);
+        Assert.Null(points[0]);
+        Assert.Equal(new System.Windows.Point(55, 150), points[1]);
+        Assert.Equal(new System.Windows.Point(75, 100), points[2]);
+        Assert.All(StatsBarChart.OverlayPoints([1.0], columns, 0, 100, 50, scaleMax: 0), point => Assert.Null(point));
+    }
 }

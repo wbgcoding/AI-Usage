@@ -945,4 +945,84 @@ public class StatsAggregatorTests
         Assert.Equal("low", slices[1].Label);
         Assert.Equal(10.0, slices[1].Percent);
     }
+
+    [Fact]
+    public void Stacking_by_model_keeps_the_day_totals_and_names_the_top_models_in_size_order()
+    {
+        var start = new DateOnly(2026, 3, 1);
+        var records = new[]
+        {
+            Record("claude", start, "modelA", "p", 100),
+            Record("claude", start, "modelB", "p", 400),
+            Record("codex", start, "modelC", "p", 50),
+            Record("claude", start.AddDays(2), "modelA", "p", 200),
+        };
+
+        var stack = StatsAggregator.GroupStackedByModel(records, StatsGrouping.Day, start, start.AddDays(2), topCount: 6, "Other");
+        var plain = StatsAggregator.Group(records, StatsGrouping.Day, start, start.AddDays(2));
+
+        Assert.Equal(new[] { "modelB", "modelA", "modelC" }.Select(ModelDisplayNames.Resolve).ToArray(), stack.Series.ToArray());
+        Assert.False(stack.HasOther);
+        Assert.Equal(3, stack.Rows.Count);
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(plain[i].Label, stack.Rows[i].Label);
+            Assert.Equal(plain[i].Total, stack.Rows[i].StackedValues.Sum());
+            Assert.Equal(plain[i].Total, stack.Rows[i].Total);
+        }
+        Assert.Equal(3, stack.Rows[0].StackedValues.Count);
+        Assert.Equal(0, stack.Rows[1].Total);
+    }
+
+    [Fact]
+    public void Stacking_by_model_pools_everything_past_the_top_models_into_other()
+    {
+        var day = new DateOnly(2026, 3, 1);
+        var records = Enumerable.Range(1, 8)
+            .Select(i => Record("claude", day, "model" + i, "p", i * 100))
+            .ToArray();
+
+        var stack = StatsAggregator.GroupStackedByModel(records, StatsGrouping.Day, day, day, topCount: 6, "Other");
+
+        Assert.True(stack.HasOther);
+        Assert.Equal(7, stack.Series.Count);
+        Assert.Equal("Other", stack.Series[^1]);
+        Assert.Equal(ModelDisplayNames.Resolve("model8"), stack.Series[0]);
+        var row = Assert.Single(stack.Rows);
+        Assert.Equal(300, row.StackedValues[^1]); // model1 + model2
+        Assert.Equal(3600, row.StackedValues.Sum());
+    }
+
+    [Fact]
+    public void Stacking_by_model_works_per_week_and_for_an_empty_range()
+    {
+        var monday = new DateOnly(2026, 3, 2);
+        var records = new[] { Record("claude", monday, "modelA", "p", 10), Record("claude", monday.AddDays(9), "modelB", "p", 20) };
+
+        var weekly = StatsAggregator.GroupStackedByModel(records, StatsGrouping.Week, monday, monday.AddDays(13), topCount: 6, "Other");
+        Assert.Equal(2, weekly.Rows.Count);
+        Assert.Equal(10, weekly.Rows[0].Total);
+        Assert.Equal(20, weekly.Rows[1].Total);
+
+        var empty = StatsAggregator.GroupStackedByModel([], StatsGrouping.Day, monday, monday.AddDays(2), topCount: 6, "Other");
+        Assert.Empty(empty.Series);
+        Assert.Equal(3, empty.Rows.Count);
+        Assert.All(empty.Rows, row => Assert.Equal(0, row.Total));
+    }
+
+    [Fact]
+    public void TrailingMean_leaves_the_first_days_empty_and_averages_each_full_week()
+    {
+        var totals = new long[] { 7, 7, 7, 7, 7, 7, 7, 14, 0, 0 };
+
+        var means = StatsAggregator.TrailingMean(totals, 7);
+
+        Assert.Equal(10, means.Count);
+        Assert.All(means.Take(6), mean => Assert.Null(mean));
+        Assert.Equal(7.0, means[6]);
+        Assert.Equal(8.0, means[7]);
+        Assert.Equal(7.0, means[8]);
+        Assert.Equal(6.0, means[9]);
+        Assert.Empty(StatsAggregator.TrailingMean([], 7));
+    }
 }

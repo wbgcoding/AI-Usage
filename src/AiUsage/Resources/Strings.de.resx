@@ -486,4 +486,8 @@
   <data name="Stats.ByWeekdayHour" xml:space="preserve"><value>Wochentag × Stunde</value></data>
   <data name="Stats.Heatmap.Tooltip" xml:space="preserve"><value>{0}, {1}-{2} Uhr: {3} Token</value></data>
   <data name="Tip.Stats.Chart.ByWeekdayHour" xml:space="preserve"><value>Auf welche Wochentage und Tagesstunden die Token fallen.</value></data>
+  <data name="Stats.ColorBy" xml:space="preserve"><value>Farben nach</value></data>
+  <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Anbieter</value></data>
+  <data name="Stats.ColorBy.Model" xml:space="preserve"><value>Modell</value></data>
+  <data name="Stats.Average7" xml:space="preserve"><value>7-Tage-Schnitt</value></data>
 </root>

@@ -20,6 +20,24 @@ public static class ChartPalette
         ["copilot"] = Color.FromRgb(0x89, 0x57, 0xE5),
     };
 
+    /// <summary>The colors of a chart's own categories (the models of a stacked column, say), in the
+    /// order they are handed out: spread around the color wheel so neighbours stay apart.</summary>
+    private static readonly Color[] CategoricalColors =
+    [
+        Color.FromRgb(0x4E, 0x79, 0xA7),
+        Color.FromRgb(0xF2, 0x8E, 0x2B),
+        Color.FromRgb(0x59, 0xA1, 0x4F),
+        Color.FromRgb(0xE1, 0x57, 0x59),
+        Color.FromRgb(0xB0, 0x7A, 0xA1),
+        Color.FromRgb(0x76, 0xB7, 0xB2),
+        Color.FromRgb(0xED, 0xC9, 0x48),
+        Color.FromRgb(0x9C, 0x75, 0x5F),
+    ];
+
+    /// <summary>The color of the <paramref name="index"/>-th category of a chart, in a fixed order;
+    /// past the last color the sequence starts over.</summary>
+    public static Color Categorical(int index) => CategoricalColors[((index % CategoricalColors.Length) + CategoricalColors.Length) % CategoricalColors.Length];
+
     private static readonly double[] ProviderHues = [.. ProviderColors.Values.Select(color => ToHsl(color).H)];
 
     /// <summary>Every fixed provider hue, for <see cref="ProjectColorResolver"/> to keep its own

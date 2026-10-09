@@ -968,6 +968,75 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public async Task ColorByModelStacksTheDayColumnsByModelAndBackToProvider()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-color-by");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "modelA", "projA", 700, 0, 0, 0),
+            new StatsRecord("codex", today, "modelB", "projA", 300, 0, 0, 0),
+        ]);
+        var viewModel = StatsVm.Create(store);
+
+        Assert.True(viewModel.CanChooseColor);
+        Assert.False(viewModel.IsModelStack);
+        Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal(2, viewModel.Bars[^1].StackedValues.Count);
+
+        viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Model);
+
+        Assert.True(viewModel.IsModelStack);
+        Assert.Equal(new[] { "modelA", "modelB" }.Select(ModelDisplayNames.Resolve).ToArray(), viewModel.ChartSeries.Select(series => series.Label).ToArray());
+        Assert.Equal(["cat:0", "cat:1"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal([700L, 300L], viewModel.Bars[^1].StackedValues.ToArray());
+        Assert.Equal(1000, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Model);
+        Assert.False(viewModel.CanChooseColor);
+        Assert.False(viewModel.IsModelStack);
+        Assert.Empty(viewModel.ChartSeries);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Week);
+        Assert.True(viewModel.IsModelStack);
+
+        viewModel.SetColorByCommand.Execute(StatsColorBy.Provider);
+        Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+    }
+
+    [Fact]
+    public async Task TheAverageLineAppearsForDayColumnsOfAtLeastTwoWeeksOnly()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-overlay");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta(Enumerable.Range(0, 30)
+            .Select(offset => new StatsRecord("claude", today.AddDays(-offset), "modelA", "projA", 70, 0, 0, 0))
+            .ToList());
+        var viewModel = StatsVm.Create(store);
+
+        Assert.Empty(viewModel.ChartOverlay); // the 7-day range is too short
+
+        await viewModel.SetRangeCommand.ExecuteAsync("Month");
+        Assert.Equal(viewModel.Bars.Count, viewModel.ChartOverlay.Count);
+        Assert.All(viewModel.ChartOverlay.Take(6), mean => Assert.Null(mean));
+        Assert.Equal(70.0, viewModel.ChartOverlay[^1]);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Week);
+        Assert.Empty(viewModel.ChartOverlay);
+    }
+
+    [Fact]
+    public void TheColorByListOffersProviderAndModel()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-color-by-list");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+
+        Assert.Equal([StatsColorBy.Provider, StatsColorBy.Model], viewModel.ColorByChoices.Select(choice => choice.Value).ToArray());
+        Assert.Equal(StatsColorBy.Provider, viewModel.SelectedColorByChoice?.Value);
+    }
+
+    [Fact]
     public void TheGroupingListNamesWeekdayHourAndTheGridRightAfterWeek()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-grouping-order");

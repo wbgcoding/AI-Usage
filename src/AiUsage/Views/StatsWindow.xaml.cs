@@ -84,7 +84,7 @@ public partial class StatsWindow : Window
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(StatsViewModel.IsStackedByProvider) or nameof(StatsViewModel.Bars)
-                or nameof(StatsViewModel.ProjectColors))
+                or nameof(StatsViewModel.ProjectColors) or nameof(StatsViewModel.ChartSeries) or nameof(StatsViewModel.ChartOverlay))
                 RefreshSeriesBrushes();
             if (e.PropertyName == nameof(StatsViewModel.ProviderShareSlices))
                 RefreshProviderRingBrushes();
@@ -399,10 +399,18 @@ public partial class StatsWindow : Window
     private void RefreshSeriesBrushes()
     {
         var accent = (System.Windows.Media.Brush)FindResource("Accent");
-        var providerBrushes = ProviderBrushes();
 
-        Chart.SeriesBrushes = _viewModel.IsStackedByProvider ? providerBrushes : [accent];
-        Chart.SeriesLabels = _viewModel.IsStackedByProvider ? Stats.StatsViewModel.StackedProviderDisplayNames : [];
+        var mutedBrush = (System.Windows.Media.Brush)FindResource("Text.Muted");
+        var series = _viewModel.ChartSeries;
+        Chart.SeriesBrushes = series.Count > 0 ? series.Select(item => SeriesBrush(item, mutedBrush)).ToList() : [accent];
+        Chart.SeriesLabels = series.Select(item => item.Label).ToList();
+        var primary = (System.Windows.Media.Brush)FindResource("Text.Primary");
+        Chart.OverlayBrush = primary;
+        var legend = series.Select(item => new LegendEntry(SeriesBrush(item, mutedBrush), item.Label, SwatchHeight: 10)).ToList();
+        if (_viewModel.ChartOverlay.Count > 0)
+            legend.Add(new LegendEntry(primary, LocalizationService.Instance["Stats.Average7"], SwatchHeight: 2));
+        ChartLegend.ItemsSource = legend;
+        ChartLegend.Visibility = legend.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         Chart.BarBrushes = BarColorBrushes(
             _viewModel.SelectedGrouping, _viewModel.Bars, _viewModel.ProjectColors, (System.Windows.Media.Brush)FindResource("Text.Muted"));
     }
@@ -440,8 +448,16 @@ public partial class StatsWindow : Window
         return [];
     }
 
-    private static List<System.Windows.Media.Brush> ProviderBrushes() =>
-        StatsAggregator.StackedProviderOrder.Select(id => (System.Windows.Media.Brush)new SolidColorBrush(ChartPalette.ForProvider(id))).ToList();
+    /// <summary>The brush of one chart series: a provider's own color, the N-th categorical color or
+    /// the muted brush of the pooled remainder.</summary>
+    internal static System.Windows.Media.Brush SeriesBrush(ChartSeriesInfo series, System.Windows.Media.Brush mutedBrush)
+    {
+        if (series.ColorKey == "other")
+            return mutedBrush;
+        if (series.ColorKey.StartsWith("cat:", StringComparison.Ordinal) && int.TryParse(series.ColorKey.AsSpan(4), out var index))
+            return new SolidColorBrush(ChartPalette.Categorical(index));
+        return new SolidColorBrush(ChartPalette.ForProvider(series.ColorKey));
+    }
 
     /// <summary>Every themed brush on this window that names no provider or model in particular. The
     /// provider ring is refreshed separately, in <see cref="RefreshProviderRingBrushes"/> - like <see
@@ -596,3 +612,6 @@ public partial class StatsWindow : Window
             placement.RememberedStatsWindowSize = (Width, Height);
     }
 }
+
+/// <summary>One entry of the chart legend: a colored swatch (a thin one for a line) and its name.</summary>
+internal sealed record LegendEntry(System.Windows.Media.Brush Brush, string Label, double SwatchHeight);

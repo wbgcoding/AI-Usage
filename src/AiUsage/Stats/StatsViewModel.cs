@@ -11,6 +11,18 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AiUsage.Stats;
 
+/// <summary>What the segments of a day or week column stand for.</summary>
+public enum StatsColorBy
+{
+    Provider,
+    Model,
+}
+
+/// <summary>One stacked series of the chart: its name and the key its color is looked up by (a
+/// provider id, <c>cat:N</c> for the N-th categorical color, or <c>other</c> for the pooled
+/// remainder).</summary>
+public sealed record ChartSeriesInfo(string Label, string ColorKey);
+
 /// <summary>
 /// Everything the statistics window shows: the period selector, the grouping selector (day, week,
 /// model, project), the figures bar (total, per-day average, busiest day, change against the
@@ -27,6 +39,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public ObservableCollection<Choice<string>> RangeChoices { get; } = [];
     public ObservableCollection<Choice<StatsGrouping>> GroupingChoices { get; } = [];
+    public ObservableCollection<Choice<StatsColorBy>> ColorByChoices { get; } = [];
 
     /// <summary>The row a ComboBox binds <c>SelectedItem</c> to - <see cref="Choice{TValue}"/> itself
     /// carries no such property, only <see cref="Choice{TValue}.IsSelected"/> on each row, so this
@@ -55,11 +68,49 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the color-by group.</summary>
+    public Choice<StatsColorBy>? SelectedColorByChoice
+    {
+        get => ColorByChoices.FirstOrDefault(choice => choice.IsSelected);
+        set
+        {
+            if (value is not null)
+                SetColorByCommand.Execute(value.Value);
+        }
+    }
+
     [ObservableProperty]
     private string selectedRange = "Week";
 
+    /// <summary>What the segments of a day or week column stand for.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart))]
+    [NotifyPropertyChangedFor(nameof(IsModelStack))]
+    private StatsColorBy selectedColorBy = StatsColorBy.Provider;
+
+    /// <summary>The series of the stacked chart, in stacking order; empty for the groupings that draw
+    /// one plain series.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<ChartSeriesInfo> chartSeries = [];
+
+    /// <summary>The trailing 7-day mean drawn as a line across the day columns, one entry per
+    /// column (the first six empty); empty unless the day grouping spans enough days.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<double?> chartOverlay = [];
+
+    /// <summary>The shortest day range the average line is drawn for.</summary>
+    private const int OverlayMinDays = 14;
+
+    /// <summary>True for the groupings whose columns can be stacked by provider or by model.</summary>
+    public bool CanChooseColor => IsStackedByProvider;
+
+    /// <summary>True while the stacked columns are split by model.</summary>
+    public bool IsModelStack => CanChooseColor && SelectedColorBy == StatsColorBy.Model;
+
+    /// <summary>The most models a stacked column names on its own; the rest are pooled.</summary>
+    private const int MaxStackedModels = 6;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
@@ -560,6 +611,10 @@ public sealed partial class StatsViewModel : ObservableObject
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByEffort", StatsGrouping.Effort));
         Choice.Select(GroupingChoices, SelectedGrouping);
 
+        ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Provider", StatsColorBy.Provider));
+        ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Model", StatsColorBy.Model));
+        Choice.Select(ColorByChoices, SelectedColorBy);
+
         // Nothing is read here: the window loads once it is shown (see StatsWindow), so opening it
         // never waits on the database.
         IsLoading = true;
@@ -595,6 +650,20 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsStackedByProvider));
         OnPropertyChanged(nameof(IsDayGrouping));
         await RecomputeForSelectionAsync();
+    }
+
+    /// <summary>Switches what the stacked columns stand for. The records are already in memory, so
+    /// the chart is rebuilt from them without another read.</summary>
+    [RelayCommand]
+    private void SetColorBy(StatsColorBy colorBy)
+    {
+        if (colorBy == SelectedColorBy)
+            return;
+        SelectedColorBy = colorBy;
+        Choice.Select(ColorByChoices, SelectedColorBy);
+        OnPropertyChanged(nameof(SelectedColorByChoice));
+        if (_recordsLoaded)
+            RecomputeFrom(_allRecords);
     }
 
     // Every run takes the next number; only the newest run may publish its result or clear
@@ -738,6 +807,27 @@ public sealed partial class StatsViewModel : ObservableObject
             otherTooltipLine = string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.OtherProjects.Count"], rest.Count);
         }
 
+        // Day and week columns are stacked by provider or, on request, by model.
+        var series = new List<ChartSeriesInfo>();
+        if (IsStackedByProvider && !IsModelStack)
+        {
+            series.AddRange(StatsAggregator.StackedProviderOrder.Select(id =>
+                new ChartSeriesInfo(ProviderDisplayNames.GetValueOrDefault(id, id), id)));
+        }
+        else if (IsModelStack)
+        {
+            var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+            var stack = StatsAggregator.GroupStackedByModel(
+                inRange, stackGrouping, gapFillFrom, today, MaxStackedModels, LocalizationService.Instance["Stats.Other"]);
+            barRows = stack.Rows;
+            series.AddRange(stack.Series.Select((name, index) =>
+                new ChartSeriesInfo(name, stack.HasOther && index == stack.Series.Count - 1 ? "other" : "cat:" + index)));
+        }
+        ChartSeries = series;
+        ChartOverlay = SelectedGrouping == StatsGrouping.Day && !weeklyPerDay && barRows.Count >= OverlayMinDays
+            ? StatsAggregator.TrailingMean(barRows.Select(row => row.Total).ToList(), 7)
+            : [];
+
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
             row.Label, row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
             barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null)).ToList();
@@ -876,6 +966,8 @@ public sealed partial class StatsViewModel : ObservableObject
         foreach (var choice in RangeChoices)
             choice.RefreshLabel();
         foreach (var choice in GroupingChoices)
+            choice.RefreshLabel();
+        foreach (var choice in ColorByChoices)
             choice.RefreshLabel();
         OnPropertyChanged(nameof(ChartTooltip));
         RecomputeFrom(_allRecords);

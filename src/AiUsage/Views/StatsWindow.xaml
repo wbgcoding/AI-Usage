@@ -351,6 +351,15 @@
                                                   SelectedItem="{Binding SelectedGroupingChoice, Mode=TwoWay}" MinWidth="80"
                                                   ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Grouping]}"
                                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"/>
+                                        <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
+                                                    Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
+                                                       VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
+                                                       Foreground="{DynamicResource Text.Secondary}"/>
+                                            <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
+                                                      SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
+                                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
@@ -395,6 +404,7 @@
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsBarChart x:Name="Chart" Margin="8,4,8,0" Bars="{Binding Bars}"
+                                                             OverlayLine="{Binding ChartOverlay}"
                                                              MaxAxisLabels="{Binding ChartMaxAxisLabels}"
                                                              IsHourAxis="{Binding IsHourAxis}"
                                                              EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
@@ -406,6 +416,28 @@
                                                              BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
                                                              TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
                                 </Border>
+
+                                <!-- What the colors of the stacked columns stand for. -->
+                                <ItemsControl x:Name="ChartLegend" Margin="0,8,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}"/>
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,12,4">
+                                                <Rectangle Width="12" Height="{Binding SwatchHeight}" RadiusX="2" RadiusY="2" Fill="{Binding Brush}"
+                                                           VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Text.Muted}"
+                                                           FontSize="{StaticResource Font.Size.Micro}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
 
                                 <!-- The weekday by hour grouping draws a grid instead of columns. -->
                                 <Border Margin="0,12,0,0" Padding="8"

@@ -112,6 +112,86 @@ public sealed class StatsBarChart : FrameworkElement
         set => SetValue(SeriesLabelsProperty, value);
     }
 
+    /// <summary>A line drawn across the bars, one value per bar (a null value leaves the line
+    /// unstarted or broken there), on the same scale as the bars. Ignored when it does not hold
+    /// exactly one entry per bar.</summary>
+    public static readonly DependencyProperty OverlayLineProperty = DependencyProperty.Register(
+        nameof(OverlayLine), typeof(IReadOnlyList<double?>), typeof(StatsBarChart),
+        new FrameworkPropertyMetadata(Array.Empty<double?>(), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public IReadOnlyList<double?> OverlayLine
+    {
+        get => (IReadOnlyList<double?>)GetValue(OverlayLineProperty);
+        set => SetValue(OverlayLineProperty, value);
+    }
+
+    public static readonly DependencyProperty OverlayBrushProperty = DependencyProperty.Register(
+        nameof(OverlayBrush), typeof(Brush), typeof(StatsBarChart),
+        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public Brush OverlayBrush
+    {
+        get => (Brush)GetValue(OverlayBrushProperty);
+        set => SetValue(OverlayBrushProperty, value);
+    }
+
+    /// <summary>Where each overlay value sits: the horizontal middle of its bar and the height its
+    /// value reaches on the bar scale; null for a missing value. Pure so it is testable without a
+    /// visual tree.</summary>
+    internal static IReadOnlyList<Point?> OverlayPoints(
+        IReadOnlyList<double?> values, IReadOnlyList<(double X, double Width)> columns, double leftMargin,
+        double chartHeight, double plotHeight, double scaleMax)
+    {
+        var points = new List<Point?>(values.Count);
+        for (var i = 0; i < values.Count && i < columns.Count; i++)
+        {
+            if (values[i] is not { } value || scaleMax <= 0)
+            {
+                points.Add(null);
+                continue;
+            }
+
+            var (x, width) = columns[i];
+            points.Add(new Point(leftMargin + x + width / 2, chartHeight - plotHeight * value / scaleMax));
+        }
+        return points;
+    }
+
+    private void DrawOverlay(
+        DrawingContext drawingContext, int barCount, IReadOnlyList<(double X, double Width)> columns, double chartHeight,
+        double plotHeight, double scaleMax)
+    {
+        var values = OverlayLine;
+        if (values.Count == 0 || values.Count != barCount)
+            return;
+
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            var open = false;
+            foreach (var point in OverlayPoints(values, columns, _leftMargin, chartHeight, plotHeight, scaleMax))
+            {
+                if (point is not { } p)
+                {
+                    open = false;
+                    continue;
+                }
+
+                if (open)
+                {
+                    context.LineTo(p, true, true);
+                }
+                else
+                {
+                    context.BeginFigure(p, false, false);
+                    open = true;
+                }
+            }
+        }
+        geometry.Freeze();
+        drawingContext.DrawGeometry(null, new Pen(OverlayBrush, 1.5) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, geometry);
+    }
+
     /// <summary>The already-localized "M"/"B" magnitude words <see
     /// cref="StatsAggregator.ShortenTokenCount"/> needs for the Y axis' shortened figures - kept as
     /// plain dependency properties rather than a <c>LocalizationService</c> dependency, the same
@@ -669,6 +749,8 @@ public sealed class StatsBarChart : FrameworkElement
                 y -= segmentHeight;
             }
         }
+
+        DrawOverlay(drawingContext, bars.Count, columns, chartHeight, plotHeight, scaleMax);
 
         if (IsKeyboardFocused && _focusedIndex >= 0 && _focusedIndex < bars.Count)
         {
