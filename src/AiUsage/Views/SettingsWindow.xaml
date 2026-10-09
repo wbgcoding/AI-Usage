@@ -690,6 +690,32 @@
                                     <TextBlock Text="{Binding HeaderDisplayName}" FontWeight="SemiBold"/>
                                     <TextBlock Text="{Binding SettingsRowText, Mode=OneWay}" TextWrapping="Wrap"
                                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                                    <Grid Style="{StaticResource Gap.Top4}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AccountName]}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBox x:Name="AccountNameBox" Grid.Column="1" MaxLength="24"
+                                                 Text="{Binding AccountName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AccountName]}"/>
+                                        <!-- The hint shows while the box is empty and never takes a click. -->
+                                        <TextBlock Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                                   Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AccountName.Hint]}"
+                                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text.Length, ElementName=AccountNameBox}" Value="0">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
                                     <ItemsControl ItemsSource="{Binding WindowToggles}" Style="{StaticResource Gap.Top4}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>

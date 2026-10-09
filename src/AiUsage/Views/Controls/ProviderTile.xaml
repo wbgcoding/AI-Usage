@@ -258,7 +258,7 @@
                         <TextBlock FontFamily="{DynamicResource Font.Ui}"
                                    FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
                                    TextTrimming="CharacterEllipsis">
-                            <Run Text="{Binding HeaderDisplayName, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding PlanText, Mode=OneWay}"
+                            <Run Text="{Binding TitleName, Mode=OneWay}"/><Run Text="{Binding TitleAccountSuffix, Mode=OneWay}" Foreground="{DynamicResource Text.Secondary}"/><Run Text=" "/><Run Text="{Binding PlanText, Mode=OneWay}"
                                  FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/>
                         </TextBlock>
                     </Button>

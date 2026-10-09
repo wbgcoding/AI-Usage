@@ -631,6 +631,7 @@ public sealed class SettingsStore : IDisposable
             provider.Thresholds.Weekly = SettingsRanges.ClampThreshold(provider.Thresholds.Weekly);
             provider.Thresholds.Other = SettingsRanges.ClampThreshold(provider.Thresholds.Other);
             provider.HiddenWindows ??= [];
+            provider.AccountName = ProviderSettings.NormalizeAccountName(provider.AccountName);
         }
     }
 

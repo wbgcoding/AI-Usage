@@ -351,7 +351,7 @@ public partial class MainWindow : Window, IDisposable
     internal static IReadOnlyList<TrayTooltipBuilder.ProviderLine> BuildTrayLines(IEnumerable<ProviderTileViewModel> tiles) =>
         tiles.Where(t => !t.IsHidden && t.HasNumbers)
             .Select(t => new TrayTooltipBuilder.ProviderLine(
-                t.HeaderDisplayName,
+                t.TrayName,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.UsedPercent,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent))
             .ToList();

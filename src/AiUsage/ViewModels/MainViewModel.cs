@@ -517,12 +517,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ChartHidden = providerSettings?.ChartHidden ?? false,
             AttentionDisabled = providerSettings?.AttentionDisabled ?? false,
             HiddenWindows = [.. providerSettings?.HiddenWindows ?? []],
+            AccountName = providerSettings?.AccountName ?? "",
         };
         tile.HideRequested += (_, _) => ToggleHidden(tile.ProviderId);
         tile.RefreshRequested += (_, _) => RefreshProvider(tile.ProviderId);
         tile.ShowFiveHourChanged += (_, value) => SetShowFiveHour(tile.ProviderId, value);
         tile.ShowWeeklyChanged += (_, value) => SetShowWeekly(tile.ProviderId, value);
         tile.ChartHiddenChanged += (_, value) => SetChartHidden(tile.ProviderId, value);
+        tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
         tile.WindowToggles.CollectionChanged += (_, _) =>
@@ -980,6 +982,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settingsStore.RequestSave(_settings);
     }
 
+    private void SetAccountName(string providerId, string value)
+    {
+        GetOrCreateProviderSettings(providerId).AccountName = value;
+        _settingsStore.RequestSave(_settings);
+    }
+
     private void SetChartHidden(string providerId, bool value)
     {
         GetOrCreateProviderSettings(providerId).ChartHidden = value;
@@ -1085,7 +1093,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 refreshInterval: TimeSpan.FromSeconds(_settings.RefreshSeconds));
             if (OrderedByUsage)
                 ApplyTileOrder();
-            var displayName = tile.DisplayName;
+            var displayName = tile.NotificationName;
 
             // A tile's own master switch (ProviderSettings.NotificationsEnabled) gates both streams;
             // its own reset switch sits underneath that AND the global NotifyOnReset switch, so either

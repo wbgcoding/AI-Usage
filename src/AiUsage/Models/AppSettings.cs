@@ -265,6 +265,20 @@ public sealed class ProviderSettings
     /// default afterward.</summary>
     public int Order { get; set; } = -1;
 
+    /// <summary>Longest own account name; anything longer is cut.</summary>
+    public const int MaxAccountNameLength = 24;
+
+    /// <summary>The person's own name for this account (for example "Work"), shown after the provider
+    /// name on the tile, in the tray tooltip and in notifications. Empty = no own name.</summary>
+    public string AccountName { get; set; } = "";
+
+    /// <summary>Trims an own account name and cuts it to <see cref="MaxAccountNameLength"/>.</summary>
+    public static string NormalizeAccountName(string? name)
+    {
+        var trimmed = (name ?? "").Trim();
+        return trimmed.Length > MaxAccountNameLength ? trimmed[..MaxAccountNameLength].TrimEnd() : trimmed;
+    }
+
     public ThresholdSettings Thresholds { get; set; } = new();
 
     /// <summary>Whether the tile's own 5-hour row shows at all - independent of <see

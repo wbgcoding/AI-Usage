@@ -405,6 +405,72 @@ public class ProviderTileViewModelTests
             Status: status,
             Error: error);
 
+    [Fact]
+    public void TheHeaderShowsTheOwnAccountNameAfterTheProviderName()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        Assert.Equal("Claude", tile.HeaderDisplayName);
+        Assert.Equal("", tile.TitleAccountSuffix);
+
+        tile.AccountName = "Work";
+
+        Assert.Equal("Claude · Work", tile.HeaderDisplayName);
+        Assert.Equal("Claude", tile.TitleName);
+        Assert.Equal(" · Work", tile.TitleAccountSuffix);
+
+        tile.AccountName = "";
+        Assert.Equal("Claude", tile.HeaderDisplayName);
+        Assert.Equal("Claude", tile.TitleName);
+    }
+
+    [Fact]
+    public void AnOwnNameReplacesTheNumberOrLoginOfAFurtherAccount()
+    {
+        var tile = new ProviderTileViewModel("claude#2", "Claude", "claude");
+        Assert.Equal("Claude (2)", tile.HeaderDisplayName);
+
+        tile.AccountName = "Home";
+
+        Assert.Equal("Claude · Home", tile.HeaderDisplayName);
+    }
+
+    [Fact]
+    public void TheNameForNotificationsAndTheTrayPutsTheAccountNameInBrackets()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        Assert.Equal("Claude", tile.NotificationName);
+        Assert.Equal("Claude", tile.TrayName);
+
+        tile.AccountName = "Work";
+
+        Assert.Equal("Claude (Work)", tile.NotificationName);
+        Assert.Equal("Claude (Work)", tile.TrayName);
+    }
+
+    [Fact]
+    public void TheOwnAccountNameIsTrimmedAndCutToTwentyFourCharacters()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.AccountName = "  " + new string('x', 25) + "  ";
+
+        Assert.Equal(new string('x', 24), tile.AccountName);
+        Assert.Equal(24, ProviderSettings.MaxAccountNameLength);
+    }
+
+    [Fact]
+    public void ChangingTheOwnAccountNameIsReportedOnceAndNotWhenItStaysTheSame()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var reported = new List<string>();
+        tile.AccountNameChanged += (_, value) => reported.Add(value);
+
+        tile.AccountName = "Work";
+        tile.AccountName = " Work ";
+
+        Assert.Equal(["Work"], reported);
+    }
+
     [Theory]
     [InlineData(0, UsageLevel.Ok)]
     [InlineData(59.9, UsageLevel.Ok)]

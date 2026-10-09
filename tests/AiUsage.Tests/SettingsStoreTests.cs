@@ -161,6 +161,20 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void AnAccountNameLoadsTrimmedAndCutToTwentyFourCharacters()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+        var settings = new AppSettings();
+        settings.Providers["claude"].AccountName = " " + new string('y', 30);
+        store.SaveNow(settings);
+
+        using var reloadStore = new SettingsStore(directory);
+
+        Assert.Equal(new string('y', 24), reloadStore.Load().Providers["claude"].AccountName);
+    }
+
+    [Fact]
     public void SaveNow_then_Load_round_trips_StatsSectionsCollapsed()
     {
         var directory = TempDirectory();

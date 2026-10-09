@@ -693,6 +693,36 @@ public class MainViewModelTests : IDisposable
         vm.DisplayRows.Select(row => row is ProviderTileViewModel tile ? tile.ProviderId : "daygrid");
 
     [Fact]
+    public void ANotificationNamesTheProviderWithTheOwnAccountNameInBrackets()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        settings.Providers["claude"].AccountName = "Work";
+        var (vm, _, _) = Build(settings);
+        var raised = new List<ThresholdNotification>();
+        vm.NotificationRaised += raised.Add;
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 95, Now.AddHours(2), 300);
+
+        foreach (var id in new[] { "claude", "codex" })
+            vm.OnSnapshotReady(new ProviderSnapshot(id, [window], "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null));
+
+        Assert.Equal("claude (Work)", raised.Single(n => n.ProviderId == "claude").ProviderDisplayName);
+        Assert.Equal("codex", raised.Single(n => n.ProviderId == "codex").ProviderDisplayName);
+    }
+
+    [Fact]
+    public void TheOwnAccountNameIsStoredInTheSettingsAndShownOnTheTile()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        settings.Providers["gemini"].AccountName = "Lab";
+        var (vm, _, _) = Build(settings);
+        Assert.Equal("Lab", vm.Tiles.Single(t => t.ProviderId == "gemini").AccountName);
+
+        vm.Tiles.Single(t => t.ProviderId == "claude").AccountName = "Work";
+
+        Assert.Equal("Work", settings.Providers["claude"].AccountName);
+    }
+
+    [Fact]
     public void ByUsageOrderPutsARedTileAboveANormalOne()
     {
         var (vm, _) = BuildOrdered("ByUsage");

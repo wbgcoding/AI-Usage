@@ -119,9 +119,57 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// cref="ProviderId"/>'s own "#2"/"#3"/... suffix - two Claude tiles must never show the same
     /// plain "Claude" with nothing to tell them apart, and a third account must not look like a
     /// second one.</summary>
-    public string HeaderDisplayName => !IsExtraAccount
-        ? DisplayName
-        : AccountText is { Length: > 0 } label ? $"{DisplayName} · {label}" : $"{DisplayName} ({AccountSuffixNumber})";
+    public string HeaderDisplayName => HasOwnAccountName
+        ? $"{DisplayName} · {AccountName}"
+        : !IsExtraAccount
+            ? DisplayName
+            : AccountText is { Length: > 0 } label ? $"{DisplayName} · {label}" : $"{DisplayName} ({AccountSuffixNumber})";
+
+    private string _accountName = "";
+
+    /// <summary>The person's own name for this account (see <see cref="ProviderSettings.AccountName"/>),
+    /// already trimmed and cut to the allowed length. Empty = none, and the header, tray and
+    /// notification names stay as they were without it.</summary>
+    public string AccountName
+    {
+        get => _accountName;
+        set
+        {
+            var normalized = ProviderSettings.NormalizeAccountName(value);
+            if (normalized == _accountName)
+                return;
+            _accountName = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasOwnAccountName));
+            OnPropertyChanged(nameof(HeaderDisplayName));
+            OnPropertyChanged(nameof(TitleName));
+            OnPropertyChanged(nameof(TitleAccountSuffix));
+            OnPropertyChanged(nameof(TrayName));
+            OnPropertyChanged(nameof(NotificationName));
+            OnPropertyChanged(nameof(ToggleVisibilityActionText));
+            AccountNameChanged?.Invoke(this, normalized);
+        }
+    }
+
+    /// <summary>Raised when the own account name changed, so MainViewModel can persist it (same
+    /// split as <see cref="ChartHiddenChanged"/>).</summary>
+    public event EventHandler<string>? AccountNameChanged;
+
+    public bool HasOwnAccountName => _accountName.Length > 0;
+
+    /// <summary>The first part of the tile's title: the provider name when an own account name follows
+    /// it in its own, quieter run (<see cref="TitleAccountSuffix"/>), else the whole header text.</summary>
+    public string TitleName => HasOwnAccountName ? DisplayName : HeaderDisplayName;
+
+    /// <summary>" · name" for the quieter run after <see cref="TitleName"/>; empty without an own name.</summary>
+    public string TitleAccountSuffix => HasOwnAccountName ? $" · {_accountName}" : "";
+
+    /// <summary>"Claude (Work)" with an own name, else the same header text as before; used by the
+    /// tray tooltip.</summary>
+    public string TrayName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : HeaderDisplayName;
+
+    /// <summary>"Claude (Work)" with an own name, else the plain provider name; used by notifications.</summary>
+    public string NotificationName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : DisplayName;
 
     /// <summary>What a screen reader reads for the tile's list item, which has no name of its own
     /// and therefore falls back to this - the type name until now.</summary>
@@ -176,6 +224,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// documents for user paths.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HeaderDisplayName))]
+    [NotifyPropertyChangedFor(nameof(TitleName))]
+    [NotifyPropertyChangedFor(nameof(TrayName))]
     [NotifyPropertyChangedFor(nameof(ToggleVisibilityActionText))]
     [NotifyPropertyChangedFor(nameof(SettingsRowText))]
     [NotifyPropertyChangedFor(nameof(NameTooltipText))]

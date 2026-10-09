@@ -1270,6 +1270,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             tile.ShowFiveHour = providerSettings.ShowFiveHour;
             tile.ShowWeekly = providerSettings.ShowWeekly;
             tile.ChartHidden = providerSettings.ChartHidden;
+            tile.AccountName = providerSettings.AccountName;
             tile.AttentionDisabled = providerSettings.AttentionDisabled;
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();
