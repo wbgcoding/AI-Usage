@@ -16,6 +16,9 @@ public static class AppInfo
 
     public const string ArchiveUrl = "https://github.com/wbgcoding/AI-Usage";
 
+    /// <summary>The FAQ section of the project page, opened from the About section and the tile menu.</summary>
+    public const string HelpUrl = ArchiveUrl + "#faq";
+
     public static string Version =>
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 

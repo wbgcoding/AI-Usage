@@ -936,6 +936,10 @@
                                 Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Open]}"/>
                     </Grid>
 
+                    <Button x:Name="AboutHelpButton" Style="{StaticResource AiUsageButton}" Padding="8,4" HorizontalAlignment="Left" Margin="0,8,0,0"
+                            Click="AboutHelp_Click"
+                            Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Help]}"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.License]}" FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Muted}" Margin="0,8,0,0"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.WhatThisReads]}" FontWeight="SemiBold" Margin="0,16,0,4"/>

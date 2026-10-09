@@ -395,6 +395,18 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void AboutHelp_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(AppInfo.HelpUrl) { UseShellExecute = true });
+        }
+        catch (Win32Exception)
+        {
+            // No default browser registered - nothing sensible to recover into.
+        }
+    }
+
     private void AboutCopyAll_Click(object sender, RoutedEventArgs e) =>
         ClipboardHelper.SetTextSafely(SupportReport.Build(_viewModel.Main.Tiles));
 

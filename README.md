@@ -234,6 +234,12 @@ once; tools that add up every line count those repeats again, often close to twi
 Open **Settings > Providers** and sign in there. Copilot needs the GitHub CLI signed in
 (`gh auth login`), Gemini reads the account of the Antigravity CLI (`agy`).
 
+**A tile says an agent is not answering or having problems.**
+AI-Usage keeps the last numbers, dimmed, and tries again on its own. If it lasts, pick **Check Claude status** (or your agent's name) under the reason to see whether the agent has an outage.
+
+**Numbers update less often on battery.**
+With **Save energy on battery** on, AI-Usage fetches half as often on battery and only reads local sources while Windows energy saver is on. Switch it off under **Settings > Refresh**.
+
 **My token history starts later than I expected.**
 The token usage window can only read the session logs that still exist. Claude Code deletes its
 logs after 30 days by default; raise `cleanupPeriodDays` in its settings to keep more. Whatever
