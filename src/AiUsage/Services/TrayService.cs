@@ -152,36 +152,27 @@ public sealed class TrayService : IDisposable
         _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
         var loc = LocalizationService.Instance;
-        _alwaysOnTopItem = new MenuItem { Header = loc["Tray.AlwaysOnTop"], IsCheckable = true, IsChecked = alwaysOnTop };
+        var parts = CreateMenu(alwaysOnTop, clickThrough, hotkeyShortcutText: null);
+        _menu = parts.Menu;
+        _showHideItem = parts.ShowHide;
+        _refreshItem = parts.Refresh;
+        _alwaysOnTopItem = parts.AlwaysOnTop;
+        _clickThroughItem = parts.ClickThrough;
+        _settingsItem = parts.Settings;
+        _statsItem = parts.Stats;
+        _resetPositionItem = parts.ResetPosition;
+        _exitItem = parts.Exit;
+
         _alwaysOnTopItem.Checked += (_, _) => RaiseCheckChanged(AlwaysOnTopChanged, true);
         _alwaysOnTopItem.Unchecked += (_, _) => RaiseCheckChanged(AlwaysOnTopChanged, false);
-
-        _clickThroughItem = new MenuItem { Header = loc["Tray.ClickThrough"], IsCheckable = true, IsChecked = clickThrough };
         _clickThroughItem.Checked += (_, _) => RaiseCheckChanged(ClickThroughChanged, true);
         _clickThroughItem.Unchecked += (_, _) => RaiseCheckChanged(ClickThroughChanged, false);
-
-        _showHideItem = new MenuItem { Header = loc["Tray.ShowHide"] };
         _showHideItem.Click += (_, _) => ShowHideRequested?.Invoke(this, EventArgs.Empty);
-        _refreshItem = new MenuItem { Header = loc["Action.RefreshNow"] };
         _refreshItem.Click += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
-        _settingsItem = new MenuItem { Header = loc["Tray.Settings"] };
         _settingsItem.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
-        _statsItem = new MenuItem { Header = loc["Tray.Stats"] };
         _statsItem.Click += (_, _) => StatsRequested?.Invoke(this, EventArgs.Empty);
-        _resetPositionItem = new MenuItem { Header = loc["Tray.ResetPosition"] };
         _resetPositionItem.Click += (_, _) => ResetPositionRequested?.Invoke(this, EventArgs.Empty);
-        _exitItem = new MenuItem { Header = loc["Tray.Exit"] };
         _exitItem.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
-
-        _menu = new ContextMenu();
-        _menu.Items.Add(_showHideItem);
-        _menu.Items.Add(_refreshItem);
-        _menu.Items.Add(_alwaysOnTopItem);
-        _menu.Items.Add(_clickThroughItem);
-        _menu.Items.Add(_settingsItem);
-        _menu.Items.Add(_statsItem);
-        _menu.Items.Add(_resetPositionItem);
-        _menu.Items.Add(_exitItem);
 
         AddIcon();
 
@@ -210,18 +201,58 @@ public sealed class TrayService : IDisposable
         handler?.Invoke(this, value);
     }
 
-    private void RefreshMenuText()
+    private void RefreshMenuText() =>
+        RefreshMenuText(
+            new MenuParts(_menu, _showHideItem, _refreshItem, _alwaysOnTopItem, _clickThroughItem,
+                _settingsItem, _statsItem, _resetPositionItem, _exitItem),
+            _hotkeyShortcutText);
+
+    private static void RefreshMenuText(MenuParts parts, string? hotkeyShortcutText)
     {
         var loc = LocalizationService.Instance;
-        _showHideItem.Header = loc["Tray.ShowHide"];
-        _showHideItem.InputGestureText = _hotkeyShortcutText ?? "";
-        _refreshItem.Header = loc["Action.RefreshNow"];
-        _alwaysOnTopItem.Header = loc["Tray.AlwaysOnTop"];
-        _clickThroughItem.Header = loc["Tray.ClickThrough"];
-        _settingsItem.Header = loc["Tray.Settings"];
-        _statsItem.Header = loc["Tray.Stats"];
-        _resetPositionItem.Header = loc["Tray.ResetPosition"];
-        _exitItem.Header = loc["Tray.Exit"];
+        parts.ShowHide.Header = loc["Tray.ShowHide"];
+        parts.ShowHide.InputGestureText = hotkeyShortcutText ?? "";
+        parts.Refresh.Header = loc["Action.RefreshNow"];
+        parts.AlwaysOnTop.Header = loc["Tray.AlwaysOnTop"];
+        parts.ClickThrough.Header = loc["Tray.ClickThrough"];
+        parts.Settings.Header = loc["Tray.Settings"];
+        parts.Stats.Header = loc["Tray.Stats"];
+        parts.ResetPosition.Header = loc["Tray.ResetPosition"];
+        parts.Exit.Header = loc["Tray.Exit"];
+    }
+
+    private sealed record MenuParts(
+        ContextMenu Menu, MenuItem ShowHide, MenuItem Refresh, MenuItem AlwaysOnTop, MenuItem ClickThrough,
+        MenuItem Settings, MenuItem Stats, MenuItem ResetPosition, MenuItem Exit);
+
+    /// <summary>The right-click menu with its texts in the current language and the two check marks
+    /// set, without any click handler. Separate from the constructor so a tool can draw the menu
+    /// without creating a notify icon.</summary>
+    internal static ContextMenu BuildMenu(bool alwaysOnTop, bool clickThrough, string? hotkeyShortcutText) =>
+        CreateMenu(alwaysOnTop, clickThrough, hotkeyShortcutText).Menu;
+
+    private static MenuParts CreateMenu(bool alwaysOnTop, bool clickThrough, string? hotkeyShortcutText)
+    {
+        var parts = new MenuParts(
+            new ContextMenu(),
+            new MenuItem(),
+            new MenuItem(),
+            new MenuItem { IsCheckable = true, IsChecked = alwaysOnTop },
+            new MenuItem { IsCheckable = true, IsChecked = clickThrough },
+            new MenuItem(),
+            new MenuItem(),
+            new MenuItem(),
+            new MenuItem());
+        parts.Menu.Items.Add(parts.ShowHide);
+        parts.Menu.Items.Add(parts.Refresh);
+        parts.Menu.Items.Add(parts.AlwaysOnTop);
+        parts.Menu.Items.Add(parts.ClickThrough);
+        parts.Menu.Items.Add(parts.Settings);
+        parts.Menu.Items.Add(parts.Stats);
+        parts.Menu.Items.Add(parts.ResetPosition);
+        parts.Menu.Items.Add(parts.Exit);
+        RefreshMenuText(parts, hotkeyShortcutText);
+        return parts;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

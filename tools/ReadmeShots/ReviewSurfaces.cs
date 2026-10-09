@@ -91,9 +91,10 @@ internal static class ReviewSurfaces
     internal const string GroupSettings = "@settings";
     internal const string GroupTiles = "@tiles";
     internal const string GroupDialogs = "@dialogs";
+    internal const string GroupMenus = "@menus";
 
     internal static readonly string[] Groups =
-        [GroupWidget, GroupStats, GroupSettings, GroupTiles, GroupDialogs];
+        [GroupWidget, GroupStats, GroupSettings, GroupTiles, GroupDialogs, GroupMenus];
 
     /// <summary>The whole list, in the order a full run draws it. The settings pages come from the
     /// view model's own category list.</summary>
@@ -131,6 +132,13 @@ internal static class ReviewSurfaces
         list.Add(new Surface("dialog.welcome", GroupDialogs, context => ReviewDialogs.RenderWelcome(context.Now, context.OutputPath("dialog.welcome"))));
         list.Add(new Surface("dialog.remove-account", GroupDialogs, context => ReviewDialogs.RenderRemoveAccountConfirm(context.OutputPath("dialog.remove-account"))));
         list.Add(new Surface("dialog.crash", GroupDialogs, context => ReviewDialogs.RenderCrash(context.OutputPath("dialog.crash"))));
+
+        list.Add(new Surface("menu.titlebar", GroupMenus, context => ReviewMenus.RenderTitleBarMenu(context, "menu.titlebar")));
+        list.Add(new Surface("popup.layout", GroupMenus, context => ReviewMenus.RenderLayoutPopup(context, "popup.layout")));
+        list.Add(new Surface("menu.tray", GroupMenus, context => ReviewMenus.RenderTrayMenu(context, "menu.tray")));
+        list.Add(new Surface("menu.tile", GroupMenus, context => ReviewMenus.RenderTileMenu(context, "menu.tile")));
+        list.Add(new Surface("menu.daytile", GroupMenus, context => ReviewMenus.RenderDayTileMenu(context, "menu.daytile")));
+        list.Add(new Surface("menu.stats-section", GroupMenus, context => ReviewMenus.RenderStatsSectionMenu(context, "menu.stats-section")));
         return list;
     }
 

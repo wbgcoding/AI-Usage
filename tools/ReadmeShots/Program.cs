@@ -16,8 +16,8 @@
 // Review mode draws every window, tile, dialog and menu the app has, for looking at them:
 //   dotnet run --project tools/ReadmeShots -- --review <folder> [options]
 //   --surfaces <list>   surface ids and/or @groups, comma separated (default: all). Groups: @widget,
-//                       @stats, @settings, @tiles, @dialogs. An unknown value exits with 2 and
-//                       lists every valid id and group.
+//                       @stats, @settings, @tiles, @dialogs, @menus. An unknown value exits with 2
+//                       and lists every valid id and group.
 //   --lang en|de|all    language (default: all)
 //   --size min|default|both
 //                       min = the window's smallest width, default = its normal width (default: both)
@@ -344,9 +344,8 @@ internal static class Program
             Path.Combine(outputDirectory, "token-usage.png"));
     }
 
-    internal static void RenderStatistics(
-        string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay, bool fullHeight, string outputPath,
-        bool minWidth = false)
+    /// <summary>The statistics window on its 30 day range with the busy day selected, never shown.</summary>
+    internal static StatsWindow BuildStatisticsWindow(string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay)
     {
         Directory.CreateDirectory(dataDirectory);
         var store = new StatsStore(dataDirectory);
@@ -361,6 +360,15 @@ internal static class Program
         viewModel.SelectDay(busyDay);
         // The project colours and icons resolve on a background task and land back on this thread.
         PumpUntil(() => false, TimeSpan.FromSeconds(2), settle: TimeSpan.Zero);
+        return window;
+    }
+
+    internal static void RenderStatistics(
+        string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay, bool fullHeight, string outputPath,
+        bool minWidth = false)
+    {
+        var window = BuildStatisticsWindow(dataDirectory, records, busyDay);
+        var viewModel = (StatsViewModel)window.DataContext;
 
         // Cut just above the per-day section, and
         // without the scrollbar a cut-off page would otherwise show.
