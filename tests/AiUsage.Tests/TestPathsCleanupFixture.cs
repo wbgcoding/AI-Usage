@@ -26,6 +26,11 @@ namespace AiUsage.Tests;
 /// <c>Application.Current</c> is set; while one of this collection's own App-building classes has one
 /// alive on its own worker thread, that check alone can send the call chasing a dispatcher instead of
 /// running inline, so this class needs the same isolation despite never building a window itself.</item>
+/// <item>The window list of <c>Application.Current</c> - a <c>Window</c> built while another class's
+/// <c>AiUsage.App</c> lives on its own thread registers itself in that application's window list, and
+/// that application's <c>Shutdown()</c> then closes it mid-test (a region or handle that is simply
+/// gone). Every class that builds a real <c>Window</c> belongs here for that reason, whether or not it
+/// builds an application itself.</item>
 /// </list>
 /// A class that touches more than one of the above joins this one collection rather than being split
 /// across several: xunit allows a class only one <c>[Collection]</c>, and splitting them would have left

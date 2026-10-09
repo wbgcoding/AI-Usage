@@ -4,6 +4,7 @@ using AiUsage.Views;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class EscapeKeyTests
 {
     // WPF objects are thread-affine, so each case builds and reads them on one STA thread.
@@ -15,6 +16,7 @@ public class EscapeKeyTests
         {
             try
             {
+                WpfShutdownState.Clear();
                 result = work();
             }
             catch (Exception ex)

@@ -621,11 +621,15 @@ public class RefreshSchedulerTests
         Assert.Equal(callingThreadId, fetchThreadId);
     }
 
-    private static async Task<ProviderSnapshot> TickOnceWith(Func<CancellationToken, Task<ProviderSnapshot>> fetch)
+    // A fetch that fails by itself must be classified by its own error, so those tests get a timeout far
+    // out of reach; only the timeout test asks for a short one. A short budget in every test lets a
+    // loaded machine fire the timeout before a fetch that throws at once has even been scheduled.
+    private static async Task<ProviderSnapshot> TickOnceWith(Func<CancellationToken, Task<ProviderSnapshot>> fetch, bool shortTimeout = false)
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
         var scheduler = new RefreshScheduler([new FakeProvider("codex", fetch)], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50));
+            minFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(20) : TimeSpan.FromMinutes(5),
+            maxFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMinutes(10));
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
         await Task.WhenAll(scheduler.Tick());
@@ -646,7 +650,7 @@ public class RefreshSchedulerTests
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return Ok("codex");
-        });
+        }, shortTimeout: true);
 
         Assert.Equal("State.Failed.Detail.Timeout", snapshot.Error?.DetailKey);
         Assert.Equal("Action_Retry", snapshot.Error?.ActionKey);

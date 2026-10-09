@@ -534,6 +534,7 @@ public class WindowPlacementTests
 /// this stays off that path entirely, but still runs on a background STA thread with a short timeout
 /// since constructing any <c>Window</c> at all needs a Dispatcher.
 /// </summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class WindowChromeNativeTests
 {
     /// <summary>No window ever sets <c>AllowsTransparency</c> any more - opacity is a native, per-HWND

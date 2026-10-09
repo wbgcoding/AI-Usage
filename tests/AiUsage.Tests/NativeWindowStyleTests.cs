@@ -6,6 +6,7 @@ using Xunit;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class NativeWindowStyleTests
 {
     [Fact]
@@ -151,6 +152,7 @@ public class NativeWindowStyleTests
         {
             try
             {
+                WpfShutdownState.Clear();
                 result = action();
             }
             catch (Exception exception)
