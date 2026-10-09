@@ -748,15 +748,14 @@ public class SettingsViewModelTests : IDisposable
     [Fact]
     public void ResetToDefaultsClearsTheStatsWindowArrangement()
     {
-        var settings = new AppSettings { StatsPerDayView = "Hour", StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["table"] }] };
-        settings.StatsSectionsCollapsed["perday"] = true;
+        var settings = new AppSettings { StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["table"] }] };
+        settings.StatsSectionsCollapsed["breakdown"] = true;
         var (vm, _) = Build(settings);
 
         vm.ResetToDefaults();
 
         Assert.Null(settings.StatsSectionLayout);
         Assert.Empty(settings.StatsSectionsCollapsed);
-        Assert.Equal("Day", settings.StatsPerDayView);
     }
 
     [Fact]
@@ -764,10 +763,9 @@ public class SettingsViewModelTests : IDisposable
     {
         var sourceSettings = new AppSettings
         {
-            StatsPerDayView = "Weekday",
             StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["table"], Right = ["figures"] }],
         };
-        sourceSettings.StatsSectionsCollapsed["perday"] = true;
+        sourceSettings.StatsSectionsCollapsed["breakdown"] = true;
         var exportPath = Path.Combine(TempDirectory(), "export-stats-layout.json");
         var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
         sourceVm.ExportSettingsCommand.Execute(null);
@@ -778,8 +776,7 @@ public class SettingsViewModelTests : IDisposable
         var row = Assert.Single(targetSettings.StatsSectionLayout!);
         Assert.Equal(["table"], row.Left);
         Assert.Equal(["figures"], row.Right);
-        Assert.True(targetSettings.StatsSectionsCollapsed["perday"]);
-        Assert.Equal("Weekday", targetSettings.StatsPerDayView);
+        Assert.True(targetSettings.StatsSectionsCollapsed["breakdown"]);
     }
 
     [Fact]

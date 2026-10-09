@@ -333,7 +333,8 @@
                             </controls:CollapsibleSection>
 
                             <controls:CollapsibleSection x:Name="BreakdownSection" SectionKey="breakdown"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Breakdown]}">
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Breakdown]}"
+                                    HeaderToolTip="{Binding ChartTooltip}">
                                 <controls:CollapsibleSection.Summary>
                                     <MultiBinding StringFormat="{}{0} · {1} · {2}">
                                         <Binding Path="InputText"/>
@@ -406,6 +407,8 @@
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsBarChart x:Name="Chart" Margin="8,4,8,0" Bars="{Binding Bars}"
+                                                             MaxAxisLabels="{Binding ChartMaxAxisLabels}"
+                                                             IsHourAxis="{Binding IsHourAxis}"
                                                              EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
                                                              AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
                                                              EmptyTextBrush="{DynamicResource Text.Muted}"
@@ -416,37 +419,6 @@
                                                              TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
                                 </Border>
                             </StackPanel>
-                            </controls:CollapsibleSection>
-
-                            <!-- The dedicated "Per day" panel: a view switch multiplexes three
-                                 always-computed sources (by day, by weekday, by hour) onto the one
-                                 chart below, following the same picker-on-the-header pattern as
-                                 BreakdownSection's own grouping ComboBox. -->
-                            <controls:CollapsibleSection x:Name="PerDaySection" SectionKey="perday"
-                                    Title="{Binding SelectedPerDayViewChoice.Label}"
-                                    Summary="{Binding PerDayFigureText}"
-                                    HeaderToolTip="{Binding PerDayViewTooltip}">
-                                <controls:CollapsibleSection.HeaderContent>
-                                    <ComboBox x:Name="PerDayViewCombo" ItemsSource="{Binding PerDayViewChoices}"
-                                              SelectedItem="{Binding SelectedPerDayViewChoice, Mode=TwoWay}" MinWidth="80"
-                                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ViewSwitch]}"
-                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ViewSwitch]}"/>
-                                </controls:CollapsibleSection.HeaderContent>
-                                <Border Height="160"
-                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsBarChart x:Name="PerDayChart" Margin="8,4,8,0" Bars="{Binding PerDayViewBars}"
-                                                             MaxAxisLabels="{Binding PerDayViewMaxAxisLabels}"
-                                                             IsHourAxis="{Binding IsPerDayViewHourAxis}"
-                                                             EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
-                                                             AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
-                                                             EmptyTextBrush="{DynamicResource Text.Muted}"
-                                                             TextBrush="{DynamicResource Text.Muted}"
-                                                             TooltipBackground="{DynamicResource Bg.Raised}"
-                                                             MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
-                                                             BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
-                                                             TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
-                                </Border>
                             </controls:CollapsibleSection>
 
                             <!-- one horizontal stacked bar, four segments: the cache share of all tokens. -->

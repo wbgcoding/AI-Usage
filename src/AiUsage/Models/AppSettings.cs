@@ -199,14 +199,6 @@ public sealed class AppSettings
     [System.Text.Json.Serialization.JsonConverter(typeof(Stats.TolerantLayoutConverter))]
     public List<Stats.StatsLayoutRow>? StatsSectionLayout { get; set; }
 
-    /// <summary>Which of the "Per day" panel's three views (<c>Day</c>/<c>Weekday</c>/<c>Hour</c>,
-    /// <see cref="Stats.StatsPerDayView"/> stringified) the statistics window last showed. Stored as
-    /// a plain string, not the enum itself, so an older or newer build's own settings file round
-    /// trips a value it does not recognise instead of failing to parse; an unrecognised value is
-    /// treated the same as a missing one. <see cref="Views.StatsWindow"/> is the only reader/writer.
-    /// </summary>
-    public string StatsPerDayView { get; set; } = "Day";
-
     public WindowSettings Window { get; set; } = new();
 
     public Dictionary<string, ProviderSettings> Providers { get; set; } = CreateDefaultProviders();

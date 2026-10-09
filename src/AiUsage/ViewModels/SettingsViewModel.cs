@@ -1357,7 +1357,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         // fights a live window.
         _settings.StatsSectionLayout = source.StatsSectionLayout?.Select(row => new Stats.StatsLayoutRow { Left = [.. row.Left], Right = [.. row.Right] }).ToList();
         _settings.StatsSectionsCollapsed = new Dictionary<string, bool>(source.StatsSectionsCollapsed ?? []);
-        _settings.StatsPerDayView = source.StatsPerDayView;
         var previousProviders = _settings.Providers;
         _settings.Providers = source.Providers ?? AppSettings.CreateDefaultProviders();
         // A sign-out belongs to this machine (its browser profile is already gone), so neither a reset

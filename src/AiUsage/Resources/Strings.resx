@@ -482,4 +482,6 @@
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} limit reached, resets in {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
+  <data name="Stats.ByWeekday" xml:space="preserve"><value>Weekday</value></data>
+  <data name="Stats.ByHour" xml:space="preserve"><value>Hour</value></data>
 </root>

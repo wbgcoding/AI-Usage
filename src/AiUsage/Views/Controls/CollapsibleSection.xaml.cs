@@ -12,7 +12,7 @@ namespace AiUsage.Views.Controls;
 /// cref="Views.StatsWindow"/> merges into its own <c>Window.Resources</c>) rather than a compiled
 /// <c>UserControl</c>: a UserControl's own compiled page establishes its own name scope, which
 /// refuses to let content assigned from the *caller's* XAML (StatsWindow.xaml's own named charts,
-/// e.g. <c>PerDayChart</c>) keep their names registered in the caller's page - a lookless control's
+/// e.g. <c>Chart</c>) keep their names registered in the caller's page - a lookless control's
 /// <c>Content</c> carries no such boundary, the same way <c>Expander.Content</c> does not. Never
 /// animates a state change (see CollapsibleSection.xaml's header template) - this program redraws
 /// only on a real change. <see cref="SectionKey"/> is a plain data tag: the stable, short dictionary

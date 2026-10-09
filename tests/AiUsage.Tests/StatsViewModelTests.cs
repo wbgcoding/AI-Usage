@@ -156,7 +156,6 @@ public class StatsViewModelTests
 
         var loadingStates = new List<bool>();
         var barsChanges = 0;
-        var perDayBarsChanges = 0;
         var rowsChanges = 0;
         viewModel.PropertyChanged += (_, e) =>
         {
@@ -167,9 +166,6 @@ public class StatsViewModelTests
                     break;
                 case nameof(StatsViewModel.Bars):
                     barsChanges++;
-                    break;
-                case nameof(StatsViewModel.PerDayBars):
-                    perDayBarsChanges++;
                     break;
                 case nameof(StatsViewModel.Rows):
                     rowsChanges++;
@@ -182,7 +178,6 @@ public class StatsViewModelTests
         Assert.Empty(loadingStates); // a quick run never shows the loading state
         Assert.False(viewModel.IsLoading);
         Assert.Equal(1, barsChanges);
-        Assert.Equal(1, perDayBarsChanges);
         Assert.Equal(1, rowsChanges);
     }
 
@@ -535,25 +530,24 @@ public class StatsViewModelTests
         var viewModel = ViewModelWithRecordFrom("stats-vm-year-daily-bars", 94, "Year");
 
         Assert.False(viewModel.IsWeeklyPerDay);
-        Assert.Equal(YearDayCount(), viewModel.PerDayBars.Count);
-        Assert.DoesNotContain("-W", viewModel.PerDayBars[0].Label);
-        Assert.Equal(100, viewModel.PerDayBars.Sum(bar => bar.StackedValues.Sum()));
-        Assert.Contains(viewModel.PerDayBars, bar => bar.StackedValues.Sum() == 0);
+        Assert.Equal(YearDayCount(), viewModel.Bars.Count);
+        Assert.DoesNotContain("-W", viewModel.Bars[0].Label);
+        Assert.Equal(100, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.Contains(viewModel.Bars, bar => bar.StackedValues.Sum() == 0);
     }
 
     [Fact]
-    public void ChangingTheRangeRefreshesThePerDayPanelChart()
+    public void ChangingTheRangeRefreshesTheChart()
     {
-        var viewModel = ViewModelWithRecordFrom("stats-vm-perday-refresh", 94, "Week");
+        var viewModel = ViewModelWithRecordFrom("stats-vm-chart-refresh", 94, "Week");
         var raised = new List<string?>();
         viewModel.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
         viewModel.SelectedRange = "Year";
         viewModel.Recompute();
 
-        Assert.Contains(nameof(StatsViewModel.PerDayViewBars), raised);
-        Assert.Same(viewModel.PerDayBars, viewModel.PerDayViewBars);
-        Assert.Equal(YearDayCount(), viewModel.PerDayViewBars.Count);
+        Assert.Contains(nameof(StatsViewModel.Bars), raised);
+        Assert.Equal(YearDayCount(), viewModel.Bars.Count);
     }
 
     [Fact]
@@ -571,19 +565,23 @@ public class StatsViewModelTests
     }
 
     [Fact]
-    public void PerDayChoiceReadsPerWeekOnlyWhileTheChartBundlesByWeek()
+    public void ChartTooltipFollowsTheGroupingAndTheWeeklyBundling()
     {
         var loc = AiUsage.Services.LocalizationService.Instance;
-        var viewModel = ViewModelWithRecordFrom("stats-vm-choice-label", 400, "All");
-        Assert.Equal(loc["Stats.Chart.PerWeek"], viewModel.PerDayViewChoices[0].Label);
-        Assert.Equal(loc["Tip.Stats.Chart.PerWeek"], viewModel.PerDayViewTooltip);
+        var viewModel = ViewModelWithRecordFrom("stats-vm-chart-tooltip", 400, "All");
+        Assert.Equal(loc["Tip.Stats.Chart.PerWeek"], viewModel.ChartTooltip);
 
         viewModel.SelectedRange = "Week";
         viewModel.Recompute();
         Assert.False(viewModel.IsWeeklyPerDay);
-        Assert.Equal(loc["Stats.Chart.PerDay"], viewModel.PerDayViewChoices[0].Label);
-        Assert.Equal(loc["Tip.Stats.Chart.PerDay"], viewModel.PerDayViewTooltip);
-        Assert.True(viewModel.PerDayViewChoices[0].IsSelected);
+        Assert.Equal(loc["Tip.Stats.Chart.PerDay"], viewModel.ChartTooltip);
+
+        viewModel.SetGroupingCommand.Execute(StatsGrouping.Weekday);
+        Assert.Equal(loc["Tip.Stats.Chart.ByWeekday"], viewModel.ChartTooltip);
+        viewModel.SetGroupingCommand.Execute(StatsGrouping.Hour);
+        Assert.Equal(loc["Tip.Stats.Chart.ByHour"], viewModel.ChartTooltip);
+        viewModel.SetGroupingCommand.Execute(StatsGrouping.Model);
+        Assert.Equal("", viewModel.ChartTooltip);
     }
 
     [Fact]
@@ -919,46 +917,43 @@ public class StatsViewModelTests
         Assert.Equal("claude", slice.ProviderId);
     }
 
-    // The "Per day" panel used to be three always-visible sections (by day, by weekday, by hour);
-    // it is now one chart multiplexed by SelectedPerDayView, with all three sources kept computed
-    // regardless of which one is on screen.
+    // The weekday and hour views used to be a second chart; they are groupings of the one chart now.
     [Fact]
-    public void SetPerDayViewSwitchesTheChartSourceWithoutTouchingTheOthers()
+    public async Task WeekdayAndHourGroupingFeedTheSameChartAsEveryOtherGrouping()
     {
-        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-per-day-view-switch");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-weekday-hour-grouping");
         var store = new StatsStore(dataDir);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        store.AddDelta([new StatsRecord("claude", today, "modelA", "projA", 1000, 0, 0, 0)]);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([new StatsRecord("claude", today, "modelA", "projA", 1000, 0, 0, 0) with { Hour = 14 }]);
         var viewModel = StatsVm.Create(store);
 
-        Assert.Equal(StatsPerDayView.Day, viewModel.SelectedPerDayView);
-        Assert.Same(viewModel.PerDayBars, viewModel.PerDayViewBars);
-        Assert.True(viewModel.IsPerDayViewStackedByProvider);
+        Assert.Equal(StatsGrouping.Day, viewModel.SelectedGrouping);
+        Assert.False(viewModel.IsHourAxis);
+        Assert.Equal(10, viewModel.ChartMaxAxisLabels);
 
-        viewModel.SetPerDayViewCommand.Execute(StatsPerDayView.Weekday);
-        Assert.Equal(StatsPerDayView.Weekday, viewModel.SelectedPerDayView);
-        Assert.Same(viewModel.WeekdayBars, viewModel.PerDayViewBars);
-        Assert.False(viewModel.IsPerDayViewStackedByProvider);
-        Assert.Equal(StatsPerDayView.Weekday, viewModel.SelectedPerDayViewChoice?.Value);
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Weekday);
+        Assert.Equal(7, viewModel.Bars.Count);
+        Assert.Equal(1000, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.False(viewModel.IsStackedByProvider);
+        Assert.False(viewModel.IsHourAxis);
 
-        viewModel.SetPerDayViewCommand.Execute(StatsPerDayView.Hour);
-        Assert.Equal(StatsPerDayView.Hour, viewModel.SelectedPerDayView);
-        Assert.Same(viewModel.HourBars, viewModel.PerDayViewBars);
-        Assert.False(viewModel.IsPerDayViewStackedByProvider);
-        Assert.Equal(8, viewModel.PerDayViewMaxAxisLabels);
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Hour);
+        Assert.Equal(24, viewModel.Bars.Count);
+        Assert.Equal(1000, viewModel.Bars[14].StackedValues.Sum());
+        Assert.False(viewModel.IsStackedByProvider);
+        Assert.True(viewModel.IsHourAxis);
+        Assert.Equal(8, viewModel.ChartMaxAxisLabels);
     }
 
     [Fact]
-    public void SelectedPerDayViewChoiceSetterRoutesThroughTheCommand()
+    public void TheGroupingListNamesWeekdayAndHourRightAfterWeek()
     {
-        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-per-day-view-choice-setter");
-        var store = new StatsStore(dataDir);
-        var viewModel = StatsVm.Create(store);
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-grouping-order");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
 
-        viewModel.SelectedPerDayViewChoice = viewModel.PerDayViewChoices.Single(choice => choice.Value == StatsPerDayView.Hour);
-
-        Assert.Equal(StatsPerDayView.Hour, viewModel.SelectedPerDayView);
-        Assert.True(viewModel.PerDayViewChoices.Single(choice => choice.Value == StatsPerDayView.Hour).IsSelected);
+        Assert.Equal(
+            [StatsGrouping.Day, StatsGrouping.Week, StatsGrouping.Weekday, StatsGrouping.Hour, StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Effort],
+            viewModel.GroupingChoices.Select(choice => choice.Value).ToArray());
     }
 
     // The twelve-month range follows the calendar, so it holds 366 days when it spans a leap day.

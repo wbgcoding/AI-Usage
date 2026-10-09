@@ -489,7 +489,7 @@ public class StatsWindowTests
         {
             window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "projects"));
 
-            Assert.Same(window.ProjectsSection, window.SectionHost.Children[5]);
+            Assert.Same(window.ProjectsSection, window.SectionHost.Children[4]);
             Assert.NotNull(settings.StatsSectionLayout);
             Assert.False(StatsLayout.IsDefault(settings.StatsSectionLayout!));
 
@@ -588,7 +588,7 @@ public class StatsWindowTests
 
                 window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "projects"), window.ProjectsSection, dropPoint);
 
-                Assert.Same(window.ProjectsSection, window.SectionHost.Children[5]);
+                Assert.Same(window.ProjectsSection, window.SectionHost.Children[4]);
                 // The render transform reaches the visual offset on the next layout pass.
                 window.UpdateLayout();
                 var shown = window.ProjectsSection.TranslatePoint(new Point(0, 0), window.SectionHost);

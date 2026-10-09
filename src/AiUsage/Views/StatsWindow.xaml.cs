@@ -81,16 +81,11 @@ public partial class StatsWindow : Window
         };
         MonthGrid.SizeChanged += (_, _) => MonthGridScroller.ScrollToRightEnd();
 
-        if (_settings is not null && Enum.TryParse<StatsPerDayView>(_settings.StatsPerDayView, out var restoredView))
-            _viewModel.SetPerDayViewCommand.Execute(restoredView);
-
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(StatsViewModel.IsStackedByProvider) or nameof(StatsViewModel.Bars)
-                or nameof(StatsViewModel.SelectedPerDayView) or nameof(StatsViewModel.ProjectColors))
+                or nameof(StatsViewModel.ProjectColors))
                 RefreshSeriesBrushes();
-            if (e.PropertyName == nameof(StatsViewModel.SelectedPerDayView))
-                PersistPerDayView();
             if (e.PropertyName == nameof(StatsViewModel.ProviderShareSlices))
                 RefreshProviderRingBrushes();
             if (e.PropertyName == nameof(StatsViewModel.ModelShareSlices))
@@ -283,7 +278,7 @@ public partial class StatsWindow : Window
     /// (its own dictionary key in <see cref="AppSettings.StatsSectionsCollapsed"/>) work through.</summary>
     private IEnumerable<Controls.CollapsibleSection> Sections =>
     [
-        FiguresSection, BreakdownSection, PerDaySection, ProviderSection, ModelSection, EffortSection, CacheSection,
+        FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection, CacheSection,
         ProjectsSection, MonthGridSection, TableSection,
     ];
 
@@ -307,18 +302,6 @@ public partial class StatsWindow : Window
             return;
 
         _settings.StatsSectionsCollapsed[section.SectionKey] = !section.IsExpanded;
-        _settingsStore.RequestSave(_settings);
-    }
-
-    /// <summary>Mirrors <see cref="PersistSectionState"/> for the "Per day" panel's own view switch -
-    /// same no-op-without-settings shape, restored the same way on the next construction (see the
-    /// constructor's own <see cref="Enum.TryParse{TEnum}(string?, out TEnum)"/> call).</summary>
-    private void PersistPerDayView()
-    {
-        if (_settings is null || _settingsStore is null)
-            return;
-
-        _settings.StatsPerDayView = _viewModel.SelectedPerDayView.ToString();
         _settingsStore.RequestSave(_settings);
     }
 
@@ -407,9 +390,8 @@ public partial class StatsWindow : Window
     /// model/project grouping. The provider pair always names Claude and Codex through <see
     /// cref="ChartPalette.ForProvider"/> - the same fixed colors that name them everywhere else on
     /// this window - the single, ungrouped series names no provider or model in particular, so it
-    /// stays on the plain theme accent. The "Per day" panel is provider-stacked only in its own
-    /// by-day view (<see cref="StatsViewModel.IsPerDayViewStackedByProvider"/>) - by-weekday and
-    /// by-hour name no single provider either, so they fall back to the same plain accent. Model,
+    /// stays on the plain theme accent - weekday and hour grouping name no single provider
+    /// either, so they use it too. Model,
     /// effort and project grouping color each bar on its own instead, through <see cref="BarColorBrushes"/> -
     /// <see cref="Controls.StatsBarChart.BarBrushes"/> then wins over <see
     /// cref="Controls.StatsBarChart.SeriesBrushes"/> for those bars, so the accent assignment above
@@ -423,9 +405,6 @@ public partial class StatsWindow : Window
         Chart.SeriesLabels = _viewModel.IsStackedByProvider ? Stats.StatsViewModel.StackedProviderDisplayNames : [];
         Chart.BarBrushes = BarColorBrushes(
             _viewModel.SelectedGrouping, _viewModel.Bars, _viewModel.ProjectColors, (System.Windows.Media.Brush)FindResource("Text.Muted"));
-
-        PerDayChart.SeriesBrushes = _viewModel.IsPerDayViewStackedByProvider ? providerBrushes : [accent];
-        PerDayChart.SeriesLabels = _viewModel.IsPerDayViewStackedByProvider ? Stats.StatsViewModel.StackedProviderDisplayNames : [];
     }
 
     /// <summary>Resolves every <see cref="StatsViewModel.Bars"/> entry's own <see

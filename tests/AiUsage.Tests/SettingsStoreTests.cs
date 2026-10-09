@@ -181,7 +181,7 @@ public class SettingsStoreTests : IDisposable
         using var store = new SettingsStore(directory);
 
         var original = new AppSettings();
-        original.StatsSectionsCollapsed["perday"] = true;
+        original.StatsSectionsCollapsed["breakdown"] = true;
         original.StatsSectionsCollapsed["provider"] = false;
 
         store.SaveNow(original);
@@ -189,7 +189,7 @@ public class SettingsStoreTests : IDisposable
         var loaded = reloadStore.Load();
 
         Assert.Equal(2, loaded.StatsSectionsCollapsed.Count);
-        Assert.True(loaded.StatsSectionsCollapsed["perday"]);
+        Assert.True(loaded.StatsSectionsCollapsed["breakdown"]);
         Assert.False(loaded.StatsSectionsCollapsed["provider"]);
     }
 
@@ -242,6 +242,27 @@ public class SettingsStoreTests : IDisposable
         var row = Assert.Single(loaded.StatsSectionLayout!);
         Assert.Equal(["table"], row.Left);
         Assert.Equal(["figures"], row.Right);
+    }
+
+    // A settings file from before the per-day panel went away still names its layout key and its view
+    // setting; both must load without a trace.
+    [Fact]
+    public void Load_accepts_a_file_that_still_holds_the_removed_per_day_panel()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(
+            Path.Combine(directory, "settings.json"),
+            "{\"schemaVersion\":1,\"refreshSeconds\":45,\"statsPerDayView\":\"Hour\",\"statsSectionLayout\":"
+            + "[{\"left\":[\"breakdown\"],\"right\":[]},{\"left\":[\"perday\"],\"right\":[]},{\"left\":[\"table\"],\"right\":[]}]}");
+        using var store = new SettingsStore(directory);
+
+        var settings = store.Load();
+
+        Assert.Equal(45, settings.RefreshSeconds);
+        var normalized = StatsLayout.Normalize(settings.StatsSectionLayout);
+        Assert.DoesNotContain(normalized, row => row.Left.Concat(row.Right).Contains("perday"));
+        Assert.Equal("breakdown", normalized[0].Left[0]);
+        Assert.Equal("table", normalized[1].Left[0]);
     }
 
     [Fact]

@@ -11,18 +11,6 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AiUsage.Stats;
 
-/// <summary>Which of the three by-day-independent data sources the "Per day" panel currently shows -
-/// a pure UI view switch, unlike <see cref="StatsGrouping"/> (which also drives the table and the
-/// breakdown chart above): all three sources (<see cref="StatsViewModel.PerDayBars"/>, <see
-/// cref="StatsViewModel.WeekdayBars"/>, <see cref="StatsViewModel.HourBars"/>) are always kept
-/// computed regardless of which one is on screen.</summary>
-public enum StatsPerDayView
-{
-    Day,
-    Weekday,
-    Hour,
-}
-
 /// <summary>
 /// Everything the statistics window shows: the period selector, the grouping selector (day, week,
 /// model, project), the figures bar (total, per-day average, busiest day, change against the
@@ -39,7 +27,6 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public ObservableCollection<Choice<string>> RangeChoices { get; } = [];
     public ObservableCollection<Choice<StatsGrouping>> GroupingChoices { get; } = [];
-    public ObservableCollection<Choice<StatsPerDayView>> PerDayViewChoices { get; } = [];
 
     /// <summary>The row a ComboBox binds <c>SelectedItem</c> to - <see cref="Choice{TValue}"/> itself
     /// carries no such property, only <see cref="Choice{TValue}.IsSelected"/> on each row, so this
@@ -68,79 +55,42 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the "Per day" panel's own view
-    /// switch.</summary>
-    public Choice<StatsPerDayView>? SelectedPerDayViewChoice
-    {
-        get => PerDayViewChoices.FirstOrDefault(choice => choice.IsSelected);
-        set
-        {
-            if (value is not null)
-                SetPerDayViewCommand.Execute(value.Value);
-        }
-    }
-
     [ObservableProperty]
     private string selectedRange = "Week";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
-    /// <summary>Which of <see cref="PerDayBars"/>/<see cref="WeekdayBars"/>/<see cref="HourBars"/>
-    /// the "Per day" panel's own chart currently draws - all three stay computed regardless, so
-    /// switching this needs no recompute, unlike <see cref="SelectedGrouping"/>.</summary>
+    /// <summary>True when the day grouping draws one column per calendar week instead of one per
+    /// day: only for a whole history that spans more than a year. Up to 366 days every day gets its
+    /// own column, the 12 month range included. The table under the day grouping stays per day
+    /// regardless.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    [NotifyPropertyChangedFor(nameof(PerDayViewMaxAxisLabels))]
-    [NotifyPropertyChangedFor(nameof(IsPerDayViewHourAxis))]
-    [NotifyPropertyChangedFor(nameof(IsPerDayViewStackedByProvider))]
-    [NotifyPropertyChangedFor(nameof(PerDayViewTooltip))]
-    private StatsPerDayView selectedPerDayView = StatsPerDayView.Day;
-
-    /// <summary>True when the "Per day" panel (and the breakdown chart under the day grouping) draws
-    /// one column per calendar week instead of one per day: only for a whole history that spans more
-    /// than a year. Up to 366 days every day gets its own column, the 12 month range included. The
-    /// table under the day grouping stays per day regardless.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewTooltip))]
+    [NotifyPropertyChangedFor(nameof(ChartTooltip))]
     private bool isWeeklyPerDay;
 
     private const int WeeklyPerDayThresholdDays = 366;
 
-    /// <summary>The one series actually drawn - <see cref="Views.StatsWindow"/>'s own code-behind
-    /// colors it provider-stacked or plain accent depending on <see
-    /// cref="IsPerDayViewStackedByProvider"/>, the same split <see cref="Bars"/>/<see
-    /// cref="IsStackedByProvider"/> already keep for the breakdown chart above it.</summary>
-    public IReadOnlyList<Views.Controls.StatsBarChart.Bar> PerDayViewBars => SelectedPerDayView switch
+    /// <summary>The 24 hours pack into the width the other groupings draw 7-30 columns into, so the
+    /// hour grouping keeps a tighter label spacing; every other grouping keeps the control's own
+    /// default.</summary>
+    public int ChartMaxAxisLabels => SelectedGrouping == StatsGrouping.Hour ? 8 : 10;
+
+    /// <summary>True while the chart draws the 24 hours, which label their axis at fixed hours
+    /// instead of by width.</summary>
+    public bool IsHourAxis => SelectedGrouping == StatsGrouping.Hour;
+
+    /// <summary>The breakdown section's header tooltip, following the grouping: what one column
+    /// stands for. Empty for the groupings whose columns need no explanation.</summary>
+    public string ChartTooltip => SelectedGrouping switch
     {
-        StatsPerDayView.Weekday => WeekdayBars,
-        StatsPerDayView.Hour => HourBars,
-        _ => PerDayBars,
+        StatsGrouping.Day => LocalizationService.Instance[IsWeeklyPerDay ? "Tip.Stats.Chart.PerWeek" : "Tip.Stats.Chart.PerDay"],
+        StatsGrouping.Week => LocalizationService.Instance["Tip.Stats.Chart.PerWeek"],
+        StatsGrouping.Weekday => LocalizationService.Instance["Tip.Stats.Chart.ByWeekday"],
+        StatsGrouping.Hour => LocalizationService.Instance["Tip.Stats.Chart.ByHour"],
+        _ => "",
     };
-
-    /// <summary>Only the by-day view stacks by provider - by-weekday and by-hour stay in the plain
-    /// theme accent (neither names a single provider), the same reasoning <see
-    /// cref="IsStackedByProvider"/> documents for the breakdown chart.</summary>
-    public bool IsPerDayViewStackedByProvider => SelectedPerDayView == StatsPerDayView.Day;
-
-    /// <summary>The hour view packs 24 columns into the same width the other two views draw 7-30
-    /// columns into, so it keeps the tighter 6-hour label spacing <c>HourChart</c> used to set for
-    /// itself alone; the other two views keep the control's own default.</summary>
-    public int PerDayViewMaxAxisLabels => SelectedPerDayView == StatsPerDayView.Hour ? 8 : 10;
-
-    /// <summary>True while the "Per day" chart draws the 24 hours, which label their axis at fixed
-    /// hours instead of by width.</summary>
-    public bool IsPerDayViewHourAxis => SelectedPerDayView == StatsPerDayView.Hour;
-
-    /// <summary>The "Per day" section's own header tooltip, following <see
-    /// cref="SelectedPerDayView"/> the same way its title already does through <see
-    /// cref="SelectedPerDayViewChoice"/>'s own <see cref="Choice{TValue}.Label"/>.</summary>
-    public string PerDayViewTooltip => LocalizationService.Instance[SelectedPerDayView switch
-    {
-        StatsPerDayView.Weekday => "Tip.Stats.Chart.ByWeekday",
-        StatsPerDayView.Hour => "Tip.Stats.Chart.ByHour",
-        _ => IsWeeklyPerDay ? "Tip.Stats.Chart.PerWeek" : "Tip.Stats.Chart.PerDay",
-    }];
 
     // The figures bar's own five cards. BusiestDayDateText and the two Change properties are
     // "" / false whenever their underlying figure has nothing to show (an empty period, or - for the
@@ -229,12 +179,6 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsBarChart.Bar> bars = [];
 
-    /// <summary>The one fixed panel - always by-day, provider-stacked, over the selected range;
-    /// unlike <see cref="Bars"/> it never follows <see cref="SelectedGrouping"/>.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    private IReadOnlyList<Views.Controls.StatsBarChart.Bar> perDayBars = [];
-
     /// <summary>The three donut charts.</summary>
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsRingChart.Slice> providerShareSlices = [];
@@ -262,17 +206,6 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The "top projects" panel - already sorted longest first, capped at ten rows.</summary>
     [ObservableProperty]
     private IReadOnlyList<StatsProjectRow> topProjectRows = [];
-
-    /// <summary>The "by weekday" panel - seven columns, current-culture day names and week
-    /// start.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    private IReadOnlyList<Views.Controls.StatsBarChart.Bar> weekdayBars = [];
-
-    /// <summary>The "by hour" panel - 24 columns, current-culture hour format.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    private IReadOnlyList<Views.Controls.StatsBarChart.Bar> hourBars = [];
 
     [ObservableProperty]
     private IReadOnlyList<StatsRowViewModel> rows = [];
@@ -603,15 +536,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByDay", StatsGrouping.Day));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeek", StatsGrouping.Week));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeekday", StatsGrouping.Weekday));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByHour", StatsGrouping.Hour));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByModel", StatsGrouping.Model));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByProject", StatsGrouping.Project));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByEffort", StatsGrouping.Effort));
         Choice.Select(GroupingChoices, SelectedGrouping);
-
-        PerDayViewChoices.Add(new Choice<StatsPerDayView>("Stats.Chart.PerDay", StatsPerDayView.Day));
-        PerDayViewChoices.Add(new Choice<StatsPerDayView>("Stats.Chart.ByWeekday", StatsPerDayView.Weekday));
-        PerDayViewChoices.Add(new Choice<StatsPerDayView>("Stats.Chart.ByHour", StatsPerDayView.Hour));
-        Choice.Select(PerDayViewChoices, SelectedPerDayView);
 
         // Nothing is read here: the window loads once it is shown (see StatsWindow), so opening it
         // never waits on the database.
@@ -648,19 +578,6 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsStackedByProvider));
         OnPropertyChanged(nameof(IsDayGrouping));
         await RecomputeForSelectionAsync();
-    }
-
-    /// <summary>Switches the "Per day" panel's own chart between its three always-computed sources -
-    /// no recompute, unlike <see cref="SetGrouping"/>, since none of the three depends on which one
-    /// is currently on screen.</summary>
-    [RelayCommand]
-    private void SetPerDayView(StatsPerDayView view)
-    {
-        if (view == SelectedPerDayView)
-            return;
-        SelectedPerDayView = view;
-        Choice.Select(PerDayViewChoices, SelectedPerDayView);
-        OnPropertyChanged(nameof(SelectedPerDayViewChoice));
     }
 
     // Every run takes the next number; only the newest run may publish its result or clear
@@ -767,7 +684,6 @@ public sealed partial class StatsViewModel : ObservableObject
 
         var weeklyPerDay = SelectedRange == "All" && today.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
         IsWeeklyPerDay = weeklyPerDay;
-        UpdatePerDayChoiceLabel(weeklyPerDay);
 
         // The table under the day grouping stays per day; only the bars are bundled per week.
         var dayRows = SelectedGrouping == StatsGrouping.Day
@@ -809,18 +725,9 @@ public sealed partial class StatsViewModel : ObservableObject
             row.Label, row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
             barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null)).ToList();
 
-        // The dedicated "Per day" panel always shows by-day, provider-stacked, independent of
-        // whichever grouping the explorer chart/table above is currently set to - reusing the exact
-        // same gap-filled rows when the grouping already happens to be Day, computing them fresh
-        // otherwise.
-        var perDayRows = weekRows
-            ?? dayRows
-            ?? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, today);
-        PerDayBars = perDayRows.Select(row => new Views.Controls.StatsBarChart.Bar(row.Label, row.StackedValues)).ToList();
-
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
-        // unlike PerDayBars, stacked by all five providers rather than just the two
+        // stacked by all five providers rather than just the two
         // StackedProviderOrder names, since any of them can lead a day on this grid. Built by
         // StatsMonthGridBuilder, the one place this computation lives - the widget's own day-grid tile
         // (DayGridTileViewModel) reads the same store through the same builder, so the two never
@@ -905,14 +812,6 @@ public sealed partial class StatsViewModel : ObservableObject
         TopProjectRows = StatsAggregator.TopProjectsDetailed(inRange, limit: 12, loc["Stats.NoProject"]);
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
-        // The "by weekday" panel.
-        var weekdayRows = StatsAggregator.GroupByWeekday(inRange, CultureInfo.CurrentCulture);
-        WeekdayBars = weekdayRows.Select(row => new Views.Controls.StatsBarChart.Bar(row.Label, row.StackedValues)).ToList();
-
-        // The "by hour" panel.
-        var hourRows = StatsAggregator.GroupByHour(inRange, CultureInfo.CurrentCulture);
-        HourBars = hourRows.Select(row => new Views.Controls.StatsBarChart.Bar(row.Label, row.StackedValues)).ToList();
-
         var periodDayCount = PeriodDayCount(SelectedRange, from, today, all);
         // The preceding period always has the range's fixed length, unlike periodDayCount, which a
         // short history can cut down.
@@ -948,26 +847,6 @@ public sealed partial class StatsViewModel : ObservableObject
         return range == "All" ? sinceFirstRecord : Math.Min(today.DayNumber - from.DayNumber + 1, sinceFirstRecord);
     }
 
-    /// <summary>The first entry of <see cref="PerDayViewChoices"/> reads "Per week" while the chart
-    /// bundles by week and "Per day" otherwise. The entry is swapped for a freshly keyed one only
-    /// when the wording actually changes, keeping whichever view is selected.</summary>
-    private void UpdatePerDayChoiceLabel(bool weekly)
-    {
-        if (PerDayViewChoices.Count == 0)
-            return;
-
-        var key = weekly ? "Stats.Chart.PerWeek" : "Stats.Chart.PerDay";
-        if (_perDayChoiceKey == key)
-            return;
-
-        _perDayChoiceKey = key;
-        PerDayViewChoices[0] = new Choice<StatsPerDayView>(key, StatsPerDayView.Day);
-        Choice.Select(PerDayViewChoices, SelectedPerDayView);
-        OnPropertyChanged(nameof(SelectedPerDayViewChoice));
-    }
-
-    private string _perDayChoiceKey = "Stats.Chart.PerDay";
-
     /// <summary>A language switch while the window is open: the choice labels are looked up again
     /// and every text this view model composes itself (figures, labels, the day heading) is rebuilt
     /// from the records already loaded - no new read.</summary>
@@ -977,9 +856,7 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in GroupingChoices)
             choice.RefreshLabel();
-        foreach (var choice in PerDayViewChoices)
-            choice.RefreshLabel();
-        OnPropertyChanged(nameof(PerDayViewTooltip));
+        OnPropertyChanged(nameof(ChartTooltip));
         RecomputeFrom(_allRecords);
     }
 

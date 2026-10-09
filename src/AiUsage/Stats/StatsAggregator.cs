@@ -9,6 +9,8 @@ public enum StatsGrouping
 {
     Day,
     Week,
+    Weekday,
+    Hour,
     Model,
     Project,
     Effort,
@@ -125,6 +127,8 @@ public static class StatsAggregator
     {
         StatsGrouping.Day => GroupByDay(records, rangeStart, rangeEnd),
         StatsGrouping.Week => GroupByWeek(records, rangeStart, rangeEnd),
+        StatsGrouping.Weekday => GroupByWeekday(records, CultureInfo.CurrentCulture),
+        StatsGrouping.Hour => GroupByHour(records, CultureInfo.CurrentCulture),
         StatsGrouping.Model => GroupBySingleValueKey(records, record => ModelDisplayNames.Resolve(record.Model)),
         StatsGrouping.Project => GroupBySingleValueKey(
             records, record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase),

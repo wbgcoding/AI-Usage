@@ -4,7 +4,7 @@ namespace AiUsage.Tests;
 
 public class StatsLayoutTests
 {
-    private const string DefaultText = "monthgrid / figures / breakdown / perday / cache / provider,model,effort | projects / table";
+    private const string DefaultText = "monthgrid / figures / breakdown / cache / provider,model,effort | projects / table";
 
     /// <summary>Compact text form: rows joined by " / ", columns by " | ", keys by ",".</summary>
     private static string Show(IEnumerable<StatsLayoutRow> rows) =>
@@ -43,7 +43,7 @@ public class StatsLayoutTests
         var result = StatsLayout.Normalize(rows);
 
         Assert.Equal(
-            "figures / table / monthgrid / breakdown / perday / cache / provider / model / effort / projects",
+            "figures / table / monthgrid / breakdown / cache / provider / model / effort / projects",
             Show(result));
     }
 
@@ -52,7 +52,7 @@ public class StatsLayoutTests
     {
         var result = StatsLayout.Normalize(Rows(([], ["cache"])));
 
-        Assert.Equal("cache / monthgrid / figures / breakdown / perday / provider / model / effort / projects / table", Show(result));
+        Assert.Equal("cache / monthgrid / figures / breakdown / provider / model / effort / projects / table", Show(result));
     }
 
     [Fact]
@@ -78,42 +78,42 @@ public class StatsLayoutTests
     public void Move_above_and_below_a_single_row_makes_a_new_single_row()
     {
         Assert.Equal(
-            "monthgrid / figures / breakdown / cache / perday / provider,model,effort | projects / table",
-            Show(StatsLayout.Move(StatsLayout.Default(), "cache", "perday", StatsDropPosition.Above)));
+            "monthgrid / figures / cache / breakdown / provider,model,effort | projects / table",
+            Show(StatsLayout.Move(StatsLayout.Default(), "cache", "breakdown", StatsDropPosition.Above)));
         Assert.Equal(
-            "monthgrid / figures / breakdown / cache / perday / provider,model,effort | projects / table",
-            Show(StatsLayout.Move(StatsLayout.Default(), "perday", "cache", StatsDropPosition.Below)));
+            "monthgrid / figures / cache / breakdown / provider,model,effort | projects / table",
+            Show(StatsLayout.Move(StatsLayout.Default(), "breakdown", "cache", StatsDropPosition.Below)));
     }
 
     [Fact]
     public void Move_above_and_below_inside_a_column_inserts_next_to_the_target()
     {
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / model,effort,provider | projects / table",
+            "monthgrid / figures / breakdown / cache / model,effort,provider | projects / table",
             Show(StatsLayout.Move(StatsLayout.Default(), "provider", "effort", StatsDropPosition.Below)));
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / provider,effort,model | projects / table",
+            "monthgrid / figures / breakdown / cache / provider,effort,model | projects / table",
             Show(StatsLayout.Move(StatsLayout.Default(), "effort", "model", StatsDropPosition.Above)));
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / provider,model | projects,effort / table",
+            "monthgrid / figures / breakdown / cache / provider,model | projects,effort / table",
             Show(StatsLayout.Move(StatsLayout.Default(), "effort", "projects", StatsDropPosition.Below)));
     }
 
     [Fact]
     public void Move_left_or_right_of_a_single_row_makes_a_two_column_row()
     {
-        var left = StatsLayout.Move(StatsLayout.Default(), "table", "perday", StatsDropPosition.Left);
-        var right = StatsLayout.Move(StatsLayout.Default(), "table", "perday", StatsDropPosition.Right);
+        var left = StatsLayout.Move(StatsLayout.Default(), "table", "cache", StatsDropPosition.Left);
+        var right = StatsLayout.Move(StatsLayout.Default(), "table", "cache", StatsDropPosition.Right);
 
-        Assert.Equal("monthgrid / figures / breakdown / table | perday / cache / provider,model,effort | projects", Show(left));
-        Assert.Equal("monthgrid / figures / breakdown / perday | table / cache / provider,model,effort | projects", Show(right));
+        Assert.Equal("monthgrid / figures / breakdown / table | cache / provider,model,effort | projects", Show(left));
+        Assert.Equal("monthgrid / figures / breakdown / cache | table / provider,model,effort | projects", Show(right));
     }
 
     [Fact]
     public void Move_left_or_right_of_a_section_in_a_two_column_row_acts_as_above_or_below()
     {
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / provider,table,model,effort | projects",
+            "monthgrid / figures / breakdown / cache / provider,table,model,effort | projects",
             Show(StatsLayout.Move(StatsLayout.Default(), "table", "model", StatsDropPosition.Above)));
         Assert.Equal(
             Show(StatsLayout.Move(StatsLayout.Default(), "table", "model", StatsDropPosition.Above)),
@@ -128,7 +128,7 @@ public class StatsLayoutTests
     {
         var result = StatsLayout.Move(StatsLayout.Default(), "projects", "table", StatsDropPosition.Below);
 
-        Assert.Equal("monthgrid / figures / breakdown / perday / cache / provider / model / effort / table / projects", Show(result));
+        Assert.Equal("monthgrid / figures / breakdown / cache / provider / model / effort / table / projects", Show(result));
     }
 
     [Fact]
@@ -144,17 +144,17 @@ public class StatsLayoutTests
     {
         var result = StatsLayout.MoveUp(StatsLayout.Default(), "effort");
 
-        Assert.Equal("monthgrid / figures / breakdown / perday / cache / provider,effort,model | projects / table", Show(result));
+        Assert.Equal("monthgrid / figures / breakdown / cache / provider,effort,model | projects / table", Show(result));
     }
 
     [Fact]
     public void MoveUp_at_the_top_of_a_column_leaves_the_row_as_a_single_row_above_it()
     {
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / projects / provider / model / effort / table",
+            "monthgrid / figures / breakdown / cache / projects / provider / model / effort / table",
             Show(StatsLayout.MoveUp(StatsLayout.Default(), "projects")));
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / provider / model,effort | projects / table",
+            "monthgrid / figures / breakdown / cache / provider / model,effort | projects / table",
             Show(StatsLayout.MoveUp(StatsLayout.Default(), "provider")));
     }
 
@@ -162,13 +162,13 @@ public class StatsLayoutTests
     public void MoveDown_swaps_inside_a_column_and_leaves_the_row_at_the_bottom()
     {
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / model,provider,effort | projects / table",
+            "monthgrid / figures / breakdown / cache / model,provider,effort | projects / table",
             Show(StatsLayout.MoveDown(StatsLayout.Default(), "provider")));
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / provider,model | projects / effort / table",
+            "monthgrid / figures / breakdown / cache / provider,model | projects / effort / table",
             Show(StatsLayout.MoveDown(StatsLayout.Default(), "effort")));
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / provider / model / effort / projects / table",
+            "monthgrid / figures / breakdown / cache / provider / model / effort / projects / table",
             Show(StatsLayout.MoveDown(StatsLayout.Default(), "projects")));
     }
 
@@ -177,7 +177,7 @@ public class StatsLayoutTests
     {
         string[] withoutTable = [.. StatsLayout.SectionKeys.Where(key => key != "table")];
         var rows = Rows((["figures"], []), (["table"], []), (["breakdown"], []));
-        const string Tail = " / monthgrid / perday / cache / provider / model / effort / projects";
+        const string Tail = " / monthgrid / cache / provider / model / effort / projects";
 
         Assert.Equal("table / figures / breakdown" + Tail, Show(StatsLayout.MoveDown(rows, "figures")));
         Assert.Equal("breakdown / table / figures" + Tail, Show(StatsLayout.MoveDown(rows, "figures", withoutTable)));
@@ -199,15 +199,15 @@ public class StatsLayoutTests
     public void MoveUp_and_MoveDown_swap_single_rows_and_keep_the_first_and_last_in_place()
     {
         Assert.Equal(
-            "figures / monthgrid / breakdown / perday / cache / provider,model,effort | projects / table",
+            "figures / monthgrid / breakdown / cache / provider,model,effort | projects / table",
             Show(StatsLayout.MoveUp(StatsLayout.Default(), "figures")));
         Assert.Equal(
-            "monthgrid / figures / breakdown / perday / cache / table / provider,model,effort | projects",
+            "monthgrid / figures / breakdown / cache / table / provider,model,effort | projects",
             Show(StatsLayout.MoveUp(StatsLayout.Default(), "table")));
         Assert.Equal(DefaultText, Show(StatsLayout.MoveUp(StatsLayout.Default(), "monthgrid")));
         Assert.Equal(DefaultText, Show(StatsLayout.MoveDown(StatsLayout.Default(), "table")));
         Assert.Equal(
-            "figures / monthgrid / breakdown / perday / cache / provider,model,effort | projects / table",
+            "figures / monthgrid / breakdown / cache / provider,model,effort | projects / table",
             Show(StatsLayout.MoveDown(StatsLayout.Default(), "monthgrid")));
     }
 
