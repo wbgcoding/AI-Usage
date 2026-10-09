@@ -311,6 +311,11 @@
                     <TextBlock Text="{Binding ReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                Margin="0,0,0,8" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
                                Visibility="{Binding ShowStaleNotice, Converter={StaticResource BoolToVis}}"/>
+                    <!-- A failed fetch with the last good numbers still below: what went wrong, as one
+                         muted line above them. -->
+                    <TextBlock Text="{Binding FailureNoticeText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               Margin="0,0,0,8" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
+                               Visibility="{Binding ShowFailureNotice, Converter={StaticResource BoolToVis}}"/>
                     <!-- Stale's own action, wired to the tile's existing refresh (not RunActionCommand,
                          which is only for the placeholder states below) - a source that only moves
                          through use (Codex) offers none, ErrorPresenter leaves ActionLabelText empty
@@ -318,11 +323,30 @@
                     <Button Content="{Binding ActionLabelText}" Command="{Binding RefreshCommand}"
                             Style="{StaticResource AiUsageButton}" HorizontalAlignment="Left" Margin="0,0,0,8"
                             Visibility="{Binding HasAction, Converter={StaticResource BoolToVis}}"/>
-                    <ItemsControl x:Name="RowsList" ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource FullRowTemplate}"/>
+                    <ItemsControl x:Name="RowsList" ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource FullRowTemplate}">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DimLastValues}" Value="True">
+                                        <Setter Property="Opacity" Value="0.55"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                    </ItemsControl>
 
                     <Border x:Name="DiagramPlaceholder" Height="64" Margin="0,4,0,0" CornerRadius="{StaticResource Radius.Card}"
                             BorderBrush="{DynamicResource Border}" BorderThickness="1"
                             Visibility="{Binding ShowDiagram, Converter={StaticResource BoolToVis}}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DimLastValues}" Value="True">
+                                        <Setter Property="Opacity" Value="0.55"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <controls:HistoryChart SizeChanged="HistoryChart_SizeChanged"
                                                 FiveHourValues="{Binding FiveHourValues}" WeeklyValues="{Binding WeeklyValues}"
                                                 PreviousWeekValues="{Binding PreviousWeekValues}"

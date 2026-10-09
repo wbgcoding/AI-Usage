@@ -289,6 +289,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(DimLastValues))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
     [NotifyPropertyChangedFor(nameof(ShowLastUpdated))]
@@ -307,6 +308,28 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
     private FailureKind failureKind;
+
+    /// <summary>True while a failed fetch is on the tile but the last good rows and chart are still
+    /// shown (dimmed), with <see cref="FailureNoticeText"/> as one muted line above them. The next Ok or
+    /// Stale snapshot clears it, and so does any other status.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
+    [NotifyPropertyChangedFor(nameof(DimLastValues))]
+    [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    private bool isShowingLastValues;
+
+    /// <summary>The failed read's headline and reason as one line, shown while <see cref="IsShowingLastValues"/>.</summary>
+    [ObservableProperty]
+    private string failureNoticeText = "";
+
+    public bool ShowFailureNotice => IsShowingLastValues && !IsMini;
+
+    /// <summary>Rows and chart dim for last values on their own only when the stale look does not
+    /// already dim the whole body.</summary>
+    public bool DimLastValues => IsShowingLastValues && !IsStale;
+
+    /// <summary>The failed snapshot whose texts <see cref="FailureNoticeText"/> shows; null otherwise.</summary>
+    private ProviderSnapshot? _keptFailure;
 
     [ObservableProperty]
     private string headlineText = "";
@@ -329,6 +352,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
     [NotifyPropertyChangedFor(nameof(ShowLastUpdated))]
@@ -641,7 +665,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     public bool ShowRows => HasNumbers && !IsMini;
 
-    public bool ShowStaleNotice => IsStale && !IsMini;
+    public bool ShowStaleNotice => IsStale && !IsMini && !IsShowingLastValues;
 
     public bool ShowDiagram => HasNumbers && Density == TileDensity.Full && !ChartHidden;
 
@@ -787,8 +811,11 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// it the 24h <see cref="IsSilent"/> proof - a full day into the future with no fetch involved.</summary>
     public void RefreshLocalizedText()
     {
+        var keptFailure = _keptFailure;
         if (_lastSnapshot is { } snapshot)
             Apply(snapshot, DateTimeOffset.Now, _lastThresholds, _lastShowAttentionMark, advanceSilenceClock: false, refreshInterval: _lastRefreshInterval);
+        if (keptFailure is not null)
+            ShowKeptFailure(keptFailure);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
         OnPropertyChanged(nameof(RefreshTooltipText));
         OnPropertyChanged(nameof(SettingsRowText));
@@ -817,6 +844,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (staleSignedOut && snapshot.Windows.Count == 0 && snapshot.Status == ProviderStatus.NotSignedIn)
             return;
 
+        // A failed read after good numbers keeps those numbers on show instead of emptying the tile.
+        if (ShouldKeepLastValues(snapshot, now))
+        {
+            ShowKeptFailure(snapshot);
+            return;
+        }
+
+        _keptFailure = null;
+        IsShowingLastValues = false;
+        FailureNoticeText = "";
         _lastSnapshot = snapshot;
         _lastThresholds = thresholds;
         if (!staleSignedOut)
@@ -905,6 +942,27 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         // provider stuck at Unknown would otherwise never reveal its button.
         OnPropertyChanged(nameof(ShowSignIn));
         OnPropertyChanged(nameof(ShowHeaderSignIn));
+    }
+
+    /// <summary>Whether <paramref name="snapshot"/> is a failed read that arrives while the tile still
+    /// shows numbers from an Ok or Stale snapshot younger than <see cref="ProviderFreshness.StaleAfter"/>.</summary>
+    private bool ShouldKeepLastValues(ProviderSnapshot snapshot, DateTimeOffset now) =>
+        snapshot.Status == ProviderStatus.Failed
+        && Status is ProviderStatus.Ok or ProviderStatus.Stale
+        && Rows.Count > 0
+        && LastSuccessAt is { } lastGood
+        && now - lastGood < ProviderFreshness.StaleAfter;
+
+    /// <summary>Puts the failed read's wording in the notice line and leaves rows, chart, status and
+    /// age exactly as the last good snapshot set them.</summary>
+    private void ShowKeptFailure(ProviderSnapshot snapshot)
+    {
+        _keptFailure = snapshot;
+        FailureKind = snapshot.Error?.Kind ?? FailureKind.Other;
+        var (headlineKey, reasonKey, _) = ErrorPresenter.Describe(ProviderStatus.Failed, snapshot.Error);
+        FailureNoticeText = $"{StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus)} · "
+            + StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);
+        IsShowingLastValues = true;
     }
 
     /// <summary>Recomputes <see cref="IsSilent"/> (and, with it, <see cref="SilentReasonText"/>)

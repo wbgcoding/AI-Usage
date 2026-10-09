@@ -99,6 +99,90 @@ public class ProviderTileViewModelTests
     public void TheTileHeaderHasNoSourceTextBlock() =>
         Assert.DoesNotContain("SourceBadgeText", File.ReadAllText(ProviderTileXamlPath()), StringComparison.Ordinal);
 
+    [Fact]
+    public void AFailedReadAfterGoodNumbersKeepsTheRowsAndFlagsLastValues()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.Single(tile.Rows);
+        Assert.Equal(42, tile.Rows[0].UsedPercent);
+        Assert.True(tile.HasNumbers);
+        Assert.False(tile.ShowPlaceholder);
+        Assert.Contains(loc.Format("State.Failed.Server.Head", "Claude"), tile.FailureNoticeText);
+        Assert.Contains("502", tile.FailureNoticeText);
+        Assert.Equal(Now, tile.LastSuccessAt);
+    }
+
+    [Fact]
+    public void LastValuesEndWithTheNextGoodSnapshot()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+        tile.Apply(FailedSnapshot(FailureKind.Timeout), Now.AddMinutes(5));
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 50) with { FetchedAt = Now.AddMinutes(10), DataTimestamp = Now.AddMinutes(10) }, Now.AddMinutes(10));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.Equal(50, tile.Rows[0].UsedPercent);
+        Assert.Equal("", tile.FailureNoticeText);
+    }
+
+    [Fact]
+    public void AFailedReadWithNoEarlierDataShowsThePlaceholder()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now);
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.True(tile.ShowPlaceholder);
+        Assert.Empty(tile.Rows);
+    }
+
+    [Fact]
+    public void AFailedReadAfterNumbersOlderThanTheStaleLimitShowsThePlaceholder()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now + ProviderFreshness.StaleAfter + TimeSpan.FromMinutes(1));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.True(tile.ShowPlaceholder);
+        Assert.Empty(tile.Rows);
+    }
+
+    [Fact]
+    public void AStaleTileKeepsItsRowsThroughAFailureToo()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Stale, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.Network), Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.Single(tile.Rows);
+        Assert.False(tile.ShowStaleNotice);
+    }
+
+    [Fact]
+    public void ANotSignedInSnapshotAfterGoodNumbersBehavesAsBefore()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now.AddMinutes(5));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.Empty(tile.Rows);
+        Assert.True(tile.ShowPlaceholder);
+    }
+
     private static ProviderSnapshot FailedSnapshot(FailureKind kind, int? httpStatus = null, string reasonKey = "Status_Failed_Reason") =>
         Snapshot(ProviderStatus.Failed, error: new ProviderError(reasonKey, "Action_Retry", Kind: kind, HttpStatus: httpStatus))
             with { Windows = [], SourceKind = SourceKind.None, DataTimestamp = null };
