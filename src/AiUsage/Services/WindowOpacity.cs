@@ -42,6 +42,7 @@ public static class WindowOpacity
         {
             source.AddHook(HideLayeringFromRenderer);
             AppearanceHook.Attach(source);
+            MicaBackdrop.Attach(source);
             source.Disposed += (_, _) => Followers.Remove(hwnd);
         }
         Apply(hwnd, CurrentPercent);
@@ -144,6 +145,7 @@ public static class WindowOpacity
         CurrentPercent = percent;
         foreach (var hwnd in Followers.ToArray())
             Apply(hwnd, percent);
+        MicaBackdrop.Reevaluate();
     }
 
     /// <summary>The P/Invoke seam: kept separate from the pure arithmetic above so

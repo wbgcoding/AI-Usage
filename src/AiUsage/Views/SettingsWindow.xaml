@@ -281,6 +281,10 @@
                         </Grid>
                     </Grid>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
+                              IsChecked="{Binding MicaEnabled}"
+                              Visibility="{Binding MicaSupported, Converter={StaticResource BoolToVis}}"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
                     <ComboBox ItemsSource="{Binding ZoomChoices}"
                               SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"

@@ -139,6 +139,7 @@ public partial class App : Application, IDisposable
         // No window exists yet, so this only records the ambient WindowOpacity.CurrentPercent - every
         // window created from here on applies it to itself via WindowChromeNative.Bootstrap.
         WindowOpacity.ApplyToAllOpenWindows(settings.WindowOpacityPercent);
+        MicaBackdrop.SetEnabled(settings.MicaEnabled);
         _logService.LogInfo($"Language {settings.Language}, theme {settings.Theme} applied.");
 
         // One instance for the whole app's lifetime, walking session logs on its own background
