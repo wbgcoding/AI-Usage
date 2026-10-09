@@ -274,6 +274,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool notifyOnReset;
 
     [ObservableProperty]
+    private bool forecastAlertEnabled;
+
+    [ObservableProperty]
     private bool showAttentionMark;
 
     [ObservableProperty]
@@ -435,6 +438,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         defaultThreshold = settings.DefaultThreshold;
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
         notifyOnReset = settings.NotifyOnReset;
+        forecastAlertEnabled = settings.ForecastAlertEnabled;
         showAttentionMark = settings.ShowAttentionMark;
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
@@ -810,6 +814,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnNotifyOnResetChanged(bool value)
     {
         _settings.NotifyOnReset = value;
+        _store.RequestSave(_settings);
+    }
+
+    partial void OnForecastAlertEnabledChanged(bool value)
+    {
+        _settings.ForecastAlertEnabled = value;
         _store.RequestSave(_settings);
     }
 
@@ -1223,6 +1233,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThreshold = source.DefaultThreshold;
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
+        _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
@@ -1292,6 +1303,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThreshold = _settings.DefaultThreshold;
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
+        ForecastAlertEnabled = _settings.ForecastAlertEnabled;
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         QuietHoursEnabled = _settings.QuietHoursEnabled;

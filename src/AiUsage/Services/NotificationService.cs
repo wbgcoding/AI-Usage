@@ -50,6 +50,19 @@ public sealed record ResetNotification(string ProviderId, string ProviderDisplay
     }
 }
 
+/// <summary>A window projected to fill up soon: the early warning that comes before the plain
+/// threshold alert. <paramref name="Remaining"/> is the time to full at the current pace.</summary>
+public sealed record ForecastNotification(
+    string ProviderId, string ProviderDisplayName, WindowKind Kind, double UsedPercent, TimeSpan Remaining, string Label = "")
+{
+    public string Text()
+    {
+        var windowLabel = StatusTextMap.Resolve(Label.Length > 0 ? Label : ThresholdNotification.FallbackLabel(Kind));
+        return LocalizationService.Instance.Format(
+            "Notify.Forecast", ProviderDisplayName, windowLabel, CountdownFormatter.FormatElapsed(Remaining), StatusTextMap.UsagePercent(UsedPercent));
+    }
+}
+
 /// <summary>
 /// Threshold notifications: one rising-edge alert per window period,
 /// independently per provider and per window (5 hours / weekly). A dip back below the threshold, or
@@ -76,6 +89,18 @@ public sealed class NotificationService
     public event Action<ThresholdNotification>? NotificationRaised;
 
     public event Action<ResetNotification>? ResetRaised;
+
+    public event Action<ForecastNotification>? ForecastRaised;
+
+    /// <summary>How close to full the projection must be before the early warning fires.</summary>
+    internal static readonly TimeSpan ForecastLead = TimeSpan.FromMinutes(30);
+
+    // Two reset times this close together are the same window period: a provider's own reset
+    // instant can wobble by a few minutes between fetches, which must not count as a new period.
+    private static readonly TimeSpan PeriodTolerance = TimeSpan.FromMinutes(10);
+
+    private static bool SamePeriod(DateTimeOffset? a, DateTimeOffset? b) =>
+        a is { } x && b is { } y && (x - y).Duration() <= PeriodTolerance;
 
     public NotificationService() : this(AppPaths.DataDirectory, DateTimeOffset.Now) { }
 
@@ -122,7 +147,7 @@ public sealed class NotificationService
                 state = new State();
                 _state[key] = state;
             }
-            var before = (state.Armed, state.LastNotifiedAt, state.LastResetsAt);
+            var before = (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor);
 
             // A reset counts only once the window reports a different reset time. A stale snapshot
             // keeps repeating the old, already-passed one, and treating that as a fresh reset on every
@@ -158,7 +183,7 @@ public sealed class NotificationService
                 }
             }
 
-            changed = isNew || before != (state.Armed, state.LastNotifiedAt, state.LastResetsAt);
+            changed = isNew || before != (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor);
         }
 
         // Every fetch of every provider lands here; rewriting an unchanged file each time is wasted work.
@@ -169,6 +194,40 @@ public sealed class NotificationService
             NotificationRaised?.Invoke(notification);
         if (resetNotification is not null)
             ResetRaised?.Invoke(resetNotification);
+    }
+
+    /// <summary>The early warning: raises once per window period when <paramref name="timeToFull"/>
+    /// (see <see cref="UsageForecast.TimeToFull"/>) is within <see cref="ForecastLead"/>, the window is
+    /// not full yet and its reset does not come first. The period is the window's reset time, kept in
+    /// the state file, so a dip and a new climb inside one period stay quiet and the next period warns
+    /// again. A window without a reset time has no period to key on and never warns.</summary>
+    public void EvaluateForecast(
+        string providerId, string providerDisplayName, UsageWindow window, TimeSpan? timeToFull, bool enabled, DateTimeOffset now)
+    {
+        if (!enabled || timeToFull is not { } remaining || window.ResetsAt is not { } resetsAt)
+            return;
+        if (remaining > ForecastLead || window.UsedPercent >= 100 || resetsAt <= now + remaining)
+            return;
+
+        ForecastNotification notification;
+        lock (_gate)
+        {
+            var key = (providerId, window.Kind, window.Label);
+            if (!_state.TryGetValue(key, out var state))
+            {
+                state = new State();
+                _state[key] = state;
+            }
+
+            if (SamePeriod(state.ForecastFiredFor, resetsAt))
+                return;
+
+            state.ForecastFiredFor = resetsAt;
+            notification = new ForecastNotification(providerId, providerDisplayName, window.Kind, window.UsedPercent, remaining, window.Label);
+        }
+
+        RequestSave();
+        ForecastRaised?.Invoke(notification);
     }
 
     /// <summary>Forgets every remembered window of one removed account and saves, so a later account
@@ -280,6 +339,7 @@ public sealed class NotificationService
                     Armed = entry.Armed,
                     LastNotifiedAt = entry.LastNotifiedAt,
                     LastResetsAt = entry.LastResetsAt,
+                    ForecastFiredFor = entry.ForecastFiredFor,
                 };
             }
         }
@@ -302,7 +362,8 @@ public sealed class NotificationService
                 Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
 
                 var entries = _state.Select(kvp => new PersistedEntry(
-                    kvp.Key.ProviderId, kvp.Key.Kind, kvp.Value.Armed, kvp.Value.LastNotifiedAt, kvp.Value.LastResetsAt, kvp.Key.Label)).ToList();
+                    kvp.Key.ProviderId, kvp.Key.Kind, kvp.Value.Armed, kvp.Value.LastNotifiedAt, kvp.Value.LastResetsAt, kvp.Key.Label,
+                    kvp.Value.ForecastFiredFor)).ToList();
                 var json = JsonSerializer.Serialize(entries, JsonOptions);
 
                 var tempPath = $"{_filePath}.tmp";
@@ -318,12 +379,14 @@ public sealed class NotificationService
     }
 
     private sealed record PersistedEntry(
-        string ProviderId, WindowKind Kind, bool Armed, DateTimeOffset? LastNotifiedAt, DateTimeOffset? LastResetsAt, string? Label = null);
+        string ProviderId, WindowKind Kind, bool Armed, DateTimeOffset? LastNotifiedAt, DateTimeOffset? LastResetsAt, string? Label = null,
+        DateTimeOffset? ForecastFiredFor = null);
 
     private sealed class State
     {
         public bool Armed = true;
         public DateTimeOffset? LastNotifiedAt;
         public DateTimeOffset? LastResetsAt;
+        public DateTimeOffset? ForecastFiredFor;
     }
 }

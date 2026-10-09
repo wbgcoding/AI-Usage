@@ -90,6 +90,11 @@ public sealed class AppSettings
     /// this one.</summary>
     public bool NotifyOnReset { get; set; } = true;
 
+    /// <summary>Early warning when a window is projected to fill within 30 minutes (see
+    /// <see cref="Services.NotificationService.EvaluateForecast"/>) - default on, gated by the same
+    /// per-provider switch and quiet hours as the threshold alert.</summary>
+    public bool ForecastAlertEnabled { get; set; } = true;
+
     /// <summary>Whether a tile marks itself once its own session file's newest turn reads as
     /// "waiting for the user" (see <see cref="Providers.Parsing.AttentionDetector"/>). Defaults on:
     /// unlike the reset balloon above, this is a passive marker on a surface already open, not an

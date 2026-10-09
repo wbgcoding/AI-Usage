@@ -182,6 +182,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ClickThroughChanged += (_, value) => ApplyClickThrough(value);
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
         ViewModel.ResetRaised += ViewModel_ResetRaised;
+        ViewModel.ForecastRaised += ViewModel_ForecastRaised;
 
         // Startup tiles here; an account added later is wired the moment it joins the collection
         // (ViewModel_Tiles_CollectionChanged), or its sign-in and sign-out buttons would do nothing.
@@ -220,6 +221,10 @@ public partial class MainWindow : Window, IDisposable
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ResetRaised(ResetNotification notification) =>
+        _tray.ShowBalloon(notification.Text());
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
+    private void ViewModel_ForecastRaised(ForecastNotification notification) =>
         _tray.ShowBalloon(notification.Text());
 
     /// <summary>Tray double-click / "Anzeigen/Verstecken" - also restores a

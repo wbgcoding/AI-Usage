@@ -489,6 +489,9 @@
                     <TextBlock Text="{Binding LevelExplainerText}" FontSize="{StaticResource Font.Size.Small}"
                                Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastAlert]}"
+                              IsChecked="{Binding ForecastAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
+
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnReset]}"
                               IsChecked="{Binding NotifyOnReset}" Style="{StaticResource CheckBox.GapS}"/>
 
