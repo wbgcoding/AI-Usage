@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
+using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Storage;
 
@@ -42,8 +43,16 @@ internal static class LocalLoginHttp
     internal static bool IsAllowedUrl(string url) => AllowedUrls.Contains(url);
 
     /// <summary>True once the response is JSON worth parsing; false for HTML, an error status or no
-    /// response at all. Kept separate so a caller can tell "server said no" from "wrong shape".</summary>
-    internal readonly record struct Response(bool Ok, int StatusCode, string Body);
+    /// response at all. Kept separate so a caller can tell "server said no" from "wrong shape".
+    /// <see cref="TimedOut"/> is set when no answer came in time.</summary>
+    internal readonly record struct Response(bool Ok, int StatusCode, string Body, bool TimedOut = false)
+    {
+        /// <summary>What kind of failure a non-Ok response stands for: no answer in time, a status the
+        /// server sent, or (no status at all) a connection that never got through.</summary>
+        internal FailureKind FailureKind => TimedOut ? FailureKind.Timeout
+            : StatusCode > 0 ? ProviderError.KindForStatus(StatusCode)
+            : FailureKind.Network;
+    }
 
     /// <summary>Sends one request to an allow-listed URL and returns its body. Never throws: a
     /// blocked URL, a transport error or a non-success status all come back as a non-Ok
@@ -98,7 +107,7 @@ internal static class LocalLoginHttp
         // body took longer than its own limit (the caller's token is excluded and propagates).
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or InvalidOperationException && !ct.IsCancellationRequested)
         {
-            return new Response(false, 0, "");
+            return new Response(false, 0, "", TimedOut: ex is OperationCanceledException);
         }
     }
 

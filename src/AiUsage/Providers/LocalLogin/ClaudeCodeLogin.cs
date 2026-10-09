@@ -21,7 +21,7 @@ internal enum ClaudeCodeLoginReason
 /// just the outcome and why.</summary>
 internal sealed record ClaudeCodeUsage(
     LocalLoginOutcome Outcome, IReadOnlyList<UsageWindow> Windows, ClaudeCodeLoginReason Reason = ClaudeCodeLoginReason.Ok,
-    string? PlanType = null)
+    string? PlanType = null, FailureKind FailureKind = FailureKind.Other, int? HttpStatus = null)
 {
     public static readonly ClaudeCodeUsage NotSignedIn = new(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.MissingFile);
     public static readonly ClaudeCodeUsage Failed = new(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse);
@@ -71,7 +71,9 @@ internal static class ClaudeCodeLogin
         if (DeniedUsage(response.StatusCode) is { } denied)
             return denied;
         if (!response.Ok)
-            return new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse);
+            return new ClaudeCodeUsage(
+                LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse,
+                FailureKind: response.FailureKind, HttpStatus: response.StatusCode > 0 ? response.StatusCode : null);
 
         var parsed = ClaudeUsageParser.Parse(response.Body);
         return parsed.Outcome == ClaudeUsageOutcome.Ok

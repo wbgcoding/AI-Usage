@@ -43,10 +43,31 @@ public static class ErrorPresenter
             ProviderStatus.NotSignedIn => ("Status_NotSignedIn_Headline", "Status_NotSignedIn_Reason", "Action_SignIn"),
             ProviderStatus.Blocked => ("Status_Blocked_Headline", "Status_Blocked_Reason", canSignInOnWeb ? "Action_SignIn" : null),
             ProviderStatus.RuntimeMissing => ("Status_RuntimeMissing_Headline", "Status_RuntimeMissing_Reason", "Action_OpenWebView2Download"),
-            ProviderStatus.Failed => ("Status_Failed_Headline", "Status_Failed_Reason", null),
+            ProviderStatus.Failed => FailedKeys(error?.Kind ?? FailureKind.Other),
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, message: null),
         };
 
-        return (headlineKey, error?.ReasonKey ?? defaultReasonKey, error?.ActionKey ?? defaultActionKey);
+        // The scheduler marks its own failures with the generic reason; a known kind swaps in its own
+        // wording. Any other reason (the offline one, a provider's own) is more specific and stays.
+        var reasonKey = error?.ReasonKey is { } given && !(given == GenericFailedReason && status == ProviderStatus.Failed)
+            ? given
+            : defaultReasonKey;
+        return (headlineKey, reasonKey, error?.ActionKey ?? defaultActionKey);
     }
+
+    private const string GenericFailedReason = "Status_Failed_Reason";
+
+    private static (string, string, string?) FailedKeys(FailureKind kind) => kind switch
+    {
+        FailureKind.ServerError => ("Status_Failed_Server_Headline", "Status_Failed_Server_Reason", null),
+        FailureKind.Refused => ("Status_Failed_Refused_Headline", "Status_Failed_Refused_Reason", null),
+        FailureKind.Timeout => ("Status_Failed_Timeout_Headline", "Status_Failed_Timeout_Reason", null),
+        FailureKind.Network => ("Status_Failed_Network_Headline", "Status_Failed_Network_Reason", null),
+        _ => ("Status_Failed_Headline", GenericFailedReason, null),
+    };
+
+    /// <summary>Whether a failed read's kind says plainly that signing in again would not help: the
+    /// server answered with an error, did not answer, or could not be reached.</summary>
+    public static bool IsNotASignInProblem(FailureKind kind) =>
+        kind is FailureKind.ServerError or FailureKind.Timeout or FailureKind.Network;
 }

@@ -191,7 +191,7 @@ public sealed class GeminiProvider : IUsageProvider
                     Error: null);
 
             default:
-                return ProviderSnapshots.Unavailable(AccountKey, fetchedAt);
+                return ProviderSnapshots.Unavailable(AccountKey, fetchedAt, kind: usage.FailureKind, httpStatus: usage.HttpStatus);
         }
     }
 

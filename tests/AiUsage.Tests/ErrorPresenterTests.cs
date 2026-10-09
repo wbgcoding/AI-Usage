@@ -96,4 +96,29 @@ public class ErrorPresenterTests
 
         Assert.Equal(100, window.UsedPercent);
     }
+
+    [Theory]
+    [InlineData(FailureKind.ServerError, "Status_Failed_Server_Headline", "Status_Failed_Server_Reason")]
+    [InlineData(FailureKind.Refused, "Status_Failed_Refused_Headline", "Status_Failed_Refused_Reason")]
+    [InlineData(FailureKind.Timeout, "Status_Failed_Timeout_Headline", "Status_Failed_Timeout_Reason")]
+    [InlineData(FailureKind.Network, "Status_Failed_Network_Headline", "Status_Failed_Network_Reason")]
+    [InlineData(FailureKind.Other, "Status_Failed_Headline", "Status_Failed_Reason")]
+    public void Describe_names_each_failure_kind_in_its_own_words(FailureKind kind, string headlineKey, string reasonKey)
+    {
+        var error = new ProviderError("Status_Failed_Reason", "Action_Retry", Kind: kind);
+
+        var (headline, reason, _) = ErrorPresenter.Describe(ProviderStatus.Failed, error);
+
+        Assert.Equal(headlineKey, headline);
+        Assert.Equal(reasonKey, reason);
+    }
+
+    [Theory]
+    [InlineData(502, FailureKind.ServerError)]
+    [InlineData(500, FailureKind.ServerError)]
+    [InlineData(404, FailureKind.Refused)]
+    [InlineData(429, FailureKind.Refused)]
+    [InlineData(0, FailureKind.Other)]
+    public void KindForStatus_splits_server_errors_from_refusals(int status, FailureKind expected) =>
+        Assert.Equal(expected, ProviderError.KindForStatus(status));
 }

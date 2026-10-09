@@ -301,6 +301,13 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowSignOut))]
     private SignInState signInState = SignInState.Unknown;
 
+    /// <summary>What kind of failure the tile's current snapshot is, <see cref="Models.FailureKind.Other"/>
+    /// for anything that is not a failed read.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
+    private FailureKind failureKind;
+
     [ObservableProperty]
     private string headlineText = "";
 
@@ -604,8 +611,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// Once one has landed, the button shows whenever the tile is not known to be signed in and has
     /// no numbers to show - a read that fails for its own reasons must still leave a way in, or a
     /// provider that cannot even tell signed-out apart from broken strands the user on a tile that
-    /// only ever says "failed".</summary>
+    /// only ever says "failed". A failure that is plainly not about the sign-in (the server's own
+    /// error, no answer, no connection) never shows it.</summary>
     public bool ShowSignIn => SupportsSignOut
+        && !ErrorPresenter.IsNotASignInProblem(FailureKind)
         && SignInState != SignInState.SignedIn
         && (SignInState == SignInState.SignedOut || (_lastSnapshot is not null && _lastSnapshot.Windows.Count == 0));
 
@@ -867,8 +876,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         SkipReasonWord = snapshot.SkipReasonWord;
 
         var (headlineKey, reasonKey, actionKey) = ErrorPresenter.Describe(snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn);
-        HeadlineText = StatusTextMap.Resolve(headlineKey);
-        ReasonText = StatusTextMap.ResolveReason(reasonKey, snapshot.Error);
+        FailureKind = snapshot.Status == ProviderStatus.Failed ? snapshot.Error?.Kind ?? FailureKind.Other : FailureKind.Other;
+        HeadlineText = StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus);
+        ReasonText = StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);
         _actionKey = actionKey;
         ActionLabelText = actionKey is null ? null : StatusTextMap.Resolve(actionKey);
         if (snapshot.DataTimestamp is not null)

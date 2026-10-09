@@ -437,7 +437,7 @@ public sealed class ClaudeProvider : IUsageProvider
                     ? "State.NotSignedIn.ClaudeExpired"
                     : "State.NotSignedIn.ClaudeCode"),
                 SkipReasonWord: ReasonWord(usage.Reason)),
-            _ => ProviderSnapshots.Unavailable(AccountKey, fetchedAt, ReasonWord(usage.Reason)),
+            _ => ProviderSnapshots.Unavailable(AccountKey, fetchedAt, ReasonWord(usage.Reason), usage.FailureKind, usage.HttpStatus),
         };
 
         // A failed request keeps the last numbers for the next expiry; a sign-in that is really gone

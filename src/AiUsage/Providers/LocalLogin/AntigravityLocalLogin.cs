@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Net.Http;
+using AiUsage.Models;
 using AiUsage.Providers.Parsing;
 
 namespace AiUsage.Providers.LocalLogin;
@@ -15,7 +16,8 @@ internal enum LocalLoginOutcome
 /// <summary>The raw result of an Antigravity usage read: the quota-summary JSON to be parsed and the
 /// plan-tier name to show, both empty/null unless <see cref="Outcome"/> is
 /// <see cref="LocalLoginOutcome.Ok"/>.</summary>
-internal sealed record AntigravityUsage(LocalLoginOutcome Outcome, string QuotaSummaryJson, string? PlanName)
+internal sealed record AntigravityUsage(
+    LocalLoginOutcome Outcome, string QuotaSummaryJson, string? PlanName, FailureKind FailureKind = FailureKind.Other, int? HttpStatus = null)
 {
     public static readonly AntigravityUsage NotSignedIn = new(LocalLoginOutcome.NotSignedIn, "", null);
     public static readonly AntigravityUsage Failed = new(LocalLoginOutcome.Failed, "", null);
@@ -89,7 +91,7 @@ internal static class AntigravityLocalLogin
         if (load.StatusCode is 401 or 403)
             return ForgetCachedTokenAndReportSignedOut();
         if (!load.Ok)
-            return AntigravityUsage.Failed;
+            return FailedFor(load);
 
         var (project, planName) = ReadProjectAndPlan(load.Body);
         var quotaBody = project is null ? "{}" : $"{{\"project\":{JsonSerializer.Serialize(project)}}}";
@@ -97,10 +99,13 @@ internal static class AntigravityLocalLogin
         if (quota.StatusCode is 401 or 403)
             return ForgetCachedTokenAndReportSignedOut();
         if (!quota.Ok)
-            return AntigravityUsage.Failed;
+            return FailedFor(quota);
 
         return new AntigravityUsage(LocalLoginOutcome.Ok, quota.Body, planName);
     }
+
+    private static AntigravityUsage FailedFor(LocalLoginHttp.Response response) =>
+        AntigravityUsage.Failed with { FailureKind = response.FailureKind, HttpStatus = response.StatusCode > 0 ? response.StatusCode : null };
 
     /// <summary>A refused token must not keep being served from the cache for up to an hour after the
     /// CLI has already signed in again.</summary>

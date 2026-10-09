@@ -99,6 +99,90 @@ public class ProviderTileViewModelTests
     public void TheTileHeaderHasNoSourceTextBlock() =>
         Assert.DoesNotContain("SourceBadgeText", File.ReadAllText(ProviderTileXamlPath()), StringComparison.Ordinal);
 
+    private static ProviderSnapshot FailedSnapshot(FailureKind kind, int? httpStatus = null, string reasonKey = "Status_Failed_Reason") =>
+        Snapshot(ProviderStatus.Failed, error: new ProviderError(reasonKey, "Action_Retry", Kind: kind, HttpStatus: httpStatus))
+            with { Windows = [], SourceKind = SourceKind.None, DataTimestamp = null };
+
+    [Fact]
+    public void AServerErrorNamesTheProviderAndTheStatusAndOffersNoSignIn()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now);
+
+        Assert.Equal(loc.Format("State.Failed.Server.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.Server.Reason", "Claude", 502), tile.ReasonText);
+        Assert.Contains("502", tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+        Assert.False(tile.ShowHeaderSignIn);
+    }
+
+    [Fact]
+    public void ATimeoutAndALostConnectionHaveTheirOwnWordingAndNoSignIn()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Timeout), Now);
+        Assert.Equal(loc.Format("State.Failed.Timeout.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc["State.Failed.Timeout.Reason"], tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+
+        tile.Apply(FailedSnapshot(FailureKind.Network), Now);
+        Assert.Equal(loc["State.Failed.Network.Head"], tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.Network.Reason", "Claude"), tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ARefusedRequestNamesTheStatusButKeepsTheSignInButton()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Refused, 404), Now);
+
+        Assert.Equal(loc.Format("State.Failed.Refused.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.Refused.Reason", "Claude", 404), tile.ReasonText);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void AnUnknownFailureKeepsTheGenericWordingAndTheSignInButton()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Other), Now);
+
+        Assert.Equal(loc["State.Failed.Head"], tile.HeadlineText);
+        Assert.Equal(loc["State.Failed.Reason"], tile.ReasonText);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ANetworkFailureKeepsAMoreSpecificReasonTheProviderGave()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.Apply(FailedSnapshot(FailureKind.Network, reasonKey: "Status_Offline_Reason"), Now);
+
+        Assert.Equal(loc["State.Failed.Network.Head"], tile.HeadlineText);
+        Assert.Equal(loc["State.Offline.Reason"], tile.ReasonText);
+    }
+
+    [Fact]
+    public void NotSignedInStillShowsTheSignInButton()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now);
+
+        Assert.True(tile.ShowSignIn);
+    }
+
     private static ProviderSnapshot Snapshot(ProviderStatus status, double percent = 0, ProviderError? error = null, SourceKind sourceKind = SourceKind.LocalFile) =>
         new(
             ProviderId: "claude",

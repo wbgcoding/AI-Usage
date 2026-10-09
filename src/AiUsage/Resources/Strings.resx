@@ -441,4 +441,12 @@
   <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % of the time has passed, usage is ahead of it.</value></data>
   <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % of the time has passed, usage is on pace.</value></data>
   <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % of the time has passed, usage is below it.</value></data>
+  <data name="State.Failed.Server.Head" xml:space="preserve"><value>{0} is having problems</value></data>
+  <data name="State.Failed.Server.Reason" xml:space="preserve"><value>The server answered with an error (HTTP {1}). The next attempt follows automatically.</value></data>
+  <data name="State.Failed.Refused.Head" xml:space="preserve"><value>{0} refused the request</value></data>
+  <data name="State.Failed.Refused.Reason" xml:space="preserve"><value>HTTP {1}. The next attempt follows automatically.</value></data>
+  <data name="State.Failed.Timeout.Head" xml:space="preserve"><value>{0} is not answering</value></data>
+  <data name="State.Failed.Timeout.Reason" xml:space="preserve"><value>No answer in time. The next attempt follows automatically.</value></data>
+  <data name="State.Failed.Network.Head" xml:space="preserve"><value>No connection</value></data>
+  <data name="State.Failed.Network.Reason" xml:space="preserve"><value>AI-Usage cannot reach {0}. Check your internet connection.</value></data>
 </root>
