@@ -37,6 +37,9 @@ public sealed class StatsStore
 
     private string DatabasePath => DatabasePathIn(_fixedDirectory ?? AppPaths.DataDirectory);
 
+    /// <summary>The data folder of a test store; null for the production store.</summary>
+    internal string? FixedDirectory => _fixedDirectory;
+
     private static string DatabasePathIn(string dataDirectory) => Path.Combine(dataDirectory, "stats.db");
     private readonly int _busyTimeoutMs;
 

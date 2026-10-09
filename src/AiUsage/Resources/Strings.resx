@@ -360,6 +360,13 @@
   <data name="Stats.Cache.Read" xml:space="preserve"><value>Cache read</value></data>
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Output</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Top projects</value></data>
+  <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
+  <data name="Stats.Limits.Window" xml:space="preserve"><value>Window</value></data>
+  <data name="Stats.Limits.Reached" xml:space="preserve"><value>Limit reached</value></data>
+  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}×</value></data>
+  <data name="Stats.Limits.Highest" xml:space="preserve"><value>Highest</value></data>
+  <data name="Stats.Limits.AvgPeak" xml:space="preserve"><value>Average peak</value></data>
+  <data name="Stats.Limits.Empty" xml:space="preserve"><value>No quota history in this period yet.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>No project</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Other projects</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projects</value></data>

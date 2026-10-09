@@ -535,6 +535,17 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void Default_layout_stacks_the_limits_above_the_projects_in_the_right_column()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            var column = (Grid)window.LimitsSection.Parent;
+            Assert.Same(column, window.ProjectsSection.Parent);
+            Assert.True(Grid.GetRow(window.LimitsSection) < Grid.GetRow(window.ProjectsSection));
+        });
+    }
+
+    [Fact]
     public void A_stored_layout_decides_the_order_of_the_sections()
     {
         var settings = new AppSettings
@@ -574,9 +585,9 @@ public class StatsWindowTests
 
         RunInWindow(settings, (window, _) =>
         {
-            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "projects"));
+            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "limits"));
 
-            Assert.Same(window.ProjectsSection, window.SectionHost.Children[3]);
+            Assert.Same(window.LimitsSection, window.SectionHost.Children[3]);
             Assert.NotNull(settings.StatsSectionLayout);
             Assert.False(StatsLayout.IsDefault(settings.StatsSectionLayout!));
 
@@ -626,7 +637,7 @@ public class StatsWindowTests
         {
             Assert.Equal(Visibility.Collapsed, window.ResetLayoutButton.Visibility);
 
-            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "projects"));
+            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "limits"));
 
             Assert.Equal(Visibility.Visible, window.ResetLayoutButton.Visibility);
 
@@ -673,21 +684,21 @@ public class StatsWindowTests
                 window.UpdateLayout();
                 var dropPoint = new Point(40, 25);
 
-                window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "projects"), window.ProjectsSection, dropPoint);
+                window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "limits"), window.LimitsSection, dropPoint);
 
-                Assert.Same(window.ProjectsSection, window.SectionHost.Children[3]);
+                Assert.Same(window.LimitsSection, window.SectionHost.Children[3]);
                 // The render transform reaches the visual offset on the next layout pass.
                 window.UpdateLayout();
-                var shown = window.ProjectsSection.TranslatePoint(new Point(0, 0), window.SectionHost);
+                var shown = window.LimitsSection.TranslatePoint(new Point(0, 0), window.SectionHost);
                 if (SystemParameters.ClientAreaAnimation)
                 {
-                    Assert.IsType<TranslateTransform>(window.ProjectsSection.RenderTransform);
+                    Assert.IsType<TranslateTransform>(window.LimitsSection.RenderTransform);
                     Assert.Equal(dropPoint.X, shown.X, 1);
                     Assert.Equal(dropPoint.Y, shown.Y, 1);
                 }
                 else
                 {
-                    Assert.False(window.ProjectsSection.RenderTransform is TranslateTransform);
+                    Assert.False(window.LimitsSection.RenderTransform is TranslateTransform);
                 }
             }
             finally

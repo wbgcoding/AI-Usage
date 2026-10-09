@@ -118,9 +118,7 @@ internal static class ReviewSurfaces
             new("widget.daytile.mini", GroupWidget, context => DayTile(context, "widget.daytile.mini", TileDensity.Mini, wide: false), HasMinSize: true),
             new("widget.daytile.full.wide", GroupWidget, context => DayTile(context, "widget.daytile.full.wide", TileDensity.Full, wide: true)),
             new("widget.daytile.mini.wide", GroupWidget, context => DayTile(context, "widget.daytile.mini.wide", TileDensity.Mini, wide: true)),
-            new("stats.window", GroupStats, context => Program.RenderStatistics(
-                context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
-                context.OutputPath("stats.window"), minWidth: context.Size == SizeKind.Min), HasMinSize: true),
+            new("stats.window", GroupStats, context => StatsWindowWithLimits(context), HasMinSize: true),
             new("stats.agents", GroupStats, context => Program.RenderStatistics(
                 context.NextDataFolder("stats"), WithSubagents(context.Records), context.BusyDay, fullHeight: true,
                 context.OutputPath("stats.agents"), minWidth: context.Size == SizeKind.Min,
@@ -163,6 +161,16 @@ internal static class ReviewSurfaces
     }
 
     /// <summary>Every fourth Claude record counted as subagent work, so the share card has something to show.</summary>
+    /// <summary>The statistics window with quota history, so the limits section shows rows.</summary>
+    private static void StatsWindowWithLimits(SurfaceContext context)
+    {
+        var folder = context.NextDataFolder("stats");
+        Program.RenderStatistics(
+            folder, context.Records, context.BusyDay, fullHeight: true,
+            context.OutputPath("stats.window"), minWidth: context.Size == SizeKind.Min,
+            seed: _ => SampleLimits.Seed(folder, context.Now));
+    }
+
     private static IReadOnlyList<StatsRecord> WithSubagents(IReadOnlyList<StatsRecord> records) =>
         records.Select((record, index) => record.Provider == "claude" && index % 4 == 0 ? record with { Subagent = true } : record).ToList();
 

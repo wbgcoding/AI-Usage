@@ -616,6 +616,75 @@
                                 </Border>
                             </controls:CollapsibleSection>
 
+                            <!-- Quota history of the shown range: how often each window's limit was reached. -->
+                            <controls:CollapsibleSection x:Name="LimitsSection" SectionKey="limits"
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits]}">
+                                <Border Padding="8"
+                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
+                                    <Grid>
+                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Empty]}"
+                                                   Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
+                                                   Visibility="{Binding HasNoLimitRows, Converter={StaticResource BoolToVis}}"/>
+                                        <StackPanel Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}">
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="72"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Window]}"
+                                                           Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Reached]}"
+                                                           Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                           Margin="8,0,0,0" TextAlignment="Right" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Highest]}"
+                                                           Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                           Margin="8,0,0,0" TextAlignment="Right" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.AvgPeak]}"
+                                                           Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                           Margin="8,0,0,0" TextAlignment="Right" TextWrapping="Wrap"/>
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{Binding LimitRows}">
+                                                <ItemsControl.ItemContainerStyle>
+                                                    <Style TargetType="ContentPresenter">
+                                                        <Setter Property="AutomationProperties.Name">
+                                                            <Setter.Value>
+                                                                <MultiBinding StringFormat="{}{0}: {1}, {2}, {3}">
+                                                                    <Binding Path="Label"/>
+                                                                    <Binding Path="ReachedText"/>
+                                                                    <Binding Path="HighestText"/>
+                                                                    <Binding Path="AveragePeakText"/>
+                                                                </MultiBinding>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,4">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="80"/>
+                                                                <ColumnDefinition Width="72"/>
+                                                                <ColumnDefinition Width="80"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{DynamicResource Text.Secondary}"
+                                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0" TextAlignment="Right"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding HighestText}" Margin="8,0,0,0" TextAlignment="Right"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding AveragePeakText}" Margin="8,0,0,0" TextAlignment="Right"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </controls:CollapsibleSection>
+
                             <!-- the twelve projects with the most tokens, longest bar at the top. -->
                             <controls:CollapsibleSection x:Name="ProjectsSection" SectionKey="projects"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.TopProjects]}"

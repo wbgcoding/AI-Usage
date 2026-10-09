@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text;
 using System.Windows;
+using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Services;
 using AiUsage.Storage;
@@ -35,6 +36,7 @@ public sealed record ChartSeriesInfo(string Label, string ColorKey);
 public sealed partial class StatsViewModel : ObservableObject
 {
     private readonly StatsStore _store;
+    private readonly HistoryStore _history;
     private readonly Func<string, string?> _askForSavePath;
     private readonly Action<string> _showMessage;
 
@@ -500,6 +502,18 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<StatsProviderRowViewModel> providerRows = [];
 
+    /// <summary>One row per quota window of the shown providers, for the limits section.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLimitRows), nameof(HasNoLimitRows))]
+    private IReadOnlyList<StatsLimitRowViewModel> limitRows = [];
+
+    public bool HasLimitRows => LimitRows.Count > 0;
+
+    public bool HasNoLimitRows => LimitRows.Count == 0;
+
+    /// <summary>Reads one provider's quota history between two moments - a seam so a test can supply points.</summary>
+    internal Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>> LoadHistory { get; set; }
+
     /// <summary>Throwaway instances built only to read <see cref="Services.IUsageProvider.DisplayName"/> -
     /// the same reasoning <see cref="Views.SettingsWindow.BuildAboutReadLocationsList"/> already uses for its
     /// own "every known provider" list, never a second, hand-typed copy of the same five names.
@@ -811,9 +825,12 @@ public sealed partial class StatsViewModel : ObservableObject
     public static IReadOnlyList<string> StackedProviderDisplayNames { get; } =
         StatsAggregator.StackedProviderOrder.Select(id => ProviderDisplayNames.GetValueOrDefault(id, id)).ToList();
 
-    public StatsViewModel(StatsStore store, Func<string, string?>? askForSavePath = null, Action<string>? showMessage = null)
+    public StatsViewModel(
+        StatsStore store, Func<string, string?>? askForSavePath = null, Action<string>? showMessage = null, HistoryStore? history = null)
     {
         _store = store;
+        _history = history ?? (store.FixedDirectory is { } directory ? new HistoryStore(directory, now: null) : new HistoryStore());
+        LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
         _askForSavePath = askForSavePath ?? ShowRealSaveDialog;
@@ -1253,6 +1270,8 @@ public sealed partial class StatsViewModel : ObservableObject
             })
             .ToList();
 
+        LimitRows = BuildLimitRows(from, to, loc);
+
         InputText = LabelValue(loc, "Stats.Input", ShortenTokens(summary.InputTokens, loc));
         InputExact = summary.InputTokens.ToString("N0", CultureInfo.CurrentCulture);
         OutputText = LabelValue(loc, "Stats.Output", ShortenTokens(summary.OutputTokens, loc));
@@ -1330,6 +1349,28 @@ public sealed partial class StatsViewModel : ObservableObject
         PeriodDayCountRaw = Math.Max(1, periodDayCount);
         ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc["Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
     }
+
+    /// <summary>The limits section: the quota history of the shown providers (the filtered one, else
+    /// every provider) between the first and last day of the range, summed per window.</summary>
+    private List<StatsLimitRowViewModel> BuildLimitRows(DateOnly from, DateOnly to, LocalizationService loc)
+    {
+        var start = from == DateOnly.MinValue
+            ? DateTimeOffset.MinValue
+            : new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue));
+        var end = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        IEnumerable<string> providerIds = SelectedProvider.Length > 0 ? [SelectedProvider] : ProviderCoverage.AllProviderIds;
+        var series = providerIds.Select(id => (id, LoadHistory(id, start, end))).ToList();
+        return StatsLimitsAggregator.Build(series)
+            .Select(row => new StatsLimitRowViewModel(
+                $"{ProviderDisplayNames.GetValueOrDefault(row.ProviderId, row.ProviderId)} · {StatusTextMap.Resolve(row.WindowLabelKey)}",
+                string.Format(CultureInfo.CurrentCulture, loc["Stats.Limits.ReachedCount"], row.ReachedCount),
+                FormatLimitPercent(row.Highest),
+                FormatLimitPercent(row.AveragePeak)))
+            .ToList();
+    }
+
+    private static string FormatLimitPercent(double percent) =>
+        StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(percent).ToString(CultureInfo.CurrentCulture));
 
     /// <summary>The session grouping's views of the range: the largest <see cref="MaxSessionBars"/>
     /// sessions as bars, every session as a table row (and as the exported rows), the largest

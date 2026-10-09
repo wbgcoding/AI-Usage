@@ -299,7 +299,7 @@ public partial class StatsWindow : Window
     private IEnumerable<Controls.CollapsibleSection> Sections =>
     [
         FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection,
-        ProjectsSection, MonthGridSection, TableSection,
+        LimitsSection, ProjectsSection, MonthGridSection, TableSection,
     ];
 
     /// <summary>Sets every section to its remembered state (missing from the dictionary counts as

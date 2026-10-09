@@ -359,6 +359,13 @@
   <data name="Stats.Cache.Read" xml:space="preserve"><value>Cache lesen</value></data>
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Ausgabe</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Stärkste Projekte</value></data>
+  <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
+  <data name="Stats.Limits.Window" xml:space="preserve"><value>Fenster</value></data>
+  <data name="Stats.Limits.Reached" xml:space="preserve"><value>Limit erreicht</value></data>
+  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}×</value></data>
+  <data name="Stats.Limits.Highest" xml:space="preserve"><value>Höchstwert</value></data>
+  <data name="Stats.Limits.AvgPeak" xml:space="preserve"><value>Ø Spitze</value></data>
+  <data name="Stats.Limits.Empty" xml:space="preserve"><value>Für diesen Zeitraum gibt es noch keinen Kontingent-Verlauf.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Ohne Projekt</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Weitere Projekte</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} Projekte</value></data>
