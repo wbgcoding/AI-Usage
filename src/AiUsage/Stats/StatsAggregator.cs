@@ -125,7 +125,7 @@ public static class StatsAggregator
     {
         StatsGrouping.Day => GroupByDay(records, rangeStart, rangeEnd),
         StatsGrouping.Week => GroupByWeek(records, rangeStart, rangeEnd),
-        StatsGrouping.Model => GroupBySingleValueKey(records, record => record.Model),
+        StatsGrouping.Model => GroupBySingleValueKey(records, record => ModelDisplayNames.Resolve(record.Model)),
         StatsGrouping.Project => GroupBySingleValueKey(
             records, record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase),
         StatsGrouping.Effort => GroupBySingleValueKey(records, record => record.Effort),
@@ -408,7 +408,8 @@ public static class StatsAggregator
             .ToList();
     }
 
-    /// <summary>The "share per model" ring: every model sorted by total, descending, with every
+    /// <summary>The "share per model" ring: every model (grouped by its display name, so two raw ids
+    /// of one model share a slice) sorted by total, descending, with every
     /// model past the largest <paramref name="topCount"/> folded into one <paramref
     /// name="otherLabel"/> entry - never split further, and left out entirely when there is nothing
     /// left to pool. Each kept slice also names the provider it belongs to (<see
@@ -419,7 +420,7 @@ public static class StatsAggregator
     {
         var grandTotal = records.Sum(record => record.TotalTokens);
         var byModel = records
-            .GroupBy(record => record.Model)
+            .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
             .Select(group => (
                 Label: group.Key,
                 Total: group.Sum(record => record.TotalTokens),
@@ -497,7 +498,7 @@ public static class StatsAggregator
                     .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))
                     .Select(providerGroup => providerGroup.Key)],
                 MainModel: group
-                    .GroupBy(record => record.Model)
+                    .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
                     .OrderByDescending(modelGroup => modelGroup.Sum(record => record.TotalTokens))
                     .Select(modelGroup => modelGroup.Key)
                     .FirstOrDefault(defaultValue: "")))
@@ -664,9 +665,9 @@ public static class StatsAggregator
 
         // Each model carries the provider that used it most that day, the id its bar's color comes from.
         var byModel = dayRecords
-            .GroupBy(record => record.Model)
+            .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
             .Select(group => (
-                Label: ModelDisplayNames.Resolve(group.Key),
+                Label: group.Key,
                 Total: group.Sum(record => record.TotalTokens),
                 ProviderId: group.GroupBy(record => record.Provider)
                     .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))

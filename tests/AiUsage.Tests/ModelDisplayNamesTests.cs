@@ -17,6 +17,7 @@ public class ModelDisplayNamesTests
     [InlineData("gpt-5.6-sol", "GPT-5.6 Sol")]
     [InlineData("gpt-5.6-terra", "GPT-5.6 Terra")]
     [InlineData("gpt-5.6-luna", "GPT-5.6 Luna")]
+    [InlineData("gpt-5-codex", "GPT-5 Codex")]
     [InlineData("codex-auto-review", "Codex Review")]
     [InlineData("glm-5.2", "GLM 5.2")]
     [InlineData("minimax-m3", "MiniMax M3")]

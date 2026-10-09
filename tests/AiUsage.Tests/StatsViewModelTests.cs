@@ -871,6 +871,31 @@ public class StatsViewModelTests
         }
     }
 
+    [Fact]
+    public async Task TwoIdsOfOneModelGiveOneBarAndOneSliceWithTheProviderColor()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-model-merge");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        store.AddDelta([
+            new StatsRecord("claude", today, "claude-opus-4-8", "projA", 700, 0, 0, 0),
+            new StatsRecord("claude", today, "claude-opus-4-8-20260101", "projA", 300, 0, 0, 0),
+        ]);
+        var viewModel = StatsVm.Create(store);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Model);
+
+        var bar = Assert.Single(viewModel.Bars);
+        Assert.Equal("Opus 4.8", bar.Label);
+        Assert.Equal("claude", bar.ColorProviderId);
+        Assert.Equal(0, bar.ColorRank);
+        var row = Assert.Single(viewModel.Rows);
+        Assert.Equal(1000, row.TotalTokens);
+        var slice = Assert.Single(viewModel.ModelShareSlices);
+        Assert.Equal("Opus 4.8", slice.Label);
+        Assert.Equal("claude", slice.ProviderId);
+    }
+
     // The "Per day" panel used to be three always-visible sections (by day, by weekday, by hour);
     // it is now one chart multiplexed by SelectedPerDayView, with all three sources kept computed
     // regardless of which one is on screen.
