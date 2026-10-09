@@ -766,6 +766,25 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public void A_navigation_turned_away_is_logged_once_per_host_without_path_or_query()
+    {
+        IReadOnlyList<string> allowed = ["aistudio.google.com", "accounts.google.com"];
+        var gate = new FirstPerHostGate();
+
+        var first = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/ml?continue=secret&code=1", allowed, gate);
+        var again = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/other", allowed, gate);
+        var other = WebView2HiddenBrowserHost.BlockedNavigationLine("https://www.google.com/x", allowed, gate);
+
+        Assert.NotNull(first);
+        Assert.Contains("consent.google.com", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("/ml", first, StringComparison.Ordinal);
+        Assert.Null(again);
+        Assert.Contains("www.google.com", other, StringComparison.Ordinal);
+        Assert.Null(WebView2HiddenBrowserHost.BlockedNavigationLine("https://aistudio.google.com/usage", allowed, gate));
+    }
+
+    [Fact]
     public void A_host_name_cannot_break_out_of_the_guards_string_literal()
     {
         var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard("1", "a\";alert(1);//");

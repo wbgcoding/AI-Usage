@@ -32,7 +32,7 @@ internal static class UpdateDialogs
         var loc = LocalizationService.Instance;
         var message = loc[MessageKey(result.Outcome)];
         if (result.Outcome == UpdateOutcome.SwapFailedRestoreNeeded)
-            message = string.Format(CultureInfo.CurrentCulture, message, PortableSwap.OldPathFor(Environment.ProcessPath ?? AppInfo.ProductName));
+            message = RestoreMessage(message, result.RestoreNeededPath);
 
         if (result.Outcome is UpdateOutcome.InstalledRestartNeeded or UpdateOutcome.SwapFailedRestoreNeeded or UpdateOutcome.NotStarted)
         {
@@ -45,6 +45,11 @@ internal static class UpdateDialogs
         if (ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["About.OpenReleasePage"], loc["TitleBar.Close"]))
             OpenReleasePage(result.ReleaseUrl);
     }
+
+    /// <summary>The restore message with the path the swap reported; the path is never worked out again
+    /// here, since the running program's own path may already name the parked copy.</summary>
+    internal static string RestoreMessage(string template, string? oldPath) =>
+        string.Format(CultureInfo.CurrentCulture, template, oldPath ?? "AI-Usage.exe.old");
 
     internal static string MessageKey(UpdateOutcome outcome) => outcome switch
     {

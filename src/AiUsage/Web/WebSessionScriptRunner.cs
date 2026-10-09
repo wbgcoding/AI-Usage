@@ -414,6 +414,7 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     private readonly string _usageOriginHost;
     private readonly WebViewHost _host;
     private readonly FirstPerHostGate _popupLogGate = new();
+    private readonly FirstPerHostGate _blockedLogGate = new();
     private Window? _hiddenWindow;
     private WebView2? _webView;
     // Set by DisposeAsync, which may run while NavigateAsync is still awaiting the environment or the
@@ -499,8 +500,12 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         // for the ride - same allow-list the sign-in window uses, so the two never drift apart.
         webView.CoreWebView2.NavigationStarting += (_, e) =>
         {
-            if (!SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts))
-                e.Cancel = true;
+            if (SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts))
+                return;
+
+            e.Cancel = true;
+            if (BlockedNavigationLine(e.Uri, _allowedHosts, _blockedLogGate) is { } line)
+                LogService.Shared.LogInfo(line);
         };
 
         // This session reads numbers and nothing else: a page that tries to open a window, ask for a
@@ -523,6 +528,18 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         webView.CoreWebView2.NavigationCompleted += (_, e) => navigated.TrySetResult(e.IsSuccess);
         webView.CoreWebView2.Navigate(_baseUrl);
         return await navigated.Task.WaitAsync(ct);
+    }
+
+    /// <summary>The log line for a navigation the allow-list turns away, once per host (null when the
+    /// address is allowed or its host was reported already): without it a host missing from the list
+    /// shows only as a tile that reads "blocked". The host only, never the path or query.</summary>
+    internal static string? BlockedNavigationLine(string uri, IReadOnlyList<string> allowedHosts, FirstPerHostGate gate)
+    {
+        if (SignInNavigationPolicy.IsAllowedUri(uri, allowedHosts))
+            return null;
+
+        var host = Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && parsed.Host.Length > 0 ? parsed.Host : "unknown";
+        return gate.IsFirst(host) ? $"Hidden session: navigation to {host} blocked, not on this provider's allow list." : null;
     }
 
     /// <summary>Which page dialogs the hidden session answers with "yes": only the leave-page prompt, so

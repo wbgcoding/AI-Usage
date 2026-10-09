@@ -6,7 +6,7 @@ namespace AiUsage.ViewModels;
 
 /// <summary>What happened to an install request: the outcome, and the release page the failure
 /// dialog offers to open.</summary>
-public sealed record UpdateInstallResult(UpdateOutcome Outcome, string? ReleaseUrl);
+public sealed record UpdateInstallResult(UpdateOutcome Outcome, string? ReleaseUrl, string? RestoreNeededPath = null);
 
 /// <summary>
 /// The one place that knows whether a newer version exists: the daily check writes its finding into
@@ -103,8 +103,9 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
                 return new UpdateInstallResult(UpdateOutcome.DownloadFailed, ReleaseUrl);
 
             Record(release);
-            var outcome = await new UpdateInstaller(_createHost(), LogService.Shared.LogInfo).InstallAsync(release, ct);
-            return new UpdateInstallResult(outcome, release.HtmlUrl);
+            var installer = new UpdateInstaller(_createHost(), LogService.Shared.LogInfo);
+            var outcome = await installer.InstallAsync(release, ct);
+            return new UpdateInstallResult(outcome, release.HtmlUrl, installer.RestoreNeededPath);
         }
         finally
         {

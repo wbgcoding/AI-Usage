@@ -232,10 +232,13 @@ public class UpdateInstallerTests
         restoring.Files[SigUrl] = host.Files[SigUrl];
         var logged = new List<string>();
 
-        var outcome = await new UpdateInstaller(restoring, logged.Add).InstallAsync(PortableRelease(), CancellationToken.None);
+        var installer = new UpdateInstaller(restoring, logged.Add);
+        var outcome = await installer.InstallAsync(PortableRelease(), CancellationToken.None);
 
         Assert.Equal(UpdateOutcome.SwapFailedRestoreNeeded, outcome);
         Assert.Contains(logged, line => line.Contains(oldPath));
+        Assert.Equal(oldPath, installer.RestoreNeededPath);
+        Assert.Contains(oldPath, AiUsage.Views.UpdateDialogs.RestoreMessage(LocalizationService.Instance["Update.RestoreNeeded"], installer.RestoreNeededPath));
     }
 
     [Theory]

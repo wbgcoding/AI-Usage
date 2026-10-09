@@ -91,6 +91,10 @@ public sealed class UpdateRestoreNeededException(string oldPath)
 /// </summary>
 public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null)
 {
+    /// <summary>Where the previous program is after <see cref="UpdateOutcome.SwapFailedRestoreNeeded"/>,
+    /// as the swap reported it; null for every other outcome.</summary>
+    public string? RestoreNeededPath { get; private set; }
+
     /// <summary>The only hosts a release file or its signature may come from. A release asset URL on
     /// GitHub answers with a redirect to the content host, so each hop is checked against this list
     /// as well (see <see cref="UpdateHost"/>).</summary>
@@ -255,6 +259,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
         {
             held.Dispose();
             CleanUpRun(runFolder, filePath);
+            RestoreNeededPath = ex.OldPath;
             log?.Invoke($"Update swap failed and the previous program could not be put back: it is at {ex.OldPath}.");
             return UpdateOutcome.SwapFailedRestoreNeeded;
         }
