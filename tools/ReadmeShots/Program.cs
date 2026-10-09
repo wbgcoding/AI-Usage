@@ -12,6 +12,17 @@
 // the logical size, clipped to the app's own window corner radius with transparent corners. The
 // widget uses a temporary data folder under .tmp/readme-shots-data that is removed again at the end,
 // so nothing of the machine's real settings, history or usage index is read or written.
+//
+// Review mode draws every window, tile, dialog and menu the app has, for looking at them:
+//   dotnet run --project tools/ReadmeShots -- --review <folder> [options]
+//   --surfaces <list>   surface ids and/or @groups, comma separated (default: all). Groups: @widget,
+//                       @stats, @settings, @tiles, @dialogs. An unknown value exits with 2 and
+//                       lists every valid id and group.
+//   --lang en|de|all    language (default: all)
+//   --size min|default|both
+//                       min = the window's smallest width, default = its normal width (default: both)
+//   --theme <name>|all  Dark, Light, Nebula, Terminal or HighContrast (default: all)
+// Files are named <surface-id>-<theme>-<language>-<size>.png. Nothing is written outside <folder>.
 
 using System.Globalization;
 using System.IO;
@@ -41,6 +52,7 @@ internal static class Program
     {
         var reviewIndex = Array.IndexOf(args, "--review");
         string? reviewDirectory = null;
+        ReviewOptions? reviewOptions = null;
         if (reviewIndex >= 0)
         {
             if (reviewIndex + 1 >= args.Length)
@@ -48,7 +60,23 @@ internal static class Program
                 Console.Error.WriteLine("--review needs an output folder.");
                 return 2;
             }
+            if (reviewIndex != 0)
+            {
+                Console.Error.WriteLine("--review must be the first argument.");
+                return 2;
+            }
             reviewDirectory = Path.GetFullPath(args[reviewIndex + 1]);
+            reviewOptions = ReviewOptions.Parse(args, reviewIndex + 2, out var parseError);
+            if (reviewOptions is null)
+            {
+                Console.Error.WriteLine(parseError);
+                return 2;
+            }
+        }
+        else if (args.Length > 0)
+        {
+            Console.Error.WriteLine($"Unknown argument \"{args[0]}\". Use --review <folder> or no arguments.");
+            return 2;
         }
 
         var repoRoot = FindRepoRoot();
@@ -75,10 +103,19 @@ internal static class Program
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             LoadResources(application);
 
-            if (reviewDirectory is not null)
+            if (reviewDirectory is not null && reviewOptions is not null)
             {
+                var surfaces = ReviewSurfaces.Build(ReviewSettings.CategoryValues(dataDirectory));
+                var themes = reviewOptions.ResolveThemes(out var optionError);
+                var chosen = themes is null ? null : reviewOptions.Resolve(surfaces, out optionError);
+                if (themes is null || chosen is null)
+                {
+                    Console.Error.WriteLine(optionError);
+                    application.Shutdown();
+                    return 2;
+                }
                 Directory.CreateDirectory(reviewDirectory);
-                RenderReviewSet(application, dataDirectory, reviewDirectory);
+                RenderReviewSet(application, dataDirectory, reviewDirectory, reviewOptions, themes, chosen);
             }
             else
             {
@@ -144,7 +181,9 @@ internal static class Program
 
     // The review set -----------------------------------------------------------------------------
 
-    private static void RenderReviewSet(Application application, string dataDirectory, string reviewDirectory)
+    private static void RenderReviewSet(
+        Application application, string dataDirectory, string reviewDirectory, ReviewOptions options,
+        IReadOnlyList<(string Name, AppTheme Theme, bool HighContrast)> themes, IReadOnlyList<Surface> surfaces)
     {
         ResourceDictionary Load(Uri relative) =>
             new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
@@ -154,35 +193,24 @@ internal static class Program
         var today = DateOnly.FromDateTime(DateTime.Now);
         var records = SampleUsage.Build(today);
         var busyDay = SampleUsage.PickBusyWeekday(records, today);
-        var all = AppSettings.KnownProviderIds;
-        var counter = 0;
-
-        // HighContrast is not a pickable theme: it is what any theme resolves to while Windows
-        // high-contrast mode is on, so it is rendered by faking that flag for the swap.
-        var themes = new (string Name, AppTheme Theme, bool HighContrast)[]
-        {
-            ("Dark", AppTheme.Dark, false), ("Light", AppTheme.Light, false),
-            ("Nebula", AppTheme.Nebula, false), ("Terminal", AppTheme.Terminal, false),
-            ("HighContrast", AppTheme.Dark, true),
-        };
+        var counter = new[] { 0 };
 
         foreach (var (name, theme, highContrast) in themes)
         {
             ThemeService.Apply(theme, application.Resources.MergedDictionaries, Load, () => highContrast);
-            foreach (var language in new[] { "en", "de" })
+            foreach (var language in options.Languages)
             {
                 SetLanguage(language);
-                var stem = $"{name}-{language}";
-                RenderWidget(dataDirectory, samples, now, all, TileDensity.Full, Path.Combine(reviewDirectory, $"widget-{stem}-full.png"));
-                RenderWidget(dataDirectory, samples, now, all, TileDensity.Mini, Path.Combine(reviewDirectory, $"widget-{stem}-mini.png"));
-                RenderStatistics(Path.Combine(dataDirectory, "stats-" + counter++), records, busyDay, fullHeight: true,
-                    Path.Combine(reviewDirectory, $"stats-{stem}.png"));
-                foreach (var density in new[] { TileDensity.Full, TileDensity.Mini })
-                    foreach (var tileWidth in new[] { 380, 900 })
-                        RenderDayTile(Path.Combine(dataDirectory, "daytile-" + counter++), records, tileWidth, density,
-                            Path.Combine(reviewDirectory, $"daytile-{stem}-{density.ToString().ToLowerInvariant()}-{tileWidth}.png"));
-                ReviewSettings.Render(dataDirectory, reviewDirectory, stem);
-                ReviewDialogs.Render(stem, reviewDirectory);
+                foreach (var surface in surfaces)
+                {
+                    // A surface without a smaller variant is drawn once, whatever --size says.
+                    var sizes = surface.HasMinSize ? options.Sizes : [SizeKind.Default];
+                    foreach (var size in sizes)
+                    {
+                        surface.Render(new SurfaceContext(
+                            name, language, size, reviewDirectory, dataDirectory, samples, records, busyDay, now, counter));
+                    }
+                }
             }
         }
     }
@@ -224,7 +252,7 @@ internal static class Program
 
     /// <summary>The widget's usage-per-day tile alone at a given width (the review mode's widget shots
     /// keep it hidden), so the week count that fits a wide widget can be looked at.</summary>
-    private static void RenderDayTile(string dataDirectory, IReadOnlyList<StatsRecord> records, double width, TileDensity density, string outputPath)
+    internal static void RenderDayTile(string dataDirectory, IReadOnlyList<StatsRecord> records, double width, TileDensity density, string outputPath)
     {
         Directory.CreateDirectory(dataDirectory);
         var store = new StatsStore(dataDirectory);
@@ -264,9 +292,9 @@ internal static class Program
         RenderWidget(dataDirectory, samples, now, visible: AppSettings.KnownProviderIds, TileDensity.Mini, Path.Combine(outputDirectory, "home-all-small.png"));
     }
 
-    private static void RenderWidget(
+    internal static void RenderWidget(
         string dataDirectory, IReadOnlyList<SampleProviders.Sample> samples, DateTimeOffset now,
-        IReadOnlyList<string> visible, TileDensity density, string outputPath)
+        IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380)
     {
         var settings = new AppSettings();
         foreach (var id in AppSettings.KnownProviderIds)
@@ -293,7 +321,6 @@ internal static class Program
 
             // Bindings activate at data-bind priority, so the dispatcher gets a turn before and after each
             // layout pass: the first fills the list, the second binds the tiles the list just created.
-            const double width = 380;
             PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
             chrome.Measure(new Size(width, double.PositiveInfinity));
             PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
@@ -317,8 +344,9 @@ internal static class Program
             Path.Combine(outputDirectory, "token-usage.png"));
     }
 
-    private static void RenderStatistics(
-        string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay, bool fullHeight, string outputPath)
+    internal static void RenderStatistics(
+        string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay, bool fullHeight, string outputPath,
+        bool minWidth = false)
     {
         Directory.CreateDirectory(dataDirectory);
         var store = new StatsStore(dataDirectory);
@@ -336,7 +364,7 @@ internal static class Program
 
         // Cut just above the per-day section, and
         // without the scrollbar a cut-off page would otherwise show.
-        const double width = 900;
+        var width = minWidth ? window.MinWidth : 900;
         var root = (FrameworkElement)window.Content;
         window.ContentScroller.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
         root.Measure(new Size(width, 2400));

@@ -17,7 +17,7 @@ namespace ReadmeShots;
 /// <summary>The review pictures of the error texts and dialogs: tiles in the failed and the blocked
 /// state, the sign-in window's blocked notice, the welcome window and the remove-account
 /// confirmation. Everything is drawn offscreen from a window that is never shown, in whatever theme
-/// and language the review loop has set when it calls <see cref="Render"/>.</summary>
+/// and language the review loop has set when it calls a render method.</summary>
 internal static class ReviewDialogs
 {
     private const double WindowCornerRadius = 8;
@@ -33,24 +33,24 @@ internal static class ReviewDialogs
         </Border>
         """;
 
-    internal static void Render(string stem, string reviewDirectory)
+    internal static void RenderFailedTile(SurfaceContext context, string id)
     {
         var now = DateTimeOffset.Now;
         RenderTile(
             new ProviderSnapshot("claude", [], null, SourceKind.None, now, null, ProviderStatus.Failed,
                 new ProviderError("Status_Failed_Reason", "Action_Retry", "State.Failed.Detail.Http", "502")),
-            now, Path.Combine(reviewDirectory, $"tile-failed-{stem}.png"));
-        RenderTile(
-            new ProviderSnapshot("claude", [], null, SourceKind.WebSession, now, null, ProviderStatus.Blocked, null),
-            now, Path.Combine(reviewDirectory, $"tile-blocked-{stem}.png"));
-
-        RenderBlockedSignIn(Path.Combine(reviewDirectory, $"signin-blocked-{stem}.png"));
-        RenderWelcome(now, Path.Combine(reviewDirectory, $"welcome-{stem}.png"));
-        RenderRemoveAccountConfirm(Path.Combine(reviewDirectory, $"remove-account-{stem}.png"));
-        RenderCrash(Path.Combine(reviewDirectory, $"crash-{stem}.png"));
+            now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
     }
 
-    private static void RenderCrash(string outputPath)
+    internal static void RenderBlockedTile(SurfaceContext context, string id)
+    {
+        var now = DateTimeOffset.Now;
+        RenderTile(
+            new ProviderSnapshot("claude", [], null, SourceKind.WebSession, now, null, ProviderStatus.Blocked, null),
+            now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
+    }
+
+    internal static void RenderCrash(string outputPath)
     {
         // A few lines of sample details: the box keeps its minimum height and grows with them.
         var details = string.Join(Environment.NewLine, Enumerable.Range(1, 6).Select(i =>
@@ -59,7 +59,7 @@ internal static class ReviewDialogs
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
-    private static void RenderTile(ProviderSnapshot snapshot, DateTimeOffset now, string outputPath)
+    private static void RenderTile(ProviderSnapshot snapshot, DateTimeOffset now, double width, string outputPath)
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true, Density = TileDensity.Full };
         tile.Apply(snapshot, now);
@@ -67,7 +67,6 @@ internal static class ReviewDialogs
         var chrome = (Border)XamlReader.Parse(TileChromeXaml);
         chrome.DataContext = tile;
 
-        const double width = 380;
         Pump(TimeSpan.FromMilliseconds(300));
         chrome.Measure(new Size(width, double.PositiveInfinity));
         Pump(TimeSpan.FromMilliseconds(300));
@@ -75,7 +74,7 @@ internal static class ReviewDialogs
         RenderToPng(chrome, width, Math.Ceiling(chrome.DesiredSize.Height), outputPath);
     }
 
-    private static void RenderBlockedSignIn(string outputPath)
+    internal static void RenderBlockedSignIn(string outputPath)
     {
         var descriptor = new WebSessionDescriptor(
             "review", "https://example.test/", "https://example.test/login", ["example.test"], "review-sample");
@@ -86,7 +85,7 @@ internal static class ReviewDialogs
         RenderWindowContent(window, window.Width, window.Height, outputPath);
     }
 
-    private static void RenderWelcome(DateTimeOffset now, string outputPath)
+    internal static void RenderWelcome(DateTimeOffset now, string outputPath)
     {
         var tiles = new[] { ("claude", "Claude"), ("codex", "Codex"), ("cursor", "Cursor") }
             .Select(entry =>
@@ -100,7 +99,7 @@ internal static class ReviewDialogs
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
-    private static void RenderRemoveAccountConfirm(string outputPath)
+    internal static void RenderRemoveAccountConfirm(string outputPath)
     {
         var loc = LocalizationService.Instance;
         var window = new ConfirmWindow(
