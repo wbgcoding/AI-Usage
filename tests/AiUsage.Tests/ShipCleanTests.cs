@@ -90,7 +90,7 @@ public class ShipCleanTests
 
     private static readonly string[] AllowedFiles =
     [
-        "README.md", "CHANGELOG.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md",
+        "README.md", "CHANGELOG.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
         ".gitignore", ".gitattributes", ".editorconfig",
         ".github/pull_request_template.md", ".github/dependabot.yml", "build.bat",
     ];
@@ -137,7 +137,7 @@ public class ShipCleanTests
     // "Name.md" is a dead pointer for anyone reading the code.
     private static readonly Regex MarkdownReference = new(@"\b[A-Za-z][A-Za-z-]*\.md\b", RegexOptions.Compiled);
 
-    private static readonly string[] ShippedMarkdown = ["README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md"];
+    private static readonly string[] ShippedMarkdown = ["README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md"];
 
     // The project writes plain hyphens. The one exception is the empty-value placeholder in the tray
     // tooltip, which is the en dash on its own inside quotes (TrayTooltipBuilder.cs) or, once it is
