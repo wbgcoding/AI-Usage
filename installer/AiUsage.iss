@@ -4,11 +4,17 @@
 ; The scope question (for everyone or just me) is Inno's own elevation dialog, asked before the
 ; wizard itself runs (PrivilegesRequired/PrivilegesRequiredOverridesAllowed below). The folder
 ; page that follows carries the second choice: a checkbox switches to a portable copy - one
-; self-contained file dropped into a folder the user picks, with nothing else written to this PC.
+; single exe dropped into a folder the user picks, with nothing else written to this PC.
 ; Everything downstream reads IsPortableMode in [Code]. The foreground-activation plumbing below
 ; is a proven pattern, hardened across many rounds of real installer testing on an earlier project
 ; - trimmed here of everything specific to that project's own self-updater (no relaunch parameter,
 ; no dev update channel). The in-app update downloads this setup and runs it silently.
+;
+; The app needs the .NET 10 Desktop Runtime and does not carry its own copy. When the runtime is
+; missing, the [Code] section below downloads Microsoft's installer through RuntimeSetup.ps1 (which
+; checks address, signature and signer before anything runs) and installs it before any file of the
+; app is written, so a failed runtime step leaves nothing half installed. Standard and portable
+; mode both need it, and so does a silent update.
 
 #ifndef AppVersion
   #define AppVersion "1.1.0"
@@ -139,6 +145,10 @@ en.LaunchAfter=Launch {#AppName} now
 en.PortableCheck=Portable
 en.PortableDirDescription=Choose a folder for the portable copy of {#AppName}. Setup suggests a folder of its own next to this installer and places {#AppExeName} into it. Nothing else is written to this PC.
 en.SourceLink=Source code and issues: github.com/wbgcoding/AI-Usage
+en.RuntimeComponent=Required component
+en.RuntimeNeeded=AI-Usage needs the .NET 10 Desktop Runtime from Microsoft. Setup downloads and installs it now (about 60 MB).
+en.RuntimeInstalling=Downloading and installing the .NET 10 Desktop Runtime. Windows asks for permission once the download is done.
+en.RuntimeFailed=The .NET Desktop Runtime could not be installed. Install it from https://dotnet.microsoft.com/download/dotnet/10.0 and start setup again.
 en.UpdateDirDescription={#AppName} is already installed on this PC and will be updated in the folder shown below. Click Next to continue, or Browse to choose a different folder.
 en.RemoveDataQuestion=Also remove {#AppName}'s saved settings and history for the current user in %APPDATA%\{#AppName}\?
 en.DowngradeQuestion=Version {0} is already installed, and this installer carries the older version {1}. Continue anyway?
@@ -148,6 +158,10 @@ de.LaunchAfter={#AppName} jetzt starten
 de.PortableCheck=Portable
 de.PortableDirDescription=Wähle einen Ordner für die portable Version von {#AppName}. Setup schlägt einen eigenen Ordner neben diesem Installationsprogramm vor und legt {#AppExeName} darin ab. Sonst wird nichts auf diesem PC gespeichert.
 de.SourceLink=Quelltext und Fehlermeldungen: github.com/wbgcoding/AI-Usage
+de.RuntimeComponent=Erforderliche Komponente
+de.RuntimeNeeded=AI-Usage braucht die .NET 10 Desktop Runtime von Microsoft. Das Setup lädt sie jetzt herunter und installiert sie (etwa 60 MB).
+de.RuntimeInstalling=Die .NET 10 Desktop Runtime wird heruntergeladen und installiert. Windows fragt nach der Erlaubnis, sobald der Download fertig ist.
+de.RuntimeFailed=Die .NET Desktop Runtime ließ sich nicht installieren. Installiere sie von https://dotnet.microsoft.com/download/dotnet/10.0 und starte das Setup erneut.
 de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wird im unten angezeigten Ordner aktualisiert. Klicke auf Weiter, oder auf Durchsuchen, um einen anderen Ordner zu wählen.
 de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen und der Verlauf von {#AppName} für den aktuellen Benutzer in %APPDATA%\{#AppName}\ entfernt werden?
 de.DowngradeQuestion=Version {0} ist bereits installiert, dieses Installationsprogramm enthält die ältere Version {1}. Trotzdem fortfahren?
@@ -160,6 +174,9 @@ Source: "..\build\publish\win-x64\AI-Usage.exe"; DestDir: "{app}"; DestName: "{#
     Check: not IsArm64; Flags: ignoreversion
 Source: "..\build\publish\win-arm64\AI-Usage.exe"; DestDir: "{app}"; DestName: "{#AppExeName}"; \
     Check: IsArm64; Flags: ignoreversion
+
+; The runtime step's script. Extracted to Setup's own temporary folder when needed, never installed.
+Source: "RuntimeSetup.ps1"; Flags: dontcopy
 
 [Icons]
 ; Portable mode has no Start Menu entry - it carries no Task or Registry entry of its own either,
@@ -214,6 +231,11 @@ const
   UninstallKeyName =
     'Software\Microsoft\Windows\CurrentVersion\Uninstall\{9FF5FEED-5C44-428A-97A9-028E7614B137}_is1';
   AppPathValueName = 'Inno Setup: App Path';
+  { Where the .NET installers record the shared runtimes they put on this PC: one value per
+    installed version under the key of the processor type. }
+  RuntimeKeyRoot = 'SOFTWARE\dotnet\Setup\InstalledVersions\';
+  RuntimeKeyTail = '\sharedfx\Microsoft.WindowsDesktop.App';
+  RuntimeUrlBase = 'https://aka.ms/dotnet/10.0/windowsdesktop-runtime-win-';
 
 var
   { The portable checkbox lives directly on the built-in directory page: everything downstream
@@ -238,6 +260,9 @@ var
   { Captured in InitializeSetup, before CloseApplications can act - the only point at which "was
     the app running" can still be answered honestly. }
   AppWasRunning: Boolean;
+  { Shown before the install when the runtime is missing, and the busy page while it is fetched. }
+  RuntimePage: TOutputMsgWizardPage;
+  RuntimeProgress: TOutputMarqueeProgressWizardPage;
 
 function FindWindowA(lpClassName: LongInt; lpWindowName: String): HWND;
   external 'FindWindowA@user32.dll stdcall';
@@ -312,6 +337,76 @@ end;
 function IsArm64: Boolean;
 begin
   Result := ProcessorArchitecture = paArm64;
+end;
+
+{ The processor type the app being installed runs as, spelled as in the runtime's registry key and
+  in Microsoft's download address. }
+function RuntimeArch: String;
+begin
+  if IsArm64 then
+    Result := 'arm64'
+  else
+    Result := 'x64';
+end;
+
+{ Whether one registry view lists a 10.x version under the runtime key. }
+function RuntimeListedIn(Root: Integer): Boolean;
+var
+  Names: TArrayOfString;
+  I: Integer;
+begin
+  Result := False;
+  if RegGetValueNames(Root, RuntimeKeyRoot + RuntimeArch + RuntimeKeyTail, Names) then
+    for I := 0 to GetArrayLength(Names) - 1 do
+      if Copy(Names[I], 1, 3) = '10.' then
+      begin
+        Result := True;
+        Exit;
+      end;
+end;
+
+{ Whether a .NET 10 Desktop Runtime for this processor type is installed. Microsoft's installers
+  are 32-bit programs and record the runtime in the 32-bit registry view (Wow6432Node), which is
+  where a real PC has it; the 64-bit view is read too, for an installer that writes there. }
+function DesktopRuntimeInstalled: Boolean;
+begin
+  Result := RuntimeListedIn(HKLM32) or RuntimeListedIn(HKLM64);
+end;
+
+{ Runs the download and install script and then asks the registry again - the runtime being there
+  is what counts, not what the script or the installer reported. The script's own log goes into
+  Setup's log. }
+function InstallDesktopRuntime: Boolean;
+var
+  Script, LogPath, Parameters, LogText: String;
+  ResultCode: Integer;
+  LogContent: AnsiString;
+begin
+  Result := False;
+  ExtractTemporaryFile('RuntimeSetup.ps1');
+  Script := ExpandConstant('{tmp}\RuntimeSetup.ps1');
+  LogPath := ExpandConstant('{tmp}\runtime-setup.log');
+  Parameters :=
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + Script + '"' +
+    ' -Url "' + RuntimeUrlBase + RuntimeArch + '.exe"' +
+    ' -Folder "' + ExpandConstant('{tmp}') + '"' +
+    ' -LogFile "' + LogPath + '"';
+
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Parameters, '',
+       SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    Log('Runtime step: PowerShell could not be started.');
+    Exit;
+  end;
+
+  if LoadStringFromFile(LogPath, LogContent) then
+  begin
+    LogText := LogContent;
+    Log('Runtime step log:' + #13#10 + LogText);
+  end;
+  Log('Runtime step: script exit code ' + IntToStr(ResultCode));
+
+  Result := (ResultCode = 0) and DesktopRuntimeInstalled;
 end;
 
 { True once the user has ticked the portable checkbox on the directory page. False before the
@@ -442,6 +537,10 @@ end;
 
 procedure InitializeWizard;
 begin
+  RuntimePage := CreateOutputMsgPage(wpSelectDir, '.NET 10 Desktop Runtime',
+    CustomMessage('RuntimeComponent'), CustomMessage('RuntimeNeeded'));
+  RuntimeProgress := CreateOutputMarqueeProgressPage('.NET 10 Desktop Runtime', '');
+
   DefaultSelectDirCaption := WizardForm.SelectDirLabel.Caption;
 
   { WizardForm.SelectDirPage is a TNewNotebookPage, unlike the custom pages CreateCustomPage
@@ -456,6 +555,35 @@ begin
   PortableCheck.OnClick := @PortableCheckClick;
 
   DirPageInitialized := False;
+end;
+
+{ The runtime page is only for a PC that lacks the runtime. }
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (RuntimePage <> nil) and (PageID = RuntimePage.ID) and DesktopRuntimeInstalled;
+end;
+
+{ Last chance before any file is written. A missing runtime is fetched and installed here, in a
+  wizard run and in a silent one (an in-app update) alike; a failure returns the message and Setup
+  stops with the app untouched. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  if DesktopRuntimeInstalled then
+    Exit;
+
+  if not WizardSilent then
+  begin
+    RuntimeProgress.SetText(CustomMessage('RuntimeInstalling'), '');
+    RuntimeProgress.Show;
+  end;
+  try
+    if not InstallDesktopRuntime then
+      Result := CustomMessage('RuntimeFailed');
+  finally
+    if not WizardSilent then
+      RuntimeProgress.Hide;
+  end;
 end;
 
 procedure WizardActivated(Sender: TObject);

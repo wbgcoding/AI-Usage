@@ -167,7 +167,7 @@ What changed in each version is listed in the [changelog](CHANGELOG.md).
 ### Requirements
 
 - Windows 10 (version 1809, build 17763) or Windows 11, x64 or ARM64
-- Nothing to install first: both files are self-contained
+- The .NET 10 Desktop Runtime. The installer sets it up for you; the portable exe shows a download link when it is missing.
 - Browser sign-in uses the Microsoft Edge WebView2 runtime; if it is missing, the app offers to
   install it with Microsoft's signed installer and everything else keeps working
 - Copilot needs the GitHub CLI (`gh`) signed in; Gemini reads the Antigravity CLI's (`agy`) active
@@ -181,6 +181,16 @@ off under **Settings > System** and the app never asks.
 
 Uninstalling keeps your data. Delete the two folders named above to remove it.
 
+### Coming from version 1.1.0
+
+Up to version 1.1.0 every download carried its own copy of .NET, which made it about 136 MB. From this version on AI-Usage uses the .NET 10 Desktop Runtime installed on your PC, and the downloads shrink to a fraction of that.
+
+**Installed copy:** the update runs the new setup, which checks for the runtime and, if it is missing, downloads it from Microsoft and installs it. Windows asks once for permission.
+
+**Portable copy:** the update swaps the exe as before. If the runtime is missing, Windows shows a message with a download link instead of starting AI-Usage. Install the **.NET Desktop Runtime 10** for your PC (x64 or Arm64) from https://dotnet.microsoft.com/download/dotnet/10.0 and start AI-Usage again. Your settings and history stay where they are.
+
+To check beforehand, run `dotnet --list-runtimes` in a terminal and look for `Microsoft.WindowsDesktop.App 10`.
+
 ## Build from source
 
 Requires the .NET 10 SDK and, for the installer, Inno Setup 6.
@@ -189,8 +199,8 @@ Requires the .NET 10 SDK and, for the installer, Inno Setup 6.
 build.bat
 ```
 
-`build.bat` compiles, runs the test suite, publishes x64 and ARM64 as single-file self-contained
-executables, builds the installer and writes everything plus `SHA256SUMS.txt` into `dist\`. When a
+`build.bat` compiles, runs the test suite, publishes x64 and ARM64 as single-file executables that use
+the installed .NET runtime, builds the installer and writes everything plus `SHA256SUMS.txt` into `dist\`. When a
 signing key is present (`.signing\ai-usage-update.pem`, never committed, or the path in
 `AIUSAGE_SIGNING_KEY`) it also signs each exe; without one the build says so and the in-app update
 refuses that build.

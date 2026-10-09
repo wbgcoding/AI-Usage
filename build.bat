@@ -112,17 +112,21 @@ for %%f in ("%DIST%\AI-Usage.exe" "%DIST%\SHA256SUMS.txt") do (
 for %%a in (x64 arm64) do (
     echo.
     echo === publish win-%%a ===
-    rem Self-contained single file: no runtime prerequisite on the target machine.
+    rem Framework-dependent single file: the .NET 10 Desktop Runtime is a prerequisite on the target
+    rem machine. The installer fetches it when it is missing; the portable exe shows the .NET host's
+    rem own download dialog. PublishReadyToRun is deliberately NOT used - it added about 3 MB per exe
+    rem and started under 6 percent faster, far from worth it.
     rem PublishTrimmed is deliberately NOT used - WPF does not support it.
-    rem IncludeNativeLibrariesForSelfExtract is REQUIRED: without it WPF's native DLLs stay next to
-    rem the exe and the portable exe dies with DllNotFoundException as soon as it is moved alone.
+    rem IncludeNativeLibrariesForSelfExtract is REQUIRED: without it the app's own native DLLs (the
+    rem SQLite and WebView2 loaders) stay next to the exe and the portable exe dies with
+    rem DllNotFoundException as soon as it is moved alone.
     rem
     rem EnableCompressionInSingleFile is deliberately NOT used: it deflate-compresses the whole
     rem payload into the exe, which leaves a file with no readable strings and the entropy profile
     rem of a packer - exactly what generic machine-learning malware detections are built to catch,
-    rem and the single most reported cause of false positives on self-contained .NET apps.
+    rem and the single most reported cause of false positives on single-file .NET apps.
     dotnet publish "%ROOT%src\AiUsage\AiUsage.csproj" ^
-        -c %CONFIG% -r win-%%a --self-contained ^
+        -c %CONFIG% -r win-%%a --self-contained false ^
         -p:PublishSingleFile=true ^
         -p:IncludeNativeLibrariesForSelfExtract=true ^
         -p:DebugType=pdbonly ^
@@ -149,9 +153,8 @@ for %%a in (x64 arm64) do (
     rem The .pdb deliberately stays in build\publish\ and out of dist\. Symbols embed absolute
     rem source paths from this machine, and dist\ is the folder people receive.
     rem
-    rem A second, framework-dependent build used to ship here too, as a smaller download for a
-    rem machine that already has the .NET Desktop Runtime. Dropped deliberately: one exe is
-    rem simpler to support, and the self-contained size stays as it is on purpose.
+    rem A self-contained build was dropped on purpose: it carried its own copy of .NET, which made
+    rem every download about 136 MB. One framework-dependent exe per architecture is the whole story.
 )
 
 echo.

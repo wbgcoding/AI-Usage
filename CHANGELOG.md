@@ -6,7 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.1] - unreleased
 
+### Added
+
+- A portable exe for ARM64, `AI-Usage-arm64.exe`, joins the downloads.
+
 ### Changed
+
+- AI-Usage no longer carries its own copy of .NET, so the downloads shrink from about 136 MB to a fraction of that. It uses the .NET 10 Desktop Runtime installed on your PC: the installer downloads it from Microsoft when it is missing, and a portable copy shows a download link instead of starting. A portable 1.1.0 that updates itself therefore starts only once the runtime is installed. See "Coming from version 1.1.0" in the README.
 
 - In the small layout the usage per day tile shows as many recent days as fit across its full width, not just the last seven.
 - The button that closes the welcome window now reads "Done".
