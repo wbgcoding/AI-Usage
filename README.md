@@ -156,9 +156,10 @@ showing a guess.
 
 | File | What it is |
 |---|---|
-| `AI-Usage.exe` | Portable: one standalone executable for x64, no installation |
+| `AI-Usage.exe` | Portable for x64, no installation |
+| `AI-Usage-arm64.exe` | Portable for ARM64, no installation |
 | `Setup-AI-Usage-<version>.exe` | Installer for x64 and ARM64, for everyone or just for you, with optional autostart and desktop shortcut |
-| `SHA256SUMS.txt` | Checksums for both |
+| `SHA256SUMS.txt` | Checksums for every file |
 | `*.exe.sig` | Detached signature next to each exe, checked by the in-app update |
 
 What changed in each version is listed in the [changelog](CHANGELOG.md).

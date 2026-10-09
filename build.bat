@@ -134,15 +134,16 @@ for %%a in (x64 arm64) do (
         goto :error
     )
 
-    rem dist\ ships ONE portable exe, and it is x64: Windows 11 is 64-bit only and ARM64 users take
-    rem the installer, which bundles both. The arm64 publish still happens above so the installer
-    rem can carry it, but it is sourced straight from build\publish\ and never lands in dist\.
+    rem dist\ ships one portable exe per architecture: AI-Usage.exe (x64) and AI-Usage-arm64.exe. The
+    rem installer carries both and is sourced straight from build\publish\.
     if /i "%%a"=="x64" (
         copy /y "%STAGE%\win-%%a\AI-Usage.exe" "%DIST%\AI-Usage.exe" >nul
-        if errorlevel 1 (
-            echo ERROR: could not copy the win-%%a executable into dist.
-            goto :error
-        )
+    ) else (
+        copy /y "%STAGE%\win-%%a\AI-Usage.exe" "%DIST%\AI-Usage-%%a.exe" >nul
+    )
+    if errorlevel 1 (
+        echo ERROR: could not copy the win-%%a executable into dist.
+        goto :error
     )
 
     rem The .pdb deliberately stays in build\publish\ and out of dist\. Symbols embed absolute
