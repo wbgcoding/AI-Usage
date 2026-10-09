@@ -66,7 +66,13 @@ public static class SessionTurnReader
                 return null;
             if (!root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object)
                 return null;
-            if (!message.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+            if (!message.TryGetProperty("content", out var content))
+                return null;
+
+            // A typed prompt is written as a plain string, not as a block array.
+            if (type == "user" && content.ValueKind == JsonValueKind.String)
+                return (SessionRecordKind.UserTurn, timestamp);
+            if (content.ValueKind != JsonValueKind.Array)
                 return null;
 
             var blockTypes = new HashSet<string>(StringComparer.Ordinal);
