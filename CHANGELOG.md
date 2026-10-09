@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - In the small layout the usage per day tile shows as many recent days as fit across its full width, not just the last seven.
+- The button that closes the welcome window now reads "Done".
+- The "Show tooltips" switch is gone from the settings; tooltips stay on, and `settings.json` can still turn them off.
+- The README explains that project colors come from app icons found in your project folders.
 
 ## [1.1.0] - 2026-10-08
 
