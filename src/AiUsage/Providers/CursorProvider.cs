@@ -63,7 +63,7 @@ public sealed class CursorProvider : IUsageProvider
     // not front-run that by starting this provider on the thread pool instead.
     public bool RunsOnUiThread => true;
 
-    public TimeSpan? MinRefreshInterval => TimeSpan.FromMinutes(5);
+    public TimeSpan? MinRefreshInterval => ProviderRegistry.RemoteReadFloor;
 
     public IReadOnlyList<string> ReadLocations => [LocalizationService.Instance["About.ReadLocationWebSession"]];
 
@@ -75,6 +75,11 @@ public sealed class CursorProvider : IUsageProvider
         try
         {
             web = await _read(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Sign-out or exit cut the read short: that is no offline error to show.
+            throw;
         }
         catch (Exception)
         {

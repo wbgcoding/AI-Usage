@@ -50,8 +50,18 @@ internal static class GeminiDiscoveryScript
                 try {
                     let sawAuthFailure = false;
                     for (const path of [{{candidates}}]) {
-                        const res = await fetch(path, {method: 'GET', credentials: 'include'});
+                        let res;
+                        try {
+                            res = await fetch(path, {method: 'GET', credentials: 'include'});
+                        } catch (e) {
+                            // A signed-out session is redirected to the Google sign-in page, which the
+                            // browser refuses to hand to this page: the fetch throws instead of answering.
+                            attempts.push(path + ' 000');
+                            sawAuthFailure = true;
+                            continue;
+                        }
                         attempts.push(path + ' ' + res.status);
+                        if (res.type === 'opaqueredirect' || (res.redirected && new URL(res.url).origin !== location.origin)) { sawAuthFailure = true; continue; }
                         if (res.status === 401 || res.status === 403) { sawAuthFailure = true; continue; }
                         if (res.status === 429) return {status: 'blocked', attempts: attempts};
                         if (!res.ok) continue;
@@ -81,8 +91,15 @@ internal static class GeminiDiscoveryScript
         var pathJson = JsonSerializer.Serialize(path);
         return $$"""
             (async () => {
+                let res;
                 try {
-                    const res = await fetch({{pathJson}}, {method: 'GET', credentials: 'include'});
+                    res = await fetch({{pathJson}}, {method: 'GET', credentials: 'include'});
+                } catch (e) {
+                    // See Discover: a redirect to the sign-in page surfaces as a thrown fetch.
+                    return {status: 'not_signed_in'};
+                }
+                try {
+                    if (res.type === 'opaqueredirect' || (res.redirected && new URL(res.url).origin !== location.origin)) return {status: 'not_signed_in'};
                     if (res.status === 401 || res.status === 403) return {status: 'not_signed_in'};
                     if (res.status === 429) return {status: 'blocked'};
                     if (!res.ok) return {status: 'failed'};

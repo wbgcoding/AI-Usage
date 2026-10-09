@@ -133,4 +133,21 @@ public class CopilotProviderTests
             AiUsage.Services.NetworkStatus.Probe = System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable;
         }
     }
+
+    [Fact]
+    public void A_quota_reset_date_far_from_now_shows_no_countdown()
+    {
+        const string json = """
+            {
+              "quota_reset_date_utc": "9999-12-30T00:00:00.000Z",
+              "quota_snapshots": {
+                "chat": { "percent_remaining": 80.0, "unlimited": false, "has_quota": true }
+              }
+            }
+            """;
+
+        var window = Assert.Single(AiUsage.Providers.Parsing.CopilotUserParser.Parse(json));
+
+        Assert.Null(window.ResetsAt);
+    }
 }

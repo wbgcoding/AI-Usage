@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using AiUsage.Models;
 
@@ -129,10 +128,8 @@ public static class CopilotUserParser
     {
         if (!root.TryGetProperty("quota_reset_date_utc", out var resetEl) || resetEl.ValueKind != JsonValueKind.String)
             return null;
-        return DateTimeOffset.TryParse(
-            resetEl.GetString(), CultureInfo.InvariantCulture,
-            DateTimeStyles.RoundtripKind | DateTimeStyles.AssumeUniversal, out var parsed)
-            ? parsed.ToUniversalTime()
+        return SessionLineAge.TryParse(resetEl.GetString(), out var parsed)
+            ? UnixTimeConversion.PlausibleOrNull(parsed.ToUniversalTime())
             : null;
     }
 }

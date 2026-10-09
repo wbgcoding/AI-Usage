@@ -15,6 +15,10 @@ namespace AiUsage.Services;
 /// </summary>
 public static class ProviderRegistry
 {
+    /// <summary>The shortest span between two reads of a provider's remote side (its web session or
+    /// its network endpoint), however often the tile ticks.</summary>
+    internal static readonly TimeSpan RemoteReadFloor = TimeSpan.FromMinutes(5);
+
     /// <summary>Codex's own session: the account page the sign-in window opens, the hosts its login
     /// may pass through, and its own browser profile subfolder. The foreign hosts are there for the
     /// same reason accounts.google.com is on Claude's list - the provider's own login leaves its site
@@ -178,7 +182,7 @@ public static class ProviderRegistry
         var provider = new CursorProvider(
             accountKey,
             new WebUsageSource(
-                descriptor, new CursorDiscoveryScript(), runner.ExecuteScriptAsync,
+                descriptor, new CursorUsageEndpoint(), runner.ExecuteScriptAsync,
                 logService == null ? null : logService.LogInfo),
             settings, store.RequestSave);
         return (provider, runner);
@@ -263,7 +267,7 @@ public static class ProviderRegistry
         providers.Add(geminiProvider);
         runners["gemini"] = geminiRunner;
 
-        providers.Add(new CopilotProvider());
+        providers.Add(CreateCopilotAccount("copilot", settings));
 
         // A further account of Codex, Cursor, Gemini (its own web session) or Copilot (another
         // already signed-in GitHub user) - every entry in settings.Accounts whose key differs from

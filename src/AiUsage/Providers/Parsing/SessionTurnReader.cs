@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using AiUsage.Io;
 
@@ -66,7 +65,13 @@ public static class SessionTurnReader
                 return null;
             if (!root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object)
                 return null;
-            if (!message.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+            if (!message.TryGetProperty("content", out var content))
+                return null;
+
+            // A typed prompt is written as a plain string, not as a block array.
+            if (type == "user" && content.ValueKind == JsonValueKind.String)
+                return (SessionRecordKind.UserTurn, timestamp);
+            if (content.ValueKind != JsonValueKind.Array)
                 return null;
 
             var blockTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -155,8 +160,7 @@ public static class SessionTurnReader
 
     private static bool TryGetTimestamp(JsonElement root, out DateTimeOffset timestamp)
     {
-        if (TryGetString(root, "timestamp", out var text) && DateTimeOffset.TryParse(
-                text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out timestamp))
+        if (TryGetString(root, "timestamp", out var text) && SessionLineAge.TryParse(text, out timestamp))
             return true;
 
         timestamp = default;

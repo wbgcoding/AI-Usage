@@ -118,7 +118,7 @@ internal static class CodexDiscoveryScript
     /// <summary>Re-fetches one already-discovered path directly. Throws for any path outside
     /// <see cref="IsAllowedUsagePath"/>: the caller must never hand this an unvalidated value,
     /// because it runs inside a signed-in chatgpt.com session.</summary>
-    public static string Fetch(string path)
+    public static string Fetch(string path, bool emailHeld = false)
     {
         if (!IsAllowedUsagePath(path))
             throw new ArgumentException("Path is not an allowed Codex usage endpoint.", nameof(path));
@@ -126,6 +126,8 @@ internal static class CodexDiscoveryScript
         // Belt and braces: the allow-list above is the real gate, and this serializes the value as a
         // proper JSON string literal so nothing in it can close the literal early even so.
         var pathJson = JsonSerializer.Serialize(path);
+        // The e-mail comes from a request of its own; while a recent answer is held the script leaves it out.
+        var emailCall = emailHeld ? "null" : "await readEmail(auth.headers)";
         return AuthHeadersSnippet + ReadEmailSnippet + $$"""
             (async () => {
                 try {
@@ -138,7 +140,7 @@ internal static class CodexDiscoveryScript
                     const ct = res.headers.get('content-type') || '';
                     const text = await res.text();
                     if (!ct.includes('json')) return {status: 'blocked'};
-                    const email = await readEmail(auth.headers);
+                    const email = {{emailCall}};
                     return {status: 'ok', path: {{pathJson}}, body: text, email: email};
                 } catch (e) {
                     return {status: 'failed'};

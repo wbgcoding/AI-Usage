@@ -64,4 +64,18 @@ public class GeminiDiscoveryScriptTests
         Assert.Contains("attempts", script, StringComparison.Ordinal);
         Assert.All(GeminiDiscoveryScript.CandidatePaths, path => Assert.Contains(path, script, StringComparison.Ordinal));
     }
+
+    /// <summary>A signed-out session is redirected to the Google sign-in page, which the browser will not
+    /// hand to the page: the fetch throws. That has to read as "signed out", not as a plain failure.</summary>
+    [Fact]
+    public void A_thrown_fetch_or_a_redirect_to_another_host_answers_not_signed_in()
+    {
+        foreach (var script in new[] { GeminiDiscoveryScript.Discover(), GeminiDiscoveryScript.Fetch(GeminiDiscoveryScript.CandidatePaths[0]) })
+        {
+            Assert.Contains("catch (e)", script, StringComparison.Ordinal);
+            Assert.Contains("opaqueredirect", script, StringComparison.Ordinal);
+            Assert.Contains("res.redirected", script, StringComparison.Ordinal);
+            Assert.Contains("not_signed_in", script, StringComparison.Ordinal);
+        }
+    }
 }

@@ -105,4 +105,28 @@ public class CursorProviderTests
 
         Assert.True(provider.SupportsInAppSignIn);
     }
+
+    [Fact]
+    public async Task A_read_cut_short_by_the_callers_cancellation_is_rethrown_not_shown_as_offline()
+    {
+        using var cts = new CancellationTokenSource();
+        var provider = Provider(async ct =>
+        {
+            await cts.CancelAsync();
+            ct.ThrowIfCancellationRequested();
+            return WebUsageResult.Failed;
+        });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provider.FetchAsync(cts.Token));
+    }
+
+    [Fact]
+    public async Task A_cancellation_nobody_asked_for_and_any_other_exception_read_as_a_failed_read()
+    {
+        var cancelled = await Provider(_ => throw new OperationCanceledException()).FetchAsync(CancellationToken.None);
+        var broken = await Provider(_ => throw new InvalidOperationException("boom")).FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Failed, cancelled.Status);
+        Assert.Equal(ProviderStatus.Failed, broken.Status);
+    }
 }

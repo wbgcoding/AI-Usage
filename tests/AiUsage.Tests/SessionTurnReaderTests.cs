@@ -33,6 +33,43 @@ public class SessionTurnReaderTests : IDisposable
     }
 
     [Fact]
+    public void ReadNewestClaudeTurn_classifies_a_plain_string_prompt_as_UserTurn_after_an_assistant_reply()
+    {
+        var path = WriteFile(
+            """{"type":"assistant","timestamp":"2026-10-08T09:59:00Z","message":{"role":"assistant","content":[{"type":"text"}]}}""",
+            """{"type":"user","timestamp":"2026-10-08T10:00:00Z","message":{"role":"user","content":"hi"}}""");
+
+        var (kind, timestamp) = SessionTurnReader.ReadNewestClaudeTurn(path);
+
+        Assert.Equal(SessionRecordKind.UserTurn, kind);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-08T10:00:00Z"), timestamp);
+        Assert.False(AttentionDetector.IsWaiting(kind!.Value, timestamp!.Value, timestamp.Value.AddSeconds(30), TimeSpan.FromHours(12)));
+    }
+
+    [Fact]
+    public void ReadNewestClaudeTurn_classifies_a_user_line_with_an_empty_content_array_as_UserTurn()
+    {
+        var path = WriteFile(
+            """{"type":"user","timestamp":"2026-10-08T10:00:00Z","message":{"role":"user","content":[]}}""");
+
+        var (kind, _) = SessionTurnReader.ReadNewestClaudeTurn(path);
+
+        Assert.Equal(SessionRecordKind.UserTurn, kind);
+    }
+
+    [Fact]
+    public void ReadNewestClaudeTurn_reads_a_timestamp_without_an_offset_as_UTC()
+    {
+        var path = WriteFile(
+            """{"type":"user","timestamp":"2026-10-08T10:00:00","message":{"role":"user","content":"hi"}}""");
+
+        var (_, timestamp) = SessionTurnReader.ReadNewestClaudeTurn(path);
+
+        Assert.Equal(TimeSpan.Zero, timestamp!.Value.Offset);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-08T10:00:00Z"), timestamp);
+    }
+
+    [Fact]
     public void ReadNewestClaudeTurn_classifies_a_tool_result_line_as_ToolCall_not_UserTurn()
     {
         // A tool result comes back wrapped in a "user"-type line in Claude's own transcript shape -

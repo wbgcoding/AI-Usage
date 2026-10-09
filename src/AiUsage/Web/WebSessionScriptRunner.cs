@@ -145,11 +145,17 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         }
         ct.ThrowIfCancellationRequested();
 
-        var host = _host!;
+        // Disposed between the start finishing and here (sign-out, shutdown): there is no session left.
+        var host = _host ?? throw new OperationCanceledException("The hidden session was closed.");
         await ResumeAsync(host);
+
+        // The wait inside ResumeAsync is where a disposal usually lands: the host it is about to run
+        // on is gone by then, and running anything on it would fail in its own odd ways.
+        if (_disposed || !ReferenceEquals(_host, host))
+            throw new OperationCanceledException("The hidden session was closed.");
+
         var scriptTask = host.ExecuteScriptAsync(script, ct);
-        var winner = await Task.WhenAny(scriptTask, Task.Delay(_scriptTimeout, ct));
-        if (winner != scriptTask)
+        if (!await WinsAgainstTimeoutAsync(scriptTask, _scriptTimeout, ct))
         {
             // The script call itself is abandoned here - the whole session is torn down so the
             // next attempt starts completely fresh instead of reusing a browser that may still be
@@ -174,6 +180,19 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         }
     }
 
+    /// <summary>True when <paramref name="work"/> finished before <paramref name="timeout"/> ran out; false
+    /// on the timeout or the caller's cancellation. The timer is cancelled as soon as the race is decided,
+    /// so a finished call does not leave one running for the rest of the timeout.</summary>
+    internal static async Task<bool> WinsAgainstTimeoutAsync(
+        Task work, TimeSpan timeout, CancellationToken ct, Func<TimeSpan, CancellationToken, Task>? delay = null)
+    {
+        using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var timer = (delay ?? Task.Delay)(timeout, timerCts.Token);
+        var winner = await Task.WhenAny(work, timer);
+        timerCts.Cancel();
+        return winner == work;
+    }
+
     /// <summary>Lets the page rest between fetches: a suspended page keeps its session but gives its
     /// memory and CPU back. Never fails a fetch - a browser that cannot suspend just stays awake.</summary>
     private async Task SuspendQuietlyAsync(IHiddenBrowserHost host)
@@ -196,7 +215,11 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
             return; // a fresh page was never suspended
         try
         {
-            await pending.WaitAsync(_suspendWait);
+            // Ends early when the runner is disposed meanwhile: nothing is left to resume.
+            await pending.WaitAsync(_suspendWait, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_disposed)
+        {
         }
         catch (Exception ex)
         {
@@ -277,8 +300,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         try
         {
             var navigateTask = host.NavigateAsync(ct);
-            var winner = await Task.WhenAny(navigateTask, Task.Delay(_navigationTimeout, ct));
-            if (winner != navigateTask)
+            if (!await WinsAgainstTimeoutAsync(navigateTask, _navigationTimeout, ct))
             {
                 _ = navigateTask.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
                 ct.ThrowIfCancellationRequested();
@@ -374,6 +396,17 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
 {
     private static readonly TimeSpan ReturnNavigationTimeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>Marks the answer of the origin guard in front of every script: the page the script was
+    /// about to run on is not the provider's own site.</summary>
+    internal const string OffOriginStatus = "__off_origin";
+
+    /// <summary>Runs in every document of the hidden session before the page's own scripts. A page
+    /// calling <c>print()</c> would open the browser's print dialog and hold the page's script thread until
+    /// somebody closed it, and nobody ever sees this window. The function is replaced on the window itself,
+    /// where it lives, and cannot be put back by the page.</summary>
+    internal const string DocumentCreatedScript =
+        "Object.defineProperty(window,'print',{value:function(){},writable:false,configurable:false});";
+
     private readonly string _baseUrl;
     private readonly IReadOnlyList<string> _allowedHosts;
     private readonly string _usageOriginHost;
@@ -441,6 +474,23 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         settings.AreDevToolsEnabled = false;
         settings.AreDefaultContextMenusEnabled = false;
         settings.AreBrowserAcceleratorKeysEnabled = false;
+        settings.AreHostObjectsAllowed = false;
+        settings.IsWebMessageEnabled = false;
+
+        // No dialog of the page ever shows: an alert, confirm, prompt or beforeunload prompt nobody can
+        // see or answer would hold every later fetch of this session.
+        settings.AreDefaultScriptDialogsEnabled = false;
+        webView.CoreWebView2.ScriptDialogOpening += (_, e) =>
+        {
+            if (ShouldAcceptScriptDialog(e.Kind))
+                e.Accept();
+        };
+
+        // The same goes for a sign-in prompt of the site (HTTP authentication, a client certificate):
+        // this session never answers one.
+        webView.CoreWebView2.BasicAuthenticationRequested += (_, e) => e.Cancel = true;
+        webView.CoreWebView2.ClientCertificateRequested += (_, e) => e.Cancel = true;
+        await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(DocumentCreatedScript);
 
         // A redirect chain out of a candidate/discovery response, or anything else this session did
         // not start out to reach, must never be followed with the usage script's own cookies along
@@ -472,6 +522,12 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         webView.CoreWebView2.Navigate(_baseUrl);
         return await navigated.Task.WaitAsync(ct);
     }
+
+    /// <summary>Which page dialogs the hidden session answers with "yes": only the leave-page prompt, so
+    /// the app's own navigations (back to the base page) are never held by the page. Every other dialog
+    /// is dismissed, which reads as "no" or as a cancelled prompt.</summary>
+    internal static bool ShouldAcceptScriptDialog(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind kind) =>
+        kind == Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Beforeunload;
 
     public async Task SuspendAsync()
     {
@@ -511,7 +567,14 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         // host on this provider's own sign-in list is the provider itself sending a session it does
         // not recognise to its login page, which is "not signed in" and offers the user a sign-in
         // button. Anything else really is a session steered somewhere it was never meant to go.
-        var core = _webView!.CoreWebView2;
+        //
+        // The same check runs once more inside the page, in front of the script itself (see
+        // WrapWithOriginGuard): this one only saves the round trip, that one cannot be overtaken by a
+        // navigation that lands between the check and the script.
+        var core = _webView?.CoreWebView2;
+        if (core is null || _disposed)
+            throw new OperationCanceledException("The hidden browser was closed.");
+
         if (!SignInNavigationPolicy.IsUsageOrigin(core.Source, _usageOriginHost))
         {
             var envelope = OffOriginEnvelope(core.Source, _allowedHosts);
@@ -523,9 +586,65 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         // ExecuteScriptAsync hands back a pending Promise as "{}" instead of waiting for its value.
         // Neither call has a CancellationToken overload - racing it against ct means a cancelled fetch
         // (sign-out, shutdown) returns promptly instead of waiting out the caller's own timeout.
-        var parameters = JsonSerializer.Serialize(new { expression = script, awaitPromise = true, returnByValue = true });
+        var parameters = JsonSerializer.Serialize(new
+        {
+            expression = WrapWithOriginGuard(script, _usageOriginHost),
+            awaitPromise = true,
+            returnByValue = true,
+        });
         var raw = await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate", parameters).WaitAsync(ct);
-        return UnwrapEvaluateResult(raw);
+        var answer = UnwrapEvaluateResult(raw);
+
+        if (ReadOffOriginAddress(answer) is { } address)
+        {
+            var envelope = OffOriginEnvelope(address, _allowedHosts);
+            await NavigateAndWaitAsync(core, _baseUrl, ct);
+            return envelope;
+        }
+
+        return answer;
+    }
+
+    /// <summary>The script with a host check in front, evaluated in the same step as the script itself:
+    /// on any page but the provider's own site (https, the host or one of its subdomains) the script
+    /// does not run and the answer names the address instead, for <see cref="OffOriginEnvelope"/> to
+    /// classify. Without it, a navigation landing between a check made from outside and the evaluation
+    /// would run the script - which fetches with the session's cookies - against a foreign page.</summary>
+    internal static string WrapWithOriginGuard(string script, string usageHost)
+    {
+        var host = JsonSerializer.Serialize(usageHost);
+        // A block rather than a wrapping function: a script may open with function declarations before its
+        // own async call, and the value of the last statement is what the evaluation hands back.
+        return $$"""
+            if (location.protocol !== 'https:' || (location.hostname !== {{host}} && !location.hostname.endsWith('.' + {{host}})))
+                ({status: '{{OffOriginStatus}}', href: location.href});
+            else {
+            {{script}}
+            }
+            """;
+    }
+
+    /// <summary>The address the origin guard reported, or null when the answer is the script's own.</summary>
+    internal static string? ReadOffOriginAddress(string answer)
+    {
+        if (answer.Length == 0)
+            return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(answer);
+            var root = document.RootElement;
+            return root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String
+                && status.GetString() == OffOriginStatus
+                && root.TryGetProperty("href", out var href) && href.ValueKind == JsonValueKind.String
+                    ? href.GetString() ?? ""
+                    : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Sends the session back to the base page and waits for that navigation to finish, so the

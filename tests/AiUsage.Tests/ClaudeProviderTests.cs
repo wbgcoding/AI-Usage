@@ -514,6 +514,38 @@ public class ClaudeProviderTests : IDisposable
         Assert.All(snapshot.Windows, window => Assert.Null(window.Tokens));
     }
 
+    [Fact]
+    public async Task A_rotated_session_file_keeps_the_limit_found_in_it()
+    {
+        var directory = SeedDirectory("claude-429-with-tokens.jsonl");
+        var file = Path.Combine(directory, "session.jsonl");
+        // Prime the scan cache, then hold the file exclusively: the cached scan still answers, the
+        // token sum cannot open the file any more.
+        Assert.NotNull(AiUsage.Providers.Parsing.ClaudeLocalLimitReader.FindActiveLimit(directory, Now));
+        using var hold = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
+        var provider = new ClaudeProvider(directory, () => Now);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.LocalFile, snapshot.SourceKind);
+        Assert.Equal(100, snapshot.Windows.Single().UsedPercent);
+        Assert.Null(snapshot.Windows.Single().Tokens);
+    }
+
+    [Fact]
+    public async Task A_limit_in_the_second_of_two_projects_folders_is_found()
+    {
+        var empty = SeedDirectory("claude-no-limits.jsonl");
+        var limited = SeedDirectory("claude-429.jsonl");
+        var provider = new ClaudeProvider([empty, limited], () => Now);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.LocalFile, snapshot.SourceKind);
+        Assert.Equal(DateTimeOffset.Parse("2026-09-05T13:00:00Z"), snapshot.Windows.Single().ResetsAt);
+        Assert.Equal(2, new ClaudeProvider([empty, limited], () => Now).ReadLocations.Count - 1);
+    }
+
     private const string OrgId = "2f1c8a90-4b3e-4c1a-9d77-0b6a5e3f21cc";
 
     private ClaudeProvider ProviderOverFile(string fixtureName) => new(SeedDirectory(fixtureName), () => Now);

@@ -54,4 +54,13 @@ public class ClaudeAccountLabelReaderTests
 
         Assert.Null(ClaudeAccountLabelReader.Read(path));
     }
+
+    [Fact]
+    public void A_file_whose_root_is_an_array_reads_as_no_label()
+    {
+        var path = TestPaths.GetPath("claude-account-label-array", ".json");
+        File.WriteAllText(path, "[]");
+
+        Assert.Null(ClaudeAccountLabelReader.Read(path));
+    }
 }

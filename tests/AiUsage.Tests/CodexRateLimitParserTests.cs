@@ -115,4 +115,15 @@ public class CodexRateLimitParserTests
         Assert.NotNull(result);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1788642834), result!.PrimaryResetsAt);
     }
+
+    [Fact]
+    public void TryParse_reads_a_timestamp_without_an_offset_as_UTC()
+    {
+        var line = ValidLine.Replace("2026-09-01T10:00:00Z", "2026-09-01T10:00:00");
+
+        Assert.True(CodexRateLimitParser.TryParse(line, out var result));
+
+        Assert.Equal(TimeSpan.Zero, result!.Timestamp.Offset);
+        Assert.Equal(DateTimeOffset.Parse("2026-09-01T10:00:00Z"), result.Timestamp);
+    }
 }

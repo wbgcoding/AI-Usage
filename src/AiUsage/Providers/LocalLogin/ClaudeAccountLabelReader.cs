@@ -43,6 +43,8 @@ internal static class ClaudeAccountLabelReader
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var document = JsonDocument.Parse(stream);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
             if (!document.RootElement.TryGetProperty("oauthAccount", out var account) || account.ValueKind != JsonValueKind.Object)
                 return null;
             if (!account.TryGetProperty("emailAddress", out var emailEl) || emailEl.ValueKind != JsonValueKind.String)

@@ -77,6 +77,15 @@ public static class SignInNavigationPolicy
         && uri.Scheme == Uri.UriSchemeHttps
         && IsAllowedHost(uri.Host, allowedHosts);
 
+    /// <summary>For the hosts a person allowed by hand on a blocked notice: https and exactly the named
+    /// host, not its subdomains. The person was shown one host name and said yes to that name; a sibling
+    /// or child host they never saw is a new decision. Compared as the browser reports the host
+    /// (punycode for an international name), so a look-alike spelling never matches.</summary>
+    public static bool IsAllowedExactHost(string url, IReadOnlyList<string> exactHosts) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && exactHosts.Any(host => uri.IdnHost.Equals(host, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Stricter than <see cref="IsAllowedUri"/>: gates a hidden session's usage fetch, which
     /// only ever legitimately talks to the provider's own <paramref name="expectedOrigin"/> host -
     /// unlike the sign-in flow, it never visits any other host on the sign-in allow-list (e.g. a

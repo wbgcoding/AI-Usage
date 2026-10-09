@@ -51,6 +51,8 @@ public partial class SignInWindow : Window
         _providerHost = new Uri(descriptor.BaseUrl).Host;
         _allowedHosts = descriptor.AllowedHosts;
         InitializeComponent();
+        TitleBarControl.SetBinding(Controls.TitleBar.TitleTextProperty, NewTitleBinding());
+        SetBinding(TitleProperty, NewTitleBinding());
         WindowChromeNative.Bootstrap(this);
         // Esc closes dialogs, keyboard-only throughout. While the page itself has focus the browser's
         // native window keeps the keystroke, so this answers whenever focus is on the app's own parts.
@@ -86,6 +88,7 @@ public partial class SignInWindow : Window
         {
             coreWebView2.NavigationStarting -= CoreWebView2_NavigationStarting;
             coreWebView2.NavigationCompleted -= CoreWebView2_NavigationCompleted;
+            coreWebView2.SourceChanged -= CoreWebView2_SourceChanged;
         }
         Browser.Dispose();
         CursorRestore.Reset();
@@ -104,6 +107,7 @@ public partial class SignInWindow : Window
             Browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
             Browser.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             Browser.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
+            Browser.CoreWebView2.SourceChanged += CoreWebView2_SourceChanged;
             // A real popup window has nowhere to render inside this minimal dialog - "Sign in with
             // Google" needs one anyway, so its content is redirected into this same, already
             // host-checked WebView2 instance instead of being silently dropped.
@@ -177,7 +181,71 @@ public partial class SignInWindow : Window
     /// still never carries the session's cookies over plain http.</summary>
     internal static bool IsAllowed(string uri, IReadOnlyList<string> providerHosts, IReadOnlyList<string> hostsAllowedByUser) =>
         SignInNavigationPolicy.IsAllowedUri(uri, providerHosts)
-        || SignInNavigationPolicy.IsAllowedUri(uri, hostsAllowedByUser);
+        || SignInNavigationPolicy.IsAllowedExactHost(uri, hostsAllowedByUser);
+
+    private const int MaxTitleHostLength = 48;
+
+    /// <summary>The host the title shows next to its text, empty when it shows none. Only the real
+    /// top-level address counts: the host comes from the browser's own record of where the page is
+    /// (never from the page's title or anything else it can write), and the page can never change
+    /// what stands in front of it. On the provider's own hosts there is nothing to add; on a host the
+    /// person allowed by hand the title carries that host, since nothing else in the window says where
+    /// the page actually is. A long name is cut at the front: the end of a host is the part that
+    /// tells whose it is.</summary>
+    internal static string TitleHostFor(
+        string? source, IReadOnlyList<string> providerHosts, IReadOnlyList<string> hostsAllowedByUser)
+    {
+        if (source is null || SignInNavigationPolicy.IsAllowedUri(source, providerHosts)
+            || !SignInNavigationPolicy.IsAllowedExactHost(source, hostsAllowedByUser)
+            || !Uri.TryCreate(source, UriKind.Absolute, out var uri))
+            return "";
+
+        var host = uri.IdnHost;
+        return host.Length > MaxTitleHostLength ? "\u2026" + host[^(MaxTitleHostLength - 1)..] : host;
+    }
+
+    /// <summary>The title text: the fixed title, and the host after a middle dot while there is one.</summary>
+    internal static string JoinTitle(string baseTitle, string host) =>
+        host.Length == 0 ? baseTitle : baseTitle + " \u00B7 " + host;
+
+    internal static string TitleFor(
+        string baseTitle, string? source, IReadOnlyList<string> providerHosts, IReadOnlyList<string> hostsAllowedByUser) =>
+        JoinTitle(baseTitle, TitleHostFor(source, providerHosts, hostsAllowedByUser));
+
+    /// <summary>Host shown behind the title, set from the browser's own address (see <see
+    /// cref="TitleHostFor"/>) and nothing else.</summary>
+    public static readonly DependencyProperty TitleHostProperty =
+        DependencyProperty.Register(nameof(TitleHost), typeof(string), typeof(SignInWindow), new PropertyMetadata(""));
+
+    public string TitleHost
+    {
+        get => (string)GetValue(TitleHostProperty);
+        private set => SetValue(TitleHostProperty, value);
+    }
+
+    private sealed class TitleJoinConverter : System.Windows.Data.IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+            JoinTitle(values[0] as string ?? "", values[1] as string ?? "");
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>Title bar and window title stay live bindings on the translated title (so a language
+    /// switch reaches them) and on <see cref="TitleHost"/>.</summary>
+    private System.Windows.Data.MultiBinding NewTitleBinding() => new()
+    {
+        Converter = new TitleJoinConverter(),
+        Bindings =
+        {
+            new System.Windows.Data.Binding("[SignIn.Title]") { Source = LocalizationService.Instance },
+            new System.Windows.Data.Binding(nameof(TitleHost)) { Source = this },
+        },
+    };
+
+    private void CoreWebView2_SourceChanged(object? sender, CoreWebView2SourceChangedEventArgs e) =>
+        TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _allowedHosts, _hostsAllowedByUser);
 
     /// <summary>Whether a turned-away navigation is worth a notice of its own. A page the user was
     /// trying to reach is; the blank page a redirected pop-up loads before its real address, and a
@@ -215,9 +283,9 @@ public partial class SignInWindow : Window
         if (_blockedUri is not { } uri || !Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
             return;
 
-        _hostsAllowedByUser.Add(parsed.Host);
+        _hostsAllowedByUser.Add(parsed.IdnHost);
         LogService.Shared.LogInfo(
-            $"Sign-in navigation allowed by the user for this window: {parsed.Host}");
+            $"Sign-in navigation allowed by the user for this window: {parsed.IdnHost}");
         BlockedPanel.Visibility = Visibility.Collapsed;
         Browser.Visibility = Visibility.Visible;
         CursorRestore.Reset();
@@ -230,8 +298,8 @@ public partial class SignInWindow : Window
         // A url with no host of its own (about:blank from a redirected popup, mailto:, data:) still
         // parses, and its empty host would leave a sentence with a hole in it - the whole url is the
         // only honest thing left to name there.
-        var host = Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && !string.IsNullOrEmpty(parsed.Host)
-            ? parsed.Host
+        var host = Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && !string.IsNullOrEmpty(parsed.IdnHost)
+            ? parsed.IdnHost
             : uri;
         var loc = LocalizationService.Instance;
         BlockedHeadText.Text = loc["SignIn.Blocked.Head"];

@@ -138,8 +138,9 @@ public sealed class WebViewRuntimeInstaller
             {
                 exitCode = await _run(file, InstallerArguments, ct);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                // Only before the installer started: afterwards it is waited for to its end.
                 return new WebViewInstallResult(WebViewInstallOutcome.Cancelled);
             }
             catch (Exception ex)
@@ -235,22 +236,29 @@ public sealed class WebViewRuntimeInstaller
         throw new HttpRequestException("too many redirects");
     }
 
-    private static async Task<int> RunProcessAsync(string path, string arguments, CancellationToken ct)
+    internal static Task<int> RunProcessAsync(string path, string arguments, CancellationToken ct) =>
+        RunProcessAsync(path, arguments, InstallTimeout, ct);
+
+    /// <summary>Cancelling counts until the process has started. From then on the installer owns the
+    /// machine (it asks for elevation and keeps going whatever this app does), so only the time limit
+    /// ends the wait: reporting "cancelled" while it still runs would let the caller start a second
+    /// installation next to the first.</summary>
+    internal static async Task<int> RunProcessAsync(string path, string arguments, TimeSpan limit, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo(path, arguments) { UseShellExecute = false, CreateNoWindow = true },
         };
         process.Start();
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(InstallTimeout);
+        using var timeout = new CancellationTokenSource(limit);
         try
         {
             await process.WaitForExitAsync(timeout.Token);
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            // Our own limit, not the user's cancel: a stuck installer is a failure to report.
+            // Our own limit: a stuck installer is a failure to report.
             try
             {
                 process.Kill(entireProcessTree: true);

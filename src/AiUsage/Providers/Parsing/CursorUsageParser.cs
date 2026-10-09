@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Text.Json;
 using AiUsage.Models;
+using static AiUsage.Providers.Parsing.JsonReading;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -151,32 +151,30 @@ public static class CursorUsageParser
         if (!root.TryGetProperty(propertyName, out var value))
             return null;
 
+        DateTimeOffset? instant = null;
         if (value.ValueKind == JsonValueKind.String)
         {
-            var text = value.GetString();
-            return text is not null && DateTimeOffset.TryParse(
-                    text, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind | DateTimeStyles.AssumeUniversal, out var parsed)
-                ? parsed.ToUniversalTime()
-                : null;
+            instant = SessionLineAge.TryParse(value.GetString(), out var parsed) ? parsed.ToUniversalTime() : null;
+        }
+        else if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number))
+        {
+            // Epoch numbers show up both in seconds and in milliseconds.
+            instant = UnixTimeConversion.FromUnixSecondsOrMillisecondsOrNull(number);
         }
 
-        // Epoch numbers show up both in seconds and in milliseconds; nothing in this century is a
-        // twelve-digit second count, so the length tells them apart.
-        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number))
-            return UnixTimeConversion.FromUnixSecondsOrNull(number >= 100_000_000_000 ? number / 1000 : number);
-
-        return null;
+        return instant is { } found ? UnixTimeConversion.PlausibleOrNull(found) : null;
     }
 
-    private readonly record struct ModelSum(double Percent, TokenUsage? Tokens, UsageAllowance? Allowance);
+    private readonly record struct ModelSum(double Percent, TokenUsage? Tokens, UsageAllowance Allowance);
 
     /// <summary>Sums <c>numTokens</c> across every direct child object of the root that itself
     /// carries a numeric <c>numRequests</c>, and <c>numRequests</c> plus <c>maxRequestUsage</c>
     /// across those of them that carry a numeric limit - a per-model breakdown with more than one model must be
     /// summed across all of them, never read from just the first. Null unless more than one child
     /// object qualifies: <see cref="FindRequestUsageObject"/> already reads exactly one such child
-    /// correctly on its own, and a root with none falls through to the cents-based shape below.</summary>
+    /// correctly on its own, and a root with none falls through to the cents-based shape below. Also
+    /// null when no model carries a positive limit: without a denominator there is no percentage to
+    /// show, so no window follows.</summary>
     private static ModelSum? SumAcrossModels(JsonElement root)
     {
         var modelObjects = root.EnumerateObject()
@@ -207,13 +205,14 @@ public static class CursorUsageParser
         }
 
         // No guessed percentage without a real denominator: a limit summed from zero, or from no
-        // model carrying one at all, leaves the percentage at 0 and the window's allowance empty -
-        // the token count (when there is one) is the only thing it still carries.
-        var hasUsableLimit = hasLimit && limit > 0;
+        // model carrying one at all, yields no window.
+        if (!hasLimit || limit <= 0)
+            return null;
+
         return new ModelSum(
-            Percent: hasUsableLimit ? 100 * requests / limit : 0,
+            Percent: 100 * requests / limit,
             Tokens: tokens is { } total ? new TokenUsage(total) : null,
-            Allowance: hasUsableLimit ? new UsageAllowance((long)requests, (long)limit, "Unit.Requests") : null);
+            Allowance: new UsageAllowance((long)requests, (long)limit, "Unit.Requests"));
     }
 
     /// <summary>The first object, in document order, carrying both request-usage numbers - either
@@ -268,17 +267,5 @@ public static class CursorUsageParser
     private static DateTimeOffset? ReadResetsAt(JsonElement root) =>
         ReadDate(root, "startOfMonth") is { } start && start <= DateTimeOffset.MaxValue.AddMonths(-1)
             ? start.AddMonths(1)
-            : null;
-
-    private static double? TryGetDouble(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
-            ? value
-            : null;
-
-    private static long? TryGetInt64(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetInt64(out var value)
-            ? value
             : null;
 }

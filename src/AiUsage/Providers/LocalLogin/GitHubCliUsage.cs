@@ -52,7 +52,7 @@ internal static class GitHubCliUsage
         Dictionary<string, string>? environment = null;
         if (login is not null)
         {
-            var (tokenOutcome, token) = await RunGhAsync(ghPath, ["auth", "token", "--user", login], ct);
+            var (tokenOutcome, token) = await RunGhAsync(ghPath, TokenArguments(login), ct);
             if (tokenOutcome != GitHubCliOutcome.Ok || string.IsNullOrWhiteSpace(token))
                 return tokenOutcome switch
                 {
@@ -67,6 +67,12 @@ internal static class GitHubCliUsage
         var (outcome, output) = await RunGhAsync(ghPath, arguments, ct, environment: environment);
         return outcome == GitHubCliOutcome.Ok ? new CopilotFetch(GitHubCliOutcome.Ok, output) : new CopilotFetch(outcome, "");
     }
+
+    /// <summary>The token request for one listed account. The host is named, since only github.com
+    /// accounts are listed and a CLI signed in to further hosts cannot tell which one a bare user means.</summary>
+    internal static string[] TokenArguments(string login) => ["auth", "token", "--hostname", GitHubHost, "--user", login];
+
+    internal const string GitHubHost = "github.com";
 
     /// <summary>The argument list of the usage read itself; a further account's token is never part of it.</summary>
     internal static readonly string[] ApiArguments = ["api", "copilot_internal/user"];
@@ -86,8 +92,13 @@ internal static class GitHubCliUsage
             return [];
 
         var (outcome, output) = await RunGhAsync(ghPath, ["auth", "status"], ct, combineStreams: true);
-        return outcome is GitHubCliOutcome.Ok or GitHubCliOutcome.NotSignedIn ? ParseAuthStatus(output) : [];
+        return outcome is GitHubCliOutcome.Ok or GitHubCliOutcome.NotSignedIn ? OnlyGitHubDotCom(ParseAuthStatus(output)) : [];
     }
+
+    /// <summary>Copilot's quota lives on github.com; an account on any other host (an enterprise
+    /// server) has none to read and is not offered.</summary>
+    internal static IReadOnlyList<GitHubAccount> OnlyGitHubDotCom(IReadOnlyList<GitHubAccount> accounts) =>
+        accounts.Where(account => string.Equals(account.Host, GitHubHost, StringComparison.OrdinalIgnoreCase)).ToList();
 
     /// <summary>Pure parsing of <c>gh auth status</c>'s own text - one line per account, shaped
     /// "&#160;&#160;✓ Logged in to github.com account octocat (keyring)" (spelled with a leading
@@ -180,15 +191,7 @@ internal static class GitHubCliUsage
             if (process.ExitCode == 0)
                 return (GitHubCliOutcome.Ok, stdout.Trim());
 
-            // gh prints an auth hint to stderr when the user is not logged in; anything else that
-            // fails without that marker is a transient failure, not a sign-in problem.
-            var text = stdout + "\n" + stderr;
-            if (text.Contains("gh auth login", StringComparison.OrdinalIgnoreCase)
-                || text.Contains("authentication", StringComparison.OrdinalIgnoreCase)
-                || text.Contains("HTTP 401", StringComparison.OrdinalIgnoreCase))
-                return (GitHubCliOutcome.NotSignedIn, "");
-
-            return (GitHubCliOutcome.Failed, "");
+            return (ClassifyFailure(stdout + "\n" + stderr), "");
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -201,6 +204,15 @@ internal static class GitHubCliUsage
             process.Dispose();
         }
     }
+
+    /// <summary>gh prints an auth hint when the user is not logged in, and the API answers 401 for a
+    /// dead token; anything else that fails (a rate limit, a network error, a message that merely
+    /// mentions authentication) is a transient failure, not a sign-in problem.</summary>
+    internal static GitHubCliOutcome ClassifyFailure(string output) =>
+        output.Contains("gh auth login", StringComparison.OrdinalIgnoreCase)
+        || output.Contains("HTTP 401", StringComparison.OrdinalIgnoreCase)
+            ? GitHubCliOutcome.NotSignedIn
+            : GitHubCliOutcome.Failed;
 
     private static string? FindOnPath(string fileName)
     {

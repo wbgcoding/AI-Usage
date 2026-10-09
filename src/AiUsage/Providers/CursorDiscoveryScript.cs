@@ -1,19 +1,17 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using AiUsage.Providers.Parsing;
 
 namespace AiUsage.Providers;
 
 /// <summary>
 /// The JavaScript run inside the widget's own hidden, signed-in cursor.com session (see
-/// Web/WebViewHost.cs) to find and then read Cursor's usage endpoint, plus this provider's own half
-/// of <see cref="IWebUsageEndpoint"/> - the role <see cref="CodexUsageEndpoint"/> plays for Codex,
-/// kept in one file here because nothing else needs the scripts on their own. <see cref="Discover"/>
-/// reads the signed-in account id once, then walks a short list of candidate addresses and
-/// remembers the first whose answer parses - a wrong guess here costs one request, never a wrong
-/// number.
+/// Web/WebViewHost.cs) to find and then read Cursor's usage endpoint; <see cref="CursorUsageEndpoint"/>
+/// is its half of <see cref="IWebUsageEndpoint"/>, as <see cref="CodexUsageEndpoint"/> is Codex's.
+/// <see cref="Discover"/> reads the signed-in account id once, then walks a short list of candidate
+/// addresses and remembers the first whose answer parses - a wrong guess here costs one request,
+/// never a wrong number.
 /// </summary>
-public sealed class CursorDiscoveryScript : IWebUsageEndpoint
+internal static class CursorDiscoveryScript
 {
     // {0} is the account id read from /api/auth/me's "sub" field. The usage summary comes first: it
     // carries the plan's spend against its monthly allowance, which every current plan is billed
@@ -62,6 +60,16 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
     // untouched - the summary itself still counts even when this extra read does not answer. Copies
     // only the two fields the parser reads, never the upgrade links the endpoint also carries.
     private const string MergeGrokBotFunction = """
+        let freshGrokBot = null;
+        const applyGrokBot = (text, grokBot) => {
+            try {
+                const s = JSON.parse(text);
+                s.grokBot = grokBot;
+                return JSON.stringify(s);
+            } catch (e) {
+                return text;
+            }
+        };
         const mergeGrokBot = async (text) => {
             try {
                 const gRes = await fetch('/api/dashboard/get-sand-usage-status', {
@@ -75,6 +83,7 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
                 const g = await gRes.json();
                 const s = JSON.parse(text);
                 s.grokBot = {usagePercent: g.usagePercent, nextResetTimestampUtc: g.nextResetTimestampUtc};
+                freshGrokBot = s.grokBot;
                 return JSON.stringify(s);
             } catch (e) {
                 return text;
@@ -133,7 +142,10 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
     /// read plus the whole candidate walk. Throws for any path outside <see
     /// cref="IsAllowedUsagePath"/>: the caller must never hand this an unvalidated value, because it
     /// runs inside a signed-in cursor.com session.</summary>
-    public static string Fetch(string path)
+    /// <param name="emailHeld">True while a recent e-mail answer is held: the script leaves that request out.</param>
+    /// <param name="grokBotJson">A held Grok Bot answer as a JSON object the app wrote itself (never page
+    /// text), merged in place of a request; null asks the site.</param>
+    public static string Fetch(string path, bool emailHeld = false, string? grokBotJson = null)
     {
         if (!IsAllowedUsagePath(path))
             throw new ArgumentException("Path is not an allowed Cursor usage endpoint.", nameof(path));
@@ -143,7 +155,10 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
         var pathJson = JsonSerializer.Serialize(path);
         // path is fixed at this point (already validated above), so whether to merge the Grok Bot
         // read is decided here rather than by a runtime check in the generated script.
-        var mergeCall = path == "/api/usage-summary" ? "await mergeGrokBot(text)" : "text";
+        var mergeCall = path != "/api/usage-summary"
+            ? "text"
+            : grokBotJson is null ? "await mergeGrokBot(text)" : $"applyGrokBot(text, {grokBotJson})";
+        var emailCall = emailHeld ? "null" : "await readEmail()";
         return $$"""
             (async () => {
                 {{MergeGrokBotFunction}}
@@ -169,26 +184,12 @@ public sealed class CursorDiscoveryScript : IWebUsageEndpoint
                     const ct = res.headers.get('content-type') || '';
                     const text = await res.text();
                     if (!ct.includes('json')) return {status: 'blocked'};
-                    const email = await readEmail();
-                    return {status: 'ok', path: {{pathJson}}, body: {{mergeCall}}, email: email};
+                    const email = {{emailCall}};
+                    return {status: 'ok', path: {{pathJson}}, body: {{mergeCall}}, email: email, grokBot: freshGrokBot};
                 } catch (e) {
                     return {status: 'failed'};
                 }
             })()
             """;
-    }
-
-    string IWebUsageEndpoint.Discover() => Discover();
-
-    string IWebUsageEndpoint.Fetch(string path) => Fetch(path);
-
-    bool IWebUsageEndpoint.IsAllowedUsagePath(string? path) => IsAllowedUsagePath(path);
-
-    public WebUsageResult ParseBody(string body)
-    {
-        var windows = CursorUsageParser.Parse(body);
-        return windows.Count == 0
-            ? WebUsageResult.Failed
-            : new WebUsageResult(WebUsageOutcome.Ok, windows, PlanType: CursorUsageParser.ParsePlan(body));
     }
 }

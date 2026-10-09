@@ -2,6 +2,7 @@ using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Providers.LocalLogin;
 using AiUsage.Providers.Parsing;
+using AiUsage.Services;
 using AiUsage.Web;
 
 namespace AiUsage.Tests;
@@ -331,5 +332,73 @@ public class GeminiProviderTests : IDisposable
     {
         foreach (var directory in _tempDirectories)
             directory.Dispose();
+    }
+
+    [Fact]
+    public void A_reset_time_far_from_now_shows_no_countdown()
+    {
+        var windows = AiUsage.Providers.Parsing.GeminiUsageParser.Parse(
+            """{"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","resetTime":"9999-12-30T00:00:00Z","remainingFraction":0.5}]}]}""");
+
+        var window = Assert.Single(windows);
+        Assert.Null(window.ResetsAt);
+    }
+
+    [Fact]
+    public async Task After_a_failed_discovery_walk_the_page_is_left_alone_for_thirty_minutes()
+    {
+        NetworkStatus.Probe = () => true;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, QuotaSummary, "Google AI Pro");
+        var now = DateTimeOffset.Parse("2026-09-18T20:00:00Z");
+        var provider = ProviderWithWebSession(usage, _ => """{"status":"failed","attempts":["/api/usage 404"]}""", out var scriptRuns, () => now);
+
+        await provider.FetchAsync(CancellationToken.None);
+        var afterFirst = scriptRuns.Count;
+        Assert.True(afterFirst > 0);
+
+        now = now.AddMinutes(10);
+        await provider.FetchAsync(CancellationToken.None);
+        now = now.AddMinutes(19);
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(afterFirst, scriptRuns.Count);
+
+        now = now.AddMinutes(2);
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.True(scriptRuns.Count > afterFirst);
+    }
+
+    [Fact]
+    public async Task A_finished_sign_in_ends_the_pause_after_a_failed_walk()
+    {
+        NetworkStatus.Probe = () => true;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, QuotaSummary, "Google AI Pro");
+        var now = DateTimeOffset.Parse("2026-09-18T20:00:00Z");
+        var provider = ProviderWithWebSession(usage, _ => """{"status":"failed"}""", out var scriptRuns, () => now);
+
+        await provider.FetchAsync(CancellationToken.None);
+        var afterFirst = scriptRuns.Count;
+
+        provider.SignInCompleted();
+        now = now.AddMinutes(1);
+        await provider.FetchAsync(CancellationToken.None);
+
+        Assert.True(scriptRuns.Count > afterFirst);
+    }
+
+    [Fact]
+    public async Task A_failed_walk_while_offline_does_not_start_the_pause()
+    {
+        NetworkStatus.Probe = () => false;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, QuotaSummary, "Google AI Pro");
+        var now = DateTimeOffset.Parse("2026-09-18T20:00:00Z");
+        var provider = ProviderWithWebSession(usage, _ => """{"status":"failed"}""", out var scriptRuns, () => now);
+
+        await provider.FetchAsync(CancellationToken.None);
+        var afterFirst = scriptRuns.Count;
+
+        now = now.AddMinutes(6);
+        await provider.FetchAsync(CancellationToken.None);
+
+        Assert.True(scriptRuns.Count > afterFirst);
     }
 }

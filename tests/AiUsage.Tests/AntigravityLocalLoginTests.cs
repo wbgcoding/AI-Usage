@@ -131,6 +131,172 @@ public class AntigravityLocalLoginTests : IDisposable
         Assert.Equal("GOCSPX-" + new string('a', 28), pairs[0].ClientSecret);
     }
 
+    private const string OkToken = """{"access_token":"fresh-token","expires_in":3599}""";
+
+    [Fact]
+    public async Task When_no_pair_is_accepted_and_none_failed_in_transit_the_cached_pairs_are_dropped()
+    {
+        var forgotten = 0;
+
+        await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-forget-all-client", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: (_, _, _) => Answer(401, """{"error":"invalid_client"}"""),
+            discoverPairs: () => TwoPairs, forgetPairs: () => forgotten++);
+
+        Assert.Equal(1, forgotten);
+    }
+
+    [Fact]
+    public async Task A_transport_failure_or_an_accepted_pair_keeps_the_cached_pairs()
+    {
+        var forgotten = 0;
+
+        await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-keep-transport", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: (_, _, _) => Task.FromResult(new LocalLoginHttp.Response(false, 0, "")),
+            discoverPairs: () => TwoPairs, forgetPairs: () => forgotten++);
+        await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-keep-grant", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: (_, _, _) => Answer(400, """{"error":"invalid_grant"}"""),
+            discoverPairs: () => TwoPairs, forgetPairs: () => forgotten++);
+        await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-keep-ok", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: (_, _, _) => Answer(200, OkToken),
+            discoverPairs: () => TwoPairs, forgetPairs: () => forgotten++);
+
+        Assert.Equal(0, forgotten);
+    }
+
+    [Fact]
+    public async Task The_accepted_pair_is_tried_first_on_the_next_refresh()
+    {
+        var tried = new List<string>();
+        Task<LocalLoginHttp.Response> Post(string url, IEnumerable<KeyValuePair<string, string>> form, CancellationToken ct)
+        {
+            var id = form.Single(pair => pair.Key == "client_id").Value;
+            tried.Add(id);
+            // Only the second pair is a real client; its token lives for 10 s, so the next call refreshes again.
+            return id == "id-2"
+                ? Answer(200, """{"access_token":"fresh-token","expires_in":10}""")
+                : Answer(401, """{"error":"invalid_client"}""");
+        }
+
+        var first = await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-accepted-first", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: Post, discoverPairs: () => TwoPairs, forgetPairs: () => { });
+        var second = await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-accepted-first", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: Post, discoverPairs: () => TwoPairs, forgetPairs: () => { });
+
+        Assert.Equal("fresh-token", first.Token);
+        Assert.Equal("fresh-token", second.Token);
+        Assert.Equal(["id-1", "id-2", "id-2"], tried);
+    }
+
+    [Fact]
+    public async Task An_expires_in_written_as_text_keeps_the_valid_token_and_caches_it_for_55_minutes()
+    {
+        var posts = 0;
+        Task<LocalLoginHttp.Response> Post(string url, IEnumerable<KeyValuePair<string, string>> form, CancellationToken ct)
+        {
+            posts++;
+            return Answer(200, """{"access_token":"fresh-token","expires_in":"3599"}""");
+        }
+
+        var first = await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-text-lifetime", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: Post, discoverPairs: () => TwoPairs, forgetPairs: () => { });
+        var second = await AntigravityLocalLogin.ResolveAccessTokenAsync(
+            "refresh-text-lifetime", null, DateTimeOffset.MinValue, CancellationToken.None,
+            post: Post, discoverPairs: () => TwoPairs, forgetPairs: () => { });
+
+        Assert.Equal("fresh-token", first.Token);
+        Assert.Equal("fresh-token", second.Token);
+        Assert.Equal(1, posts);
+    }
+
+    private string NewExe(byte[] content)
+    {
+        var directory = TestPaths.CreateDisposableDirectory("ai-usage-agy-scan");
+        _directories.Add(directory);
+        var exe = Path.Combine(directory, "agy.exe");
+        File.WriteAllBytes(exe, content);
+        return exe;
+    }
+
+    [Fact]
+    public void An_exe_without_a_pair_is_scanned_once_until_its_size_or_write_time_changes()
+    {
+        AntigravityOAuthClient.ForgetPairs();
+        var exe = NewExe([1, 2, 3]);
+        var scans = 0;
+        (List<(string, string)>, bool) Scan(string path)
+        {
+            scans++;
+            return ([], true);
+        }
+
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        Assert.Equal(1, scans);
+
+        // An update changes the file: scanned again.
+        File.WriteAllBytes(exe, [1, 2, 3, 4]);
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        Assert.Equal(2, scans);
+
+        File.SetLastWriteTimeUtc(exe, File.GetLastWriteTimeUtc(exe).AddMinutes(5));
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        Assert.Equal(3, scans);
+
+        // Forgetting the cache also forgets the memo.
+        AntigravityOAuthClient.ForgetPairs();
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        Assert.Equal(4, scans);
+        AntigravityOAuthClient.ForgetPairs();
+    }
+
+    [Fact]
+    public void A_scan_that_could_not_read_the_file_is_not_remembered()
+    {
+        AntigravityOAuthClient.ForgetPairs();
+        var exe = NewExe([1, 2, 3]);
+        var scans = 0;
+        (List<(string, string)>, bool) Scan(string path)
+        {
+            scans++;
+            return ([], false);
+        }
+
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+
+        Assert.Equal(2, scans);
+        AntigravityOAuthClient.ForgetPairs();
+    }
+
+    [Fact]
+    public void Found_pairs_are_cached_until_they_are_forgotten()
+    {
+        AntigravityOAuthClient.ForgetPairs();
+        var exe = NewExe([1, 2, 3]);
+        var scans = 0;
+        (List<(string ClientId, string ClientSecret)>, bool) Scan(string path)
+        {
+            scans++;
+            return ([("id-1", "secret-1")], true);
+        }
+
+        Assert.Single(AntigravityOAuthClient.DiscoverPairs(exe, Scan));
+        Assert.Single(AntigravityOAuthClient.DiscoverPairs(exe, Scan));
+        Assert.Equal(1, scans);
+
+        AntigravityOAuthClient.ForgetPairs();
+        AntigravityOAuthClient.DiscoverPairs(exe, Scan);
+        Assert.Equal(2, scans);
+        AntigravityOAuthClient.ForgetPairs();
+    }
+
     private readonly List<DisposableTestDirectory> _directories = [];
 
     public void Dispose()

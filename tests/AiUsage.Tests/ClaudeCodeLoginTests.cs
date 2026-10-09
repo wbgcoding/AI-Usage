@@ -55,4 +55,56 @@ public class ClaudeCodeLoginTests
         Assert.Equal(ClaudeCodeLoginReason.TokenExpired, usage.Reason);
         Assert.DoesNotContain(FakeToken, usage.ToString());
     }
+
+    [Fact]
+    public async Task A_credentials_file_holding_an_array_reports_the_no_token_reason()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("claude-code-login-array");
+        var path = Path.Combine(directory, "credentials.json");
+        File.WriteAllText(path, "[]", new UTF8Encoding(false));
+
+        var usage = await ClaudeCodeLogin.FetchAsync(path, CancellationToken.None);
+
+        Assert.Equal(LocalLoginOutcome.NotSignedIn, usage.Outcome);
+        Assert.Equal(ClaudeCodeLoginReason.NoToken, usage.Reason);
+    }
+
+    [Fact]
+    public async Task A_token_that_expires_within_the_margin_reads_as_expired()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("claude-code-login-margin");
+        var path = Path.Combine(directory, "credentials.json");
+        var expiresAtMs = DateTimeOffset.UtcNow.AddSeconds(10).ToUnixTimeMilliseconds();
+        File.WriteAllText(path, "{\"claudeAiOauth\":{\"accessToken\":\"" + FakeToken + "\",\"expiresAt\":" + expiresAtMs + "}}", new UTF8Encoding(false));
+
+        var usage = await ClaudeCodeLogin.FetchAsync(path, CancellationToken.None);
+
+        Assert.Equal(ClaudeCodeLoginReason.TokenExpired, usage.Reason);
+    }
+
+    [Fact]
+    public void A_token_with_a_minute_left_is_still_handed_out()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("claude-code-login-fresh");
+        var path = Path.Combine(directory, "credentials.json");
+        var expiresAtMs = DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds();
+        File.WriteAllText(path, "{\"claudeAiOauth\":{\"accessToken\":\"" + FakeToken + "\",\"expiresAt\":" + expiresAtMs + "}}", new UTF8Encoding(false));
+
+        var (token, reason, _) = ClaudeCodeLogin.ReadAccessToken(path);
+
+        Assert.Equal(FakeToken, token);
+        Assert.Equal(ClaudeCodeLoginReason.Ok, reason);
+    }
+
+    [Fact]
+    public void A_401_answer_maps_to_the_expired_token_hold_over_path_and_a_403_does_not()
+    {
+        var unauthorized = ClaudeCodeLogin.DeniedUsage(401);
+        var forbidden = ClaudeCodeLogin.DeniedUsage(403);
+
+        Assert.Equal(LocalLoginOutcome.NotSignedIn, unauthorized?.Outcome);
+        Assert.Equal(ClaudeCodeLoginReason.TokenExpired, unauthorized?.Reason);
+        Assert.Equal(ClaudeCodeLoginReason.NonOkResponse, forbidden?.Reason);
+        Assert.Null(ClaudeCodeLogin.DeniedUsage(500));
+    }
 }

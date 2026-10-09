@@ -803,6 +803,59 @@ public class CodexProviderTests : IDisposable
         }
     }
 
+    private static string ErrorLine(DateTimeOffset timestamp, string message) =>
+        JsonSerializer.Serialize(new
+        {
+            timestamp = timestamp.ToString("O"),
+            type = "event_msg",
+            payload = new { type = "error", message },
+        });
+
+    [Theory]
+    [InlineData("request id 4291", false)]
+    [InlineData("trace 1429 failed", false)]
+    [InlineData("unexpected status 429 Too Many Requests", true)]
+    [InlineData("HTTP 429", true)]
+    [InlineData("429 Too Many Requests", true)]
+    [InlineData("You have reached your usage limit.", true)]
+    public void A_rejection_is_recognised_by_the_status_wording_not_by_the_digits(string message, bool expected)
+    {
+        var line = ErrorLine(DateTimeOffset.Parse("2026-09-01T10:00:00Z"), message);
+
+        Assert.Equal(expected, CodexProvider.IsUsageLimitRejection(line));
+    }
+
+    [Fact]
+    public async Task FetchAsync_shows_a_real_rejection_at_once_instead_of_holding_the_jump_from_30_to_100()
+    {
+        var directory = NewSessionsDirectory();
+        var filePath = Path.Combine(directory, "rollout-test.jsonl");
+        var resetsAt = UnixSeconds(DateTimeOffset.Parse("2026-09-01T14:00:00Z"));
+        var now = DateTimeOffset.Parse("2026-09-01T10:00:00Z");
+        var provider = new CodexProvider(directory, () => now);
+
+        WriteTick(filePath, now.AddMinutes(-2), primaryPercent: 30, primaryResetsAtUnix: resetsAt);
+        var first = await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(30, first.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+
+        now = now.AddMinutes(5);
+        File.AppendAllText(filePath, ErrorLine(now.AddMinutes(-1), "unexpected status 429 Too Many Requests") + Environment.NewLine);
+        File.SetLastWriteTimeUtc(filePath, now.UtcDateTime);
+        var second = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(100, second.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+    }
+
+    [Fact]
+    public async Task FetchAsync_attaches_no_token_figure_when_the_rollout_went_quiet_before_the_window()
+    {
+        var provider = ProviderOverFile("codex-with-tokens.jsonl", now: DateTimeOffset.Parse("2026-09-01T16:30:00Z"));
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Null(snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour).Tokens);
+    }
+
     private static long UnixSeconds(DateTimeOffset instant) => instant.ToUnixTimeSeconds();
 
     private static void WriteTick(string filePath, DateTimeOffset eventTimestamp, double primaryPercent, long primaryResetsAtUnix)
