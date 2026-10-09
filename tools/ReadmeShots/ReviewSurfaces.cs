@@ -108,6 +108,12 @@ internal static class ReviewSurfaces
             new("widget.mini", GroupWidget, context => Program.RenderWidget(
                 context.DataDirectory, context.Samples, context.Now, context.AllProviders, TileDensity.Mini,
                 context.OutputPath("widget.mini"), context.Pick(WidgetWidth, MinWidgetWidth)), HasMinSize: true),
+            new("widget.full.zoom90", GroupWidget, context => ZoomedWidget(context, "widget.full.zoom90", TileDensity.Full, 90), HasMinSize: true),
+            new("widget.mini.zoom90", GroupWidget, context => ZoomedWidget(context, "widget.mini.zoom90", TileDensity.Mini, 90), HasMinSize: true),
+            new("widget.full.zoom125", GroupWidget, context => ZoomedWidget(context, "widget.full.zoom125", TileDensity.Full, 125), HasMinSize: true),
+            new("widget.mini.zoom125", GroupWidget, context => ZoomedWidget(context, "widget.mini.zoom125", TileDensity.Mini, 125), HasMinSize: true),
+            new("widget.full.zoom150", GroupWidget, context => ZoomedWidget(context, "widget.full.zoom150", TileDensity.Full, 150), HasMinSize: true),
+            new("widget.mini.zoom150", GroupWidget, context => ZoomedWidget(context, "widget.mini.zoom150", TileDensity.Mini, 150), HasMinSize: true),
             new("widget.daytile.full", GroupWidget, context => DayTile(context, "widget.daytile.full", TileDensity.Full, wide: false), HasMinSize: true),
             new("widget.daytile.mini", GroupWidget, context => DayTile(context, "widget.daytile.mini", TileDensity.Mini, wide: false), HasMinSize: true),
             new("widget.daytile.full.wide", GroupWidget, context => DayTile(context, "widget.daytile.full.wide", TileDensity.Full, wide: true)),
@@ -140,6 +146,16 @@ internal static class ReviewSurfaces
         list.Add(new Surface("menu.daytile", GroupMenus, context => ReviewMenus.RenderDayTileMenu(context, "menu.daytile")));
         list.Add(new Surface("menu.stats-section", GroupMenus, context => ReviewMenus.RenderStatsSectionMenu(context, "menu.stats-section")));
         return list;
+    }
+
+    /// <summary>The widget at a zoom step: the window is as wide as the content needs at that zoom (the
+    /// 100 % width times the factor), or at its narrowest for the min size.</summary>
+    private static void ZoomedWidget(SurfaceContext context, string id, TileDensity density, int percent)
+    {
+        var zoom = percent / 100.0;
+        Program.RenderWidget(
+            context.DataDirectory, context.Samples, context.Now, context.AllProviders, density,
+            context.OutputPath(id), context.Pick(WidgetWidth * zoom, WindowPlacementService.MinWidthFor(zoom)), zoom);
     }
 
     private static void DayTile(SurfaceContext context, string id, TileDensity density, bool wide) =>

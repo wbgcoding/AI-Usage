@@ -294,7 +294,7 @@ internal static class Program
 
     internal static void RenderWidget(
         string dataDirectory, IReadOnlyList<SampleProviders.Sample> samples, DateTimeOffset now,
-        IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380)
+        IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380, double zoom = 1)
     {
         var settings = new AppSettings();
         foreach (var id in AppSettings.KnownProviderIds)
@@ -318,6 +318,9 @@ internal static class Program
 
             var chrome = (Border)XamlReader.Parse(WidgetChromeXaml);
             chrome.DataContext = viewModel;
+            // The widget's own zoom: the chrome is drawn at this factor inside the same window width.
+            if (zoom != 1)
+                chrome.LayoutTransform = new ScaleTransform(zoom, zoom);
 
             // Bindings activate at data-bind priority, so the dispatcher gets a turn before and after each
             // layout pass: the first fills the list, the second binds the tiles the list just created.

@@ -33,6 +33,10 @@ public partial class MainWindow : Window, IDisposable
     private readonly TrayTooltipMemo _trayTooltipMemo = new();
     private readonly ClickThroughPolicy _clickThroughPolicy = new();
     private DesktopLayer? _desktopLayer;
+    // The widget's own zoom on top of the Windows scaling (1 = 100 %). Everything inside the chrome is
+    // drawn at this factor, so the window's own measures (minimum size, snap distance, the room the
+    // content takes) are this factor times what the content measures at 100 %.
+    private double _zoom = 1;
     private FullscreenWatcher? _fullscreenWatcher;
     // True while the widget is hidden only because a full-screen app is in front. The window's own
     // shown/hidden state, the tray and the saved placement are not touched meanwhile.
@@ -140,11 +144,13 @@ public partial class MainWindow : Window, IDisposable
         };
 
         WindowStartupLocation = WindowStartupLocation.Manual;
-        MinWidth = WindowPlacementService.MinWindowWidth;
+        _zoom = WindowZoom.Factor(_settings.ZoomPercent);
+        ChromeBorder.LayoutTransform = ZoomTransform(_zoom);
+        MinWidth = WindowPlacementService.MinWidthFor(_zoom);
         // XAML no longer carries a fixed MinHeight (Collapse/Restore own it from here on) - a window
         // that starts collapsed needs the floor at 0 from its very first layout pass, not just from
         // the next Collapse() call.
-        MinHeight = WindowPlacementService.MinHeightFor(_settings.Window.Collapsed);
+        MinHeight = WindowPlacementService.MinHeightFor(_settings.Window.Collapsed, _zoom);
         Topmost = WindowLayers.Normalize(_settings.WindowLayer) == WindowLayers.OnTop;
 
         SystemEvents.DisplaySettingsChanged += SystemEvents_DisplaySettingsChanged;
@@ -632,7 +638,7 @@ public partial class MainWindow : Window, IDisposable
         var current = CurrentArea();
         var visibleCount = VisibleRows().Count;
 
-        Width = WindowPlacementService.ResolveContentWidth(visibleCount, ViewModel.IsHorizontal, current.Width);
+        Width = WindowPlacementService.ResolveContentWidth(visibleCount, ViewModel.IsHorizontal, current.Width, _zoom);
 
         var placed = WindowPlacementService.ResolvePosition(
             new WindowRect(Left, Top, Width, Math.Max(ActualHeight, MinHeight)), _monitorAreas.Areas, current);
@@ -701,7 +707,7 @@ public partial class MainWindow : Window, IDisposable
                 // never overwrites it again: the ScrollViewer's own desired height is not trustworthy
                 // while its content is changing stage, the measurement above is.
                 var resolved = WindowPlacementService.ResolveMeasuredDensityHeight(
-                    ContentHeight, NonContentHeight(), manualOverride, current.Height);
+                    ContentHeight, NonContentHeight(), manualOverride, current.Height, _zoom);
                 density = resolved.Density;
                 SizeToContent = SizeToContent.Manual;
                 Height = resolved.Height;
@@ -716,7 +722,7 @@ public partial class MainWindow : Window, IDisposable
             }
             else
             {
-                density = TileDensitySelector.SelectFitting(ContentHeight, ContentScroll.ActualHeight, manualOverride);
+                density = TileDensitySelector.SelectFitting(ContentHeight, ContentScroll.ActualHeight * _zoom, manualOverride, _zoom);
             }
             ContentScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         }
@@ -836,8 +842,8 @@ public partial class MainWindow : Window, IDisposable
     /// plus chrome before that.</summary>
     private double NonContentHeight() =>
         ActualHeight > 0 && ContentScroll.ActualHeight > 0
-            ? ActualHeight - ContentScroll.ActualHeight
-            : WindowPlacementService.DefaultChromeHeight;
+            ? ActualHeight - ContentScroll.ActualHeight * _zoom
+            : WindowPlacementService.ChromeHeightFor(_zoom);
 
     // Sizing to content happens after the density decision, so this is the only place that knows the
     // height the window actually took. A window that grew past the bottom of the work area slides up.
@@ -999,6 +1005,44 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
+    private static System.Windows.Media.Transform ZoomTransform(double zoom) =>
+        zoom == 1 ? System.Windows.Media.Transform.Identity : new System.Windows.Media.ScaleTransform(zoom, zoom);
+
+    /// <summary>Takes a changed zoom setting: redraws the chrome at the new factor, resizes the window and
+    /// its remembered sizes by the same ratio, and keeps it inside the work area. Position is kept, so
+    /// the window grows from its top left corner.</summary>
+    private void ApplyZoom()
+    {
+        var zoom = WindowZoom.Factor(_settings.ZoomPercent);
+        if (zoom == _zoom)
+            return;
+
+        var ratio = zoom / _zoom;
+        _zoom = zoom;
+        ChromeBorder.LayoutTransform = ZoomTransform(zoom);
+        MinWidth = WindowPlacementService.MinWidthFor(zoom);
+        MinHeight = WindowPlacementService.MinHeightFor(_settings.Window.Collapsed, zoom);
+        WindowPlacementService.ScaleRememberedSizes(_settings.Window, ratio);
+
+        var area = CurrentArea();
+        // On automatic height the next density pass resolves the height from the content at the new factor.
+        if (!_heightIsAutomatic)
+        {
+            Height = Math.Clamp(Height * ratio, MinHeight, Math.Max(MinHeight, area.Height));
+            Current.Height = Height;
+        }
+
+        if (Current.WidthIsManual)
+            Width = Math.Clamp(Width * ratio, MinWidth, Math.Max(MinWidth, area.Width));
+        else
+            ApplyContentSize();
+
+        QueueDensityUpdate();
+        // Once layout has settled, so the window's real size is known before it is pulled back in.
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ReplaceOnScreen);
+        SaveWindowSettings();
+    }
+
     /// <summary>Starts or stops watching for full-screen applications from the setting; stopping brings
     /// back a widget that was stepping aside.</summary>
     private void ApplyHideOnFullscreen()
@@ -1112,7 +1156,8 @@ public partial class MainWindow : Window, IDisposable
             if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
             {
                 var snapped = WindowPlacementService.SnapToEdges(
-                    new WindowRect(Left, Top, Width, Math.Max(ActualHeight, MinHeight)), CurrentArea());
+                    new WindowRect(Left, Top, Width, Math.Max(ActualHeight, MinHeight)), CurrentArea(),
+                    WindowPlacementService.SnapToleranceFor(_zoom));
                 Left = snapped.Left;
                 Top = snapped.Top;
             }
@@ -1172,7 +1217,7 @@ public partial class MainWindow : Window, IDisposable
         // window was last dragged small.
         var workAreaHeight = CurrentArea().Height;
         MaxHeight = workAreaHeight;
-        Height = WindowPlacementService.GrowManualHeight(Height, dy, MinHeight, workAreaHeight, MeasureTallestContentHeight());
+        Height = WindowPlacementService.GrowManualHeight(Height, dy, MinHeight, workAreaHeight, MeasureTallestContentHeight(), _zoom);
     }
 
     /// <summary>The content area's natural height, measured fresh rather than read from a stale
@@ -1333,7 +1378,7 @@ public partial class MainWindow : Window, IDisposable
         ContentScroll.Visibility = Visibility.Collapsed;
         // MinHeight must already be 0 before SizeToContent recalculates, or the old floor still
         // applies for one frame and leaves a strip of bare background below the title bar.
-        MinHeight = WindowPlacementService.MinHeightFor(collapsed: true);
+        MinHeight = WindowPlacementService.MinHeightFor(collapsed: true, _zoom);
         SizeToContent = SizeToContent.Height;
         TitleBarControl.IsCollapsed = true;
     }
@@ -1341,7 +1386,7 @@ public partial class MainWindow : Window, IDisposable
     private void Restore()
     {
         ContentScroll.Visibility = Visibility.Visible;
-        MinHeight = WindowPlacementService.MinHeightFor(collapsed: false);
+        MinHeight = WindowPlacementService.MinHeightFor(collapsed: false, _zoom);
         _settings.Window.Collapsed = false;
         TitleBarControl.IsCollapsed = false;
 
@@ -1424,6 +1469,8 @@ public partial class MainWindow : Window, IDisposable
             {
                 if (e.PropertyName == nameof(SettingsViewModel.HideOnFullscreen))
                     ApplyHideOnFullscreen();
+                else if (e.PropertyName == nameof(SettingsViewModel.ZoomPercent))
+                    ApplyZoom();
             };
             _settingsWindow = new SettingsWindow(settingsViewModel);
             OwnerWindowResolver.ApplyOwner(_settingsWindow, this);

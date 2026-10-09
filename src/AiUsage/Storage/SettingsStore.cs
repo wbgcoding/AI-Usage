@@ -664,8 +664,9 @@ public sealed class SettingsStore : IDisposable
 
     private static void ClampLayoutSizes(LayoutSizes sizes)
     {
-        sizes.Width = ClampDimension(sizes.Width, WindowPlacementService.MinWindowWidth);
-        sizes.Height = sizes.Height is { } height ? ClampDimension(height, WindowPlacementService.MinWindowHeight) : null;
+        // The floor of the smallest zoom: a size remembered at 90 % must survive a restart.
+        sizes.Width = ClampDimension(sizes.Width, WindowPlacementService.MinWidthFor(WindowZoom.MinFactor));
+        sizes.Height = sizes.Height is { } height ? ClampDimension(height, WindowPlacementService.MinWindowHeight * WindowZoom.MinFactor) : null;
     }
 
     private static double ClampDimension(double value, double min) =>

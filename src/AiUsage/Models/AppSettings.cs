@@ -38,6 +38,10 @@ public sealed class AppSettings
     /// presentation) runs, and comes back when it ends.</summary>
     public bool HideOnFullscreen { get; set; } = true;
 
+    /// <summary>How large the widget is drawn, in percent on top of the Windows display scaling: one of
+    /// <see cref="WindowZoom.AllowedPercents"/>.</summary>
+    public int ZoomPercent { get; set; } = WindowZoom.DefaultPercent;
+
     public string Layout { get; set; } = "Vertical";
 
     public string Theme { get; set; } = "System";

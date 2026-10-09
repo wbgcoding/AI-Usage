@@ -738,7 +738,7 @@ public class SettingsStoreTests : IDisposable
 
         var settings = store.Load();
 
-        Assert.Equal(WindowPlacementService.MinWindowWidth, settings.Window.Vertical.Width);
+        Assert.Equal(WindowPlacementService.MinWidthFor(WindowZoom.MinFactor), settings.Window.Vertical.Width);
     }
 
     [Fact]

@@ -291,6 +291,26 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool hideOnFullscreen;
 
+    /// <summary>The widget zoom in percent, one of <see cref="WindowZoom.AllowedPercents"/>. MainWindow
+    /// watches this property to redraw and resize the widget.</summary>
+    [ObservableProperty]
+    private int zoomPercent;
+
+    /// <summary>The zoom steps for the Size picker, labelled like "125 %".</summary>
+    public ObservableCollection<Choice<int>> ZoomChoices { get; } =
+        new(WindowZoom.AllowedPercents.Select(percent => Choice.WithFixedLabel(percent + " %", percent)));
+
+    /// <summary>Same shape as <see cref="SelectedLayoutChoice"/>, for the Size ComboBox.</summary>
+    public Choice<int>? SelectedZoomChoice
+    {
+        get => ZoomChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null && value.Value != ZoomPercent)
+                ZoomPercent = value.Value;
+        }
+    }
+
     [ObservableProperty]
     private bool showTooltips;
 
@@ -475,6 +495,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         dataFolderPath = AppPaths.DataDirectory;
         showPreviousWeekLine = settings.ShowPreviousWeekLine;
         hideOnFullscreen = settings.HideOnFullscreen;
+        zoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
+        Choice.Select(ZoomChoices, zoomPercent);
         showTooltips = settings.ShowTooltips;
         defaultThreshold = settings.DefaultThreshold;
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
@@ -838,6 +860,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.HideOnFullscreen = value;
         _store.RequestSave(_settings);
+    }
+
+    partial void OnZoomPercentChanged(int value)
+    {
+        var allowed = WindowZoom.Normalize(value);
+        if (allowed != value)
+        {
+            ZoomPercent = allowed; // re-enters this handler once more with the allowed value
+            return;
+        }
+
+        _settings.ZoomPercent = value;
+        _store.RequestSave(_settings);
+        Choice.Select(ZoomChoices, value);
+        OnPropertyChanged(nameof(SelectedZoomChoice));
     }
 
     partial void OnShowTooltipsChanged(bool value)
@@ -1295,6 +1332,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ChartRange = source.ChartRange;
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
+        _settings.ZoomPercent = WindowZoom.Normalize(source.ZoomPercent);
         _settings.ShowTooltips = source.ShowTooltips;
         _settings.TileDensity = source.TileDensity;
         _settings.DayGridShownOnce = source.DayGridShownOnce;
@@ -1370,6 +1408,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Autostart = _settings.Autostart;
         ShowPreviousWeekLine = _settings.ShowPreviousWeekLine;
         HideOnFullscreen = _settings.HideOnFullscreen;
+        ZoomPercent = _settings.ZoomPercent;
         ShowTooltips = _settings.ShowTooltips;
         DefaultThreshold = _settings.DefaultThreshold;
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;

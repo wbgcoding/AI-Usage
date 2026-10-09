@@ -26,20 +26,23 @@ public static class TileDensitySelector
         [TileDensity.Mini] = 44,
     };
 
-    public static double HeightFor(TileDensity density) => Heights[density];
+    /// <summary>The first-estimate height of one tile at <paramref name="zoom"/> (1 = 100 %).</summary>
+    public static double HeightFor(TileDensity density, double zoom = 1) => Heights[density] * zoom;
 
     /// <summary>The hand-chosen stage if there is one, else the largest stage whose
     /// <paramref name="contentHeight"/> fits <paramref name="availableHeight"/>, else Mini (the
     /// scroll viewer takes over from there). <paramref name="contentHeight"/> is asked from the
-    /// largest stage down and never past the first that fits.</summary>
-    public static TileDensity SelectFitting(Func<TileDensity, double> contentHeight, double availableHeight, TileDensity? manualOverride)
+    /// largest stage down and never past the first that fits. The content is measured at 100 %
+    /// while <paramref name="availableHeight"/> is real window height, so at a zoom of 1.5 the
+    /// content takes one and a half times the room it measures.</summary>
+    public static TileDensity SelectFitting(Func<TileDensity, double> contentHeight, double availableHeight, TileDensity? manualOverride, double zoom = 1)
     {
         if (manualOverride is { } chosen)
             return chosen;
 
         foreach (var density in Order)
         {
-            if (contentHeight(density) <= availableHeight + FitTolerance)
+            if (contentHeight(density) * zoom <= availableHeight + FitTolerance)
                 return density;
         }
 

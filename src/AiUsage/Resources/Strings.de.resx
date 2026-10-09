@@ -224,6 +224,8 @@
   <data name="WindowLayer.Desktop" xml:space="preserve"><value>Auf dem Desktop</value></data>
   <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Liegt hinter allen Fenstern, sichtbar beim Blick auf den Desktop.</value></data>
   <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Bei Vollbild-Anwendungen ausblenden</value></data>
+  <data name="Settings.Zoom" xml:space="preserve"><value>Größe</value></data>
+  <data name="Settings.Zoom.Hint" xml:space="preserve"><value>Zusätzlich zur Anzeigeskalierung von Windows.</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Infobereich</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Design</value></data>
   <data name="Settings.Layout" xml:space="preserve"><value>Anordnung</value></data>

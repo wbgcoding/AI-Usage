@@ -154,13 +154,14 @@ public class WindowPlacementService
         return (Math.Clamp(top, area.Top, lowestTop), area.Height);
     }
 
-    public static double ResolveContentWidth(int visibleTiles, bool horizontal, double workAreaWidth)
+    public static double ResolveContentWidth(int visibleTiles, bool horizontal, double workAreaWidth, double zoom = 1)
     {
         var tiles = Math.Max(1, visibleTiles);
         var content = horizontal ? tiles * TileWidth + (tiles - 1) * TileGap : TileWidth;
-        var desired = content + ChromeWidth + 2 * ShadowMargin;
-        var available = Math.Max(MinWindowWidth, workAreaWidth - EdgeMargin);
-        return Math.Clamp(desired, MinWindowWidth, available);
+        var desired = (content + ChromeWidth + 2 * ShadowMargin) * zoom;
+        var minWidth = MinWidthFor(zoom);
+        var available = Math.Max(minWidth, workAreaWidth - EdgeMargin);
+        return Math.Clamp(desired, minWidth, available);
     }
 
     /// <summary>Manual-height mode: a stored dragged height is capped to whatever work area exists now.</summary>
@@ -181,7 +182,7 @@ public class WindowPlacementService
     /// <summary>The window's MinHeight floor: 0 while collapsed, so SizeToContent can shrink all the
     /// way down to just the title bar with no leftover strip of background; the normal floor once
     /// restored.</summary>
-    public static double MinHeightFor(bool collapsed) => collapsed ? 0 : MinWindowHeight;
+    public static double MinHeightFor(bool collapsed, double zoom = 1) => collapsed ? 0 : MinWindowHeight * zoom;
 
     /// <summary>The height a restore from the collapsed state should produce. In automatic-height
     /// mode SizeToContent recomputes the height on its own, so there is nothing to set here - null
@@ -195,8 +196,8 @@ public class WindowPlacementService
     /// desired height plus the title bar and chrome around it. Growing past that only pulls empty
     /// space in below the last tile - dragging the bottom edge should stop exactly where the content
     /// ends.</summary>
-    public static double ClampToContentHeight(double desiredHeight, double contentDesiredHeight) =>
-        Math.Min(desiredHeight, contentDesiredHeight + TitleBarHeight + ChromeHeight);
+    public static double ClampToContentHeight(double desiredHeight, double contentDesiredHeight, double zoom = 1) =>
+        Math.Min(desiredHeight, (contentDesiredHeight + TitleBarHeight + ChromeHeight) * zoom);
 
     /// <summary>The bottom edge's own drag math: <paramref name="currentHeight"/> plus
     /// <paramref name="delta"/>, floored at <paramref name="minHeight"/>, clamped by
@@ -207,10 +208,10 @@ public class WindowPlacementService
     /// manual session, so growing back afterwards silently stopped at it instead of the mouse -
     /// this recomputes the ceiling fresh on every call instead of trusting a value that might be
     /// stale by now.</summary>
-    public static double GrowManualHeight(double currentHeight, double delta, double minHeight, double workAreaHeight, double contentDesiredHeight)
+    public static double GrowManualHeight(double currentHeight, double delta, double minHeight, double workAreaHeight, double contentDesiredHeight, double zoom = 1)
     {
         var raised = Math.Max(minHeight, currentHeight + delta);
-        var contentClamped = ClampToContentHeight(raised, contentDesiredHeight);
+        var contentClamped = ClampToContentHeight(raised, contentDesiredHeight, zoom);
         return Math.Min(contentClamped, workAreaHeight);
     }
 
@@ -257,18 +258,39 @@ public class WindowPlacementService
     /// and its real non-content height can be read off.</summary>
     public static double DefaultChromeHeight => TitleBarHeight + ChromeHeight;
 
+    /// <summary><see cref="DefaultChromeHeight"/> at <paramref name="zoom"/>.</summary>
+    public static double ChromeHeightFor(double zoom) => DefaultChromeHeight * zoom;
+
+    /// <summary>The narrowest the window may be at <paramref name="zoom"/>.</summary>
+    public static double MinWidthFor(double zoom) => MinWindowWidth * zoom;
+
+    /// <summary>How near an edge a dropped window snaps to it, at <paramref name="zoom"/>.</summary>
+    public static double SnapToleranceFor(double zoom) => 12 * zoom;
+
+    /// <summary>The remembered sizes after the zoom changed by <paramref name="ratio"/> (new zoom over old):
+    /// widths always, heights only where the person set one. Position and the other windows' sizes stay.</summary>
+    public static void ScaleRememberedSizes(WindowSettings window, double ratio)
+    {
+        foreach (var sizes in new[] { window.Vertical, window.Horizontal })
+        {
+            sizes.Width *= ratio;
+            if (sizes.Height is { } height)
+                sizes.Height = height * ratio;
+        }
+    }
+
     /// <summary>The density and window height for automatic-height mode, from the tiles' real
     /// measured <paramref name="contentHeight"/> per stage: a hand-chosen stage as it is, else the
     /// largest stage whose content plus <paramref name="chromeHeight"/> fits the work area. The
     /// height is that content plus chrome, capped to the work area (the scroll viewer takes over
     /// past it) - one concrete number the caller assigns once.</summary>
     public static (TileDensity Density, double Height) ResolveMeasuredDensityHeight(
-        Func<TileDensity, double> contentHeight, double chromeHeight, TileDensity? manualOverride, double workAreaHeight)
+        Func<TileDensity, double> contentHeight, double chromeHeight, TileDensity? manualOverride, double workAreaHeight, double zoom = 1)
     {
-        var density = TileDensitySelector.SelectFitting(contentHeight, workAreaHeight - chromeHeight, manualOverride);
+        var density = TileDensitySelector.SelectFitting(contentHeight, workAreaHeight - chromeHeight, manualOverride, zoom);
         // Rounded up to a whole pixel: the window snaps to whole pixels, and a fraction lost there
         // leaves the content a hair taller than its viewport, which shows a scroll bar for nothing.
-        return (density, Math.Min(Math.Ceiling(chromeHeight + contentHeight(density)), workAreaHeight));
+        return (density, Math.Min(Math.Ceiling(chromeHeight + contentHeight(density) * zoom), workAreaHeight));
     }
 
     private static bool FullyContains(MonitorArea monitor, WindowRect rect) =>

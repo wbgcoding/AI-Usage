@@ -281,6 +281,16 @@
                         </Grid>
                     </Grid>
 
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ComboBox ItemsSource="{Binding ZoomChoices}"
+                              SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
+                              HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom.Hint]}"
+                               Style="{StaticResource Gap.Top4}"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                               TextWrapping="Wrap"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
                     <!-- Arrangement and tile density sit side by side: two short pickers that belong to
                          the same decision, and stacking them cost a whole row of the card for nothing. -->

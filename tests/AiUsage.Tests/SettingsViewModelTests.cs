@@ -77,6 +77,27 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheZoomPickerOffersTheFourStepsAndStoresTheChosenOne()
+    {
+        var (vm, settings) = Build();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        Assert.Equal(["90 %", "100 %", "125 %", "150 %"], vm.ZoomChoices.Select(c => c.Label));
+        Assert.Equal(100, vm.SelectedZoomChoice?.Value);
+
+        vm.SelectedZoomChoice = vm.ZoomChoices.Single(c => c.Value == 150);
+
+        Assert.Equal(150, vm.ZoomPercent);
+        Assert.Equal(150, settings.ZoomPercent);
+        Assert.Contains(nameof(SettingsViewModel.ZoomPercent), changed);
+
+        vm.ZoomPercent = 133;
+        Assert.Equal(100, settings.ZoomPercent);
+        Assert.Equal(100, vm.SelectedZoomChoice?.Value);
+    }
+
+    [Fact]
     public void TheFullscreenHideSettingIsSavedAndReportedToTheWindow()
     {
         var (vm, settings) = Build();
