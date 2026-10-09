@@ -44,6 +44,10 @@ internal static class AntigravityLocalLogin
     private static string? _cachedAccessToken;
     private static DateTimeOffset _cachedExpiry;
 
+    // The client pair the token endpoint accepted last time, kept with the refresh token it served: the
+    // next refresh tries it first instead of walking the list from the top.
+    private static (string ClientId, string ClientSecret)? _acceptedPair;
+
     public static async Task<AntigravityUsage> FetchAsync(CancellationToken ct)
     {
         var credentialJson = WindowsCredential.ReadUtf8(CredentialTarget);
@@ -106,6 +110,7 @@ internal static class AntigravityLocalLogin
         {
             _cachedRefreshToken = null;
             _cachedAccessToken = null;
+            _acceptedPair = null;
         }
         return AntigravityUsage.NotSignedIn;
     }
@@ -113,11 +118,12 @@ internal static class AntigravityLocalLogin
     /// <summary><c>Rejected</c> is true when the token endpoint refused the refresh token itself
     /// (no pair succeeded, at least one answered <c>invalid_grant</c> and none failed in transit): the CLI
     /// has signed out, which is not a network failure. The two optional parameters are the test seams for the endpoint and
-    /// the discovered client pairs.</summary>
+    /// the discovered client pairs and for dropping them again.</summary>
     internal static async Task<(string? Token, bool Rejected)> ResolveAccessTokenAsync(
         string? refreshToken, string? storedAccess, DateTimeOffset storedExpiry, CancellationToken ct,
         Func<string, IEnumerable<KeyValuePair<string, string>>, CancellationToken, Task<LocalLoginHttp.Response>>? post = null,
-        Func<IReadOnlyList<(string ClientId, string ClientSecret)>>? discoverPairs = null)
+        Func<IReadOnlyList<(string ClientId, string ClientSecret)>>? discoverPairs = null,
+        Action? forgetPairs = null)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -140,6 +146,7 @@ internal static class AntigravityLocalLogin
             refreshToken,
             post ?? LocalLoginHttp.PostFormAsync,
             discoverPairs ?? AntigravityOAuthClient.DiscoverPairs,
+            forgetPairs ?? AntigravityOAuthClient.ForgetPairs,
             ct);
     }
 
@@ -147,11 +154,12 @@ internal static class AntigravityLocalLogin
         string refreshToken,
         Func<string, IEnumerable<KeyValuePair<string, string>>, CancellationToken, Task<LocalLoginHttp.Response>> post,
         Func<IReadOnlyList<(string ClientId, string ClientSecret)>> discoverPairs,
+        Action forgetPairs,
         CancellationToken ct)
     {
         var transportFailures = 0;
         var invalidGrants = 0;
-        foreach (var (clientId, clientSecret) in discoverPairs())
+        foreach (var (clientId, clientSecret) in OrderedPairs(discoverPairs(), refreshToken))
         {
             ct.ThrowIfCancellationRequested();
             var response = await post(TokenUrl, new Dictionary<string, string>
@@ -178,8 +186,9 @@ internal static class AntigravityLocalLogin
                     || accessEl.GetString() is not { Length: > 0 } accessToken)
                     continue;
 
+                // A lifetime written as text must not cost the valid token that came with it.
                 var lifetime = document.RootElement.TryGetProperty("expires_in", out var expiresEl)
-                    && expiresEl.TryGetInt32(out var seconds)
+                    && expiresEl.ValueKind == JsonValueKind.Number && expiresEl.TryGetInt32(out var seconds)
                     ? TimeSpan.FromSeconds(seconds)
                     : TimeSpan.FromMinutes(55);
 
@@ -188,6 +197,7 @@ internal static class AntigravityLocalLogin
                     _cachedRefreshToken = refreshToken;
                     _cachedAccessToken = accessToken;
                     _cachedExpiry = DateTimeOffset.UtcNow + lifetime;
+                    _acceptedPair = (clientId, clientSecret);
                 }
                 return (accessToken, false);
             }
@@ -197,10 +207,30 @@ internal static class AntigravityLocalLogin
             }
         }
 
+        // No pair was accepted and every one answered: the CLI was most likely updated and ships other
+        // client credentials, so the next attempt reads the binary again.
+        if (invalidGrants == 0 && transportFailures == 0)
+            forgetPairs();
+
         // The client is authenticated before the grant is checked, so an invalid_grant proves its pair
         // was accepted and the token itself is dead; the other pairs may simply be look-alikes that
         // answer invalid_client. Without any answer from a pair (transport failure) nothing is certain.
         return (null, invalidGrants > 0 && transportFailures == 0);
+    }
+
+    /// <summary>The pair that served this refresh token last time goes first, when it is still among the
+    /// discovered ones.</summary>
+    private static IEnumerable<(string ClientId, string ClientSecret)> OrderedPairs(
+        IReadOnlyList<(string ClientId, string ClientSecret)> pairs, string refreshToken)
+    {
+        (string ClientId, string ClientSecret)? accepted;
+        lock (Gate)
+            accepted = _cachedRefreshToken == refreshToken ? _acceptedPair : null;
+
+        if (accepted is not { } first || !pairs.Contains(first))
+            return pairs;
+
+        return pairs.Where(pair => pair != first).Prepend(first);
     }
 
     private static bool IsInvalidGrant(LocalLoginHttp.Response response)
