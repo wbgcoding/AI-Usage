@@ -74,16 +74,77 @@ public class WindowLayerTests
         Assert.Equal(WindowLayers.Desktop, off.WindowLayer);
     }
 
+    private static readonly IntPtr Self = new(100);
+    private static DesktopLayer.StackEntry Window(int handle) => new(new IntPtr(handle), false, false);
+    private static DesktopLayer.StackEntry Topmost(int handle) => new(new IntPtr(handle), false, true);
+    private static DesktopLayer.StackEntry Desktop(int handle) => new(new IntPtr(handle), true, false);
+
     [Fact]
-    public void Desktop_forces_every_pending_position_change_to_the_bottom_of_the_stack()
+    public void The_desktop_slot_is_directly_above_the_desktop_window()
+    {
+        var slot = DesktopLayer.ResolveSlot([Topmost(1), Window(2), Window(3), Desktop(9), Window(8)], Self);
+
+        Assert.False(slot.InPlace);
+        Assert.Equal(new IntPtr(3), slot.InsertAfter);
+    }
+
+    [Fact]
+    public void A_window_already_directly_above_the_desktop_is_in_place()
+    {
+        var slot = DesktopLayer.ResolveSlot([Topmost(1), Window(2), new(Self, false, false), Desktop(9)], Self);
+
+        Assert.True(slot.InPlace);
+    }
+
+    [Fact]
+    public void A_window_below_the_desktop_is_lifted_to_just_above_it()
+    {
+        var slot = DesktopLayer.ResolveSlot([Window(2), Desktop(9), new(Self, false, false)], Self);
+
+        Assert.False(slot.InPlace);
+        Assert.Equal(new IntPtr(2), slot.InsertAfter);
+    }
+
+    [Fact]
+    public void With_only_topmost_windows_over_the_desktop_the_slot_is_the_top_of_the_ordinary_windows()
+    {
+        var slot = DesktopLayer.ResolveSlot([Topmost(1), Desktop(9)], Self);
+
+        Assert.False(slot.InPlace);
+        Assert.Equal(IntPtr.Zero, slot.InsertAfter);
+    }
+
+    [Fact]
+    public void Without_a_desktop_window_the_slot_is_the_very_bottom()
+    {
+        var slot = DesktopLayer.ResolveSlot([Window(2), Window(3)], Self);
+
+        Assert.False(slot.InPlace);
+        Assert.Equal(new IntPtr(1), slot.InsertAfter);
+    }
+
+    [Fact]
+    public void Every_pending_position_change_is_rewritten_to_the_slot_and_a_settled_one_is_left_alone()
     {
         var position = new DesktopLayer.WindowPos { HwndInsertAfter = IntPtr.Zero, Flags = 0x0004 | 0x0010 };
+        var slot = new DesktopLayer.Slot(false, new IntPtr(3));
 
-        Assert.True(DesktopLayer.ForceBottom(ref position));
-        Assert.Equal(new IntPtr(1), position.HwndInsertAfter);
+        Assert.True(DesktopLayer.ApplySlot(ref position, slot));
+        Assert.Equal(new IntPtr(3), position.HwndInsertAfter);
         Assert.Equal(0u, position.Flags & 0x0004);
         Assert.Equal(0x0010u, position.Flags & 0x0010);
-        Assert.False(DesktopLayer.ForceBottom(ref position));
+        Assert.False(DesktopLayer.ApplySlot(ref position, slot));
+    }
+
+    [Fact]
+    public void A_window_in_place_keeps_its_place_whatever_Windows_asked_for()
+    {
+        var position = new DesktopLayer.WindowPos { HwndInsertAfter = IntPtr.Zero, Flags = 0 };
+        var slot = new DesktopLayer.Slot(true, Self);
+
+        Assert.True(DesktopLayer.ApplySlot(ref position, slot));
+        Assert.Equal(0x0004u, position.Flags & 0x0004);
+        Assert.False(DesktopLayer.ApplySlot(ref position, slot));
     }
 
     [Fact]

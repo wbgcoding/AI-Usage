@@ -3,11 +3,12 @@ using System.Windows.Threading;
 
 namespace AiUsage.Services;
 
-/// <summary>Keeps a window on the desktop level: behind every other window, still visible when the
-/// desktop is shown. While active, every z-order change Windows makes to the window (activating it,
-/// clicking it) is rewritten to "bottom of the stack" before it happens, and when Show Desktop
-/// (Win+D) minimizes the window the foreground switch to the desktop brings it back without
-/// activating it.</summary>
+/// <summary>Keeps a window on the desktop level: behind every other window, but directly above the
+/// desktop itself (wallpaper and icons), so it stays visible when the desktop is shown. The very
+/// bottom of the stack would be under the desktop window and never be seen. While active, every
+/// z-order change Windows makes to the window (activating it, clicking it) is rewritten to that
+/// slot before it happens, and when Show Desktop (Win+D) minimizes the window the foreground switch
+/// to the desktop brings it back without activating it.</summary>
 internal sealed class DesktopLayer : IDisposable
 {
     internal const int WmWindowPosChanging = 0x46;
@@ -20,6 +21,8 @@ internal sealed class DesktopLayer : IDisposable
     private const uint WineventOutOfContext = 0x0000;
     private const uint WineventSkipOwnProcess = 0x0002;
     private const int SwShowNoActivate = 4;
+    private const int GwlExStyle = -20;
+    private const long WsExTopmost = 0x8;
     private static readonly IntPtr HwndBottom = new(1);
     private static readonly IntPtr HwndTop = IntPtr.Zero;
     private static readonly TimeSpan SettleDelay = TimeSpan.FromMilliseconds(300);
@@ -60,7 +63,7 @@ internal sealed class DesktopLayer : IDisposable
             {
                 _hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _foregroundCallback,
                     0, 0, WineventOutOfContext | WineventSkipOwnProcess);
-                SetWindowPos(_hwnd, HwndBottom, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
+                PlaceOnDesktop();
             }
             return;
         }
@@ -72,28 +75,88 @@ internal sealed class DesktopLayer : IDisposable
     }
 
     /// <summary>Handles WM_WINDOWPOSCHANGING for the window: while active, whatever position Windows is
-    /// about to apply is changed to "bottom of the stack".</summary>
+    /// about to apply is changed so the window ends up directly above the desktop.</summary>
     public void OnWindowPosChanging(IntPtr lParam)
     {
         if (!Active || lParam == IntPtr.Zero)
             return;
 
         var position = Marshal.PtrToStructure<WindowPos>(lParam);
-        if (!ForceBottom(ref position))
+        if (!ApplySlot(ref position, CurrentSlot()))
             return;
         Marshal.StructureToPtr(position, lParam, fDeleteOld: false);
     }
 
-    /// <summary>Rewrites a pending position change so the window ends up at the bottom. False when it
-    /// already did and nothing changed.</summary>
-    internal static bool ForceBottom(ref WindowPos position)
+    /// <summary>Where the window belongs in the stack: <c>InPlace</c> when it already sits
+    /// directly above the desktop, otherwise the window to insert it after.</summary>
+    internal readonly record struct Slot(bool InPlace, IntPtr InsertAfter);
+
+    /// <summary>One top-level window of the stack, as the desktop-level decision needs it.</summary>
+    internal readonly record struct StackEntry(IntPtr Handle, bool IsDesktop, bool IsTopmost);
+
+    /// <summary>The slot directly above the topmost visible desktop window, from the whole stack listed
+    /// top to bottom. Without a desktop window in the list it is the very bottom. When only topmost
+    /// windows (the taskbar) sit above the desktop, the top of the ordinary windows is that slot, and
+    /// inserting after a topmost window would make the window topmost itself.</summary>
+    internal static Slot ResolveSlot(IReadOnlyList<StackEntry> topToBottom, IntPtr self)
     {
-        if (position.HwndInsertAfter == HwndBottom && (position.Flags & SwpNoZOrder) == 0)
+        StackEntry? previous = null;
+        foreach (var entry in topToBottom)
+        {
+            if (entry.IsDesktop && entry.Handle != self)
+            {
+                if (previous is not { } above || above.IsTopmost)
+                    return new Slot(false, HwndTop);
+                return above.Handle == self ? new Slot(true, self) : new Slot(false, above.Handle);
+            }
+            previous = entry;
+        }
+
+        return new Slot(false, HwndBottom);
+    }
+
+    /// <summary>Rewrites a pending position change so the window ends up in <paramref name="slot"/>. False
+    /// when it already did and nothing changed.</summary>
+    internal static bool ApplySlot(ref WindowPos position, Slot slot)
+    {
+        if (slot.InPlace)
+        {
+            if ((position.Flags & SwpNoZOrder) != 0)
+                return false;
+            position.Flags |= SwpNoZOrder;
+            return true;
+        }
+
+        if (position.HwndInsertAfter == slot.InsertAfter && (position.Flags & SwpNoZOrder) == 0)
             return false;
 
-        position.HwndInsertAfter = HwndBottom;
+        position.HwndInsertAfter = slot.InsertAfter;
         position.Flags &= ~SwpNoZOrder;
         return true;
+    }
+
+    private Slot CurrentSlot()
+    {
+        if (!_native)
+            return new Slot(false, HwndBottom);
+
+        var stack = new List<StackEntry>();
+        EnumWindows((hwnd, _) =>
+        {
+            var visible = IsWindowVisible(hwnd);
+            var desktop = visible && IsDesktopWindowClass(ClassNameOf(hwnd));
+            var topmost = (GetWindowLongPtr(hwnd, GwlExStyle).ToInt64() & WsExTopmost) != 0;
+            stack.Add(new StackEntry(hwnd, desktop, topmost));
+            return true;
+        }, IntPtr.Zero);
+        return ResolveSlot(stack, _hwnd);
+    }
+
+    private void PlaceOnDesktop()
+    {
+        var slot = CurrentSlot();
+        if (!slot.InPlace)
+            SetWindowPos(_hwnd, slot.InsertAfter, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
     }
 
     /// <summary>The window classes of the desktop itself, which receive the foreground when the desktop
@@ -128,7 +191,7 @@ internal sealed class DesktopLayer : IDisposable
             return;
 
         ShowWindow(_hwnd, SwShowNoActivate);
-        SetWindowPos(_hwnd, HwndBottom, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
+        PlaceOnDesktop();
     }
 
     private static string ClassNameOf(IntPtr hwnd)
@@ -171,6 +234,15 @@ internal sealed class DesktopLayer : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UnhookWinEvent(IntPtr hook);
+
+    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr hwnd, [Out] char[] className, int maxCount);
