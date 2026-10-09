@@ -97,6 +97,40 @@ public sealed partial class StatsViewModel : ObservableObject
         CustomRangeRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>The applied custom range, for saving it.</summary>
+    internal (DateOnly From, DateOnly To) CustomPeriod => (_customFrom, _customTo);
+
+    /// <summary>Takes up what the window was left on. Anything unknown (a hand-edited or older
+    /// settings file) keeps the default; a custom range without both dates counts as unknown. The
+    /// records are read once the window loads, so nothing is read here.</summary>
+    public void RestoreSelection(string? range, string? grouping, string? colorBy, DateOnly? customFrom, DateOnly? customTo)
+    {
+        if (customFrom is { } first && customTo is { } last)
+        {
+            _customFrom = first <= last ? first : last;
+            _customTo = first <= last ? last : first;
+        }
+
+        if (RangeChoices.Any(choice => choice.Value == range) && (range != CustomRange || (customFrom is not null && customTo is not null)))
+            SelectedRange = range!;
+        if (Enum.TryParse<StatsGrouping>(grouping, out var parsedGrouping) && Enum.IsDefined(parsedGrouping))
+            SelectedGrouping = parsedGrouping;
+        if (Enum.TryParse<StatsColorBy>(colorBy, out var parsedColorBy) && Enum.IsDefined(parsedColorBy))
+            SelectedColorBy = parsedColorBy;
+
+        UpdateCustomChoiceLabel();
+        Choice.Select(RangeChoices, SelectedRange);
+        Choice.Select(GroupingChoices, SelectedGrouping);
+        Choice.Select(ColorByChoices, SelectedColorBy);
+        OnPropertyChanged(nameof(SelectedRangeChoice));
+        OnPropertyChanged(nameof(SelectedGroupingChoice));
+        OnPropertyChanged(nameof(SelectedColorByChoice));
+        OnPropertyChanged(nameof(IsStackedByProvider));
+        OnPropertyChanged(nameof(IsDayGrouping));
+        if (_recordsLoaded)
+            RecomputeFrom(_allRecords);
+    }
+
     /// <summary>Puts the combo back on the range that is really applied - after the date popup was
     /// closed without applying anything.</summary>
     public void ResyncRangeChoice()

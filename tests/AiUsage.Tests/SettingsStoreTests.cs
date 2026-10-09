@@ -194,6 +194,52 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SaveNow_then_Load_round_trips_the_stats_window_choices_and_position()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+
+        var original = new AppSettings
+        {
+            StatsRange = "Custom",
+            StatsGrouping = "Week",
+            StatsColorBy = "Model",
+            StatsCustomFrom = new DateOnly(2026, 9, 1),
+            StatsCustomTo = new DateOnly(2026, 9, 30),
+        };
+        original.Window.StatsLeft = 140.5;
+        original.Window.StatsTop = 60;
+
+        store.SaveNow(original);
+        using var reloadStore = new SettingsStore(directory);
+        var loaded = reloadStore.Load();
+
+        Assert.Equal("Custom", loaded.StatsRange);
+        Assert.Equal("Week", loaded.StatsGrouping);
+        Assert.Equal("Model", loaded.StatsColorBy);
+        Assert.Equal(new DateOnly(2026, 9, 1), loaded.StatsCustomFrom);
+        Assert.Equal(new DateOnly(2026, 9, 30), loaded.StatsCustomTo);
+        Assert.Equal(140.5, loaded.Window.StatsLeft);
+        Assert.Equal(60.0, loaded.Window.StatsTop);
+    }
+
+    [Fact]
+    public void Load_gives_an_older_file_the_default_stats_choices_and_no_remembered_position()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(Path.Combine(directory, "settings.json"), "{\"schemaVersion\":1,\"refreshSeconds\":45}");
+        using var store = new SettingsStore(directory);
+
+        var loaded = store.Load();
+
+        Assert.Equal("Week", loaded.StatsRange);
+        Assert.Equal("Day", loaded.StatsGrouping);
+        Assert.Equal("Provider", loaded.StatsColorBy);
+        Assert.Null(loaded.StatsCustomFrom);
+        Assert.Null(loaded.Window.StatsLeft);
+    }
+
+    [Fact]
     public void Load_treats_a_file_written_before_StatsSectionsCollapsed_existed_as_an_empty_dictionary()
     {
         var directory = TempDirectory();

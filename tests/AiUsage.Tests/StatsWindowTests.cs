@@ -303,23 +303,31 @@ public class StatsWindowTests
         }
     }
 
-    // a size remembered from a previous open (in-process only, see
-    // WindowPlacementService.RememberedStatsWindowSize) falls back to the fixed default the moment it
-    // no longer fits the monitor the window is about to open on.
+    // a size remembered from a previous open is cut down to the work area of the monitor the window
+    // is about to open on, whichever dimension no longer fits.
     [Theory]
-    [InlineData(900, 700, 720, 520)] // too wide and too tall for the 600x400 area below -> default
-    [InlineData(900, 300, 720, 520)] // too wide only -> default
-    [InlineData(500, 700, 720, 520)] // too tall only -> default
-    public void ResolveStatsWindowSize_falls_back_to_the_default_once_it_no_longer_fits(
+    [InlineData(900, 700, 600, 400)] // too wide and too tall for the 600x400 area below
+    [InlineData(900, 300, 600, 300)] // too wide only
+    [InlineData(500, 700, 500, 400)] // too tall only
+    [InlineData(3000, 2000, 600, 400)]
+    public void ResolveStatsWindowSize_never_lets_a_remembered_size_outgrow_the_work_area(
         double rememberedWidth, double rememberedHeight, double expectedWidth, double expectedHeight)
     {
         var area = new MonitorArea("test", 0, 0, 600, 400);
 
         var (width, height) = WindowPlacementService.ResolveStatsWindowSize(
-            (rememberedWidth, rememberedHeight), area, defaultWidth: 720, defaultHeight: 520);
+            (rememberedWidth, rememberedHeight), area, minWidth: 480, minHeight: 420);
 
         Assert.Equal(expectedWidth, width);
         Assert.Equal(expectedHeight, height);
+    }
+
+    [Fact]
+    public void ResolveStatsWindowSize_clamps_a_remembered_3000_by_2000_to_a_1920_by_1040_screen()
+    {
+        var area = new MonitorArea("test", 0, 0, 1920, 1040);
+
+        Assert.Equal((1920.0, 1040.0), WindowPlacementService.ResolveStatsWindowSize((3000, 2000), area, 480, 420));
     }
 
     [Fact]
@@ -328,21 +336,54 @@ public class StatsWindowTests
         var area = new MonitorArea("test", 0, 0, 1920, 1080);
 
         var (width, height) = WindowPlacementService.ResolveStatsWindowSize(
-            (900, 650), area, defaultWidth: 720, defaultHeight: 520);
+            (900, 650), area, minWidth: 480, minHeight: 420);
 
         Assert.Equal(900, width);
         Assert.Equal(650, height);
     }
 
     [Fact]
-    public void ResolveStatsWindowSize_uses_the_default_when_nothing_is_remembered_yet()
+    public void ResolveStatsWindowSize_takes_80_percent_of_the_work_area_when_nothing_is_remembered_yet()
     {
-        var area = new MonitorArea("test", 0, 0, 1920, 1080);
+        var area = new MonitorArea("test", 0, 0, 1920, 1040);
 
-        var (width, height) = WindowPlacementService.ResolveStatsWindowSize(null, area, defaultWidth: 720, defaultHeight: 520);
+        var (width, height) = WindowPlacementService.ResolveStatsWindowSize(null, area, minWidth: 480, minHeight: 420);
 
-        Assert.Equal(720, width);
-        Assert.Equal(520, height);
+        Assert.Equal(1536, width);
+        Assert.Equal(832, height);
+    }
+
+    [Fact]
+    public void ResolveStatsWindowSize_keeps_the_windows_minimum_on_a_small_screen_but_never_outgrows_it()
+    {
+        // 80 percent of 800x600 is 640x480: above the 480x420 minimum, so the share wins.
+        Assert.Equal((640.0, 480.0), WindowPlacementService.ResolveStatsWindowSize(null, new MonitorArea("test", 0, 0, 800, 600), 480, 420));
+        // 80 percent of 500x440 is 400x352: the minimum lifts it to 480x420, which still fits.
+        Assert.Equal((480.0, 420.0), WindowPlacementService.ResolveStatsWindowSize(null, new MonitorArea("test", 0, 0, 500, 440), 480, 420));
+        // On a screen below the minimum itself the screen wins.
+        Assert.Equal((400.0, 300.0), WindowPlacementService.ResolveStatsWindowSize(null, new MonitorArea("test", 0, 0, 400, 300), 480, 420));
+    }
+
+    [Fact]
+    public void ResolveStatsWindowPosition_centers_on_the_owner_until_the_window_was_moved()
+    {
+        var area = new MonitorArea("test", 0, 0, 1920, 1040);
+
+        Assert.Equal((500.0, 150.0), WindowPlacementService.ResolveStatsWindowPosition(null, (800, 600), new WindowRect(700, 300, 400, 300), area));
+        // An owner docked at the screen edge would leave it partly off screen: pulled back in.
+        Assert.Equal((0.0, 0.0), WindowPlacementService.ResolveStatsWindowPosition(null, (800, 600), new WindowRect(100, 100, 400, 300), area));
+    }
+
+    [Fact]
+    public void ResolveStatsWindowPosition_keeps_a_remembered_position_and_pulls_an_off_screen_one_back()
+    {
+        var area = new MonitorArea("test", 0, 0, 1920, 1040);
+
+        Assert.Equal((300.0, 200.0), WindowPlacementService.ResolveStatsWindowPosition((300, 200), (800, 600), null, area));
+        Assert.Equal((1120.0, 440.0), WindowPlacementService.ResolveStatsWindowPosition((5000, 4000), (800, 600), null, area));
+        Assert.Equal((0.0, 0.0), WindowPlacementService.ResolveStatsWindowPosition((-3000, -3000), (800, 600), null, area));
+        // No owner and nothing remembered: the middle of the work area.
+        Assert.Equal((560.0, 220.0), WindowPlacementService.ResolveStatsWindowPosition(null, (800, 600), null, area));
     }
 
     // a ComboBox binds SelectedItem to these two view-model properties instead of the

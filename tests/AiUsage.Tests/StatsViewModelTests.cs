@@ -1155,6 +1155,39 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public void RestoreSelectionTakesUpWhatTheWindowWasLeftOn()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-restore");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+
+        viewModel.RestoreSelection("Custom", "Week", "Model", new DateOnly(2026, 9, 30), new DateOnly(2026, 9, 1));
+
+        Assert.Equal("Custom", viewModel.SelectedRange);
+        Assert.Equal(StatsGrouping.Week, viewModel.SelectedGrouping);
+        Assert.Equal(StatsColorBy.Model, viewModel.SelectedColorBy);
+        Assert.Equal("Custom", viewModel.SelectedRangeChoice?.Value);
+        Assert.Equal(StatsGrouping.Week, viewModel.SelectedGroupingChoice?.Value);
+        Assert.Equal(StatsColorBy.Model, viewModel.SelectedColorByChoice?.Value);
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)), viewModel.CustomPeriod);
+    }
+
+    [Theory]
+    [InlineData("Decade", "Sideways", "Rainbow")]
+    [InlineData("Custom", "Day", "Provider")] // a custom range without its two days
+    [InlineData(null, null, null)]
+    public void RestoreSelectionKeepsTheDefaultsForAnythingItDoesNotKnow(string? range, string? grouping, string? colorBy)
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-restore-unknown");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+
+        viewModel.RestoreSelection(range, grouping, colorBy, null, null);
+
+        Assert.Equal("Week", viewModel.SelectedRange);
+        Assert.Equal(StatsGrouping.Day, viewModel.SelectedGrouping);
+        Assert.Equal(StatsColorBy.Provider, viewModel.SelectedColorBy);
+    }
+
+    [Fact]
     public void TheColorByListOffersProviderAndModel()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-color-by-list");

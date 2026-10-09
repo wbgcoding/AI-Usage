@@ -30,8 +30,6 @@ namespace AiUsage.Views;
 /// </summary>
 public partial class StatsWindow : Window
 {
-    private const double DefaultWidth = 720;
-    private const double DefaultHeight = 520;
 
     private readonly StatsViewModel _viewModel;
     private readonly AppSettings? _settings;
@@ -52,6 +50,17 @@ public partial class StatsWindow : Window
 
         _layoutPresenter = new StatsLayoutPresenter(SectionHost, Sections.ToDictionary(section => section.SectionKey));
         _layoutPresenter.Apply(_settings?.StatsSectionLayout ?? StatsLayout.Default());
+        if (_settings is not null)
+        {
+            _viewModel.RestoreSelection(
+                _settings.StatsRange, _settings.StatsGrouping, _settings.StatsColorBy, _settings.StatsCustomFrom, _settings.StatsCustomTo);
+        }
+        _viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(StatsViewModel.SelectedRange) or nameof(StatsViewModel.SelectedGrouping)
+                or nameof(StatsViewModel.SelectedColorBy))
+                RememberSelection();
+        };
         _dragController = new StatsSectionDragController(this, ContentScroller, _layoutPresenter, CommitLayout);
         WireSectionChrome();
         UpdateResetButton();
@@ -356,29 +365,60 @@ public partial class StatsWindow : Window
         // The view model reads nothing on construction; this is its one initial load.
         _ = RecomputeLoggedAsync();
 
-        // By handle first: with mixed scaling the per-monitor areas overlap.
-        var area = MainWindow.PickArea(
-            NativeMonitors.WorkAreas(),
-            NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
-            new WindowRect(Left + Width / 2, Top + Height / 2, 0, 0));
+        var placement = WindowPlacementService.Shared;
+        var rememberedPosition = placement?.RememberedStatsWindowPosition;
+        var monitors = NativeMonitors.WorkAreas();
 
-        var (width, height) = WindowPlacementService.ResolveStatsWindowSize(
-            WindowPlacementService.Shared?.RememberedStatsWindowSize, area, DefaultWidth, DefaultHeight);
-        if (width != Width || height != Height)
+        // A remembered position names its monitor by where it lies; otherwise the monitor the window
+        // opened on. By handle first there: with mixed scaling the per-monitor areas overlap.
+        var area = rememberedPosition is { } position
+            ? MainWindow.PickArea(monitors, null, new WindowRect(position.Left + 1, position.Top + 1, 0, 0))
+            : MainWindow.PickArea(
+                monitors,
+                NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
+                new WindowRect(Left + Width / 2, Top + Height / 2, 0, 0));
+
+        var size = WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight);
+        if (size.Width != Width || size.Height != Height)
         {
-            Width = width;
-            Height = height;
+            Width = size.Width;
+            Height = size.Height;
             UpdateLayout();
         }
 
-        // CenterOwner next to an edge-docked widget can leave the window partly off-screen.
-        WindowPlacementService.ClampIntoArea(this, area);
+        // Centered on the widget until the window was moved once; always fully on a monitor.
+        WindowRect? ownerBounds = Owner is { WindowState: WindowState.Normal } owner && !double.IsNaN(owner.Left)
+            ? new WindowRect(owner.Left, owner.Top, owner.ActualWidth, owner.ActualHeight)
+            : null;
+        var (left, top) = WindowPlacementService.ResolveStatsWindowPosition(rememberedPosition, size, ownerBounds, area);
+        Left = left;
+        Top = top;
+    }
+
+    /// <summary>Keeps the range, grouping and color choice for the next time the window opens.</summary>
+    private void RememberSelection()
+    {
+        if (_settings is null || _settingsStore is null)
+            return;
+
+        _settings.StatsRange = _viewModel.SelectedRange;
+        _settings.StatsGrouping = _viewModel.SelectedGrouping.ToString();
+        _settings.StatsColorBy = _viewModel.SelectedColorBy.ToString();
+        if (_viewModel.SelectedRange == StatsViewModel.CustomRange)
+        {
+            (_settings.StatsCustomFrom, _settings.StatsCustomTo) = _viewModel.CustomPeriod;
+        }
+        _settingsStore.RequestSave(_settings);
     }
 
     private void StatsWindow_Closed(object? sender, EventArgs e)
     {
         if (WindowPlacementService.Shared is { } placement)
+        {
             placement.RememberedStatsWindowSize = (Width, Height);
+            if (!double.IsNaN(Left) && !double.IsNaN(Top))
+                placement.RememberedStatsWindowPosition = (Left, Top);
+        }
 
         if (StatsIndexerService.Shared is { } indexer)
             indexer.IndexCompleted -= OnIndexCompleted;
