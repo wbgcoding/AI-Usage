@@ -72,6 +72,7 @@ public sealed partial class MainViewModel
         BuildTile(provider);
         _scheduler.AddProvider(provider);
         RenumberRowOrders();
+        ApplyTileOrder();
         RefreshMoveEligibility();
 
         _settingsStore.RequestSave(_settings);
@@ -141,6 +142,7 @@ public sealed partial class MainViewModel
         BuildTile(provider);
         _scheduler.AddProvider(provider);
         RenumberRowOrders();
+        ApplyTileOrder();
         RefreshMoveEligibility();
 
         _settingsStore.RequestSave(_settings);
@@ -228,6 +230,7 @@ public sealed partial class MainViewModel
             _tilesById.Remove(accountKey);
             Tiles.Remove(tile);
             DisplayRows.Remove(tile);
+            _ownRows.Remove(tile);
             _fetchStartedAt.Remove(accountKey);
             _pendingFetchClear.Remove(accountKey);
             _notifications.RemoveAccount(accountKey);

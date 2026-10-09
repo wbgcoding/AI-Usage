@@ -306,6 +306,16 @@
                         </StackPanel>
                     </Grid>
 
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox ItemsSource="{Binding TileOrderChoices}"
+                              SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
+                              HorizontalAlignment="Stretch"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder.Hint]}"
+                               Style="{StaticResource Gap.Top4}"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                               TextWrapping="Wrap"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
                         <ItemsControl.ItemsPanel>

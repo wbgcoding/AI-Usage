@@ -617,6 +617,10 @@ public sealed class SettingsStore : IDisposable
         if (settings.TileDensity != "Auto")
             settings.TileDensity = CanonicalEnumName<TileDensity>(settings.TileDensity, "Auto");
 
+        settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
+            ? "ByUsage"
+            : "Custom";
+
         settings.Window ??= new WindowSettings();
         ClampWindow(settings.Window);
 

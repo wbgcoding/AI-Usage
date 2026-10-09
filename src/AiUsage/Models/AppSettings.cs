@@ -57,6 +57,11 @@ public sealed class AppSettings
 
     public string TileDensity { get; set; } = "Auto";
 
+    /// <summary>How the tiles are ordered: "Custom" keeps the order the person arranged (<see
+    /// cref="ProviderSettings.Order"/>), "ByUsage" puts the tile with the highest color level on top.
+    /// The own order stays stored either way, so switching back restores it.</summary>
+    public string TileOrderMode { get; set; } = "Custom";
+
     /// <summary>Set the first time the day-grid tile is shown. That first reveal moves it to the
     /// top; a missing settings entry cannot tell this apart, since reordering any tile writes an
     /// entry for every row, the hidden day grid included.</summary>

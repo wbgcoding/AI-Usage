@@ -317,6 +317,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private string densityMode;
 
+    /// <summary>"Custom" or "ByUsage" (see <see cref="Models.AppSettings.TileOrderMode"/>).</summary>
+    [ObservableProperty]
+    private string tileOrderMode;
+
+    partial void OnTileOrderModeChanged(string value)
+    {
+        _settings.TileOrderMode = value;
+        ApplyTileOrder();
+        _settingsStore.RequestSave(_settings);
+    }
+
     [ObservableProperty]
     private bool heightAutomatic;
 
@@ -436,6 +447,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Update = new UpdateNoticeViewModel(settings, settingsStore.RequestSave);
         layout = settings.Layout;
         densityMode = settings.TileDensity;
+        tileOrderMode = settings.TileOrderMode;
         heightAutomatic = CurrentSizes.Height is null;
         widthAutomatic = !CurrentSizes.WidthIsManual;
         alwaysOnTop = settings.AlwaysOnTop;
@@ -533,6 +545,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // joins at the very end of the on-screen order too - RebuildDisplayRowsInitial (constructor
         // only) then re-sorts everything, including this one, by each row's own persisted Order.
         DisplayRows.Add(tile);
+        _ownRows.Add(tile);
     }
 
     /// <summary>Builds the widget's initial on-screen order from scratch: every row currently in <see
@@ -550,8 +563,47 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         entries.Add((ResolveRowOrder(AppSettings.DayGridTileId), DayGridTile));
 
         DisplayRows.Clear();
+        _ownRows.Clear();
         foreach (var (_, row) in entries.OrderBy(entry => entry.Order))
+        {
             DisplayRows.Add(row);
+            _ownRows.Add(row);
+        }
+    }
+
+    /// <summary>The rows in the person's own order. <see cref="DisplayRows"/> equals this in "Custom"
+    /// mode; in "ByUsage" mode it is this list re-arranged by color level. The arrows, the stored
+    /// <see cref="ProviderSettings.Order"/> and the move eligibility always work on this list.</summary>
+    private readonly List<object> _ownRows = [];
+
+    private bool OrderedByUsage => string.Equals(TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The own order with the provider tiles re-ordered by <see
+    /// cref="ProviderTileViewModel.UrgencyLevel"/>, highest first. The sort is stable, so tiles of one
+    /// level keep their own order, and the day-grid tile stays in the slot it has in the own order.</summary>
+    internal static List<object> ArrangeByUrgency(IReadOnlyList<object> ownRows)
+    {
+        var result = ownRows.ToList();
+        var slots = Enumerable.Range(0, result.Count).Where(i => result[i] is ProviderTileViewModel).ToList();
+        var sorted = slots.Select(i => (ProviderTileViewModel)result[i]).OrderByDescending(tile => tile.UrgencyLevel).ToList();
+        for (var k = 0; k < slots.Count; k++)
+            result[slots[k]] = sorted[k];
+        return result;
+    }
+
+    /// <summary>Brings <see cref="DisplayRows"/> in line with the chosen mode and the tiles' current
+    /// color levels, moving only the rows that are out of place. The result depends on the levels
+    /// alone, so a percentage change inside one level never moves anything. Called when the mode or a
+    /// reading changes and once a second from <see cref="Tick"/> (windows reset, filters change).</summary>
+    internal void ApplyTileOrder()
+    {
+        var target = OrderedByUsage ? ArrangeByUrgency(_ownRows) : _ownRows;
+        for (var i = 0; i < target.Count; i++)
+        {
+            if (ReferenceEquals(DisplayRows[i], target[i]))
+                continue;
+            DisplayRows.Move(DisplayRows.IndexOf(target[i]), i);
+        }
     }
 
     /// <summary>A row with an explicit settings entry sorts by its own <see
@@ -637,6 +689,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             TryClearFetching(providerId);
         _scheduler.Tick(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWeekTokens(now);
+        if (OrderedByUsage)
+            ApplyTileOrder();
     }
 
     /// <summary>F5 / tray "refresh now" - bypasses every provider's remaining wait once.
@@ -804,22 +858,30 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (oldIndex < 0)
             return;
         var newIndex = oldIndex + direction;
-        if (newIndex < 0 || newIndex >= DisplayRows.Count)
+        if (newIndex < 0 || newIndex >= _ownRows.Count)
             return;
 
-        if (DisplayRows[oldIndex] is ProviderTileViewModel movingTile && DisplayRows[newIndex] is ProviderTileViewModel neighborTile)
+        if (_ownRows[oldIndex] is ProviderTileViewModel movingTile && _ownRows[newIndex] is ProviderTileViewModel neighborTile)
             Tiles.Move(Tiles.IndexOf(movingTile), Tiles.IndexOf(neighborTile));
 
-        DisplayRows.Move(oldIndex, newIndex);
+        MoveOwnRow(oldIndex, newIndex);
         RenumberRowOrders();
+        ApplyTileOrder();
         RefreshMoveEligibility();
         _settingsStore.RequestSave(_settings);
     }
 
+    private void MoveOwnRow(int oldIndex, int newIndex)
+    {
+        var row = _ownRows[oldIndex];
+        _ownRows.RemoveAt(oldIndex);
+        _ownRows.Insert(newIndex, row);
+    }
+
     private int IndexOfRow(string id)
     {
-        for (var i = 0; i < DisplayRows.Count; i++)
-            if (RowId(DisplayRows[i]) == id)
+        for (var i = 0; i < _ownRows.Count; i++)
+            if (RowId(_ownRows[i]) == id)
                 return i;
         return -1;
     }
@@ -839,8 +901,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// disk.</summary>
     private void RenumberRowOrders()
     {
-        for (var i = 0; i < DisplayRows.Count; i++)
-            GetOrCreateProviderSettings(RowId(DisplayRows[i])).Order = i;
+        for (var i = 0; i < _ownRows.Count; i++)
+            GetOrCreateProviderSettings(RowId(_ownRows[i])).Order = i;
     }
 
     [RelayCommand]
@@ -891,8 +953,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var oldIndex = IndexOfRow(providerId);
             if (oldIndex > 0)
             {
-                DisplayRows.Move(oldIndex, 0);
+                MoveOwnRow(oldIndex, 0);
                 RenumberRowOrders();
+                ApplyTileOrder();
                 RefreshMoveEligibility();
             }
         }
@@ -1020,6 +1083,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             tile.Apply(
                 snapshot, now, ResolvedThresholds(snapshot.ProviderId), _settings.ShowAttentionMark,
                 refreshInterval: TimeSpan.FromSeconds(_settings.RefreshSeconds));
+            if (OrderedByUsage)
+                ApplyTileOrder();
             var displayName = tile.DisplayName;
 
             // A tile's own master switch (ProviderSettings.NotificationsEnabled) gates both streams;
@@ -1431,12 +1496,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// disabled.</summary>
     private void RefreshMoveEligibility()
     {
-        for (var i = 0; i < DisplayRows.Count; i++)
+        for (var i = 0; i < _ownRows.Count; i++)
         {
-            if (DisplayRows[i] is not ITileRow row)
+            if (_ownRows[i] is not ITileRow row)
                 continue;
             row.CanMoveUp = i > 0;
-            row.CanMoveDown = i < DisplayRows.Count - 1;
+            row.CanMoveDown = i < _ownRows.Count - 1;
         }
     }
 

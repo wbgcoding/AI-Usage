@@ -734,6 +734,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// collection rather than any single observable property.</summary>
     public bool IsLimitReached => Rows.Any(r => r.UsedPercent >= 99.5);
 
+    /// <summary>The highest color level among the windows this tile shows; what the "order by usage"
+    /// mode sorts by. A tile without windows counts as normal.</summary>
+    public UsageLevel UrgencyLevel => Rows.Select(r => r.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
+
     /// <summary>Wired up by the eye-menu/visibility feature once it exists - this tile only raises intent.</summary>
     public event EventHandler? HideRequested;
 

@@ -454,4 +454,8 @@
   <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Diagramm einblenden</value></data>
   <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Aktualisiert sich beim nächsten Codex-Start. Für Live-Werte im Web anmelden.</value></data>
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Im Web anmelden</value></data>
+  <data name="Settings.TileOrder" xml:space="preserve"><value>Reihenfolge</value></data>
+  <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Eigene</value></data>
+  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>Nach Auslastung</value></data>
+  <data name="Settings.TileOrder.Hint" xml:space="preserve"><value>Nach Auslastung: die vollste Kachel steht oben. Kacheln wandern nur, wenn eine ihre Farbstufe wechselt.</value></data>
 </root>

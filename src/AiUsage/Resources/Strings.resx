@@ -455,4 +455,8 @@
   <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Show chart</value></data>
   <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Updates the next time Codex runs. For live values, sign in on the web.</value></data>
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Sign in on the web</value></data>
+  <data name="Settings.TileOrder" xml:space="preserve"><value>Order</value></data>
+  <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Custom</value></data>
+  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>By usage</value></data>
+  <data name="Settings.TileOrder.Hint" xml:space="preserve"><value>By usage: the fullest tile goes to the top. Tiles only move when one changes its color level.</value></data>
 </root>
