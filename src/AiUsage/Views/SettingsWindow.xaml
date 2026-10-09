@@ -525,40 +525,43 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <StackPanel Orientation="Horizontal" Style="{StaticResource Gap.Top8}">
+                    <!-- Wraps at a narrow window: the two time boxes move under the label as one group. -->
+                    <WrapPanel Orientation="Horizontal" Style="{StaticResource Gap.Top8}">
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}"
                                   IsChecked="{Binding QuietHoursEnabled}" VerticalAlignment="Center"/>
-                        <TextBox Width="56" Margin="8,0,0,0" VerticalAlignment="Center"
-                                 Text="{Binding QuietHoursStartText, UpdateSourceTrigger=PropertyChanged}"
-                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding QuietHoursStartInvalid}" Value="True">
-                                            <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
-                                            <Setter Property="BorderThickness" Value="2"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHoursAnd]}"
-                                   VerticalAlignment="Center" Margin="8,0,8,0"/>
-                        <TextBox Width="56" VerticalAlignment="Center"
-                                 Text="{Binding QuietHoursEndText, UpdateSourceTrigger=PropertyChanged}"
-                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding QuietHoursEndInvalid}" Value="True">
-                                            <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
-                                            <Setter Property="BorderThickness" Value="2"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                    </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox Width="56" Margin="8,0,0,0" VerticalAlignment="Center"
+                                     Text="{Binding QuietHoursStartText, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding QuietHoursStartInvalid}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHoursAnd]}"
+                                       VerticalAlignment="Center" Margin="8,0,8,0"/>
+                            <TextBox Width="56" VerticalAlignment="Center"
+                                     Text="{Binding QuietHoursEndText, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding QuietHoursEndInvalid}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </StackPanel>
+                    </WrapPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TimeInvalid]}"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}">
                         <!-- One line for both fields: the two red borders already show which field is meant,
