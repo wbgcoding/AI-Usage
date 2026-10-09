@@ -996,6 +996,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var notifyOnReset = _settings.NotifyOnReset && providerSettings.NotifyOnResetEnabled;
             // A snapshot that repeats an older reading (a held-over or cached read) adds no chart point.
             var recordHistory = !snapshot.HeldOver;
+            using var notificationSaves = _notifications.BatchSaves();
             foreach (var window in snapshot.Windows)
             {
                 if (recordHistory)

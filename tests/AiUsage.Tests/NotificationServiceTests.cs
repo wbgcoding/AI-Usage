@@ -31,6 +31,54 @@ public class NotificationServiceTests : IDisposable
     }
 
     [Fact]
+    public void Several_new_windows_of_one_snapshot_are_written_once_when_the_batch_ends()
+    {
+        var service = new NotificationService(TempDirectory());
+
+        using (service.BatchSaves())
+        {
+            service.Evaluate("codex", "Codex", FiveHour(10, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: false, Start);
+            service.Evaluate("codex", "Codex", Other(20, Start.AddHours(2)), threshold: 85, enabled: true, notifyOnReset: false, Start);
+            service.Evaluate("codex", "Codex", new UsageWindow("Window_Weekly", WindowKind.Weekly, 30, Start.AddDays(2), 300),
+                threshold: 85, enabled: true, notifyOnReset: false, Start);
+            Assert.Equal(0, service.SavesWritten);
+        }
+
+        Assert.Equal(1, service.SavesWritten);
+    }
+
+    [Fact]
+    public void Without_a_batch_every_changed_window_still_saves_on_its_own()
+    {
+        var service = new NotificationService(TempDirectory());
+
+        service.Evaluate("codex", "Codex", FiveHour(10, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: false, Start);
+        service.Evaluate("codex", "Codex", Other(20, Start.AddHours(2)), threshold: 85, enabled: true, notifyOnReset: false, Start);
+
+        Assert.Equal(2, service.SavesWritten);
+    }
+
+    [Fact]
+    public void A_batch_in_which_nothing_changed_writes_nothing_and_a_batched_state_reloads()
+    {
+        var directory = TempDirectory();
+        var service = new NotificationService(directory);
+        using (service.BatchSaves())
+            service.Evaluate("codex", "Codex", FiveHour(90, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: false, Start);
+        Assert.Equal(1, service.SavesWritten);
+
+        using (service.BatchSaves())
+            service.Evaluate("codex", "Codex", FiveHour(90, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: false, Start.AddMinutes(1));
+        Assert.Equal(1, service.SavesWritten);
+
+        var raised = new List<ThresholdNotification>();
+        var reloaded = new NotificationService(directory, Start.AddMinutes(2));
+        reloaded.NotificationRaised += raised.Add;
+        reloaded.Evaluate("codex", "Codex", FiveHour(90, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: false, Start.AddMinutes(2));
+        Assert.Empty(raised); // the first run already notified and disarmed; the saved state remembers it
+    }
+
+    [Fact]
     public void A_stale_snapshot_repeating_an_already_passed_reset_time_does_not_repeat_the_notification()
     {
         var service = new NotificationService(TempDirectory());

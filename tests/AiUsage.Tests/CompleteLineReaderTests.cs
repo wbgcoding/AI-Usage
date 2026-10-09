@@ -47,7 +47,24 @@ public class CompleteLineReaderTests
 
         Assert.Equal(1, oversized);
         Assert.Equal(["first"], lines);
-        Assert.Equal("first\n".Length, consumed);
+        Assert.Equal(new FileInfo(path).Length, consumed); // the discarded tail is consumed too, so it is not met again
+    }
+
+    [Fact]
+    public void An_oversized_unterminated_tail_is_consumed_once_trailing_lines_are_accepted()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("clr-tail-consumed");
+        var path = Path.Combine(dir, "tail.jsonl");
+        File.WriteAllText(path, "first\n" + new string('x', 3 * Mib));
+        var length = new FileInfo(path).Length;
+
+        using var settling = new FileStream(path, FileMode.Open, FileAccess.Read);
+        var whileSettling = CompleteLineReader.Read(settling, 0, false, Mib, () => { }, _ => { }, CancellationToken.None);
+        using var settled = new FileStream(path, FileMode.Open, FileAccess.Read);
+        var afterSettling = CompleteLineReader.Read(settled, 0, true, Mib, () => { }, _ => { }, CancellationToken.None);
+
+        Assert.Equal("first\n".Length, whileSettling);
+        Assert.Equal(length, afterSettling);
     }
 
     private static long ReadFiltered(

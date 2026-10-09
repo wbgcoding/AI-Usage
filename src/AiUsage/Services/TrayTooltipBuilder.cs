@@ -47,23 +47,39 @@ public static class TrayTooltipBuilder
         if (providers.Count == 0)
             return "AI-Usage";
 
-        var full = Join(providers, p => p.DisplayName);
+        var full = string.Join('\n', Lines(providers, providers.Select(p => p.DisplayName).ToList()));
         if (full.Length <= MaxLength)
             return full;
 
-        var shortened = Join(providers, p => p.DisplayName.Length <= 3 ? p.DisplayName : p.DisplayName[..3]);
+        // Names cut to three characters; two that end up alike get a number so they stay apart.
+        var cut = providers.Select(p => p.DisplayName.Length <= 3 ? p.DisplayName : p.DisplayName[..3]).ToList();
+        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+        var shortNames = cut.Select(name =>
+        {
+            if (cut.Count(other => other == name) < 2)
+                return name;
+            seen[name] = seen.GetValueOrDefault(name) + 1;
+            return name + seen[name].ToString(CultureInfo.InvariantCulture);
+        }).ToList();
+
+        // Whole lines go, last first, rather than a line cut in the middle.
+        var lines = Lines(providers, shortNames);
+        while (lines.Count > 1 && string.Join('\n', lines).Length > MaxLength)
+            lines.RemoveAt(lines.Count - 1);
+
+        var shortened = string.Join('\n', lines);
         return shortened.Length <= MaxLength ? shortened : shortened[..MaxLength];
     }
 
     // The window names are the short Tray.Short.* tokens, not the full Window.FiveHour / Window.Weekly
     // labels: those are too long for the 127-character cap above.
-    private static string Join(IReadOnlyList<ProviderLine> providers, Func<ProviderLine, string> name)
+    private static List<string> Lines(IReadOnlyList<ProviderLine> providers, List<string> names)
     {
         var loc = LocalizationService.Instance;
         var fiveHour = loc["Tray.Short.FiveHour"];
         var week = loc["Tray.Short.Week"];
-        return string.Join('\n', providers.Select(p =>
-            $"{name(p)} {fiveHour} {FormatPercent(p.FiveHourPercent)} · {week} {FormatPercent(p.WeeklyPercent)}"));
+        return providers.Select((p, i) =>
+            $"{names[i]} {fiveHour} {FormatPercent(p.FiveHourPercent)} · {week} {FormatPercent(p.WeeklyPercent)}").ToList();
     }
 
     private static string FormatPercent(double? percent) =>

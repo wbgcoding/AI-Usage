@@ -163,7 +163,7 @@ public sealed class NotificationService
 
         // Every fetch of every provider lands here; rewriting an unchanged file each time is wasted work.
         if (changed)
-            SaveState();
+            RequestSave();
 
         if (notification is not null)
             NotificationRaised?.Invoke(notification);
@@ -183,7 +183,64 @@ public sealed class NotificationService
         }
 
         if (removed)
+            RequestSave();
+    }
+
+    // While a batch is open, a changed window only marks the state dirty; the file is written once
+    // when the last open batch ends.
+    private int _batchDepth;
+    private bool _dirty;
+
+    /// <summary>Test seam: how many times the state file was written.</summary>
+    internal int SavesWritten { get; private set; }
+
+    /// <summary>Holds back the file write while one snapshot's windows are evaluated one by one:
+    /// disposing the returned scope writes the state once, if any window changed.</summary>
+    internal IDisposable BatchSaves()
+    {
+        lock (_gate)
+            _batchDepth++;
+        return new SaveBatch(this);
+    }
+
+    private void EndBatch()
+    {
+        bool save;
+        lock (_gate)
+        {
+            _batchDepth--;
+            save = _batchDepth == 0 && _dirty;
+            if (save)
+                _dirty = false;
+        }
+
+        if (save)
             SaveState();
+    }
+
+    private void RequestSave()
+    {
+        lock (_gate)
+        {
+            if (_batchDepth > 0)
+            {
+                _dirty = true;
+                return;
+            }
+        }
+
+        SaveState();
+    }
+
+    private sealed class SaveBatch(NotificationService owner) : IDisposable
+    {
+        private int _ended;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _ended, 1) == 0)
+                owner.EndBatch();
+        }
     }
 
     /// <summary>Drops any loaded entry whose window has already reset since it was saved - a
@@ -251,6 +308,7 @@ public sealed class NotificationService
                 var tempPath = $"{_filePath}.tmp";
                 File.WriteAllBytes(tempPath, Utf8NoBom.GetBytes(json));
                 File.Move(tempPath, _filePath, overwrite: true);
+                SavesWritten++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

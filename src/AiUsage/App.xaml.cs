@@ -111,6 +111,10 @@ public partial class App : Application, IDisposable
         _settingsStore = new SettingsStore(logService: _logService);
         var settings = _settingsStore.Load();
 
+        // A copy that was moved since autostart was switched on would otherwise start nothing at logon.
+        if (settings.Autostart && Environment.ProcessPath is { } ownPath && AutostartService.RepairIfMoved(ownPath))
+            _logService.LogInfo("Autostart: the entry pointed at a program file that no longer exists and now names this copy.");
+
         // StatsWindow has no constructor path back here (MainWindow.xaml.cs's sole "new
         // StatsWindow(...)" call site takes no settings argument), so this static seam hands it the
         // same live settings instance and store every other window already reads and saves through -
