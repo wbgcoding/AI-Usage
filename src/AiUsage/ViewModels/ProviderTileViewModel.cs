@@ -371,6 +371,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
     [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
     [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
+    [NotifyPropertyChangedFor(nameof(ShowChartMenuItem))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
     [NotifyPropertyChangedFor(nameof(ShowLastUpdated))]
@@ -386,6 +387,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ChartShown))]
+    [NotifyPropertyChangedFor(nameof(ChartMenuHeader))]
     private bool chartHidden;
 
     /// <summary>True when the "agent is waiting" mark is switched off for this tile alone.</summary>
@@ -420,6 +422,17 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         get => !ChartHidden;
         set => ChartHidden = !value;
     }
+
+    /// <summary>The tile menu's chart entry: "Hide chart" while the chart shows, "Show chart" once hidden.</summary>
+    public string ChartMenuHeader => LocalizationService.Instance[ChartHidden ? "Tile.Menu.ShowChart" : "Tile.Menu.HideChart"];
+
+    /// <summary>The chart entry only makes sense where a chart can show at all: Full density.</summary>
+    public bool ShowChartMenuItem => Density == TileDensity.Full;
+
+    /// <summary>The tile menu's chart entry flips the same switch the settings check box does, so the
+    /// choice persists through <see cref="ChartHiddenChanged"/> and the check box follows.</summary>
+    [RelayCommand]
+    private void ToggleChart() => ChartShown = ChartHidden;
 
     /// <summary>Raised when the chart of this tile is switched on or off, so MainViewModel can
     /// persist the choice (same split as <see cref="ShowFiveHourChanged"/>).</summary>
@@ -874,6 +887,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             ShowKeptFailure(keptFailure);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
         OnPropertyChanged(nameof(StatusLinkText));
+        OnPropertyChanged(nameof(ChartMenuHeader));
         OnPropertyChanged(nameof(NameTooltipText));
         OnPropertyChanged(nameof(SettingsRowText));
         OnPropertyChanged(nameof(DetailsMenuHeader));

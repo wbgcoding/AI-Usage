@@ -450,4 +450,6 @@
   <data name="State.Failed.Network.Reason" xml:space="preserve"><value>AI-Usage erreicht {0} nicht. Prüfe deine Internetverbindung.</value></data>
   <data name="Tile.CheckStatus" xml:space="preserve"><value>Status von {0} prüfen</value></data>
   <data name="Tile.NameTooltip" xml:space="preserve"><value>Klicken für Einzelheiten</value></data>
+  <data name="Tile.Menu.HideChart" xml:space="preserve"><value>Diagramm ausblenden</value></data>
+  <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Diagramm einblenden</value></data>
 </root>

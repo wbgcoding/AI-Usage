@@ -225,6 +225,44 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheTileMenuChartEntryFlipsTheSameSwitchTheSettingsCheckBoxUses()
+    {
+        var settings = new AppSettings();
+        var providers = new List<IUsageProvider> { new TwoWindowFakeProvider("codex"), new TwoWindowFakeProvider("claude") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now));
+        vm.Tick(Now);
+        var claude = vm.Tiles.Single(t => t.ProviderId == "claude");
+        var loc = LocalizationService.Instance;
+        Assert.Equal(loc["Tile.Menu.HideChart"], claude.ChartMenuHeader);
+
+        claude.ToggleChartCommand.Execute(null);
+
+        Assert.True(claude.ChartHidden);
+        Assert.False(claude.ChartShown); // what the settings check box shows
+        Assert.True(settings.Providers["claude"].ChartHidden);
+        Assert.Equal(loc["Tile.Menu.ShowChart"], claude.ChartMenuHeader);
+
+        claude.ToggleChartCommand.Execute(null);
+
+        Assert.False(claude.ChartHidden);
+        Assert.True(claude.ChartShown);
+        Assert.False(settings.Providers["claude"].ChartHidden);
+    }
+
+    [Fact]
+    public void TheTileMenuChartEntryIsOnlyOfferedInFullDensity()
+    {
+        var providers = new List<IUsageProvider> { new TwoWindowFakeProvider("claude") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), new AppSettings(), providers, new HistoryStore(TempDirectory(), () => Now));
+        var tile = vm.Tiles.Single();
+
+        tile.Density = TileDensity.Full;
+        Assert.True(tile.ShowChartMenuItem);
+        tile.Density = TileDensity.Mini;
+        Assert.False(tile.ShowChartMenuItem);
+    }
+
+    [Fact]
     public void SwitchingAChartOffIsSavedAndStillOffAfterTheSettingsAreLoadedAgain()
     {
         var directory = TempDirectory();
