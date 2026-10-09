@@ -112,6 +112,7 @@
   <data name="Update.Later" xml:space="preserve"><value>Later</value></data>
   <data name="Update.NotNewer" xml:space="preserve"><value>The downloaded file is not newer than the version you have, so it was not installed. The release page has the details.</value></data>
   <data name="Update.NotVerified" xml:space="preserve"><value>This update could not be verified as genuine and was not installed. Check on the release page that the source is right before you install it by hand.</value></data>
+  <data name="Update.InstalledRestart" xml:space="preserve"><value>The update is installed. Start AI-Usage again to use the new version.</value></data>
   <data name="Update.NotLoaded" xml:space="preserve"><value>The update could not be downloaded. You can download it by hand from the release page.</value></data>
   <data name="About.UpToDate" xml:space="preserve"><value>This is the newest version.</value></data>
   <data name="Crash.Title" xml:space="preserve"><value>Unexpected error</value></data>

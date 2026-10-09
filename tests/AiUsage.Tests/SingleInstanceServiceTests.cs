@@ -73,6 +73,36 @@ public class SingleInstanceServiceTests
     }
 
     [Fact]
+    public void A_restarted_copy_takes_over_once_the_previous_one_lets_go_within_the_retry_window()
+    {
+        var name = UniqueMutexName();
+        var first = new SingleInstanceService(name);
+        using var second = new SingleInstanceService(name);
+        Assert.True(first.AcquireOwnership([]));
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(400);
+            first.Dispose();
+        });
+
+        var acquired = second.AcquireOwnership([], allowNewInstance: false, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(50));
+
+        release.Wait();
+        Assert.True(acquired);
+    }
+
+    [Fact]
+    public void A_restarted_copy_gives_up_when_the_previous_one_never_lets_go()
+    {
+        var name = UniqueMutexName();
+        using var first = new SingleInstanceService(name);
+        using var second = new SingleInstanceService(name);
+        Assert.True(first.AcquireOwnership([]));
+
+        Assert.False(second.AcquireOwnership([], allowNewInstance: false, TimeSpan.FromMilliseconds(300), TimeSpan.FromMilliseconds(50)));
+    }
+
+    [Fact]
     public async Task A_show_request_that_arrives_before_the_handler_is_registered_is_not_lost()
     {
         var eventName = $"Local\\AI-Usage-Test-Show-{Guid.NewGuid():N}";

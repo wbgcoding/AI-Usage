@@ -90,7 +90,8 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
                     return false;
 
                 await using var source = await response.Content.ReadAsStreamAsync(limit.Token);
-                await using var target = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+                // CreateNew: a file or link already at the destination is never written through.
+                await using var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 return await CopyCappedAsync(source, target, limit, stallLimit);
             }
 
@@ -127,7 +128,8 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     public void StartSetupAndExit(string setupPath)
     {
-        Process.Start(new ProcessStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)) { UseShellExecute = true });
+        Process.Start(new ProcessStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)) { UseShellExecute = true })?.Dispose();
+
         exitApplication();
     }
 
@@ -199,15 +201,31 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetLongPathNameW(string shortPath, char[] longPath, int bufferLength);
 
-    public void ReplaceRunningAndRestart(byte[] verifiedExe)
+    public bool ReplaceRunningAndRestart(byte[] verifiedExe)
     {
         var running = Environment.ProcessPath;
         if (running is null || !PortableSwap.Replace(running, verifiedExe))
             throw new IOException("The program file could not be replaced.");
 
-        Process.Start(new ProcessStartInfo(running, $"{AfterUpdateSwitch} {Environment.ProcessId}") { UseShellExecute = false });
+        try
+        {
+            using var started = Process.Start(new ProcessStartInfo(running, $"{AfterUpdateSwitch} {Environment.ProcessId}") { UseShellExecute = false });
+            if (started is null)
+                return false;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // The new program is already in place; this copy stays up and the user starts it by hand.
+            return false;
+        }
+
         exitApplication();
+        return true;
     }
+
+    /// <summary>True when the command line is the restart a portable update starts.</summary>
+    public static bool IsAfterUpdateStart(string[] args) =>
+        Array.Exists(args, a => string.Equals(a, AfterUpdateSwitch, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The restart after a portable update: the old copy still holds the single-instance
     /// lock for a moment, so the new one waits for it to end (bounded) before asking for the lock.</summary>
@@ -228,23 +246,47 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
         }
     }
 
-    /// <summary>Removes update files a finished or abandoned run left in the work folder.</summary>
-    public static void CleanUpStaleFiles()
+    /// <summary>Removes what finished or abandoned runs left in the work folder: stale files and the
+    /// stale per-run subfolders. Each entry is handled on its own, so one that is still in use does
+    /// not keep the others from going.</summary>
+    public static void CleanUpStaleFiles() => CleanUpStaleFiles(DefaultWorkFolder, DateTime.UtcNow);
+
+    internal static void CleanUpStaleFiles(string workFolder, DateTime nowUtc)
     {
+        IEnumerable<string> entries;
         try
         {
-            if (!Directory.Exists(DefaultWorkFolder))
+            if (!Directory.Exists(workFolder))
                 return;
 
-            foreach (var file in Directory.EnumerateFiles(DefaultWorkFolder))
-            {
-                if (DateTime.UtcNow - File.GetLastWriteTimeUtc(file) > StaleAfter)
-                    File.Delete(file);
-            }
+            entries = Directory.EnumerateFileSystemEntries(workFolder).ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Best effort: whatever is still in use is picked up at the next start.
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            try
+            {
+                var attributes = File.GetAttributes(entry);
+                var isFolder = (attributes & FileAttributes.Directory) != 0;
+                var written = isFolder ? Directory.GetLastWriteTimeUtc(entry) : File.GetLastWriteTimeUtc(entry);
+                if (nowUtc - written <= StaleAfter)
+                    continue;
+
+                if (!isFolder)
+                    File.Delete(entry);
+                else if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    Directory.Delete(entry, recursive: false); // removes the link only, never what it points at
+                else
+                    Directory.Delete(entry, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Best effort: whatever is still in use is picked up at the next start.
+            }
         }
     }
 }

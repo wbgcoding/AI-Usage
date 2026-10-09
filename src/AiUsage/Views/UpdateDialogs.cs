@@ -30,6 +30,13 @@ internal static class UpdateDialogs
 
         var loc = LocalizationService.Instance;
         var message = loc[MessageKey(result.Outcome)];
+        if (result.Outcome == UpdateOutcome.InstalledRestartNeeded)
+        {
+            // The new version is already in place: nothing to download, so only a close button.
+            ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["TitleBar.Close"], "");
+            return;
+        }
+
         if (ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["About.OpenReleasePage"], loc["TitleBar.Close"]))
             OpenReleasePage(result.ReleaseUrl);
     }
@@ -38,6 +45,7 @@ internal static class UpdateDialogs
     {
         UpdateOutcome.NotVerified => "Update.NotVerified",
         UpdateOutcome.NotNewer => "Update.NotNewer",
+        UpdateOutcome.InstalledRestartNeeded => "Update.InstalledRestart",
         _ => "Update.NotLoaded",
     };
 

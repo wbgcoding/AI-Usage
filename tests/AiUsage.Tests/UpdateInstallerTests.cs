@@ -20,7 +20,7 @@ public class UpdateInstallerTests
 
         public Architecture Architecture { get; init; } = Architecture.X64;
 
-        public string WorkFolder { get; } = TestPaths.CreateDirectory("update-work");
+        public string WorkFolder { get; init; } = TestPaths.CreateDirectory("update-work");
 
         public string PublicKey { get; init; } = "";
 
@@ -29,11 +29,27 @@ public class UpdateInstallerTests
         /// <summary>What the downloaded file reports as its version; null models a file without one.</summary>
         public Version? FileVersion { get; init; } = new(9, 0, 0, 0);
 
-        public Version? ReadFileVersion(string path) => FileVersion;
+        /// <summary>Runs whenever the host inspects the downloaded file, to model something touching it at that moment.</summary>
+        public Action<string>? OnInspect { get; set; }
+
+        public Version? ReadFileVersion(string path)
+        {
+            OnInspect?.Invoke(path);
+            return FileVersion;
+        }
 
         public Dictionary<string, byte[]> Files { get; } = [];
 
         public List<string> Downloads { get; } = [];
+
+        /// <summary>The folder each downloaded file was written into, in order.</summary>
+        public List<string> DownloadFolders { get; } = [];
+
+        /// <summary>Runs as a file is being downloaded, to model something else writing into the same folder.</summary>
+        public Action<string>? OnDownload { get; set; }
+
+        /// <summary>When true, the swap works but the new copy cannot be started.</summary>
+        public bool StartFailsAfterSwap { get; init; }
 
         public List<string> Ran { get; } = [];
 
@@ -47,6 +63,8 @@ public class UpdateInstallerTests
         public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct)
         {
             Downloads.Add(url);
+            DownloadFolders.Add(Path.GetDirectoryName(destination)!);
+            OnDownload?.Invoke(destination);
             if (!Files.TryGetValue(url, out var bytes))
                 return Task.FromResult(false);
 
@@ -61,10 +79,11 @@ public class UpdateInstallerTests
             Ran.Add("setup:" + Path.GetFileName(setupPath));
         }
 
-        public void ReplaceRunningAndRestart(byte[] verifiedExe)
+        public bool ReplaceRunningAndRestart(byte[] verifiedExe)
         {
             ReplacedWith = verifiedExe;
             Ran.Add("replace");
+            return !StartFailsAfterSwap;
         }
     }
 
@@ -102,7 +121,7 @@ public class UpdateInstallerTests
         Assert.Equal(UpdateOutcome.Started, outcome);
         Assert.Equal(["replace"], host.Ran);
         Assert.Equal(Payload, host.ReplacedWith);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
     [Theory]
@@ -127,7 +146,7 @@ public class UpdateInstallerTests
         // A file that carries no readable version cannot be compared at all and stays unverified.
         Assert.Equal(major < 0 ? UpdateOutcome.NotVerified : UpdateOutcome.NotNewer, outcome);
         Assert.Empty(host.Ran);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
         if (major >= 0)
         {
             var line = Assert.Single(logged);
@@ -140,6 +159,7 @@ public class UpdateInstallerTests
     [Theory]
     [InlineData(UpdateOutcome.NotNewer, "Update.NotNewer")]
     [InlineData(UpdateOutcome.NotVerified, "Update.NotVerified")]
+    [InlineData(UpdateOutcome.InstalledRestartNeeded, "Update.InstalledRestart")]
     [InlineData(UpdateOutcome.DownloadFailed, "Update.NotLoaded")]
     [InlineData(UpdateOutcome.NoMatchingFile, "Update.NotLoaded")]
     public void EachRefusedOutcomeHasItsOwnMessage(UpdateOutcome outcome, string key)
@@ -160,7 +180,7 @@ public class UpdateInstallerTests
 
         Assert.Equal(UpdateOutcome.NotNewer, outcome);
         Assert.Empty(host.Ran);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -226,7 +246,7 @@ public class UpdateInstallerTests
 
         Assert.Equal(UpdateOutcome.NotVerified, outcome);
         Assert.Empty(host.Ran);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -240,7 +260,7 @@ public class UpdateInstallerTests
 
         Assert.Equal(UpdateOutcome.NotVerified, outcome);
         Assert.Empty(host.Ran);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -270,7 +290,7 @@ public class UpdateInstallerTests
 
         Assert.Equal(UpdateOutcome.NotVerified, outcome);
         Assert.Empty(host.Ran);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -296,7 +316,7 @@ public class UpdateInstallerTests
 
         Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
         Assert.Empty(host.Ran);
-        Assert.Empty(Directory.GetFiles(host.WorkFolder));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -323,6 +343,180 @@ public class UpdateInstallerTests
         Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
         Assert.Empty(host.Downloads);
         Assert.Empty(host.Ran);
+    }
+
+    private static FakeHost SignedPortable(out ECDsa key)
+    {
+        var (publicKey, signingKey) = NewKey();
+        key = signingKey;
+        return PortableHost(publicKey, Payload, Sign(signingKey, Payload));
+    }
+
+    private static FakeHost SignedSetup()
+    {
+        var (publicKey, key) = NewKey();
+        var host = new FakeHost { IsInstalled = true, PublicKey = publicKey };
+        host.Files[SetupUrl] = Payload;
+        host.Files[SetupUrl + ".sig"] = [.. System.Text.Encoding.ASCII.GetBytes(Sign(key, Payload))];
+        return host;
+    }
+
+    /// <summary>A directory junction (needs no special rights), the link an attacker can plant in a folder the user can write.</summary>
+    private static string MakeJunction(string target)
+    {
+        var link = TestPaths.GetPath("junction");
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+        })!;
+        process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(Directory.Exists(link), "the test could not create a junction");
+        return link;
+    }
+
+    [Fact]
+    public async Task EveryRunDownloadsIntoAFreshFolderUnderTheWorkFolder()
+    {
+        var host = SignedPortable(out _);
+
+        await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+        await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        var folders = host.DownloadFolders.Distinct().ToList();
+        Assert.Equal(2, folders.Count);
+        Assert.All(folders, folder =>
+        {
+            Assert.Equal(host.WorkFolder, Path.GetDirectoryName(folder));
+            Assert.Equal(32, Path.GetFileName(folder).Length);
+        });
+    }
+
+    [Fact]
+    public async Task FilesLeftInTheWorkFolderByEarlierRunsAreNeverUsed()
+    {
+        var host = SignedPortable(out _);
+        byte[] planted = [.. "planted"u8];
+        File.WriteAllBytes(Path.Combine(host.WorkFolder, "AI-Usage.exe"), planted);
+        File.WriteAllBytes(Path.Combine(host.WorkFolder, "AI-Usage.exe.sig"), planted);
+        var oldRun = Directory.CreateDirectory(Path.Combine(host.WorkFolder, "0123456789abcdef0123456789abcdef")).FullName;
+        File.WriteAllBytes(Path.Combine(oldRun, "AI-Usage.exe"), planted);
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.Started, outcome);
+        Assert.Equal(Payload, host.ReplacedWith);
+        Assert.NotEqual(oldRun, host.DownloadFolders[0]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AWorkFolderOrItsParentThatIsALinkIsNeverDownloadedInto(bool parentIsLink)
+    {
+        var elsewhere = TestPaths.CreateDirectory("elsewhere");
+        var link = MakeJunction(elsewhere);
+        var (publicKey, key) = NewKey();
+        var host = new FakeHost { IsInstalled = false, PublicKey = publicKey, WorkFolder = parentIsLink ? Path.Combine(link, "update") : link };
+        host.Files[ExeUrl] = Payload;
+        host.Files[SigUrl] = [.. System.Text.Encoding.ASCII.GetBytes(Sign(key, Payload))];
+        var logged = new List<string>();
+
+        var outcome = await new UpdateInstaller(host, logged.Add).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Downloads);
+        Assert.Empty(host.Ran);
+        Assert.Empty(Directory.GetFiles(elsewhere, "*", SearchOption.AllDirectories));
+        Assert.Single(logged);
+    }
+
+    [Fact]
+    public async Task AFileOrFolderPlantedBesideTheSetupKeepsItFromRunning()
+    {
+        foreach (var plant in new Action<string>[]
+        {
+            folder => File.WriteAllBytes(Path.Combine(folder, "version.dll"), [.. "evil"u8]),
+            folder => Directory.CreateDirectory(Path.Combine(folder, "evil")),
+        })
+        {
+            var host = SignedSetup();
+            host.OnDownload = destination => plant(Path.GetDirectoryName(destination)!);
+            var logged = new List<string>();
+
+            var outcome = await new UpdateInstaller(host, logged.Add).InstallAsync(PortableRelease(), CancellationToken.None);
+
+            Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+            Assert.Empty(host.Ran);
+            Assert.Single(logged);
+        }
+    }
+
+    [Fact]
+    public async Task ADownloadedFileThatIsALinkIsNeverRun()
+    {
+        var elsewhere = TestPaths.CreateDirectory("link-target");
+        var real = Path.Combine(elsewhere, SetupName);
+        File.WriteAllBytes(real, Payload);
+        try
+        {
+            File.CreateSymbolicLink(Path.Combine(elsewhere, "probe"), real);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return; // this account may not create file links, so the case cannot be set up here
+        }
+
+        var host = SignedSetup();
+        host.OnDownload = destination =>
+        {
+            if (!destination.EndsWith(".sig", StringComparison.Ordinal))
+                File.CreateSymbolicLink(destination, real);
+        };
+        var logged = new List<string>();
+
+        var outcome = await new UpdateInstaller(host, logged.Add).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.DownloadFailed, outcome);
+        Assert.Empty(host.Ran);
+        Assert.Single(logged);
+    }
+
+    [Fact]
+    public async Task AFailedStartAfterTheSwapAsksTheUserToStartTheNewVersionAndLeavesNoFilesBehind()
+    {
+        var (publicKey, key) = NewKey();
+        var host = new FakeHost { IsInstalled = false, PublicKey = publicKey, StartFailsAfterSwap = true };
+        host.Files[ExeUrl] = Payload;
+        host.Files[SigUrl] = [.. System.Text.Encoding.ASCII.GetBytes(Sign(key, Payload))];
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.InstalledRestartNeeded, outcome);
+        Assert.Equal(Payload, host.ReplacedWith);
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task TheFileVersionIsReadWhileTheDownloadedFileIsHeldAgainstChange()
+    {
+        var host = SignedPortable(out _);
+        var overwriteFailed = false;
+        var moveFailed = false;
+        host.OnInspect = path =>
+        {
+            try { File.WriteAllBytes(path, [.. "evil"u8]); }
+            catch (IOException) { overwriteFailed = true; }
+            try { File.Move(path, path + ".moved"); }
+            catch (IOException) { moveFailed = true; }
+        };
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.Started, outcome);
+        Assert.True(overwriteFailed);
+        Assert.True(moveFailed);
+        Assert.Equal(Payload, host.ReplacedWith);
     }
 
     [Theory]
@@ -423,6 +617,51 @@ public class PortableSwapTests
         Assert.Equal("old", File.ReadAllText(running + ".old"));
 
         PortableSwap.DeleteLeftover(running);
+        Assert.False(File.Exists(running + ".old"));
+    }
+
+    [Fact]
+    public void ReplaceWritesPastAStaleCopyAtTheStagingName()
+    {
+        var folder = TestPaths.CreateDirectory("swap");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running, "old");
+        File.WriteAllText(running + ".new", "attacker copy");
+
+        Assert.True(PortableSwap.Replace(running, [.. "new"u8]));
+
+        Assert.Equal("new", File.ReadAllText(running));
+        Assert.False(File.Exists(running + ".new"));
+    }
+
+    [Fact]
+    public void AFailedReplaceLeavesTheRunningFileInPlaceAndNothingStaged()
+    {
+        var folder = TestPaths.CreateDirectory("swap");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running, "old");
+        // A folder where the previous program would be parked: moving the running file aside fails.
+        Directory.CreateDirectory(running + ".old");
+        File.WriteAllText(Path.Combine(running + ".old", "keep"), "x");
+
+        Assert.False(PortableSwap.Replace(running, [.. "new"u8]));
+
+        Assert.Equal("old", File.ReadAllText(running));
+        Assert.False(File.Exists(running + ".new"));
+    }
+
+    [Fact]
+    public void ReplaceNeverTouchesTheRunningFileWhenTheStagingNameIsTaken()
+    {
+        var folder = TestPaths.CreateDirectory("swap");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running, "old");
+        Directory.CreateDirectory(running + ".new");
+        File.WriteAllText(Path.Combine(running + ".new", "keep"), "x");
+
+        Assert.False(PortableSwap.Replace(running, [.. "new"u8]));
+
+        Assert.Equal("old", File.ReadAllText(running));
         Assert.False(File.Exists(running + ".old"));
     }
 

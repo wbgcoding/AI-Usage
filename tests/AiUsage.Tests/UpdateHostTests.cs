@@ -56,6 +56,100 @@ public class UpdateHostTests
         Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(@"D:\Tools\AI-Usage\AI-Usage.exe", Roots, _ => null));
     }
 
+    [Fact]
+    public async Task A_download_never_writes_over_a_file_that_is_already_at_the_destination()
+    {
+        var destination = TestPaths.GetPath("update-download", ".bin");
+        File.WriteAllText(destination, "planted");
+
+        var ok = await UpdateHost.DownloadAsync(
+            "https://github.com/example/setup.exe", destination, new TrickleBodyHandler(chunks: 1, interval: TimeSpan.Zero),
+            TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal("planted", File.ReadAllText(destination));
+    }
+
+    private static string RunFolder(string workFolder, string name, bool old)
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(workFolder, name)).FullName;
+        File.WriteAllText(Path.Combine(folder, "AI-Usage.exe"), "x");
+        if (old)
+            Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow.AddDays(-3));
+        return folder;
+    }
+
+    [Fact]
+    public void CleanUp_removes_stale_run_folders_and_keeps_recent_ones()
+    {
+        var work = TestPaths.CreateDirectory("update-cleanup");
+        var stale = RunFolder(work, "a", old: true);
+        var recent = RunFolder(work, "b", old: false);
+
+        UpdateHost.CleanUpStaleFiles(work, DateTime.UtcNow);
+
+        Assert.False(Directory.Exists(stale));
+        Assert.True(Directory.Exists(recent));
+    }
+
+    [Fact]
+    public void CleanUp_goes_on_after_a_file_that_is_still_in_use()
+    {
+        var work = TestPaths.CreateDirectory("update-cleanup");
+        var locked = Path.Combine(work, "a-locked.exe");
+        var free = Path.Combine(work, "b-free.exe");
+        File.WriteAllText(locked, "x");
+        File.WriteAllText(free, "x");
+        File.SetLastWriteTimeUtc(locked, DateTime.UtcNow.AddDays(-3));
+        File.SetLastWriteTimeUtc(free, DateTime.UtcNow.AddDays(-3));
+        var stale = RunFolder(work, "zz", old: true);
+
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+            UpdateHost.CleanUpStaleFiles(work, DateTime.UtcNow);
+
+        Assert.True(File.Exists(locked));
+        Assert.False(File.Exists(free));
+        Assert.False(Directory.Exists(stale));
+    }
+
+    [Fact]
+    public void CleanUp_goes_on_after_a_run_folder_that_is_still_in_use()
+    {
+        var work = TestPaths.CreateDirectory("update-cleanup");
+        var lockedRun = RunFolder(work, "a", old: true);
+        var otherRun = RunFolder(work, "b", old: true);
+
+        using (new FileStream(Path.Combine(lockedRun, "AI-Usage.exe"), FileMode.Open, FileAccess.Read, FileShare.None))
+            UpdateHost.CleanUpStaleFiles(work, DateTime.UtcNow);
+
+        Assert.True(Directory.Exists(lockedRun));
+        Assert.False(Directory.Exists(otherRun));
+    }
+
+    [Fact]
+    public void CleanUp_removes_a_link_in_the_work_folder_without_touching_what_it_points_at()
+    {
+        var work = TestPaths.CreateDirectory("update-cleanup");
+        var target = TestPaths.CreateDirectory("update-link-target");
+        File.WriteAllText(Path.Combine(target, "precious.txt"), "x");
+        var link = Path.Combine(work, "link");
+        using (var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+        })!)
+        {
+            process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+        }
+
+        Directory.SetLastWriteTimeUtc(link, DateTime.UtcNow.AddDays(-3));
+
+        UpdateHost.CleanUpStaleFiles(work, DateTime.UtcNow);
+
+        Assert.False(Directory.Exists(link));
+        Assert.True(File.Exists(Path.Combine(target, "precious.txt")));
+    }
+
     // A connection that goes quiet after the headers must end the download, not hold it forever.
     [Fact]
     public async Task A_download_whose_body_stalls_fails_after_the_stall_limit()

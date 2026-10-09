@@ -37,7 +37,11 @@ public class UpdateNoticeTests
 
         public void StartSetupAndExit(string setupPath) => Ran.Add("setup");
 
-        public void ReplaceRunningAndRestart(byte[] verifiedExe) => Ran.Add("replace");
+        public bool ReplaceRunningAndRestart(byte[] verifiedExe)
+        {
+            Ran.Add("replace");
+            return true;
+        }
     }
 
     private static UpdateCheck.Release Newer() => new("v9.0.0", Page,
