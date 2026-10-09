@@ -92,7 +92,7 @@ public class ShipCleanTests
     [
         "README.md", "CHANGELOG.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
         ".gitignore", ".gitattributes", ".editorconfig",
-        ".github/pull_request_template.md", ".github/dependabot.yml", "build.bat",
+        ".github/pull_request_template.md", ".github/dependabot.yml", "build.bat", "Directory.Build.props",
     ];
 
     // A comment sentence that wraps carries "///" at the start of its next line, which splits every
