@@ -43,14 +43,28 @@ public class ModelDisplayNamesTests
         Assert.Equal(expected, ModelDisplayNames.Resolve(model));
 
     [Theory]
-    [InlineData("claude-mystery-5")]
-    [InlineData("claude-opus-5-5-extra")]
-    public void Resolve_leaves_ids_outside_the_claude_scheme_unchanged(string model) =>
-        Assert.Equal(model, ModelDisplayNames.Resolve(model));
+    [InlineData("claude-mystery-5", "Claude Mystery 5")]
+    [InlineData("claude-opus-5-5-extra", "Claude Opus 5 5 Extra")]
+    public void Resolve_spells_ids_outside_the_claude_scheme_word_by_word(string model, string expected) =>
+        Assert.Equal(expected, ModelDisplayNames.Resolve(model));
+
+    [Theory]
+    [InlineData("gpt-5.1-codex-max", "GPT-5.1 Codex Max")]
+    [InlineData("gpt-4o-mini", "GPT-4o Mini")]
+    [InlineData("gpt-5-codex", "GPT-5 Codex")] // the table entry still wins
+    [InlineData("o4-mini", "o4 Mini")]
+    [InlineData("gemini-2.5-pro", "Gemini 2.5 Pro")]
+    [InlineData("glm-4.6", "GLM 4.6")]
+    [InlineData("grok-code-fast-1", "Grok Code Fast 1")]
+    [InlineData("deepseek-v3.2", "Deepseek V3.2")]
+    [InlineData("some_new_ai_api", "Some New AI API")]
+    [InlineData("openrouter/qwen3-coder:free", "Qwen3 Coder")]
+    public void Resolve_spells_any_other_id_by_rule(string model, string expected) =>
+        Assert.Equal(expected, ModelDisplayNames.Resolve(model));
 
     [Fact]
-    public void Resolve_keeps_an_unknown_model_unchanged() =>
-        Assert.Equal("nvidia/nemotron-3-ultra-550b-a55b:free", ModelDisplayNames.Resolve("nvidia/nemotron-3-ultra-550b-a55b:free"));
+    public void Resolve_spells_an_unknown_model_by_rule() =>
+        Assert.Equal("Nemotron 3 Ultra 550b A55b", ModelDisplayNames.Resolve("nvidia/nemotron-3-ultra-550b-a55b:free"));
 
     [Fact]
     public void Resolve_strips_a_trailing_date_before_matching() =>

@@ -106,9 +106,9 @@ public class StatsAggregatorTests
         var rows = StatsAggregator.Group(records, StatsGrouping.Model);
 
         Assert.Equal(2, rows.Count);
-        Assert.Equal("modelA", rows[0].Label); // largest total first
+        Assert.Equal("Modela", rows[0].Label); // largest total first
         Assert.Equal(150, rows[0].Total);
-        Assert.Equal("modelC", rows[1].Label);
+        Assert.Equal("Modelc", rows[1].Label);
         Assert.Equal(10, rows[1].Total);
     }
 
@@ -365,7 +365,7 @@ public class StatsAggregatorTests
         var slices = StatsAggregator.ShareByModel(records, topCount: 6, otherLabel: "Other");
 
         Assert.Equal(7, slices.Count); // six named models plus one pooled "Other"
-        Assert.Equal("model7", slices[0].Label); // largest (70) first
+        Assert.Equal("Model7", slices[0].Label); // largest (70) first
         Assert.Equal("Other", slices[^1].Label); // the smallest (model1, 10) is the only one pooled
         Assert.Equal(10, slices[^1].Total);
         Assert.Equal(100.0, slices.Sum(slice => slice.Percent), 1); // every slice's percent sums to the whole
@@ -379,7 +379,7 @@ public class StatsAggregatorTests
         var slices = StatsAggregator.ShareByModel(records, topCount: 6, otherLabel: "Other");
 
         Assert.Single(slices);
-        Assert.Equal("modelA", slices[0].Label);
+        Assert.Equal("Modela", slices[0].Label);
     }
 
     [Fact]
@@ -451,9 +451,9 @@ public class StatsAggregatorTests
 
         var slices = StatsAggregator.ShareByModel(records, topCount: 6, otherLabel: "Other");
 
-        Assert.Equal("modelB", slices[0].Label); // largest total (50) first
+        Assert.Equal("Modelb", slices[0].Label); // largest total (50) first
         Assert.Equal("codex", slices[0].ProviderId);
-        Assert.Equal("modelA", slices[1].Label);
+        Assert.Equal("Modela", slices[1].Label);
         Assert.Equal("claude", slices[1].ProviderId);
     }
 
@@ -799,7 +799,7 @@ public class StatsAggregatorTests
         Assert.Equal(30, detail.ByProvider[1].Total);
 
         Assert.Equal(3, detail.ByModel.Count);
-        Assert.Equal(["modelA", "modelB", "modelC"], detail.ByModel.Select(slice => slice.Label));
+        Assert.Equal(["Modela", "Modelb", "Modelc"], detail.ByModel.Select(slice => slice.Label));
         Assert.Equal([100L, 50L, 30L], detail.ByModel.Select(slice => slice.Total));
 
         Assert.Equal(2, detail.ByProject.Count);
