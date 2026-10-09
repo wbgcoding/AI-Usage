@@ -20,6 +20,7 @@ public static class ModelDisplayNames
         ["gpt-5.6-sol"] = "GPT-5.6 Sol",
         ["gpt-5.6-terra"] = "GPT-5.6 Terra",
         ["gpt-5.6-luna"] = "GPT-5.6 Luna",
+        ["gpt-5-codex"] = "GPT-5 Codex",
         ["codex-auto-review"] = "Codex Review",
         ["glm-5.2"] = "GLM 5.2",
         ["minimax-m3"] = "MiniMax M3",

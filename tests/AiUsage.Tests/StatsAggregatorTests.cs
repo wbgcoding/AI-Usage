@@ -383,6 +383,61 @@ public class StatsAggregatorTests
     }
 
     [Fact]
+    public void ShareByModel_merges_two_ids_of_one_model_into_one_slice()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Record("claude", day, "claude-opus-4-8", "proj", 70),
+            Record("claude", day, "claude-opus-4-8-20260101", "proj", 30),
+            Record("codex", day, "gpt-5-codex", "proj", 20),
+        };
+
+        var slices = StatsAggregator.ShareByModel(records, topCount: 6, otherLabel: "Other");
+
+        Assert.Equal(2, slices.Count);
+        Assert.Equal("Opus 4.8", slices[0].Label);
+        Assert.Equal(100, slices[0].Total);
+        Assert.Equal("claude", slices[0].ProviderId);
+        Assert.Equal("GPT-5 Codex", slices[1].Label);
+    }
+
+    [Fact]
+    public void Group_by_model_merges_two_ids_of_one_model_into_one_row()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Record("claude", day, "claude-opus-4-8", "proj", 70),
+            Record("claude", day, "claude-opus-4-8-20260101", "proj", 30),
+        };
+
+        var rows = StatsAggregator.Group(records, StatsGrouping.Model);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("Opus 4.8", row.Label);
+        Assert.Equal(100, row.Total);
+    }
+
+    [Fact]
+    public void DayDetail_merges_two_ids_of_one_model_into_one_slice()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Record("claude", day, "claude-opus-4-8", "proj", 70),
+            Record("claude", day, "claude-opus-4-8-20260101", "proj", 30),
+        };
+
+        var detail = StatsAggregator.DayDetail(records, day, culture: new CultureInfo("de-DE"));
+
+        var slice = Assert.Single(detail.ByModel);
+        Assert.Equal("Opus 4.8", slice.Label);
+        Assert.Equal(100, slice.Total);
+        Assert.Equal("claude", slice.ProviderId);
+    }
+
+    [Fact]
     public void ShareByModel_names_each_slices_own_provider_and_the_bigger_one_for_a_shared_model_name()
     {
         var records = new[]

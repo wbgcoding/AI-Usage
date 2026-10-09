@@ -112,10 +112,14 @@ public sealed class CodexUsageLogParser
                     timestampProperty.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var timestamp))
                 return false;
 
-            var input = GetLong(total, "input_tokens");
-            var output = GetLong(total, "output_tokens");
-            var cacheCreation = GetLong(total, "cache_write_input_tokens");
-            var cacheRead = GetLong(total, "cached_input_tokens");
+            // A line missing any of the four running totals says nothing reliable: reading the gap
+            // as zero would make the next complete line count its whole total as new. Such a line
+            // is skipped and the previous totals stay.
+            if (!TryGetLong(total, "input_tokens", out var input)
+                || !TryGetLong(total, "output_tokens", out var output)
+                || !TryGetLong(total, "cache_write_input_tokens", out var cacheCreation)
+                || !TryGetLong(total, "cached_input_tokens", out var cacheRead))
+                return false;
 
             // Codex resets its running totals not only across files but also mid file, after a
             // context compaction - each of the four counters is checked against its own previous
@@ -186,10 +190,11 @@ public sealed class CodexUsageLogParser
             ? property.GetString()
             : null;
 
-    private static long GetLong(JsonElement parent, string propertyName) =>
-        parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)
-            ? number
-            : 0;
+    private static bool TryGetLong(JsonElement parent, string propertyName, out long number)
+    {
+        number = 0;
+        return parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out number);
+    }
 
     /// <summary>One counter's delta against its own previous cumulative value - never against any
     /// other counter's. A value lower than what came before means this specific counter itself reset

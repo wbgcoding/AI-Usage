@@ -35,11 +35,11 @@ public class UsageLogPrefilterTests
         """{"timestamp":"2026-01-01T00:00:01Z","type":"turn_context","payload":{"model":"gpt-x","effort":"medium"}}""",
         """{"timestamp":"2026-01-01T00:00:02Z","type":"response_item","payload":{"type":"message","role":"user"}}""",
         """{"timestamp":"2026-01-01T00:00:03Z","type":"event_msg","payload":{"type":"agent_message","message":"hi"}}""",
-        """{"timestamp":"2026-01-01T00:00:04Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":40,"output_tokens":10}}}}""",
+        """{"timestamp":"2026-01-01T00:00:04Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":0,"output_tokens":10}}}}""",
         """{"timestamp":"2026-01-01T00:00:05Z","type":"event_msg","payload":{"type":"token_count","info":null}}""",
         """{"timestamp":"2026-01-01T00:00:06Z","type":"turn_context","payload":{"model":"gpt-y","reasoning_effort":"high"}}""",
-        """{"timestamp":"2026-01-01T00:00:07Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":250,"cached_input_tokens":90,"output_tokens":30}}}}""",
-        """{"timestamp":"2026-01-01T00:00:08Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":0,"output_tokens":5}}}}""",
+        """{"timestamp":"2026-01-01T00:00:07Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":250,"cached_input_tokens":90,"cache_write_input_tokens":0,"output_tokens":30}}}}""",
+        """{"timestamp":"2026-01-01T00:00:08Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":5}}}}""",
         """{"timestamp":"2026-01-01T00:00:09Z","type":"response_item","payload":{"type":"function_call_output","output":"nothing relevant"}}""",
     ];
 

@@ -23,8 +23,9 @@ public sealed class StatsStore
     // local-time rebucket needs every row rebuilt anyway. Schema v5 adds source_file.last_message_key
     // so a Claude response written several times is counted once. A database opened below v4 has
     // its usage/source_file tables dropped and rebuilt (see EnsureSchema) since the older rows carry
-    // nothing to migrate from; v4 migrates in place.
-    internal const int SchemaVersion = 5;
+    // nothing to migrate from; v4 migrates in place. Schema v6 gives schema_version a single-row
+    // constraint (id = 1) so two first opens can never leave two version rows; every row stays.
+    internal const int SchemaVersion = 6;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved
     // data folder takes the index along without rebuilding any store that already exists.
@@ -130,22 +131,55 @@ public sealed class StatsStore
         pragma.ExecuteNonQuery();
     }
 
+    /// <summary>Brings the file up to <see cref="SchemaVersion"/> in one <c>BEGIN IMMEDIATE</c>
+    /// transaction, so two first opens (the indexer and the window) cannot both create the version
+    /// row: the second waits for the write lock and then finds the first one's work already done.
+    /// A database at v4 keeps its Codex rows; older ones are rebuilt from the session files. A file
+    /// from a newer build is left entirely alone.</summary>
     private void EnsureSchema(SqliteConnection connection)
     {
         SetBusyTimeout(connection);
-
-        using (var createVersionTable = connection.CreateCommand())
+        Execute(connection, "BEGIN IMMEDIATE");
+        try
         {
-            createVersionTable.CommandText = "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);";
-            createVersionTable.ExecuteNonQuery();
+            if (!ApplySchema(connection))
+            {
+                Execute(connection, "ROLLBACK");
+                return;
+            }
+
+            Execute(connection, "COMMIT");
+            IsUsable = true;
         }
+        catch
+        {
+            try
+            {
+                Execute(connection, "ROLLBACK");
+            }
+            catch (SqliteException)
+            {
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>The schema work itself, run inside <see cref="EnsureSchema"/>'s transaction. False
+    /// means nothing may change: a newer build's file, or a v4 backup that could not be written
+    /// (this instance then sits out the session instead of clearing rows that exist nowhere else).</summary>
+    private bool ApplySchema(SqliteConnection connection)
+    {
+        Execute(connection, "CREATE TABLE IF NOT EXISTS schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);");
 
         long? existingVersion;
         using (var versionCommand = connection.CreateCommand())
         {
-            versionCommand.CommandText = "SELECT version FROM schema_version LIMIT 1";
+            // MAX rather than the first row: a file written before the single-row constraint
+            // can hold two rows from the old open race.
+            versionCommand.CommandText = "SELECT MAX(version) FROM schema_version";
             var existing = versionCommand.ExecuteScalar();
-            existingVersion = existing is null ? null : Convert.ToInt64(existing, CultureInfo.InvariantCulture);
+            existingVersion = existing is null or DBNull ? null : Convert.ToInt64(existing, CultureInfo.InvariantCulture);
         }
 
         if (existingVersion > SchemaVersion)
@@ -153,7 +187,25 @@ public sealed class StatsStore
             // A future build's own database - left alone entirely, including whatever shape its
             // tables are actually in, since this build might not even recognise it.
             IsUsable = false;
-            return;
+            return false;
+        }
+
+        // Older files hold a plain version table without the id column; rebuild it as the
+        // single-row table. The version itself is written again at the end.
+        bool hasIdColumn;
+        using (var info = connection.CreateCommand())
+        {
+            info.CommandText = "SELECT 1 FROM pragma_table_info('schema_version') WHERE name = 'id'";
+            hasIdColumn = info.ExecuteScalar() is not null;
+        }
+
+        if (!hasIdColumn)
+        {
+            Execute(connection, """
+                CREATE TABLE schema_version_new (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);
+                DROP TABLE schema_version;
+                ALTER TABLE schema_version_new RENAME TO schema_version;
+                """);
         }
 
         // Future version jumps migrate and keep the rows that stay valid; they never wipe the
@@ -162,14 +214,12 @@ public sealed class StatsStore
         {
             if (_v4BackupFailed || !MigrateFromV4(connection))
             {
-                // No safety copy, no deletion: this store instance sits out the session and a new
-                // instance tries again, rather than clearing rows that exist nowhere else.
                 _v4BackupFailed = true;
                 IsUsable = false;
-                return;
+                return false;
             }
 
-            existingVersion = SchemaVersion;
+            existingVersion = 5;
         }
 
         // A database written at an older schema version has usage rows this version cannot
@@ -179,138 +229,83 @@ public sealed class StatsStore
         // this version's own schema needs. A brand new database (existingVersion is null) never hits
         // this - CREATE TABLE IF NOT EXISTS below is what builds its tables for the first time.
         if (existingVersion < 4)
+            Execute(connection, "DROP TABLE IF EXISTS usage; DROP TABLE IF EXISTS source_file;");
+
+        Execute(connection, """
+            CREATE TABLE IF NOT EXISTS usage (
+                provider TEXT NOT NULL,
+                day TEXT NOT NULL,
+                hour INTEGER NOT NULL DEFAULT 0,
+                model TEXT NOT NULL,
+                project TEXT NOT NULL,
+                effort TEXT NOT NULL DEFAULT '',
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (provider, day, hour, model, project, effort)
+            );
+            CREATE TABLE IF NOT EXISTS source_file (
+                path TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                offset INTEGER NOT NULL,
+                size INTEGER NOT NULL,
+                write_time_utc TEXT NOT NULL,
+                current_model TEXT NOT NULL DEFAULT '',
+                cumulative_input_tokens INTEGER NOT NULL DEFAULT 0,
+                cumulative_output_tokens INTEGER NOT NULL DEFAULT 0,
+                cumulative_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+                cumulative_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                current_effort TEXT NOT NULL DEFAULT '',
+                last_message_key TEXT NOT NULL DEFAULT ''
+            );
+            """);
+
+        using (var writeVersion = connection.CreateCommand())
         {
-            using var drop = connection.CreateCommand();
-            drop.CommandText = "DROP TABLE IF EXISTS usage; DROP TABLE IF EXISTS source_file;";
-            drop.ExecuteNonQuery();
+            writeVersion.CommandText = "INSERT OR REPLACE INTO schema_version (id, version) VALUES (1, $version)";
+            writeVersion.Parameters.AddWithValue("$version", SchemaVersion);
+            writeVersion.ExecuteNonQuery();
         }
 
-        using (var create = connection.CreateCommand())
-        {
-            create.CommandText = """
-                CREATE TABLE IF NOT EXISTS usage (
-                    provider TEXT NOT NULL,
-                    day TEXT NOT NULL,
-                    hour INTEGER NOT NULL DEFAULT 0,
-                    model TEXT NOT NULL,
-                    project TEXT NOT NULL,
-                    effort TEXT NOT NULL DEFAULT '',
-                    input_tokens INTEGER NOT NULL DEFAULT 0,
-                    output_tokens INTEGER NOT NULL DEFAULT 0,
-                    cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
-                    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
-                    PRIMARY KEY (provider, day, hour, model, project, effort)
-                );
-                CREATE TABLE IF NOT EXISTS source_file (
-                    path TEXT PRIMARY KEY,
-                    provider TEXT NOT NULL,
-                    offset INTEGER NOT NULL,
-                    size INTEGER NOT NULL,
-                    write_time_utc TEXT NOT NULL,
-                    current_model TEXT NOT NULL DEFAULT '',
-                    cumulative_input_tokens INTEGER NOT NULL DEFAULT 0,
-                    cumulative_output_tokens INTEGER NOT NULL DEFAULT 0,
-                    cumulative_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
-                    cumulative_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
-                    current_effort TEXT NOT NULL DEFAULT '',
-                    last_message_key TEXT NOT NULL DEFAULT ''
-                );
-                """;
-            create.ExecuteNonQuery();
-        }
+        return true;
+    }
 
-        if (existingVersion is null)
-        {
-            using var insertVersion = connection.CreateCommand();
-            insertVersion.CommandText = "INSERT INTO schema_version (version) VALUES ($version)";
-            insertVersion.Parameters.AddWithValue("$version", SchemaVersion);
-            insertVersion.ExecuteNonQuery();
-        }
-        else if (existingVersion < SchemaVersion)
-        {
-            // Only reachable from a version below 4, rebuilt above.
-            using var updateVersion = connection.CreateCommand();
-            updateVersion.CommandText = "UPDATE schema_version SET version = $version";
-            updateVersion.Parameters.AddWithValue("$version", SchemaVersion);
-            updateVersion.ExecuteNonQuery();
-        }
-
-        IsUsable = true;
+    private static void Execute(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
     }
 
     /// <summary>Version 4 to 5: copies the database next to itself as <c>stats.v4.bak</c>, adds the
     /// <c>last_message_key</c> column and clears only the Claude rows, so the next indexer run reads
     /// every Claude file again without counting repeated responses. Codex rows stay untouched. Runs
-    /// in <c>BEGIN IMMEDIATE</c> and re-reads the version inside it, because the indexer and the
-    /// window can open the store at the same moment and only one of them may migrate. Returns false
-    /// and changes nothing when the backup cannot be written.</summary>
+    /// inside <see cref="EnsureSchema"/>'s write transaction, so the write lock is held while the
+    /// file is copied. Returns false and changes nothing when the backup cannot be written.</summary>
     private bool MigrateFromV4(SqliteConnection connection)
     {
-        using (var begin = connection.CreateCommand())
-        {
-            begin.CommandText = "BEGIN IMMEDIATE";
-            begin.ExecuteNonQuery();
-        }
-
+        var backupPath = Path.Combine(Path.GetDirectoryName(DatabasePath)!, "stats.v4.bak");
         try
         {
-            long current;
-            using (var versionCommand = connection.CreateCommand())
-            {
-                versionCommand.CommandText = "SELECT version FROM schema_version LIMIT 1";
-                current = Convert.ToInt64(versionCommand.ExecuteScalar(), CultureInfo.InvariantCulture);
-            }
-
-            if (current == 4)
-            {
-                // The write lock is held, so no other connection changes the file while it is copied.
-                var backupPath = Path.Combine(Path.GetDirectoryName(DatabasePath)!, "stats.v4.bak");
-                try
-                {
-                    File.Copy(DatabasePath, backupPath, overwrite: true);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    using var rollback = connection.CreateCommand();
-                    rollback.CommandText = "ROLLBACK";
-                    rollback.ExecuteNonQuery();
-                    return false;
-                }
-
-                bool hasColumn;
-                using (var info = connection.CreateCommand())
-                {
-                    info.CommandText = "SELECT 1 FROM pragma_table_info('source_file') WHERE name = 'last_message_key'";
-                    hasColumn = info.ExecuteScalar() is not null;
-                }
-
-                using var migrate = connection.CreateCommand();
-                migrate.CommandText = (hasColumn ? "" : "ALTER TABLE source_file ADD COLUMN last_message_key TEXT NOT NULL DEFAULT '';")
-                    + "DELETE FROM usage WHERE provider = 'claude';"
-                    + "DELETE FROM source_file WHERE provider = 'claude';"
-                    + "UPDATE schema_version SET version = 5;";
-                migrate.ExecuteNonQuery();
-            }
-
-            using var commit = connection.CreateCommand();
-            commit.CommandText = "COMMIT";
-            commit.ExecuteNonQuery();
-            return true;
+            File.Copy(DatabasePath, backupPath, overwrite: true);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            try
-            {
-                using var rollback = connection.CreateCommand();
-                rollback.CommandText = "ROLLBACK";
-                rollback.ExecuteNonQuery();
-            }
-            catch (SqliteException)
-            {
-            }
-
-            throw;
+            return false;
         }
+
+        bool hasColumn;
+        using (var info = connection.CreateCommand())
+        {
+            info.CommandText = "SELECT 1 FROM pragma_table_info('source_file') WHERE name = 'last_message_key'";
+            hasColumn = info.ExecuteScalar() is not null;
+        }
+
+        Execute(connection, (hasColumn ? "" : "ALTER TABLE source_file ADD COLUMN last_message_key TEXT NOT NULL DEFAULT '';")
+            + "DELETE FROM usage WHERE provider = 'claude';"
+            + "DELETE FROM source_file WHERE provider = 'claude';");
+        return true;
     }
 
     /// <summary>Test fixture helper: seeds usage rows the way a finished index walk would. Adds every

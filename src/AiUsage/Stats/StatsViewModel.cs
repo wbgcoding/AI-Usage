@@ -785,12 +785,10 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // A model/effort/project bar gets its own color - the same one its ring slice (or, once
         // project colors exist, its own swatch) uses - rather than the flat theme accent every other
-        // grouping keeps. Computed from the still-raw label, before it is resolved to display text
-        // below, since resolving a model id loses the provider it takes the color from.
+        // grouping keeps. A model row's label is already its display name, so the provider map below
+        // is keyed by the display name too.
         var barColorKeys = BuildBarColorKeys(SelectedGrouping, groupedRows, inRange);
 
-        if (SelectedGrouping == StatsGrouping.Model)
-            groupedRows = groupedRows.Select(row => row with { Label = ModelDisplayNames.Resolve(row.Label) }).ToList();
         if (SelectedGrouping == StatsGrouping.Effort)
             groupedRows = groupedRows.Select(row => row with { Label = ResolveEffortLabel(row.Label) }).ToList();
         // Only the bars are bundled: the table keeps every project.
@@ -887,7 +885,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var modelShares = StatsAggregator.ShareByModel(inRange, topCount: 6, otherLabel);
         ModelShareSlices = modelShares
             .Select(slice => new Views.Controls.StatsRingChart.Slice(
-                slice.Label == otherLabel ? slice.Label : ModelDisplayNames.Resolve(slice.Label), slice.Percent, slice.ProviderId, Total: slice.Total))
+                slice.Label, slice.Percent, slice.ProviderId, Total: slice.Total))
             .ToList();
 
         // The "share per effort level" ring, beside the model ring. ProviderId here carries the raw
@@ -1109,7 +1107,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (grouping == StatsGrouping.Model)
         {
             var providerByModel = inRange
-                .GroupBy(record => record.Model)
+                .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
                 .ToDictionary(
                     group => group.Key,
                     group => group.GroupBy(record => record.Provider)
