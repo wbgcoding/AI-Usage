@@ -33,6 +33,10 @@ public partial class MainWindow : Window, IDisposable
     private readonly TrayTooltipMemo _trayTooltipMemo = new();
     private readonly ClickThroughPolicy _clickThroughPolicy = new();
     private DesktopLayer? _desktopLayer;
+    private FullscreenWatcher? _fullscreenWatcher;
+    // True while the widget is hidden only because a full-screen app is in front. The window's own
+    // shown/hidden state, the tray and the saved placement are not touched meanwhile.
+    private bool _hiddenByFullscreen;
     // True from the title bar's own minimize until the window is restored, so that showing the
     // desktop can tell a minimize by the person from one Show Desktop did.
     private bool _minimizedByUser;
@@ -271,6 +275,14 @@ public partial class MainWindow : Window, IDisposable
     /// minimized window, the usual Windows convention for a tray toggle.</summary>
     private void ToggleVisibility()
     {
+        // Asking for the widget while it is stepping aside shows it, even over the full-screen app.
+        if (_hiddenByFullscreen)
+        {
+            _hiddenByFullscreen = false;
+            ShowAndActivate();
+            return;
+        }
+
         if (Visibility != Visibility.Visible || WindowState == WindowState.Minimized)
         {
             ShowAndActivate();
@@ -940,8 +952,12 @@ public partial class MainWindow : Window, IDisposable
 
         WindowChromeNative.Bootstrap(this, followsOpacity: true);
 
-        _desktopLayer = new DesktopLayer(hwndSource.Handle, () => Visibility != Visibility.Visible || _minimizedByUser);
+        _desktopLayer = new DesktopLayer(hwndSource.Handle, () => Visibility != Visibility.Visible || _minimizedByUser || _hiddenByFullscreen);
         ApplyWindowLayer(ViewModel.WindowLayer);
+
+        _fullscreenWatcher = new FullscreenWatcher(hwndSource.Handle);
+        _fullscreenWatcher.FullscreenChanged += FullscreenWatcher_FullscreenChanged;
+        ApplyHideOnFullscreen();
 
         _globalHotkey = new GlobalHotkey(hwndSource.Handle);
         ApplyHotkeySettings();
@@ -981,6 +997,36 @@ public partial class MainWindow : Window, IDisposable
             ViewModel.HotkeyTaken = false;
             _tray.UpdateHotkeyShortcut(null);
         }
+    }
+
+    /// <summary>Starts or stops watching for full-screen applications from the setting; stopping brings
+    /// back a widget that was stepping aside.</summary>
+    private void ApplyHideOnFullscreen()
+    {
+        if (_fullscreenWatcher is not null)
+            _fullscreenWatcher.Enabled = _settings.HideOnFullscreen;
+    }
+
+    /// <summary>A full-screen app came or went: the widget steps aside only if it is on screen, and
+    /// comes back only if it was this that hid it.</summary>
+    private void FullscreenWatcher_FullscreenChanged(object? sender, bool fullscreen)
+    {
+        if (PresentationSource.FromVisual(this) is not HwndSource hwndSource)
+            return;
+
+        if (fullscreen)
+        {
+            if (_hiddenByFullscreen || Visibility != Visibility.Visible || WindowState == WindowState.Minimized)
+                return;
+            _hiddenByFullscreen = true;
+            NativeWindowStyle.HideNative(hwndSource.Handle);
+            return;
+        }
+
+        if (!_hiddenByFullscreen)
+            return;
+        _hiddenByFullscreen = false;
+        NativeWindowStyle.ShowNativeNoActivate(hwndSource.Handle);
     }
 
     /// <summary>Puts the real window on the chosen level: above everything, an ordinary window, or
@@ -1374,6 +1420,11 @@ public partial class MainWindow : Window, IDisposable
         if (_settingsWindow is null)
         {
             var settingsViewModel = new SettingsViewModel(ViewModel, _settings, _settingsStore);
+            settingsViewModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(SettingsViewModel.HideOnFullscreen))
+                    ApplyHideOnFullscreen();
+            };
             _settingsWindow = new SettingsWindow(settingsViewModel);
             OwnerWindowResolver.ApplyOwner(_settingsWindow, this);
             _settingsWindow.Closed += (_, _) =>
@@ -1582,6 +1633,7 @@ public partial class MainWindow : Window, IDisposable
         _updateTimer?.Stop();
         _globalHotkey?.Dispose();
         _desktopLayer?.Dispose();
+        _fullscreenWatcher?.Dispose();
         _tray.Dispose();
         // Blocking is safe here: this only ever runs from MainWindow_Closing on the UI thread, and
         // nothing DisposeAsync awaits needs to marshal back onto that same thread to complete.

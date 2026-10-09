@@ -381,6 +381,7 @@
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                TextWrapping="Wrap"
                                Visibility="{Binding WindowLayerIsDesktop, Converter={StaticResource BoolToVis}}"/>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}" IsChecked="{Binding HideOnFullscreen}"/>
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" IsChecked="{Binding Main.ClickThrough}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThroughHint]}"
                                Style="{StaticResource Gap.Top4}"

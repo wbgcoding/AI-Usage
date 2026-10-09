@@ -60,6 +60,20 @@ internal static class NativeWindowStyle
         WindowOpacity.Apply(hwnd, WindowOpacity.CurrentPercent);
     }
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(IntPtr hwnd, int command);
+
+    private const int SwHide = 0;
+    private const int SwShowNoActivate = 4;
+
+    /// <summary>Hides the native window without touching what WPF knows about it, so the shown or
+    /// hidden state the person chose, the tray and the saved placement stay as they were.</summary>
+    public static void HideNative(IntPtr hwnd) => ShowWindow(hwnd, SwHide);
+
+    /// <summary>Shows the native window again without taking the focus from whatever is in front.</summary>
+    public static void ShowNativeNoActivate(IntPtr hwnd) => ShowWindow(hwnd, SwShowNoActivate);
+
     /// <summary>Asks the window manager to round a window's corners - the replacement for the rounded
     /// corners this app used to get for free from painting a rounded card on a fully transparent
     /// window background. No-op (square window) on Windows 10, which has no such attribute; the build

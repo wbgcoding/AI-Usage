@@ -77,6 +77,20 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheFullscreenHideSettingIsSavedAndReportedToTheWindow()
+    {
+        var (vm, settings) = Build();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert.True(vm.HideOnFullscreen);
+
+        vm.HideOnFullscreen = false;
+
+        Assert.False(settings.HideOnFullscreen);
+        Assert.Contains(nameof(SettingsViewModel.HideOnFullscreen), changed);
+    }
+
+    [Fact]
     public void TheWindowLevelPickerFollowsAndDrivesTheMainWindowLevel()
     {
         var (vm, settings) = Build();

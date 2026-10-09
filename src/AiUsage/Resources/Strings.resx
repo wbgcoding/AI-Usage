@@ -224,6 +224,7 @@
   <data name="WindowLayer.Normal" xml:space="preserve"><value>Normal</value></data>
   <data name="WindowLayer.Desktop" xml:space="preserve"><value>On the desktop</value></data>
   <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Stays behind all windows, visible when you look at the desktop.</value></data>
+  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Hide while a full-screen app runs</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Notification area</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Theme</value></data>
   <data name="Settings.Layout" xml:space="preserve"><value>Layout</value></data>

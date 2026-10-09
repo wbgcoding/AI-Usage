@@ -34,6 +34,10 @@ public sealed class AppSettings
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public bool? LegacyAlwaysOnTop { get; set; }
 
+    /// <summary>Whether the widget steps aside while a full-screen application (a game, a video, a
+    /// presentation) runs, and comes back when it ends.</summary>
+    public bool HideOnFullscreen { get; set; } = true;
+
     public string Layout { get; set; } = "Vertical";
 
     public string Theme { get; set; } = "System";

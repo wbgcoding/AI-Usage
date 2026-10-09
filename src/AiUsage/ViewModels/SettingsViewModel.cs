@@ -289,6 +289,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool showPreviousWeekLine;
 
     [ObservableProperty]
+    private bool hideOnFullscreen;
+
+    [ObservableProperty]
     private bool showTooltips;
 
     [ObservableProperty]
@@ -471,6 +474,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         windowOpacityPercent = settings.WindowOpacityPercent;
         dataFolderPath = AppPaths.DataDirectory;
         showPreviousWeekLine = settings.ShowPreviousWeekLine;
+        hideOnFullscreen = settings.HideOnFullscreen;
         showTooltips = settings.ShowTooltips;
         defaultThreshold = settings.DefaultThreshold;
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
@@ -827,6 +831,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ShowPreviousWeekLine = value;
         _store.RequestSave(_settings);
         Main.RefreshHistoryForAllTiles();
+    }
+
+    /// <summary>MainWindow watches this property to start or stop the full-screen watcher.</summary>
+    partial void OnHideOnFullscreenChanged(bool value)
+    {
+        _settings.HideOnFullscreen = value;
+        _store.RequestSave(_settings);
     }
 
     partial void OnShowTooltipsChanged(bool value)
@@ -1283,6 +1294,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.WindowOpacityPercent = source.WindowOpacityPercent;
         _settings.ChartRange = source.ChartRange;
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
+        _settings.HideOnFullscreen = source.HideOnFullscreen;
         _settings.ShowTooltips = source.ShowTooltips;
         _settings.TileDensity = source.TileDensity;
         _settings.DayGridShownOnce = source.DayGridShownOnce;
@@ -1357,6 +1369,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         WindowOpacityPercent = _settings.WindowOpacityPercent;
         Autostart = _settings.Autostart;
         ShowPreviousWeekLine = _settings.ShowPreviousWeekLine;
+        HideOnFullscreen = _settings.HideOnFullscreen;
         ShowTooltips = _settings.ShowTooltips;
         DefaultThreshold = _settings.DefaultThreshold;
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
