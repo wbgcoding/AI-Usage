@@ -461,4 +461,6 @@
   <data name="Settings.TileOrder.Hint" xml:space="preserve"><value>By usage: the fullest tile goes to the top. Tiles only move when one changes its color level.</value></data>
   <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>e.g. Work</value></data>
+  <data name="Update.RestoreNeeded" xml:space="preserve"><value>The update could not finish. Your program file is now at {0}. Rename it back to AI-Usage.exe to start the app again.</value></data>
+  <data name="Update.NotStarted" xml:space="preserve"><value>The installer did not start. If you closed the administrator prompt, try again.</value></data>
 </root>

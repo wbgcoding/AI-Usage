@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using AiUsage.Services;
 using AiUsage.Web;
 using Xunit;
@@ -697,6 +698,90 @@ public class WebSessionScriptRunnerTests
         Assert.True(
             wrapped.IndexOf("location.hostname", StringComparison.Ordinal) < wrapped.IndexOf(script, StringComparison.Ordinal),
             "the host check has to stand in front of the script");
+    }
+
+    [Fact]
+    public void The_host_check_uses_no_method_of_a_built_in_prototype()
+    {
+        var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard("1", "claude.ai");
+        var check = wrapped[..wrapped.IndexOf("else {", StringComparison.Ordinal)];
+
+        foreach (var method in new[] { "endsWith", "startsWith", "indexOf", "includes", "slice", "substring", "charAt", "split", "match", "test(" })
+            Assert.DoesNotContain(method, check, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("https:", "claude.ai", false)]
+    [InlineData("https:", "api.claude.ai", false)]
+    [InlineData("https:", "sites.google.com", true)]
+    [InlineData("https:", "claude.ai.evil.test", true)]
+    [InlineData("https:", "evilclaude.ai", true)]
+    [InlineData("http:", "claude.ai", true)]
+    public void A_page_that_replaces_endsWith_cannot_get_past_the_host_check(string protocol, string hostname, bool refused)
+    {
+        var node = TryRunNode(WebView2HiddenBrowserHost.WrapWithOriginGuard("({status: 'ran'})", "claude.ai"), protocol, hostname);
+        if (node is null)
+            return; // no node on this machine: the check above still pins the shape of the guard
+
+        Assert.True(refused == node.Contains(WebView2HiddenBrowserHost.OffOriginStatus, StringComparison.Ordinal), node);
+        Assert.True(!refused == node.Contains("\"ran\"", StringComparison.Ordinal), node);
+    }
+
+    /// <summary>Evaluates the guarded script in a fresh JavaScript context whose <c>String.prototype.endsWith</c>
+    /// always answers true, as a hostile page would leave it; null when node is not installed.</summary>
+    private static string? TryRunNode(string wrapped, string protocol, string hostname)
+    {
+        const string driver =
+            "const vm = require('vm'); const i = JSON.parse(require('fs').readFileSync(0, 'utf8'));" +
+            "const c = vm.createContext({ location: { protocol: i.protocol, hostname: i.hostname, href: i.protocol + '//' + i.hostname + '/' } });" +
+            "vm.runInContext('String.prototype.endsWith = () => true;', c);" +
+            "console.log(JSON.stringify(vm.runInContext(i.wrapped, c)));";
+        var start = new System.Diagnostics.ProcessStartInfo("node")
+        {
+            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            UseShellExecute = false, CreateNoWindow = true,
+        };
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(driver);
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+            process.StandardInput.Write(JsonSerializer.Serialize(new { wrapped, protocol, hostname }));
+            process.StandardInput.Close();
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(20000))
+            {
+                process.Kill();
+                return null;
+            }
+
+            Assert.True(process.ExitCode == 0, error);
+            return output;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    [Fact]
+    public void A_navigation_turned_away_is_logged_once_per_host_without_path_or_query()
+    {
+        IReadOnlyList<string> allowed = ["aistudio.google.com", "accounts.google.com"];
+        var gate = new FirstPerHostGate();
+
+        var first = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/ml?continue=secret&code=1", allowed, gate);
+        var again = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/other", allowed, gate);
+        var other = WebView2HiddenBrowserHost.BlockedNavigationLine("https://www.google.com/x", allowed, gate);
+
+        Assert.NotNull(first);
+        Assert.Contains("consent.google.com", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("/ml", first, StringComparison.Ordinal);
+        Assert.Null(again);
+        Assert.Contains("www.google.com", other, StringComparison.Ordinal);
+        Assert.Null(WebView2HiddenBrowserHost.BlockedNavigationLine("https://aistudio.google.com/usage", allowed, gate));
     }
 
     [Fact]

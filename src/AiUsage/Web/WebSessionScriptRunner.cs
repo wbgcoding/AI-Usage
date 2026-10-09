@@ -403,7 +403,9 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     /// <summary>Runs in every document of the hidden session before the page's own scripts. A page
     /// calling <c>print()</c> would open the browser's print dialog and hold the page's script thread until
     /// somebody closed it, and nobody ever sees this window. The function is replaced on the window itself,
-    /// where it lives, and cannot be put back by the page.</summary>
+    /// where it lives, and cannot be put back by the page. A frame the page adds itself starts with a
+    /// blank document this script never reaches, so its <c>print()</c> is not covered; the timeout of the
+    /// script run is the backstop there and ends the stall.</summary>
     internal const string DocumentCreatedScript =
         "Object.defineProperty(window,'print',{value:function(){},writable:false,configurable:false});";
 
@@ -412,6 +414,7 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     private readonly string _usageOriginHost;
     private readonly WebViewHost _host;
     private readonly FirstPerHostGate _popupLogGate = new();
+    private readonly FirstPerHostGate _blockedLogGate = new();
     private Window? _hiddenWindow;
     private WebView2? _webView;
     // Set by DisposeAsync, which may run while NavigateAsync is still awaiting the environment or the
@@ -497,8 +500,12 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         // for the ride - same allow-list the sign-in window uses, so the two never drift apart.
         webView.CoreWebView2.NavigationStarting += (_, e) =>
         {
-            if (!SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts))
-                e.Cancel = true;
+            if (SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts))
+                return;
+
+            e.Cancel = true;
+            if (BlockedNavigationLine(e.Uri, _allowedHosts, _blockedLogGate) is { } line)
+                LogService.Shared.LogInfo(line);
         };
 
         // This session reads numbers and nothing else: a page that tries to open a window, ask for a
@@ -521,6 +528,18 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         webView.CoreWebView2.NavigationCompleted += (_, e) => navigated.TrySetResult(e.IsSuccess);
         webView.CoreWebView2.Navigate(_baseUrl);
         return await navigated.Task.WaitAsync(ct);
+    }
+
+    /// <summary>The log line for a navigation the allow-list turns away, once per host (null when the
+    /// address is allowed or its host was reported already): without it a host missing from the list
+    /// shows only as a tile that reads "blocked". The host only, never the path or query.</summary>
+    internal static string? BlockedNavigationLine(string uri, IReadOnlyList<string> allowedHosts, FirstPerHostGate gate)
+    {
+        if (SignInNavigationPolicy.IsAllowedUri(uri, allowedHosts))
+            return null;
+
+        var host = Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && parsed.Host.Length > 0 ? parsed.Host : "unknown";
+        return gate.IsFirst(host) ? $"Hidden session: navigation to {host} blocked, not on this provider's allow list." : null;
     }
 
     /// <summary>Which page dialogs the hidden session answers with "yes": only the leave-page prompt, so
@@ -609,14 +628,24 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     /// on any page but the provider's own site (https, the host or one of its subdomains) the script
     /// does not run and the answer names the address instead, for <see cref="OffOriginEnvelope"/> to
     /// classify. Without it, a navigation landing between a check made from outside and the evaluation
-    /// would run the script - which fetches with the session's cookies - against a foreign page.</summary>
+    /// would run the script - which fetches with the session's cookies - against a foreign page. The
+    /// guard runs in the page's own world, so it uses no method of a built-in prototype (a page can
+    /// replace those): only the length of the host name, single characters and <c>===</c>.</summary>
     internal static string WrapWithOriginGuard(string script, string usageHost)
     {
         var host = JsonSerializer.Serialize(usageHost);
         // A block rather than a wrapping function: a script may open with function declarations before its
-        // own async call, and the value of the last statement is what the evaluation hands back.
+        // own async call, and the value of the last statement is what the evaluation hands back. The
+        // comparison itself sits in an arrow function so it declares nothing in the page's global scope.
         return $$"""
-            if (location.protocol !== 'https:' || (location.hostname !== {{host}} && !location.hostname.endsWith('.' + {{host}})))
+            if (!((h, u) => {
+                if (location.protocol !== 'https:') return false;
+                if (h === u) return true;
+                const d = h.length - u.length - 1;
+                if (d < 1 || h[d] !== '.') return false;
+                for (let i = 0; i < u.length; i++) if (h[d + 1 + i] !== u[i]) return false;
+                return true;
+            })(location.hostname, {{host}}))
                 ({status: '{{OffOriginStatus}}', href: location.href});
             else {
             {{script}}

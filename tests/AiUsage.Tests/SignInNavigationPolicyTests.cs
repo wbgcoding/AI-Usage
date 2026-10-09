@@ -27,6 +27,29 @@ public class SignInNavigationPolicyTests
         Assert.False(SignInNavigationPolicy.IsAllowedHost(host, AllowedHosts));
     }
 
+    [Theory]
+    [InlineData("github.com", true)]
+    [InlineData("GitHub.com", true)]
+    [InlineData("gist.github.com", false)]
+    [InlineData("github.com.evil.test", false)]
+    [InlineData("evilgithub.com", false)]
+    public void An_exact_entry_matches_that_one_host_and_no_subdomain(string host, bool expected)
+    {
+        Assert.Equal(expected, SignInNavigationPolicy.IsAllowedHost(host, [SignInNavigationPolicy.ExactPrefix + "github.com"]));
+    }
+
+    [Theory]
+    [InlineData("https://sites.google.com/view/x", false)]
+    [InlineData("https://accounts.google.com/signin", true)]
+    [InlineData("https://gds.google.com/web/chip", true)]
+    [InlineData("https://accounts.youtube.com/accounts/SetSID", true)]
+    [InlineData("https://accounts.google.de/accounts/SetSID", true)]
+    [InlineData("https://www.youtube.com/", false)]
+    public void The_google_sign_in_hosts_do_not_admit_the_rest_of_the_site(string url, bool expected)
+    {
+        Assert.Equal(expected, SignInNavigationPolicy.IsAllowedUri(url, SignInNavigationPolicy.GoogleSignInHosts));
+    }
+
     private static readonly string[] CountryAccountHosts = ["google.com", "youtube.com", SignInNavigationPolicy.GoogleCountryAccounts];
 
     [Theory]

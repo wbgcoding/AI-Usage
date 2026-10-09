@@ -81,6 +81,12 @@ public class UpdateInstallerTests
         /// <summary>When true, the swap works but the new copy cannot be started.</summary>
         public bool StartFailsAfterSwap { get; init; }
 
+        /// <summary>Thrown by the setup start, to model an administrator prompt that was declined.</summary>
+        public Exception? SetupStartThrows { get; init; }
+
+        /// <summary>Thrown by the swap, to model a failed replacement.</summary>
+        public Exception? SwapThrows { get; init; }
+
         public List<string> Ran { get; } = [];
 
         /// <summary>Runs while the host is handed the file, to model something touching it at that moment.</summary>
@@ -104,6 +110,9 @@ public class UpdateInstallerTests
 
         public void StartSetupAndExit(string setupPath)
         {
+            if (SetupStartThrows is not null)
+                throw SetupStartThrows;
+
             OnLaunch?.Invoke(setupPath);
             SeenAtLaunch.Add(File.ReadAllBytes(setupPath));
             Ran.Add("setup:" + Path.GetFileName(setupPath));
@@ -111,6 +120,9 @@ public class UpdateInstallerTests
 
         public bool ReplaceRunningAndRestart(byte[] verifiedExe)
         {
+            if (SwapThrows is not null)
+                throw SwapThrows;
+
             ReplacedWith = verifiedExe;
             Ran.Add("replace");
             return !StartFailsAfterSwap;
@@ -186,10 +198,55 @@ public class UpdateInstallerTests
         }
     }
 
+    [Fact]
+    public async Task ADeclinedAdministratorPromptIsReportedAsNotStartedAndLogsTheCode()
+    {
+        var (publicKey, key) = NewKey();
+        var host = new FakeHost
+        {
+            IsInstalled = true, PublicKey = publicKey,
+            SetupStartThrows = new System.ComponentModel.Win32Exception(1223),
+        };
+        host.Files[SetupUrl] = Payload;
+        host.Files[SetupUrl + ".sig"] = [.. System.Text.Encoding.ASCII.GetBytes(Sign(key, Payload))];
+        var logged = new List<string>();
+
+        var outcome = await new UpdateInstaller(host, logged.Add).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.NotStarted, outcome);
+        Assert.Contains(logged, line => line.Contains("1223"));
+        Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task AnUndoneSwapIsReportedWithTheOldFileNameAndLogsIt()
+    {
+        var (publicKey, key) = NewKey();
+        var oldPath = Path.Combine(TestPaths.CreateDirectory("restore"), "AI-Usage.exe.old");
+        var host = PortableHost(publicKey, Payload, Sign(key, Payload));
+        var restoring = new FakeHost
+        {
+            IsInstalled = false, PublicKey = publicKey, SwapThrows = new UpdateRestoreNeededException(oldPath),
+        };
+        restoring.Files[ExeUrl] = Payload;
+        restoring.Files[SigUrl] = host.Files[SigUrl];
+        var logged = new List<string>();
+
+        var installer = new UpdateInstaller(restoring, logged.Add);
+        var outcome = await installer.InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.SwapFailedRestoreNeeded, outcome);
+        Assert.Contains(logged, line => line.Contains(oldPath));
+        Assert.Equal(oldPath, installer.RestoreNeededPath);
+        Assert.Contains(oldPath, AiUsage.Views.UpdateDialogs.RestoreMessage(LocalizationService.Instance["Update.RestoreNeeded"], installer.RestoreNeededPath));
+    }
+
     [Theory]
     [InlineData(UpdateOutcome.NotNewer, "Update.NotNewer")]
     [InlineData(UpdateOutcome.NotVerified, "Update.NotVerified")]
     [InlineData(UpdateOutcome.InstalledRestartNeeded, "Update.InstalledRestart")]
+    [InlineData(UpdateOutcome.SwapFailedRestoreNeeded, "Update.RestoreNeeded")]
+    [InlineData(UpdateOutcome.NotStarted, "Update.NotStarted")]
     [InlineData(UpdateOutcome.DownloadFailed, "Update.NotLoaded")]
     [InlineData(UpdateOutcome.NoMatchingFile, "Update.NotLoaded")]
     public void EachRefusedOutcomeHasItsOwnMessage(UpdateOutcome outcome, string key)
@@ -788,7 +845,7 @@ public class PortableSwapTests
         var running = Path.Combine(folder, "AI-Usage.exe");
         File.WriteAllText(running, "old");
 
-        Assert.True(PortableSwap.Replace(running, [.. "new"u8]));
+        Assert.Equal(SwapResult.Replaced, PortableSwap.Replace(running, [.. "new"u8]));
 
         Assert.Equal("new", File.ReadAllText(running));
         Assert.Equal("old", File.ReadAllText(running + ".old"));
@@ -805,7 +862,7 @@ public class PortableSwapTests
         File.WriteAllText(running, "old");
         File.WriteAllText(running + ".new", "attacker copy");
 
-        Assert.True(PortableSwap.Replace(running, [.. "new"u8]));
+        Assert.Equal(SwapResult.Replaced, PortableSwap.Replace(running, [.. "new"u8]));
 
         Assert.Equal("new", File.ReadAllText(running));
         Assert.False(File.Exists(running + ".new"));
@@ -821,7 +878,7 @@ public class PortableSwapTests
         Directory.CreateDirectory(running + ".old");
         File.WriteAllText(Path.Combine(running + ".old", "keep"), "x");
 
-        Assert.False(PortableSwap.Replace(running, [.. "new"u8]));
+        Assert.Equal(SwapResult.Unchanged, PortableSwap.Replace(running, [.. "new"u8]));
 
         Assert.Equal("old", File.ReadAllText(running));
         Assert.False(File.Exists(running + ".new"));
@@ -836,7 +893,7 @@ public class PortableSwapTests
         Directory.CreateDirectory(running + ".new");
         File.WriteAllText(Path.Combine(running + ".new", "keep"), "x");
 
-        Assert.False(PortableSwap.Replace(running, [.. "new"u8]));
+        Assert.Equal(SwapResult.Unchanged, PortableSwap.Replace(running, [.. "new"u8]));
 
         Assert.Equal("old", File.ReadAllText(running));
         Assert.False(File.Exists(running + ".old"));
@@ -848,10 +905,55 @@ public class PortableSwapTests
         var folder = TestPaths.CreateDirectory("swap");
         var running = Path.Combine(folder, "AI-Usage.exe");
 
-        Assert.False(PortableSwap.Replace(running, [.. "new"u8]));
+        Assert.Equal(SwapResult.Unchanged, PortableSwap.Replace(running, [.. "new"u8]));
 
         Assert.False(File.Exists(running));
         Assert.False(File.Exists(running + ".old"));
+    }
+
+    [Fact]
+    public void ABrokenRestoreIsReportedAndLeavesThePreviousProgramAtTheOldName()
+    {
+        var folder = TestPaths.CreateDirectory("swap");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running, "old");
+
+        // The new copy cannot take the program's place and the previous one cannot go back either.
+        var result = PortableSwap.Replace(running, [.. "new"u8], (from, to, overwrite) =>
+        {
+            if (to == running)
+                throw new IOException("blocked");
+            File.Move(from, to, overwrite);
+        });
+
+        Assert.Equal(SwapResult.RestoreNeeded, result);
+        Assert.False(File.Exists(running));
+        Assert.Equal("old", File.ReadAllText(PortableSwap.OldPathFor(running)));
+        Assert.False(File.Exists(running + ".new"));
+    }
+
+    [Fact]
+    public void TheLeftoverIsKeptWhileTheExeItselfIsMissing()
+    {
+        var folder = TestPaths.CreateDirectory("swap");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running + ".old", "only copy");
+
+        PortableSwap.DeleteLeftover(running);
+
+        Assert.Equal("only copy", File.ReadAllText(running + ".old"));
+    }
+
+    [Theory]
+    [InlineData("/SILENT /ALLUSERS", "runas")]
+    [InlineData("/SILENT /CURRENTUSER", "")]
+    public void APerMachineSetupStartsElevatedFromTheVerifiedFile(string arguments, string verb)
+    {
+        var start = UpdateHost.BuildSetupStartInfo(@"C:\work\Setup.exe", arguments);
+
+        Assert.True(start.UseShellExecute);
+        Assert.Equal(verb, start.Verb);
+        Assert.Equal(arguments, start.Arguments);
     }
 
     [Fact]

@@ -188,15 +188,13 @@ public partial class SignInWindow : Window
     /// <summary>The host the title shows next to its text, empty when it shows none. Only the real
     /// top-level address counts: the host comes from the browser's own record of where the page is
     /// (never from the page's title or anything else it can write), and the page can never change
-    /// what stands in front of it. On the provider's own hosts there is nothing to add; on a host the
-    /// person allowed by hand the title carries that host, since nothing else in the window says where
-    /// the page actually is. A long name is cut at the front: the end of a host is the part that
-    /// tells whose it is.</summary>
-    internal static string TitleHostFor(
-        string? source, IReadOnlyList<string> providerHosts, IReadOnlyList<string> hostsAllowedByUser)
+    /// what stands in front of it. On the provider's own host and its subdomains there is nothing to
+    /// add; on any other host, whether the provider's list or the person allowed it, the title carries
+    /// that host, since nothing else in the window says where the page actually is. A long name is cut
+    /// at the front: the end of a host is the part that tells whose it is.</summary>
+    internal static string TitleHostFor(string? source, string providerHost)
     {
-        if (source is null || SignInNavigationPolicy.IsAllowedUri(source, providerHosts)
-            || !SignInNavigationPolicy.IsAllowedExactHost(source, hostsAllowedByUser)
+        if (source is null || SignInNavigationPolicy.IsUsageOrigin(source, providerHost)
             || !Uri.TryCreate(source, UriKind.Absolute, out var uri))
             return "";
 
@@ -208,9 +206,8 @@ public partial class SignInWindow : Window
     internal static string JoinTitle(string baseTitle, string host) =>
         host.Length == 0 ? baseTitle : baseTitle + " \u00B7 " + host;
 
-    internal static string TitleFor(
-        string baseTitle, string? source, IReadOnlyList<string> providerHosts, IReadOnlyList<string> hostsAllowedByUser) =>
-        JoinTitle(baseTitle, TitleHostFor(source, providerHosts, hostsAllowedByUser));
+    internal static string TitleFor(string baseTitle, string? source, string providerHost) =>
+        JoinTitle(baseTitle, TitleHostFor(source, providerHost));
 
     /// <summary>Host shown behind the title, set from the browser's own address (see <see
     /// cref="TitleHostFor"/>) and nothing else.</summary>
@@ -245,7 +242,7 @@ public partial class SignInWindow : Window
     };
 
     private void CoreWebView2_SourceChanged(object? sender, CoreWebView2SourceChangedEventArgs e) =>
-        TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _allowedHosts, _hostsAllowedByUser);
+        TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _providerHost);
 
     /// <summary>Whether a turned-away navigation is worth a notice of its own. A page the user was
     /// trying to reach is; the blank page a redirected pop-up loads before its real address, and a

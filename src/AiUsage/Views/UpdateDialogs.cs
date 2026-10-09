@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using AiUsage.Services;
 using AiUsage.ViewModels;
@@ -30,9 +31,13 @@ internal static class UpdateDialogs
 
         var loc = LocalizationService.Instance;
         var message = loc[MessageKey(result.Outcome)];
-        if (result.Outcome == UpdateOutcome.InstalledRestartNeeded)
+        if (result.Outcome == UpdateOutcome.SwapFailedRestoreNeeded)
+            message = RestoreMessage(message, result.RestoreNeededPath);
+
+        if (result.Outcome is UpdateOutcome.InstalledRestartNeeded or UpdateOutcome.SwapFailedRestoreNeeded or UpdateOutcome.NotStarted)
         {
-            // The new version is already in place: nothing to download, so only a close button.
+            // Nothing a download would fix (the new version is in place, the program file needs renaming,
+            // or the setup only has to be started again): only a close button.
             ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["TitleBar.Close"], "");
             return;
         }
@@ -41,11 +46,18 @@ internal static class UpdateDialogs
             OpenReleasePage(result.ReleaseUrl);
     }
 
+    /// <summary>The restore message with the path the swap reported; the path is never worked out again
+    /// here, since the running program's own path may already name the parked copy.</summary>
+    internal static string RestoreMessage(string template, string? oldPath) =>
+        string.Format(CultureInfo.CurrentCulture, template, oldPath ?? "AI-Usage.exe.old");
+
     internal static string MessageKey(UpdateOutcome outcome) => outcome switch
     {
         UpdateOutcome.NotVerified => "Update.NotVerified",
         UpdateOutcome.NotNewer => "Update.NotNewer",
         UpdateOutcome.InstalledRestartNeeded => "Update.InstalledRestart",
+        UpdateOutcome.SwapFailedRestoreNeeded => "Update.RestoreNeeded",
+        UpdateOutcome.NotStarted => "Update.NotStarted",
         _ => "Update.NotLoaded",
     };
 

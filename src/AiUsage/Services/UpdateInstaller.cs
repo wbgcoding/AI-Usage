@@ -22,6 +22,14 @@ public enum UpdateOutcome
     /// <summary>The verified update replaced the program file, but the new copy could not be started;
     /// the user starts it by hand.</summary>
     InstalledRestartNeeded,
+
+    /// <summary>The swap of the program file failed and the previous program could not be put back:
+    /// it sits beside the exe under the <c>.old</c> name and the user has to rename it back.</summary>
+    SwapFailedRestoreNeeded,
+
+    /// <summary>The setup was verified but did not start (for example the administrator prompt was
+    /// declined); nothing was installed and the running copy stays up.</summary>
+    NotStarted,
 }
 
 /// <summary>Everything the installer needs from the machine, so the whole flow runs in a test
@@ -63,9 +71,18 @@ public interface IUpdateHost
 
     /// <summary>Puts the verified exe bytes in place of the running exe and starts it, ending the running
     /// copy. Throws <see cref="IOException"/> when the exe could not be replaced (the previous program
-    /// is then still in place). Returns false when the exe was replaced but the new copy could not be
+    /// is then still in place) and <see cref="UpdateRestoreNeededException"/> when it could not be put
+    /// back either. Returns false when the exe was replaced but the new copy could not be
     /// started: the running copy then stays alive.</summary>
     bool ReplaceRunningAndRestart(byte[] verifiedExe);
+}
+
+/// <summary>The swap of a portable update failed after the running exe was moved aside, and moving it
+/// back failed too: the previous program is only at <see cref="OldPath"/>.</summary>
+public sealed class UpdateRestoreNeededException(string oldPath)
+    : IOException("The previous program file could not be put back; it is at " + oldPath + ".")
+{
+    public string OldPath { get; } = oldPath;
 }
 
 /// <summary>
@@ -74,6 +91,10 @@ public interface IUpdateHost
 /// </summary>
 public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null)
 {
+    /// <summary>Where the previous program is after <see cref="UpdateOutcome.SwapFailedRestoreNeeded"/>,
+    /// as the swap reported it; null for every other outcome.</summary>
+    public string? RestoreNeededPath { get; private set; }
+
     /// <summary>The only hosts a release file or its signature may come from. A release asset URL on
     /// GitHub answers with a redirect to the content host, so each hop is checked against this list
     /// as well (see <see cref="UpdateHost"/>).</summary>
@@ -234,7 +255,23 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
                     return UpdateOutcome.InstalledRestartNeeded;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (UpdateRestoreNeededException ex)
+        {
+            held.Dispose();
+            CleanUpRun(runFolder, filePath);
+            RestoreNeededPath = ex.OldPath;
+            log?.Invoke($"Update swap failed and the previous program could not be put back: it is at {ex.OldPath}.");
+            return UpdateOutcome.SwapFailedRestoreNeeded;
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // The setup itself did not start (a declined administrator prompt is code 1223): not a failed download.
+            held.Dispose();
+            CleanUpRun(runFolder, filePath);
+            log?.Invoke($"Update setup did not start (error code {ex.NativeErrorCode}).");
+            return UpdateOutcome.NotStarted;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             held.Dispose();
             CleanUpRun(runFolder, filePath);
@@ -354,6 +391,19 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     }
 }
 
+/// <summary>How a portable swap ended.</summary>
+public enum SwapResult
+{
+    /// <summary>The new program is in place; the previous one sits beside it under the <c>.old</c> name.</summary>
+    Replaced,
+
+    /// <summary>Nothing changed: the running exe is still in place.</summary>
+    Unchanged,
+
+    /// <summary>The running exe was moved aside and could not be moved back: it is at the <c>.old</c> name.</summary>
+    RestoreNeeded,
+}
+
 /// <summary>The file moves of a portable update, kept apart from the process handling so they run in a test.</summary>
 public static class PortableSwap
 {
@@ -362,13 +412,21 @@ public static class PortableSwap
 
     /// <summary>Writes the verified bytes beside the running exe, checks the written copy against them,
     /// renames the running exe aside and the new copy into its place. A running exe can be renamed but
-    /// not deleted; the leftover goes at the next start. False, with everything back as it was, when
-    /// the new file could not be put in place - the running exe is only touched once a complete,
-    /// identical copy of the new one exists.</summary>
-    public static bool Replace(string runningExePath, byte[] newExe)
+    /// not deleted; the leftover goes once the new copy has shown its window. <see cref="SwapResult.Unchanged"/>,
+    /// with everything back as it was, when the new file could not be put in place - the running exe
+    /// is only touched once a complete, identical copy of the new one exists.
+    /// <see cref="SwapResult.RestoreNeeded"/> when even moving the previous program back failed.</summary>
+    public static SwapResult Replace(string runningExePath, byte[] newExe) =>
+        Replace(runningExePath, newExe, (from, to, overwrite) => File.Move(from, to, overwrite));
+
+    /// <summary>The name the previous program is parked under during a swap.</summary>
+    public static string OldPathFor(string runningExePath) => runningExePath + OldSuffix;
+
+    /// <summary>The move is a parameter so a test can fail one of the renames.</summary>
+    internal static SwapResult Replace(string runningExePath, byte[] newExe, Action<string, string, bool> move)
     {
         if (!File.Exists(runningExePath))
-            return false;
+            return SwapResult.Unchanged;
 
         var oldPath = runningExePath + OldSuffix;
         var stagedPath = runningExePath + StagedSuffix;
@@ -389,38 +447,39 @@ public static class PortableSwap
             if (!HasContent(staged, newExe))
             {
                 DiscardStaged(ref staged, stagedPath);
-                return false;
+                return SwapResult.Unchanged;
             }
 
             if (File.Exists(oldPath))
                 File.Delete(oldPath);
-            File.Move(runningExePath, oldPath);
+            move(runningExePath, oldPath, false);
             try
             {
-                File.Move(stagedPath, runningExePath);
+                move(stagedPath, runningExePath, false);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // The previous program goes back where it was; if even that fails, the .old file still holds it.
+                // The previous program goes back where it was; if even that fails, only the .old file holds it.
+                var restored = true;
                 try
                 {
-                    File.Move(oldPath, runningExePath, overwrite: true);
+                    move(oldPath, runningExePath, true);
                 }
                 catch (Exception restore) when (restore is IOException or UnauthorizedAccessException)
                 {
-                    // Nothing more can be done from here.
+                    restored = false;
                 }
 
                 DiscardStaged(ref staged, stagedPath);
-                return false;
+                return restored ? SwapResult.Unchanged : SwapResult.RestoreNeeded;
             }
 
-            return true;
+            return SwapResult.Replaced;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             DiscardStaged(ref staged, stagedPath);
-            return false;
+            return SwapResult.Unchanged;
         }
         finally
         {
@@ -460,11 +519,15 @@ public static class PortableSwap
         }
     }
 
-    /// <summary>Deletes the previous program a portable update left beside the exe.</summary>
+    /// <summary>Deletes the previous program a portable update left beside the exe. Never while the
+    /// exe itself is missing: the <c>.old</c> file is then the only copy of the program.</summary>
     public static void DeleteLeftover(string runningExePath)
     {
         try
         {
+            if (!File.Exists(runningExePath))
+                return;
+
             File.Delete(runningExePath + OldSuffix);
             File.Delete(runningExePath + StagedSuffix);
         }

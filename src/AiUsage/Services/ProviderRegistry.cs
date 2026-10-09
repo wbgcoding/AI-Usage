@@ -36,15 +36,17 @@ public static class ProviderRegistry
         // at, so the login request carries the parameters the identity service expects - an address
         // on the identity service alone, without them, is not a form anyone can sign in on.
         SignInUrl: "https://chatgpt.com/auth/login",
-        // google.com rather than accounts.google.com alone: the Google login hands a two-factor
-        // confirmation on to further hosts of its own (gds.google.com, myaccount.google.com) and only
-        // then returns, and each one not on this list is a cancelled navigation that leaves the user
-        // on a page that never finishes. youtube.com is on this list and on every other one carrying
-        // google.com for exactly that reason: the last step of a Google sign-in confirms the account
-        // on accounts.youtube.com before handing the session back, and being turned away there ends
-        // the sign-in one step before the end. Only whole pages need naming here - the check runs on
-        // top-level navigations, never on a page's own scripts, styles or frames.
-        AllowedHosts: ["chatgpt.com", "openai.com", "google.com", "youtube.com", Web.SignInNavigationPolicy.GoogleCountryAccounts, "appleid.apple.com", "login.microsoftonline.com"],
+        // The Google login hands a two-factor confirmation on to further hosts of its own
+        // (gds.google.com, myaccount.google.com) and only then returns, and each one not on this list
+        // is a cancelled navigation that leaves the user on a page that never finishes. The last step
+        // confirms the account on accounts.youtube.com before handing the session back, and being
+        // turned away there ends the sign-in one step before the end. They are named one by one, not as
+        // the whole google.com and youtube.com: those would admit user-content hosts such as
+        // sites.google.com into the sign-in window. A Google host not named here is turned away with
+        // the blocked notice, where the person can allow that one host by hand. Only whole pages need
+        // naming here - the check runs on top-level navigations, never on a page's own scripts,
+        // styles or frames.
+        AllowedHosts: ["chatgpt.com", "openai.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts, "appleid.apple.com", "login.microsoftonline.com"],
         ProfileFolderName: "codex");
 
     /// <summary>Cursor's own session: its own usage page, its own front door (never derived from the
@@ -54,25 +56,23 @@ public static class ProviderRegistry
     /// Claude's list: Cursor's own sign-in leaves cursor.com before returning, and without them that
     /// whole path looks like a session hijack and is blocked outright. workos.com is the identity
     /// service behind Cursor's own login - the sign-in calls api.workos.com partway through and
-    /// stopped dead there. google.com is named as the whole site because Google's two-factor
-    /// confirmation travels through more of its own hosts than accounts.google.com alone, and
-    /// cursor.sh for the same reason on Cursor's own side: the login itself sits on one host of that
-    /// site (authenticate.cursor.sh) while the authorize step uses another (authenticator.cursor.sh),
-    /// and naming only one of the two is what blocked the sign-in halfway through.</summary>
+    /// stopped dead there. Google is named by its sign-in hosts (see
+    /// <see cref="Web.SignInNavigationPolicy.GoogleSignInHosts"/>), GitHub by its own host only (its
+    /// sign-in and two-factor pages all sit on github.com itself), and cursor.sh as the whole site
+    /// because the login itself sits on one host of that site (authenticate.cursor.sh) while the
+    /// authorize step uses another (authenticator.cursor.sh), and naming only one of the two is what
+    /// blocked the sign-in halfway through.</summary>
     internal static readonly WebSessionDescriptor CursorWebSession = new(
         ProviderId: "cursor",
         BaseUrl: "https://cursor.com/dashboard/usage",
         SignInUrl: "https://cursor.com/dashboard",
-        AllowedHosts: ["cursor.com", "cursor.sh", "workos.com", "google.com", "youtube.com", Web.SignInNavigationPolicy.GoogleCountryAccounts, "github.com"],
+        AllowedHosts: ["cursor.com", "cursor.sh", "workos.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts, Web.SignInNavigationPolicy.ExactPrefix + "github.com"],
         ProfileFolderName: "cursor");
 
     /// <summary>Gemini's own session: its own usage page on AI Studio, its own front door, and its
-    /// own browser profile subfolder. <c>google.com</c> is named as the whole site rather than
-    /// <c>aistudio.google.com</c> alone for the same reason it is on Codex's and Claude's lists -
-    /// Google's own two-factor confirmation travels through more of its own hosts than the front
-    /// door alone, and <c>aistudio.google.com</c> itself already matches as a subdomain of the
-    /// listed site (see <see cref="Web.SignInNavigationPolicy.IsAllowedHost"/>), so nothing else
-    /// needs naming here.</summary>
+    /// own browser profile subfolder. The product's own host plus Google's sign-in hosts (see
+    /// <see cref="Web.SignInNavigationPolicy.GoogleSignInHosts"/>): Google's two-factor confirmation
+    /// travels through more of its own hosts than the front door alone.</summary>
     internal static readonly WebSessionDescriptor GeminiWebSession = new(
         ProviderId: "gemini",
         BaseUrl: "https://aistudio.google.com/usage",
@@ -80,9 +80,9 @@ public static class ProviderRegistry
         // itself: signed out, that address answers with the product welcome page, which carries no
         // visible way in and is exactly the "just a Google page, no sign-in" this used to show.
         SignInUrl: "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Faistudio.google.com%2Fusage",
-        // The country account hosts too: after the login Google sets the session cookies through
-        // accounts.google.<the user's country domain>, which google.com above does not cover.
-        AllowedHosts: ["google.com", "youtube.com", Web.SignInNavigationPolicy.GoogleCountryAccounts],
+        // The sign-in hosts include the country account hosts: after the login Google sets the
+        // session cookies through accounts.google.<the user's country domain>.
+        AllowedHosts: ["aistudio.google.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
         ProfileFolderName: "gemini");
 
     /// <summary>Which provider's fixed session shape a "&lt;provider&gt;#&lt;n&gt;"-style account key
@@ -124,12 +124,12 @@ public static class ProviderRegistry
         ProviderId: "claude",
         BaseUrl: "https://claude.ai/",
         SignInUrl: "https://claude.ai/login",
-        // google.com: Claude's own "Sign in with Google" button leaves claude.ai for Google's real
-        // login/consent flow before returning - without it that whole path is indistinguishable from
-        // a session hijack attempt and gets blocked outright. Named as the whole site for the same
-        // reason as on Codex's list above: the two-factor confirmation travels through more than one
-        // Google host.
-        AllowedHosts: ["claude.ai", "anthropic.com", "google.com", "youtube.com", Web.SignInNavigationPolicy.GoogleCountryAccounts],
+        // Google's sign-in hosts: Claude's own "Sign in with Google" button leaves claude.ai for
+        // Google's real login/consent flow before returning - without them that whole path is
+        // indistinguishable from a session hijack attempt and gets blocked outright. Several hosts
+        // for the same reason as on Codex's list above: the two-factor confirmation travels through
+        // more than one Google host.
+        AllowedHosts: ["claude.ai", "anthropic.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
         ProfileFolderName: "claude");
 
     /// <summary>Builds exactly one Claude account's provider and its own web-session runner -
