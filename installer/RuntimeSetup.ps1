@@ -29,22 +29,19 @@ $ExitRun = 13
 $ExitTimeout = 14
 $ExitInstaller = 15
 
-# Exact host names; a redirect anywhere else ends the download.
+# Exact host names; a redirect anywhere else ends the download. The short link walks through
+# exactly these two.
 $AllowedHosts = @(
     'aka.ms',
-    'builds.dotnet.microsoft.com',
-    'dotnetcli.azureedge.net',
-    'download.visualstudio.microsoft.com'
+    'builds.dotnet.microsoft.com'
 )
 
-# Microsoft's own root certificates for code signing: Root Certificate Authority 2010 and 2011,
-# RSA Root 2017, ECC Product Root 2018 and Identity Verification Root 2020.
+# Microsoft's Root Certificate Authority 2010 and 2011: the roots the .NET installers chain to.
+# Roots that also serve other publishers are left out on purpose. A later .NET installer that moves
+# to another root needs that root added here deliberately.
 $MicrosoftRoots = @(
     '3B1EFD3A66EA28B16697394703A72CA340A05BD5',
-    '8F43288AD272F3103B6FB1428485EA3014C0BCFE',
-    '73A5E64A3BFF8316FF0EDCCC618A906E4EAE4D74',
-    '06F1AA330B927B753A40E68CDF22E34BCBEF3352',
-    'F40042E2E5F7E8EF8189FED15519AECE42C3BFA2'
+    '8F43288AD272F3103B6FB1428485EA3014C0BCFE'
 )
 
 $RequiredOrganization = 'Microsoft Corporation'
@@ -112,6 +109,24 @@ function Get-SubjectFields([string]$Subject) {
 function Test-MicrosoftSubject([string]$Subject) {
     $organizations = @(Get-SubjectFields $Subject | Where-Object { $_.Type -eq 'O' })
     return ($organizations.Count -eq 1 -and $organizations[0].Value -ceq $RequiredOrganization)
+}
+
+# True for the product name and version of the .NET 10 Desktop Runtime installer, for example
+# "Microsoft Windows Desktop Runtime 10.0.12 (x64)" (older releases wrote " - " before the version)
+# with product version 10.0.12.xxxxx.
+function Test-RuntimeProduct([string]$ProductName, [string]$ProductVersion) {
+    if ($ProductName -notmatch '^Microsoft Windows Desktop Runtime (- )?10\.\d+\.\d+\S* \(\w+\)$') { return $false }
+    return ($ProductVersion -match '^10\.\d+\.\d+')
+}
+
+# Returns $null when the file is the .NET 10 Desktop Runtime installer, otherwise the reason it is
+# not. A valid Microsoft signature alone says nothing about which Microsoft program this is.
+function Get-ProductProblem([string]$Path) {
+    $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($Path)
+    if (-not (Test-RuntimeProduct $info.ProductName $info.ProductVersion)) {
+        return "file is not the .NET 10 Desktop Runtime installer (product '$($info.ProductName)' $($info.ProductVersion))"
+    }
+    return $null
 }
 
 # Returns $null when the file is Microsoft's, otherwise the reason it is not.
@@ -213,6 +228,7 @@ function Invoke-Main {
         try {
             $guard = [IO.File]::Open($VerifyFile, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
             $problem = Get-SignatureProblem $VerifyFile
+            if (-not $problem) { $problem = Get-ProductProblem $VerifyFile }
         }
         catch {
             $problem = "file could not be checked: $($_.Exception.Message)"
@@ -252,11 +268,12 @@ function Invoke-Main {
         $guard = [IO.File]::Open($file, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
 
         $problem = Get-SignatureProblem $file
+        if (-not $problem) { $problem = Get-ProductProblem $file }
         if ($problem) {
-            Write-Log "signature refused: $problem"
+            Write-Log "installer refused: $problem"
             return $ExitSignature
         }
-        Write-Log 'signature accepted'
+        Write-Log 'signature and product accepted'
 
         try {
             $process = Start-Process -FilePath $file -ArgumentList '/install', '/quiet', '/norestart' -Verb RunAs -PassThru

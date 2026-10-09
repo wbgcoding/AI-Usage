@@ -79,6 +79,8 @@ public class RuntimeSetupScriptTests
             "//aka.ms/runtime.exe",
             "aka.ms/runtime.exe",
             "https://www.microsoft.com/runtime.exe",
+            "https://dotnetcli.azureedge.net/dotnet/WindowsDesktop/10.0.12/windowsdesktop-runtime-10.0.12-win-x64.exe",
+            "https://download.visualstudio.microsoft.com/download/pr/runtime.exe",
         ];
 
         var cases = allowed.Concat(refused).Select(url => $"'{url}'");
@@ -135,18 +137,77 @@ public class RuntimeSetupScriptTests
         Assert.NotEqual(0, code);
     }
 
-    [Fact]
-    public void A_genuine_Microsoft_signed_file_is_accepted()
+    private static string? DotnetHost()
     {
         // The .NET host that runs this test is signed by Microsoft the same way the runtime installer is.
         var dotnetRoot = Path.GetFullPath(Path.Combine(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory(), "..", "..", ".."));
         var host = Path.Combine(dotnetRoot, "dotnet.exe");
-        if (!File.Exists(host) || !AiUsage.Services.NetworkStatus.HasInternet())
-            return; // The check asks Microsoft's revocation servers, so it needs the host file and a connection.
+        // The signature check asks Microsoft's revocation servers, so it needs the host file and a connection.
+        return File.Exists(host) && AiUsage.Services.NetworkStatus.HasInternet() ? host : null;
+    }
+
+    [Fact]
+    public void A_genuine_Microsoft_signature_passes_the_signature_check()
+    {
+        if (DotnetHost() is not { } host)
+            return;
+
+        var answers = Evaluate($"'R|' + [string](Get-SignatureProblem '{host}')");
+
+        Assert.Equal(["R|"], answers);
+    }
+
+    [Fact]
+    public void A_Microsoft_signed_file_that_is_not_the_runtime_installer_is_refused()
+    {
+        if (DotnetHost() is not { } host)
+            return;
 
         var (code, output) = RunPowerShell("-File", Script, "-VerifyFile", host);
 
-        Assert.True(code == 0, $"expected the .NET host to pass, got {code}: {output}");
+        Assert.Equal(12, code);
+        Assert.Contains("not the .NET 10 Desktop Runtime installer", output);
+    }
+
+    [Fact]
+    public void Only_the_runtime_10_installer_passes_the_product_check()
+    {
+        var cases = new (string Name, string Version, bool Accepted)[]
+        {
+            ("Microsoft Windows Desktop Runtime 10.0.12 (x64)", "10.0.12.50000", true),
+            ("Microsoft Windows Desktop Runtime - 10.0.12 (x64)", "10.0.12.37203", true),
+            ("Microsoft Windows Desktop Runtime 9.0.20 (x64)", "9.0.20.36421", false),
+            ("Microsoft Windows Desktop Runtime - 10.0.12 (Arm64)", "10.0.12.37203", true),
+            ("Microsoft Windows Desktop Runtime - 10.0.0-rc.2.25502.107 (x64)", "10.0.0.25502", true),
+            ("Microsoft Windows Desktop Runtime - 9.0.20 (x64)", "9.0.20.36421", false),
+            ("Microsoft Windows Desktop Runtime - 8.0.14 (x86)", "8.0.14.34613", false),
+            ("Microsoft Windows Desktop Runtime - 10.0.12 (x64)", "9.0.20.36421", false),
+            (".NET", "10.0.12", false),
+            ("Microsoft Edge", "10.0.12", false),
+            ("Microsoft Windows Desktop Runtime - 10.0.12 (x64) extra", "10.0.12.1", false),
+            ("", "", false),
+        };
+
+        var list = string.Join(",", cases.Select(c => $"@('{c.Name}','{c.Version}')"));
+        var answers = Evaluate($"foreach ($c in {list}) {{ 'R|' + (Test-RuntimeProduct $c[0] $c[1]) }}");
+
+        Assert.Equal(cases.Select(c => "R|" + (c.Accepted ? "True" : "False")), answers);
+    }
+
+    [Fact]
+    public void The_trust_lists_stay_narrow()
+    {
+        var text = File.ReadAllText(Script);
+
+        // Hosts: only the short link and the host it forwards to.
+        Assert.DoesNotContain("azureedge", text);
+        Assert.DoesNotContain("visualstudio", text);
+        // Roots: Microsoft Root Certificate Authority 2010 and 2011 only, not the roots that also serve other publishers.
+        Assert.Contains("3B1EFD3A66EA28B16697394703A72CA340A05BD5", text);
+        Assert.Contains("8F43288AD272F3103B6FB1428485EA3014C0BCFE", text);
+        Assert.DoesNotContain("F40042E2E5F7E8EF8189FED15519AECE42C3BFA2", text);
+        Assert.DoesNotContain("73A5E64A3BFF8316FF0EDCCC618A906E4EAE4D74", text);
+        Assert.DoesNotContain("06F1AA330B927B753A40E68CDF22E34BCBEF3352", text);
     }
 
     [Fact]
@@ -174,6 +235,9 @@ public class RuntimeSetupScriptTests
         Assert.Contains(@"\sharedfx\Microsoft.WindowsDesktop.App", text);
         Assert.Contains("https://aka.ms/dotnet/10.0/windowsdesktop-runtime-win-", text);
         Assert.Contains("HKLM32", text);
+        // A preview version and a folder without the runtime's own files do not count as installed.
+        Assert.Contains("(Pos('-', Names[I]) = 0)", text);
+        Assert.Contains("PresentationFramework.dll", text);
         Assert.Contains(@"shared\Microsoft.WindowsDesktop.App\", text);
         Assert.Contains("function PrepareToInstall(var NeedsRestart: Boolean): String;", text);
         Assert.Contains("function ShouldSkipPage(PageID: Integer): Boolean;", text);

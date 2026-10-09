@@ -349,10 +349,12 @@ begin
     Result := 'x64';
 end;
 
-{ Whether one registry view lists a 10.x version under the runtime key AND that version is still
-  on disk. The listing alone is not enough: uninstalling the runtime leaves its version values
-  behind, so a PC without the runtime can still list it. The folder is looked up under the install
-  location the installers record, or the standard one when none is recorded. }
+{ Whether one registry view lists a released 10.x version under the runtime key AND that version
+  is still on disk. The listing alone is not enough: uninstalling the runtime leaves its version
+  values behind, so a PC without the runtime can still list it. A preview (a name with a dash) does
+  not count, because the app does not roll forward onto one. On disk, a known file of the runtime
+  has to be there, not just a folder. Both are looked up under the install location the installers
+  record, or the standard one when none is recorded. }
 function RuntimeListedIn(Root: Integer): Boolean;
 var
   Names: TArrayOfString;
@@ -367,8 +369,9 @@ begin
     Location := ExpandConstant('{commonpf64}\dotnet');
 
   for I := 0 to GetArrayLength(Names) - 1 do
-    if (Copy(Names[I], 1, 3) = '10.')
-       and DirExists(AddBackslash(Location) + 'shared\Microsoft.WindowsDesktop.App\' + Names[I]) then
+    if (Copy(Names[I], 1, 3) = '10.') and (Pos('-', Names[I]) = 0)
+       and FileExists(AddBackslash(Location) + 'shared\Microsoft.WindowsDesktop.App\' + Names[I] +
+                      '\PresentationFramework.dll') then
     begin
       Result := True;
       Exit;
