@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AiUsage.Io;
 using AiUsage.Models;
 using AiUsage.Providers.Parsing;
@@ -14,7 +15,7 @@ namespace AiUsage.Providers;
 /// numbers keep moving on a day the tool was not used at all. Both sources go through the shared
 /// chooser; they are never mixed into one window list. Never throws.
 /// </summary>
-public sealed class CodexProvider : IUsageProvider
+public sealed partial class CodexProvider : IUsageProvider
 {
     // A run of short sessions can leave many files with nothing usable in them, so the scan has to
     // reach well past the newest handful. The loop returns on the first match, so this ceiling only
@@ -282,6 +283,7 @@ public sealed class CodexProvider : IUsageProvider
 
             var files = LocalFileScan.NewestFiles(_sessionsRoot, "rollout-*.jsonl", MaxDepth, MaxFilesToCheck);
             ProviderSnapshot? newestSnapshot = null;
+            var newestIsRejection = false;
 
             // The newest file by write time - the same one this scan already found, never a second
             // directory walk - is what "is the agent waiting right now" is asked about, regardless of
@@ -346,7 +348,10 @@ public sealed class CodexProvider : IUsageProvider
                             snapshot = ReportFiveHourWindowAsFull(snapshot);
 
                         if (newestSnapshot is null || snapshot.DataTimestamp > newestSnapshot.DataTimestamp)
+                        {
                             newestSnapshot = snapshot;
+                            newestIsRejection = sawUsageLimitRejectionSinceNewestPercent;
+                        }
 
                         break; // this file's newest usable event is found - move on to the next file
                     }
@@ -360,7 +365,12 @@ public sealed class CodexProvider : IUsageProvider
 
             if (newestSnapshot is not null)
             {
-                var guarded = ProviderSnapshots.ExpirePastWindows(ApplyPlausibilityGuard(newestSnapshot), fetchedAt);
+                // A rejection is certain, so it is never held back as an implausible jump; it becomes
+                // the baseline the next reading is judged against.
+                var checkedSnapshot = newestIsRejection
+                    ? AcceptWithoutGuard(newestSnapshot)
+                    : ApplyPlausibilityGuard(newestSnapshot, fetchedAt);
+                var guarded = ProviderSnapshots.ExpirePastWindows(checkedSnapshot, fetchedAt);
                 return new LocalRead(guarded with { IsWaitingForUser = isWaitingForUser, WaitingSince = waitingSince }, FromSessionFile: true);
             }
 
@@ -406,7 +416,11 @@ public sealed class CodexProvider : IUsageProvider
             windows.Add(new UsageWindow(
                 "Window_FiveHour", WindowKind.FiveHour, primaryUsedPercent,
                 limits.PrimaryResetsAt, limits.PrimaryWindowMinutes,
-                limits.TotalTokens is { } total ? new TokenUsage(total) : null));
+                // The figure counts the whole rollout; it describes this window only while the rollout
+                // was still talking inside it.
+                limits.TotalTokens is { } total && limits.Timestamp >= fetchedAt - TimeSpan.FromMinutes(limits.PrimaryWindowMinutes ?? 300)
+                    ? new TokenUsage(total)
+                    : null));
 
         if (limits.SecondaryUsedPercent is { } secondaryUsedPercent)
             windows.Add(new UsageWindow(
@@ -433,6 +447,11 @@ public sealed class CodexProvider : IUsageProvider
             Error: null);
     }
 
+    // The status as an error message words it ("HTTP 429", "status 429", "429 Too Many Requests"); a
+    // bare "429" inside an id or a hash does not count.
+    [GeneratedRegex(@"\b(HTTP|status)\s*429\b|\b429\s+Too Many\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TooManyRequests();
+
     /// <summary>A genuine rejection, not a coincidental substring: matched only on the structured
     /// shape Codex itself writes for one (<c>type: "event_msg"</c>, <c>payload.type: "error"</c>,
     /// naming an HTTP 429 or a usage limit in its own message text) - never a plain text search across
@@ -441,7 +460,7 @@ public sealed class CodexProvider : IUsageProvider
     /// reported a five-hour window as fully used from nothing but that coincidence. See
     /// <see cref="ApplyPlausibilityGuard"/> for the second, independent guard against exactly that
     /// failure mode.</summary>
-    private static bool IsUsageLimitRejection(string line)
+    internal static bool IsUsageLimitRejection(string line)
     {
         // Cheap prefilter before the real (JSON) parse: almost no line is an error event at all.
         if (!line.Contains("\"type\":\"error\"", StringComparison.Ordinal))
@@ -464,7 +483,7 @@ public sealed class CodexProvider : IUsageProvider
                     ? messageProperty.GetString() ?? ""
                     : "";
 
-            return message.Contains("429", StringComparison.Ordinal)
+            return TooManyRequests().IsMatch(message)
                 || message.Contains("usage limit", StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException)
@@ -498,14 +517,14 @@ public sealed class CodexProvider : IUsageProvider
     /// same line read again on a later tick confirms nothing. Nothing here ever hides a jump a newer
     /// line confirms.
     /// </summary>
-    private ProviderSnapshot ApplyPlausibilityGuard(ProviderSnapshot snapshot)
+    private ProviderSnapshot ApplyPlausibilityGuard(ProviderSnapshot snapshot, DateTimeOffset fetchedAt)
     {
         List<UsageWindow>? guardedWindows = null;
 
         for (var i = 0; i < snapshot.Windows.Count; i++)
         {
             var window = snapshot.Windows[i];
-            var guardedPercent = GuardLocalReading(window.Kind, window.UsedPercent, window.ResetsAt, snapshot.DataTimestamp);
+            var guardedPercent = GuardLocalReading(window.Kind, window.UsedPercent, window.ResetsAt, snapshot.DataTimestamp, fetchedAt);
             if (guardedPercent == window.UsedPercent)
                 continue;
 
@@ -517,7 +536,21 @@ public sealed class CodexProvider : IUsageProvider
         return guardedWindows is null ? snapshot : snapshot with { Windows = guardedWindows };
     }
 
-    private double GuardLocalReading(WindowKind kind, double rawUsedPercent, DateTimeOffset? resetsAt, DateTimeOffset? dataTimestamp)
+    /// <summary>Takes every window of a certain reading (a rejection) as the new baseline and drops any
+    /// reading held back for it.</summary>
+    private ProviderSnapshot AcceptWithoutGuard(ProviderSnapshot snapshot)
+    {
+        foreach (var window in snapshot.Windows)
+        {
+            _lastAcceptedLocalReading[window.Kind] = (window.UsedPercent, window.ResetsAt);
+            _pendingLocalOutlier.Remove(window.Kind);
+        }
+
+        return snapshot;
+    }
+
+    private double GuardLocalReading(
+        WindowKind kind, double rawUsedPercent, DateTimeOffset? resetsAt, DateTimeOffset? dataTimestamp, DateTimeOffset fetchedAt)
     {
         if (!_lastAcceptedLocalReading.TryGetValue(kind, out var lastAccepted))
         {
@@ -536,7 +569,7 @@ public sealed class CodexProvider : IUsageProvider
                 // The same line read again on the next tick proves nothing on its own: only a newer
                 // line that repeats a similarly large jump is a real change, not noise - or, with no
                 // newer line at all, the passing of the hold time-out.
-                if (dataTimestamp == pending.DataTimestamp && _now() - pending.FirstSeen < HeldJumpTimeout)
+                if (dataTimestamp == pending.DataTimestamp && fetchedAt - pending.FirstSeen < HeldJumpTimeout)
                     return lastAccepted.UsedPercent;
 
                 _lastAcceptedLocalReading[kind] = (rawUsedPercent, resetsAt);
@@ -544,7 +577,7 @@ public sealed class CodexProvider : IUsageProvider
                 return rawUsedPercent;
             }
 
-            _pendingLocalOutlier[kind] = (rawUsedPercent, resetsAt, dataTimestamp, _now());
+            _pendingLocalOutlier[kind] = (rawUsedPercent, resetsAt, dataTimestamp, fetchedAt);
             _log.LogInfo($"Ignored an implausible jump in the {kind} window from a local session file, kept the previous reading.");
             return lastAccepted.UsedPercent;
         }
