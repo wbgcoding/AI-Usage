@@ -342,6 +342,10 @@
                     <TextBlock Text="{Binding ReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                Margin="0,0,0,8" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
                                Visibility="{Binding ShowStaleNotice, Converter={StaticResource BoolToVis}}"/>
+                    <!-- Codex numbers read from the local files only: the way to live values. -->
+                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.CodexSignInWeb]}"
+                            Command="{Binding RunActionCommand}" Style="{StaticResource TileLinkButtonStyle}" Margin="0,0,0,8"
+                            Visibility="{Binding ShowCodexSignInLink, Converter={StaticResource BoolToVis}}"/>
                     <!-- A failed fetch with the last good numbers still below: what went wrong, as one
                          muted line above them. -->
                     <TextBlock Text="{Binding FailureNoticeText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"

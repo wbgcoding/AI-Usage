@@ -28,10 +28,12 @@ public static class ErrorPresenter
     /// (an account the app itself asks) gets the "fetch now" action the other non-Ok states already
     /// support. <paramref name="canSignInOnWeb"/> only matters for <see cref="ProviderStatus.Blocked"/>:
     /// a provider with its own sign-in window offers signing in again, since an expired sign-in is the
-    /// usual cause of a turned-away request.</summary>
+    /// usual cause of a turned-away request. <paramref name="providerId"/> only matters for Codex: its
+    /// stale numbers from the local files get their own hint, since they refresh when Codex runs, or
+    /// live once the user signs in on the web.</summary>
     public static (string HeadlineKey, string ReasonKey, string? ActionKey) Describe(
         ProviderStatus status, ProviderError? error, SourceKind sourceKind = SourceKind.WebSession,
-        bool canSignInOnWeb = false)
+        bool canSignInOnWeb = false, string? providerId = null)
     {
         var (headlineKey, defaultReasonKey, defaultActionKey) = status switch
         {
@@ -49,6 +51,8 @@ public static class ErrorPresenter
 
         // The scheduler marks its own failures with the generic reason; a known kind swaps in its own
         // wording. Any other reason (the offline one, a provider's own) is more specific and stays.
+        if (IsCodexLocalStale(status, sourceKind, providerId))
+            defaultReasonKey = CodexLocalReason;
         var reasonKey = error?.ReasonKey is { } given && !(given == GenericFailedReason && status == ProviderStatus.Failed)
             ? given
             : defaultReasonKey;
@@ -56,6 +60,15 @@ public static class ErrorPresenter
     }
 
     private const string GenericFailedReason = "Status_Failed_Reason";
+
+    /// <summary>The reason key of the Codex hint on a stale tile that reads the local files only.</summary>
+    internal const string CodexLocalReason = "Status_Stale_CodexLocal_Reason";
+
+    /// <summary>Whether this is Codex with stale numbers from its local files - the one tile state that
+    /// names signing in on the web as the way to live values.</summary>
+    internal static bool IsCodexLocalStale(ProviderStatus status, SourceKind sourceKind, string? providerId) =>
+        status == ProviderStatus.Stale && sourceKind == SourceKind.LocalFile
+        && providerId == "codex";
 
     private static (string, string, string?) FailedKeys(FailureKind kind) => kind switch
     {

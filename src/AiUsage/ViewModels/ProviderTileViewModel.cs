@@ -292,6 +292,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     [NotifyPropertyChangedFor(nameof(DimLastValues))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
@@ -303,6 +304,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     private SignInState signInState = SignInState.Unknown;
 
     /// <summary>What kind of failure the tile's current snapshot is, <see cref="Models.FailureKind.Other"/>
@@ -328,6 +330,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
     [NotifyPropertyChangedFor(nameof(DimLastValues))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     private bool isShowingLastValues;
 
     /// <summary>The failed read's headline and reason as one line, shown while <see cref="IsShowingLastValues"/>.</summary>
@@ -370,6 +373,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
     [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
     [NotifyPropertyChangedFor(nameof(ShowChartMenuItem))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
@@ -850,6 +854,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     public bool ShowStatusLink => FailureKind is FailureKind.ServerError or FailureKind.Timeout
         && ProviderLinks.StatusPage(RealProviderId) is not null;
 
+    /// <summary>True on Codex's stale tile that reads the local files only and has no web session yet:
+    /// next to the hint, a link starts the web sign-in for live values.</summary>
+    public bool ShowCodexSignInLink => _codexLocalHint && SignInState != SignInState.SignedIn && ShowStaleNotice;
+
+    private bool _codexLocalHint;
+
     /// <summary>"Check Claude status" - the label of the status page link.</summary>
     public string StatusLinkText => LocalizationService.Instance.Format("Tile.CheckStatus", DisplayName);
 
@@ -983,7 +993,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             LastSourceKind = null;
         SkipReasonWord = snapshot.SkipReasonWord;
 
-        var (headlineKey, reasonKey, actionKey) = ErrorPresenter.Describe(snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn);
+        var (headlineKey, reasonKey, actionKey) = ErrorPresenter.Describe(
+            snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn, RealProviderId);
+        _codexLocalHint = reasonKey == ErrorPresenter.CodexLocalReason;
+        OnPropertyChanged(nameof(ShowCodexSignInLink));
         FailureKind = snapshot.Status == ProviderStatus.Failed ? snapshot.Error?.Kind ?? FailureKind.Other : FailureKind.Other;
         HeadlineText = StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus);
         ReasonText = StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);

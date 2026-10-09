@@ -259,6 +259,57 @@ public class ProviderTileViewModelTests
         Assert.False(tile.ShowStatusLink);
     }
 
+    [Fact]
+    public void ACodexTileWithStaleLocalFileNumbersShowsTheHintAndTheWebSignInLink()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("codex", "Codex") { SupportsInAppSignIn = true };
+
+        tile.Apply(Snapshot(ProviderStatus.Stale, 42, sourceKind: SourceKind.LocalFile), Now);
+
+        Assert.Equal(loc["Tile.CodexLocalHint"], tile.ReasonText);
+        Assert.True(tile.ShowStaleNotice);
+        Assert.True(tile.ShowCodexSignInLink);
+    }
+
+    [Theory]
+    [InlineData("codex", ProviderStatus.Stale, SourceKind.WebSession)]
+    [InlineData("codex", ProviderStatus.Ok, SourceKind.LocalFile)]
+    [InlineData("claude", ProviderStatus.Stale, SourceKind.LocalFile)]
+    public void TheCodexHintShowsOnlyForCodexStaleOnLocalFiles(string providerId, ProviderStatus status, SourceKind source)
+    {
+        var tile = new ProviderTileViewModel(providerId, providerId) { SupportsInAppSignIn = true };
+
+        tile.Apply(Snapshot(status, 42, sourceKind: source), Now);
+
+        Assert.NotEqual(LocalizationService.Instance["Tile.CodexLocalHint"], tile.ReasonText);
+        Assert.False(tile.ShowCodexSignInLink);
+    }
+
+    [Fact]
+    public void TheCodexWebSignInLinkRunsTheTilesSignInAction()
+    {
+        var tile = new ProviderTileViewModel("codex", "Codex") { SupportsInAppSignIn = true };
+        tile.Apply(Snapshot(ProviderStatus.Stale, 42, sourceKind: SourceKind.LocalFile), Now);
+        var requested = 0;
+        tile.ActionRequested += (_, _) => requested++;
+
+        tile.RunActionCommand.Execute(null);
+
+        Assert.Equal(1, requested);
+    }
+
+    [Fact]
+    public void ACodexTileThatIsAlreadySignedInOnTheWebGetsNoSignInLink()
+    {
+        var tile = new ProviderTileViewModel("codex", "Codex") { SupportsInAppSignIn = true };
+        tile.MarkSignedIn(Now.AddMinutes(-1));
+
+        tile.Apply(Snapshot(ProviderStatus.Stale, 42, sourceKind: SourceKind.LocalFile), Now);
+
+        Assert.False(tile.ShowCodexSignInLink);
+    }
+
     private static ProviderSnapshot FailedSnapshot(FailureKind kind, int? httpStatus = null, string reasonKey = "Status_Failed_Reason") =>
         Snapshot(ProviderStatus.Failed, error: new ProviderError(reasonKey, "Action_Retry", Kind: kind, HttpStatus: httpStatus))
             with { Windows = [], SourceKind = SourceKind.None, DataTimestamp = null };

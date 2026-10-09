@@ -453,4 +453,6 @@
   <data name="Tile.NameTooltip" xml:space="preserve"><value>Click for details</value></data>
   <data name="Tile.Menu.HideChart" xml:space="preserve"><value>Hide chart</value></data>
   <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Show chart</value></data>
+  <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Updates the next time Codex runs. For live values, sign in on the web.</value></data>
+  <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Sign in on the web</value></data>
 </root>

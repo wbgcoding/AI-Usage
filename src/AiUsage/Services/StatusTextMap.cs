@@ -34,6 +34,7 @@ public static class StatusTextMap
         ["Status_RuntimeMissing_Headline"] = "State.RuntimeMissing.Head",
         ["Status_RuntimeMissing_Reason"] = "State.RuntimeMissing.Reason",
         ["Status_Failed_Headline"] = "State.Failed.Head",
+        ["Status_Stale_CodexLocal_Reason"] = "Tile.CodexLocalHint",
         ["Status_Failed_Reason"] = "State.Failed.Reason",
         ["Status_Failed_Server_Headline"] = "State.Failed.Server.Head",
         ["Status_Failed_Server_Reason"] = "State.Failed.Server.Reason",

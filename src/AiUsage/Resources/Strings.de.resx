@@ -452,4 +452,6 @@
   <data name="Tile.NameTooltip" xml:space="preserve"><value>Klicken für Einzelheiten</value></data>
   <data name="Tile.Menu.HideChart" xml:space="preserve"><value>Diagramm ausblenden</value></data>
   <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Diagramm einblenden</value></data>
+  <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Aktualisiert sich beim nächsten Codex-Start. Für Live-Werte im Web anmelden.</value></data>
+  <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Im Web anmelden</value></data>
 </root>
