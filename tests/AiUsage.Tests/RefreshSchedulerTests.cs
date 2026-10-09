@@ -8,6 +8,43 @@ public class RefreshSchedulerTests
     private static readonly TimeSpan BaseInterval = TimeSpan.FromSeconds(60);
 
     [Fact]
+    public async Task A_SnapshotReady_subscriber_that_throws_is_logged_and_the_next_subscriber_still_runs()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("codex");
+        var logged = new List<string>();
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, log: logged.Add);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += _ => throw new InvalidOperationException("boom in subscriber");
+        scheduler.SnapshotReady += reported.Add;
+        provider.NextResult = Ok(provider.Id);
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Single(reported);
+        var line = Assert.Single(logged);
+        Assert.Contains(nameof(InvalidOperationException), line);
+    }
+
+    [Fact]
+    public async Task A_FetchStarted_subscriber_that_throws_is_logged_and_the_fetch_still_completes()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("codex");
+        var logged = new List<string>();
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, log: logged.Add);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.FetchStarted += _ => throw new InvalidOperationException("boom in subscriber");
+        scheduler.SnapshotReady += reported.Add;
+        provider.NextResult = Ok(provider.Id);
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Single(reported);
+        Assert.Single(logged);
+    }
+
+    [Fact]
     public async Task A_failure_doubles_the_interval_a_second_failure_doubles_it_again_a_success_resets_it()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));

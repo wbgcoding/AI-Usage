@@ -465,7 +465,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // RunMaintenanceAsync, started once the window is up and repeated every 24h for the process
         // lifetime instead of only once per launch - this app runs as an autostart tray widget for
         // weeks at a time, so "once at startup" alone never enforces retention.
-        _scheduler = new RefreshScheduler(providers, TimeSpan.FromSeconds(settings.RefreshSeconds));
+        _scheduler = new RefreshScheduler(providers, TimeSpan.FromSeconds(settings.RefreshSeconds),
+            log: line => (_logService ?? LogService.Shared).LogError(line));
         _scheduler.SnapshotReady += OnSnapshotReady;
         _scheduler.FetchStarted += OnFetchStarted;
         _scheduler.FetchEnded += OnFetchEnded;
@@ -1256,23 +1257,31 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         using var timer = new PeriodicTimer(interval ?? TimeSpan.FromHours(24));
         do
         {
-            // Tiles belongs to the UI thread (adding or removing an account changes it there), so the
-            // ids are read on that thread and only the file work below runs here.
-            var dispatcher = Application.Current?.Dispatcher;
-            var providerIds = dispatcher is not null && !dispatcher.CheckAccess()
-                ? await dispatcher.InvokeAsync(() => Tiles.Select(t => t.ProviderId).ToList())
-                : Tiles.Select(t => t.ProviderId).ToList();
-
-            foreach (var providerId in providerIds)
+            try
             {
-                _historyStore.Compact(providerId);
-                _historyStore.Prune(providerId, _settings.HistoryRetentionDays);
-            }
+                // Tiles belongs to the UI thread (adding or removing an account changes it there), so the
+                // ids are read on that thread and only the file work below runs here.
+                var dispatcher = Application.Current?.Dispatcher;
+                var providerIds = dispatcher is not null && !dispatcher.CheckAccess()
+                    ? await dispatcher.InvokeAsync(() => Tiles.Select(t => t.ProviderId).ToList())
+                    : Tiles.Select(t => t.ProviderId).ToList();
 
-            if (dispatcher is not null && !dispatcher.CheckAccess())
-                await dispatcher.InvokeAsync(RefreshHistoryForAllTiles);
-            else
-                RefreshHistoryForAllTiles();
+                foreach (var providerId in providerIds)
+                {
+                    _historyStore.Compact(providerId);
+                    _historyStore.Prune(providerId, _settings.HistoryRetentionDays);
+                }
+
+                if (dispatcher is not null && !dispatcher.CheckAccess())
+                    await dispatcher.InvokeAsync(RefreshHistoryForAllTiles);
+                else
+                    RefreshHistoryForAllTiles();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // One failed pass must not end the maintenance for the rest of the session.
+                (_logService ?? LogService.Shared).LogError($"History maintenance failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+            }
         }
         while (await timer.WaitForNextTickAsync(ct));
     }

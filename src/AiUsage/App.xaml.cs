@@ -73,6 +73,7 @@ public partial class App : Application, IDisposable
         _logService.LogInfo($"Start: version {AppInfo.Version}, {RuntimeInformation.ProcessArchitecture}.");
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
         // A portable update restarts through this switch while the old copy is still shutting down; the
         // new one waits for it so the single-instance check below does not hand over to a dying copy.
@@ -238,6 +239,14 @@ public partial class App : Application, IDisposable
         HandleFatal(e.Exception);
         e.Handled = true;
         Shutdown();
+    }
+
+    /// <summary>A background task nobody awaited failed: on record in the log, not fatal.</summary>
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        var inner = e.Exception.Flatten().InnerExceptions.FirstOrDefault() ?? e.Exception;
+        _logService?.LogError($"A background task failed ({inner.GetType().Name}): {PathSanitizer.Sanitize(inner.Message)}");
+        e.SetObserved();
     }
 
     private void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
