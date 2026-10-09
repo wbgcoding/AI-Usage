@@ -14,7 +14,7 @@ namespace AiUsage.Providers;
 /// </summary>
 public sealed class ClaudeProvider : IUsageProvider
 {
-    private readonly string _projectsRoot;
+    private readonly List<string> _projectsRoots;
     private readonly Func<DateTimeOffset> _now;
     private readonly WebUsageSource? _webSource;
     private readonly AppSettings? _settings;
@@ -30,7 +30,7 @@ public sealed class ClaudeProvider : IUsageProvider
     // numbers and their real age instead of asking to sign in to a sign-in that is not gone.
     private ProviderSnapshot? _lastLocalLogin;
 
-    public ClaudeProvider() : this(DefaultProjectsRoot(), now: null)
+    public ClaudeProvider() : this(DefaultProjectsRoots(), now: null)
     {
     }
 
@@ -44,7 +44,7 @@ public sealed class ClaudeProvider : IUsageProvider
     internal ClaudeProvider(
         string accountKey, Func<CancellationToken, Task<ClaudeCodeUsage>> localLogin, AppSettings? settings = null,
         Func<TimeSpan>? attentionMaxAge = null, Func<string?>? readAccountLabel = null)
-        : this(DefaultProjectsRoot(), now: null, webSource: null, settings, saveSettings: null, accountKey, localLogin, attentionMaxAge, readAccountLabel)
+        : this(DefaultProjectsRoots(), now: null, webSource: null, settings, saveSettings: null, accountKey, localLogin, attentionMaxAge, readAccountLabel)
     {
     }
 
@@ -59,7 +59,7 @@ public sealed class ClaudeProvider : IUsageProvider
         Func<TimeSpan>? attentionMaxAge = null)
         // No projects root: Claude Code's local transcripts belong to the account Claude Code is signed
         // in with, never to a further web account, so a limit found there must not show on this tile.
-        : this(projectsRoot: "", now: null, webSource, settings, saveSettings, accountKey, localLogin: null, attentionMaxAge)
+        : this(projectsRoots: [], now: null, webSource, settings, saveSettings, accountKey, localLogin: null, attentionMaxAge)
     {
     }
 
@@ -72,7 +72,17 @@ public sealed class ClaudeProvider : IUsageProvider
         WebUsageSource? webSource = null, AppSettings? settings = null, Action<AppSettings>? saveSettings = null,
         Func<CancellationToken, Task<ClaudeCodeUsage>>? localLogin = null, Func<TimeSpan>? attentionMaxAge = null,
         Func<string?>? readAccountLabel = null)
-        : this(projectsRoot, now, webSource, settings, saveSettings, AppSettings.CreateDefaultAccounts().Keys.Single(), localLogin, attentionMaxAge, readAccountLabel)
+        : this([projectsRoot], now, webSource, settings, saveSettings, localLogin, attentionMaxAge, readAccountLabel)
+    {
+    }
+
+    /// <summary>Same test seam with several projects folders, scanned in the order given.</summary>
+    internal ClaudeProvider(
+        IReadOnlyList<string> projectsRoots, Func<DateTimeOffset>? now,
+        WebUsageSource? webSource = null, AppSettings? settings = null, Action<AppSettings>? saveSettings = null,
+        Func<CancellationToken, Task<ClaudeCodeUsage>>? localLogin = null, Func<TimeSpan>? attentionMaxAge = null,
+        Func<string?>? readAccountLabel = null)
+        : this(projectsRoots, now, webSource, settings, saveSettings, AppSettings.CreateDefaultAccounts().Keys.Single(), localLogin, attentionMaxAge, readAccountLabel)
     {
     }
 
@@ -83,12 +93,12 @@ public sealed class ClaudeProvider : IUsageProvider
     /// keeps compiling unchanged. <see cref="Services.ProviderRegistry"/> is the one caller that ever
     /// passes a delegate reading the user's own configured value.</summary>
     private ClaudeProvider(
-        string projectsRoot, Func<DateTimeOffset>? now,
+        IReadOnlyList<string> projectsRoots, Func<DateTimeOffset>? now,
         WebUsageSource? webSource, AppSettings? settings, Action<AppSettings>? saveSettings, string accountKey,
         Func<CancellationToken, Task<ClaudeCodeUsage>>? localLogin = null, Func<TimeSpan>? attentionMaxAge = null,
         Func<string?>? readAccountLabel = null)
     {
-        _projectsRoot = projectsRoot;
+        _projectsRoots = projectsRoots.Where(root => root.Length > 0).ToList();
         _now = now ?? (() => DateTimeOffset.Now);
         _webSource = webSource;
         _settings = settings;
@@ -156,15 +166,20 @@ public sealed class ClaudeProvider : IUsageProvider
         }
     }
 
-    public IReadOnlyList<string> ReadLocations => _projectsRoot.Length == 0
-        ? [LocalizationService.Instance["About.ReadLocationWebSession"]]
-        :
-        [
-            DisplayPath(_projectsRoot, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
-            _localLogin is null
+    public IReadOnlyList<string> ReadLocations
+    {
+        get
+        {
+            var source = _localLogin is null
                 ? LocalizationService.Instance["About.ReadLocationWebSession"]
-                : LocalizationService.Instance["About.ReadLocationClaudeCode"],
-        ];
+                : LocalizationService.Instance["About.ReadLocationClaudeCode"];
+            if (_projectsRoots.Count == 0)
+                return [source];
+
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return [.. _projectsRoots.Select(root => DisplayPath(root, home)), source];
+        }
+    }
 
     /// <summary>A folder as the About page shows it: "~/..." under the user profile, otherwise the
     /// full path with the account name stripped, so no user name reaches the screen.</summary>
@@ -179,7 +194,14 @@ public sealed class ClaudeProvider : IUsageProvider
         return PathSanitizer.Sanitize(path, userProfile);
     }
 
-    private static string DefaultProjectsRoot() => ClaudeConfigRoot.ProjectsRoot(ClaudeConfigRoot.Candidates());
+    /// <summary>Every projects folder that exists; when none does, the first candidate's folder, so
+    /// the diagnostics still name a sensible place to look.</summary>
+    private static List<string> DefaultProjectsRoots()
+    {
+        var candidates = ClaudeConfigRoot.Candidates();
+        var existing = ClaudeConfigRoot.ExistingProjectsRoots(candidates);
+        return existing.Count > 0 ? existing : [ClaudeConfigRoot.ProjectsRoot(candidates)];
+    }
 
     /// <summary>Same as the default, from a given variable value and profile folder.</summary>
     internal static string ProjectsRootFor(string? configDirValue, string userProfile) =>
@@ -196,7 +218,7 @@ public sealed class ClaudeProvider : IUsageProvider
         DateTimeOffset? sessionLastEventAt = null;
         try
         {
-            if (_projectsRoot.Length > 0)
+            if (_projectsRoots.Count > 0)
             // This provider itself stays off the scheduler's thread-pool wrap (see RunsOnUiThread) so
             // the web fallback below keeps starting on the calling (UI) thread it needs - but that
             // means this synchronous directory walk would otherwise run right there instead. Moving
@@ -204,10 +226,26 @@ public sealed class ClaudeProvider : IUsageProvider
             // thread pool keeps the UI thread free without touching the web path.
             (limit, isWaitingForUser, waitingSince, sessionTokens, sessionLastEventAt) = await Task.Run(() =>
             {
-                var found = ClaudeLocalLimitReader.FindActiveLimit(_projectsRoot, fetchedAt, out var newestFile, ct);
+                var (found, newestFile) = ScanRoots(fetchedAt, ct);
                 var since = newestFile is not null ? WaitingSinceByNewestTurn(newestFile, fetchedAt, _attentionMaxAge()) : null;
-                var tokens = newestFile is not null ? _tokenReader.SumTokens(newestFile) : (long?)null;
-                return (found, since is not null, since, tokens, newestFile is not null ? _tokenReader.LastEventAt : null);
+
+                // A transcript rotated away between the scan and the sum must not cost the limit found above.
+                long? tokens = null;
+                DateTimeOffset? lastEventAt = null;
+                if (newestFile is not null)
+                {
+                    try
+                    {
+                        tokens = _tokenReader.SumTokens(newestFile);
+                        lastEventAt = _tokenReader.LastEventAt;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        tokens = null;
+                    }
+                }
+
+                return (found, since is not null, since, tokens, lastEventAt);
             }, ct);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -273,10 +311,11 @@ public sealed class ClaudeProvider : IUsageProvider
         }
 
         var diagnostics = new ProviderDiagnostics();
-        if (_projectsRoot.Length > 0)
+        if (_projectsRoots.Count > 0)
         {
-            diagnostics.SearchedIn(_projectsRoot);
-            if (!Directory.Exists(_projectsRoot))
+            foreach (var root in _projectsRoots)
+                diagnostics.SearchedIn(root);
+            if (!_projectsRoots.Any(Directory.Exists))
                 diagnostics.DirectoryMissing();
             else
                 diagnostics.NothingFound();
@@ -294,6 +333,32 @@ public sealed class ClaudeProvider : IUsageProvider
             Diagnostics: diagnostics.Lines,
             IsWaitingForUser: isWaitingForUser,
             WaitingSince: waitingSince);
+    }
+
+    /// <summary>Walks every projects folder: the limit that resets last wins (the same rule as inside one
+    /// folder), and the newest transcript across all folders is the session the other reads describe.</summary>
+    private (ClaudeQuotaLimit? Limit, string? NewestFile) ScanRoots(DateTimeOffset now, CancellationToken ct)
+    {
+        ClaudeQuotaLimit? best = null;
+        string? newest = null;
+        var newestWrite = DateTime.MinValue;
+        foreach (var root in _projectsRoots)
+        {
+            var found = ClaudeLocalLimitReader.FindActiveLimit(root, now, out var file, ct);
+            if (found is not null && (best is null || found.ResetsAt > best.ResetsAt))
+                best = found;
+            if (file is null)
+                continue;
+
+            var written = File.GetLastWriteTimeUtc(file);
+            if (newest is null || written > newestWrite)
+            {
+                newest = file;
+                newestWrite = written;
+            }
+        }
+
+        return (best, newest);
     }
 
     /// <summary>The local sign-in read has no token figure of its own; the newest session file does. The

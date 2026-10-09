@@ -68,8 +68,8 @@ internal static class ClaudeCodeLogin
             HttpMethod.Get, UsageUrl, token, jsonBody: null, UserAgent, ct,
             extraHeaders: [new KeyValuePair<string, string>("anthropic-beta", BetaHeader)]);
 
-        if (response.StatusCode is 401 or 403)
-            return new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NonOkResponse);
+        if (DeniedUsage(response.StatusCode) is { } denied)
+            return denied;
         if (!response.Ok)
             return new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse);
 
@@ -78,6 +78,19 @@ internal static class ClaudeCodeLogin
             ? new ClaudeCodeUsage(LocalLoginOutcome.Ok, parsed.Windows, ClaudeCodeLoginReason.Ok, plan)
             : new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse);
     }
+
+    /// <summary>The answer for a refused request, null for any other status. A 401 on a token the file
+    /// still calls valid means Claude Code rotated it since: it reads like an expired one, so the last
+    /// numbers are held over until Claude Code renews the file. A 403 stays a plain refusal.</summary>
+    internal static ClaudeCodeUsage? DeniedUsage(int statusCode) => statusCode switch
+    {
+        401 => new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.TokenExpired),
+        403 => new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NonOkResponse),
+        _ => null,
+    };
+
+    /// <summary>A token this close to its expiry counts as expired: the request would arrive after it.</summary>
+    internal static readonly TimeSpan ExpiryMargin = TimeSpan.FromSeconds(30);
 
     /// <summary>The current OAuth access token, or null (with the reason why) when there is none or
     /// it has already expired (the widget will not refresh it - that is Claude Code's own job).</summary>
@@ -90,6 +103,8 @@ internal static class ClaudeCodeLogin
         {
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var document = JsonDocument.Parse(stream);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return (null, ClaudeCodeLoginReason.NoToken, null);
             if (!document.RootElement.TryGetProperty("claudeAiOauth", out var oauth) || oauth.ValueKind != JsonValueKind.Object)
                 return (null, ClaudeCodeLoginReason.NoToken, null);
 
@@ -104,7 +119,7 @@ internal static class ClaudeCodeLogin
             // expiresAt is Unix milliseconds; a token already past it will only 401, so skip the call.
             if (oauth.TryGetProperty("expiresAt", out var expiresEl) && expiresEl.ValueKind == JsonValueKind.Number
                 && expiresEl.TryGetInt64(out var expiresAtMs)
-                && DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMs) <= DateTimeOffset.UtcNow)
+                && DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMs) <= DateTimeOffset.UtcNow + ExpiryMargin)
                 return (null, ClaudeCodeLoginReason.TokenExpired, plan);
 
             return (accessToken, ClaudeCodeLoginReason.Ok, plan);
