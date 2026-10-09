@@ -133,6 +133,10 @@ showing a guess.
 - **Leaves your tools alone.** It never writes to an agent's own files and never copies or stores
   the sign-in of your CLI tools. Browser sign-ins live in AI-Usage's own browser profile per agent.
   Signing out in AI-Usage only disconnects AI-Usage; your CLI and IDE stay signed in.
+- **Project colors from your project icons.** To give each project in the token usage window its
+  own color, AI-Usage looks inside the project folders named in the session logs for an app icon
+  (`.ico` or `.png`, up to six folder levels deep) and takes its main color. It only reads those
+  images and keeps nothing but the color.
 - **Stays on your machine.** Settings, history and the statistics index live in
   `%APPDATA%\AI-Usage\`. Browser sign-ins get their own profile per agent under
   `%LOCALAPPDATA%\AI-Usage\webview\`. Apart from the requests to each agent's usage pages, the
