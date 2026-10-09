@@ -3,8 +3,13 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- A few tests wait on a task with a timeout on purpose, to prove it does or does not finish in time. -->
+    <NoWarn>$(NoWarn);xUnit1031</NoWarn>
+    <!-- Tests find the source tree through [CallerFilePath]; the shared path mapping would rewrite it. -->
+    <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
+    <DeterministicSourcePaths>false</DeterministicSourcePaths>
+    <PathMap></PathMap>
     <!-- later layout tests render the real windows through WPF's own renderer -->
     <UseWPF>true</UseWPF>
     <!-- See AiUsage.csproj's own comment - keeps a build agent isolated to its own worktree from

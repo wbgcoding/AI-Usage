@@ -10,7 +10,9 @@ public static class AppInfo
 {
     public const string ProductName = "AI-Usage";
 
-    public const string Copyright = "© 2026 BGCoding";
+    /// <summary>The copyright line, read from the assembly so it is defined once in the build props.</summary>
+    public static string Copyright { get; } =
+        Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright ?? "";
 
     public const string ArchiveUrl = "https://github.com/wbgcoding/AI-Usage";
 
