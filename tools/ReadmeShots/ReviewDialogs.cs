@@ -97,7 +97,7 @@ internal static class ReviewDialogs
             }
             .Select(entry =>
             {
-                var tile = new ProviderTileViewModel(entry.Item1, entry.Item2) { SupportsInAppSignIn = true };
+                var tile = new ProviderTileViewModel(entry.Item1, entry.Item2) { SupportsInAppSignIn = entry.Item1 != "copilot" };
                 tile.Apply(new ProviderSnapshot(entry.Item1, [], null, SourceKind.None, now, null, entry.Item3, null), now);
                 return tile;
             })

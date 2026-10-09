@@ -60,6 +60,16 @@ internal static class ReviewMenus
         TakeMenu(view.TileRoot, tile, context.OutputPath(id));
     }
 
+    /// <summary>The right-click menu of a tile whose read failed: the one with the help entry.</summary>
+    internal static void RenderFailedTileMenu(SurfaceContext context, string id)
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true, Density = TileDensity.Full };
+        tile.Apply(new ProviderSnapshot("claude", [], null, SourceKind.None, context.Now, null, ProviderStatus.Failed,
+            new ProviderError("Status_Failed_Reason", "Action_Retry", "State.Failed.Detail.Http", "502")), context.Now);
+        var view = new ProviderTile { DataContext = tile };
+        TakeMenu(view.TileRoot, tile, context.OutputPath(id));
+    }
+
     /// <summary>The single-entry menu of the usage-per-day tile.</summary>
     internal static void RenderDayTileMenu(SurfaceContext context, string id)
     {
