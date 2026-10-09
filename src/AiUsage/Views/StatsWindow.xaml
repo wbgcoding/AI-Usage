@@ -111,6 +111,10 @@
                                           SelectedItem="{Binding SelectedRangeChoice, Mode=TwoWay}" MinWidth="80"
                                           ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Range]}"
                                           AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"/>
+                                <ComboBox x:Name="ProviderCombo" ItemsSource="{Binding ProviderChoices}"
+                                          SelectedItem="{Binding SelectedProviderChoice, Mode=TwoWay}" MinWidth="80" Margin="16,0,0,0"
+                                          ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Provider]}"
+                                          AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}"/>
                                 <!-- The two days of a custom range, asked for under the range list. -->
                                 <Popup x:Name="CustomRangePopup" PlacementTarget="{Binding ElementName=RangeCombo}" Placement="Bottom"
                                        StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"

@@ -53,12 +53,13 @@ public partial class StatsWindow : Window
         if (_settings is not null)
         {
             _viewModel.RestoreSelection(
-                _settings.StatsRange, _settings.StatsGrouping, _settings.StatsColorBy, _settings.StatsCustomFrom, _settings.StatsCustomTo);
+                _settings.StatsRange, _settings.StatsGrouping, _settings.StatsColorBy, _settings.StatsCustomFrom, _settings.StatsCustomTo,
+                _settings.StatsProvider);
         }
         _viewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName is nameof(StatsViewModel.SelectedRange) or nameof(StatsViewModel.SelectedGrouping)
-                or nameof(StatsViewModel.SelectedColorBy))
+                or nameof(StatsViewModel.SelectedColorBy) or nameof(StatsViewModel.SelectedProvider))
                 RememberSelection();
         };
         _dragController = new StatsSectionDragController(this, ContentScroller, _layoutPresenter, CommitLayout);
@@ -404,6 +405,7 @@ public partial class StatsWindow : Window
         _settings.StatsRange = _viewModel.SelectedRange;
         _settings.StatsGrouping = _viewModel.SelectedGrouping.ToString();
         _settings.StatsColorBy = _viewModel.SelectedColorBy.ToString();
+        _settings.StatsProvider = _viewModel.SelectedProvider;
         if (_viewModel.SelectedRange == StatsViewModel.CustomRange)
         {
             (_settings.StatsCustomFrom, _settings.StatsCustomTo) = _viewModel.CustomPeriod;

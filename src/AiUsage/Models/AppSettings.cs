@@ -219,6 +219,10 @@ public sealed class AppSettings
     /// cref="Stats.StatsColorBy"/> name); anything else reads back as Provider.</summary>
     public string StatsColorBy { get; set; } = "Provider";
 
+    /// <summary>The provider the statistics window was limited to (a provider id); empty for all
+    /// providers. An id that is not indexed reads back as all providers.</summary>
+    public string StatsProvider { get; set; } = "";
+
     /// <summary>The first and last day of the custom range; only read while <see cref="StatsRange"/>
     /// is Custom.</summary>
     public DateOnly? StatsCustomFrom { get; set; }

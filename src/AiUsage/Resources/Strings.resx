@@ -519,6 +519,9 @@
   <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>This month</value></data>
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Last month</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Custom range…</value></data>
+  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>All providers</value></data>
+  <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Provider</value></data>
+  <data name="Tip.Stats.Provider" xml:space="preserve"><value>Limits every figure and chart to one provider.</value></data>
   <data name="Stats.Range.From" xml:space="preserve"><value>From</value></data>
   <data name="Stats.Range.To" xml:space="preserve"><value>To</value></data>
   <data name="Stats.Range.Apply" xml:space="preserve"><value>Apply</value></data>

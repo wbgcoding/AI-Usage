@@ -41,6 +41,7 @@ public sealed partial class StatsViewModel : ObservableObject
     public ObservableCollection<Choice<string>> RangeChoices { get; } = [];
     public ObservableCollection<Choice<StatsGrouping>> GroupingChoices { get; } = [];
     public ObservableCollection<Choice<StatsColorBy>> ColorByChoices { get; } = [];
+    public ObservableCollection<Choice<string>> ProviderChoices { get; } = [];
 
     /// <summary>The row a ComboBox binds <c>SelectedItem</c> to - <see cref="Choice{TValue}"/> itself
     /// carries no such property, only <see cref="Choice{TValue}.IsSelected"/> on each row, so this
@@ -104,7 +105,8 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Takes up what the window was left on. Anything unknown (a hand-edited or older
     /// settings file) keeps the default; a custom range without both dates counts as unknown. The
     /// records are read once the window loads, so nothing is read here.</summary>
-    public void RestoreSelection(string? range, string? grouping, string? colorBy, DateOnly? customFrom, DateOnly? customTo)
+    public void RestoreSelection(
+        string? range, string? grouping, string? colorBy, DateOnly? customFrom, DateOnly? customTo, string? provider = null)
     {
         if (customFrom is { } first && customTo is { } last)
         {
@@ -119,17 +121,22 @@ public sealed partial class StatsViewModel : ObservableObject
         if (Enum.TryParse<StatsColorBy>(colorBy, out var parsedColorBy) && Enum.IsDefined(parsedColorBy))
             SelectedColorBy = parsedColorBy;
 
+        if (provider is not null && ProviderChoices.Any(choice => choice.Value == provider))
+            SelectedProvider = provider;
+
         UpdateCustomChoiceLabel();
         Choice.Select(RangeChoices, SelectedRange);
         Choice.Select(GroupingChoices, SelectedGrouping);
         Choice.Select(ColorByChoices, SelectedColorBy);
+        Choice.Select(ProviderChoices, SelectedProvider);
+        OnPropertyChanged(nameof(SelectedProviderChoice));
         OnPropertyChanged(nameof(SelectedRangeChoice));
         OnPropertyChanged(nameof(SelectedGroupingChoice));
         OnPropertyChanged(nameof(SelectedColorByChoice));
         OnPropertyChanged(nameof(IsStackedByProvider));
         OnPropertyChanged(nameof(IsDayGrouping));
         if (_recordsLoaded)
-            RecomputeFrom(_allRecords);
+            RecomputeFrom(_sourceRecords);
     }
 
     /// <summary>Puts the combo back on the range that is really applied - after the date popup was
@@ -192,6 +199,17 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the provider filter.</summary>
+    public Choice<string>? SelectedProviderChoice
+    {
+        get => ProviderChoices.FirstOrDefault(choice => choice.IsSelected);
+        set
+        {
+            if (value is not null)
+                SetProviderCommand.Execute(value.Value);
+        }
+    }
+
     /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the color-by group.</summary>
     public Choice<StatsColorBy>? SelectedColorByChoice
     {
@@ -205,6 +223,10 @@ public sealed partial class StatsViewModel : ObservableObject
 
     [ObservableProperty]
     private string selectedRange = "Week";
+
+    /// <summary>The one provider every figure is limited to; empty for all providers.</summary>
+    [ObservableProperty]
+    private string selectedProvider = "";
 
     /// <summary>What the segments of a day or week column stand for.</summary>
     [ObservableProperty]
@@ -552,6 +574,9 @@ public sealed partial class StatsViewModel : ObservableObject
     /// period only (a colored day outside a seven-day period used to show zero tokens).</summary>
     private IReadOnlyList<StatsRecord> _allRecords = [];
 
+    /// <summary>Every stored record before the filters; <see cref="_allRecords"/> is what they let through.</summary>
+    private IReadOnlyList<StatsRecord> _sourceRecords = [];
+
     /// <summary>True when the selected day has any usage; the detail charts show only then.</summary>
     public bool SelectedDayHasUsage { get; private set; }
 
@@ -785,6 +810,11 @@ public sealed partial class StatsViewModel : ObservableObject
         ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Agent", StatsColorBy.Agent));
         Choice.Select(ColorByChoices, SelectedColorBy);
 
+        ProviderChoices.Add(new Choice<string>("Stats.Filter.AllProviders", ""));
+        foreach (var id in ProviderCoverage.IndexedProviderIds)
+            ProviderChoices.Add(Choice.WithFixedLabel(ProviderDisplayNames.GetValueOrDefault(id, id), id));
+        Choice.Select(ProviderChoices, SelectedProvider);
+
         // Nothing is read here: the window loads once it is shown (see StatsWindow), so opening it
         // never waits on the database.
         IsLoading = true;
@@ -834,8 +864,29 @@ public sealed partial class StatsViewModel : ObservableObject
         Choice.Select(ColorByChoices, SelectedColorBy);
         OnPropertyChanged(nameof(SelectedColorByChoice));
         if (_recordsLoaded)
-            RecomputeFrom(_allRecords);
+            RecomputeFrom(_sourceRecords);
     }
+
+    /// <summary>Limits every figure to one provider, or back to all of them with an empty id. The
+    /// records are already in memory, so everything is rebuilt from them.</summary>
+    [RelayCommand]
+    private void SetProvider(string provider)
+    {
+        if (provider == SelectedProvider)
+            return;
+        SelectedProvider = provider;
+        Choice.Select(ProviderChoices, SelectedProvider);
+        OnPropertyChanged(nameof(SelectedProviderChoice));
+        if (_recordsLoaded)
+            RecomputeFrom(_sourceRecords);
+    }
+
+    /// <summary>Keeps what the active filters let through.</summary>
+    private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all) =>
+        SelectedProvider.Length == 0 ? all : all.Where(record => record.Provider == SelectedProvider).ToList();
+
+    private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all) =>
+        SelectedProvider.Length == 0 ? all : all.Where(record => record.Provider == SelectedProvider).ToList();
 
     // Every run takes the next number; only the newest run may publish its result or clear
     // IsLoading, so two overlapping runs can never leave the older one's data on screen.
@@ -862,7 +913,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (!_recordsLoaded)
             return RecomputeAsync();
 
-        RecomputeFrom(_allRecords);
+        RecomputeFrom(_sourceRecords);
         return Task.CompletedTask;
     }
 
@@ -926,8 +977,10 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The rebuild itself, on records already read - the one half <see
     /// cref="RecomputeAsync"/> keeps on the window's own thread.</summary>
-    private void RecomputeFrom(IReadOnlyList<StatsRecord> all)
+    private void RecomputeFrom(IReadOnlyList<StatsRecord> source)
     {
+        _sourceRecords = source;
+        var all = ApplyFilters(source);
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);
         var period = ResolvePeriod(SelectedRange, today, _customFrom, _customTo);
@@ -1155,7 +1208,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// carry the details.</summary>
     private void BuildSessionViews(DateOnly from, DateOnly to, LocalizationService loc)
     {
-        var sessions = StatsAggregator.SessionsInRange(_allSessions, from, to);
+        var sessions = StatsAggregator.SessionsInRange(ApplyFilters(_allSessions), from, to);
         var grandTotal = sessions.Sum(session => session.TotalTokens);
 
         var tableRows = new List<StatsSessionRowViewModel>(sessions.Count);
@@ -1222,9 +1275,11 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in ColorByChoices)
             choice.RefreshLabel();
+        foreach (var choice in ProviderChoices)
+            choice.RefreshLabel();
         UpdateCustomChoiceLabel();
         OnPropertyChanged(nameof(ChartTooltip));
-        RecomputeFrom(_allRecords);
+        RecomputeFrom(_sourceRecords);
     }
 
     private static string ShortenTokens(long value, LocalizationService loc) =>

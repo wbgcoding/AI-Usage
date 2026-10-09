@@ -204,6 +204,7 @@ public class SettingsStoreTests : IDisposable
             StatsRange = "Custom",
             StatsGrouping = "Week",
             StatsColorBy = "Model",
+            StatsProvider = "codex",
             StatsCustomFrom = new DateOnly(2026, 9, 1),
             StatsCustomTo = new DateOnly(2026, 9, 30),
         };
@@ -217,6 +218,7 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal("Custom", loaded.StatsRange);
         Assert.Equal("Week", loaded.StatsGrouping);
         Assert.Equal("Model", loaded.StatsColorBy);
+        Assert.Equal("codex", loaded.StatsProvider);
         Assert.Equal(new DateOnly(2026, 9, 1), loaded.StatsCustomFrom);
         Assert.Equal(new DateOnly(2026, 9, 30), loaded.StatsCustomTo);
         Assert.Equal(140.5, loaded.Window.StatsLeft);
@@ -235,6 +237,7 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal("Week", loaded.StatsRange);
         Assert.Equal("Day", loaded.StatsGrouping);
         Assert.Equal("Provider", loaded.StatsColorBy);
+        Assert.Equal("", loaded.StatsProvider);
         Assert.Null(loaded.StatsCustomFrom);
         Assert.Null(loaded.Window.StatsLeft);
     }

@@ -1465,6 +1465,75 @@ public class StatsViewModelCaptionTests
         Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
     }
 
+    private static StatsViewModel TwoProviderViewModel(string name)
+    {
+        var dataDir = TestPaths.CreateDisposableDirectory(name);
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "modelA", "C:/Projects/One", 1000, 0, 0, 0),
+            new StatsRecord("codex", today, "modelB", "C:/Projects/Two", 300, 0, 0, 0),
+        ]);
+        return StatsVm.Create(store);
+    }
+
+    [Fact]
+    public async Task TheProviderFilterNarrowsTheFiguresTheChartAndTheTableToOneProvider()
+    {
+        var viewModel = TwoProviderViewModel("stats-viewmodel-provider-filter");
+        Assert.Equal(["", "claude", "codex"], viewModel.ProviderChoices.Select(choice => choice.Value).ToArray());
+        Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+
+        viewModel.SetProviderCommand.Execute("codex");
+
+        Assert.Equal("codex", viewModel.SelectedProvider);
+        Assert.Equal("codex", viewModel.SelectedProviderChoice?.Value);
+        Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.Equal(300, viewModel.MonthGridDays.Sum(day => day.Total));
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Model);
+        Assert.Equal(300L, viewModel.Rows.Sum(row => row.TotalTokens));
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Project);
+        Assert.Equal(300L, viewModel.Rows.Sum(row => row.TotalTokens));
+        Assert.Single(viewModel.Rows);
+
+        viewModel.SetProviderCommand.Execute("");
+        Assert.Equal(1300L, viewModel.Rows.Sum(row => row.TotalTokens));
+    }
+
+    [Fact]
+    public async Task TheProviderFilterAlsoLimitsTheSessionList()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-provider-sessions");
+        var store = new StatsStore(dataDir);
+        var noon = DateTimeOffset.UtcNow.Date.AddHours(12);
+        SeedSession(store, "claudeSession", noon, 500);
+        store.ApplyIndexResult(
+            [], new StatsSourceFileState("seed-codex", "codex", 0, 0, DateTime.UtcNow),
+            [new StatsSessionDelta("codex", "codexSession", "C:/Projects/Sample", noon, noon.AddMinutes(5), 200, 0, 0, 0, 0, new Dictionary<string, long> { ["modelB"] = 200 })]);
+        var viewModel = StatsVm.Create(store);
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session);
+        Assert.Equal(2, viewModel.SessionRows.Count);
+
+        viewModel.SetProviderCommand.Execute("codex");
+
+        Assert.Single(viewModel.SessionRows);
+        Assert.Equal((200L).ToString("N0", CultureInfo.CurrentCulture), viewModel.SessionRows[0].Tokens);
+    }
+
+    [Fact]
+    public void ARestoredProviderIsKeptAndAnUnknownOneFallsBackToAllProviders()
+    {
+        var viewModel = TwoProviderViewModel("stats-viewmodel-provider-restore");
+        viewModel.RestoreSelection(null, null, null, null, null, "codex");
+        Assert.Equal("codex", viewModel.SelectedProvider);
+        Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+
+        var other = TwoProviderViewModel("stats-viewmodel-provider-restore-unknown");
+        other.RestoreSelection(null, null, null, null, null, "gemini");
+        Assert.Equal("", other.SelectedProvider);
+    }
+
     private static void SeedSession(StatsStore store, string id, DateTimeOffset start, long tokens, string project = "C:/Projects/Sample", string model = "modelA")
     {
         var delta = new StatsSessionDelta(
