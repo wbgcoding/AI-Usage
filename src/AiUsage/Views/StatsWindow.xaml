@@ -351,15 +351,7 @@
                                                   SelectedItem="{Binding SelectedGroupingChoice, Mode=TwoWay}" MinWidth="80"
                                                   ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Grouping]}"
                                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"/>
-                                        <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
-                                                    Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
-                                                       VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
-                                                       Foreground="{DynamicResource Text.Secondary}"/>
-                                            <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
-                                                      SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
-                                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
-                                        </StackPanel>
+
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
@@ -399,7 +391,17 @@
                                      collapsing "Breakdown" left it showing regardless -
                                      nested in this section's own Content, it now hides and reappears
                                      with everything else here. -->
-                                <Border Height="140" Margin="0,12,0,0"
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0"
+                                            Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
+                                               VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
+                                               Foreground="{DynamicResource Text.Secondary}"/>
+                                    <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
+                                              SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
+                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
+                                </StackPanel>
+
+                                <Border Height="140" Margin="0,4,0,0"
                                         Visibility="{Binding IsBarChart, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
