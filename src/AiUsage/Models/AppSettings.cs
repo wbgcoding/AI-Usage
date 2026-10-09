@@ -116,6 +116,10 @@ public sealed class AppSettings
 
     public string QuietHoursEnd { get; set; } = "08:00";
 
+    /// <summary>Whole Saturday and Sunday (local time) without notifications, whatever the daily
+    /// window above says.</summary>
+    public bool QuietWeekend { get; set; }
+
     /// <summary>True once the one-time "still running in the tray" balloon has been shown.</summary>
     public bool TrayHintShown { get; set; }
 

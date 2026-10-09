@@ -575,6 +575,9 @@
                         </TextBlock.Style>
                     </TextBlock>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietWeekend]}"
+                              IsChecked="{Binding QuietWeekend}" Style="{StaticResource CheckBox.GapS}"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PerProvider]}"
                                FontWeight="SemiBold" Margin="0,16,0,4"/>
                     <!-- One collapsible row per tile (keyed by account key, so a second account gets its own row):

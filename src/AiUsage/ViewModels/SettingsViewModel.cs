@@ -277,6 +277,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool forecastAlertEnabled;
 
     [ObservableProperty]
+    private bool quietWeekend;
+
+    [ObservableProperty]
     private bool showAttentionMark;
 
     [ObservableProperty]
@@ -442,6 +445,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         showAttentionMark = settings.ShowAttentionMark;
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
+        quietWeekend = settings.QuietWeekend;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -849,6 +853,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
     }
 
+    partial void OnQuietWeekendChanged(bool value)
+    {
+        _settings.QuietWeekend = value;
+        _store.RequestSave(_settings);
+    }
+
     partial void OnQuietHoursStartTextChanged(string value)
     {
         if (TryParseTime(value))
@@ -1238,6 +1248,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
+        _settings.QuietWeekend = source.QuietWeekend;
         _settings.QuietHoursStart = source.QuietHoursStart;
         _settings.QuietHoursEnd = source.QuietHoursEnd;
         _settings.HotkeyEnabled = source.HotkeyEnabled;
@@ -1307,6 +1318,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
+        QuietWeekend = _settings.QuietWeekend;
         QuietHoursStartText = _settings.QuietHoursStart;
         QuietHoursEndText = _settings.QuietHoursEnd;
         QuietHoursStartInvalid = false;

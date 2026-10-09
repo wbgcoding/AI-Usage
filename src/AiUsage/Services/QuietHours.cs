@@ -22,6 +22,11 @@ public static class QuietHours
     /// silently-disabled feature.</summary>
     public static bool IsQuiet(AppSettings settings, DateTimeOffset now)
     {
+        // The weekend switch stands on its own: it works with the daily window switched off, and
+        // the local calendar day decides, not UTC.
+        if (settings.QuietWeekend && now.LocalDateTime.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            return true;
+
         if (!settings.QuietHoursEnabled)
             return false;
 

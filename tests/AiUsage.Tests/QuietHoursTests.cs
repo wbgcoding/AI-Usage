@@ -66,6 +66,38 @@ public class QuietHoursTests
         Assert.True(QuietHours.IsQuiet(settings, DateTimeOffset.Now));
     }
 
+    private static DateTimeOffset LocalNoon(int day) =>
+        new(new DateTime(2026, 1, day, 12, 0, 0, DateTimeKind.Local));
+
+    [Theory]
+    [InlineData(3)] // Saturday
+    [InlineData(4)] // Sunday
+    public void TheWeekendSwitchMakesSaturdayAndSundayQuietEvenWithTheDailyWindowOff(int day)
+    {
+        var settings = new AppSettings { QuietHoursEnabled = false, QuietWeekend = true };
+
+        Assert.True(QuietHours.IsQuiet(settings, LocalNoon(day)));
+    }
+
+    [Fact]
+    public void WithoutTheWeekendSwitchSaturdayNoonIsNotQuiet()
+    {
+        var settings = new AppSettings { QuietHoursEnabled = false, QuietWeekend = false };
+
+        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(3)));
+    }
+
+    [Fact]
+    public void TheWeekendSwitchLeavesAMondayToTheDailyWindow()
+    {
+        var off = new AppSettings { QuietHoursEnabled = false, QuietWeekend = true };
+        var daily = new AppSettings { QuietHoursEnabled = true, QuietWeekend = true, QuietHoursStart = "22:00", QuietHoursEnd = "08:00" };
+
+        Assert.False(QuietHours.IsQuiet(off, LocalNoon(5)));
+        Assert.False(QuietHours.IsQuiet(daily, LocalNoon(5)));
+        Assert.True(QuietHours.IsQuiet(daily, new DateTimeOffset(new DateTime(2026, 1, 5, 23, 0, 0, DateTimeKind.Local))));
+    }
+
     [Fact]
     public void AnUnparsableStoredValueFallsBackToTheDocumentedDefaultRatherThanCrashing()
     {

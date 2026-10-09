@@ -462,4 +462,5 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>z. B. Arbeit</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, wenn ein Limit voraussichtlich in weniger als 30 Minuten erreicht ist</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
+  <data name="Settings.QuietWeekend" xml:space="preserve"><value>Am Wochenende (Samstag und Sonntag) ganz ruhig</value></data>
 </root>

@@ -463,4 +463,5 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>e.g. Work</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warn when a limit will likely be reached within 30 minutes</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} will likely be full in about {2} (now {3} %)</value></data>
+  <data name="Settings.QuietWeekend" xml:space="preserve"><value>Also quiet all weekend (Saturday and Sunday)</value></data>
 </root>
