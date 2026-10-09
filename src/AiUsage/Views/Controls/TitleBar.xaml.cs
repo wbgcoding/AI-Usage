@@ -41,6 +41,13 @@ public partial class TitleBar : UserControl
         DependencyProperty.Register(nameof(ShowRefresh), typeof(bool), typeof(TitleBar),
             new PropertyMetadata(true, (d, _) => ((TitleBar)d).ApplyRefreshMenuVisibility()));
 
+    /// <summary>Appends the keyboard shortcut to the stats, settings and eye button tooltips. Opt-in
+    /// like <see cref="ShowWindowMenu"/>: only the main widget handles those keys, so a dialog's own
+    /// title bar must not promise them.</summary>
+    public static readonly DependencyProperty ShowShortcutHintsProperty =
+        DependencyProperty.Register(nameof(ShowShortcutHints), typeof(bool), typeof(TitleBar),
+            new PropertyMetadata(false, (d, _) => ((TitleBar)d).RefreshButtonTooltips()));
+
     public static readonly DependencyProperty ShowSettingsProperty =
         DependencyProperty.Register(nameof(ShowSettings), typeof(bool), typeof(TitleBar), new PropertyMetadata(true));
 
@@ -98,6 +105,12 @@ public partial class TitleBar : UserControl
         set => SetValue(ShowRefreshProperty, value);
     }
 
+    public bool ShowShortcutHints
+    {
+        get => (bool)GetValue(ShowShortcutHintsProperty);
+        set => SetValue(ShowShortcutHintsProperty, value);
+    }
+
     public bool ShowSettings
     {
         get => (bool)GetValue(ShowSettingsProperty);
@@ -144,6 +157,7 @@ public partial class TitleBar : UserControl
     {
         InitializeComponent();
         RefreshWindowMenuCollapseHeader();
+        RefreshButtonTooltips();
         // The collapse entry's header is set from code (a context menu cannot reach IsCollapsed
         // through a RelativeSource binding), so it has to follow a language switch by hand. A weak
         // subscription, so the long-lived localization service never keeps a closed dialog alive.
@@ -155,12 +169,49 @@ public partial class TitleBar : UserControl
         // The service is shared; a language switch raised on another thread reaches this bar on its own.
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.BeginInvoke(RefreshWindowMenuCollapseHeader);
+            Dispatcher.BeginInvoke(() =>
+            {
+                RefreshWindowMenuCollapseHeader();
+                RefreshButtonTooltips();
+            });
             return;
         }
 
         RefreshWindowMenuCollapseHeader();
+        RefreshButtonTooltips();
     }
+
+    /// <summary>The tooltip with its shortcut in parentheses, e.g. "Token usage (Ctrl+T)".</summary>
+    internal static string WithShortcut(string text, string shortcut) =>
+        LocalizationService.Instance.Format("TitleBar.WithShortcut", text, shortcut);
+
+    /// <summary>A shortcut as shown to the user, the modifier named in the active language:
+    /// <c>Shortcut(ModifierKeys.Control, "T")</c> reads "Ctrl+T" in English and "Strg+T" in German.</summary>
+    internal static string Shortcut(ModifierKeys modifiers, string key)
+    {
+        var loc = LocalizationService.Instance;
+        var text = key;
+        if (modifiers.HasFlag(ModifierKeys.Alt))
+            text = loc["Key.Alt"] + "+" + text;
+        if (modifiers.HasFlag(ModifierKeys.Control))
+            text = loc["Key.Ctrl"] + "+" + text;
+        return text;
+    }
+
+    /// <summary>The stats, settings and eye tooltips are set from code: the shortcut part is built
+    /// from the active language's modifier names and follows a language switch like the other
+    /// code-set texts here.</summary>
+    private void RefreshButtonTooltips()
+    {
+        if (StatsButton is null)
+            return;
+        var loc = LocalizationService.Instance;
+        StatsButton.ToolTip = Tip(loc["Tray.Stats"], Shortcut(ModifierKeys.Control, "T"));
+        SettingsButton.ToolTip = Tip(loc["Tray.Settings"], Shortcut(ModifierKeys.Control, ","));
+        EyeButton.ToolTip = Tip(loc["Eye.Menu"], Shortcut(ModifierKeys.Control, "L"));
+    }
+
+    private string Tip(string text, string shortcut) => ShowShortcutHints ? WithShortcut(text, shortcut) : text;
 
     private void TitleArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -210,6 +261,16 @@ public partial class TitleBar : UserControl
     {
         if (!ShowWindowMenu)
             e.Handled = true;
+    }
+
+    /// <summary>Opens the providers and layout popup from the keyboard (Ctrl+L), the same way a
+    /// keyboard click on the eye button would. Does nothing where the eye button is hidden.</summary>
+    internal void OpenEyeMenu()
+    {
+        if (!ShowEyeMenu || EyePopup.IsOpen)
+            return;
+        _eyeOpenedByKeyboard = true;
+        EyePopup.IsOpen = true;
     }
 
     /// <summary>The Alt+Space equivalent MainWindow's PreviewKeyDown calls - the standard Windows

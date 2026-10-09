@@ -98,7 +98,6 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal">
             <Button x:Name="EyeButton" Style="{StaticResource TitleBarButton}" Click="EyeButton_Click"
                     Visibility="{Binding ShowEyeMenu, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
-                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Eye.Menu]}"
                     AutomationProperties.Name="{Binding EyeSource.EyeButtonAccessibleName, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <Path Style="{StaticResource TitleBarIcon}" Data="{StaticResource Icon.Layout}"/>
             </Button>
@@ -207,14 +206,12 @@
             <Button x:Name="StatsButton" Style="{StaticResource TitleBarButton}"
                     Click="StatsButton_Click"
                     Visibility="{Binding ShowStats, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
-                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tray.Stats]}"
                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tray.Stats]}">
                 <Path Style="{StaticResource TitleBarIcon}" Data="{StaticResource Icon.Stats}"/>
             </Button>
             <Button x:Name="SettingsButton" Style="{StaticResource TitleBarButton}"
                     Click="SettingsButton_Click"
                     Visibility="{Binding ShowSettings, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
-                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tray.Settings]}"
                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tray.Settings]}">
                 <Path Style="{StaticResource TitleBarIcon}" Data="{StaticResource Icon.Gear}"/>
             </Button>

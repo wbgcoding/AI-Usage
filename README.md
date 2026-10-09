@@ -125,6 +125,22 @@ showing a guess.
 <br><sub>The token usage window</sub>
 </div>
 
+## Keyboard shortcuts
+
+| Where | Keys | What it does |
+| --- | --- | --- |
+| Widget | F5 | Refresh now |
+| Widget | Ctrl+, | Open the settings |
+| Widget | Ctrl+T | Open the token usage window |
+| Widget | Ctrl+L | Open providers and layout |
+| Widget | Alt+Space | Open the window menu |
+| Anywhere | Ctrl+Alt+U | Show or hide the widget. This is the default; the shortcut is off until you turn it on in the settings, where you can also change the keys |
+| Anywhere | Ctrl+Alt+Left, Ctrl+Alt+Right | Snap the widget to the left or right half of the screen |
+| Anywhere | Ctrl+Alt+Up, Ctrl+Alt+Down | Snap the widget to the top or bottom half of the screen |
+| Token usage window | Esc | Close the window (first cancels a running drag) |
+| Token usage window | Alt+Up, Alt+Down | Move the focused section up or down |
+| Token usage window | Arrow keys, Home, End | Move through the bars and days of a chart |
+
 ## Private by design
 
 - **Reads usage numbers only.** AI-Usage only calls the usage pages and endpoints each agent

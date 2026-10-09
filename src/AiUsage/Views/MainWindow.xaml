@@ -26,6 +26,7 @@
                                     EyeSource="{Binding}"
                                     ShowWindowMenu="True"
                                     ShowStats="True"
+                                    ShowShortcutHints="True"
                                     RefreshRequested="TitleBarControl_RefreshRequested"
                                     SettingsRequested="TitleBarControl_SettingsRequested"
                                     StatsRequested="TitleBarControl_StatsRequested"

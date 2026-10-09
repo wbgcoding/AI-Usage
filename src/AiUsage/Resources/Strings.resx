@@ -197,6 +197,9 @@
   <data name="TitleBar.Close" xml:space="preserve"><value>Close</value></data>
   <data name="TitleBar.Collapse" xml:space="preserve"><value>Collapse</value></data>
   <data name="TitleBar.Expand" xml:space="preserve"><value>Expand</value></data>
+  <data name="TitleBar.WithShortcut" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Key.Ctrl" xml:space="preserve"><value>Ctrl</value></data>
+  <data name="Key.Alt" xml:space="preserve"><value>Alt</value></data>
   <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
   <data name="Theme.Terminal" xml:space="preserve"><value>Terminal</value></data>
   <data name="Theme.Dark" xml:space="preserve"><value>Dark</value></data>

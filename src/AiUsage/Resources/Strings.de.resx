@@ -196,6 +196,9 @@
   <data name="TitleBar.Close" xml:space="preserve"><value>Schließen</value></data>
   <data name="TitleBar.Collapse" xml:space="preserve"><value>Zusammenklappen</value></data>
   <data name="TitleBar.Expand" xml:space="preserve"><value>Aufklappen</value></data>
+  <data name="TitleBar.WithShortcut" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Key.Ctrl" xml:space="preserve"><value>Strg</value></data>
+  <data name="Key.Alt" xml:space="preserve"><value>Alt</value></data>
   <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
   <data name="Theme.Terminal" xml:space="preserve"><value>Terminal</value></data>
   <data name="Theme.Dark" xml:space="preserve"><value>Dunkel</value></data>

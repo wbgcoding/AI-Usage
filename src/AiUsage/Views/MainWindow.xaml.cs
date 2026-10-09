@@ -1313,6 +1313,16 @@ public partial class MainWindow : Window, IDisposable
             TitleBarControl_SettingsRequested(this, EventArgs.Empty);
             e.Handled = true;
         }
+        else if (IsStatsShortcut(e.Key, Keyboard.Modifiers))
+        {
+            TitleBarControl_StatsRequested(this, EventArgs.Empty);
+            e.Handled = true;
+        }
+        else if (IsEyeMenuShortcut(e.Key, Keyboard.Modifiers))
+        {
+            TitleBarControl.OpenEyeMenu();
+            e.Handled = true;
+        }
         else if (IsWindowMenuShortcut(e.Key, Keyboard.Modifiers))
         {
             TitleBarControl.OpenWindowMenu();
@@ -1323,6 +1333,10 @@ public partial class MainWindow : Window, IDisposable
     internal static bool IsRefreshShortcut(Key key) => key == Key.F5;
 
     internal static bool IsSettingsShortcut(Key key, ModifierKeys modifiers) => key == Key.OemComma && modifiers == ModifierKeys.Control;
+
+    internal static bool IsStatsShortcut(Key key, ModifierKeys modifiers) => key == Key.T && modifiers == ModifierKeys.Control;
+
+    internal static bool IsEyeMenuShortcut(Key key, ModifierKeys modifiers) => key == Key.L && modifiers == ModifierKeys.Control;
 
     /// <summary>Alt+Space is the standard Windows accelerator for a window's system menu - never
     /// reached this window on its own since AllowsTransparency drops the native non-client handling
