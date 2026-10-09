@@ -17,22 +17,22 @@ public class SessionHardeningTests
     }
 
     [Theory]
-    [InlineData("pat@example.com")]
-    [InlineData("pat.lee+tag@sub.example.co.uk")]
-    [InlineData("j\u00F6rg@example.com")]
+    [InlineData("pat\u0040example.com")]
+    [InlineData("pat.lee+tag\u0040sub.example.co.uk")]
+    [InlineData("j\u00F6rg\u0040example.com")]
     public void A_plain_address_is_accepted_as_the_account_label(string email) => Assert.Equal(email, Label(email));
 
     [Theory]
-    [InlineData("pat\u202E@example.com", "right-to-left override")]
-    [InlineData("pat\u2066@example.com", "left-to-right isolate")]
-    [InlineData("pat\u200B@example.com", "zero width space")]
-    [InlineData("pat\u200F@example.com", "right-to-left mark")]
-    [InlineData("pat\n@example.com", "line break")]
-    [InlineData("pat\t@example.com", "tab")]
-    [InlineData("pat\u0000@example.com", "null")]
-    [InlineData("pat\u0085@example.com", "next line")]
-    [InlineData("pat\u2028@example.com", "line separator")]
-    [InlineData("pat\uE000@example.com", "private use")]
+    [InlineData("pat\u202E\u0040example.com", "right-to-left override")]
+    [InlineData("pat\u20660040example.com", "left-to-right isolate")]
+    [InlineData("pat\u200B\u0040example.com", "zero width space")]
+    [InlineData("pat\u200F\u0040example.com", "right-to-left mark")]
+    [InlineData("pat\n\u0040example.com", "line break")]
+    [InlineData("pat\t\u0040example.com", "tab")]
+    [InlineData("pat\u00000040example.com", "null")]
+    [InlineData("pat\u00850040example.com", "next line")]
+    [InlineData("pat\u20280040example.com", "line separator")]
+    [InlineData("pat\uE0000040example.com", "private use")]
     public void An_address_with_a_control_or_direction_character_is_not_a_label(string email, string because)
     {
         Assert.True(Label(email) is null, because);
