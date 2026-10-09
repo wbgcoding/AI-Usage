@@ -149,12 +149,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         IReadOnlyDictionary<string, string> providerDisplayNames,
         string folderFormat, string tokensFormat, string inputOutputCacheFormat,
         string providersFormat, string mainModelFormat, string activeFormat, string sessionsFormat,
-        string tokenWord, CultureInfo culture)
+        string tokenWord, CultureInfo culture, string? displayName = null)
     {
-        var projectName = System.IO.Path.GetFileName(
-            row.FullPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
-        if (string.IsNullOrEmpty(projectName))
-            projectName = row.FullPath;
+        var projectName = displayName ?? ProjectName(row);
 
         var totalText = row.Total.ToString("N0", culture);
         var totalWithUnit = string.IsNullOrEmpty(tokenWord) ? totalText : $"{totalText} {tokenWord}";
@@ -192,6 +189,37 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             lines.Add(string.IsNullOrEmpty(sessionsFormat) ? sessionCount.ToString(culture) : string.Format(culture, sessionsFormat, sessionCount));
 
         return lines;
+    }
+
+    /// <summary>A row's own name: its last folder segment, or the full path when it has none.</summary>
+    private static string ProjectName(StatsProjectRow row)
+    {
+        var name = System.IO.Path.GetFileName(
+            row.FullPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+        return string.IsNullOrEmpty(name) ? row.FullPath : name;
+    }
+
+    /// <summary>The name each row shows: its short label, and where two rows would read the same,
+    /// the name of the folder above it in parentheses so they can be told apart. Pure so it is unit
+    /// testable without a visual tree.</summary>
+    internal static IReadOnlyList<string> DisplayNames(IReadOnlyList<StatsProjectRow> rows)
+    {
+        var names = rows.Select(row => row.ShortLabel).ToArray();
+        var seen = names.GroupBy(name => name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1)
+            .Select(group => group.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (!seen.Contains(names[i]))
+                continue;
+
+            var parent = System.IO.Path.GetFileName(
+                (System.IO.Path.GetDirectoryName(rows[i].FullPath.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar)) ?? "")
+                .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+            if (!string.IsNullOrEmpty(parent))
+                names[i] = $"{names[i]} ({parent})";
+        }
+        return names;
     }
 
     /// <summary>Pure so the summary text is unit testable without a visual tree. Names each row by its
@@ -312,9 +340,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private const double NameBarGap = 6;
     private const double MinBarWidth = 4;
 
-    // The rich row (852): an icon/dot plus two text lines on top of a thin colored share bar,
+    // The rich row (852): an icon/dot plus one text line on top of a thin colored share bar,
     // taller than the plain single-line row above.
-    private const double RichRowHeight = 44;
+    private const double RichRowHeight = 32;
     private const double RichIconSize = 16;
     private const double RichDotSize = 10;
     private const double RichBarHeight = 3;
@@ -360,32 +388,6 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     /// Pure so it is unit testable without a visual tree.</summary>
     internal static double BarWidth(long value, long maxValue, double maxWidth) =>
         maxValue <= 0 ? 0 : Math.Max(0, value) / (double)maxValue * maxWidth;
-
-    /// <summary>Shortens <paramref name="text"/> from the middle (<see
-    /// cref="StatsAggregator.MiddleEllipsis"/>) only as far as it takes to fit <paramref
-    /// name="maxWidth"/> at <paramref name="fontSize"/> - a folder path keeps as much of both its
-    /// start and its end visible as the row actually has room for, instead of a fixed character
-    /// count that is sometimes too eager and sometimes not eager enough.</summary>
-    private static string FitMiddleEllipsis(string text, double maxWidth, Typeface typeface, double fontSize, double dpi, CultureInfo culture)
-    {
-        if (maxWidth <= 0 || string.IsNullOrEmpty(text))
-            return text;
-
-        double Width(string candidate) =>
-            new FormattedText(candidate, culture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Black, dpi).Width;
-
-        if (Width(text) <= maxWidth)
-            return text;
-
-        for (var chars = text.Length - 2; chars > 4; chars -= 2)
-        {
-            var candidate = StatsAggregator.MiddleEllipsis(text, chars);
-            if (Width(candidate) <= maxWidth)
-                return candidate;
-        }
-
-        return StatsAggregator.MiddleEllipsis(text, 4);
-    }
 
     private readonly Dictionary<string, BitmapSource?> _iconCache = [];
 
@@ -473,7 +475,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var anchorRect = new Rect(0, _hoverIndex * RichRowHeight, ActualWidth, RichRowHeight);
         var lines = BuildProjectDetailTooltipLines(
             rows[_hoverIndex], ProviderDisplayNames, FolderFormat, TokensFormat, InputOutputCacheFormat,
-            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, CultureInfo.CurrentCulture);
+            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, CultureInfo.CurrentCulture,
+            DisplayNames(rows)[_hoverIndex]);
         _tooltipPopup ??= new ChartTooltipPopup();
         _tooltipPopup.Show(this, anchorRect, lines, TooltipBackground, TextBrush, TooltipBorderBrush, mouse);
     }
@@ -537,7 +540,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var lines = BuildProjectDetailTooltipLines(
             rows[_focusedRowIndex], ProviderDisplayNames, FolderFormat, TokensFormat, InputOutputCacheFormat,
-            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, CultureInfo.CurrentCulture);
+            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, CultureInfo.CurrentCulture,
+            DisplayNames(rows)[_focusedRowIndex]);
         AutomationProperties.SetName(this, string.Join(". ", lines));
     }
 
@@ -585,12 +589,13 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         {
             var semiBold = new Typeface(typeface.FontFamily, typeface.Style, FontWeights.SemiBold, typeface.Stretch);
             var tops = RowTops(rows.Count, RichRowHeight);
+            var names = DisplayNames(rows);
             for (var i = 0; i < rows.Count; i++)
             {
                 var y = tops[i];
                 if (y >= height)
                     break;
-                DrawRichRow(drawingContext, rows[i], y, width, maxValue, typeface, semiBold, dpi, i == _focusedRowIndex);
+                DrawRichRow(drawingContext, rows[i], names[i], y, width, maxValue, typeface, semiBold, dpi, i == _focusedRowIndex);
             }
             return;
         }
@@ -636,7 +641,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     }
 
     /// <summary>The project name of a rich row: always one line, cut with an ellipsis - without the
-    /// line limit a long name wraps and runs into the path line beneath it.</summary>
+    /// line limit a long name wraps into the bar beneath it.</summary>
     internal static FormattedText CreateRichNameText(string name, double maxWidth, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
         new(name, culture, FlowDirection.LeftToRight, semiBold, 12, brush, dpi)
         {
@@ -646,15 +651,15 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         };
 
     /// <summary>One 852-style row: an icon (or, missing one, a dot in the project's own color), the
-    /// project's bare name in semibold, its full path below in <see cref="MutedBrush"/> and
-    /// middle-trimmed to whatever width is left once the right-aligned value/share text is measured,
-    /// and a thin bar under the whole row in the project's own color, proportional to its share of
+    /// project's name in semibold (the full path is in the tooltip only), cut to whatever width is
+    /// left once the right-aligned value/share text is measured, and a thin bar under the whole row
+    /// in the project's own color, proportional to its share of
     /// <paramref name="maxValue"/>. A focused row (keyboard navigation, never the mouse) gets a
     /// one-pixel outline in <see cref="MutedBrush"/> around it, the only visual cue this control has
     /// for keyboard focus since it draws its own content instead of hosting real, individually
     /// focusable child elements.</summary>
     private void DrawRichRow(
-        DrawingContext drawingContext, StatsProjectRow row, double y, double width, long maxValue,
+        DrawingContext drawingContext, StatsProjectRow row, string projectName, double y, double width, long maxValue,
         Typeface regular, Typeface semiBold, double dpi, bool isFocused)
     {
         var culture = CultureInfo.CurrentUICulture;
@@ -683,17 +688,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var nameAreaWidth = Math.Max(1, figureX - textX - RichFigureGap);
 
-        var projectName = System.IO.Path.GetFileName(
-            row.FullPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
-        if (string.IsNullOrEmpty(projectName))
-            projectName = row.FullPath;
-
         var nameText = CreateRichNameText(projectName, nameAreaWidth, culture, semiBold, TextBrush, dpi);
-        drawingContext.DrawText(nameText, new Point(textX, y + 1));
-
-        var pathText = FitMiddleEllipsis(row.FullPath, nameAreaWidth, regular, 9, dpi, culture);
-        var pathFormatted = new FormattedText(pathText, culture, FlowDirection.LeftToRight, regular, 9, MutedBrush, dpi);
-        drawingContext.DrawText(pathFormatted, new Point(textX, y + 1 + nameText.Height));
+        drawingContext.DrawText(nameText, new Point(textX, y + (textAreaHeight - nameText.Height) / 2));
 
         var barWidth = BarWidth(row.Total, maxValue, width);
         if (barWidth > 0)
