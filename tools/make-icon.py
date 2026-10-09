@@ -1,7 +1,7 @@
-"""Packages the approved ring logo into the app and tray icons.
+"""Packages the app logo into the app and tray icons.
 
-design/logo.png is the source artwork (kept outside the repository). The ICO files, the in-app
-PNG mark and the SVG wrapper are generated from it.
+The source artwork is not part of this repository. The ICO files, the in-app PNG mark and the
+SVG wrapper are generated from it.
 
 Requires Pillow (`pip install pillow`). Run from the repository root:
     python tools/make-icon.py

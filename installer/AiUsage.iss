@@ -8,7 +8,7 @@
 ; Everything downstream reads IsPortableMode in [Code]. The foreground-activation plumbing below
 ; is a proven pattern, hardened across many rounds of real installer testing on an earlier project
 ; - trimmed here of everything specific to that project's own self-updater (no relaunch parameter,
-; no dev update channel: AI-Usage has no in-place self-update).
+; no dev update channel). The in-app update downloads this setup and runs it silently.
 
 #ifndef AppVersion
   #define AppVersion "1.1.0"
