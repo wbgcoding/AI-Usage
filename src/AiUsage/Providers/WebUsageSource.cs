@@ -372,13 +372,16 @@ public sealed class WebUsageSource
     /// and <see cref="CodexDiscoveryScript.Discover"/>). Accepted only when it is a string containing
     /// '@' and no longer than <see cref="MaxAccountLabelLength"/> - anything else is dropped rather
     /// than shown as a guessed account name.</summary>
-    private static string? ReadAccountLabel(JsonElement root)
+    internal static string? ReadAccountLabel(JsonElement root)
     {
         if (!root.TryGetProperty("email", out var emailEl) || emailEl.ValueKind != JsonValueKind.String)
             return null;
 
+        // Printable characters only: the label reaches the screen, and a control or bidirectional
+        // character in it could reorder or hide what stands around it.
         var email = emailEl.GetString();
         return email is { Length: > 0 and <= MaxAccountLabelLength } && email.Contains('@', StringComparison.Ordinal)
+            && email.All(IsPrintable)
             ? email
             : null;
     }

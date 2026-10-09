@@ -627,6 +627,161 @@ public class WebSessionScriptRunnerTests
         Assert.Equal(notSignedIn ? """{"status":"not_signed_in"}""" : """{"status":"blocked"}""", envelope);
     }
 
+    [Fact]
+    public async Task A_runner_disposed_while_waiting_for_the_page_to_wake_cancels_instead_of_running_on_a_dead_host()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost { SuspendNeverFinishes = true };
+            current.CompleteNavigate(true);
+            return current;
+        }, suspendWait: TimeSpan.FromSeconds(30));
+
+        var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await first;
+        var host = current;
+        Assert.Equal(1, host.ExecuteCalls);
+
+        // The second call waits for the suspend that never finishes; the runner goes away meanwhile.
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await runner.DisposeAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+        Assert.Equal(1, host.ExecuteCalls);
+        Assert.True(host.Disposed);
+    }
+
+    [Fact]
+    public async Task The_timeout_timer_is_cancelled_as_soon_as_the_work_wins()
+    {
+        CancellationToken timerToken = default;
+        var work = Task.CompletedTask;
+
+        var won = await WebSessionScriptRunner.WinsAgainstTimeoutAsync(
+            work, TimeSpan.FromMinutes(5), CancellationToken.None,
+            delay: (_, token) =>
+            {
+                timerToken = token;
+                return Task.Delay(Timeout.Infinite, token);
+            });
+
+        Assert.True(won);
+        Assert.True(timerToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task The_timeout_wins_against_work_that_never_finishes_and_so_does_the_callers_cancellation()
+    {
+        var never = new TaskCompletionSource().Task;
+        Assert.False(await WebSessionScriptRunner.WinsAgainstTimeoutAsync(never, TimeSpan.FromMilliseconds(20), CancellationToken.None));
+
+        using var cts = new CancellationTokenSource();
+        var cancelled = WebSessionScriptRunner.WinsAgainstTimeoutAsync(never, TimeSpan.FromMinutes(5), cts.Token);
+        await cts.CancelAsync();
+        Assert.False(await cancelled);
+    }
+
+    [Fact]
+    public void Every_script_runs_behind_a_host_check_evaluated_in_the_same_step()
+    {
+        const string script = "(async () => ({status: 'ok'}))()";
+
+        var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard(script, "claude.ai");
+
+        Assert.Contains("location.hostname", wrapped, StringComparison.Ordinal);
+        Assert.Contains("location.protocol", wrapped, StringComparison.Ordinal);
+        Assert.Contains("\"claude.ai\"", wrapped, StringComparison.Ordinal);
+        Assert.Contains(WebView2HiddenBrowserHost.OffOriginStatus, wrapped, StringComparison.Ordinal);
+        Assert.True(
+            wrapped.IndexOf("location.hostname", StringComparison.Ordinal) < wrapped.IndexOf(script, StringComparison.Ordinal),
+            "the host check has to stand in front of the script");
+    }
+
+    [Fact]
+    public void A_host_name_cannot_break_out_of_the_guards_string_literal()
+    {
+        var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard("1", "a\";alert(1);//");
+
+        Assert.DoesNotContain("\";alert(1)", wrapped, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("""{"status":"__off_origin","href":"https://accounts.google.com/signin"}""", "https://accounts.google.com/signin")]
+    [InlineData("""{"status":"ok","body":"{}"}""", null)]
+    [InlineData("""{"status":"__off_origin"}""", null)]
+    [InlineData("not json", null)]
+    [InlineData("", null)]
+    public void The_guards_answer_is_told_apart_from_a_scripts_own(string answer, string? expectedAddress)
+    {
+        Assert.Equal(expectedAddress, WebView2HiddenBrowserHost.ReadOffOriginAddress(answer));
+    }
+
+    [Fact]
+    public void A_guarded_script_off_the_provider_answers_exactly_what_the_host_side_check_answers()
+    {
+        // The guard hands the address back; the classification is the one the pre-check already uses.
+        IReadOnlyList<string> allowed = ["claude.ai", "accounts.google.com"];
+
+        Assert.Equal("""{"status":"not_signed_in"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://accounts.google.com/x", allowed));
+        Assert.Equal("""{"status":"blocked"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://elsewhere.example/", allowed));
+        Assert.Equal("""{"status":"blocked"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("http://claude.ai/", allowed));
+    }
+
+    [Theory]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Alert, false)]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Confirm, false)]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Prompt, false)]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Beforeunload, true)]
+    public void Only_the_leave_page_prompt_is_answered_yes_in_the_hidden_session(
+        Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind kind, bool accepted)
+    {
+        Assert.Equal(accepted, WebView2HiddenBrowserHost.ShouldAcceptScriptDialog(kind));
+    }
+
+    [Fact]
+    public void The_page_cannot_open_the_print_dialog_in_the_hidden_session()
+    {
+        Assert.Contains("'print'", WebView2HiddenBrowserHost.DocumentCreatedScript, StringComparison.Ordinal);
+        Assert.Contains("configurable:false", WebView2HiddenBrowserHost.DocumentCreatedScript, StringComparison.Ordinal);
+    }
+
+    // The host cannot be instantiated without a live WebView2, so its wiring is read as text (as above).
+    [Fact]
+    public void The_hidden_session_silences_dialogs_prompts_popups_and_foreign_navigation()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+        var start = source.IndexOf("public async Task<bool> NavigateAsync(CancellationToken ct)", StringComparison.Ordinal);
+        var end = source.IndexOf("public async Task SuspendAsync()", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var navigate = source[start..end];
+
+        Assert.Contains("AreDefaultScriptDialogsEnabled = false;", navigate, StringComparison.Ordinal);
+        Assert.Contains("ScriptDialogOpening +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("BasicAuthenticationRequested +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("ClientCertificateRequested +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("AddScriptToExecuteOnDocumentCreatedAsync(DocumentCreatedScript)", navigate, StringComparison.Ordinal);
+        Assert.Contains("NewWindowRequested +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("e.Handled = true;", navigate, StringComparison.Ordinal);
+        Assert.Contains("DownloadStarting += (_, e) => e.Cancel = true;", navigate, StringComparison.Ordinal);
+        Assert.Contains("PermissionRequested += (_, e) => e.State", navigate, StringComparison.Ordinal);
+        Assert.Contains("SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts)", navigate, StringComparison.Ordinal);
+
+        // The dialogs are switched off before the first page can load.
+        Assert.True(
+            navigate.IndexOf("AreDefaultScriptDialogsEnabled = false;", StringComparison.Ordinal)
+            < navigate.IndexOf("CoreWebView2.Navigate(_baseUrl)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_hidden_host_never_dereferences_the_web_view_with_a_bang_after_disposal()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+
+        Assert.DoesNotContain("_webView!", source, StringComparison.Ordinal);
+    }
+
     private sealed class FakeTimeProvider(DateTimeOffset start) : TimeProvider
     {
         private DateTimeOffset _now = start;
@@ -736,8 +891,14 @@ public class WebSessionScriptRunnerTests
 
         public Task<bool> NavigateAsync(CancellationToken ct) => _navigate.Task;
 
+        public int ExecuteCalls { get; private set; }
+
         public Task<string> ExecuteScriptAsync(string script, CancellationToken ct)
         {
+            ExecuteCalls++;
+            // The real host reads a field that disposal has already cleared.
+            if (Disposed)
+                throw new NullReferenceException();
             _script = new TaskCompletionSource<string>();
             return _script.Task;
         }
