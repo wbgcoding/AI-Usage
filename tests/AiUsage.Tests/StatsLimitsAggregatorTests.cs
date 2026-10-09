@@ -160,4 +160,78 @@ public class StatsViewModelLimitsTests
         Assert.True(to > from);
         Assert.True(to >= DateTimeOffset.Now);
     }
+
+    private static (StatsViewModel ViewModel, IDisposable Directory) CreateWithHours(int hours, Func<string, int>? accounts = null)
+    {
+        var directory = TestPaths.CreateDisposableDirectory("stats-limits-per-percent");
+        var store = new StatsStore(directory);
+        var start = DateTime.Now;
+        start = new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0, DateTimeKind.Local).AddHours(-hours - 1);
+        var reset = DateTimeOffset.Now.AddDays(2);
+        var random = new Random(9);
+        var records = new List<StatsRecord>();
+        var points = new List<HistoryPoint>();
+        var percent = 0.0;
+        for (var h = 0; h < hours; h++)
+        {
+            var moment = start.AddHours(h);
+            points.Add(new HistoryPoint(1, new DateTimeOffset(moment), WindowKind.Weekly, percent, reset));
+            var tokens = random.Next(100_000, 900_000);
+            records.Add(new StatsRecord("claude", DateOnly.FromDateTime(moment), "claude-opus-4-8", "p", tokens, 0, 0, 0, moment.Hour));
+            percent += tokens / 2e6;
+        }
+
+        points.Add(new HistoryPoint(1, new DateTimeOffset(start.AddHours(hours)), WindowKind.Weekly, percent, reset));
+        store.AddDelta(records);
+        var viewModel = new StatsViewModel(store) { LoadHistory = (id, _, _) => id == "claude" ? points : [] };
+        if (accounts is not null)
+            viewModel.AccountCountOf = accounts;
+        viewModel.Recompute();
+        return (viewModel, directory);
+    }
+
+    [Fact]
+    public void Enough_hours_give_the_per_model_line_with_its_tooltip()
+    {
+        var (viewModel, directory) = CreateWithHours(100);
+        using (directory)
+        {
+            var group = Assert.Single(viewModel.LimitGroups);
+            Assert.True(group.HasNote);
+            Assert.Contains("Opus 4.8", group.NoteText, StringComparison.Ordinal);
+            Assert.False(string.IsNullOrEmpty(group.NoteToolTip));
+        }
+    }
+
+    [Fact]
+    public void Too_few_hours_say_so_instead_of_a_figure()
+    {
+        var (viewModel, directory) = CreateWithHours(8);
+        using (directory)
+        {
+            var group = Assert.Single(viewModel.LimitGroups);
+            Assert.Equal(LocalizationService.Instance["Stats.PerPercent.TooFew"], group.NoteText);
+        }
+    }
+
+    [Fact]
+    public void More_than_one_account_says_the_figure_is_not_available()
+    {
+        var (viewModel, directory) = CreateWithHours(100, accounts: _ => 2);
+        using (directory)
+        {
+            var group = Assert.Single(viewModel.LimitGroups);
+            Assert.Equal(LocalizationService.Instance["Stats.PerPercent.MultiAccount"], group.NoteText);
+        }
+    }
+
+    [Fact]
+    public void A_provider_the_estimate_does_not_cover_gets_no_line()
+    {
+        var reset = DateTimeOffset.Now.AddDays(2);
+        var viewModel = Create((id, _, _) => id == "cursor" ? [Weekly(10, reset)] : []);
+
+        var group = Assert.Single(viewModel.LimitGroups);
+        Assert.False(group.HasNote);
+    }
 }

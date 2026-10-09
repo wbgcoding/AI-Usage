@@ -367,6 +367,12 @@
   <data name="Stats.Limits.Highest" xml:space="preserve"><value>Highest</value></data>
   <data name="Stats.Limits.AvgPeak" xml:space="preserve"><value>Average peak</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>No quota history in this period yet.</value></data>
+  <data name="Stats.PerPercent" xml:space="preserve"><value>1 % of the week ≈ {0}</value></data>
+  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} tokens {1}</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimate from {0} hours of your own usage. Cache reads count separately: 1 % ≈ {1} cached tokens.</value></data>
+  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1 % of the week ≈ {0} tokens (all models)</value></data>
+  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Not enough data yet for tokens per percent.</value></data>
+  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Not available with more than one account.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>No project</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Other projects</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projects</value></data>

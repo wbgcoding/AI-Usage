@@ -57,7 +57,7 @@ public static class StatsLimitsAggregator
                 _ => "Window_Other",
             };
 
-    private static List<List<HistoryPoint>> SplitIntoPeriods(IEnumerable<HistoryPoint> points)
+    internal static List<List<HistoryPoint>> SplitIntoPeriods(IEnumerable<HistoryPoint> points)
     {
         var periods = new List<List<HistoryPoint>>();
         var withoutReset = new List<HistoryPoint>();

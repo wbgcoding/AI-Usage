@@ -502,14 +502,25 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<StatsProviderRowViewModel> providerRows = [];
 
-    /// <summary>One row per quota window of the shown providers, for the limits section.</summary>
+    /// <summary>The limits section: the quota windows of each shown provider, with the tokens-per-percent
+    /// line under the provider's rows where there is one.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasLimitRows), nameof(HasNoLimitRows))]
-    private IReadOnlyList<StatsLimitRowViewModel> limitRows = [];
+    [NotifyPropertyChangedFor(nameof(LimitRows), nameof(HasLimitRows), nameof(HasNoLimitRows))]
+    private IReadOnlyList<StatsLimitGroupViewModel> limitGroups = [];
 
-    public bool HasLimitRows => LimitRows.Count > 0;
+    /// <summary>Every row of <see cref="LimitGroups"/> in order.</summary>
+    public IReadOnlyList<StatsLimitRowViewModel> LimitRows => LimitGroups.SelectMany(group => group.Rows).ToList();
 
-    public bool HasNoLimitRows => LimitRows.Count == 0;
+    public bool HasLimitRows => LimitGroups.Count > 0;
+
+    public bool HasNoLimitRows => LimitGroups.Count == 0;
+
+    /// <summary>How many accounts a provider has - a seam the window fills from the settings. The
+    /// tokens-per-percent estimate needs exactly one: usage of several accounts is mixed in the logs.</summary>
+    internal Func<string, int> AccountCountOf { get; set; } = _ => 1;
+
+    private IReadOnlyList<StatsRecord>? _perPercentSource;
+    private readonly Dictionary<string, PerPercentResult> _perPercent = [];
 
     /// <summary>Reads one provider's quota history between two moments - a seam so a test can supply points.</summary>
     internal Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>> LoadHistory { get; set; }
@@ -1270,7 +1281,7 @@ public sealed partial class StatsViewModel : ObservableObject
             })
             .ToList();
 
-        LimitRows = BuildLimitRows(from, to, loc);
+        LimitGroups = BuildLimitGroups(from, to, loc);
 
         InputText = LabelValue(loc, "Stats.Input", ShortenTokens(summary.InputTokens, loc));
         InputExact = summary.InputTokens.ToString("N0", CultureInfo.CurrentCulture);
@@ -1351,8 +1362,9 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>The limits section: the quota history of the shown providers (the filtered one, else
-    /// every provider) between the first and last day of the range, summed per window.</summary>
-    private List<StatsLimitRowViewModel> BuildLimitRows(DateOnly from, DateOnly to, LocalizationService loc)
+    /// every provider) between the first and last day of the range, summed per window, grouped by
+    /// provider.</summary>
+    private List<StatsLimitGroupViewModel> BuildLimitGroups(DateOnly from, DateOnly to, LocalizationService loc)
     {
         var start = from == DateOnly.MinValue
             ? DateTimeOffset.MinValue
@@ -1361,12 +1373,65 @@ public sealed partial class StatsViewModel : ObservableObject
         IEnumerable<string> providerIds = SelectedProvider.Length > 0 ? [SelectedProvider] : ProviderCoverage.AllProviderIds;
         var series = providerIds.Select(id => (id, LoadHistory(id, start, end))).ToList();
         return StatsLimitsAggregator.Build(series)
-            .Select(row => new StatsLimitRowViewModel(
-                $"{ProviderDisplayNames.GetValueOrDefault(row.ProviderId, row.ProviderId)} · {StatusTextMap.Resolve(row.WindowLabelKey)}",
-                string.Format(CultureInfo.CurrentCulture, loc["Stats.Limits.ReachedCount"], row.ReachedCount),
-                FormatLimitPercent(row.Highest),
-                FormatLimitPercent(row.AveragePeak)))
+            .GroupBy(row => row.ProviderId)
+            .Select(group =>
+            {
+                var rows = group.Select(row => new StatsLimitRowViewModel(
+                    $"{ProviderDisplayNames.GetValueOrDefault(row.ProviderId, row.ProviderId)} · {StatusTextMap.Resolve(row.WindowLabelKey)}",
+                    string.Format(CultureInfo.CurrentCulture, loc["Stats.Limits.ReachedCount"], row.ReachedCount),
+                    FormatLimitPercent(row.Highest),
+                    FormatLimitPercent(row.AveragePeak))).ToList();
+                var (note, tip) = PerPercentNote(group.Key, loc);
+                return new StatsLimitGroupViewModel(group.Key, rows, note, tip);
+            })
             .ToList();
+    }
+
+    /// <summary>The "1 % of the week is about ..." line of a provider and its tooltip; empty for a
+    /// provider the estimate does not cover.</summary>
+    private (string Text, string ToolTip) PerPercentNote(string providerId, LocalizationService loc)
+    {
+        if (providerId is not (StatsIndexer.ClaudeProviderId or StatsIndexer.CodexProviderId))
+            return ("", "");
+        if (AccountCountOf(providerId) > 1)
+            return (loc["Stats.PerPercent.MultiAccount"], "");
+
+        var result = EstimatePerPercent(providerId);
+        switch (result.Status)
+        {
+            case PerPercentStatus.PerModel:
+                var items = string.Join(" · ", result.Items.Select(item => loc.Format(
+                    "Stats.PerPercent.Item", ShortenTokens(item.TokensPerPercent, loc), item.IsOther ? loc["Stats.Other"] : item.Model)));
+                var cached = result.CacheReadPerPercent > 0 ? ShortenTokens(result.CacheReadPerPercent, loc) : "–";
+                return (loc.Format("Stats.PerPercent", items), loc.Format("Stats.PerPercent.Tip", result.IntervalCount, cached));
+            case PerPercentStatus.Total:
+                return (loc.Format("Stats.PerPercent.Total", ShortenTokens(result.TotalPerPercent, loc)), "");
+            default:
+                return (loc["Stats.PerPercent.TooFew"], "");
+        }
+    }
+
+    /// <summary>The estimate for one provider, kept until the records it was built from change.</summary>
+    private PerPercentResult EstimatePerPercent(string providerId)
+    {
+        if (!ReferenceEquals(_perPercentSource, _sourceRecords))
+        {
+            _perPercent.Clear();
+            _perPercentSource = _sourceRecords;
+        }
+
+        if (_perPercent.TryGetValue(providerId, out var cached))
+            return cached;
+
+        var now = DateTimeOffset.Now;
+        var since = DateOnly.FromDateTime(DateTime.Now.AddDays(-StatsTokensPerPercent.LookbackDays));
+        var records = _sourceRecords.Where(record => record.Provider == providerId && record.Day >= since).ToList();
+        var weekly = LoadHistory(providerId, now.AddDays(-StatsTokensPerPercent.LookbackDays), now)
+            .Where(point => point.Window == WindowKind.Weekly && StatsLimitsAggregator.LabelKeyOf(point) == "Window_Weekly")
+            .ToList();
+        var result = StatsTokensPerPercent.Estimate(StatsTokensPerPercent.BuildIntervals(records, weekly));
+        _perPercent[providerId] = result;
+        return result;
     }
 
     private static string FormatLimitPercent(double percent) =>

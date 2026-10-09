@@ -366,6 +366,12 @@
   <data name="Stats.Limits.Highest" xml:space="preserve"><value>Höchstwert</value></data>
   <data name="Stats.Limits.AvgPeak" xml:space="preserve"><value>Ø Spitze</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Für diesen Zeitraum gibt es noch keinen Kontingent-Verlauf.</value></data>
+  <data name="Stats.PerPercent" xml:space="preserve"><value>1 % der Woche ≈ {0}</value></data>
+  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} Token {1}</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schätzung aus {0} Stunden deiner Nutzung. Gelesener Cache zählt getrennt: 1 % ≈ {1} Token aus dem Cache.</value></data>
+  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1 % der Woche ≈ {0} Token (alle Modelle)</value></data>
+  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Noch zu wenig Daten für Token je Prozent.</value></data>
+  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Mit mehr als einem Konto nicht verfügbar.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Ohne Projekt</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Weitere Projekte</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} Projekte</value></data>

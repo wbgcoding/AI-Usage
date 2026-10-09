@@ -647,36 +647,48 @@
                                                            Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                            Margin="8,0,0,0" TextAlignment="Right" TextWrapping="Wrap"/>
                                             </Grid>
-                                            <ItemsControl ItemsSource="{Binding LimitRows}">
-                                                <ItemsControl.ItemContainerStyle>
-                                                    <Style TargetType="ContentPresenter">
-                                                        <Setter Property="AutomationProperties.Name">
-                                                            <Setter.Value>
-                                                                <MultiBinding StringFormat="{}{0}: {1}, {2}, {3}">
-                                                                    <Binding Path="Label"/>
-                                                                    <Binding Path="ReachedText"/>
-                                                                    <Binding Path="HighestText"/>
-                                                                    <Binding Path="AveragePeakText"/>
-                                                                </MultiBinding>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl ItemsSource="{Binding LimitGroups}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Grid Margin="0,4">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="80"/>
-                                                                <ColumnDefinition Width="72"/>
-                                                                <ColumnDefinition Width="80"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{DynamicResource Text.Secondary}"
-                                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0" TextAlignment="Right"/>
-                                                            <TextBlock Grid.Column="2" Text="{Binding HighestText}" Margin="8,0,0,0" TextAlignment="Right"/>
-                                                            <TextBlock Grid.Column="3" Text="{Binding AveragePeakText}" Margin="8,0,0,0" TextAlignment="Right"/>
-                                                        </Grid>
+                                                        <StackPanel Margin="0,0,0,4">
+                                                            <ItemsControl ItemsSource="{Binding Rows}">
+                                                                <ItemsControl.ItemContainerStyle>
+                                                                    <Style TargetType="ContentPresenter">
+                                                                        <Setter Property="AutomationProperties.Name">
+                                                                            <Setter.Value>
+                                                                                <MultiBinding StringFormat="{}{0}: {1}, {2}, {3}">
+                                                                                    <Binding Path="Label"/>
+                                                                                    <Binding Path="ReachedText"/>
+                                                                                    <Binding Path="HighestText"/>
+                                                                                    <Binding Path="AveragePeakText"/>
+                                                                                </MultiBinding>
+                                                                            </Setter.Value>
+                                                                        </Setter>
+                                                                    </Style>
+                                                                </ItemsControl.ItemContainerStyle>
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Grid Margin="0,4">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="80"/>
+                                                                                <ColumnDefinition Width="72"/>
+                                                                                <ColumnDefinition Width="80"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{DynamicResource Text.Secondary}"
+                                                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                                            <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0" TextAlignment="Right"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding HighestText}" Margin="8,0,0,0" TextAlignment="Right"/>
+                                                                            <TextBlock Grid.Column="3" Text="{Binding AveragePeakText}" Margin="8,0,0,0" TextAlignment="Right"/>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <TextBlock Margin="0,4,0,0" Text="{Binding NoteText}" TextWrapping="Wrap"
+                                                                       Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}"
+                                                                       ToolTip="{Binding NoteToolTip, Converter={StaticResource NullIfEmpty}}"
+                                                                       Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}"/>
+                                                        </StackPanel>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>

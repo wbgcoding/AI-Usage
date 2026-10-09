@@ -44,6 +44,12 @@ public partial class StatsWindow : Window
         _viewModel = viewModel;
         _settings = settings;
         _settingsStore = settingsStore;
+        if (settings is not null)
+        {
+            _viewModel.AccountCountOf = providerId =>
+                settings.Providers.Keys.Count(key => ProviderRegistry.BaseProviderId(key) == providerId);
+        }
+
         InitializeComponent();
         WindowChromeNative.Bootstrap(this);
         DataContext = _viewModel;
