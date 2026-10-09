@@ -125,7 +125,7 @@ public class HistoryChartGeometryTests
 
     [Theory]
     [InlineData("en-US", "Sep 25")]
-    [InlineData("de-DE", "25. Sept.")] // the ICU data shortens September to "Sept."
+    [InlineData("de-DE", "25. Sep")]
     public void RangeCaptionUsesAShortDateAboveADay(string culture, string expected)
     {
         var at = new DateTimeOffset(new DateTime(2026, 9, 25, 12, 0, 0, DateTimeKind.Local));
@@ -158,7 +158,7 @@ public class HistoryChartGeometryTests
 
         var captions = WithCulture("de-DE", () => HistoryChart.RangeCaptions(start, end));
 
-        Assert.Equal(("4. Okt. 20:13", "20:13"), captions);
+        Assert.Equal(("4. Okt 20:13", "20:13"), captions);
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public class HistoryChartGeometryTests
 
     [Theory]
     [InlineData("en-US", "Sep 25 12:00 PM")]
-    [InlineData("de-DE", "25. Sept. 12:00")]
+    [InlineData("de-DE", "25. Sep 12:00")]
     public void HoverTimeNamesTheMonthAndDayWithoutAYearAboveADay(string culture, string expected)
     {
         var at = new DateTimeOffset(new DateTime(2026, 9, 25, 12, 0, 0, DateTimeKind.Local));

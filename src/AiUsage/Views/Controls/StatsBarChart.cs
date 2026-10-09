@@ -319,7 +319,7 @@ public sealed class StatsBarChart : FrameworkElement
         if (!DateOnly.TryParseExact(dayKey, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
             return dayKey;
 
-        var name = day.ToString("MMM", culture);
+        var name = DateLabels.MonthShort(day, culture);
         return day.Month == 1 ? name + " " + day.Year.ToString(culture) : name;
     }
 
@@ -720,7 +720,7 @@ public sealed class StatsBarChart : FrameworkElement
     }
 
     /// <summary>A day-grouped bar's label is a raw "yyyy-MM-dd" key - shown as a locale-correct
-    /// month and day without the year (<see cref="DateLabels.ShortMonthDay"/>) instead, since this
+    /// month and day without the year (<see cref="DateLabels.DayMonthShort"/>) instead, since this
     /// is the one place it actually reaches the screen. A
     /// week-grouped bar's own "yyyy-Www" key becomes that week's own Monday-to-Sunday date range,
     /// compact range (see <see cref="StatsTooltipDateFormatter.FormatRange"/>).
@@ -729,7 +729,7 @@ public sealed class StatsBarChart : FrameworkElement
     internal static string FormatAxisLabel(string label, CultureInfo culture)
     {
         if (DateOnly.TryParseExact(label, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
-            return DateLabels.ShortMonthDay(day.ToDateTime(TimeOnly.MinValue), culture);
+            return DateLabels.DayMonthShort(day, culture);
 
         if (TryParseIsoWeekLabel(label, out var start))
             return StatsTooltipDateFormatter.FormatRange(start, start.AddDays(6), culture);

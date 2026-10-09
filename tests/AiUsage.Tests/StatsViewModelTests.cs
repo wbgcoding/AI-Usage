@@ -474,6 +474,27 @@ public class StatsViewModelTests
         Assert.Equal("1", viewModel.PerDayFigureText);
     }
 
+    [Theory]
+    [InlineData("de-DE", @"^\p{L}+, \d{1,2}\. \p{L}+$")]
+    [InlineData("en-US", @"^\p{L}+, \p{L}+ \d{1,2}$")]
+    public void BusiestDayCardNamesWeekdayDayAndMonthWithoutAYear(string culture, string shape)
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo(culture);
+        try
+        {
+            var viewModel = ViewModelWithRecordFrom("stats-vm-busiest-day-text-" + culture, 3, "Month");
+            var day = DateOnly.FromDateTime(DateTime.Now).AddDays(-3);
+
+            Assert.Equal(AiUsage.Services.DateLabels.WeekdayDayMonthShort(day, System.Globalization.CultureInfo.CurrentCulture), viewModel.BusiestDayDateText);
+            Assert.Matches(shape, viewModel.BusiestDayDateText);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     [Fact]
     public void WeekAndMonthRangesKeepTheirFixedLengthWhenDataIsOlderThanThePeriod()
     {

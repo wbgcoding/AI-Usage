@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Media;
+using AiUsage.Services;
 using AiUsage.Stats;
 
 namespace AiUsage.Views.Controls;
@@ -554,8 +555,10 @@ public sealed class StatsMonthGrid : FrameworkElement
             if (monthKey == lastMonth || (lastLabelColumn is { } last && column - last < MinColumnsBetweenMonthLabels))
                 continue;
 
-            var format = spansMoreThanAYear && cell.Day.Month == 1 ? "MMM yy" : "MMM";
-            labels.Add((column, cell.Day.ToDateTime(TimeOnly.MinValue).ToString(format, culture)));
+            var label = DateLabels.MonthShort(cell.Day, culture);
+            if (spansMoreThanAYear && cell.Day.Month == 1)
+                label += " " + cell.Day.ToDateTime(TimeOnly.MinValue).ToString("yy", culture);
+            labels.Add((column, label));
             lastMonth = monthKey;
             lastLabelColumn = column;
         }
