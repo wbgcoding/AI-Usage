@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 
@@ -10,6 +12,18 @@ public partial class ProviderTile : UserControl
     public ProviderTile()
     {
         InitializeComponent();
+    }
+
+    /// <summary>Opens the project's FAQ in the browser; with no default browser there is nothing to recover into.</summary>
+    private void HelpMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(AiUsage.Services.AppInfo.HelpUrl) { UseShellExecute = true });
+        }
+        catch (Win32Exception)
+        {
+        }
     }
 
     /// <summary>The chart's own ClipToBounds is a square, so the weekly fill would poke out past the

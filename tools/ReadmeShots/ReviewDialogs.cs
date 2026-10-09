@@ -87,11 +87,18 @@ internal static class ReviewDialogs
 
     internal static void RenderWelcome(DateTimeOffset now, string outputPath)
     {
-        var tiles = new[] { ("claude", "Claude"), ("codex", "Codex"), ("cursor", "Cursor") }
+        var tiles = new[]
+            {
+                ("claude", "Claude", ProviderStatus.Ok),
+                ("codex", "Codex", ProviderStatus.NotSignedIn),
+                ("cursor", "Cursor", ProviderStatus.NotSignedIn),
+                ("gemini", "Gemini", ProviderStatus.NotSignedIn),
+                ("copilot", "Copilot", ProviderStatus.NoLocalData),
+            }
             .Select(entry =>
             {
-                var tile = new ProviderTileViewModel(entry.Item1, entry.Item2) { SupportsInAppSignIn = true };
-                tile.Apply(new ProviderSnapshot(entry.Item1, [], null, SourceKind.None, now, null, ProviderStatus.NotSignedIn, null), now);
+                var tile = new ProviderTileViewModel(entry.Item1, entry.Item2) { SupportsInAppSignIn = entry.Item1 != "copilot" };
+                tile.Apply(new ProviderSnapshot(entry.Item1, [], null, SourceKind.None, now, null, entry.Item3, null), now);
                 return tile;
             })
             .ToList();

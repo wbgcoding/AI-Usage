@@ -487,4 +487,9 @@
   <data name="Tray.Resume" xml:space="preserve"><value>Resume fetching (paused until {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Paused until {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica background (Windows 11)</value></data>
+  <data name="Welcome.Found" xml:space="preserve"><value>Found</value></data>
+  <data name="Welcome.GeminiHint" xml:space="preserve"><value>Reads the account of the Antigravity CLI (agy). Sign in there, or here through the browser.</value></data>
+  <data name="Welcome.CopilotHint" xml:space="preserve"><value>Needs the GitHub CLI (gh) signed in: run gh auth login.</value></data>
+  <data name="About.Help" xml:space="preserve"><value>Help and FAQ</value></data>
+  <data name="Tile.Menu.Help" xml:space="preserve"><value>Help</value></data>
 </root>

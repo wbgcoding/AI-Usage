@@ -43,16 +43,39 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding Tile.DisplayName}" FontWeight="SemiBold"
                                                FontSize="{StaticResource Font.Size.Body}"
                                                Foreground="{DynamicResource Text.Primary}"/>
-                                    <TextBlock Text="{Binding HeadlineText}" TextWrapping="Wrap"
+                                    <TextBlock Text="{Binding Tile.HeadlineText}" TextWrapping="Wrap"
                                                FontSize="{StaticResource Font.Size.Small}"
+                                               Foreground="{DynamicResource Text.Secondary}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFound}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Hint}" TextWrapping="Wrap"
+                                               FontSize="{StaticResource Font.Size.Small}"
+                                               Foreground="{DynamicResource Text.Muted}"
+                                               Visibility="{Binding HasHint, Converter={StaticResource BoolToVis}}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                            Visibility="{Binding IsFound, Converter={StaticResource BoolToVis}}">
+                                    <Path Data="M1,5 L4.5,8.5 L11,1.5" Stroke="{DynamicResource Level.Ok}" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Width="12" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Found]}"
+                                               FontSize="{StaticResource Font.Size.Body}"
                                                Foreground="{DynamicResource Text.Secondary}"/>
                                 </StackPanel>
                                 <Button Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="12,4"
                                         VerticalAlignment="Center"
-                                        Content="{Binding ActionLabelText}" Command="{Binding RunActionCommand}"
+                                        Content="{Binding Tile.ActionLabelText}" Command="{Binding Tile.RunActionCommand}"
                                         Visibility="{Binding ShowSignIn, Converter={StaticResource BoolToVis}}"/>
                             </Grid>
                         </DataTemplate>

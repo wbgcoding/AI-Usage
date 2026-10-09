@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.ViewModels;
 
@@ -22,7 +23,7 @@ public partial class WelcomeWindow : Window
         InitializeComponent();
         WindowChromeNative.Bootstrap(this);
         TitleBarControl.TitleText = LocalizationService.Instance["Welcome.Title"];
-        ProviderList.ItemsSource = tiles.ToList();
+        ProviderList.ItemsSource = tiles.Select(tile => new WelcomeRow(tile)).ToList();
 
         // Esc closes dialogs, keyboard-only throughout - same contract as every other window built
         // on this chrome (ConfirmWindow, CrashWindow).
@@ -48,4 +49,46 @@ public partial class WelcomeWindow : Window
     private void TitleBarControl_CloseRequested(object? sender, EventArgs e) => Close();
 
     private void StartButton_Click(object sender, RoutedEventArgs e) => Close();
+}
+
+/// <summary>One provider row of the welcome window: the tile itself plus what only this window adds,
+/// the "found" mark for a provider that already reads and a muted hint for the two that depend on
+/// another tool. Re-raises its own flags whenever the tile's status or sign-in state moves, so the
+/// row flips to "Found" the moment a sign-in started from here succeeds.</summary>
+public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged
+{
+    public WelcomeRow(ProviderTileViewModel tile)
+    {
+        Tile = tile;
+        Hint = HintFor(tile.RealProviderId);
+        tile.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ProviderTileViewModel.Status) or nameof(ProviderTileViewModel.ShowSignIn))
+            {
+                PropertyChanged?.Invoke(this, new(nameof(IsFound)));
+                PropertyChanged?.Invoke(this, new(nameof(ShowSignIn)));
+            }
+        };
+    }
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+    public ProviderTileViewModel Tile { get; }
+
+    /// <summary>The provider already delivers numbers (fresh or merely out of date).</summary>
+    public bool IsFound => Tile.Status is ProviderStatus.Ok or ProviderStatus.Stale;
+
+    public bool ShowSignIn => !IsFound && Tile.ShowSignIn;
+
+    public string? Hint { get; }
+
+    public bool HasHint => Hint is not null;
+
+    /// <summary>The muted extra line for a provider that depends on another tool, null for the rest.</summary>
+    public static string? HintFor(string providerId) => providerId switch
+    {
+        "gemini" => LocalizationService.Instance["Welcome.GeminiHint"],
+        "copilot" => LocalizationService.Instance["Welcome.CopilotHint"],
+        _ => null,
+    };
 }
