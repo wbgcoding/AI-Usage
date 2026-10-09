@@ -382,6 +382,74 @@ public class ProviderTileViewModelTests
         Assert.Equal(expected, tile.IsLimitReached);
     }
 
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(5, true)]
+    public void HasChartDataNeedsTwoReadingsInOneSeries(int count, bool expected)
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        var points = Enumerable.Range(0, count)
+            .Select(i => new HistoryPoint(1, Now.AddMinutes(i), WindowKind.FiveHour, 10 + i, null)).ToArray();
+
+        tile.UpdateHistory(points, [], Now.AddDays(-1), Now);
+
+        Assert.Equal(expected, tile.HasChartData);
+        Assert.Equal(expected, tile.ShowChartBox);
+        Assert.Equal(!expected, tile.ShowChartHint);
+    }
+
+    [Fact]
+    public void OneReadingInEachSeriesIsStillNotAChart()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        var points = new[]
+        {
+            new HistoryPoint(1, Now, WindowKind.FiveHour, 10, null),
+            new HistoryPoint(1, Now, WindowKind.Weekly, 20, null),
+        };
+
+        tile.UpdateHistory(points, [], Now.AddDays(-1), Now);
+
+        Assert.False(tile.HasChartData);
+    }
+
+    [Fact]
+    public void NeitherTheChartBoxNorTheHintShowsWhenTheChartIsOffOrTheTileIsMini()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        Assert.True(tile.ShowChartHint);
+
+        tile.ChartHidden = true;
+        Assert.False(tile.ShowChartHint);
+        Assert.False(tile.ShowChartBox);
+
+        tile.ChartHidden = false;
+        tile.Density = TileDensity.Mini;
+        Assert.False(tile.ShowChartHint);
+    }
+
+    [Fact]
+    public void TheEmptyChartTextNamesTheTwoReadingsRule()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            Assert.Equal("The chart appears once there are two readings.", loc["Chart.Empty"]);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+
+        Assert.Equal("Das Diagramm erscheint ab zwei Messpunkten.", loc["Chart.Empty"]);
+    }
+
     [Fact]
     public void UpdateHistorySplitsPointsByWindowKindInTimeOrder()
     {

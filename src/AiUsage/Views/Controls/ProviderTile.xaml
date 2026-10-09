@@ -367,9 +367,15 @@
                         </ItemsControl.Style>
                     </ItemsControl>
 
+                    <!-- Until the chart has two readings it is one muted line, not an empty box. -->
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.Empty]}"
+                               FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Micro}"
+                               Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Visibility="{Binding ShowChartHint, Converter={StaticResource BoolToVis}}"/>
+
                     <Border x:Name="DiagramPlaceholder" Height="64" Margin="0,4,0,0" CornerRadius="{StaticResource Radius.Card}"
                             BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                            Visibility="{Binding ShowDiagram, Converter={StaticResource BoolToVis}}">
+                            Visibility="{Binding ShowChartBox, Converter={StaticResource BoolToVis}}">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Style.Triggers>
@@ -386,8 +392,7 @@
                                                 ShowAxes="{Binding ShowDiagram}"
                                                 FiveHourLabel="{Binding FiveHourLabelText}"
                                                 WeeklyLabel="{Binding WeeklyLabelText}"
-                                                AutomationProperties.Name="{Binding ChartSummaryText}"
-                                                EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.Empty]}"/>
+                                                AutomationProperties.Name="{Binding ChartSummaryText}"/>
                     </Border>
                 </StackPanel>
 

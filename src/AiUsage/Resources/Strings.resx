@@ -83,7 +83,7 @@
   <data name="State.Failed.Detail.Http" xml:space="preserve"><value>HTTP {0}</value></data>
   <data name="State.Failed.Detail.Network" xml:space="preserve"><value>no connection</value></data>
   <data name="State.LimitReached" xml:space="preserve"><value>Limit reached</value></data>
-  <data name="Chart.Empty" xml:space="preserve"><value>The chart builds up from the first reading.</value></data>
+  <data name="Chart.Empty" xml:space="preserve"><value>The chart appears once there are two readings.</value></data>
   <data name="Stats.Chart.Empty" xml:space="preserve"><value>No tokens counted for this period yet.</value></data>
   <data name="Chart.Summary" xml:space="preserve"><value>History {0}: {1} values, highest {2}%.</value></data>
   <data name="Settings.ResetConfirm" xml:space="preserve"><value>Reset all settings to their defaults? This cannot be undone. To keep a copy, choose Export settings first.</value></data>

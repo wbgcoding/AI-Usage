@@ -288,6 +288,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(HasNumbers))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
     [NotifyPropertyChangedFor(nameof(DimLastValues))]
@@ -363,6 +365,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowHeader))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
     [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
@@ -379,6 +383,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ChartShown))]
     private bool chartHidden;
 
@@ -587,10 +593,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChartSummaryText))]
+    [NotifyPropertyChangedFor(nameof(HasChartData))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     private IReadOnlyList<HistoryChart.ChartPoint> fiveHourValues = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChartSummaryText))]
+    [NotifyPropertyChangedFor(nameof(HasChartData))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     private IReadOnlyList<HistoryChart.ChartPoint> weeklyValues = [];
 
     /// <summary>The chart's first-slot legend text - normally "5 hours", but a provider with no
@@ -682,6 +694,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     public bool ShowStaleNotice => IsStale && !IsMini && !IsShowingLastValues;
 
     public bool ShowDiagram => HasNumbers && Density == TileDensity.Full && !ChartHidden;
+
+    /// <summary>Whether the chart in its current range has two readings or more in at least one
+    /// series - the least a line needs.</summary>
+    public bool HasChartData => FiveHourValues.Count >= 2 || WeeklyValues.Count >= 2;
+
+    /// <summary>The bordered chart box: only once there is something to draw.</summary>
+    public bool ShowChartBox => ShowDiagram && HasChartData;
+
+    /// <summary>The one muted line standing in for the chart until it has two readings.</summary>
+    public bool ShowChartHint => ShowDiagram && !HasChartData;
 
     public bool ShowPlaceholder => !HasNumbers && !IsMini;
 

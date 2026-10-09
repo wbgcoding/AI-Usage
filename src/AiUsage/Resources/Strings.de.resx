@@ -83,7 +83,7 @@
   <data name="State.Failed.Detail.Http" xml:space="preserve"><value>HTTP {0}</value></data>
   <data name="State.Failed.Detail.Network" xml:space="preserve"><value>keine Verbindung</value></data>
   <data name="State.LimitReached" xml:space="preserve"><value>Limit erreicht</value></data>
-  <data name="Chart.Empty" xml:space="preserve"><value>Der Verlauf wird ab dem ersten Messpunkt aufgebaut.</value></data>
+  <data name="Chart.Empty" xml:space="preserve"><value>Das Diagramm erscheint ab zwei Messpunkten.</value></data>
   <data name="Stats.Chart.Empty" xml:space="preserve"><value>Für diesen Zeitraum sind noch keine Token gezählt.</value></data>
   <data name="Chart.Summary" xml:space="preserve"><value>Verlauf {0}: {1} Werte, Höchstwert {2} %.</value></data>
   <data name="Settings.ResetConfirm" xml:space="preserve"><value>Alle Einstellungen auf die Vorgaben zurücksetzen? Das lässt sich nicht rückgängig machen. Für eine Sicherung vorher "Einstellungen exportieren" wählen.</value></data>
