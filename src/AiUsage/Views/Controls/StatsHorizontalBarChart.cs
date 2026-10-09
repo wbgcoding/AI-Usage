@@ -434,7 +434,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (!ShowProjectDetails)
         {
             ToolTip = index >= 0 && index < rows.Count
-                ? string.Join("\n", BuildTooltipLines(rows[index], TokenWord, TotalLabel, ActiveLabel, CultureInfo.CurrentCulture))
+                ? rows[index].TooltipText ?? string.Join("\n", BuildTooltipLines(rows[index], TokenWord, TotalLabel, ActiveLabel, CultureInfo.CurrentCulture))
                 : null;
             return;
         }

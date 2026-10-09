@@ -1204,7 +1204,7 @@ public class StatsViewModelTests
         var viewModel = StatsVm.Create(new StatsStore(dataDir));
 
         Assert.Equal(
-            [StatsGrouping.Day, StatsGrouping.Week, StatsGrouping.Weekday, StatsGrouping.Hour, StatsGrouping.WeekdayHour, StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Effort],
+            [StatsGrouping.Day, StatsGrouping.Week, StatsGrouping.Weekday, StatsGrouping.Hour, StatsGrouping.WeekdayHour, StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Session, StatsGrouping.Effort],
             viewModel.GroupingChoices.Select(choice => choice.Value).ToArray());
     }
 
@@ -1463,5 +1463,80 @@ public class StatsViewModelCaptionTests
         viewModel.SetColorByCommand.Execute(StatsColorBy.Provider);
         Assert.False(viewModel.IsAgentStack);
         Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+    }
+
+    private static void SeedSession(StatsStore store, string id, DateTimeOffset start, long tokens, string project = "C:/Projects/Sample", string model = "modelA")
+    {
+        var delta = new StatsSessionDelta(
+            "claude", id, project, start, start.AddMinutes(95), tokens, 0, 0, 0, 0, new Dictionary<string, long> { [model] = tokens });
+        store.ApplyIndexResult([], new StatsSourceFileState("seed-" + id, "claude", 0, 0, DateTime.UtcNow), [delta]);
+    }
+
+    [Fact]
+    public async Task SessionGroupingListsEverySessionInTheTableAndTheLargestTwentyAsBars()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-session-grouping");
+        var store = new StatsStore(dataDir);
+        var noon = DateTimeOffset.UtcNow.Date.AddHours(12);
+        for (var i = 0; i < 25; i++)
+            SeedSession(store, "s" + i, noon.AddMinutes(i), 1000 + i * 10);
+        SeedSession(store, "old", noon.AddDays(-200), 99999);
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = StatsVm.Create(store);
+
+            await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session);
+
+            Assert.True(viewModel.IsSessionGrouping);
+            Assert.False(viewModel.IsBarChart);
+            Assert.False(viewModel.ShowPlainTable);
+            Assert.Equal(25, viewModel.SessionRows.Count);
+            Assert.Equal(20, viewModel.SessionChartRows.Count);
+            Assert.Equal(25, viewModel.Rows.Count);
+
+            // Largest first; the bars are the first twenty of the table.
+            Assert.Equal(1240L, viewModel.SessionChartRows[0].Total);
+            Assert.Equal(viewModel.SessionChartRows.Select(row => row.Total), viewModel.SessionChartRows.Select(row => row.Total).OrderByDescending(total => total));
+            var first = viewModel.SessionRows[0];
+            Assert.Equal("Sample", first.Project);
+            Assert.Equal("1 h 35 min", first.Duration);
+            Assert.Equal((1240L).ToString("N0", CultureInfo.CurrentCulture), first.Tokens);
+            Assert.Equal(ModelDisplayNames.Resolve("modelA"), first.Model);
+            Assert.StartsWith("Sample · ", viewModel.SessionChartRows[0].ShortLabel, StringComparison.Ordinal);
+            Assert.Equal(
+                $"Sample · {first.Start} · 1 h 35 min · {first.Tokens} tokens · {first.Model}",
+                viewModel.SessionChartRows[0].TooltipText);
+
+            // The range filter judges a session by its start: the old one is out of the week.
+            Assert.DoesNotContain(viewModel.SessionRows, row => row.Tokens.StartsWith("99", StringComparison.Ordinal));
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
+    public async Task SessionRowsFollowTheRangeAndLeaveTheOtherGroupingsEmpty()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-session-range");
+        var store = new StatsStore(dataDir);
+        var noon = DateTimeOffset.UtcNow.Date.AddHours(12);
+        SeedSession(store, "recent", noon, 500);
+        SeedSession(store, "old", noon.AddDays(-200), 700);
+        var viewModel = StatsVm.Create(store);
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session);
+        Assert.Single(viewModel.SessionRows);
+
+        await viewModel.SetRangeCommand.ExecuteAsync("All");
+        Assert.Equal(2, viewModel.SessionRows.Count);
+        Assert.Equal("700", viewModel.SessionRows[0].Tokens.Replace(".", "").Replace(",", ""));
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Day);
+        Assert.Empty(viewModel.SessionRows);
+        Assert.Empty(viewModel.SessionChartRows);
+        Assert.True(viewModel.IsBarChart);
+        Assert.True(viewModel.ShowPlainTable);
     }
 }

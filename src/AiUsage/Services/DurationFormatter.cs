@@ -31,5 +31,19 @@ public static class DurationFormatter
         return Loc.Format("Duration.Years", years.ToString("0.0", CultureInfo.CurrentCulture));
     }
 
+    /// <summary>A span as a short phrase: "&lt;1 min", "42 min", "3 h 5 min", then whole days.</summary>
+    public static string Describe(TimeSpan span)
+    {
+        if (span < TimeSpan.FromMinutes(1))
+            return Loc["Duration.LessThanMinute"];
+        if (span < TimeSpan.FromHours(1))
+            return Loc.Format("Duration.Minutes", (int)span.TotalMinutes);
+        if (span < TimeSpan.FromDays(1))
+            return span.Minutes == 0
+                ? Loc.Format("Duration.Hours", (int)span.TotalHours)
+                : Loc.Format("Duration.HoursMinutes", (int)span.TotalHours, span.Minutes);
+        return Describe((int)span.TotalDays);
+    }
+
     private static LocalizationService Loc => LocalizationService.Instance;
 }

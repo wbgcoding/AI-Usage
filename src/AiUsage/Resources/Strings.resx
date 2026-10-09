@@ -166,6 +166,7 @@
   <data name="Stats.ByModel" xml:space="preserve"><value>Model</value></data>
   <data name="Stats.ByProject" xml:space="preserve"><value>Project</value></data>
   <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
+  <data name="Stats.BySession" xml:space="preserve"><value>Session</value></data>
   <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Unknown</value></data>
   <data name="Tile.Hide" xml:space="preserve"><value>Hide this provider</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Show this provider</value></data>
@@ -321,6 +322,9 @@
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Duration.MinutesSeconds" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="Duration.LessThanMinute" xml:space="preserve"><value>&lt;1 min</value></data>
+  <data name="Duration.Hours" xml:space="preserve"><value>{0} h</value></data>
+  <data name="Duration.HoursMinutes" xml:space="preserve"><value>{0} h {1} min</value></data>
   <data name="Unit.Messages" xml:space="preserve"><value>messages</value></data>
   <data name="Unit.Requests" xml:space="preserve"><value>requests</value></data>
   <data name="Welcome.Title" xml:space="preserve"><value>Welcome to AI-Usage</value></data>
@@ -501,6 +505,12 @@
   <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Provider</value></data>
   <data name="Stats.ColorBy.Model" xml:space="preserve"><value>Model</value></data>
   <data name="Stats.ColorBy.Agent" xml:space="preserve"><value>Main or subagent</value></data>
+  <data name="Stats.Session.Tooltip" xml:space="preserve"><value>{0} · {1} · {2} · {3} tokens · {4}</value></data>
+  <data name="Stats.Col.Project" xml:space="preserve"><value>Project</value></data>
+  <data name="Stats.Col.Start" xml:space="preserve"><value>Start</value></data>
+  <data name="Stats.Col.Duration" xml:space="preserve"><value>Duration</value></data>
+  <data name="Stats.Col.Tokens" xml:space="preserve"><value>Tokens</value></data>
+  <data name="Stats.Col.Model" xml:space="preserve"><value>Model</value></data>
   <data name="Stats.Agent.Main" xml:space="preserve"><value>Main agent</value></data>
   <data name="Stats.SubagentShare" xml:space="preserve"><value>Subagents</value></data>
   <data name="Stats.SubagentShare.Caption" xml:space="preserve"><value>of Claude tokens</value></data>

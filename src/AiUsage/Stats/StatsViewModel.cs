@@ -237,7 +237,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private const int MaxStackedModels = 6;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack))]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack), nameof(IsSessionGrouping), nameof(ShowPlainTable))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
@@ -274,8 +274,25 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>True while the chart area shows the weekday by hour grid instead of columns.</summary>
     public bool IsHeatmap => SelectedGrouping == StatsGrouping.WeekdayHour;
 
-    /// <summary>True while the chart area shows columns.</summary>
-    public bool IsBarChart => !IsHeatmap;
+    /// <summary>True while the chart area shows columns (the session grouping draws horizontal bars instead).</summary>
+    public bool IsBarChart => !IsHeatmap && !IsSessionGrouping;
+
+    /// <summary>True while the breakdown lists sessions: the largest as horizontal bars, all of them in the table.</summary>
+    public bool IsSessionGrouping => SelectedGrouping == StatsGrouping.Session;
+
+    /// <summary>True for every grouping whose table is the plain label and total list.</summary>
+    public bool ShowPlainTable => !IsSessionGrouping;
+
+    /// <summary>The most sessions the bars name; the table lists all of them.</summary>
+    private const int MaxSessionBars = 20;
+
+    /// <summary>The largest sessions of the range, as bars.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<StatsProjectRow> sessionChartRows = [];
+
+    /// <summary>Every session of the range, as table rows.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<StatsSessionRowViewModel> sessionRows = [];
 
     /// <summary>The weekday by hour totals, 168 values row by row, the first row being <see
     /// cref="HeatmapFirstDay"/>.</summary>
@@ -739,6 +756,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         _store = store;
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
+        LoadSessions = _store.LoadSessions;
         _askForSavePath = askForSavePath ?? ShowRealSaveDialog;
         _showMessage = showMessage ?? (message => Views.ConfirmWindow.ShowInfo(null, message));
 
@@ -758,6 +776,7 @@ public sealed partial class StatsViewModel : ObservableObject
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeekdayHour", StatsGrouping.WeekdayHour));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByModel", StatsGrouping.Model));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByProject", StatsGrouping.Project));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.BySession", StatsGrouping.Session));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByEffort", StatsGrouping.Effort));
         Choice.Select(GroupingChoices, SelectedGrouping);
 
@@ -829,6 +848,12 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Reads and resolves every stored record - a seam so a test can slow a run down.</summary>
     internal Func<IReadOnlyList<StatsRecord>> LoadRecords { get; set; }
 
+    /// <summary>Reads every stored session - a seam like <see cref="LoadRecords"/>.</summary>
+    internal Func<IReadOnlyList<StatsSessionRecord>> LoadSessions { get; set; }
+
+    /// <summary>Every stored session, kept from the last load for the session grouping.</summary>
+    private IReadOnlyList<StatsSessionRecord> _allSessions = [];
+
     /// <summary>A period or grouping pick: the records are already in memory once a load has finished
     /// (only a window open or an index update changes them), so the rebuild reuses them instead of
     /// reading the whole store again. Before that first load it is the normal read.</summary>
@@ -856,9 +881,10 @@ public sealed partial class StatsViewModel : ObservableObject
         _ = ShowLoadingAfterDelayAsync(generation, delayCancellation.Token);
         try
         {
-            var all = await Task.Run(LoadRecords);
+            var (all, sessions) = await Task.Run(() => (LoadRecords(), LoadSessions()));
             if (generation == _recomputeGeneration)
             {
+                _allSessions = sessions;
                 RecomputeFrom(all);
                 _recordsLoaded = true;
             }
@@ -892,6 +918,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// grouping change.</summary>
     public void Recompute()
     {
+        _allSessions = LoadSessions();
         RecomputeFrom(LoadRecords());
         _recordsLoaded = true;
         IsLoading = false;
@@ -1022,6 +1049,14 @@ public sealed partial class StatsViewModel : ObservableObject
         var summary = StatsAggregator.Summarize(inRange, previous);
         var loc = LocalizationService.Instance;
 
+        if (SelectedGrouping == StatsGrouping.Session)
+            BuildSessionViews(from, to, loc);
+        else
+        {
+            SessionChartRows = [];
+            SessionRows = [];
+        }
+
         // A provider without local token counts (Gemini/Antigravity, Copilot) is dropped
         // entirely rather than shown with an explanatory sentence - not here, and not in any chart,
         // legend or grouping either, since none of those ever aggregate a record this provider never
@@ -1113,6 +1148,50 @@ public sealed partial class StatsViewModel : ObservableObject
         PeriodDayCountRaw = Math.Max(1, periodDayCount);
         ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc["Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
     }
+
+    /// <summary>The session grouping's views of the range: the largest <see cref="MaxSessionBars"/>
+    /// sessions as bars, every session as a table row (and as the exported rows), the largest
+    /// first. A bar is named by its project and start; its hover text and the table's first column
+    /// carry the details.</summary>
+    private void BuildSessionViews(DateOnly from, DateOnly to, LocalizationService loc)
+    {
+        var sessions = StatsAggregator.SessionsInRange(_allSessions, from, to);
+        var grandTotal = sessions.Sum(session => session.TotalTokens);
+
+        var tableRows = new List<StatsSessionRowViewModel>(sessions.Count);
+        var barRows = new List<StatsProjectRow>();
+        var exportRows = new List<StatsRowViewModel>(sessions.Count);
+        foreach (var session in sessions)
+        {
+            var project = string.IsNullOrEmpty(session.Project)
+                ? loc["Stats.NoProject"]
+                : StatsAggregator.ShortenProjectLabel(StatsAggregator.ProjectKey(session.Project));
+            var start = session.FirstUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+            var duration = DurationFormatter.Describe(session.Duration);
+            var model = string.IsNullOrEmpty(session.MainModel) ? "" : ModelDisplayNames.Resolve(session.MainModel);
+            var totalText = session.TotalTokens.ToString("N0", CultureInfo.CurrentCulture);
+            var tooltip = string.Format(CultureInfo.CurrentCulture, loc["Stats.Session.Tooltip"], project, start, duration, totalText, model);
+
+            tableRows.Add(new StatsSessionRowViewModel(project, start, duration, totalText, model, tooltip));
+            exportRows.Add(new StatsRowViewModel($"{project} · {start}", session.TotalTokens, totalText, tooltip));
+            if (barRows.Count < MaxSessionBars)
+            {
+                var label = $"{StatsAggregator.MiddleEllipsis(project, SessionBarProjectChars)} · {start}";
+                var startDay = session.StartDay;
+                barRows.Add(new StatsProjectRow(
+                    label, label, session.TotalTokens, grandTotal > 0 ? session.TotalTokens * 100.0 / grandTotal : 0,
+                    startDay, DateOnly.FromDateTime(session.LastUtc.ToLocalTime().DateTime),
+                    Color: ChartPalette.ForProvider(session.Provider), TooltipText: tooltip));
+            }
+        }
+
+        SessionRows = tableRows;
+        SessionChartRows = barRows;
+        Rows = exportRows;
+    }
+
+    /// <summary>How many characters of the project name a session bar's label keeps.</summary>
+    private const int SessionBarProjectChars = 18;
 
     private static string LabelValue(LocalizationService loc, string labelKey, string value) =>
         loc.Format("Stats.LabelValue", loc[labelKey], value);

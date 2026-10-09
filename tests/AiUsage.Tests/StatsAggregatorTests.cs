@@ -1080,4 +1080,37 @@ public class StatsAggregatorTests
         Assert.Equal([0L, 7L], split.Rows[2].StackedValues);
         Assert.Equal(plain.Select(row => row.Total), split.Rows.Select(row => row.Total));
     }
+
+    private static StatsSessionRecord Session(string id, DateTimeOffset start, long total, string model = "modelA") =>
+        new("claude", "", id, "C:/Projects/Sample", start, start.AddMinutes(30), total, 0, 0, 0, model, 0);
+
+    [Fact]
+    public void SessionsInRange_filters_by_the_start_day_and_lists_the_largest_first()
+    {
+        var noon = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var startDay = DateOnly.FromDateTime(noon.ToLocalTime().DateTime);
+        var sessions = new[]
+        {
+            Session("small", noon, 10),
+            Session("big", noon.AddHours(1), 500),
+            Session("before", noon.AddDays(-3), 9999),
+            Session("after", noon.AddDays(3), 9999),
+            Session("tie-newer", noon.AddHours(2), 10),
+        };
+
+        var inRange = StatsAggregator.SessionsInRange(sessions, startDay, startDay);
+
+        Assert.Equal(["big", "tie-newer", "small"], inRange.Select(session => session.SessionId));
+    }
+
+    [Fact]
+    public void SessionsInRange_counts_a_session_that_runs_past_the_end_of_the_range_whole()
+    {
+        var late = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var startDay = DateOnly.FromDateTime(late.ToLocalTime().DateTime);
+        var session = Session("long", late, 100) with { LastUtc = late.AddDays(2) };
+
+        Assert.Single(StatsAggregator.SessionsInRange([session], startDay, startDay));
+        Assert.Empty(StatsAggregator.SessionsInRange([session], startDay.AddDays(1), startDay.AddDays(3)));
+    }
 }

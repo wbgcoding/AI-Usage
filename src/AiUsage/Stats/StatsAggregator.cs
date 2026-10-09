@@ -15,6 +15,7 @@ public enum StatsGrouping
     Model,
     Project,
     Effort,
+    Session,
 }
 
 /// <summary>One row of a grouped result: a label (a day, an ISO week, a model or a project name)
@@ -90,7 +91,9 @@ public readonly record struct StatsProjectRow(
     // "Sessions: {0}" line already has somewhere to read a real count from the day this app (or a
     // test standing in for it) gains one, without another StatsProjectRow field ever needing to
     // change again.
-    int? SessionCount = null);
+    int? SessionCount = null,
+    // A row that brings its own hover text (a session) shows it instead of the project lines.
+    string? TooltipText = null);
 
 /// <summary>The month grid's own day-detail panel: one day's usage broken four ways, every list
 /// already sorted by total, descending. <see cref="ByHour"/> is the one exception to "only entries
@@ -197,6 +200,17 @@ public static class StatsAggregator
             .ToList();
         return new StatsModelSplit(series, hasOther, rows);
     }
+
+    /// <summary>The sessions that started on a day from <paramref name="from"/> to <paramref name="to"/>
+    /// (local time), the largest first; the start decides, a session that runs past the end of the
+    /// range still counts whole.</summary>
+    public static IReadOnlyList<StatsSessionRecord> SessionsInRange(
+        IReadOnlyList<StatsSessionRecord> sessions, DateOnly from, DateOnly to) =>
+        sessions
+            .Where(session => session.StartDay >= from && session.StartDay <= to)
+            .OrderByDescending(session => session.TotalTokens)
+            .ThenByDescending(session => session.FirstUtc)
+            .ToList();
 
     /// <summary>The share of Claude tokens that subagents used in <paramref name="records"/>.</summary>
     public static StatsSubagentShare SubagentShare(IReadOnlyList<StatsRecord> records)

@@ -30,4 +30,18 @@ public class DurationFormatterTests
             Thread.CurrentThread.CurrentCulture = original;
         }
     }
+
+    // A span reads as minutes, hours with minutes, or whole days; the German texts are the test default.
+    [Theory]
+    [InlineData(30, "<1 Min")]
+    [InlineData(90, "1 min")]
+    [InlineData(59 * 60, "59 min")]
+    [InlineData(3600, "1 Std")]
+    [InlineData(3900, "1 Std 5 Min")]
+    [InlineData(25 * 3600, "1 Tag")]
+    [InlineData(3 * 86400 + 7200, "3 Tage")]
+    public void Describe_names_a_time_span_in_its_largest_fitting_unit(int seconds, string expected)
+    {
+        Assert.Equal(expected, DurationFormatter.Describe(TimeSpan.FromSeconds(seconds)));
+    }
 }

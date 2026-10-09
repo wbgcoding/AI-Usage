@@ -597,6 +597,36 @@ public partial class StatsWindow : Window
 
     private void TitleBarControl_CloseRequested(object? sender, EventArgs e) => Close();
 
+    /// <summary>The session list scrolls inside its own box. At its top or bottom a further wheel turn
+    /// goes on to the window's scroller instead of stopping dead on the list.</summary>
+    private void SessionTable_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not DependencyObject table || FindScrollViewer(table) is not { } viewer)
+            return;
+
+        var atTop = e.Delta > 0 && viewer.VerticalOffset <= 0;
+        var atBottom = e.Delta < 0 && viewer.VerticalOffset >= viewer.ScrollableHeight;
+        if (!atTop && !atBottom && viewer.ScrollableHeight > 0)
+            return;
+
+        e.Handled = true;
+        ContentScroller.ScrollToVerticalOffset(ContentScroller.VerticalOffset - e.Delta);
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer)
+                return viewer;
+            if (FindScrollViewer(child) is { } found)
+                return found;
+        }
+
+        return null;
+    }
+
     private void MonthGrid_DaySelected(object? sender, DateOnly day) => _viewModel.ToggleSelectedDay(day);
 
     /// <summary>The widget's own day-grid tile reaches this on a click - always lands on that exact
