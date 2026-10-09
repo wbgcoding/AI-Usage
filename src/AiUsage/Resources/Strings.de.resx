@@ -316,7 +316,7 @@
   <data name="Welcome.WhatItDoes" xml:space="preserve"><value>Dieses Widget zeigt, wie viel von deinem Nutzungsfenster bei jedem Anbieter noch übrig ist. Außerdem zeigt es, wann sich dieses Fenster zurücksetzt.</value></data>
   <data name="Welcome.WhatItReads" xml:space="preserve"><value>Es liest die Nutzungsdateien, die diese Werkzeuge ohnehin auf diesem PC führen. Wo du dich unten anmeldest, liest es zusätzlich deine eigene Nutzungsseite beim Anbieter.</value></data>
   <data name="Welcome.WhatItNever" xml:space="preserve"><value>Deine Nutzungsdaten bleiben auf diesem PC. AI-Usage spricht nur mit der Nutzungsseite des jeweiligen Anbieters, mit Google zum Erneuern einer abgelaufenen Antigravity-Anmeldung und mit GitHub für die Update-Prüfung. Es ruft nie einen Chat-Endpunkt auf und kann deshalb nie etwas von deinem Kontingent verbrauchen.</value></data>
-  <data name="Welcome.Start" xml:space="preserve"><value>Los</value></data>
+  <data name="Welcome.Start" xml:space="preserve"><value>Fertig</value></data>
   <data name="StatsWindow.Loading" xml:space="preserve"><value>Daten werden geladen …</value></data>
   <data name="StatsWindow.RangeLabel" xml:space="preserve"><value>Zeitraum</value></data>
   <data name="StatsWindow.GroupingLabel" xml:space="preserve"><value>Gruppieren nach</value></data>
@@ -364,7 +364,6 @@
   <data name="Stats.Hour.Axis18" xml:space="preserve"><value>18 Uhr</value></data>
   <data name="Stats.Chart.ViewSwitch" xml:space="preserve"><value>Ansicht wählen</value></data>
   <data name="Settings.SignIn" xml:space="preserve"><value>Anmelden</value></data>
-  <data name="Settings.ShowTooltips" xml:space="preserve"><value>Tooltips anzeigen</value></data>
   <data name="Tip.Stats.Total" xml:space="preserve"><value>Alle Token im gewählten Zeitraum, über alle gezeigten Anbieter.</value></data>
   <data name="Tip.Stats.PerDay" xml:space="preserve"><value>Die Summe geteilt durch die Tage im Zeitraum, ab dem ersten erfassten Tag gezählt, nicht nur durch die Tage, an denen du gearbeitet hast.</value></data>
   <data name="Tip.Stats.BusiestDay" xml:space="preserve"><value>Der einzelne Tag mit den meisten Token im Zeitraum.</value></data>

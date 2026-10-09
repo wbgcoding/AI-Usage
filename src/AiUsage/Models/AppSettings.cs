@@ -51,7 +51,8 @@ public sealed class AppSettings
 
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs
-    /// OnStartup), not per element. Defaults on.</summary>
+    /// OnStartup), not per element. Defaults on. No longer offered in the Settings window; kept so a
+    /// hand-edited settings.json can still switch tooltips off.</summary>
     public bool ShowTooltips { get; set; } = true;
 
     public string TileDensity { get; set; } = "Auto";

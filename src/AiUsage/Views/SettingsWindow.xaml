@@ -280,8 +280,6 @@
                                        FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Secondary}"/>
                         </Grid>
                     </Grid>
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowTooltips]}"
-                              IsChecked="{Binding ShowTooltips}" Style="{StaticResource CheckBox.GapS}"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
                     <!-- Arrangement and tile density sit side by side: two short pickers that belong to

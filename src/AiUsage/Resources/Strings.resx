@@ -317,7 +317,7 @@
   <data name="Welcome.WhatItDoes" xml:space="preserve"><value>This widget shows how much of your usage window is left at each provider. It also shows when that window resets.</value></data>
   <data name="Welcome.WhatItReads" xml:space="preserve"><value>It reads the usage files these tools already keep on this PC. Where you sign in below, it also reads your own usage page at that provider.</value></data>
   <data name="Welcome.WhatItNever" xml:space="preserve"><value>Your usage data stays on this PC. AI-Usage only talks to each provider's own usage page, to Google to renew an expired Antigravity sign-in and to GitHub for the update check. It never calls a chat endpoint, so it can never spend any of your quota.</value></data>
-  <data name="Welcome.Start" xml:space="preserve"><value>Start</value></data>
+  <data name="Welcome.Start" xml:space="preserve"><value>Done</value></data>
   <data name="StatsWindow.Loading" xml:space="preserve"><value>Loading data…</value></data>
   <data name="StatsWindow.RangeLabel" xml:space="preserve"><value>Range</value></data>
   <data name="StatsWindow.GroupingLabel" xml:space="preserve"><value>Group by</value></data>
@@ -365,7 +365,6 @@
   <data name="Stats.Hour.Axis18" xml:space="preserve"><value>6p</value></data>
   <data name="Stats.Chart.ViewSwitch" xml:space="preserve"><value>Choose view</value></data>
   <data name="Settings.SignIn" xml:space="preserve"><value>Sign in</value></data>
-  <data name="Settings.ShowTooltips" xml:space="preserve"><value>Show tooltips</value></data>
   <data name="Tip.Stats.Total" xml:space="preserve"><value>Every token counted in the selected period, across all providers shown.</value></data>
   <data name="Tip.Stats.PerDay" xml:space="preserve"><value>The total divided by the days in the period, counted from the first recorded day, not only by the days you actually worked.</value></data>
   <data name="Tip.Stats.BusiestDay" xml:space="preserve"><value>The single day with the most tokens in the period.</value></data>
