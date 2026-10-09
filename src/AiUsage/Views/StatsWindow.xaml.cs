@@ -278,7 +278,7 @@ public partial class StatsWindow : Window
     /// (its own dictionary key in <see cref="AppSettings.StatsSectionsCollapsed"/>) work through.</summary>
     private IEnumerable<Controls.CollapsibleSection> Sections =>
     [
-        FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection, CacheSection,
+        FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection,
         ProjectsSection, MonthGridSection, TableSection,
     ];
 

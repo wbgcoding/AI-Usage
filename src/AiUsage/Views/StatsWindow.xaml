@@ -334,14 +334,8 @@
 
                             <controls:CollapsibleSection x:Name="BreakdownSection" SectionKey="breakdown"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Breakdown]}"
+                                    Summary="{Binding TotalFigureText}"
                                     HeaderToolTip="{Binding ChartTooltip}">
-                                <controls:CollapsibleSection.Summary>
-                                    <MultiBinding StringFormat="{}{0} · {1} · {2}">
-                                        <Binding Path="InputText"/>
-                                        <Binding Path="OutputText"/>
-                                        <Binding Path="CachedText"/>
-                                    </MultiBinding>
-                                </controls:CollapsibleSection.Summary>
                                 <!-- The grouping only drives this chart and the table at the bottom, so its
                                      picker sits on this section's own header rather than the window's.
                                      The CSV export follows that grouping, so its button sits next to it. -->
@@ -360,13 +354,6 @@
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding InputText}" ToolTip="{Binding InputExact}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"/>
-                                    <TextBlock Text="·" Margin="8,0" Foreground="{DynamicResource Text.Muted}"/>
-                                    <TextBlock Text="{Binding OutputText}" ToolTip="{Binding OutputExact}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"/>
-                                    <TextBlock Text="·" Margin="8,0" Foreground="{DynamicResource Text.Muted}"/>
-                                    <TextBlock Text="{Binding CachedText}" ToolTip="{Binding CachedExact}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"/>
-                                </StackPanel>
                                 <ItemsControl ItemsSource="{Binding ProviderRows}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -433,14 +420,12 @@
                                                             TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
                                                             EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"/>
                                 </Border>
-                            </StackPanel>
-                            </controls:CollapsibleSection>
 
-                            <!-- one horizontal stacked bar, four segments: the cache share of all tokens. -->
-                            <controls:CollapsibleSection x:Name="CacheSection" SectionKey="cache"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.CacheShare]}"
-                                    Summary="{Binding CachedText}"
-                                    HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.CacheShare]}">
+                                <!-- One horizontal stacked bar, four segments: how much of all tokens was new
+                                     input, cache writes, cache reads and output. -->
+                                <TextBlock Margin="0,12,0,4" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"
+                                           Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.CacheShare]}"
+                                           ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.CacheShare]}"/>
                                 <Border Height="70" Padding="8"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
@@ -450,6 +435,7 @@
                                                                   EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
                                                                   TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
                                 </Border>
+                            </StackPanel>
                             </controls:CollapsibleSection>
 
                             <controls:CollapsibleSection x:Name="ProviderSection" SectionKey="provider"

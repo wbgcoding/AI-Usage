@@ -26,9 +26,9 @@ public enum StatsDropPosition
 /// </summary>
 public static class StatsLayout
 {
-    /// <summary>The nine section keys in their default order.</summary>
+    /// <summary>The eight section keys in their default order.</summary>
     public static IReadOnlyList<string> SectionKeys { get; } =
-        ["monthgrid", "figures", "breakdown", "cache", "provider", "model", "effort", "projects", "table"];
+        ["monthgrid", "figures", "breakdown", "provider", "model", "effort", "projects", "table"];
 
     /// <summary>The arrangement a fresh install shows.</summary>
     public static List<StatsLayoutRow> Default() =>
@@ -36,7 +36,6 @@ public static class StatsLayout
         Single("monthgrid"),
         Single("figures"),
         Single("breakdown"),
-        Single("cache"),
         new StatsLayoutRow { Left = ["provider", "model", "effort"], Right = ["projects"] },
         Single("table"),
     ];
