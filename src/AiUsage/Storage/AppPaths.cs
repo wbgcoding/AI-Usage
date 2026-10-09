@@ -187,7 +187,7 @@ public static class AppPaths
                 return false;
 
             var text = File.ReadAllText(pointerPath).Trim();
-            if (text.Length == 0 || !Path.IsPathFullyQualified(text))
+            if (text.Length == 0 || text.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathFullyQualified(text))
                 return false;
 
             directory = text;
@@ -260,8 +260,11 @@ public static class AppPaths
             File.Delete(probePath);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+            or NotSupportedException or System.Security.SecurityException)
         {
+            // A pointer naming something no folder can be created at (an embedded NUL, say) counts
+            // as unwritable, so the caller falls back instead of failing the whole start.
             return false;
         }
     }

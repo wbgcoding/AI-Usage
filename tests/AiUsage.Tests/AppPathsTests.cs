@@ -144,6 +144,19 @@ public class AppPathsTests : IDisposable
     }
 
     [Fact]
+    public void ResolveDataDirectory_ignores_a_pointer_file_naming_a_path_with_an_embedded_NUL()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        Directory.CreateDirectory(Path.Combine(appDataRoot, "AI-Usage"));
+        File.WriteAllText(Path.Combine(appDataRoot, "AI-Usage", "location.txt"), Path.Combine(TempDirectory(), "x\0y"));
+
+        var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot);
+
+        Assert.Equal(Path.Combine(appDataRoot, "AI-Usage"), resolved);
+    }
+
+    [Fact]
     public void ResolveDataDirectory_ignores_a_pointer_file_naming_a_relative_path()
     {
         // A relative path would resolve against the process's current working directory instead of

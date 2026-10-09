@@ -45,8 +45,23 @@ public sealed class SingleInstanceService(
         {
             // Some other process already owns a same-named mutex under different privileges - the
             // single-instance check itself must never be why the app fails to start.
-            CreateShowEvent();
+            TryCreateShowEvent();
             return true;
+        }
+    }
+
+    /// <summary>The same access problem can hit the show event (a first copy running elevated owns it
+    /// too): the event then stays null, a later start cannot wake this copy, and the start goes on.</summary>
+    private void TryCreateShowEvent()
+    {
+        try
+        {
+            CreateShowEvent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _showEvent = null;
+            LogService.Shared.LogInfo("Single instance: the show event belongs to a more privileged copy; a second start cannot raise this window.");
         }
     }
 
