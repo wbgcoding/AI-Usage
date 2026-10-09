@@ -164,6 +164,10 @@ public sealed class AppSettings
     /// itself only reads; installing is a separate, signature-gated step.</summary>
     public bool CheckForUpdates { get; set; } = true;
 
+    /// <summary>On battery fetch half as often, and while the system energy saver is on read only the
+    /// local sources (see <see cref="Services.RefreshScheduler"/>).</summary>
+    public bool SaveEnergyOnBattery { get; set; } = true;
+
     /// <summary>Off by default: makes the window ignore the mouse entirely (<c>WS_EX_TRANSPARENT</c>).
     /// See <see cref="Services.ClickThroughPolicy"/> for the window-level/opacity implications this
     /// forces while it is on.</summary>

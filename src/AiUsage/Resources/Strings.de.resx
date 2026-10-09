@@ -481,4 +481,8 @@
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: Limit für {1} erreicht, wieder frei in {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: Limit für {1} erreicht</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Widget zeigen</value></data>
+  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Im Akkubetrieb Strom sparen: halb so oft abrufen, im Energiesparmodus nur lokale Quellen</value></data>
+  <data name="Tray.Pause" xml:space="preserve"><value>Abrufe 1 Stunde pausieren</value></data>
+  <data name="Tray.Resume" xml:space="preserve"><value>Abrufe fortsetzen (pausiert bis {0})</value></data>
+  <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausiert bis {0}</value></data>
 </root>

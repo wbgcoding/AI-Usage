@@ -482,4 +482,8 @@
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} limit reached, resets in {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
+  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Save energy on battery: fetch half as often, and only local sources while energy saver is on</value></data>
+  <data name="Tray.Pause" xml:space="preserve"><value>Pause fetching for 1 hour</value></data>
+  <data name="Tray.Resume" xml:space="preserve"><value>Resume fetching (paused until {0})</value></data>
+  <data name="Tray.PausedUntil" xml:space="preserve"><value>Paused until {0}</value></data>
 </root>

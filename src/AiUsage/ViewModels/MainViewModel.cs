@@ -538,6 +538,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // weeks at a time, so "once at startup" alone never enforces retention.
         _scheduler = new RefreshScheduler(providers, TimeSpan.FromSeconds(settings.RefreshSeconds),
             log: line => (_logService ?? LogService.Shared).LogError(line));
+        _scheduler.SetSaveEnergyOnBattery(settings.SaveEnergyOnBattery);
         _scheduler.SnapshotReady += OnSnapshotReady;
         _scheduler.FetchStarted += OnFetchStarted;
         _scheduler.FetchEnded += OnFetchEnded;
@@ -884,6 +885,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _scheduler.UpdateBaseInterval(TimeSpan.FromSeconds(seconds));
         _settingsStore.RequestSave(_settings);
     }
+
+    /// <summary>Hands the scheduler the machine's current power state (battery, energy saver).</summary>
+    public void SetPower(PowerState power) => _scheduler.SetPower(power);
+
+    /// <summary>The Settings window's "save energy on battery" switch.</summary>
+    public void UpdateSaveEnergyOnBattery(bool enabled) => _scheduler.SetSaveEnergyOnBattery(enabled);
 
     /// <summary>True for the one row in <see cref="DisplayRows"/> that is not a real provider tile at
     /// all - <see cref="AppSettings.DayGridTileId"/>. Every command below branches on this exactly

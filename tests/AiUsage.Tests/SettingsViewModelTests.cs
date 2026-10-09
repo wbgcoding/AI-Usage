@@ -112,6 +112,18 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheSaveEnergySettingIsOnByDefaultAndSaved()
+    {
+        var (vm, settings) = Build();
+        Assert.True(new AppSettings().SaveEnergyOnBattery);
+        Assert.True(vm.SaveEnergyOnBattery);
+
+        vm.SaveEnergyOnBattery = false;
+
+        Assert.False(settings.SaveEnergyOnBattery);
+    }
+
+    [Fact]
     public void TheWindowLevelPickerFollowsAndDrivesTheMainWindowLevel()
     {
         var (vm, settings) = Build();

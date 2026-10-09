@@ -43,6 +43,12 @@ public sealed class RefreshScheduler
     /// rather than only lengthen its interval.</summary>
     private Func<string, bool>? _isDisconnected;
 
+    // Power and pause state, owned by the caller and read under _gate. The power state is only ever
+    // pushed in (SetPower), never polled here, so a test drives it with a plain value.
+    private PowerState _power;
+    private bool _saveEnergyOnBattery;
+    private DateTimeOffset? _pausedUntil;
+
     /// <summary>
     /// <paramref name="minFetchTimeout"/>/<paramref name="maxFetchTimeout"/> default to the real
     /// 60s/5min floor and cap; a test can inject a much shorter pair so a "provider never completes"
@@ -73,9 +79,7 @@ public sealed class RefreshScheduler
         lock (_gate)
         {
             _providers.Add(provider);
-            _state[provider.AccountKey] = new ProviderState(
-                ResolveInterval(_baseInterval, provider.MinRefreshInterval, _isHidden?.Invoke(provider.AccountKey) ?? false, _windowVisible),
-                _timeProvider.GetUtcNow());
+            _state[provider.AccountKey] = new ProviderState(ResolveIntervalLocked(provider), _timeProvider.GetUtcNow());
         }
     }
 
@@ -129,6 +133,55 @@ public sealed class RefreshScheduler
             _baseInterval = interval;
     }
 
+    /// <summary>Tells the scheduler what the machine's power looks like. The interval change shows from
+    /// each provider's next completed fetch; the energy-saver skip applies at once.</summary>
+    public void SetPower(PowerState power)
+    {
+        lock (_gate)
+            _power = power;
+    }
+
+    /// <summary>The "save energy on battery" setting: on battery the intervals double, and while the
+    /// energy saver is on only local sources are read.</summary>
+    public void SetSaveEnergyOnBattery(bool enabled)
+    {
+        lock (_gate)
+            _saveEnergyOnBattery = enabled;
+    }
+
+    /// <summary>Stops every fetch that uses the network for <paramref name="duration"/>, counted from
+    /// now; local files keep updating. Returns the moment the pause ends. Not remembered across
+    /// restarts.</summary>
+    public DateTimeOffset PauseFor(TimeSpan duration)
+    {
+        lock (_gate)
+        {
+            var until = _timeProvider.GetUtcNow() + duration;
+            _pausedUntil = until;
+            return until;
+        }
+    }
+
+    /// <summary>Ends a pause early.</summary>
+    public void Resume()
+    {
+        lock (_gate)
+            _pausedUntil = null;
+    }
+
+    /// <summary>When the running pause ends, or null when none runs (an expired one counts as over).</summary>
+    public DateTimeOffset? PausedUntil
+    {
+        get
+        {
+            lock (_gate)
+                return PausedUntilLocked(_timeProvider.GetUtcNow());
+        }
+    }
+
+    /// <summary>Caller must already hold <see cref="_gate"/>.</summary>
+    private DateTimeOffset? PausedUntilLocked(DateTimeOffset now) => _pausedUntil is { } until && now < until ? until : null;
+
     /// <summary>
     /// Starts every due, not-already-running provider in parallel - a hidden tile or a closed window
     /// never skips a provider outright, they only ever lengthen its interval (see <see
@@ -137,7 +190,11 @@ public sealed class RefreshScheduler
     /// reports itself via <see cref="SnapshotReady"/> regardless.
     /// </summary>
     public IReadOnlyList<Task> Tick(Func<string, bool>? isHidden = null, bool windowVisible = true,
-        Func<string, bool>? isDisconnected = null, CancellationToken ct = default)
+        Func<string, bool>? isDisconnected = null, CancellationToken ct = default) =>
+        TickCore(isHidden, windowVisible, isDisconnected, ignoreNetworkSkip: false, ct);
+
+    private List<Task> TickCore(Func<string, bool>? isHidden, bool windowVisible,
+        Func<string, bool>? isDisconnected, bool ignoreNetworkSkip, CancellationToken ct)
     {
         List<IUsageProvider> due;
         lock (_gate)
@@ -152,7 +209,7 @@ public sealed class RefreshScheduler
             // callers arriving together (the one-second timer and a manual refresh, say) must never
             // both see a provider as due and both start it.
             var now = _timeProvider.GetUtcNow();
-            due = _providers.Where(p => IsDueLocked(p, now)).ToList();
+            due = _providers.Where(p => IsDueLocked(p, now, ignoreNetworkSkip)).ToList();
             foreach (var provider in due)
                 _state[provider.AccountKey].InFlight = true;
         }
@@ -174,7 +231,9 @@ public sealed class RefreshScheduler
             foreach (var state in _state.Values.Where(s => !s.InFlight))
                 state.NextDueAt = now;
         }
-        return Tick(isHidden, windowVisible, isDisconnected, ct);
+        // A manual refresh is a fetch the person asked for: it reads every source once, even
+        // while paused or on the energy saver, and leaves both in place.
+        return TickCore(isHidden, windowVisible, isDisconnected, ignoreNetworkSkip: true, ct);
     }
 
     /// <summary>
@@ -243,11 +302,26 @@ public sealed class RefreshScheduler
     }
 
     /// <summary>Caller must already hold <see cref="_gate"/>.</summary>
-    private bool IsDueLocked(IUsageProvider provider, DateTimeOffset now)
+    private bool IsDueLocked(IUsageProvider provider, DateTimeOffset now, bool ignoreNetworkSkip = false)
     {
         var state = _state[provider.AccountKey];
-        return !state.InFlight && now >= state.NextDueAt;
+        if (state.InFlight || now < state.NextDueAt)
+            return false;
+        // A skipped provider keeps its past due time, so it is fetched on the first tick after the
+        // pause or the energy saver ends.
+        return ignoreNetworkSkip || !NetworkIsOffLocked(now) || IsLocalSource(state);
     }
+
+    /// <summary>Whether fetches that use the network are held back right now: a pause is running, or
+    /// the energy saver is on and the setting asks to honour it. Caller must already hold <see
+    /// cref="_gate"/>.</summary>
+    private bool NetworkIsOffLocked(DateTimeOffset now) =>
+        PausedUntilLocked(now) is not null || (_saveEnergyOnBattery && _power.EnergySaver);
+
+    /// <summary>Local means the provider's last real reading came from a file or a database. A provider
+    /// that has not delivered one yet counts as local, so it is fetched once to find out.</summary>
+    private static bool IsLocalSource(ProviderState state) =>
+        state.LastSource is null or SourceKind.LocalFile or SourceKind.LocalDatabase;
 
     /// <summary>CancelProvider stopped this attempt on purpose: report no reading and keep the
     /// interval (the owner is about to change or remove the account), but tell the subscribers the
@@ -402,6 +476,9 @@ public sealed class RefreshScheduler
                 // From completion, not attemptStartedAt: a fetch that itself took longer than its
                 // own interval must not be immediately due again the moment it finishes.
                 state.NextDueAt = _timeProvider.GetUtcNow() + state.CurrentInterval;
+                // A failure carries no source; the last real one stays the answer.
+                if (snapshot.SourceKind != SourceKind.None)
+                    state.LastSource = snapshot.SourceKind;
             }
 
             RaiseSnapshotReady(snapshot);
@@ -449,7 +526,8 @@ public sealed class RefreshScheduler
 
     /// <summary>Caller must already hold <see cref="_gate"/>.</summary>
     private TimeSpan ResolveIntervalLocked(IUsageProvider provider) =>
-        ResolveInterval(_baseInterval, provider.MinRefreshInterval, _isHidden?.Invoke(provider.AccountKey) ?? false, _windowVisible);
+        ResolveInterval(_baseInterval, provider.MinRefreshInterval, _isHidden?.Invoke(provider.AccountKey) ?? false, _windowVisible,
+            onBattery: _saveEnergyOnBattery && _power.OnBattery);
 
     /// <summary>
     /// One shared rule for how long to wait before the next fetch, applied in order, each step only
@@ -457,8 +535,10 @@ public sealed class RefreshScheduler
     /// the Claude web session's 5 min minimum - at least 5 min once the window itself is not visible -
     /// at least 15 min once the provider's own tile is hidden. A hidden, closed-window provider with a
     /// 5-minute floor lands on 15 min, not 5+5+15 - the rules raise a shared floor, they never add up.
+    /// On battery (with the saving enabled) the result is then doubled.
     /// </summary>
-    internal static TimeSpan ResolveInterval(TimeSpan baseInterval, TimeSpan? providerFloor, bool isHidden, bool windowVisible)
+    internal static TimeSpan ResolveInterval(TimeSpan baseInterval, TimeSpan? providerFloor, bool isHidden, bool windowVisible,
+        bool onBattery = false)
     {
         var interval = baseInterval;
         if (providerFloor is { } floor && floor > interval)
@@ -467,7 +547,7 @@ public sealed class RefreshScheduler
             interval = TimeSpan.FromMinutes(5);
         if (isHidden && interval < TimeSpan.FromMinutes(15))
             interval = TimeSpan.FromMinutes(15);
-        return interval;
+        return onBattery ? interval * 2 : interval;
     }
 
     /// <summary>The error of a read the scheduler itself gave up on: the generic failed wording, the
@@ -487,6 +567,9 @@ public sealed class RefreshScheduler
         public TimeSpan CurrentInterval = initialInterval;
         public DateTimeOffset NextDueAt = dueAt;
         public bool InFlight;
+
+        // The source of the last reading that had one; null until the first.
+        public SourceKind? LastSource;
 
         // Both set at the start of RunOneAsync/RunOneCoreAsync and cleared once that same attempt
         // finishes - CancelProvider reads them to cancel and wait for whichever attempt is currently

@@ -291,6 +291,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool hideOnFullscreen;
 
+    [ObservableProperty]
+    private bool saveEnergyOnBattery;
+
     /// <summary>The widget zoom in percent, one of <see cref="WindowZoom.AllowedPercents"/>. MainWindow
     /// watches this property to redraw and resize the widget.</summary>
     [ObservableProperty]
@@ -495,6 +498,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         dataFolderPath = AppPaths.DataDirectory;
         showPreviousWeekLine = settings.ShowPreviousWeekLine;
         hideOnFullscreen = settings.HideOnFullscreen;
+        saveEnergyOnBattery = settings.SaveEnergyOnBattery;
         zoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
         Choice.Select(ZoomChoices, zoomPercent);
         showTooltips = settings.ShowTooltips;
@@ -931,6 +935,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main.ApplyShowAttentionMarkToAllTiles(value);
     }
 
+    partial void OnSaveEnergyOnBatteryChanged(bool value)
+    {
+        _settings.SaveEnergyOnBattery = value;
+        _store.RequestSave(_settings);
+        Main.UpdateSaveEnergyOnBattery(value);
+    }
+
     partial void OnCheckForUpdatesChanged(bool value)
     {
         _settings.CheckForUpdates = value;
@@ -1344,6 +1355,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
+        _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.QuietWeekend = source.QuietWeekend;
         _settings.QuietHoursStart = source.QuietHoursStart;
@@ -1417,6 +1429,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         LimitReachedAlertEnabled = _settings.LimitReachedAlertEnabled;
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
+        SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
         QuietWeekend = _settings.QuietWeekend;
         QuietHoursStartText = _settings.QuietHoursStart;

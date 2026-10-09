@@ -215,6 +215,7 @@ public partial class MainWindow : Window, IDisposable
             Collapse();
 
         UpdateDensity();
+        ViewModel.SetPower(PowerStatus.Read());
         ViewModel.RefreshNow();
         UpdateTray();
         // UpdateDensity() no longer runs from here - its own inputs (Layout/HiddenCount/DensityMode
@@ -566,7 +567,14 @@ public partial class MainWindow : Window, IDisposable
     {
         // Only a trigger: nothing runs while the machine sleeps, so there is no state to keep.
         if (e.Mode == PowerModes.Resume)
-            Dispatcher.BeginInvoke(CatchUpIfAttended);
+            Dispatcher.BeginInvoke(() =>
+            {
+                ViewModel.SetPower(PowerStatus.Read());
+                CatchUpIfAttended();
+            });
+        // Plugged in or unplugged, energy saver switched: the scheduler re-reads what it may fetch.
+        else if (e.Mode == PowerModes.StatusChange)
+            Dispatcher.BeginInvoke(() => ViewModel.SetPower(PowerStatus.Read()));
     }
 
     /// <summary>Records the lock state. When the widget becomes watchable again it gets the normal
