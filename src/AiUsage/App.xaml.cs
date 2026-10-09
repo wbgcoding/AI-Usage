@@ -140,6 +140,7 @@ public partial class App : Application, IDisposable
         // No window exists yet, so this only records the ambient WindowOpacity.CurrentPercent - every
         // window created from here on applies it to itself via WindowChromeNative.Bootstrap.
         WindowOpacity.ApplyToAllOpenWindows(settings.WindowOpacityPercent);
+        MicaBackdrop.SetEnabled(settings.MicaEnabled);
         _logService.LogInfo($"Language {settings.Language}, theme {settings.Theme} applied.");
 
         // Autostart starts the tray copy while the desktop is still loading: everything below this point

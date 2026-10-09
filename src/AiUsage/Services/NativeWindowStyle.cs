@@ -89,6 +89,29 @@ internal static class NativeWindowStyle
         _ = DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref preference, sizeof(int));
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Margins
+    {
+        public int Left, Right, Top, Bottom;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref Margins margins);
+
+    /// <summary>Sets one integer window attribute through the window manager and returns its HRESULT
+    /// (0 on success). Never throws for a failing HRESULT.</summary>
+    internal static int SetDwmAttribute(IntPtr hwnd, int attribute, int value) =>
+        DwmSetWindowAttribute(hwnd, attribute, ref value, sizeof(int));
+
+    /// <summary>Extends the window frame over the whole client area (the sheet of glass a system
+    /// backdrop is drawn on), or takes the extension away again. Returns the HRESULT.</summary>
+    internal static int ExtendFrameIntoClientArea(IntPtr hwnd, bool intoWholeWindow)
+    {
+        var edge = intoWholeWindow ? -1 : 0;
+        var margins = new Margins { Left = edge, Right = edge, Top = edge, Bottom = edge };
+        return DwmExtendFrameIntoClientArea(hwnd, ref margins);
+    }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
 

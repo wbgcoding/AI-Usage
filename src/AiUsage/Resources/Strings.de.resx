@@ -485,4 +485,5 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Abrufe 1 Stunde pausieren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Abrufe fortsetzen (pausiert bis {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausiert bis {0}</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica-Hintergrund (Windows 11)</value></data>
 </root>

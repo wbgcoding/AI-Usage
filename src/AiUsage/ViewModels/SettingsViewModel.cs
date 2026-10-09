@@ -233,6 +233,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(WindowOpacityLabel))]
     private int windowOpacityPercent;
 
+    /// <summary>The Mica background option, saved to the same value the settings file carries.</summary>
+    [ObservableProperty]
+    private bool micaEnabled;
+
+    /// <summary>Whether the Mica option is shown: only while the theme is "follow Windows" (the only
+    /// theme Mica acts in) and on a Windows build that can show it. Hidden otherwise, the stored value
+    /// stays as it was.</summary>
+    public bool MicaOptionVisible => IsMicaOptionVisible(Environment.OSVersion.Version.Build, _settings.Theme);
+
+    internal static bool IsMicaOptionVisible(int osBuild, string? theme) =>
+        osBuild >= MicaPolicy.MinimumBuild
+        && string.Equals(theme, nameof(AppTheme.System), StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The live value of <see cref="Storage.AppPaths.DataDirectory"/> - re-read after a
     /// successful <see cref="ChooseDataFolderAsync"/> so the data folder row (Settings.DataFolder) shows the new location
     /// without needing a restart.</summary>
@@ -495,6 +508,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         historyRetentionDays = settings.HistoryRetentionDays;
         remoteRefreshMinutes = settings.RemoteRefreshMinutes;
         windowOpacityPercent = settings.WindowOpacityPercent;
+        micaEnabled = settings.MicaEnabled;
         dataFolderPath = AppPaths.DataDirectory;
         showPreviousWeekLine = settings.ShowPreviousWeekLine;
         hideOnFullscreen = settings.HideOnFullscreen;
@@ -712,6 +726,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         RefreshSystemThemePreview();
 
         _settings.Theme = theme.ToString();
+        OnPropertyChanged(nameof(MicaOptionVisible));
         if (Application.Current is not null) // guards unit tests, which run with no live WPF Application
             ThemeService.Apply(theme);
         _store.RequestSave(_settings);
@@ -728,6 +743,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         var previewTheme = ThemeService.IsWindowsUsingLightTheme() ? AppTheme.Light : AppTheme.Dark;
         var dictionary = _loadThemeDictionary(ThemeUris[previewTheme]);
+        ThemeService.ApplySystemAccent(dictionary, previewTheme == AppTheme.Dark, AccentColors.ReadSystemAccent);
         systemChoice.RefreshPreview(dictionary["Bg.Base"] as Brush, dictionary["Accent"] as Brush);
     }
 
@@ -850,6 +866,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
         if (Application.Current is not null) // guards unit tests, which run with no live WPF Application
             WindowOpacity.ApplyToAllOpenWindows(clamped);
+    }
+
+    partial void OnMicaEnabledChanged(bool value)
+    {
+        _settings.MicaEnabled = value;
+        _store.RequestSave(_settings);
+        if (Application.Current is not null) // guards unit tests, which run with no live WPF Application
+            MicaBackdrop.SetEnabled(value);
     }
 
     partial void OnShowPreviousWeekLineChanged(bool value)
@@ -1340,6 +1364,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.Autostart = source.Autostart;
         _settings.HistoryRetentionDays = source.HistoryRetentionDays;
         _settings.WindowOpacityPercent = source.WindowOpacityPercent;
+        _settings.MicaEnabled = source.MicaEnabled;
         _settings.ChartRange = source.ChartRange;
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
@@ -1417,6 +1442,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         RemoteRefreshMinutes = _settings.RemoteRefreshMinutes;
         HistoryRetentionDays = _settings.HistoryRetentionDays;
         WindowOpacityPercent = _settings.WindowOpacityPercent;
+        MicaEnabled = _settings.MicaEnabled;
         Autostart = _settings.Autostart;
         ShowPreviousWeekLine = _settings.ShowPreviousWeekLine;
         HideOnFullscreen = _settings.HideOnFullscreen;
@@ -1478,6 +1504,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ? (ThemeService.IsWindowsUsingLightTheme() ? AppTheme.Light : AppTheme.Dark)
             : theme;
         var dictionary = load(ThemeUris[previewTheme]);
+        if (theme == AppTheme.System)
+            ThemeService.ApplySystemAccent(dictionary, previewTheme == AppTheme.Dark, AccentColors.ReadSystemAccent);
         return new Choice<AppTheme>(labelKey, theme, dictionary["Bg.Base"] as Brush, dictionary["Accent"] as Brush)
         {
             IsSelected = string.Equals(selectedTheme, theme.ToString(), StringComparison.OrdinalIgnoreCase)

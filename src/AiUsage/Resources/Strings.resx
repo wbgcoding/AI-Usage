@@ -486,4 +486,5 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Pause fetching for 1 hour</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Resume fetching (paused until {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Paused until {0}</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica background (Windows 11)</value></data>
 </root>
