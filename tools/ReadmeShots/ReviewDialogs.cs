@@ -114,15 +114,36 @@ internal static class ReviewDialogs
     }
 
     /// <summary>Draws a never-shown window's content at its own width; a NaN height means the content
-    /// decides (the window sizes to its content).</summary>
+    /// decides (the window sizes to its content). The window's own background is part of the picture,
+    /// as it is on screen.</summary>
     private static void RenderWindowContent(Window window, double width, double height, string outputPath)
     {
-        var root = (FrameworkElement)window.Content;
+        var root = WithWindowBackground(window, (FrameworkElement)window.Content);
         Pump(TimeSpan.FromMilliseconds(300));
         root.Measure(new Size(width, double.IsNaN(height) ? double.PositiveInfinity : height));
         Pump(TimeSpan.FromMilliseconds(300));
         root.Measure(new Size(width, double.IsNaN(height) ? double.PositiveInfinity : height));
         RenderToPng(root, width, double.IsNaN(height) ? Math.Ceiling(root.DesiredSize.Height) : height, outputPath);
+    }
+
+    /// <summary>A window paints its own background behind its content; a content root that has none of
+    /// its own (a plain panel) would show transparent in the picture. Such a root is put in a border
+    /// carrying the window's background, which also fills the part of the window the content leaves
+    /// free. A root that draws its own surface is returned as it is.</summary>
+    private static FrameworkElement WithWindowBackground(Window window, FrameworkElement root)
+    {
+        var drawsBackground = root switch
+        {
+            Panel panel => panel.Background is not null,
+            Border border => border.Background is not null,
+            Control control => control.Background is not null,
+            _ => false,
+        };
+        if (drawsBackground || window.Background is null)
+            return root;
+
+        window.Content = null;
+        return new Border { Background = window.Background, Child = root };
     }
 
     private static void RenderToPng(FrameworkElement root, double width, double height, string outputPath)
