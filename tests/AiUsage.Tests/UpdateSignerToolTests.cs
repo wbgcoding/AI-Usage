@@ -65,4 +65,28 @@ public class UpdateSignerToolTests
         Assert.Equal(0, Run($"sign \"{file}\"", keyFromEnvironment: keyPath).ExitCode);
         Assert.True(UpdateSignature.Verify([5], File.ReadAllText(file + ".sig"), publicKey));
     }
+
+    [Fact]
+    public void KeygenGivesOnlyTheCurrentUserAndSystemAccessToTheKey()
+    {
+        var keyPath = Path.Combine(TestPaths.CreateDirectory("signer-acl"), "k.pem");
+        Assert.Equal(0, Run($"keygen --key \"{keyPath}\"").ExitCode);
+
+        var security = new FileInfo(keyPath).GetAccessControl();
+        Assert.True(security.AreAccessRulesProtected);
+        var holders = security
+            .GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier))
+            .Cast<System.Security.AccessControl.FileSystemAccessRule>()
+            .Select(rule => rule.IdentityReference.Value)
+            .Distinct()
+            .Order()
+            .ToArray();
+        var expected = new[]
+        {
+            System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value,
+            new System.Security.Principal.SecurityIdentifier(
+                System.Security.Principal.WellKnownSidType.LocalSystemSid, null).Value,
+        }.Order().ToArray();
+        Assert.Equal(expected, holders);
+    }
 }

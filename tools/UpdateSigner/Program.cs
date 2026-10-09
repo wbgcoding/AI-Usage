@@ -83,7 +83,7 @@ internal static class Program
             Directory.CreateDirectory(directory);
 
         // CreateNew: fails if another process made the file in the meantime, instead of replacing it.
-        using (var stream = new FileStream(keyPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        using (var stream = CreatePrivateFile(keyPath))
         using (var writer = new StreamWriter(stream))
             writer.Write(key.ExportPkcs8PrivateKeyPem());
 
@@ -93,6 +93,30 @@ internal static class Program
 
         Console.WriteLine(publicKey);
         return 0;
+    }
+
+    /// <summary>Creates the key file so that only the current user and SYSTEM can open it. On Windows
+    /// the ACL is set at creation, with inheritance off, so the key is never readable by others.</summary>
+    private static FileStream CreatePrivateFile(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+            return new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+
+        var security = new System.Security.AccessControl.FileSecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        var user = System.Security.Principal.WindowsIdentity.GetCurrent().User
+            ?? throw new UnauthorizedAccessException("The current user has no SID.");
+        var system = new System.Security.Principal.SecurityIdentifier(
+            System.Security.Principal.WellKnownSidType.LocalSystemSid, null);
+        foreach (var sid in new[] { user, system })
+        {
+            security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                sid, System.Security.AccessControl.FileSystemRights.FullControl,
+                System.Security.AccessControl.AccessControlType.Allow));
+        }
+
+        return new FileInfo(path).Create(FileMode.CreateNew, System.Security.AccessControl.FileSystemRights.Write,
+            FileShare.None, 4096, FileOptions.None, security);
     }
 
     private static string PublicKeySource(string publicKey) =>
