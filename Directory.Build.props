@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- Settings every project in this repository shares. -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Company>BGCoding</Company>
+    <Copyright>© 2026 BGCoding</Copyright>
+    <Deterministic>true</Deterministic>
+    <!-- Keeps the local checkout path out of the published binaries (the PDB path embedded in the exe). -->
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

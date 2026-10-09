@@ -17,7 +17,7 @@
 ; mode both need it, and so does a silent update.
 
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #error AppVersion is not defined: pass /DAppVersion=<version> (build.bat reads it from the csproj).
 #endif
 
 #define AppName "AI-Usage"

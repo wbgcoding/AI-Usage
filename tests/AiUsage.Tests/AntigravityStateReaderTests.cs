@@ -150,8 +150,8 @@ public class AntigravityStateReaderTests : IDisposable
 
         Assert.Equal("Pro", plan);
         Assert.Empty(Directory.EnumerateFileSystemEntries(snapshotDirectory));
-        Assert.Empty(Directory.EnumerateFiles(dataDirectory, "antigravity-*", SearchOption.AllDirectories)
-            .Where(f => !before.Contains(f)));
+        Assert.DoesNotContain(Directory.EnumerateFiles(dataDirectory, "antigravity-*", SearchOption.AllDirectories),
+            f => !before.Contains(f));
     }
 
     [Fact]

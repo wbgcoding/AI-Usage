@@ -3,7 +3,6 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
@@ -13,11 +12,8 @@
     <RootNamespace>AiUsage</RootNamespace>
     <Version>1.1.0</Version>
     <Product>AI-Usage</Product>
-    <Company>BGCoding</Company>
-    <Copyright>© 2026 BGCoding</Copyright>
     <AssemblyTitle>AI-Usage</AssemblyTitle>
     <Description>Shows the remaining usage limits of your AI coding assistants at a glance.</Description>
-    <InformationalVersion>1.1.0</InformationalVersion>
     <!-- Without this the SDK appends the git commit, so the file properties read "1.0.0+50e12e2b2f...". -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- The SDK's own SourceControlManager target still shells out to git to read the commit even
@@ -30,7 +26,6 @@
     <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
     <InvariantGlobalization>false</InvariantGlobalization>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
