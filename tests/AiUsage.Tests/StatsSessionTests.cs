@@ -140,6 +140,261 @@ public class StatsSessionTests
         Assert.Equal(5L, Scalar(dbPath, "SELECT COUNT(*) FROM usage"));
     }
 
+    /// <summary>A database exactly as the released v1.1.0 (schema version 5) wrote it: a version table
+    /// without the id column (here with the second row the old open race could leave) and a source
+    /// file table with the message key.</summary>
+    private static void WriteV5Database(string dbPath)
+    {
+        Run(dbPath, """
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (5);
+            INSERT INTO schema_version (version) VALUES (5);
+            CREATE TABLE usage (
+                provider TEXT NOT NULL, day TEXT NOT NULL, hour INTEGER NOT NULL DEFAULT 0, model TEXT NOT NULL,
+                project TEXT NOT NULL, effort TEXT NOT NULL DEFAULT '',
+                input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER NOT NULL DEFAULT 0, cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (provider, day, hour, model, project, effort)
+            );
+            CREATE TABLE source_file (
+                path TEXT PRIMARY KEY, provider TEXT NOT NULL, offset INTEGER NOT NULL, size INTEGER NOT NULL,
+                write_time_utc TEXT NOT NULL, current_model TEXT NOT NULL DEFAULT '',
+                cumulative_input_tokens INTEGER NOT NULL DEFAULT 0, cumulative_output_tokens INTEGER NOT NULL DEFAULT 0,
+                cumulative_cache_creation_tokens INTEGER NOT NULL DEFAULT 0, cumulative_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                current_effort TEXT NOT NULL DEFAULT '', last_message_key TEXT NOT NULL DEFAULT ''
+            );
+            INSERT INTO usage VALUES ('claude', '2026-02-01', 9, 'modelA', 'C:\Projects\Sample', 'high', 1000, 200, 300, 400);
+            INSERT INTO usage VALUES ('claude', '2026-02-01', 9, 'modelA', 'subagents', '', 5, 6, 7, 8);
+            INSERT INTO usage VALUES ('claude', '2026-02-02', 10, 'modelB', 'C:\Projects\Sample', 'low', 11, 12, 13, 14);
+            INSERT INTO usage VALUES ('codex', '2026-02-02', 11, 'modelC', 'C:\Projects\Other', 'xhigh', 21, 22, 23, 24);
+            INSERT INTO source_file (path, provider, offset, size, write_time_utc)
+            VALUES ('a.jsonl', 'claude', 5, 5, '2026-02-01T00:00:00.0000000Z');
+            """);
+    }
+
+    [Fact]
+    public void Migration_from_the_released_v5_keeps_every_row_and_total_and_leaves_a_v5_backup()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v5-released");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteV5Database(dbPath);
+        var totalBefore = Convert.ToInt64(
+            Scalar(dbPath, "SELECT SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens) FROM usage"));
+        Assert.Equal(1900 + 26 + 50 + 90, totalBefore);
+
+        var store = new StatsStore(dataDir);
+        var rows = store.LoadAll();
+
+        Assert.True(store.IsUsable);
+        Assert.Equal(4, rows.Count);
+        Assert.Equal(totalBefore, rows.Sum(row => row.TotalTokens));
+        Assert.Equal(
+            "claude|2026-02-01|9|modelA|C:\\Projects\\Sample|high|1000|200|300|400;" +
+            "claude|2026-02-01|9|modelA|subagents||5|6|7|8;" +
+            "claude|2026-02-02|10|modelB|C:\\Projects\\Sample|low|11|12|13|14;" +
+            "codex|2026-02-02|11|modelC|C:\\Projects\\Other|xhigh|21|22|23|24",
+            Totals(rows));
+        Assert.Equal(1, rows.Count(row => row.Subagent));
+
+        Assert.Equal(1L, Scalar(dbPath, "SELECT COUNT(*) FROM schema_version"));
+        Assert.Equal((long)StatsStore.SchemaVersion, Scalar(dbPath, "SELECT version FROM schema_version"));
+        Assert.NotNull(store.GetSourceFile("a.jsonl"));
+
+        // The backup is the untouched v5 file.
+        var backup = Path.Combine(dataDir, "stats.v5.bak");
+        Assert.True(File.Exists(backup));
+        Assert.Equal(4L, Scalar(backup, "SELECT COUNT(*) FROM usage"));
+        Assert.Equal(2L, Scalar(backup, "SELECT COUNT(*) FROM schema_version"));
+        Assert.Equal(5L, Scalar(backup, "SELECT MAX(version) FROM schema_version"));
+    }
+
+    [Fact]
+    public void Migration_from_v4_ends_at_the_current_schema_keeping_the_codex_rows_and_their_totals()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-to-current");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        Run(dbPath, """
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (4);
+            CREATE TABLE usage (
+                provider TEXT NOT NULL, day TEXT NOT NULL, hour INTEGER NOT NULL DEFAULT 0, model TEXT NOT NULL,
+                project TEXT NOT NULL, effort TEXT NOT NULL DEFAULT '',
+                input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER NOT NULL DEFAULT 0, cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (provider, day, hour, model, project, effort)
+            );
+            CREATE TABLE source_file (
+                path TEXT PRIMARY KEY, provider TEXT NOT NULL, offset INTEGER NOT NULL, size INTEGER NOT NULL,
+                write_time_utc TEXT NOT NULL, current_model TEXT NOT NULL DEFAULT '',
+                cumulative_input_tokens INTEGER NOT NULL DEFAULT 0, cumulative_output_tokens INTEGER NOT NULL DEFAULT 0,
+                cumulative_cache_creation_tokens INTEGER NOT NULL DEFAULT 0, cumulative_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                current_effort TEXT NOT NULL DEFAULT ''
+            );
+            INSERT INTO usage VALUES ('codex', '2026-03-01', 5, 'modelC', 'C:\\Projects\\Other', 'high', 31, 32, 33, 34);
+            INSERT INTO usage VALUES ('codex', '2026-03-02', 6, 'modelD', 'C:\\Projects\\Other', '', 41, 42, 43, 44);
+            INSERT INTO usage VALUES ('claude', '2026-03-02', 6, 'modelA', 'C:\\Projects\\Sample', '', 1, 2, 3, 4);
+            INSERT INTO source_file (path, provider, offset, size, write_time_utc)
+            VALUES ('x.jsonl', 'codex', 6, 6, '2026-03-01T00:00:00.0000000Z');
+            """);
+
+        var store = new StatsStore(dataDir);
+        var rows = store.LoadAll();
+
+        Assert.True(store.IsUsable);
+        Assert.Equal((long)StatsStore.SchemaVersion, Scalar(dbPath, "SELECT version FROM schema_version"));
+        var codex = rows.Where(row => row.Provider == "codex").ToList();
+        Assert.Equal(2, codex.Count);
+        Assert.Equal(31 + 32 + 33 + 34 + 41 + 42 + 43 + 44, codex.Sum(row => row.TotalTokens));
+        Assert.True(File.Exists(Path.Combine(dataDir, "stats.v4.bak")));
+        Assert.Equal(3L, Scalar(Path.Combine(dataDir, "stats.v4.bak"), "SELECT COUNT(*) FROM usage"));
+    }
+
+    [Fact]
+    public void A_failed_migration_step_is_not_retried_with_another_full_copy()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v6-step-fails");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteV6Database(dbPath);
+        // A leftover table of the target's name makes the rebuild step throw after the backup was taken.
+        Run(dbPath, "CREATE TABLE usage_v7 (x INTEGER);");
+        var backup = Path.Combine(dataDir, "stats.v6.bak");
+
+        var store = new StatsStore(dataDir);
+        Assert.Empty(store.LoadAll());
+        Assert.True(File.Exists(backup));
+        Assert.Equal(6L, Scalar(dbPath, "SELECT version FROM schema_version"));
+        Assert.Equal(5L, Scalar(dbPath, "SELECT COUNT(*) FROM usage"));
+
+        // Later opens of the same instance sit the session out: the backup is not written again.
+        File.WriteAllText(backup, "marker");
+        Assert.Empty(store.LoadAll());
+        Assert.Empty(store.LoadAll());
+        Assert.Equal("marker", File.ReadAllText(backup));
+        Assert.False(store.IsUsable);
+        Assert.Equal(5L, Scalar(dbPath, "SELECT COUNT(*) FROM usage"));
+    }
+
+    [Fact]
+    public void A_backup_that_fails_halfway_never_destroys_the_good_backup_of_an_earlier_attempt()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v6-keep-bak");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteV6Database(dbPath);
+        var backup = Path.Combine(dataDir, "stats.v6.bak");
+        File.WriteAllText(backup, "good earlier copy");
+        // The temporary name taken by a folder: the new copy cannot be written.
+        Directory.CreateDirectory(backup + ".tmp");
+
+        var store = new StatsStore(dataDir);
+
+        Assert.Empty(store.LoadAll());
+        Assert.False(store.IsUsable);
+        Assert.Equal("good earlier copy", File.ReadAllText(backup));
+        Assert.Equal(6L, Scalar(dbPath, "SELECT version FROM schema_version"));
+        Assert.Equal(5L, Scalar(dbPath, "SELECT COUNT(*) FROM usage"));
+    }
+
+    [Fact]
+    public void A_successful_backup_leaves_no_temporary_file_behind()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v6-no-tmp");
+        WriteV6Database(Path.Combine(dataDir, "stats.db"));
+
+        var store = new StatsStore(dataDir);
+        Assert.NotEmpty(store.LoadAll());
+        Assert.True(store.IsUsable);
+
+        Assert.True(File.Exists(Path.Combine(dataDir, "stats.v6.bak")));
+        Assert.False(File.Exists(Path.Combine(dataDir, "stats.v6.bak.tmp")));
+    }
+
+    [Fact]
+    public void A_source_file_snapshot_that_cannot_be_read_is_reported_as_failed_not_as_empty()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-snapshot-fail");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var store = new StatsStore(dataDir, busyTimeoutMs: 200);
+        store.AddDelta([new StatsRecord("claude", new DateOnly(2026, 1, 1), "modelA", "P", 1, 0, 0, 0)]);
+        Assert.True(store.TryLoadSourceFiles(out _));
+
+        using var holder = OpenRaw(dbPath);
+        holder.Open();
+        using (var begin = holder.CreateCommand())
+        {
+            begin.CommandText = "BEGIN EXCLUSIVE";
+            begin.ExecuteNonQuery();
+        }
+
+        Assert.False(store.TryLoadSourceFiles(out var failed));
+        Assert.Empty(failed);
+    }
+
+    [Fact]
+    public void The_backfill_is_neither_run_nor_marked_done_from_a_snapshot_that_failed_to_load()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-m1-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-m1-codex");
+        using var firstDir = TestPaths.CreateDisposableDirectory("stats-m1-first");
+        using var oldDir = TestPaths.CreateDisposableDirectory("stats-m1-old");
+        WriteSessionFixture(claudeRoot, codexRoot);
+        var reference = new StatsStore(firstDir);
+        new StatsIndexer(reference, claudeRoot, codexRoot).IndexOnce();
+        var dbPath = DowngradeToV6(Path.Combine(firstDir, "stats.db"), oldDir);
+
+        using var emptyClaude = TestPaths.CreateDisposableDirectory("stats-m1-empty-claude");
+        using var emptyCodex = TestPaths.CreateDisposableDirectory("stats-m1-empty-codex");
+        var store = new StatsStore(oldDir, busyTimeoutMs: 200);
+        Assert.NotEmpty(store.LoadAll());
+
+        // The index is locked while the walk asks for its snapshot: nothing may be marked.
+        using (var holder = OpenRaw(dbPath))
+        {
+            holder.Open();
+            using var begin = holder.CreateCommand();
+            begin.CommandText = "BEGIN EXCLUSIVE";
+            begin.ExecuteNonQuery();
+            new StatsIndexer(store, emptyClaude, emptyCodex).IndexOnce();
+        }
+
+        Assert.False(store.IsSessionBackfillDone());
+
+        // An index with usage rows but no remembered file is no snapshot to build sessions from either.
+        Run(dbPath, "DELETE FROM source_file");
+        new StatsIndexer(store, emptyClaude, emptyCodex).IndexOnce();
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.Empty(store.LoadSessions());
+
+        // With the files in place the pass still runs once the snapshot is good.
+        using var healthyDir = TestPaths.CreateDisposableDirectory("stats-m1-healthy");
+        DowngradeToV6(Path.Combine(firstDir, "stats.db"), healthyDir);
+        var healthy = new StatsStore(healthyDir);
+        new StatsIndexer(healthy, claudeRoot, codexRoot).IndexOnce();
+        Assert.True(healthy.IsSessionBackfillDone());
+        Assert.NotEmpty(healthy.LoadSessions());
+    }
+
+    [Fact]
+    public void The_first_line_probe_of_a_codex_file_never_reads_past_its_cap()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("stats-first-line");
+        var path = Path.Combine(dir, "rollout.jsonl");
+
+        File.WriteAllText(path, "{\"a\":1}\r\n{\"b\":2}\n");
+        Assert.Equal("{\"a\":1}", StatsIndexer.ReadFirstLineCapped(path, 1024));
+
+        File.WriteAllText(path, "{\"only\":1}");
+        Assert.Equal("{\"only\":1}", StatsIndexer.ReadFirstLineCapped(path, 1024));
+
+        // A long line without a break (a damaged file) is not read into memory: no first line.
+        File.WriteAllText(path, new string('x', 200_000));
+        Assert.Null(StatsIndexer.ReadFirstLineCapped(path, 100_000));
+        File.WriteAllText(path, new string('x', 200_000) + "\n{}\n");
+        Assert.Null(StatsIndexer.ReadFirstLineCapped(path, 100_000));
+
+        File.WriteAllText(path, "");
+        Assert.Null(StatsIndexer.ReadFirstLineCapped(path, 1024));
+    }
+
     [Fact]
     public void A_new_database_needs_no_backfill_and_has_the_session_tables()
     {

@@ -1512,4 +1512,20 @@ public class SettingsViewModelTests : IDisposable
             Task.FromResult(new ProviderSnapshot(Id, [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300)],
                 "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null));
     }
+
+    [Fact]
+    public void Moving_the_data_folder_carries_every_migration_backup_along()
+    {
+        var source = TempDirectory();
+        var destination = TempDirectory();
+        foreach (var name in new[] { "stats.v4.bak", "stats.v5.bak", "stats.v6.bak" })
+            File.WriteAllText(Path.Combine(source, name), name);
+        File.WriteAllText(Path.Combine(source, "stats.v6.bak.tmp"), "half");
+
+        SettingsViewModel.CopyIndexFiles(source, destination);
+
+        foreach (var name in new[] { "stats.v4.bak", "stats.v5.bak", "stats.v6.bak" })
+            Assert.Equal(name, File.ReadAllText(Path.Combine(destination, name)));
+        Assert.False(File.Exists(Path.Combine(destination, "stats.v6.bak.tmp")));
+    }
 }

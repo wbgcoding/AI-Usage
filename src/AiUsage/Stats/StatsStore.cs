@@ -85,6 +85,11 @@ public sealed class StatsStore
     // copying the whole database again on every later open (the indexer opens once per file).
     private bool _backupFailed;
 
+    // True while a migration step runs inside EnsureSchema; an exception then marks the instance as
+    // done with migrating for this session, so a failed step (a full disk, a damaged page) is not
+    // retried with another full copy of the database on every later open.
+    private bool _migrating;
+
     private SqliteConnection Open()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
@@ -157,6 +162,9 @@ public sealed class StatsStore
         }
         catch
         {
+            if (_migrating)
+                _backupFailed = true;
+
             try
             {
                 Execute(connection, "ROLLBACK");
@@ -237,7 +245,9 @@ public sealed class StatsStore
                 return false;
             }
 
+            _migrating = true;
             MigrateToV7(connection);
+            _migrating = false;
         }
 
         // A database written at an older schema version has usage rows this version cannot
@@ -367,13 +377,25 @@ public sealed class StatsStore
     private bool BackUpBeforeMigration(long oldVersion)
     {
         var backupPath = Path.Combine(Path.GetDirectoryName(DatabasePath)!, $"stats.v{oldVersion}.bak");
+        // Written under a temporary name and swapped in only when complete, so a copy that fails
+        // halfway (a full disk) never destroys the good backup an earlier attempt left.
+        var temporaryPath = backupPath + ".tmp";
         try
         {
-            File.Copy(DatabasePath, backupPath, overwrite: true);
+            File.Copy(DatabasePath, temporaryPath, overwrite: true);
+            File.Move(temporaryPath, backupPath, overwrite: true);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
+            {
+            }
+
             return false;
         }
     }
@@ -601,6 +623,25 @@ public sealed class StatsStore
     }
 
     /// <summary>True once the sessions of the usage rows an older version left behind were filled in.</summary>
+    /// <summary>True when the index holds at least one usage row. False too when it cannot be read.</summary>
+    public bool HasUsageRows()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT EXISTS (SELECT 1 FROM usage)";
+            return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) == 1;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
     public bool IsSessionBackfillDone()
     {
         try
@@ -809,12 +850,21 @@ public sealed class StatsStore
     /// asking per file.</summary>
     public Dictionary<string, StatsSourceFileState> LoadSourceFiles()
     {
-        var states = new Dictionary<string, StatsSourceFileState>(StringComparer.Ordinal);
+        TryLoadSourceFiles(out var states);
+        return states;
+    }
+
+    /// <summary>The same snapshot, saying whether it could be read: false when the index is locked,
+    /// unreadable or from a newer build - an empty result is then a failed read, not an index without
+    /// files, which a one-time pass must never mistake for "nothing to do".</summary>
+    public bool TryLoadSourceFiles(out Dictionary<string, StatsSourceFileState> states)
+    {
+        states = new Dictionary<string, StatsSourceFileState>(StringComparer.Ordinal);
         try
         {
             using var connection = Open();
             if (!IsUsable)
-                return states;
+                return false;
 
             using var command = connection.CreateCommand();
             command.CommandText = """
@@ -830,11 +880,12 @@ public sealed class StatsStore
                 states[path] = ReadSourceFileState(reader, path, firstColumn: 1);
             }
 
-            return states;
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or FormatException)
         {
-            return new Dictionary<string, StatsSourceFileState>(StringComparer.Ordinal);
+            states = new Dictionary<string, StatsSourceFileState>(StringComparer.Ordinal);
+            return false;
         }
     }
 

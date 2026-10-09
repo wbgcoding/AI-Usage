@@ -131,7 +131,6 @@ public sealed class StatsIndexer
         // One query for every remembered file instead of one database open per file: most walks find
         // thousands of files and change none of them.
         var known = _store.LoadSourceFiles();
-        BackfillSessionsOnce(known, cancellationToken);
 
         foreach (var claudeRoot in _claudeProjectsRoots)
         {
@@ -173,6 +172,12 @@ public sealed class StatsIndexer
             codexLinesParsed += linesParsed;
             codexLinesSkipped += linesSkipped;
         }
+
+        // After the walk, so the usage that is not stored yet is never held up by a display-only pass,
+        // and the pass sees the offsets the walk just reached. It runs from a snapshot read now; a
+        // snapshot that could not be read skips the pass instead of finishing it with nothing.
+        if (_store.TryLoadSourceFiles(out var afterWalk))
+            BackfillSessionsOnce(afterWalk, cancellationToken);
 
         return new StatsIndexResult(
             new StatsIndexCounters(claudeFilesSeen, claudeFilesRead, claudeLinesParsed, claudeLinesSkipped, claudeFoldersSkipped),
@@ -393,15 +398,10 @@ public sealed class StatsIndexer
             // every run regardless of the resume offset - the alternative, persisting it alongside
             // the resume state, would need its own migration path the moment a second field like it
             // was ever needed. Re-reading one short line is cheap next to walking the rest of the file.
-            using (var probeStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var probeReader = new StreamReader(probeStream, Utf8NoBom))
+            if (ReadFirstLineCapped(path, CodexFirstLineBytes) is { } firstLine)
             {
-                var firstLine = probeReader.ReadLine();
-                if (firstLine is not null)
-                {
-                    project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
-                    sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
-                }
+                project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
+                sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
             }
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -449,6 +449,11 @@ public sealed class StatsIndexer
     private void BackfillSessionsOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         if (_store.IsSessionBackfillDone())
+            return;
+
+        // No remembered file while usage rows exist: the snapshot is not trustworthy, so the pass is
+        // not run and not marked done (it would never be offered again).
+        if (known.Count == 0 && _store.HasUsageRows())
             return;
 
         var sessions = new StatsSessionAccumulator();
@@ -504,15 +509,10 @@ public sealed class StatsIndexer
         var path = state.Path;
         var project = "";
         var sessionId = Path.GetFileNameWithoutExtension(path);
-        using (var probeStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-        using (var probeReader = new StreamReader(probeStream, Utf8NoBom))
+        if (ReadFirstLineCapped(path, CodexFirstLineBytes) is { } firstLine)
         {
-            var firstLine = probeReader.ReadLine();
-            if (firstLine is not null)
-            {
-                project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
-                sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
-            }
+            project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
+            sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
         }
 
         var parser = new CodexUsageLogParser();
@@ -532,6 +532,40 @@ public sealed class StatsIndexer
 
     /// <summary>How much of a transcript's start the project probe looks at.</summary>
     private const int ProbeBytes = 64 * 1024;
+
+    /// <summary>The longest first line of a Codex file that is still read (its session meta line holds
+    /// the project and the session id). A longer one, or a file with no line break at all, is treated
+    /// as having none instead of being read into memory whole.</summary>
+    internal const int CodexFirstLineBytes = 1024 * 1024;
+
+    /// <summary>The first line of the file, or null when it is empty or the line is longer than
+    /// <paramref name="maxBytes"/>. Never holds more than the cap in memory.</summary>
+    internal static string? ReadFirstLineCapped(string path, int maxBytes)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var buffer = new byte[Math.Min(maxBytes, 64 * 1024)];
+        using var collected = new MemoryStream();
+        while (collected.Length < maxBytes)
+        {
+            var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, maxBytes - collected.Length));
+            if (read <= 0)
+                break;
+
+            var newline = Array.IndexOf(buffer, (byte)'\n', 0, read);
+            if (newline >= 0)
+            {
+                collected.Write(buffer, 0, newline);
+                return Utf8NoBom.GetString(collected.GetBuffer(), 0, (int)collected.Length).TrimEnd('\r');
+            }
+
+            collected.Write(buffer, 0, read);
+        }
+
+        // No line break within the cap: a short file that simply ends is one line, a long one is not read.
+        return stream.Position >= stream.Length && collected.Length > 0 && collected.Length < maxBytes
+            ? Utf8NoBom.GetString(collected.GetBuffer(), 0, (int)collected.Length).TrimEnd('\r')
+            : null;
+    }
 
     /// <summary>The complete lines inside the first <paramref name="maxBytes"/> of the file: a line
     /// the cap cuts in two is dropped, so the probe never holds more than the cap in memory and never

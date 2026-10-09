@@ -1300,12 +1300,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool CanChooseDataFolder() => !IsMovingData;
 
-    private static void CopyIndexFiles(string source, string destination)
+    internal static void CopyIndexFiles(string source, string destination)
     {
         // The token index is the only copy of past usage once the tools delete their own session
         // files, so it moves along; every StatsStore follows the data folder on its next open.
         Stats.StatsStore.CopyIndex(source, destination);
-        CopyIfExists(Path.Combine(source, "stats.v4.bak"), Path.Combine(destination, "stats.v4.bak"));
+        // Every migration backup (stats.v4.bak, stats.v5.bak, ...) stays next to the index it protects.
+        foreach (var backup in Directory.EnumerateFiles(source, "stats.v*.bak"))
+            CopyIfExists(backup, Path.Combine(destination, Path.GetFileName(backup)));
     }
 
     private static void CopySmallFiles(string source, string destination)
