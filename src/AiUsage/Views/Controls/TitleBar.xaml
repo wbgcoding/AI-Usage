@@ -59,6 +59,10 @@
              actually supports - no "Move" or "Size", meaningless without the native resize loop. -->
         <Border.ContextMenu>
             <ContextMenu x:Name="WindowMenu">
+                <MenuItem x:Name="RefreshMenuItem" InputGestureText="F5"
+                          Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
+                          Click="RefreshMenuItem_Click"/>
+                <Separator x:Name="RefreshMenuSeparator"/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Minimize]}"
                           Click="MinimizeButton_Click"/>
                 <MenuItem x:Name="CollapseMenuItem" Click="CollapseMenuItem_Click"/>
@@ -200,15 +204,6 @@
                 </Border>
                 </Grid>
             </Popup>
-            <Button x:Name="RefreshButton" Style="{StaticResource TitleBarButton}"
-                    Click="RefreshButton_Click"
-                    Visibility="{Binding ShowRefresh, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
-                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
-                    AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}">
-                <local:RefreshGlyph Width="16" Height="16"
-                                    Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                    IsSpinning="{Binding EyeSource.IsAnyFetching, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-            </Button>
             <Button x:Name="StatsButton" Style="{StaticResource TitleBarButton}"
                     Click="StatsButton_Click"
                     Visibility="{Binding ShowStats, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"

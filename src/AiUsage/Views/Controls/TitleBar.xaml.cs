@@ -9,7 +9,7 @@ using AiUsage.Services;
 namespace AiUsage.Views.Controls;
 
 /// <summary>
-/// The window's own title bar: dragging, double-click-to-collapse, and the four action buttons.
+/// The window's own title bar: dragging, double-click-to-collapse, the action buttons and the window menu.
 /// Raises events instead of acting on the window itself, so MainWindow (or a test) decides what
 /// "refresh", "settings", "minimize" and "close" actually do.
 /// </summary>
@@ -36,8 +36,10 @@ public partial class TitleBar : UserControl
     public static readonly DependencyProperty ShowEyeMenuProperty =
         DependencyProperty.Register(nameof(ShowEyeMenu), typeof(bool), typeof(TitleBar), new PropertyMetadata(true));
 
+    /// <summary>Whether the window menu offers "Refresh" (and the separator after it).</summary>
     public static readonly DependencyProperty ShowRefreshProperty =
-        DependencyProperty.Register(nameof(ShowRefresh), typeof(bool), typeof(TitleBar), new PropertyMetadata(true));
+        DependencyProperty.Register(nameof(ShowRefresh), typeof(bool), typeof(TitleBar),
+            new PropertyMetadata(true, (d, _) => ((TitleBar)d).ApplyRefreshMenuVisibility()));
 
     public static readonly DependencyProperty ShowSettingsProperty =
         DependencyProperty.Register(nameof(ShowSettings), typeof(bool), typeof(TitleBar), new PropertyMetadata(true));
@@ -180,7 +182,16 @@ public partial class TitleBar : UserControl
         }
     }
 
-    private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
+    private void RefreshMenuItem_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
+
+    private void ApplyRefreshMenuVisibility()
+    {
+        if (RefreshMenuItem is null)
+            return;
+        var visibility = ShowRefresh ? Visibility.Visible : Visibility.Collapsed;
+        RefreshMenuItem.Visibility = visibility;
+        RefreshMenuSeparator.Visibility = visibility;
+    }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke(this, EventArgs.Empty);
 
