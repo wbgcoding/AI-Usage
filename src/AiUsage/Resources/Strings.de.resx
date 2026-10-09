@@ -83,7 +83,7 @@
   <data name="State.Failed.Detail.Http" xml:space="preserve"><value>HTTP {0}</value></data>
   <data name="State.Failed.Detail.Network" xml:space="preserve"><value>keine Verbindung</value></data>
   <data name="State.LimitReached" xml:space="preserve"><value>Limit erreicht</value></data>
-  <data name="Chart.Empty" xml:space="preserve"><value>Der Verlauf wird ab dem ersten Messpunkt aufgebaut.</value></data>
+  <data name="Chart.Empty" xml:space="preserve"><value>Das Diagramm erscheint ab zwei Messpunkten.</value></data>
   <data name="Stats.Chart.Empty" xml:space="preserve"><value>Für diesen Zeitraum sind noch keine Token gezählt.</value></data>
   <data name="Chart.Summary" xml:space="preserve"><value>Verlauf {0}: {1} Werte, Höchstwert {2} %.</value></data>
   <data name="Settings.ResetConfirm" xml:space="preserve"><value>Alle Einstellungen auf die Vorgaben zurücksetzen? Das lässt sich nicht rückgängig machen. Für eine Sicherung vorher "Einstellungen exportieren" wählen.</value></data>
@@ -437,4 +437,27 @@
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Tagesdetail schließen</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Wartet auf eine Antwort. Zum Ausblenden anklicken.</value></data>
   <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token diese Woche</value></data>
+  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darüber.</value></data>
+  <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt im Plan.</value></data>
+  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darunter.</value></data>
+  <data name="State.Failed.Server.Head" xml:space="preserve"><value>{0} hat gerade Probleme</value></data>
+  <data name="State.Failed.Server.Reason" xml:space="preserve"><value>Der Server meldet einen Fehler (HTTP {1}). Der nächste Versuch folgt automatisch.</value></data>
+  <data name="State.Failed.Refused.Head" xml:space="preserve"><value>{0} lehnt die Anfrage ab</value></data>
+  <data name="State.Failed.Refused.Reason" xml:space="preserve"><value>HTTP {1}. Der nächste Versuch folgt automatisch.</value></data>
+  <data name="State.Failed.Timeout.Head" xml:space="preserve"><value>{0} antwortet nicht</value></data>
+  <data name="State.Failed.Timeout.Reason" xml:space="preserve"><value>Keine Antwort in der vorgesehenen Zeit. Der nächste Versuch folgt automatisch.</value></data>
+  <data name="State.Failed.Network.Head" xml:space="preserve"><value>Keine Verbindung</value></data>
+  <data name="State.Failed.Network.Reason" xml:space="preserve"><value>AI-Usage erreicht {0} nicht. Prüfe deine Internetverbindung.</value></data>
+  <data name="Tile.CheckStatus" xml:space="preserve"><value>Status von {0} prüfen</value></data>
+  <data name="Tile.NameTooltip" xml:space="preserve"><value>Klicken für Einzelheiten</value></data>
+  <data name="Tile.Menu.HideChart" xml:space="preserve"><value>Diagramm ausblenden</value></data>
+  <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Diagramm einblenden</value></data>
+  <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Aktualisiert sich beim nächsten Codex-Start. Für Live-Werte im Web anmelden.</value></data>
+  <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Im Web anmelden</value></data>
+  <data name="Settings.TileOrder" xml:space="preserve"><value>Reihenfolge</value></data>
+  <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Eigene</value></data>
+  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>Nach Auslastung</value></data>
+  <data name="Settings.TileOrder.Hint" xml:space="preserve"><value>Nach Auslastung: die vollste Kachel steht oben. Kacheln wandern nur, wenn eine ihre Farbstufe wechselt.</value></data>
+  <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>
+  <data name="Settings.AccountName.Hint" xml:space="preserve"><value>z. B. Arbeit</value></data>
 </root>

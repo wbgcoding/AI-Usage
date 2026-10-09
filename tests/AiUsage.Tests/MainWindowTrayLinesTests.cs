@@ -53,6 +53,19 @@ public class MainWindowTrayLinesTests
     }
 
     [Fact]
+    public void AnOwnAccountNameShowsInBracketsInTheTrayLine()
+    {
+        var named = Tile("claude", ProviderStatus.Ok);
+        named.AccountName = "Work";
+        var plain = Tile("codex", ProviderStatus.Ok);
+
+        var lines = MainWindow.BuildTrayLines([named, plain]);
+
+        Assert.Equal("claude (Work)", lines[0].DisplayName);
+        Assert.Equal("codex", lines[1].DisplayName);
+    }
+
+    [Fact]
     public void TwoAccountsOfTheSameProviderGetTwoDifferentTrayLines()
     {
         var tiles = new[]

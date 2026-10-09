@@ -10,11 +10,14 @@ namespace AiUsage.Providers;
 /// </summary>
 internal static class ProviderSnapshots
 {
-    private static ProviderError OfflineError => new("Status_Offline_Reason", "Action_Retry");
+    private static ProviderError OfflineError => new("Status_Offline_Reason", "Action_Retry", Kind: FailureKind.Network);
 
     /// <summary>A failed read with nothing to show. Offline, the tile says so with a retry action;
-    /// online it stays silent about the cause, because the failure could be anything.</summary>
-    internal static ProviderSnapshot Unavailable(string accountKey, DateTimeOffset fetchedAt, string? skipReasonWord = null) => new(
+    /// online it names the failure only when the caller knows it (<paramref name="kind"/> and the HTTP
+    /// status behind it), because otherwise the failure could be anything.</summary>
+    internal static ProviderSnapshot Unavailable(
+        string accountKey, DateTimeOffset fetchedAt, string? skipReasonWord = null,
+        FailureKind kind = FailureKind.Other, int? httpStatus = null) => new(
         ProviderId: accountKey,
         Windows: [],
         PlanType: null,
@@ -22,7 +25,9 @@ internal static class ProviderSnapshots
         FetchedAt: fetchedAt,
         DataTimestamp: null,
         Status: ProviderStatus.Failed,
-        Error: NetworkStatus.HasInternet() ? null : OfflineError,
+        Error: NetworkStatus.HasInternet()
+            ? kind == FailureKind.Other ? null : new ProviderError("Status_Failed_Reason", "Action_Retry", Kind: kind, HttpStatus: httpStatus)
+            : OfflineError,
         SkipReasonWord: skipReasonWord);
 
     /// <summary>The offline stand-in alone: null while the machine is online, so a caller whose

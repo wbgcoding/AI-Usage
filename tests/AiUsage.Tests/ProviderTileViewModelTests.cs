@@ -19,37 +19,73 @@ public class ProviderTileViewModelTests
         return Path.Combine(repoRoot, "src", "AiUsage", "Views", "Controls", "ProviderTile.xaml");
     }
 
-    // The per-tile refresh button was folded into the provider name itself - a plain text scan over
-    // the XAML (see WindowTitleBindingTests for why not a live visual tree) proves the header's own
-    // name button is still the one wired to RefreshCommand, not silently dropped.
+    // A plain text scan over the XAML (see WindowTitleBindingTests for why not a live visual tree)
+    // proves the header's own name button opens the details and the refresh moved into the tile menu.
     [Fact]
-    public void TheHeaderNameButtonIsBoundToRefreshCommand()
+    public void TheHeaderNameButtonIsBoundToToggleDetailsCommand()
     {
         var text = File.ReadAllText(ProviderTileXamlPath());
 
-        var match = Regex.Match(text, @"<Button Style=""\{StaticResource TileNameButtonStyle\}""[^>]*Command=""\{Binding RefreshCommand\}""", RegexOptions.Singleline);
-        Assert.True(match.Success, "ProviderTile.xaml: the header name button is not bound to RefreshCommand.");
+        var match = Regex.Match(text, @"<Button Style=""\{StaticResource TileNameButtonStyle\}""[^>]*Command=""\{Binding ToggleDetailsCommand\}""", RegexOptions.Singleline);
+        Assert.True(match.Success, "ProviderTile.xaml: the header name button is not bound to ToggleDetailsCommand.");
+    }
+
+    [Fact]
+    public void TheTileMenuStartsWithRefreshThenASeparator()
+    {
+        var text = File.ReadAllText(ProviderTileXamlPath());
+
+        var match = Regex.Match(
+            text, @"<ContextMenu>\s*<MenuItem Header=""[^""]*Action\.RefreshNow\][^>]*Command=""\{Binding RefreshCommand\}""\s*/>\s*<Separator/>", RegexOptions.Singleline);
+        Assert.True(match.Success, "ProviderTile.xaml: the tile menu does not start with the refresh item and a separator.");
+    }
+
+    [Fact]
+    public void TheNameCommandTogglesTheDetailsOnlyWhileThereAreDetails()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { Diagnostics = [] }, Now);
+        Assert.False(tile.ToggleDetailsCommand.CanExecute(null));
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { Diagnostics = ["a line"] }, Now);
+        Assert.True(tile.ToggleDetailsCommand.CanExecute(null));
+        tile.ToggleDetailsCommand.Execute(null);
+        Assert.True(tile.DetailsExpanded);
+        tile.ToggleDetailsCommand.Execute(null);
+        Assert.False(tile.DetailsExpanded);
+    }
+
+    [Fact]
+    public void TheNameTooltipSaysClickForDetailsOnlyWhileThereAreDetails()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10, sourceKind: SourceKind.None) with { Diagnostics = [] }, Now);
+        Assert.DoesNotContain(loc["Tile.NameTooltip"], tile.NameTooltipText);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10, sourceKind: SourceKind.None) with { Diagnostics = ["a line"] }, Now);
+        Assert.Equal(loc["Tile.NameTooltip"], tile.NameTooltipText);
     }
 
     // The account name no longer has a dedicated header column, so the name button's tooltip is the
     // only place left that shows it - these two cases prove the composition itself (hint alone, hint
     // plus account on its own line), not just that a value exists.
     [Fact]
-    public void RefreshTooltipTextIsJustTheHintWithoutAKnownAccount()
+    public void NameTooltipTextIsEmptyWithoutDetailsAccountOrSource()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
 
-        Assert.Equal(LocalizationService.Instance["Tile.RefreshHint"], tile.RefreshTooltipText);
+        Assert.Equal("", tile.NameTooltipText);
     }
 
     [Fact]
-    public void RefreshTooltipTextAddsTheAccountOnASecondLineWhenKnown()
+    public void NameTooltipTextAddsTheAccountOnASecondLineWhenKnown()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
-        tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.None) with { AccountLabel = "Work account" }, Now);
+        tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.None) with { AccountLabel = "Work account", Diagnostics = ["a line"] }, Now);
 
-        var expected = $"{LocalizationService.Instance["Tile.RefreshHint"]}{Environment.NewLine}Work account";
-        Assert.Equal(expected, tile.RefreshTooltipText);
+        var expected = $"{LocalizationService.Instance["Tile.NameTooltip"]}{Environment.NewLine}Work account";
+        Assert.Equal(expected, tile.NameTooltipText);
     }
 
     [Fact]
@@ -59,8 +95,8 @@ public class ProviderTileViewModelTests
         var tile = new ProviderTileViewModel("claude", "Claude");
         tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.WebSession) with { AccountLabel = "Work account" }, Now);
 
-        var expected = $"{loc["Tile.RefreshHint"]}{Environment.NewLine}Work account{Environment.NewLine}Quelle: Websitzung";
-        Assert.Equal(expected, tile.RefreshTooltipText);
+        var expected = $"Work account{Environment.NewLine}Quelle: Websitzung";
+        Assert.Equal(expected, tile.NameTooltipText);
     }
 
     [Theory]
@@ -75,7 +111,7 @@ public class ProviderTileViewModelTests
             var tile = new ProviderTileViewModel("claude", "Claude");
             tile.Apply(Snapshot(ProviderStatus.NotSignedIn, sourceKind: SourceKind.None), Now);
 
-            Assert.Equal(loc["Tile.RefreshHint"], tile.RefreshTooltipText);
+            Assert.Equal("", tile.NameTooltipText);
             Assert.Equal(expectedDiagnostic, tile.SourceDiagnosticText);
         }
         finally
@@ -89,15 +125,274 @@ public class ProviderTileViewModelTests
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
         tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.LocalFile), Now);
-        Assert.EndsWith("Quelle: lokale Dateien", tile.RefreshTooltipText, StringComparison.Ordinal);
+        Assert.EndsWith("Quelle: lokale Dateien", tile.NameTooltipText, StringComparison.Ordinal);
 
         tile.Apply(Snapshot(ProviderStatus.Ok, sourceKind: SourceKind.LocalLogin), Now);
-        Assert.EndsWith("Quelle: CLI-Anmeldung", tile.RefreshTooltipText, StringComparison.Ordinal);
+        Assert.EndsWith("Quelle: CLI-Anmeldung", tile.NameTooltipText, StringComparison.Ordinal);
     }
 
     [Fact]
     public void TheTileHeaderHasNoSourceTextBlock() =>
         Assert.DoesNotContain("SourceBadgeText", File.ReadAllText(ProviderTileXamlPath()), StringComparison.Ordinal);
+
+    [Fact]
+    public void AFailedReadAfterGoodNumbersKeepsTheRowsAndFlagsLastValues()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.Single(tile.Rows);
+        Assert.Equal(42, tile.Rows[0].UsedPercent);
+        Assert.True(tile.HasNumbers);
+        Assert.False(tile.ShowPlaceholder);
+        Assert.Contains(loc.Format("State.Failed.Server.Head", "Claude"), tile.FailureNoticeText);
+        Assert.Contains("502", tile.FailureNoticeText);
+        Assert.Equal(Now, tile.LastSuccessAt);
+    }
+
+    [Fact]
+    public void LastValuesEndWithTheNextGoodSnapshot()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+        tile.Apply(FailedSnapshot(FailureKind.Timeout), Now.AddMinutes(5));
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 50) with { FetchedAt = Now.AddMinutes(10), DataTimestamp = Now.AddMinutes(10) }, Now.AddMinutes(10));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.Equal(50, tile.Rows[0].UsedPercent);
+        Assert.Equal("", tile.FailureNoticeText);
+    }
+
+    [Fact]
+    public void AFailedReadWithNoEarlierDataShowsThePlaceholder()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now);
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.True(tile.ShowPlaceholder);
+        Assert.Empty(tile.Rows);
+    }
+
+    [Fact]
+    public void AFailedReadAfterNumbersOlderThanTheStaleLimitShowsThePlaceholder()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now + ProviderFreshness.StaleAfter + TimeSpan.FromMinutes(1));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.True(tile.ShowPlaceholder);
+        Assert.Empty(tile.Rows);
+    }
+
+    [Fact]
+    public void AStaleTileKeepsItsRowsThroughAFailureToo()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Stale, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.Network), Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.Single(tile.Rows);
+        Assert.False(tile.ShowStaleNotice);
+    }
+
+    [Fact]
+    public void ANotSignedInSnapshotAfterGoodNumbersBehavesAsBefore()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now.AddMinutes(5));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.Empty(tile.Rows);
+        Assert.True(tile.ShowPlaceholder);
+    }
+
+    [Theory]
+    [InlineData(FailureKind.ServerError, true)]
+    [InlineData(FailureKind.Timeout, true)]
+    [InlineData(FailureKind.Network, false)]
+    [InlineData(FailureKind.Refused, false)]
+    [InlineData(FailureKind.Other, false)]
+    public void TheStatusLinkShowsOnlyForServerErrorsAndTimeouts(FailureKind kind, bool shown)
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.Apply(FailedSnapshot(kind, kind == FailureKind.ServerError ? 502 : null), Now);
+
+        Assert.Equal(shown, tile.ShowStatusLink);
+        Assert.Equal(LocalizationService.Instance.Format("Tile.CheckStatus", "Claude"), tile.StatusLinkText);
+    }
+
+    [Fact]
+    public void TheStatusLinkAlsoShowsWhileTheLastValuesStayOnShow()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.Timeout), Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.True(tile.ShowStatusLink);
+        Assert.True(tile.ShowFailureLink);
+    }
+
+    [Fact]
+    public void TheStatusLinkGoesAwayWithTheFailure()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 503), Now);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now.AddMinutes(5));
+
+        Assert.False(tile.ShowStatusLink);
+    }
+
+    [Fact]
+    public void ACodexTileWithStaleLocalFileNumbersShowsTheHintAndTheWebSignInLink()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("codex", "Codex") { SupportsInAppSignIn = true };
+
+        tile.Apply(Snapshot(ProviderStatus.Stale, 42, sourceKind: SourceKind.LocalFile), Now);
+
+        Assert.Equal(loc["Tile.CodexLocalHint"], tile.ReasonText);
+        Assert.True(tile.ShowStaleNotice);
+        Assert.True(tile.ShowCodexSignInLink);
+    }
+
+    [Theory]
+    [InlineData("codex", ProviderStatus.Stale, SourceKind.WebSession)]
+    [InlineData("codex", ProviderStatus.Ok, SourceKind.LocalFile)]
+    [InlineData("claude", ProviderStatus.Stale, SourceKind.LocalFile)]
+    public void TheCodexHintShowsOnlyForCodexStaleOnLocalFiles(string providerId, ProviderStatus status, SourceKind source)
+    {
+        var tile = new ProviderTileViewModel(providerId, providerId) { SupportsInAppSignIn = true };
+
+        tile.Apply(Snapshot(status, 42, sourceKind: source), Now);
+
+        Assert.NotEqual(LocalizationService.Instance["Tile.CodexLocalHint"], tile.ReasonText);
+        Assert.False(tile.ShowCodexSignInLink);
+    }
+
+    [Fact]
+    public void TheCodexWebSignInLinkRunsTheTilesSignInAction()
+    {
+        var tile = new ProviderTileViewModel("codex", "Codex") { SupportsInAppSignIn = true };
+        tile.Apply(Snapshot(ProviderStatus.Stale, 42, sourceKind: SourceKind.LocalFile), Now);
+        var requested = 0;
+        tile.ActionRequested += (_, _) => requested++;
+
+        tile.RunActionCommand.Execute(null);
+
+        Assert.Equal(1, requested);
+    }
+
+    [Fact]
+    public void ACodexTileThatIsAlreadySignedInOnTheWebGetsNoSignInLink()
+    {
+        var tile = new ProviderTileViewModel("codex", "Codex") { SupportsInAppSignIn = true };
+        tile.MarkSignedIn(Now.AddMinutes(-1));
+
+        tile.Apply(Snapshot(ProviderStatus.Stale, 42, sourceKind: SourceKind.LocalFile), Now);
+
+        Assert.False(tile.ShowCodexSignInLink);
+    }
+
+    private static ProviderSnapshot FailedSnapshot(FailureKind kind, int? httpStatus = null, string reasonKey = "Status_Failed_Reason") =>
+        Snapshot(ProviderStatus.Failed, error: new ProviderError(reasonKey, "Action_Retry", Kind: kind, HttpStatus: httpStatus))
+            with { Windows = [], SourceKind = SourceKind.None, DataTimestamp = null };
+
+    [Fact]
+    public void AServerErrorNamesTheProviderAndTheStatusAndOffersNoSignIn()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now);
+
+        Assert.Equal(loc.Format("State.Failed.Server.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.Server.Reason", "Claude", 502), tile.ReasonText);
+        Assert.Contains("502", tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+        Assert.False(tile.ShowHeaderSignIn);
+    }
+
+    [Fact]
+    public void ATimeoutAndALostConnectionHaveTheirOwnWordingAndNoSignIn()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Timeout), Now);
+        Assert.Equal(loc.Format("State.Failed.Timeout.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc["State.Failed.Timeout.Reason"], tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+
+        tile.Apply(FailedSnapshot(FailureKind.Network), Now);
+        Assert.Equal(loc["State.Failed.Network.Head"], tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.Network.Reason", "Claude"), tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ARefusedRequestNamesTheStatusButKeepsTheSignInButton()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Refused, 404), Now);
+
+        Assert.Equal(loc.Format("State.Failed.Refused.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.Refused.Reason", "Claude", 404), tile.ReasonText);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void AnUnknownFailureKeepsTheGenericWordingAndTheSignInButton()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Other), Now);
+
+        Assert.Equal(loc["State.Failed.Head"], tile.HeadlineText);
+        Assert.Equal(loc["State.Failed.Reason"], tile.ReasonText);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ANetworkFailureKeepsAMoreSpecificReasonTheProviderGave()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.Apply(FailedSnapshot(FailureKind.Network, reasonKey: "Status_Offline_Reason"), Now);
+
+        Assert.Equal(loc["State.Failed.Network.Head"], tile.HeadlineText);
+        Assert.Equal(loc["State.Offline.Reason"], tile.ReasonText);
+    }
+
+    [Fact]
+    public void NotSignedInStillShowsTheSignInButton()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now);
+
+        Assert.True(tile.ShowSignIn);
+    }
 
     private static ProviderSnapshot Snapshot(ProviderStatus status, double percent = 0, ProviderError? error = null, SourceKind sourceKind = SourceKind.LocalFile) =>
         new(
@@ -109,6 +404,72 @@ public class ProviderTileViewModelTests
             DataTimestamp: Now,
             Status: status,
             Error: error);
+
+    [Fact]
+    public void TheHeaderShowsTheOwnAccountNameAfterTheProviderName()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        Assert.Equal("Claude", tile.HeaderDisplayName);
+        Assert.Equal("", tile.TitleAccountSuffix);
+
+        tile.AccountName = "Work";
+
+        Assert.Equal("Claude · Work", tile.HeaderDisplayName);
+        Assert.Equal("Claude", tile.TitleName);
+        Assert.Equal(" · Work", tile.TitleAccountSuffix);
+
+        tile.AccountName = "";
+        Assert.Equal("Claude", tile.HeaderDisplayName);
+        Assert.Equal("Claude", tile.TitleName);
+    }
+
+    [Fact]
+    public void AnOwnNameReplacesTheNumberOrLoginOfAFurtherAccount()
+    {
+        var tile = new ProviderTileViewModel("claude#2", "Claude", "claude");
+        Assert.Equal("Claude (2)", tile.HeaderDisplayName);
+
+        tile.AccountName = "Home";
+
+        Assert.Equal("Claude · Home", tile.HeaderDisplayName);
+    }
+
+    [Fact]
+    public void TheNameForNotificationsAndTheTrayPutsTheAccountNameInBrackets()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        Assert.Equal("Claude", tile.NotificationName);
+        Assert.Equal("Claude", tile.TrayName);
+
+        tile.AccountName = "Work";
+
+        Assert.Equal("Claude (Work)", tile.NotificationName);
+        Assert.Equal("Claude (Work)", tile.TrayName);
+    }
+
+    [Fact]
+    public void TheOwnAccountNameIsTrimmedAndCutToTwentyFourCharacters()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+
+        tile.AccountName = "  " + new string('x', 25) + "  ";
+
+        Assert.Equal(new string('x', 24), tile.AccountName);
+        Assert.Equal(24, ProviderSettings.MaxAccountNameLength);
+    }
+
+    [Fact]
+    public void ChangingTheOwnAccountNameIsReportedOnceAndNotWhenItStaysTheSame()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var reported = new List<string>();
+        tile.AccountNameChanged += (_, value) => reported.Add(value);
+
+        tile.AccountName = "Work";
+        tile.AccountName = " Work ";
+
+        Assert.Equal(["Work"], reported);
+    }
 
     [Theory]
     [InlineData(0, UsageLevel.Ok)]
@@ -136,6 +497,74 @@ public class ProviderTileViewModelTests
         tile.Apply(Snapshot(ProviderStatus.Ok, percent), Now);
 
         Assert.Equal(expected, tile.IsLimitReached);
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(5, true)]
+    public void HasChartDataNeedsTwoReadingsInOneSeries(int count, bool expected)
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        var points = Enumerable.Range(0, count)
+            .Select(i => new HistoryPoint(1, Now.AddMinutes(i), WindowKind.FiveHour, 10 + i, null)).ToArray();
+
+        tile.UpdateHistory(points, [], Now.AddDays(-1), Now);
+
+        Assert.Equal(expected, tile.HasChartData);
+        Assert.Equal(expected, tile.ShowChartBox);
+        Assert.Equal(!expected, tile.ShowChartHint);
+    }
+
+    [Fact]
+    public void OneReadingInEachSeriesIsStillNotAChart()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        var points = new[]
+        {
+            new HistoryPoint(1, Now, WindowKind.FiveHour, 10, null),
+            new HistoryPoint(1, Now, WindowKind.Weekly, 20, null),
+        };
+
+        tile.UpdateHistory(points, [], Now.AddDays(-1), Now);
+
+        Assert.False(tile.HasChartData);
+    }
+
+    [Fact]
+    public void NeitherTheChartBoxNorTheHintShowsWhenTheChartIsOffOrTheTileIsMini()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        Assert.True(tile.ShowChartHint);
+
+        tile.ChartHidden = true;
+        Assert.False(tile.ShowChartHint);
+        Assert.False(tile.ShowChartBox);
+
+        tile.ChartHidden = false;
+        tile.Density = TileDensity.Mini;
+        Assert.False(tile.ShowChartHint);
+    }
+
+    [Fact]
+    public void TheEmptyChartTextNamesTheTwoReadingsRule()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            Assert.Equal("The chart appears once there are two readings.", loc["Chart.Empty"]);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+
+        Assert.Equal("Das Diagramm erscheint ab zwei Messpunkten.", loc["Chart.Empty"]);
     }
 
     [Fact]

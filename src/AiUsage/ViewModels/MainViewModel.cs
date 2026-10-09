@@ -59,6 +59,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     // still short of the floor when its snapshot lands is re-checked on every later Tick instead of a
     // real timer, so this stays deterministically testable against the injected TimeProvider.
     private static readonly TimeSpan MinFetchingDuration = TimeSpan.FromMilliseconds(500);
+
+    // A fetch the user asked for keeps its turning icon a little longer, so the click visibly did something.
+    private static readonly TimeSpan MinManualSpinnerDuration = TimeSpan.FromMilliseconds(600);
+
+    // Providers whose next started fetch is one the user asked for; filled only around the scheduler
+    // call that starts it (the start event is raised synchronously inside that call).
+    private readonly HashSet<string> _userStartedFetches = new();
     private readonly Dictionary<string, DateTimeOffset> _fetchStartedAt = new();
     private readonly HashSet<string> _pendingFetchClear = new();
 
@@ -310,6 +317,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private string densityMode;
 
+    /// <summary>"Custom" or "ByUsage" (see <see cref="Models.AppSettings.TileOrderMode"/>).</summary>
+    [ObservableProperty]
+    private string tileOrderMode;
+
+    partial void OnTileOrderModeChanged(string value)
+    {
+        _settings.TileOrderMode = value;
+        ApplyTileOrder();
+        _settingsStore.RequestSave(_settings);
+    }
+
     [ObservableProperty]
     private bool heightAutomatic;
 
@@ -429,6 +447,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Update = new UpdateNoticeViewModel(settings, settingsStore.RequestSave);
         layout = settings.Layout;
         densityMode = settings.TileDensity;
+        tileOrderMode = settings.TileOrderMode;
         heightAutomatic = CurrentSizes.Height is null;
         widthAutomatic = !CurrentSizes.WidthIsManual;
         alwaysOnTop = settings.AlwaysOnTop;
@@ -498,12 +517,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ChartHidden = providerSettings?.ChartHidden ?? false,
             AttentionDisabled = providerSettings?.AttentionDisabled ?? false,
             HiddenWindows = [.. providerSettings?.HiddenWindows ?? []],
+            AccountName = providerSettings?.AccountName ?? "",
         };
         tile.HideRequested += (_, _) => ToggleHidden(tile.ProviderId);
         tile.RefreshRequested += (_, _) => RefreshProvider(tile.ProviderId);
         tile.ShowFiveHourChanged += (_, value) => SetShowFiveHour(tile.ProviderId, value);
         tile.ShowWeeklyChanged += (_, value) => SetShowWeekly(tile.ProviderId, value);
         tile.ChartHiddenChanged += (_, value) => SetChartHidden(tile.ProviderId, value);
+        tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
         tile.WindowToggles.CollectionChanged += (_, _) =>
@@ -526,6 +547,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // joins at the very end of the on-screen order too - RebuildDisplayRowsInitial (constructor
         // only) then re-sorts everything, including this one, by each row's own persisted Order.
         DisplayRows.Add(tile);
+        _ownRows.Add(tile);
     }
 
     /// <summary>Builds the widget's initial on-screen order from scratch: every row currently in <see
@@ -543,8 +565,47 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         entries.Add((ResolveRowOrder(AppSettings.DayGridTileId), DayGridTile));
 
         DisplayRows.Clear();
+        _ownRows.Clear();
         foreach (var (_, row) in entries.OrderBy(entry => entry.Order))
+        {
             DisplayRows.Add(row);
+            _ownRows.Add(row);
+        }
+    }
+
+    /// <summary>The rows in the person's own order. <see cref="DisplayRows"/> equals this in "Custom"
+    /// mode; in "ByUsage" mode it is this list re-arranged by color level. The arrows, the stored
+    /// <see cref="ProviderSettings.Order"/> and the move eligibility always work on this list.</summary>
+    private readonly List<object> _ownRows = [];
+
+    private bool OrderedByUsage => string.Equals(TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The own order with the provider tiles re-ordered by <see
+    /// cref="ProviderTileViewModel.UrgencyLevel"/>, highest first. The sort is stable, so tiles of one
+    /// level keep their own order, and the day-grid tile stays in the slot it has in the own order.</summary>
+    internal static List<object> ArrangeByUrgency(IReadOnlyList<object> ownRows)
+    {
+        var result = ownRows.ToList();
+        var slots = Enumerable.Range(0, result.Count).Where(i => result[i] is ProviderTileViewModel).ToList();
+        var sorted = slots.Select(i => (ProviderTileViewModel)result[i]).OrderByDescending(tile => tile.UrgencyLevel).ToList();
+        for (var k = 0; k < slots.Count; k++)
+            result[slots[k]] = sorted[k];
+        return result;
+    }
+
+    /// <summary>Brings <see cref="DisplayRows"/> in line with the chosen mode and the tiles' current
+    /// color levels, moving only the rows that are out of place. The result depends on the levels
+    /// alone, so a percentage change inside one level never moves anything. Called when the mode or a
+    /// reading changes and once a second from <see cref="Tick"/> (windows reset, filters change).</summary>
+    internal void ApplyTileOrder()
+    {
+        var target = OrderedByUsage ? ArrangeByUrgency(_ownRows) : _ownRows;
+        for (var i = 0; i < target.Count; i++)
+        {
+            if (ReferenceEquals(DisplayRows[i], target[i]))
+                continue;
+            DisplayRows.Move(DisplayRows.IndexOf(target[i]), i);
+        }
     }
 
     /// <summary>A row with an explicit settings entry sorts by its own <see
@@ -630,10 +691,27 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             TryClearFetching(providerId);
         _scheduler.Tick(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWeekTokens(now);
+        if (OrderedByUsage)
+            ApplyTileOrder();
     }
 
-    /// <summary>F5 / tray "refresh now" - bypasses every provider's remaining wait once.</summary>
-    public void RefreshNow() => _scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+    /// <summary>F5 / tray "refresh now" - bypasses every provider's remaining wait once.
+    /// <paramref name="userStarted"/> is true for the entry points a person triggers (F5, the tray item,
+    /// the title bar menu), which show the turning icon on every tile that fetches; the start-up and
+    /// window-show refreshes leave it false.</summary>
+    public void RefreshNow(bool userStarted = false)
+    {
+        if (userStarted)
+            _userStartedFetches.UnionWith(Tiles.Select(tile => tile.ProviderId));
+        try
+        {
+            _scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+        }
+        finally
+        {
+            _userStartedFetches.Clear();
+        }
+    }
 
     /// <summary>Queries <see cref="_statsStore"/> for every tile whose real provider <see
     /// cref="ProviderCoverage.HasLocalTokenData"/> says has a local token index, at most once per
@@ -704,7 +782,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>One tile's own refresh button - bypasses only that provider's remaining wait, every
     /// other provider's schedule stays untouched.</summary>
     [RelayCommand]
-    private void RefreshProvider(string providerId) => _scheduler.RefreshNow(providerId, _lifetimeCts.Token);
+    private void RefreshProvider(string providerId)
+    {
+        _userStartedFetches.Add(providerId);
+        try
+        {
+            _scheduler.RefreshNow(providerId, _lifetimeCts.Token);
+        }
+        finally
+        {
+            _userStartedFetches.Clear();
+        }
+    }
 
     /// <summary>A sign-in window that ran its whole flow through and landed back on the provider's
     /// own site is proof of a session, whatever the next read manages to do with it - without this
@@ -771,22 +860,30 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (oldIndex < 0)
             return;
         var newIndex = oldIndex + direction;
-        if (newIndex < 0 || newIndex >= DisplayRows.Count)
+        if (newIndex < 0 || newIndex >= _ownRows.Count)
             return;
 
-        if (DisplayRows[oldIndex] is ProviderTileViewModel movingTile && DisplayRows[newIndex] is ProviderTileViewModel neighborTile)
+        if (_ownRows[oldIndex] is ProviderTileViewModel movingTile && _ownRows[newIndex] is ProviderTileViewModel neighborTile)
             Tiles.Move(Tiles.IndexOf(movingTile), Tiles.IndexOf(neighborTile));
 
-        DisplayRows.Move(oldIndex, newIndex);
+        MoveOwnRow(oldIndex, newIndex);
         RenumberRowOrders();
+        ApplyTileOrder();
         RefreshMoveEligibility();
         _settingsStore.RequestSave(_settings);
     }
 
+    private void MoveOwnRow(int oldIndex, int newIndex)
+    {
+        var row = _ownRows[oldIndex];
+        _ownRows.RemoveAt(oldIndex);
+        _ownRows.Insert(newIndex, row);
+    }
+
     private int IndexOfRow(string id)
     {
-        for (var i = 0; i < DisplayRows.Count; i++)
-            if (RowId(DisplayRows[i]) == id)
+        for (var i = 0; i < _ownRows.Count; i++)
+            if (RowId(_ownRows[i]) == id)
                 return i;
         return -1;
     }
@@ -806,8 +903,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// disk.</summary>
     private void RenumberRowOrders()
     {
-        for (var i = 0; i < DisplayRows.Count; i++)
-            GetOrCreateProviderSettings(RowId(DisplayRows[i])).Order = i;
+        for (var i = 0; i < _ownRows.Count; i++)
+            GetOrCreateProviderSettings(RowId(_ownRows[i])).Order = i;
     }
 
     [RelayCommand]
@@ -858,8 +955,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var oldIndex = IndexOfRow(providerId);
             if (oldIndex > 0)
             {
-                DisplayRows.Move(oldIndex, 0);
+                MoveOwnRow(oldIndex, 0);
                 RenumberRowOrders();
+                ApplyTileOrder();
                 RefreshMoveEligibility();
             }
         }
@@ -881,6 +979,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void SetAttentionDisabled(string providerId, bool value)
     {
         GetOrCreateProviderSettings(providerId).AttentionDisabled = value;
+        _settingsStore.RequestSave(_settings);
+    }
+
+    private void SetAccountName(string providerId, string value)
+    {
+        GetOrCreateProviderSettings(providerId).AccountName = value;
         _settingsStore.RequestSave(_settings);
     }
 
@@ -987,7 +1091,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             tile.Apply(
                 snapshot, now, ResolvedThresholds(snapshot.ProviderId), _settings.ShowAttentionMark,
                 refreshInterval: TimeSpan.FromSeconds(_settings.RefreshSeconds));
-            var displayName = tile.DisplayName;
+            if (OrderedByUsage)
+                ApplyTileOrder();
+            var displayName = tile.NotificationName;
 
             // A tile's own master switch (ProviderSettings.NotificationsEnabled) gates both streams;
             // its own reset switch sits underneath that AND the global NotifyOnReset switch, so either
@@ -1026,12 +1132,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     // off the UI thread the same way OnSnapshotReady can, hence the same dispatcher check.
     private void OnFetchStarted(string providerId)
     {
+        // Read here, on the calling thread: only the scheduler call a person triggered has it set.
+        var userStarted = _userStartedFetches.Contains(providerId);
+
         void Mark()
         {
             _fetchStartedAt[providerId] = _timeProvider.GetUtcNow();
             _pendingFetchClear.Remove(providerId);
             if (_tilesById.TryGetValue(providerId, out var tile))
+            {
                 tile.IsFetching = true;
+                if (userStarted)
+                    tile.ShowRefreshSpinner = true;
+            }
         }
 
         var dispatcher = Application.Current?.Dispatcher;
@@ -1071,9 +1184,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         var startedAt = _fetchStartedAt.TryGetValue(providerId, out var at) ? at : _timeProvider.GetUtcNow();
-        if (_timeProvider.GetUtcNow() - startedAt >= MinFetchingDuration)
+        var minDuration = tile.ShowRefreshSpinner ? MinManualSpinnerDuration : MinFetchingDuration;
+        if (_timeProvider.GetUtcNow() - startedAt >= minDuration)
         {
             tile.IsFetching = false;
+            tile.ShowRefreshSpinner = false;
             _pendingFetchClear.Remove(providerId);
         }
         else
@@ -1389,12 +1504,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// disabled.</summary>
     private void RefreshMoveEligibility()
     {
-        for (var i = 0; i < DisplayRows.Count; i++)
+        for (var i = 0; i < _ownRows.Count; i++)
         {
-            if (DisplayRows[i] is not ITileRow row)
+            if (_ownRows[i] is not ITileRow row)
                 continue;
             row.CanMoveUp = i > 0;
-            row.CanMoveDown = i < DisplayRows.Count - 1;
+            row.CanMoveDown = i < _ownRows.Count - 1;
         }
     }
 

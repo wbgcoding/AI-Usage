@@ -119,9 +119,57 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// cref="ProviderId"/>'s own "#2"/"#3"/... suffix - two Claude tiles must never show the same
     /// plain "Claude" with nothing to tell them apart, and a third account must not look like a
     /// second one.</summary>
-    public string HeaderDisplayName => !IsExtraAccount
-        ? DisplayName
-        : AccountText is { Length: > 0 } label ? $"{DisplayName} · {label}" : $"{DisplayName} ({AccountSuffixNumber})";
+    public string HeaderDisplayName => HasOwnAccountName
+        ? $"{DisplayName} · {AccountName}"
+        : !IsExtraAccount
+            ? DisplayName
+            : AccountText is { Length: > 0 } label ? $"{DisplayName} · {label}" : $"{DisplayName} ({AccountSuffixNumber})";
+
+    private string _accountName = "";
+
+    /// <summary>The person's own name for this account (see <see cref="ProviderSettings.AccountName"/>),
+    /// already trimmed and cut to the allowed length. Empty = none, and the header, tray and
+    /// notification names stay as they were without it.</summary>
+    public string AccountName
+    {
+        get => _accountName;
+        set
+        {
+            var normalized = ProviderSettings.NormalizeAccountName(value);
+            if (normalized == _accountName)
+                return;
+            _accountName = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasOwnAccountName));
+            OnPropertyChanged(nameof(HeaderDisplayName));
+            OnPropertyChanged(nameof(TitleName));
+            OnPropertyChanged(nameof(TitleAccountSuffix));
+            OnPropertyChanged(nameof(TrayName));
+            OnPropertyChanged(nameof(NotificationName));
+            OnPropertyChanged(nameof(ToggleVisibilityActionText));
+            AccountNameChanged?.Invoke(this, normalized);
+        }
+    }
+
+    /// <summary>Raised when the own account name changed, so MainViewModel can persist it (same
+    /// split as <see cref="ChartHiddenChanged"/>).</summary>
+    public event EventHandler<string>? AccountNameChanged;
+
+    public bool HasOwnAccountName => _accountName.Length > 0;
+
+    /// <summary>The first part of the tile's title: the provider name when an own account name follows
+    /// it in its own, quieter run (<see cref="TitleAccountSuffix"/>), else the whole header text.</summary>
+    public string TitleName => HasOwnAccountName ? DisplayName : HeaderDisplayName;
+
+    /// <summary>" · name" for the quieter run after <see cref="TitleName"/>; empty without an own name.</summary>
+    public string TitleAccountSuffix => HasOwnAccountName ? $" · {_accountName}" : "";
+
+    /// <summary>"Claude (Work)" with an own name, else the same header text as before; used by the
+    /// tray tooltip.</summary>
+    public string TrayName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : HeaderDisplayName;
+
+    /// <summary>"Claude (Work)" with an own name, else the plain provider name; used by notifications.</summary>
+    public string NotificationName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : DisplayName;
 
     /// <summary>What a screen reader reads for the tile's list item, which has no name of its own
     /// and therefore falls back to this - the type name until now.</summary>
@@ -176,27 +224,30 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// documents for user paths.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HeaderDisplayName))]
+    [NotifyPropertyChangedFor(nameof(TitleName))]
+    [NotifyPropertyChangedFor(nameof(TrayName))]
     [NotifyPropertyChangedFor(nameof(ToggleVisibilityActionText))]
     [NotifyPropertyChangedFor(nameof(SettingsRowText))]
-    [NotifyPropertyChangedFor(nameof(RefreshTooltipText))]
+    [NotifyPropertyChangedFor(nameof(NameTooltipText))]
     private string? accountText;
 
-    /// <summary>The header's own name button doubles as the refresh trigger (see
-    /// <c>TileNameButtonStyle</c> in ProviderTile.xaml) - its tooltip carries the refresh hint always,
-    /// plus the known account name on its own second line, since the account's dedicated column was
-    /// removed to give the name more room, and the data source on a further line once one answered.
-    /// Nothing known -> the hint alone, no empty line.</summary>
-    public string RefreshTooltipText
+    /// <summary>The header's name button opens the tile's details (see <c>TileNameButtonStyle</c> in
+    /// ProviderTile.xaml) - its tooltip says so while there are details to open, then names the known
+    /// account on its own line (the account has no column of its own, to give the name more room) and
+    /// the data source on a further line once one answered. Nothing to say -> empty, no tooltip.</summary>
+    public string NameTooltipText
     {
         get
         {
             var loc = LocalizationService.Instance;
-            var text = loc["Tile.RefreshHint"];
+            var lines = new List<string>();
+            if (HasDiagnostics)
+                lines.Add(loc["Tile.NameTooltip"]);
             if (AccountText is { Length: > 0 } label)
-                text += Environment.NewLine + label;
+                lines.Add(label);
             if (HasSource)
-                text += Environment.NewLine + loc.Format("Tile.SourceTip", SourceBadgeText);
-            return text;
+                lines.Add(loc.Format("Tile.SourceTip", SourceBadgeText));
+            return string.Join(Environment.NewLine, lines);
         }
     }
 
@@ -258,13 +309,13 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SourceDiagnosticText))]
-    [NotifyPropertyChangedFor(nameof(RefreshTooltipText))]
+    [NotifyPropertyChangedFor(nameof(NameTooltipText))]
     private string sourceBadgeText = "";
 
     /// <summary>Whether the latest answer came from any source at all; a tile with nothing to show yet
     /// has none, and its source line would only read "not connected" beside the call to action.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RefreshTooltipText))]
+    [NotifyPropertyChangedFor(nameof(NameTooltipText))]
     private bool hasSource;
 
     /// <summary>A plain, stable word naming why this tile's primary read route was skipped instead of
@@ -287,8 +338,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(HasNumbers))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
+    [NotifyPropertyChangedFor(nameof(DimLastValues))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
     [NotifyPropertyChangedFor(nameof(ShowLastUpdated))]
@@ -299,7 +354,50 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     private SignInState signInState = SignInState.Unknown;
+
+    /// <summary>What kind of failure the tile's current snapshot is, <see cref="Models.FailureKind.Other"/>
+    /// for anything that is not a failed read.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowStatusLink))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
+    private FailureKind failureKind;
+
+    /// <summary>True while a fetch the user started (tile menu, F5, tray, title bar menu) runs for this
+    /// tile, for at least a short minimum so it can be seen; automatic fetches never set it. Drives the
+    /// small turning icon next to the name.</summary>
+    [ObservableProperty]
+    private bool showRefreshSpinner;
+
+    /// <summary>True while a failed fetch is on the tile but the last good rows and chart are still
+    /// shown (dimmed), with <see cref="FailureNoticeText"/> as one muted line above them. The next Ok or
+    /// Stale snapshot clears it, and so does any other status.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
+    [NotifyPropertyChangedFor(nameof(DimLastValues))]
+    [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
+    private bool isShowingLastValues;
+
+    /// <summary>The failed read's headline and reason as one line, shown while <see cref="IsShowingLastValues"/>.</summary>
+    [ObservableProperty]
+    private string failureNoticeText = "";
+
+    public bool ShowFailureNotice => IsShowingLastValues && !IsMini;
+
+    /// <summary>The status page link under the failure line that sits above the last values.</summary>
+    public bool ShowFailureLink => ShowFailureNotice && ShowStatusLink;
+
+    /// <summary>Rows and chart dim for last values on their own only when the stale look does not
+    /// already dim the whole body.</summary>
+    public bool DimLastValues => IsShowingLastValues && !IsStale;
+
+    /// <summary>The failed snapshot whose texts <see cref="FailureNoticeText"/> shows; null otherwise.</summary>
+    private ProviderSnapshot? _keptFailure;
 
     [ObservableProperty]
     private string headlineText = "";
@@ -320,8 +418,14 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowHeader))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowStaleNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
+    [NotifyPropertyChangedFor(nameof(ShowFailureLink))]
+    [NotifyPropertyChangedFor(nameof(ShowChartMenuItem))]
     [NotifyPropertyChangedFor(nameof(ShowMiniRows))]
     [NotifyPropertyChangedFor(nameof(ShowMiniHeadline))]
     [NotifyPropertyChangedFor(nameof(ShowLastUpdated))]
@@ -334,7 +438,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     [NotifyPropertyChangedFor(nameof(ChartShown))]
+    [NotifyPropertyChangedFor(nameof(ChartMenuHeader))]
     private bool chartHidden;
 
     /// <summary>True when the "agent is waiting" mark is switched off for this tile alone.</summary>
@@ -369,6 +476,17 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         get => !ChartHidden;
         set => ChartHidden = !value;
     }
+
+    /// <summary>The tile menu's chart entry: "Hide chart" while the chart shows, "Show chart" once hidden.</summary>
+    public string ChartMenuHeader => LocalizationService.Instance[ChartHidden ? "Tile.Menu.ShowChart" : "Tile.Menu.HideChart"];
+
+    /// <summary>The chart entry only makes sense where a chart can show at all: Full density.</summary>
+    public bool ShowChartMenuItem => Density == TileDensity.Full;
+
+    /// <summary>The tile menu's chart entry flips the same switch the settings check box does, so the
+    /// choice persists through <see cref="ChartHiddenChanged"/> and the check box follows.</summary>
+    [RelayCommand]
+    private void ToggleChart() => ChartShown = ChartHidden;
 
     /// <summary>Raised when the chart of this tile is switched on or off, so MainViewModel can
     /// persist the choice (same split as <see cref="ShowFiveHourChanged"/>).</summary>
@@ -542,10 +660,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChartSummaryText))]
+    [NotifyPropertyChangedFor(nameof(HasChartData))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     private IReadOnlyList<HistoryChart.ChartPoint> fiveHourValues = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChartSummaryText))]
+    [NotifyPropertyChangedFor(nameof(HasChartData))]
+    [NotifyPropertyChangedFor(nameof(ShowChartBox))]
+    [NotifyPropertyChangedFor(nameof(ShowChartHint))]
     private IReadOnlyList<HistoryChart.ChartPoint> weeklyValues = [];
 
     /// <summary>The chart's first-slot legend text - normally "5 hours", but a provider with no
@@ -604,8 +728,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// Once one has landed, the button shows whenever the tile is not known to be signed in and has
     /// no numbers to show - a read that fails for its own reasons must still leave a way in, or a
     /// provider that cannot even tell signed-out apart from broken strands the user on a tile that
-    /// only ever says "failed".</summary>
+    /// only ever says "failed". A failure that is plainly not about the sign-in (the server's own
+    /// error, no answer, no connection) never shows it.</summary>
     public bool ShowSignIn => SupportsSignOut
+        && !ErrorPresenter.IsNotASignInProblem(FailureKind)
         && SignInState != SignInState.SignedIn
         && (SignInState == SignInState.SignedOut || (_lastSnapshot is not null && _lastSnapshot.Windows.Count == 0));
 
@@ -632,9 +758,19 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     public bool ShowRows => HasNumbers && !IsMini;
 
-    public bool ShowStaleNotice => IsStale && !IsMini;
+    public bool ShowStaleNotice => IsStale && !IsMini && !IsShowingLastValues;
 
     public bool ShowDiagram => HasNumbers && Density == TileDensity.Full && !ChartHidden;
+
+    /// <summary>Whether the chart in its current range has two readings or more in at least one
+    /// series - the least a line needs.</summary>
+    public bool HasChartData => FiveHourValues.Count >= 2 || WeeklyValues.Count >= 2;
+
+    /// <summary>The bordered chart box: only once there is something to draw.</summary>
+    public bool ShowChartBox => ShowDiagram && HasChartData;
+
+    /// <summary>The one muted line standing in for the chart until it has two readings.</summary>
+    public bool ShowChartHint => ShowDiagram && !HasChartData;
 
     public bool ShowPlaceholder => !HasNumbers && !IsMini;
 
@@ -647,6 +783,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// warns about it. Re-raised whenever rows are applied or updated, since it depends on the whole
     /// collection rather than any single observable property.</summary>
     public bool IsLimitReached => Rows.Any(r => r.UsedPercent >= 99.5);
+
+    /// <summary>The highest color level among the windows this tile shows; what the "order by usage"
+    /// mode sorts by. A tile without windows counts as normal.</summary>
+    public UsageLevel UrgencyLevel => Rows.Select(r => r.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
 
     /// <summary>Wired up by the eye-menu/visibility feature once it exists - this tile only raises intent.</summary>
     public event EventHandler? HideRequested;
@@ -724,7 +864,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [RelayCommand]
     private void SignOut() => SignOutRequested?.Invoke(this, EventArgs.Empty);
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasDiagnostics))]
     private void ToggleDetails() => DetailsExpanded = !DetailsExpanded;
 
     /// <summary>Ticks off the currently shown wait: remembers its <see
@@ -758,9 +898,35 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [RelayCommand(CanExecute = nameof(CanOpenUsagePage))]
     private void OpenUsagePage()
     {
-        if (ProviderLinks.UsagePage(RealProviderId) is not { } uri)
-            return;
+        if (ProviderLinks.UsagePage(RealProviderId) is { } uri)
+            OpenInBrowser(uri);
+    }
 
+    /// <summary>Whether the failure on the tile is one the provider's own status page can explain:
+    /// the server answered with an error or did not answer. Also true while the last good values stay
+    /// on show under the failure line.</summary>
+    public bool ShowStatusLink => FailureKind is FailureKind.ServerError or FailureKind.Timeout
+        && ProviderLinks.StatusPage(RealProviderId) is not null;
+
+    /// <summary>True on Codex's stale tile that reads the local files only and has no web session yet:
+    /// next to the hint, a link starts the web sign-in for live values.</summary>
+    public bool ShowCodexSignInLink => _codexLocalHint && SignInState != SignInState.SignedIn && ShowStaleNotice;
+
+    private bool _codexLocalHint;
+
+    /// <summary>"Check Claude status" - the label of the status page link.</summary>
+    public string StatusLinkText => LocalizationService.Instance.Format("Tile.CheckStatus", DisplayName);
+
+    /// <summary>Opens the provider's status page in the system browser.</summary>
+    [RelayCommand]
+    private void OpenStatusPage()
+    {
+        if (ProviderLinks.StatusPage(RealProviderId) is { } uri)
+            OpenInBrowser(uri);
+    }
+
+    private static void OpenInBrowser(Uri uri)
+    {
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
@@ -778,10 +944,15 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// it the 24h <see cref="IsSilent"/> proof - a full day into the future with no fetch involved.</summary>
     public void RefreshLocalizedText()
     {
+        var keptFailure = _keptFailure;
         if (_lastSnapshot is { } snapshot)
             Apply(snapshot, DateTimeOffset.Now, _lastThresholds, _lastShowAttentionMark, advanceSilenceClock: false, refreshInterval: _lastRefreshInterval);
+        if (keptFailure is not null)
+            ShowKeptFailure(keptFailure);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
-        OnPropertyChanged(nameof(RefreshTooltipText));
+        OnPropertyChanged(nameof(StatusLinkText));
+        OnPropertyChanged(nameof(ChartMenuHeader));
+        OnPropertyChanged(nameof(NameTooltipText));
         OnPropertyChanged(nameof(SettingsRowText));
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
@@ -808,6 +979,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (staleSignedOut && snapshot.Windows.Count == 0 && snapshot.Status == ProviderStatus.NotSignedIn)
             return;
 
+        // A failed read after good numbers keeps those numbers on show instead of emptying the tile.
+        if (ShouldKeepLastValues(snapshot, now))
+        {
+            ShowKeptFailure(snapshot);
+            return;
+        }
+
+        _keptFailure = null;
+        IsShowingLastValues = false;
+        FailureNoticeText = "";
         _lastSnapshot = snapshot;
         _lastThresholds = thresholds;
         if (!staleSignedOut)
@@ -866,9 +1047,13 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             LastSourceKind = null;
         SkipReasonWord = snapshot.SkipReasonWord;
 
-        var (headlineKey, reasonKey, actionKey) = ErrorPresenter.Describe(snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn);
-        HeadlineText = StatusTextMap.Resolve(headlineKey);
-        ReasonText = StatusTextMap.ResolveReason(reasonKey, snapshot.Error);
+        var (headlineKey, reasonKey, actionKey) = ErrorPresenter.Describe(
+            snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn, RealProviderId);
+        _codexLocalHint = reasonKey == ErrorPresenter.CodexLocalReason;
+        OnPropertyChanged(nameof(ShowCodexSignInLink));
+        FailureKind = snapshot.Status == ProviderStatus.Failed ? snapshot.Error?.Kind ?? FailureKind.Other : FailureKind.Other;
+        HeadlineText = StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus);
+        ReasonText = StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);
         _actionKey = actionKey;
         ActionLabelText = actionKey is null ? null : StatusTextMap.Resolve(actionKey);
         if (snapshot.DataTimestamp is not null)
@@ -889,12 +1074,35 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (Diagnostics.Count == 0)
             DetailsExpanded = false;
         OnPropertyChanged(nameof(HasDiagnostics));
+        OnPropertyChanged(nameof(NameTooltipText));
+        ToggleDetailsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(DiagnosticsText));
         // ShowSignIn reads the landed snapshot and the row count as well as SignInState, and the
         // generated notification for SignInState only fires when that value actually changes - a
         // provider stuck at Unknown would otherwise never reveal its button.
         OnPropertyChanged(nameof(ShowSignIn));
         OnPropertyChanged(nameof(ShowHeaderSignIn));
+    }
+
+    /// <summary>Whether <paramref name="snapshot"/> is a failed read that arrives while the tile still
+    /// shows numbers from an Ok or Stale snapshot younger than <see cref="ProviderFreshness.StaleAfter"/>.</summary>
+    private bool ShouldKeepLastValues(ProviderSnapshot snapshot, DateTimeOffset now) =>
+        snapshot.Status == ProviderStatus.Failed
+        && Status is ProviderStatus.Ok or ProviderStatus.Stale
+        && Rows.Count > 0
+        && LastSuccessAt is { } lastGood
+        && now - lastGood < ProviderFreshness.StaleAfter;
+
+    /// <summary>Puts the failed read's wording in the notice line and leaves rows, chart, status and
+    /// age exactly as the last good snapshot set them.</summary>
+    private void ShowKeptFailure(ProviderSnapshot snapshot)
+    {
+        _keptFailure = snapshot;
+        FailureKind = snapshot.Error?.Kind ?? FailureKind.Other;
+        var (headlineKey, reasonKey, _) = ErrorPresenter.Describe(ProviderStatus.Failed, snapshot.Error);
+        FailureNoticeText = $"{StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus)} · "
+            + StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);
+        IsShowingLastValues = true;
     }
 
     /// <summary>Recomputes <see cref="IsSilent"/> (and, with it, <see cref="SilentReasonText"/>)

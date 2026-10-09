@@ -359,7 +359,7 @@ public sealed class RefreshScheduler
                 // whose fetch never completes must still free itself up for the next attempt instead
                 // of staying InFlight forever.
                 snapshot = new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
-                    ProviderStatus.Failed, FailedError(TimeoutDetailKey));
+                    ProviderStatus.Failed, FailedError(TimeoutDetailKey, kind: FailureKind.Timeout));
             }
             catch (TimeoutException)
             {
@@ -368,7 +368,7 @@ public sealed class RefreshScheduler
                 // eventual fault (if any) so it never surfaces as an unobserved task exception.
                 _ = fetchTask?.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
                 snapshot = new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
-                    ProviderStatus.Failed, FailedError(TimeoutDetailKey));
+                    ProviderStatus.Failed, FailedError(TimeoutDetailKey, kind: FailureKind.Timeout));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -377,8 +377,10 @@ public sealed class RefreshScheduler
                     ProviderStatus.Failed, ex switch
                     {
                         System.Net.Http.HttpRequestException { StatusCode: { } status } =>
-                            FailedError("State.Failed.Detail.Http", ((int)status).ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                        System.Net.Http.HttpRequestException => FailedError("State.Failed.Detail.Network"),
+                            FailedError(
+                                "State.Failed.Detail.Http", ((int)status).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                ProviderError.KindForStatus((int)status), (int)status),
+                        System.Net.Http.HttpRequestException => FailedError("State.Failed.Detail.Network", kind: FailureKind.Network),
                         _ => FailedError(),
                     });
             }
@@ -469,9 +471,10 @@ public sealed class RefreshScheduler
     }
 
     /// <summary>The error of a read the scheduler itself gave up on: the generic failed wording, the
-    /// retry action, and the cause when one is known.</summary>
-    private static ProviderError FailedError(string? detailKey = null, string? detailArg = null) =>
-        new("Status_Failed_Reason", "Action_Retry", detailKey, detailArg);
+    /// retry action, and the cause and its kind when known.</summary>
+    private static ProviderError FailedError(
+        string? detailKey = null, string? detailArg = null, FailureKind kind = FailureKind.Other, int? httpStatus = null) =>
+        new("Status_Failed_Reason", "Action_Retry", detailKey, detailArg, kind, httpStatus);
 
     private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 

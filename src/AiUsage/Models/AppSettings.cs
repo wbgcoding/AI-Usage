@@ -57,6 +57,11 @@ public sealed class AppSettings
 
     public string TileDensity { get; set; } = "Auto";
 
+    /// <summary>How the tiles are ordered: "Custom" keeps the order the person arranged (<see
+    /// cref="ProviderSettings.Order"/>), "ByUsage" puts the tile with the highest color level on top.
+    /// The own order stays stored either way, so switching back restores it.</summary>
+    public string TileOrderMode { get; set; } = "Custom";
+
     /// <summary>Set the first time the day-grid tile is shown. That first reveal moves it to the
     /// top; a missing settings entry cannot tell this apart, since reordering any tile writes an
     /// entry for every row, the hidden day grid included.</summary>
@@ -259,6 +264,20 @@ public sealed class ProviderSettings
     /// cref="Storage.SettingsStore.Load"/> - a value stored in settings.json always wins over that
     /// default afterward.</summary>
     public int Order { get; set; } = -1;
+
+    /// <summary>Longest own account name; anything longer is cut.</summary>
+    public const int MaxAccountNameLength = 24;
+
+    /// <summary>The person's own name for this account (for example "Work"), shown after the provider
+    /// name on the tile, in the tray tooltip and in notifications. Empty = no own name.</summary>
+    public string AccountName { get; set; } = "";
+
+    /// <summary>Trims an own account name and cuts it to <see cref="MaxAccountNameLength"/>.</summary>
+    public static string NormalizeAccountName(string? name)
+    {
+        var trimmed = (name ?? "").Trim();
+        return trimmed.Length > MaxAccountNameLength ? trimmed[..MaxAccountNameLength].TrimEnd() : trimmed;
+    }
 
     public ThresholdSettings Thresholds { get; set; } = new();
 

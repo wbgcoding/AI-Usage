@@ -32,4 +32,16 @@ public class MarkerPositionConverterTests
         Assert.Equal(0, Left(null, 100));
         Assert.Equal(0, Left(50, 0));
     }
+
+    [Fact]
+    public void ParameterWidthCentresTheMarkerOnThePercentAndKeepsItInsideTheTrack()
+    {
+        var converter = new MarkerPositionConverter();
+        double Centred(double percent) =>
+            ((Thickness)converter.Convert([percent, 100.0], typeof(Thickness), "2", CultureInfo.InvariantCulture)).Left;
+
+        Assert.Equal(49, Centred(50));
+        Assert.Equal(0, Centred(0));
+        Assert.Equal(98, Centred(100));
+    }
 }

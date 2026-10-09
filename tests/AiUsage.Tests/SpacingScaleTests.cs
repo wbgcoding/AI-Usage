@@ -32,7 +32,8 @@ public class SpacingScaleTests
     // the text lines up with the bars; the tile's bar-row gap ("0,0,0,6") and the gap above its body
     // ("0,2,0,0") are the tight in-tile spacing. The figure card grid's "0,0,-8,-8" cancels the
     // gap every card keeps to its right and below, so wrapped rows stay flush with the section
-    // edges. They are the only values this test excuses.
+    // edges. The usage bar's "0,-3" lets the pace tick stick out 3 px above and below the
+    // track. They are the only values this test excuses.
     private static readonly HashSet<(string Attribute, string Value)> AllowedExceptions =
     [
         ("Margin", "-3"),
@@ -41,6 +42,7 @@ public class SpacingScaleTests
         ("Margin", "0,0,0,6"),
         ("Margin", "0,2,0,0"),
         ("Margin", "0,0,-8,-8"),
+        ("Margin", "0,-3"),
     ];
 
     // Plain attribute form: Margin="..." or Padding="..." directly on an element.

@@ -19,6 +19,20 @@ public static class ProviderLinks
         ["copilot"] = new Uri("https://github.com/settings/copilot"),
     };
 
+    // Opened in the browser only, never requested by the app itself.
+    private static readonly IReadOnlyDictionary<string, Uri> StatusPages = new Dictionary<string, Uri>
+    {
+        ["claude"] = new Uri("https://status.anthropic.com"),
+        ["codex"] = new Uri("https://status.openai.com"),
+        ["cursor"] = new Uri("https://status.cursor.com"),
+        ["gemini"] = new Uri("https://aistudio.google.com/status"),
+        ["copilot"] = new Uri("https://www.githubstatus.com"),
+    };
+
+    /// <summary>The provider's own status page, null for an id this table does not know. Only ever
+    /// opened in the user's browser, never fetched by the app.</summary>
+    public static Uri? StatusPage(string providerId) => StatusPages.GetValueOrDefault(providerId);
+
     /// <summary>Null for a provider this table has no address for - the caller disables its menu
     /// entry rather than hiding it, so a future provider added without an entry here still explains
     /// itself instead of silently vanishing from the menu.</summary>

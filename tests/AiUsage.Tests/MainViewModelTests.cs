@@ -225,6 +225,44 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheTileMenuChartEntryFlipsTheSameSwitchTheSettingsCheckBoxUses()
+    {
+        var settings = new AppSettings();
+        var providers = new List<IUsageProvider> { new TwoWindowFakeProvider("codex"), new TwoWindowFakeProvider("claude") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now));
+        vm.Tick(Now);
+        var claude = vm.Tiles.Single(t => t.ProviderId == "claude");
+        var loc = LocalizationService.Instance;
+        Assert.Equal(loc["Tile.Menu.HideChart"], claude.ChartMenuHeader);
+
+        claude.ToggleChartCommand.Execute(null);
+
+        Assert.True(claude.ChartHidden);
+        Assert.False(claude.ChartShown); // what the settings check box shows
+        Assert.True(settings.Providers["claude"].ChartHidden);
+        Assert.Equal(loc["Tile.Menu.ShowChart"], claude.ChartMenuHeader);
+
+        claude.ToggleChartCommand.Execute(null);
+
+        Assert.False(claude.ChartHidden);
+        Assert.True(claude.ChartShown);
+        Assert.False(settings.Providers["claude"].ChartHidden);
+    }
+
+    [Fact]
+    public void TheTileMenuChartEntryIsOnlyOfferedInFullDensity()
+    {
+        var providers = new List<IUsageProvider> { new TwoWindowFakeProvider("claude") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), new AppSettings(), providers, new HistoryStore(TempDirectory(), () => Now));
+        var tile = vm.Tiles.Single();
+
+        tile.Density = TileDensity.Full;
+        Assert.True(tile.ShowChartMenuItem);
+        tile.Density = TileDensity.Mini;
+        Assert.False(tile.ShowChartMenuItem);
+    }
+
+    [Fact]
     public void SwitchingAChartOffIsSavedAndStillOffAfterTheSettingsAreLoadedAgain()
     {
         var directory = TempDirectory();
@@ -503,6 +541,61 @@ public class MainViewModelTests : IDisposable
         Assert.All(providers.Where(p => p.Id != "codex"), p => Assert.False(p.WasFetched));
     }
 
+    private (MainViewModel Vm, FakeTimeProvider Clock) BuildWithClock()
+    {
+        var clock = new FakeTimeProvider(Now);
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now), timeProvider: clock);
+        return (vm, clock);
+    }
+
+    [Fact]
+    public void AUserStartedRefreshShowsTheSpinnerForAtLeastSixHundredMilliseconds()
+    {
+        var (vm, clock) = BuildWithClock();
+        var tile = vm.Tiles.Single(t => t.ProviderId == "codex");
+
+        vm.RefreshNow(userStarted: true);
+
+        Assert.True(tile.ShowRefreshSpinner);
+        clock.Advance(TimeSpan.FromMilliseconds(599));
+        vm.Tick(Now);
+        Assert.True(tile.ShowRefreshSpinner);
+        Assert.True(tile.IsFetching);
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        vm.Tick(Now);
+        Assert.False(tile.ShowRefreshSpinner);
+        Assert.False(tile.IsFetching);
+    }
+
+    [Fact]
+    public void ARefreshFromTheTileMenuShowsTheSpinnerOnThatTileOnly()
+    {
+        var (vm, _) = BuildWithClock();
+
+        vm.Tiles.Single(t => t.ProviderId == "codex").RefreshCommand.Execute(null);
+
+        Assert.True(vm.Tiles.Single(t => t.ProviderId == "codex").ShowRefreshSpinner);
+        Assert.All(vm.Tiles.Where(t => t.ProviderId != "codex"), t => Assert.False(t.ShowRefreshSpinner));
+    }
+
+    [Fact]
+    public void AScheduledOrStartupFetchNeverShowsTheSpinner()
+    {
+        var (vm, clock) = BuildWithClock();
+        var tile = vm.Tiles.Single(t => t.ProviderId == "codex");
+
+        vm.Tick(Now);
+        Assert.True(tile.IsFetching);
+        Assert.False(tile.ShowRefreshSpinner);
+
+        clock.Advance(TimeSpan.FromMinutes(10));
+        vm.RefreshNow();
+        Assert.All(vm.Tiles, t => Assert.False(t.ShowRefreshSpinner));
+    }
+
     [Fact]
     public void IsFetchingStaysTrueForAtLeastFiveHundredMillisecondsAfterTheSnapshotArrives()
     {
@@ -578,6 +671,168 @@ public class MainViewModelTests : IDisposable
         Assert.Equal(0, settings.Providers["claude"].Order);
         Assert.Equal(1, settings.Providers["codex"].Order);
         Assert.Equal(["claude", "codex", "gemini", "copilot"], vm.Tiles.Select(t => t.ProviderId));
+    }
+
+    private static void SetPercent(ProviderTileViewModel tile, double percent) =>
+        tile.Apply(new ProviderSnapshot(
+            tile.ProviderId, [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, percent, Now.AddHours(2), 300)],
+            "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null), Now);
+
+    private (MainViewModel Vm, AppSettings Settings) BuildOrdered(string mode)
+    {
+        var settings = new AppSettings { TileOrderMode = mode };
+        settings.Providers["claude"].Order = 0;
+        settings.Providers["codex"].Order = 1;
+        settings.Providers["gemini"].Order = 2;
+        settings.Providers["copilot"].Order = 3;
+        var (vm, _, _) = Build(settings);
+        return (vm, settings);
+    }
+
+    private static IEnumerable<string> RowIds(MainViewModel vm) =>
+        vm.DisplayRows.Select(row => row is ProviderTileViewModel tile ? tile.ProviderId : "daygrid");
+
+    [Fact]
+    public void ANotificationNamesTheProviderWithTheOwnAccountNameInBrackets()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        settings.Providers["claude"].AccountName = "Work";
+        var (vm, _, _) = Build(settings);
+        var raised = new List<ThresholdNotification>();
+        vm.NotificationRaised += raised.Add;
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 95, Now.AddHours(2), 300);
+
+        foreach (var id in new[] { "claude", "codex" })
+            vm.OnSnapshotReady(new ProviderSnapshot(id, [window], "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null));
+
+        Assert.Equal("claude (Work)", raised.Single(n => n.ProviderId == "claude").ProviderDisplayName);
+        Assert.Equal("codex", raised.Single(n => n.ProviderId == "codex").ProviderDisplayName);
+    }
+
+    [Fact]
+    public void TheOwnAccountNameIsStoredInTheSettingsAndShownOnTheTile()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        settings.Providers["gemini"].AccountName = "Lab";
+        var (vm, _, _) = Build(settings);
+        Assert.Equal("Lab", vm.Tiles.Single(t => t.ProviderId == "gemini").AccountName);
+
+        vm.Tiles.Single(t => t.ProviderId == "claude").AccountName = "Work";
+
+        Assert.Equal("Work", settings.Providers["claude"].AccountName);
+    }
+
+    [Fact]
+    public void ByUsageOrderPutsARedTileAboveANormalOne()
+    {
+        var (vm, _) = BuildOrdered("ByUsage");
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "gemini"), 95);
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "codex"), 70);
+
+        vm.ApplyTileOrder();
+
+        Assert.Equal(["gemini", "codex", "claude", "copilot", "daygrid"], RowIds(vm));
+    }
+
+    [Fact]
+    public void ByUsageOrderKeepsTheOwnOrderForTilesOfOneLevel()
+    {
+        var (vm, _) = BuildOrdered("ByUsage");
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "claude"), 10);
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "codex"), 50);
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "gemini"), 20);
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "copilot"), 40);
+
+        vm.ApplyTileOrder();
+
+        Assert.Equal(["claude", "codex", "gemini", "copilot", "daygrid"], RowIds(vm));
+    }
+
+    [Fact]
+    public void ByUsageOrderIgnoresPercentChangesInsideOneLevel()
+    {
+        var (vm, _) = BuildOrdered("ByUsage");
+        var claude = vm.Tiles.Single(t => t.ProviderId == "claude");
+        var gemini = vm.Tiles.Single(t => t.ProviderId == "gemini");
+        SetPercent(claude, 65);
+        SetPercent(gemini, 70);
+        vm.ApplyTileOrder();
+        Assert.Equal(["claude", "gemini", "codex", "copilot", "daygrid"], RowIds(vm));
+        var moves = 0;
+        vm.DisplayRows.CollectionChanged += (_, _) => moves++;
+
+        // Gemini is now fuller than claude, but both stay yellow: nothing moves.
+        SetPercent(gemini, 84);
+        vm.ApplyTileOrder();
+        Assert.Equal(["claude", "gemini", "codex", "copilot", "daygrid"], RowIds(vm));
+        Assert.Equal(0, moves);
+
+        // A change of level does move it.
+        SetPercent(gemini, 90);
+        vm.ApplyTileOrder();
+        Assert.Equal(["gemini", "claude", "codex", "copilot", "daygrid"], RowIds(vm));
+    }
+
+    [Fact]
+    public void ByUsageOrderLeavesTheDayGridAtItsOwnIndex()
+    {
+        var settings = new AppSettings { TileOrderMode = "ByUsage" };
+        settings.Providers["claude"].Order = 0;
+        settings.Providers["codex"].Order = 1;
+        settings.Providers["gemini"].Order = 3;
+        settings.Providers["copilot"].Order = 4;
+        settings.Providers[AppSettings.DayGridTileId] = new ProviderSettings { Order = 2, Visible = true };
+        var (vm, _, _) = Build(settings);
+        Assert.Equal(2, vm.DisplayRows.IndexOf(vm.DayGridTile));
+
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "copilot"), 95);
+        vm.ApplyTileOrder();
+
+        Assert.Equal(["copilot", "claude", "daygrid", "codex", "gemini"], RowIds(vm));
+    }
+
+    [Fact]
+    public void CustomOrderNeverFollowsTheUsage()
+    {
+        var (vm, _) = BuildOrdered("Custom");
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "gemini"), 95);
+
+        vm.ApplyTileOrder();
+
+        Assert.Equal(["claude", "codex", "gemini", "copilot", "daygrid"], RowIds(vm));
+    }
+
+    [Fact]
+    public void SwitchingTheModeReordersAtOnceAndBackRestoresTheOwnOrder()
+    {
+        var (vm, settings) = BuildOrdered("Custom");
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "gemini"), 95);
+
+        vm.TileOrderMode = "ByUsage";
+        Assert.Equal("ByUsage", settings.TileOrderMode);
+        Assert.Equal(["gemini", "claude", "codex", "copilot", "daygrid"], RowIds(vm));
+
+        vm.TileOrderMode = "Custom";
+        Assert.Equal(["claude", "codex", "gemini", "copilot", "daygrid"], RowIds(vm));
+    }
+
+    [Fact]
+    public void TheArrowsStillEditTheOwnOrderWhileOrderedByUsage()
+    {
+        var (vm, settings) = BuildOrdered("ByUsage");
+        SetPercent(vm.Tiles.Single(t => t.ProviderId == "gemini"), 95);
+        vm.ApplyTileOrder();
+
+        // Own order is claude, codex, gemini, copilot: gemini up swaps it with codex there.
+        vm.MoveProviderUpCommand.Execute("gemini");
+
+        Assert.Equal(0, settings.Providers["claude"].Order);
+        Assert.Equal(2, settings.Providers["codex"].Order);
+        Assert.Equal(1, settings.Providers["gemini"].Order);
+        Assert.Equal(3, settings.Providers["copilot"].Order);
+        Assert.Equal(["gemini", "claude", "codex", "copilot", "daygrid"], RowIds(vm));
+        vm.TileOrderMode = "Custom";
+        Assert.Equal(["claude", "gemini", "codex", "copilot", "daygrid"], RowIds(vm));
     }
 
     [Fact]

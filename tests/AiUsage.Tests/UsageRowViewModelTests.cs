@@ -458,4 +458,68 @@ public class UsageRowViewModelTests
 
         Assert.Equal("", row.AllowanceText);
     }
+
+    private static UsageRowViewModel RowAtPace(double used, int? windowMinutes, DateTimeOffset? resetsAt, UsageAllowance? allowance = null) =>
+        new(new UsageWindow("Window_FiveHour", WindowKind.FiveHour, used, resetsAt, windowMinutes, allowance: allowance), Now);
+
+    [Fact]
+    public void PacePercent_is_the_elapsed_share_of_the_window()
+    {
+        var row = RowAtPace(50, 300, Now.AddHours(2));
+
+        Assert.Equal(60, row.PacePercent!.Value, 6);
+    }
+
+    [Fact]
+    public void PacePercent_is_null_without_a_window_length()
+    {
+        Assert.Null(RowAtPace(50, null, Now.AddHours(2)).PacePercent);
+        Assert.Null(RowAtPace(50, 300, null).PacePercent);
+    }
+
+    [Fact]
+    public void PacePercent_is_null_once_the_reset_has_passed()
+    {
+        Assert.Null(RowAtPace(50, 300, Now.AddMinutes(-1)).PacePercent);
+    }
+
+    [Fact]
+    public void PacePercent_follows_the_countdown_tick()
+    {
+        var row = RowAtPace(50, 300, Now.AddHours(2));
+
+        row.RefreshCountdown(Now.AddHours(1), TileDensity.Full);
+
+        Assert.Equal(80, row.PacePercent!.Value, 6);
+    }
+
+    [Theory]
+    [InlineData(70, "Tile.Pace.Above")]
+    [InlineData(62, "Tile.Pace.On")]
+    [InlineData(58, "Tile.Pace.On")]
+    [InlineData(40, "Tile.Pace.Below")]
+    public void BarTooltipText_names_how_usage_compares_with_the_pace(double used, string key)
+    {
+        var row = RowAtPace(used, 300, Now.AddHours(2));
+
+        Assert.Equal(LocalizationService.Instance.Format(key, "60"), row.BarTooltipText);
+    }
+
+    [Fact]
+    public void BarTooltipText_puts_the_allowance_line_before_the_pace_line()
+    {
+        var row = RowAtPace(40, 300, Now.AddHours(2), new UsageAllowance(200, 500, "Unit.Requests"));
+
+        var lines = row.BarTooltipText.Split(Environment.NewLine);
+
+        Assert.Equal(2, lines.Length);
+        Assert.Equal(row.AllowanceText, lines[0]);
+        Assert.Equal(row.PaceText, lines[1]);
+    }
+
+    [Fact]
+    public void BarTooltipText_is_empty_without_allowance_and_pace()
+    {
+        Assert.Equal("", RowAtPace(40, null, null).BarTooltipText);
+    }
 }

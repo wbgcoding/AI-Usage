@@ -617,6 +617,10 @@ public sealed class SettingsStore : IDisposable
         if (settings.TileDensity != "Auto")
             settings.TileDensity = CanonicalEnumName<TileDensity>(settings.TileDensity, "Auto");
 
+        settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
+            ? "ByUsage"
+            : "Custom";
+
         settings.Window ??= new WindowSettings();
         ClampWindow(settings.Window);
 
@@ -627,6 +631,7 @@ public sealed class SettingsStore : IDisposable
             provider.Thresholds.Weekly = SettingsRanges.ClampThreshold(provider.Thresholds.Weekly);
             provider.Thresholds.Other = SettingsRanges.ClampThreshold(provider.Thresholds.Other);
             provider.HiddenWindows ??= [];
+            provider.AccountName = ProviderSettings.NormalizeAccountName(provider.AccountName);
         }
     }
 

@@ -34,7 +34,16 @@ public static class StatusTextMap
         ["Status_RuntimeMissing_Headline"] = "State.RuntimeMissing.Head",
         ["Status_RuntimeMissing_Reason"] = "State.RuntimeMissing.Reason",
         ["Status_Failed_Headline"] = "State.Failed.Head",
+        ["Status_Stale_CodexLocal_Reason"] = "Tile.CodexLocalHint",
         ["Status_Failed_Reason"] = "State.Failed.Reason",
+        ["Status_Failed_Server_Headline"] = "State.Failed.Server.Head",
+        ["Status_Failed_Server_Reason"] = "State.Failed.Server.Reason",
+        ["Status_Failed_Refused_Headline"] = "State.Failed.Refused.Head",
+        ["Status_Failed_Refused_Reason"] = "State.Failed.Refused.Reason",
+        ["Status_Failed_Timeout_Headline"] = "State.Failed.Timeout.Head",
+        ["Status_Failed_Timeout_Reason"] = "State.Failed.Timeout.Reason",
+        ["Status_Failed_Network_Headline"] = "State.Failed.Network.Head",
+        ["Status_Failed_Network_Reason"] = "State.Failed.Network.Reason",
         ["Action_SignIn"] = "State.NotSignedIn.Action",
         ["Action_FetchNow"] = "State.Stale.Action",
         ["Action_OpenWebView2Download"] = "State.RuntimeMissing.Action",
@@ -84,13 +93,24 @@ public static class StatusTextMap
         return resolved.Length > 0 ? resolved : key;
     }
 
+    /// <summary>Like <see cref="Resolve(string?)"/> for the failure wordings that name the provider
+    /// ({0}) and the HTTP status ({1}); a text without those placeholders comes back unchanged.</summary>
+    public static string ResolveFailure(string key, string providerName, int? httpStatus)
+    {
+        var text = Resolve(key);
+        return text.Contains('{', StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.CurrentCulture, text, providerName, httpStatus)
+            : text;
+    }
+
     /// <summary>The reason line of a tile: the status' reason, or, when the error names a cause
     /// (<see cref="Models.ProviderError.DetailKey"/>), the reason with that cause in brackets. Resolved
-    /// here at display time so a language switch applies to the cause as well.</summary>
-    public static string ResolveReason(string reasonKey, Models.ProviderError? error)
+    /// here at display time so a language switch applies to the cause as well. A reason that already
+    /// names its own kind of failure (the server error, the timeout) carries the cause itself.</summary>
+    public static string ResolveReason(string reasonKey, Models.ProviderError? error, string providerName = "")
     {
-        if (error?.DetailKey is not { } detailKey)
-            return Resolve(reasonKey);
+        if (error?.DetailKey is not { } detailKey || reasonKey != "Status_Failed_Reason")
+            return ResolveFailure(reasonKey, providerName, error?.HttpStatus);
 
         var loc = LocalizationService.Instance;
         var detail = error.DetailArg is null ? loc[detailKey] : loc.Format(detailKey, error.DetailArg);

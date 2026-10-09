@@ -85,6 +85,30 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         new("Layout.Horizontal", "Horizontal"),
     ];
 
+    public ObservableCollection<Choice<string>> TileOrderChoices { get; } =
+    [
+        new("Settings.TileOrder.Custom", "Custom"),
+        new("Settings.TileOrder.ByUsage", "ByUsage"),
+    ];
+
+    /// <summary>Same shape as <see cref="SelectedLayoutChoice"/>, for the tile-order ComboBox.</summary>
+    public Choice<string>? SelectedTileOrderChoice
+    {
+        get => TileOrderChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null && value.Value != Main.TileOrderMode)
+                SetTileOrder(value.Value);
+        }
+    }
+
+    private void SetTileOrder(string mode)
+    {
+        Choice.Select(TileOrderChoices, mode);
+        Main.TileOrderMode = mode;
+        OnPropertyChanged(nameof(SelectedTileOrderChoice));
+    }
+
     /// <summary>The Meldungen card's "wartenden Agenten markieren für" picker - Off first, then fixed
     /// rungs in hours (not a slider) because <see cref="Models.AppSettings.AttentionMaxAgeMinutes"/> is a threshold
     /// someone sets once and forgets, not a value worth fine dragging. Value is hours, converted to/
@@ -438,6 +462,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         Choice.Select(LanguageChoices, settings.Language);
         Choice.Select(LayoutChoices, settings.Layout);
+        Choice.Select(TileOrderChoices, settings.TileOrderMode);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
 
         RebuildProviderRows();
@@ -580,6 +605,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         foreach (var choice in ChartRangeChoices)
             choice.RefreshLabel();
         foreach (var choice in LayoutChoices)
+            choice.RefreshLabel();
+        foreach (var choice in TileOrderChoices)
             choice.RefreshLabel();
         foreach (var choice in AttentionMaxAgeChoices)
             choice.RefreshLabel();
@@ -1182,6 +1209,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.RemoteRefreshMinutes = source.RemoteRefreshMinutes;
         _settings.AlwaysOnTop = source.AlwaysOnTop;
         _settings.Layout = source.Layout;
+        _settings.TileOrderMode = source.TileOrderMode;
         _settings.Theme = source.Theme;
         _settings.Language = source.Language;
         _settings.Autostart = source.Autostart;
@@ -1228,6 +1256,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         SetLayout(_settings.Layout);
+        SetTileOrder(_settings.TileOrderMode);
         Main.AlwaysOnTop = _settings.AlwaysOnTop;
         Main.ClickThrough = _settings.ClickThrough;
         Main.ReloadTraySelection();
@@ -1241,6 +1270,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             tile.ShowFiveHour = providerSettings.ShowFiveHour;
             tile.ShowWeekly = providerSettings.ShowWeekly;
             tile.ChartHidden = providerSettings.ChartHidden;
+            tile.AccountName = providerSettings.AccountName;
             tile.AttentionDisabled = providerSettings.AttentionDisabled;
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();

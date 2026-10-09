@@ -124,7 +124,6 @@ public class TileChartBoundsTests
 
         var range = SettingsRanges.ChartRangeToTimeSpan(rangeName);
         var points = new List<HistoryPoint>();
-        if (withHistory)
         {
             // One sample every 5 minutes over the history, a slow sawtooth so the curve has body.
             var first = Now - TimeSpan.FromDays(historyDays);
@@ -152,6 +151,14 @@ public class TileChartBoundsTests
         host.UpdateLayout();
 
         var chart = FindChart(tile)!;
+        if (!withHistory)
+        {
+            // The same tile with the chart box showing but nothing drawn in it: the view model still holds
+            // the readings (the box only appears from two of them on), the chart control is cleared.
+            chart.FiveHourValues = [];
+            chart.WeeklyValues = [];
+            host.UpdateLayout();
+        }
         var origin = chart.TransformToAncestor(host).Transform(new Point(0, 0));
         chartRect = new Rect(origin, new Size(chart.ActualWidth, chart.ActualHeight));
 

@@ -692,7 +692,8 @@ public class RefreshSchedulerTests
         Assert.Equal("State.Failed.Detail.Timeout", snapshot.Error?.DetailKey);
         Assert.Equal("Action_Retry", snapshot.Error?.ActionKey);
         var loc = LocalizationService.Instance;
-        Assert.Equal(loc.Format("State.Failed.ReasonWithDetail", loc["State.Failed.Detail.Timeout"]), ReasonShownFor(snapshot));
+        Assert.Equal(loc["State.Failed.Timeout.Reason"], ReasonShownFor(snapshot));
+        Assert.Equal(FailureKind.Timeout, snapshot.Error?.Kind);
     }
 
     [Fact]
@@ -703,10 +704,16 @@ public class RefreshSchedulerTests
         Assert.Equal("State.Failed.Detail.Http", snapshot.Error?.DetailKey);
         Assert.Equal("502", snapshot.Error?.DetailArg);
         var loc = LocalizationService.Instance;
-        Assert.Equal(loc.Format("State.Failed.ReasonWithDetail", loc.Format("State.Failed.Detail.Http", "502")), ReasonShownFor(snapshot));
+        Assert.Equal(loc.Format("State.Failed.Server.Reason", "Codex", 502), ReasonShownFor(snapshot));
+        Assert.Equal(FailureKind.ServerError, snapshot.Error?.Kind);
+        Assert.Equal(502, snapshot.Error?.HttpStatus);
 
         var noStatus = await TickOnceWith(_ => throw new System.Net.Http.HttpRequestException("offline"));
         Assert.Equal("State.Failed.Detail.Network", noStatus.Error?.DetailKey);
+        Assert.Equal(FailureKind.Network, noStatus.Error?.Kind);
+
+        var refused = await TickOnceWith(_ => throw new System.Net.Http.HttpRequestException("x", null, System.Net.HttpStatusCode.NotFound));
+        Assert.Equal(FailureKind.Refused, refused.Error?.Kind);
     }
 
     [Fact]
