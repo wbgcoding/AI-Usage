@@ -36,12 +36,19 @@ public sealed class SettingsStore : IDisposable
     private readonly LogService? _logService;
     private bool _backupFailureLogged;
 
-    // Every path that touches the pending save or the file itself holds this. The UI thread calls
-    // RequestSave and SaveNow while the debounce timer fires FlushPendingSave on a pool thread;
-    // without the gate two writers can be inside the same settings.json.tmp at once, and the loser
-    // of that race silently drops a setting.
+    // Guards only the pending snapshot, the retry counter and the timer. Held for a few instructions,
+    // never across file I/O, so RequestSave on the UI thread never waits for a disk write.
     private readonly object _saveGate = new();
     private AppSettings? _pendingSave;
+
+    // Serializes the file write itself. The UI thread calls SaveNow while the debounce timer fires
+    // FlushPendingSave on a pool thread; without this two writers can be inside the same
+    // settings.json.tmp at once, and the loser of that race silently drops a setting. Always taken
+    // before _saveGate, never the other way round.
+    private readonly object _writeGate = new();
+
+    /// <summary>Test seam: runs inside the write gate right before the file is written.</summary>
+    internal Action? BeforeWrite { get; set; }
 
     // How many times FlushPendingSave has already tried (and failed) to save the current
     // _pendingSave snapshot - reset whenever a fresh RequestSave replaces it, or once a save finally
@@ -81,7 +88,7 @@ public sealed class SettingsStore : IDisposable
     /// new location.</summary>
     internal void Redirect(string dataDirectory)
     {
-        lock (_saveGate)
+        lock (_writeGate)
             _dataDirectory = dataDirectory;
     }
 
@@ -283,13 +290,18 @@ public sealed class SettingsStore : IDisposable
     {
         private const int MaxDepth = 8;
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, PropertyInfo[]> PropertiesByType = new();
+
+        private static PropertyInfo[] PropertiesOf(Type type) =>
+            PropertiesByType.GetOrAdd(type, static t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
+
         public static void Reset(object target, int depth = 0)
         {
             if (depth > MaxDepth)
                 return;
 
             object? defaults = null;
-            foreach (var property in target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            foreach (var property in PropertiesOf(target.GetType()))
             {
                 if (!property.CanRead || property.GetIndexParameters().Length > 0)
                     continue;
@@ -362,13 +374,7 @@ public sealed class SettingsStore : IDisposable
         if (snapshot is null)
             return false;
 
-        lock (_saveGate)
-        {
-            _pendingSave = null;
-            _flushAttempts = 0;
-            _debounceTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            return WriteSnapshot(snapshot);
-        }
+        return SaveNow(snapshot);
     }
 
     /// <summary>Writes immediately - atomic (tmp file + move), never throws outward. Returns whether
@@ -379,72 +385,75 @@ public sealed class SettingsStore : IDisposable
         if (_readOnly)
             return false; // loaded from a newer version - never overwrite it with this session's defaults
 
-        lock (_saveGate)
+        lock (_writeGate)
         {
             // Whatever RequestSave queued earlier is older than this state and must not land after it.
-            _pendingSave = null;
-            _flushAttempts = 0;
-            _debounceTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            lock (_saveGate)
+            {
+                _pendingSave = null;
+                _flushAttempts = 0;
+                _debounceTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+
             return WriteSnapshot(settings);
         }
     }
 
+    /// <summary>The raw atomic write. Callers hold <c>_writeGate</c>.</summary>
     private bool WriteSnapshot(AppSettings settings)
     {
         if (_readOnly)
             return false;
 
-        lock (_saveGate)
+        try
         {
-            try
-            {
-                Directory.CreateDirectory(_dataDirectory);
-                settings.SchemaVersion = AppSettings.CurrentSchemaVersion;
+            BeforeWrite?.Invoke();
+            Directory.CreateDirectory(_dataDirectory);
+            settings.SchemaVersion = AppSettings.CurrentSchemaVersion;
 
-                var json = JsonSerializer.Serialize(settings, JsonOptions);
-                // Carries this process's id so two simultaneous copies (--new-instance is a
-                // debugging aid, deliberately not a supported configuration) never write through
-                // the same temp file - cross-process locking was considered instead and left out on
-                // purpose, since --new-instance already means "you're on your own". A copy left
-                // behind by a process killed between this write and the move below is swept up by
-                // AppPaths.CleanUpLeftoverTempFiles at the next startup.
-                var tempPath = $"{SettingsFilePath}.{Environment.ProcessId}.tmp";
-                File.WriteAllBytes(tempPath, Utf8NoBom.GetBytes(json));
+            var json = JsonSerializer.Serialize(settings, JsonOptions);
+            // Carries this process's id so two simultaneous copies (--new-instance is a
+            // debugging aid, deliberately not a supported configuration) never write through
+            // the same temp file - cross-process locking was considered instead and left out on
+            // purpose, since --new-instance already means "you're on your own". A copy left
+            // behind by a process killed between this write and the move below is swept up by
+            // AppPaths.CleanUpLeftoverTempFiles at the next startup.
+            var tempPath = $"{SettingsFilePath}.{Environment.ProcessId}.tmp";
+            File.WriteAllBytes(tempPath, Utf8NoBom.GetBytes(json));
 
-                // Snapshot the previous state before it is overwritten - a valid file carrying a
-                // value nobody wanted has no other way back once the move below lands.
-                if (File.Exists(SettingsFilePath))
-                    TryBackUpCurrentFile();
+            // Snapshot the previous state before it is overwritten - a valid file carrying a
+            // value nobody wanted has no other way back once the move below lands.
+            if (File.Exists(SettingsFilePath))
+                TryBackUpCurrentFile();
 
-                File.Move(tempPath, SettingsFilePath, overwrite: true);
-                return true;
-            }
-            catch (InvalidOperationException ex)
-            {
-                // A caller that hands this its own still-mutable AppSettings directly (every SaveNow
-                // call outside RequestSave's own snapshot) can still race a concurrent change to
-                // Accounts or Providers while this serializes it. Logged rather than silently dropped
-                // like the cases below, since it means a setting change was lost, not merely delayed.
-                _logService?.LogError($"Settings: save failed, a collection changed while writing: {ex.Message}");
-                return false;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                // A save that cannot land must not take the app down with it - the caller decides
-                // whether and how to retry. ArgumentException covers a NaN/Infinity value the
-                // serializer refuses; this runs on a timer thread, where anything uncaught ends the process.
-                // The exception's own message often carries the file path (IOException,
-                // UnauthorizedAccessException), so only its type is named here, never that message
-                // verbatim - otherwise a save that cannot land would stay invisible instead of merely
-                // silent about where.
-                _logService?.LogError($"Settings: save did not land ({ex.GetType().Name}).");
-                return false;
-            }
+            File.Move(tempPath, SettingsFilePath, overwrite: true);
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A caller that hands this its own still-mutable AppSettings directly (every SaveNow
+            // call outside RequestSave's own snapshot) can still race a concurrent change to
+            // Accounts or Providers while this serializes it. Logged rather than silently dropped
+            // like the cases below, since it means a setting change was lost, not merely delayed.
+            _logService?.LogError($"Settings: save failed, a collection changed while writing: {ex.Message}");
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            // A save that cannot land must not take the app down with it - the caller decides
+            // whether and how to retry. ArgumentException covers a NaN/Infinity value the
+            // serializer refuses; this runs on a timer thread, where anything uncaught ends the process.
+            // The exception's own message often carries the file path (IOException,
+            // UnauthorizedAccessException), so only its type is named here, never that message
+            // verbatim - otherwise a save that cannot land would stay invisible instead of merely
+            // silent about where.
+            _logService?.LogError($"Settings: save did not land ({ex.GetType().Name}).");
+            return false;
         }
     }
 
     /// <summary>Copies the current file over the backup. The backup is a courtesy: a locked or
-    /// read-only one is logged once and the save goes on without it. Called under <c>_saveGate</c>.</summary>
+    /// read-only one is logged once and the save goes on without it. Called under <c>_writeGate</c>.</summary>
     private void TryBackUpCurrentFile()
     {
         try
@@ -473,29 +482,41 @@ public sealed class SettingsStore : IDisposable
     /// </summary>
     private void FlushPendingSave(bool allowRetry = true)
     {
-        lock (_saveGate)
+        lock (_writeGate)
         {
-            var settings = _pendingSave;
+            AppSettings? settings;
+            lock (_saveGate)
+                settings = _pendingSave;
             if (settings is null)
                 return;
 
-            if (WriteSnapshot(settings))
-            {
-                _pendingSave = null;
-                _flushAttempts = 0;
-                return;
-            }
+            var saved = WriteSnapshot(settings);
 
-            _flushAttempts++;
-            if (!allowRetry || _flushAttempts >= MaxFlushAttempts)
+            lock (_saveGate)
             {
-                _pendingSave = null;
-                _flushAttempts = 0;
-                _logService?.LogError("Settings: giving up on a pending save after repeated failures.");
-                return;
-            }
+                // A RequestSave that arrived during the write replaced the snapshot and re-armed the
+                // timer itself; this outcome then belongs to a snapshot nobody waits for any more.
+                if (!ReferenceEquals(_pendingSave, settings))
+                    return;
 
-            _debounceTimer.Change(_failedSaveRetryDelay, Timeout.InfiniteTimeSpan);
+                if (saved)
+                {
+                    _pendingSave = null;
+                    _flushAttempts = 0;
+                    return;
+                }
+
+                _flushAttempts++;
+                if (!allowRetry || _flushAttempts >= MaxFlushAttempts)
+                {
+                    _pendingSave = null;
+                    _flushAttempts = 0;
+                    _logService?.LogError("Settings: giving up on a pending save after repeated failures.");
+                    return;
+                }
+
+                _debounceTimer.Change(_failedSaveRetryDelay, Timeout.InfiniteTimeSpan);
+            }
         }
     }
 
@@ -652,13 +673,13 @@ public sealed class SettingsStore : IDisposable
     /// the tray) would be silently lost.</summary>
     public void Dispose()
     {
+        // One attempt only, never the retry-with-a-longer-delay FlushPendingSave otherwise
+        // uses: the app is exiting either way, and re-arming a timer this method is about to
+        // dispose would just be discarded, not actually retried.
+        FlushPendingSave(allowRetry: false);
+
         lock (_saveGate)
         {
-            // One attempt only, never the retry-with-a-longer-delay FlushPendingSave otherwise
-            // uses: the app is exiting either way, and re-arming a timer this method is about to
-            // dispose would just be discarded, not actually retried.
-            FlushPendingSave(allowRetry: false);
-
             // Does not wait for a callback already in flight, so this cannot deadlock against a
             // timer thread queued on the gate: that callback finds nothing pending and returns.
             _debounceTimer.Dispose();
