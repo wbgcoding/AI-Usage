@@ -490,4 +490,12 @@
   <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Anbieter</value></data>
   <data name="Stats.ColorBy.Model" xml:space="preserve"><value>Modell</value></data>
   <data name="Stats.Average7" xml:space="preserve"><value>7-Tage-Schnitt</value></data>
+  <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>Dieser Monat</value></data>
+  <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Letzter Monat</value></data>
+  <data name="Stats.Range.Custom" xml:space="preserve"><value>Eigener Zeitraum…</value></data>
+  <data name="Stats.Range.From" xml:space="preserve"><value>Von</value></data>
+  <data name="Stats.Range.To" xml:space="preserve"><value>Bis</value></data>
+  <data name="Stats.Range.Apply" xml:space="preserve"><value>Übernehmen</value></data>
+  <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Voriger Monat</value></data>
+  <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Nächster Monat</value></data>
 </root>

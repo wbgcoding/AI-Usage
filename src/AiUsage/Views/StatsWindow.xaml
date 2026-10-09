@@ -107,10 +107,32 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"
                                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox ItemsSource="{Binding RangeChoices}"
+                                <ComboBox x:Name="RangeCombo" ItemsSource="{Binding RangeChoices}"
                                           SelectedItem="{Binding SelectedRangeChoice, Mode=TwoWay}" MinWidth="80"
                                           ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Range]}"
                                           AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"/>
+                                <!-- The two days of a custom range, asked for under the range list. -->
+                                <Popup x:Name="CustomRangePopup" PlacementTarget="{Binding ElementName=RangeCombo}" Placement="Bottom"
+                                       StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                       Closed="CustomRangePopup_Closed">
+                                    <Border x:Name="CustomRangePanel" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                            BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="12">
+                                        <StackPanel MinWidth="180">
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"
+                                                       Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
+                                            <DatePicker x:Name="CustomFromPicker" SelectedDate="{Binding CustomFromDate, Mode=TwoWay}"
+                                                        AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"/>
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.To]}"
+                                                       Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,8,0,4"/>
+                                            <DatePicker x:Name="CustomToPicker" SelectedDate="{Binding CustomToDate, Mode=TwoWay}"
+                                                        AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.To]}"/>
+                                            <Button x:Name="CustomRangeApplyButton" Style="{StaticResource AiUsageButton}" HorizontalAlignment="Right" Margin="0,12,0,0"
+                                                    Command="{Binding ApplyCustomRangeCommand}"
+                                                    Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.Apply]}"
+                                                    AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.Apply]}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
                             </StackPanel>
                             <Button x:Name="ResetLayoutButton" Grid.Column="1" Style="{StaticResource AiUsageQuietButton}"
                                     VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click"

@@ -491,4 +491,12 @@
   <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Provider</value></data>
   <data name="Stats.ColorBy.Model" xml:space="preserve"><value>Model</value></data>
   <data name="Stats.Average7" xml:space="preserve"><value>7-day average</value></data>
+  <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>This month</value></data>
+  <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Last month</value></data>
+  <data name="Stats.Range.Custom" xml:space="preserve"><value>Custom range…</value></data>
+  <data name="Stats.Range.From" xml:space="preserve"><value>From</value></data>
+  <data name="Stats.Range.To" xml:space="preserve"><value>To</value></data>
+  <data name="Stats.Range.Apply" xml:space="preserve"><value>Apply</value></data>
+  <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Previous month</value></data>
+  <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Next month</value></data>
 </root>

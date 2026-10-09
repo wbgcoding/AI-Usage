@@ -1027,6 +1027,134 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public void ThisMonthAndLastMonthAreCalendarMonthsComparedWithTheMonthBefore()
+    {
+        var today = new DateOnly(2026, 10, 10);
+
+        var thisMonth = StatsViewModel.ResolvePeriod("ThisMonth", today, default, default);
+        Assert.Equal((new DateOnly(2026, 10, 1), today), (thisMonth.From, thisMonth.To));
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)), (thisMonth.PreviousFrom, thisMonth.PreviousTo));
+
+        var lastMonth = StatsViewModel.ResolvePeriod("LastMonth", today, default, default);
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)), (lastMonth.From, lastMonth.To));
+        Assert.Equal((new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 31)), (lastMonth.PreviousFrom, lastMonth.PreviousTo));
+    }
+
+    [Fact]
+    public void CalendarMonthsAcrossTheTurnOfTheYearAndInFebruary()
+    {
+        var january = StatsViewModel.ResolvePeriod("LastMonth", new DateOnly(2027, 1, 15), default, default);
+        Assert.Equal((new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 31)), (january.From, january.To));
+        Assert.Equal((new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30)), (january.PreviousFrom, january.PreviousTo));
+
+        var thisJanuary = StatsViewModel.ResolvePeriod("ThisMonth", new DateOnly(2027, 1, 15), default, default);
+        Assert.Equal(new DateOnly(2027, 1, 1), thisJanuary.From);
+        Assert.Equal((new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 31)), (thisJanuary.PreviousFrom, thisJanuary.PreviousTo));
+
+        var leap = StatsViewModel.ResolvePeriod("LastMonth", new DateOnly(2028, 3, 5), default, default);
+        Assert.Equal((new DateOnly(2028, 2, 1), new DateOnly(2028, 2, 29)), (leap.From, leap.To));
+    }
+
+    [Fact]
+    public void ACustomRangeIsComparedWithTheSameNumberOfDaysRightBeforeItAndNeverEndsInTheFuture()
+    {
+        var today = new DateOnly(2026, 10, 10);
+
+        var custom = StatsViewModel.ResolvePeriod("Custom", today, new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 20));
+        Assert.Equal((new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 20)), (custom.From, custom.To));
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 10)), (custom.PreviousFrom, custom.PreviousTo));
+        Assert.True(custom.HasPrevious);
+
+        var single = StatsViewModel.ResolvePeriod("Custom", today, new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 11));
+        Assert.Equal((new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 10)), (single.PreviousFrom, single.PreviousTo));
+
+        var future = StatsViewModel.ResolvePeriod("Custom", today, new DateOnly(2026, 10, 1), new DateOnly(2026, 12, 31));
+        Assert.Equal(today, future.To);
+    }
+
+    [Fact]
+    public void TheRollingRangesAndAllKeepTheirPeriods()
+    {
+        var today = new DateOnly(2026, 10, 10);
+
+        var week = StatsViewModel.ResolvePeriod("Week", today, default, default);
+        Assert.Equal((new DateOnly(2026, 10, 4), today), (week.From, week.To));
+        Assert.Equal((new DateOnly(2026, 9, 27), new DateOnly(2026, 10, 3)), (week.PreviousFrom, week.PreviousTo));
+
+        var all = StatsViewModel.ResolvePeriod("All", today, default, default);
+        Assert.Equal(DateOnly.MinValue, all.From);
+        Assert.False(all.HasPrevious);
+    }
+
+    [Fact]
+    public void TheRangeListOffersTheCalendarMonthsAndTheCustomRangeInOrder()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-range-list");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+
+        Assert.Equal(
+            ["Week", "Month", "ThisMonth", "LastMonth", "Year", "All", "Custom"],
+            viewModel.RangeChoices.Select(choice => choice.Value).ToArray());
+    }
+
+    [Fact]
+    public async Task ACustomRangeCountsOnlyItsOwnDaysAndTheComboNamesItsDates()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-custom-range");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today.AddDays(-20), "modelA", "projA", 100, 0, 0, 0),
+            new StatsRecord("claude", today.AddDays(-12), "modelA", "projA", 200, 0, 0, 0),
+            new StatsRecord("claude", today.AddDays(-8), "modelA", "projA", 400, 0, 0, 0),
+            new StatsRecord("claude", today.AddDays(-2), "modelA", "projA", 800, 0, 0, 0),
+        ]);
+        var viewModel = StatsVm.Create(store);
+        var requested = 0;
+        viewModel.CustomRangeRequested += (_, _) => requested++;
+
+        // Picking the custom choice asks for the dates first and changes nothing yet.
+        viewModel.SelectedRangeChoice = viewModel.RangeChoices.Single(choice => choice.Value == "Custom");
+        Assert.Equal(1, requested);
+        Assert.Equal("Week", viewModel.SelectedRange);
+        Assert.NotNull(viewModel.CustomFromDate);
+
+        await viewModel.SetCustomRange(today.AddDays(-13), today.AddDays(-7));
+
+        Assert.Equal("Custom", viewModel.SelectedRange);
+        Assert.Equal(600, viewModel.PeriodTotalRaw);
+        Assert.Equal(7, viewModel.PeriodDayCountRaw);
+        Assert.Equal(100, viewModel.PreviousPeriodTotalRaw); // the 7 days before: -20 .. -14
+        var label = string.Format(CultureInfo.CurrentCulture, "{0:d} - {1:d}", today.AddDays(-13).ToDateTime(TimeOnly.MinValue), today.AddDays(-7).ToDateTime(TimeOnly.MinValue));
+        Assert.Equal(label, viewModel.SelectedRangeChoice?.Label);
+
+        await viewModel.SetRangeCommand.ExecuteAsync("Week");
+        Assert.NotEqual(label, viewModel.RangeChoices.Single(choice => choice.Value == "Custom").Label);
+        Assert.Equal(LocalizationService.Instance["Stats.Range.Custom"], viewModel.RangeChoices.Single(choice => choice.Value == "Custom").Label);
+    }
+
+    [Fact]
+    public async Task ApplyingTheDatePopupSwapsDatesGivenTheWrongWayRound()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-custom-apply");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+        var applied = 0;
+        viewModel.CustomRangeApplied += (_, _) => applied++;
+        var today = DateTime.Now.Date;
+        viewModel.CustomFromDate = today.AddDays(-2);
+        viewModel.CustomToDate = today.AddDays(-9);
+
+        await viewModel.ApplyCustomRangeCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, applied);
+        Assert.Equal("Custom", viewModel.SelectedRange);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, "{0:d} - {1:d}", today.AddDays(-9), today.AddDays(-2)), viewModel.SelectedRangeChoice?.Label);
+
+        viewModel.CustomFromDate = null;
+        Assert.False(viewModel.ApplyCustomRangeCommand.CanExecute(null));
+    }
+
+    [Fact]
     public void TheColorByListOffersProviderAndModel()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-color-by-list");

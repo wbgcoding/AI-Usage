@@ -56,6 +56,12 @@ public partial class StatsWindow : Window
         WireSectionChrome();
         UpdateResetButton();
 
+        // The custom range is picked in a popup under the range list; it opens after the list has
+        // closed, since a popup opened in the middle of the list's own click is closed again by it.
+        _viewModel.CustomRangeRequested += (_, _) =>
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => CustomRangePopup.IsOpen = true);
+        _viewModel.CustomRangeApplied += (_, _) => CustomRangePopup.IsOpen = false;
+
         PreviewKeyDown += Window_PreviewKeyDown;
         Loaded += StatsWindow_Loaded;
         Closed += StatsWindow_Closed;
@@ -220,6 +226,10 @@ public partial class StatsWindow : Window
     /// <summary>Keys of the sections currently shown; a move steps over the others.</summary>
     private List<string> VisibleSectionKeys() =>
         Sections.Where(section => section.Visibility == Visibility.Visible).Select(section => section.SectionKey).ToList();
+
+    /// <summary>A popup that closed without an applied range puts the list back on the range that
+    /// is really showing.</summary>
+    private void CustomRangePopup_Closed(object? sender, EventArgs e) => _viewModel.ResyncRangeChoice();
 
     private void ResetLayoutButton_Click(object sender, RoutedEventArgs e) => CommitLayout(StatsLayout.Default());
 

@@ -431,6 +431,52 @@ public class StatsWindowTests
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(reviewDir, $"stats-window-{theme}.png"));
         encoder.Save(stream);
+
+        RenderRangePopup(theme, window, reviewDir);
+    }
+
+    /// <summary>The custom range popup (two date pickers and the apply button, which is never part of
+    /// the window's own visual tree while closed) and the month sheet a date picker opens, each drawn
+    /// with the theme's own tokens; the sheet must actually build its day buttons from the template.</summary>
+    private static void RenderRangePopup(AppTheme theme, StatsWindow window, string reviewDir)
+    {
+        var panel = (FrameworkElement)window.FindName("CustomRangePanel");
+        var calendar = new System.Windows.Controls.Calendar { DisplayDate = new DateTime(2026, 2, 1), SelectedDate = new DateTime(2026, 2, 14) };
+
+        var host = new StackPanel { Orientation = Orientation.Horizontal, Background = (Brush)Application.Current!.Resources["Bg.Base"] };
+        // A popup's child is not in the window's visual tree; the window's resources reach it through
+        // the logical tree, so it is drawn here from a copy of that lookup.
+        var popup = (System.Windows.Controls.Primitives.Popup)window.FindName("CustomRangePopup");
+        popup.Child = null;
+        host.Children.Add(panel);
+        host.Children.Add(calendar);
+
+        host.Measure(new Size(520, 360));
+        host.Arrange(new Rect(0, 0, 520, 360));
+        host.UpdateLayout();
+
+        var dayButtons = 0;
+        CountDayButtons(calendar, ref dayButtons);
+        if (dayButtons < 28)
+            throw new InvalidOperationException($"The month sheet of theme {theme} built {dayButtons} day buttons.");
+
+        var bitmap = new RenderTargetBitmap(520, 360, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(host);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(reviewDir, $"stats-range-popup-{theme}.png"));
+        encoder.Save(stream);
+    }
+
+    private static void CountDayButtons(DependencyObject parent, ref int count)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is CalendarDayButton)
+                count++;
+            CountDayButtons(child, ref count);
+        }
     }
 
     [Fact]

@@ -52,9 +52,98 @@ public sealed partial class StatsViewModel : ObservableObject
         get => RangeChoices.FirstOrDefault(choice => choice.IsSelected);
         set
         {
-            if (value is not null)
+            if (value is null)
+                return;
+            // The custom range is not a period yet: picking it asks for the two dates first.
+            if (value.Value == CustomRange)
+                RequestCustomRange();
+            else
                 SetRangeCommand.Execute(value.Value);
         }
+    }
+
+    /// <summary>The range value that stands for the two dates the user picked.</summary>
+    internal const string CustomRange = "Custom";
+
+    /// <summary>Raised when the custom range choice wants its date popup shown.</summary>
+    public event EventHandler? CustomRangeRequested;
+
+    /// <summary>Raised once a custom range was applied, so the popup can close.</summary>
+    public event EventHandler? CustomRangeApplied;
+
+    /// <summary>The first and last day of the applied custom range.</summary>
+    private DateOnly _customFrom;
+    private DateOnly _customTo;
+
+    /// <summary>The day the date popup's "from" picker shows.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCustomRangeCommand))]
+    private DateTime? customFromDate;
+
+    /// <summary>The day the date popup's "to" picker shows.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCustomRangeCommand))]
+    private DateTime? customToDate;
+
+    /// <summary>Fills the popup's pickers (the applied range, or the last 30 days) and asks the window
+    /// to show it.</summary>
+    internal void RequestCustomRange()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var from = SelectedRange == CustomRange ? _customFrom : RangeStart("Month", today);
+        var to = SelectedRange == CustomRange ? _customTo : today;
+        CustomFromDate = from.ToDateTime(TimeOnly.MinValue);
+        CustomToDate = to.ToDateTime(TimeOnly.MinValue);
+        CustomRangeRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Puts the combo back on the range that is really applied - after the date popup was
+    /// closed without applying anything.</summary>
+    public void ResyncRangeChoice()
+    {
+        Choice.Select(RangeChoices, SelectedRange);
+        OnPropertyChanged(nameof(SelectedRangeChoice));
+    }
+
+    private bool CanApplyCustomRange() => CustomFromDate is not null && CustomToDate is not null;
+
+    [RelayCommand(CanExecute = nameof(CanApplyCustomRange))]
+    private async Task ApplyCustomRange()
+    {
+        if (CustomFromDate is not { } from || CustomToDate is not { } to)
+            return;
+
+        var first = DateOnly.FromDateTime(from);
+        var last = DateOnly.FromDateTime(to);
+        await SetCustomRange(first <= last ? first : last, first <= last ? last : first);
+        CustomRangeApplied?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Applies a custom range of the two days, whichever way round they come.</summary>
+    internal async Task SetCustomRange(DateOnly from, DateOnly to)
+    {
+        _customFrom = from;
+        _customTo = to;
+        SelectedDay = null;
+        SelectedRange = CustomRange;
+        UpdateCustomChoiceLabel();
+        ResyncRangeChoice();
+        await RecomputeForSelectionAsync();
+    }
+
+    /// <summary>The custom choice names its dates while it is the applied range, and the plain
+    /// "custom range" wording otherwise.</summary>
+    private void UpdateCustomChoiceLabel()
+    {
+        var custom = RangeChoices.FirstOrDefault(choice => choice.Value == CustomRange);
+        if (custom is null)
+            return;
+
+        custom.Label = SelectedRange == CustomRange
+            ? string.Format(
+                CultureInfo.CurrentCulture, "{0:d} - {1:d}",
+                _customFrom.ToDateTime(TimeOnly.MinValue), _customTo.ToDateTime(TimeOnly.MinValue))
+            : LocalizationService.Instance["Stats.Range.Custom"];
     }
 
     /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the grouping group.</summary>
@@ -597,8 +686,11 @@ public sealed partial class StatsViewModel : ObservableObject
 
         RangeChoices.Add(new Choice<string>("Chart.Range.Week", "Week"));
         RangeChoices.Add(new Choice<string>("Chart.Range.Month", "Month"));
+        RangeChoices.Add(new Choice<string>("Stats.Range.ThisMonth", "ThisMonth"));
+        RangeChoices.Add(new Choice<string>("Stats.Range.LastMonth", "LastMonth"));
         RangeChoices.Add(new Choice<string>("StatsWindow.Range.TwelveMonths", "Year"));
         RangeChoices.Add(new Choice<string>("Chart.Range.All", "All"));
+        RangeChoices.Add(new Choice<string>("Stats.Range.Custom", CustomRange));
         Choice.Select(RangeChoices, SelectedRange);
 
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByDay", StatsGrouping.Day));
@@ -633,6 +725,7 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
         SelectedDay = null;
         SelectedRange = range;
+        UpdateCustomChoiceLabel();
         Choice.Select(RangeChoices, SelectedRange);
         OnPropertyChanged(nameof(SelectedRangeChoice));
         await RecomputeForSelectionAsync();
@@ -751,10 +844,12 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var from = RangeStart(SelectedRange, today);
+        var period = ResolvePeriod(SelectedRange, today, _customFrom, _customTo);
+        var from = period.From;
+        var to = period.To;
 
-        var inRange = all.Where(record => record.Day >= from && record.Day <= today).ToList();
-        var previous = PreviousPeriod(all, SelectedRange, from, today);
+        var inRange = all.Where(record => record.Day >= from && record.Day <= to).ToList();
+        var previous = PreviousPeriod(all, period);
         _currentPeriodRecords = inRange;
         _allRecords = all;
         // The selected day stays across a rebuild (an index refresh must not drop what the user
@@ -766,22 +861,22 @@ public sealed partial class StatsViewModel : ObservableObject
         // bound at all, so filling every empty day from there would build one bar per day since the
         // year 1 - about 740,000 of them, which is what made the window stop answering and then give
         // up. The earliest day actually stored is the first one worth drawing.
-        var gapFillFrom = GapFillStart(from, inRange, today);
+        var gapFillFrom = GapFillStart(from, inRange, to);
 
-        var weeklyPerDay = SelectedRange == "All" && today.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
+        var weeklyPerDay = SelectedRange == "All" && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
         IsWeeklyPerDay = weeklyPerDay;
 
         // The table under the day grouping stays per day; only the bars are bundled per week.
         var dayRows = SelectedGrouping == StatsGrouping.Day
-            ? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, today)
+            ? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, to)
             : null;
-        var weekRows = weeklyPerDay ? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, today) : null;
+        var weekRows = weeklyPerDay ? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, to) : null;
 
         // Week grouping keeps its empty weeks as zero rows, the same way the day bars keep empty days.
         var groupedRows = SelectedGrouping switch
         {
             StatsGrouping.Day => weekRows ?? dayRows!,
-            StatsGrouping.Week => weekRows ?? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, today),
+            StatsGrouping.Week => weekRows ?? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, to),
             _ => StatsAggregator.Group(inRange, SelectedGrouping, noProjectLabel: LocalizationService.Instance["Stats.NoProject"]),
         };
 
@@ -818,7 +913,7 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
             var stack = StatsAggregator.GroupStackedByModel(
-                inRange, stackGrouping, gapFillFrom, today, MaxStackedModels, LocalizationService.Instance["Stats.Other"]);
+                inRange, stackGrouping, gapFillFrom, to, MaxStackedModels, LocalizationService.Instance["Stats.Other"]);
             barRows = stack.Rows;
             series.AddRange(stack.Series.Select((name, index) =>
                 new ChartSeriesInfo(name, stack.HasOther && index == stack.Series.Count - 1 ? "other" : "cat:" + index)));
@@ -841,7 +936,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // disagree about a day's color or total.
         _monthGridToday = DateOnly.FromDateTime(DateTime.Now);
         _monthGridPeriodStart = from;
-        _monthGridPeriodEnd = today;
+        _monthGridPeriodEnd = to;
         RebuildMonthGrid(all, colorScale: null);
 
         Rows = (dayRows ?? groupedRows)
@@ -923,16 +1018,17 @@ public sealed partial class StatsViewModel : ObservableObject
         HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
         HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
 
-        var periodDayCount = PeriodDayCount(SelectedRange, from, today, all);
+        var periodDayCount = PeriodDayCount(SelectedRange, from, to, all);
         // The preceding period always has the range's fixed length, unlike periodDayCount, which a
         // short history can cut down.
-        var figures = StatsAggregator.ComputeHeadlineFigures(inRange, previous, periodDayCount, today.DayNumber - from.DayNumber + 1);
+        var figures = StatsAggregator.ComputeHeadlineFigures(
+            inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
         ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc);
 
         // The figures bar's mini charts - see the raw properties' own doc comments.
         // Always the period's own last periodDayCount days: "from" is DateOnly.MinValue for the whole
         // history, which would put every record outside the series.
-        DailyTotalsSeries = StatsAggregator.DailyTotalsSeries(inRange, today.AddDays(-(Math.Max(1, periodDayCount) - 1)), periodDayCount);
+        DailyTotalsSeries = StatsAggregator.DailyTotalsSeries(inRange, to.AddDays(-(Math.Max(1, periodDayCount) - 1)), periodDayCount);
         PeriodTotalRaw = figures.Total;
         PreviousPeriodTotalRaw = previous.Sum(record => record.TotalTokens);
         ActiveDayCountRaw = figures.ActiveDayCount;
@@ -949,13 +1045,13 @@ public sealed partial class StatsViewModel : ObservableObject
     /// range over three months of data averages over those three months, not over a full year. "All" has
     /// no fixed length and takes that span as is. With no records at all it falls back to one
     /// day.</summary>
-    private static int PeriodDayCount(string range, DateOnly from, DateOnly today, IReadOnlyList<StatsRecord> all)
+    private static int PeriodDayCount(string range, DateOnly from, DateOnly to, IReadOnlyList<StatsRecord> all)
     {
         if (all.Count == 0)
             return 1;
 
-        var sinceFirstRecord = Math.Max(1, today.DayNumber - all.Min(record => record.Day).DayNumber + 1);
-        return range == "All" ? sinceFirstRecord : Math.Min(today.DayNumber - from.DayNumber + 1, sinceFirstRecord);
+        var sinceFirstRecord = Math.Max(1, to.DayNumber - all.Min(record => record.Day).DayNumber + 1);
+        return range == "All" ? sinceFirstRecord : Math.Min(to.DayNumber - from.DayNumber + 1, sinceFirstRecord);
     }
 
     /// <summary>A language switch while the window is open: the choice labels are looked up again
@@ -969,6 +1065,7 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in ColorByChoices)
             choice.RefreshLabel();
+        UpdateCustomChoiceLabel();
         OnPropertyChanged(nameof(ChartTooltip));
         RecomputeFrom(_allRecords);
     }
@@ -1028,17 +1125,52 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Every record from the period of the same length immediately before <paramref
-    /// name="from"/> - empty for "All", which has no defined length to mirror.</summary>
-    private static List<StatsRecord> PreviousPeriod(IReadOnlyList<StatsRecord> all, string range, DateOnly from, DateOnly today)
-    {
-        if (range == "All")
-            return [];
+    /// <summary>Every record from the period compared against - empty for "All", which has no
+    /// defined length to mirror.</summary>
+    private static List<StatsRecord> PreviousPeriod(IReadOnlyList<StatsRecord> all, StatsPeriod period) =>
+        period.HasPrevious
+            ? all.Where(record => record.Day >= period.PreviousFrom && record.Day <= period.PreviousTo).ToList()
+            : [];
 
-        var periodDays = today.DayNumber - from.DayNumber + 1;
+    /// <summary>The days a range covers and the days it is compared against.</summary>
+    internal readonly record struct StatsPeriod(DateOnly From, DateOnly To, DateOnly PreviousFrom, DateOnly PreviousTo, bool HasPrevious);
+
+    /// <summary>The days of <paramref name="range"/> as of <paramref name="today"/>. The rolling
+    /// ranges end today and are compared with the period of the same length right before them. This
+    /// month and last month are calendar months, compared with the calendar month before them. A
+    /// custom range runs between its two days (never past today), compared with the same number of
+    /// days right before it. "All" has no comparison.</summary>
+    internal static StatsPeriod ResolvePeriod(string range, DateOnly today, DateOnly customFrom, DateOnly customTo)
+    {
+        switch (range)
+        {
+            case "ThisMonth":
+            case "LastMonth":
+            {
+                var first = new DateOnly(today.Year, today.Month, 1);
+                if (range == "LastMonth")
+                    first = first.AddMonths(-1);
+                var last = range == "LastMonth" ? first.AddMonths(1).AddDays(-1) : today;
+                var previousFirst = first.AddMonths(-1);
+                return new StatsPeriod(first, last, previousFirst, first.AddDays(-1), true);
+            }
+            case CustomRange:
+            {
+                var to = customTo > today ? today : customTo;
+                var from = customFrom > to ? to : customFrom;
+                return SameLengthBefore(from, to);
+            }
+            case "All":
+                return new StatsPeriod(DateOnly.MinValue, today, default, default, false);
+            default:
+                return SameLengthBefore(RangeStart(range, today), today);
+        }
+    }
+
+    private static StatsPeriod SameLengthBefore(DateOnly from, DateOnly to)
+    {
         var previousTo = from.AddDays(-1);
-        var previousFrom = previousTo.AddDays(-(periodDays - 1));
-        return all.Where(record => record.Day >= previousFrom && record.Day <= previousTo).ToList();
+        return new StatsPeriod(from, to, previousTo.AddDays(-(to.DayNumber - from.DayNumber)), previousTo, true);
     }
 
     /// <summary>The first day a gap-filled by-day chart draws a bar for: the period's own start
@@ -1182,6 +1314,8 @@ public sealed partial class StatsViewModel : ObservableObject
         "Week" => today.AddDays(-6),
         "Month" => today.AddDays(-29),
         "Year" => today.AddMonths(-12).AddDays(1),
+        "ThisMonth" => new DateOnly(today.Year, today.Month, 1),
+        "LastMonth" => new DateOnly(today.Year, today.Month, 1).AddMonths(-1),
         _ => DateOnly.MinValue,
     };
 
