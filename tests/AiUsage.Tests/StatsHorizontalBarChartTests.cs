@@ -127,4 +127,36 @@ public class StatsHorizontalBarChartTests
             throw failure;
         return result!;
     }
+
+    [Fact]
+    public void DisplayNamesShowTheShortLabelAndOnlyAddTheParentFolderWhereTwoRowsReadTheSame()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        StatsProjectRow Row(string label, string path) => new(label, path, 100, 10, day, day);
+        var rows = new[]
+        {
+            Row("app", @"C:\work\app"),
+            Row("web", @"C:\work\web"),
+            Row("App", @"D:\clients\acme\App"),
+            Row("No project", "No project"),
+        };
+
+        var names = StatsHorizontalBarChart.DisplayNames(rows);
+
+        Assert.Equal(new[] { "app (work)", "web", "App (acme)", "No project" }, names.ToArray());
+    }
+
+    [Fact]
+    public void BuildProjectDetailTooltipLinesUsesTheGivenDisplayNameAsItsFirstLine()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var row = new StatsProjectRow("app", @"C:\work\app", 100, 10, day, day);
+
+        var lines = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
+            row, new Dictionary<string, string>(), "Folder: {0}", "", "", "", "", "", "", "tokens",
+            CultureInfo.InvariantCulture, displayName: "app (work)");
+
+        Assert.Equal("app (work)", lines[0]);
+        Assert.Equal(@"Folder: C:\work\app", lines[1]);
+    }
 }

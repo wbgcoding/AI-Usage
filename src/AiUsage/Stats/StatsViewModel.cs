@@ -11,17 +11,17 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AiUsage.Stats;
 
-/// <summary>Which of the three by-day-independent data sources the "Per day" panel currently shows -
-/// a pure UI view switch, unlike <see cref="StatsGrouping"/> (which also drives the table and the
-/// breakdown chart above): all three sources (<see cref="StatsViewModel.PerDayBars"/>, <see
-/// cref="StatsViewModel.WeekdayBars"/>, <see cref="StatsViewModel.HourBars"/>) are always kept
-/// computed regardless of which one is on screen.</summary>
-public enum StatsPerDayView
+/// <summary>What the segments of a day or week column stand for.</summary>
+public enum StatsColorBy
 {
-    Day,
-    Weekday,
-    Hour,
+    Provider,
+    Model,
 }
+
+/// <summary>One stacked series of the chart: its name and the key its color is looked up by (a
+/// provider id, <c>cat:N</c> for the N-th categorical color, or <c>other</c> for the pooled
+/// remainder).</summary>
+public sealed record ChartSeriesInfo(string Label, string ColorKey);
 
 /// <summary>
 /// Everything the statistics window shows: the period selector, the grouping selector (day, week,
@@ -39,7 +39,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public ObservableCollection<Choice<string>> RangeChoices { get; } = [];
     public ObservableCollection<Choice<StatsGrouping>> GroupingChoices { get; } = [];
-    public ObservableCollection<Choice<StatsPerDayView>> PerDayViewChoices { get; } = [];
+    public ObservableCollection<Choice<StatsColorBy>> ColorByChoices { get; } = [];
 
     /// <summary>The row a ComboBox binds <c>SelectedItem</c> to - <see cref="Choice{TValue}"/> itself
     /// carries no such property, only <see cref="Choice{TValue}.IsSelected"/> on each row, so this
@@ -52,9 +52,132 @@ public sealed partial class StatsViewModel : ObservableObject
         get => RangeChoices.FirstOrDefault(choice => choice.IsSelected);
         set
         {
-            if (value is not null)
+            if (value is null)
+                return;
+            // The custom range is not a period yet: picking it asks for the two dates first.
+            if (value.Value == CustomRange)
+                RequestCustomRange();
+            else
                 SetRangeCommand.Execute(value.Value);
         }
+    }
+
+    /// <summary>The range value that stands for the two dates the user picked.</summary>
+    internal const string CustomRange = "Custom";
+
+    /// <summary>Raised when the custom range choice wants its date popup shown.</summary>
+    public event EventHandler? CustomRangeRequested;
+
+    /// <summary>Raised once a custom range was applied, so the popup can close.</summary>
+    public event EventHandler? CustomRangeApplied;
+
+    /// <summary>The first and last day of the applied custom range.</summary>
+    private DateOnly _customFrom;
+    private DateOnly _customTo;
+
+    /// <summary>The day the date popup's "from" picker shows.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCustomRangeCommand))]
+    private DateTime? customFromDate;
+
+    /// <summary>The day the date popup's "to" picker shows.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCustomRangeCommand))]
+    private DateTime? customToDate;
+
+    /// <summary>Fills the popup's pickers (the applied range, or the last 30 days) and asks the window
+    /// to show it.</summary>
+    internal void RequestCustomRange()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var from = SelectedRange == CustomRange ? _customFrom : RangeStart("Month", today);
+        var to = SelectedRange == CustomRange ? _customTo : today;
+        CustomFromDate = from.ToDateTime(TimeOnly.MinValue);
+        CustomToDate = to.ToDateTime(TimeOnly.MinValue);
+        CustomRangeRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The applied custom range, for saving it.</summary>
+    internal (DateOnly From, DateOnly To) CustomPeriod => (_customFrom, _customTo);
+
+    /// <summary>Takes up what the window was left on. Anything unknown (a hand-edited or older
+    /// settings file) keeps the default; a custom range without both dates counts as unknown. The
+    /// records are read once the window loads, so nothing is read here.</summary>
+    public void RestoreSelection(string? range, string? grouping, string? colorBy, DateOnly? customFrom, DateOnly? customTo)
+    {
+        if (customFrom is { } first && customTo is { } last)
+        {
+            _customFrom = first <= last ? first : last;
+            _customTo = first <= last ? last : first;
+        }
+
+        if (RangeChoices.Any(choice => choice.Value == range) && (range != CustomRange || (customFrom is not null && customTo is not null)))
+            SelectedRange = range!;
+        if (Enum.TryParse<StatsGrouping>(grouping, out var parsedGrouping) && Enum.IsDefined(parsedGrouping))
+            SelectedGrouping = parsedGrouping;
+        if (Enum.TryParse<StatsColorBy>(colorBy, out var parsedColorBy) && Enum.IsDefined(parsedColorBy))
+            SelectedColorBy = parsedColorBy;
+
+        UpdateCustomChoiceLabel();
+        Choice.Select(RangeChoices, SelectedRange);
+        Choice.Select(GroupingChoices, SelectedGrouping);
+        Choice.Select(ColorByChoices, SelectedColorBy);
+        OnPropertyChanged(nameof(SelectedRangeChoice));
+        OnPropertyChanged(nameof(SelectedGroupingChoice));
+        OnPropertyChanged(nameof(SelectedColorByChoice));
+        OnPropertyChanged(nameof(IsStackedByProvider));
+        OnPropertyChanged(nameof(IsDayGrouping));
+        if (_recordsLoaded)
+            RecomputeFrom(_allRecords);
+    }
+
+    /// <summary>Puts the combo back on the range that is really applied - after the date popup was
+    /// closed without applying anything.</summary>
+    public void ResyncRangeChoice()
+    {
+        Choice.Select(RangeChoices, SelectedRange);
+        OnPropertyChanged(nameof(SelectedRangeChoice));
+    }
+
+    private bool CanApplyCustomRange() => CustomFromDate is not null && CustomToDate is not null;
+
+    [RelayCommand(CanExecute = nameof(CanApplyCustomRange))]
+    private async Task ApplyCustomRange()
+    {
+        if (CustomFromDate is not { } from || CustomToDate is not { } to)
+            return;
+
+        var first = DateOnly.FromDateTime(from);
+        var last = DateOnly.FromDateTime(to);
+        await SetCustomRange(first <= last ? first : last, first <= last ? last : first);
+        CustomRangeApplied?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Applies a custom range of the two days, whichever way round they come.</summary>
+    internal async Task SetCustomRange(DateOnly from, DateOnly to)
+    {
+        _customFrom = from;
+        _customTo = to;
+        SelectedDay = null;
+        SelectedRange = CustomRange;
+        UpdateCustomChoiceLabel();
+        ResyncRangeChoice();
+        await RecomputeForSelectionAsync();
+    }
+
+    /// <summary>The custom choice names its dates while it is the applied range, and the plain
+    /// "custom range" wording otherwise.</summary>
+    private void UpdateCustomChoiceLabel()
+    {
+        var custom = RangeChoices.FirstOrDefault(choice => choice.Value == CustomRange);
+        if (custom is null)
+            return;
+
+        custom.Label = SelectedRange == CustomRange
+            ? string.Format(
+                CultureInfo.CurrentCulture, "{0:d} - {1:d}",
+                _customFrom.ToDateTime(TimeOnly.MinValue), _customTo.ToDateTime(TimeOnly.MinValue))
+            : LocalizationService.Instance["Stats.Range.Custom"];
     }
 
     /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the grouping group.</summary>
@@ -68,79 +191,96 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the "Per day" panel's own view
-    /// switch.</summary>
-    public Choice<StatsPerDayView>? SelectedPerDayViewChoice
+    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the color-by group.</summary>
+    public Choice<StatsColorBy>? SelectedColorByChoice
     {
-        get => PerDayViewChoices.FirstOrDefault(choice => choice.IsSelected);
+        get => ColorByChoices.FirstOrDefault(choice => choice.IsSelected);
         set
         {
             if (value is not null)
-                SetPerDayViewCommand.Execute(value.Value);
+                SetColorByCommand.Execute(value.Value);
         }
     }
 
     [ObservableProperty]
     private string selectedRange = "Week";
 
+    /// <summary>What the segments of a day or week column stand for.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsModelStack))]
+    private StatsColorBy selectedColorBy = StatsColorBy.Provider;
+
+    /// <summary>The series of the stacked chart, in stacking order; empty for the groupings that draw
+    /// one plain series.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<ChartSeriesInfo> chartSeries = [];
+
+    /// <summary>The trailing 7-day mean drawn as a line across the day columns, one entry per
+    /// column (the first six empty); empty unless the day grouping spans enough days.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<double?> chartOverlay = [];
+
+    /// <summary>The shortest day range the average line is drawn for.</summary>
+    private const int OverlayMinDays = 14;
+
+    /// <summary>True for the groupings whose columns can be stacked by provider or by model.</summary>
+    public bool CanChooseColor => IsStackedByProvider;
+
+    /// <summary>True while the stacked columns are split by model.</summary>
+    public bool IsModelStack => CanChooseColor && SelectedColorBy == StatsColorBy.Model;
+
+    /// <summary>The most models a stacked column names on its own; the rest are pooled.</summary>
+    private const int MaxStackedModels = 6;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
-    /// <summary>Which of <see cref="PerDayBars"/>/<see cref="WeekdayBars"/>/<see cref="HourBars"/>
-    /// the "Per day" panel's own chart currently draws - all three stay computed regardless, so
-    /// switching this needs no recompute, unlike <see cref="SelectedGrouping"/>.</summary>
+    /// <summary>True when the day grouping draws one column per calendar week instead of one per
+    /// day: only for a whole history that spans more than a year. Up to 366 days every day gets its
+    /// own column, the 12 month range included. The table under the day grouping stays per day
+    /// regardless.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    [NotifyPropertyChangedFor(nameof(PerDayViewMaxAxisLabels))]
-    [NotifyPropertyChangedFor(nameof(IsPerDayViewHourAxis))]
-    [NotifyPropertyChangedFor(nameof(IsPerDayViewStackedByProvider))]
-    [NotifyPropertyChangedFor(nameof(PerDayViewTooltip))]
-    private StatsPerDayView selectedPerDayView = StatsPerDayView.Day;
-
-    /// <summary>True when the "Per day" panel (and the breakdown chart under the day grouping) draws
-    /// one column per calendar week instead of one per day: only for a whole history that spans more
-    /// than a year. Up to 366 days every day gets its own column, the 12 month range included. The
-    /// table under the day grouping stays per day regardless.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewTooltip))]
+    [NotifyPropertyChangedFor(nameof(ChartTooltip))]
     private bool isWeeklyPerDay;
 
     private const int WeeklyPerDayThresholdDays = 366;
 
-    /// <summary>The one series actually drawn - <see cref="Views.StatsWindow"/>'s own code-behind
-    /// colors it provider-stacked or plain accent depending on <see
-    /// cref="IsPerDayViewStackedByProvider"/>, the same split <see cref="Bars"/>/<see
-    /// cref="IsStackedByProvider"/> already keep for the breakdown chart above it.</summary>
-    public IReadOnlyList<Views.Controls.StatsBarChart.Bar> PerDayViewBars => SelectedPerDayView switch
+    /// <summary>The 24 hours pack into the width the other groupings draw 7-30 columns into, so the
+    /// hour grouping keeps a tighter label spacing; every other grouping keeps the control's own
+    /// default.</summary>
+    public int ChartMaxAxisLabels => SelectedGrouping == StatsGrouping.Hour ? 8 : 10;
+
+    /// <summary>True while the chart draws the 24 hours, which label their axis at fixed hours
+    /// instead of by width.</summary>
+    public bool IsHourAxis => SelectedGrouping == StatsGrouping.Hour;
+
+    /// <summary>The breakdown section's header tooltip, following the grouping: what one column
+    /// stands for. Empty for the groupings whose columns need no explanation.</summary>
+    public string ChartTooltip => SelectedGrouping switch
     {
-        StatsPerDayView.Weekday => WeekdayBars,
-        StatsPerDayView.Hour => HourBars,
-        _ => PerDayBars,
+        StatsGrouping.Day => LocalizationService.Instance[IsWeeklyPerDay ? "Tip.Stats.Chart.PerWeek" : "Tip.Stats.Chart.PerDay"],
+        StatsGrouping.Week => LocalizationService.Instance["Tip.Stats.Chart.PerWeek"],
+        StatsGrouping.Weekday => LocalizationService.Instance["Tip.Stats.Chart.ByWeekday"],
+        StatsGrouping.Hour => LocalizationService.Instance["Tip.Stats.Chart.ByHour"],
+        StatsGrouping.WeekdayHour => LocalizationService.Instance["Tip.Stats.Chart.ByWeekdayHour"],
+        _ => "",
     };
 
-    /// <summary>Only the by-day view stacks by provider - by-weekday and by-hour stay in the plain
-    /// theme accent (neither names a single provider), the same reasoning <see
-    /// cref="IsStackedByProvider"/> documents for the breakdown chart.</summary>
-    public bool IsPerDayViewStackedByProvider => SelectedPerDayView == StatsPerDayView.Day;
+    /// <summary>True while the chart area shows the weekday by hour grid instead of columns.</summary>
+    public bool IsHeatmap => SelectedGrouping == StatsGrouping.WeekdayHour;
 
-    /// <summary>The hour view packs 24 columns into the same width the other two views draw 7-30
-    /// columns into, so it keeps the tighter 6-hour label spacing <c>HourChart</c> used to set for
-    /// itself alone; the other two views keep the control's own default.</summary>
-    public int PerDayViewMaxAxisLabels => SelectedPerDayView == StatsPerDayView.Hour ? 8 : 10;
+    /// <summary>True while the chart area shows columns.</summary>
+    public bool IsBarChart => !IsHeatmap;
 
-    /// <summary>True while the "Per day" chart draws the 24 hours, which label their axis at fixed
-    /// hours instead of by width.</summary>
-    public bool IsPerDayViewHourAxis => SelectedPerDayView == StatsPerDayView.Hour;
+    /// <summary>The weekday by hour totals, 168 values row by row, the first row being <see
+    /// cref="HeatmapFirstDay"/>.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<long> heatmapValues = [];
 
-    /// <summary>The "Per day" section's own header tooltip, following <see
-    /// cref="SelectedPerDayView"/> the same way its title already does through <see
-    /// cref="SelectedPerDayViewChoice"/>'s own <see cref="Choice{TValue}.Label"/>.</summary>
-    public string PerDayViewTooltip => LocalizationService.Instance[SelectedPerDayView switch
-    {
-        StatsPerDayView.Weekday => "Tip.Stats.Chart.ByWeekday",
-        StatsPerDayView.Hour => "Tip.Stats.Chart.ByHour",
-        _ => IsWeeklyPerDay ? "Tip.Stats.Chart.PerWeek" : "Tip.Stats.Chart.PerDay",
-    }];
+    /// <summary>The culture's first day of the week, the weekday of the grid's first row.</summary>
+    [ObservableProperty]
+    private DayOfWeek heatmapFirstDay = DayOfWeek.Monday;
 
     // The figures bar's own five cards. BusiestDayDateText and the two Change properties are
     // "" / false whenever their underlying figure has nothing to show (an empty period, or - for the
@@ -229,12 +369,6 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsBarChart.Bar> bars = [];
 
-    /// <summary>The one fixed panel - always by-day, provider-stacked, over the selected range;
-    /// unlike <see cref="Bars"/> it never follows <see cref="SelectedGrouping"/>.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    private IReadOnlyList<Views.Controls.StatsBarChart.Bar> perDayBars = [];
-
     /// <summary>The three donut charts.</summary>
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsRingChart.Slice> providerShareSlices = [];
@@ -262,17 +396,6 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The "top projects" panel - already sorted longest first, capped at ten rows.</summary>
     [ObservableProperty]
     private IReadOnlyList<StatsProjectRow> topProjectRows = [];
-
-    /// <summary>The "by weekday" panel - seven columns, current-culture day names and week
-    /// start.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    private IReadOnlyList<Views.Controls.StatsBarChart.Bar> weekdayBars = [];
-
-    /// <summary>The "by hour" panel - 24 columns, current-culture hour format.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PerDayViewBars))]
-    private IReadOnlyList<Views.Controls.StatsBarChart.Bar> hourBars = [];
 
     [ObservableProperty]
     private IReadOnlyList<StatsRowViewModel> rows = [];
@@ -597,21 +720,26 @@ public sealed partial class StatsViewModel : ObservableObject
 
         RangeChoices.Add(new Choice<string>("Chart.Range.Week", "Week"));
         RangeChoices.Add(new Choice<string>("Chart.Range.Month", "Month"));
+        RangeChoices.Add(new Choice<string>("Stats.Range.ThisMonth", "ThisMonth"));
+        RangeChoices.Add(new Choice<string>("Stats.Range.LastMonth", "LastMonth"));
         RangeChoices.Add(new Choice<string>("StatsWindow.Range.TwelveMonths", "Year"));
         RangeChoices.Add(new Choice<string>("Chart.Range.All", "All"));
+        RangeChoices.Add(new Choice<string>("Stats.Range.Custom", CustomRange));
         Choice.Select(RangeChoices, SelectedRange);
 
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByDay", StatsGrouping.Day));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeek", StatsGrouping.Week));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeekday", StatsGrouping.Weekday));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByHour", StatsGrouping.Hour));
+        GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByWeekdayHour", StatsGrouping.WeekdayHour));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByModel", StatsGrouping.Model));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByProject", StatsGrouping.Project));
         GroupingChoices.Add(new Choice<StatsGrouping>("Stats.ByEffort", StatsGrouping.Effort));
         Choice.Select(GroupingChoices, SelectedGrouping);
 
-        PerDayViewChoices.Add(new Choice<StatsPerDayView>("Stats.Chart.PerDay", StatsPerDayView.Day));
-        PerDayViewChoices.Add(new Choice<StatsPerDayView>("Stats.Chart.ByWeekday", StatsPerDayView.Weekday));
-        PerDayViewChoices.Add(new Choice<StatsPerDayView>("Stats.Chart.ByHour", StatsPerDayView.Hour));
-        Choice.Select(PerDayViewChoices, SelectedPerDayView);
+        ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Provider", StatsColorBy.Provider));
+        ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Model", StatsColorBy.Model));
+        Choice.Select(ColorByChoices, SelectedColorBy);
 
         // Nothing is read here: the window loads once it is shown (see StatsWindow), so opening it
         // never waits on the database.
@@ -631,6 +759,7 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
         SelectedDay = null;
         SelectedRange = range;
+        UpdateCustomChoiceLabel();
         Choice.Select(RangeChoices, SelectedRange);
         OnPropertyChanged(nameof(SelectedRangeChoice));
         await RecomputeForSelectionAsync();
@@ -650,17 +779,18 @@ public sealed partial class StatsViewModel : ObservableObject
         await RecomputeForSelectionAsync();
     }
 
-    /// <summary>Switches the "Per day" panel's own chart between its three always-computed sources -
-    /// no recompute, unlike <see cref="SetGrouping"/>, since none of the three depends on which one
-    /// is currently on screen.</summary>
+    /// <summary>Switches what the stacked columns stand for. The records are already in memory, so
+    /// the chart is rebuilt from them without another read.</summary>
     [RelayCommand]
-    private void SetPerDayView(StatsPerDayView view)
+    private void SetColorBy(StatsColorBy colorBy)
     {
-        if (view == SelectedPerDayView)
+        if (colorBy == SelectedColorBy)
             return;
-        SelectedPerDayView = view;
-        Choice.Select(PerDayViewChoices, SelectedPerDayView);
-        OnPropertyChanged(nameof(SelectedPerDayViewChoice));
+        SelectedColorBy = colorBy;
+        Choice.Select(ColorByChoices, SelectedColorBy);
+        OnPropertyChanged(nameof(SelectedColorByChoice));
+        if (_recordsLoaded)
+            RecomputeFrom(_allRecords);
     }
 
     // Every run takes the next number; only the newest run may publish its result or clear
@@ -748,10 +878,12 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var from = RangeStart(SelectedRange, today);
+        var period = ResolvePeriod(SelectedRange, today, _customFrom, _customTo);
+        var from = period.From;
+        var to = period.To;
 
-        var inRange = all.Where(record => record.Day >= from && record.Day <= today).ToList();
-        var previous = PreviousPeriod(all, SelectedRange, from, today);
+        var inRange = all.Where(record => record.Day >= from && record.Day <= to).ToList();
+        var previous = PreviousPeriod(all, period);
         _currentPeriodRecords = inRange;
         _allRecords = all;
         // The selected day stays across a rebuild (an index refresh must not drop what the user
@@ -763,23 +895,22 @@ public sealed partial class StatsViewModel : ObservableObject
         // bound at all, so filling every empty day from there would build one bar per day since the
         // year 1 - about 740,000 of them, which is what made the window stop answering and then give
         // up. The earliest day actually stored is the first one worth drawing.
-        var gapFillFrom = GapFillStart(from, inRange, today);
+        var gapFillFrom = GapFillStart(from, inRange, to);
 
-        var weeklyPerDay = SelectedRange == "All" && today.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
+        var weeklyPerDay = SelectedRange == "All" && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
         IsWeeklyPerDay = weeklyPerDay;
-        UpdatePerDayChoiceLabel(weeklyPerDay);
 
         // The table under the day grouping stays per day; only the bars are bundled per week.
         var dayRows = SelectedGrouping == StatsGrouping.Day
-            ? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, today)
+            ? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, to)
             : null;
-        var weekRows = weeklyPerDay ? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, today) : null;
+        var weekRows = weeklyPerDay ? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, to) : null;
 
         // Week grouping keeps its empty weeks as zero rows, the same way the day bars keep empty days.
         var groupedRows = SelectedGrouping switch
         {
             StatsGrouping.Day => weekRows ?? dayRows!,
-            StatsGrouping.Week => weekRows ?? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, today),
+            StatsGrouping.Week => weekRows ?? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, to),
             _ => StatsAggregator.Group(inRange, SelectedGrouping, noProjectLabel: LocalizationService.Instance["Stats.NoProject"]),
         };
 
@@ -805,29 +936,41 @@ public sealed partial class StatsViewModel : ObservableObject
             otherTooltipLine = string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.OtherProjects.Count"], rest.Count);
         }
 
+        // Day and week columns are stacked by provider or, on request, by model.
+        var series = new List<ChartSeriesInfo>();
+        if (IsStackedByProvider && !IsModelStack)
+        {
+            series.AddRange(StatsAggregator.StackedProviderOrder.Select(id =>
+                new ChartSeriesInfo(ProviderDisplayNames.GetValueOrDefault(id, id), id)));
+        }
+        else if (IsModelStack)
+        {
+            var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+            var stack = StatsAggregator.GroupStackedByModel(
+                inRange, stackGrouping, gapFillFrom, to, MaxStackedModels, LocalizationService.Instance["Stats.Other"]);
+            barRows = stack.Rows;
+            series.AddRange(stack.Series.Select((name, index) =>
+                new ChartSeriesInfo(name, stack.HasOther && index == stack.Series.Count - 1 ? "other" : "cat:" + index)));
+        }
+        ChartSeries = series;
+        ChartOverlay = SelectedGrouping == StatsGrouping.Day && !weeklyPerDay && barRows.Count >= OverlayMinDays
+            ? StatsAggregator.TrailingMean(barRows.Select(row => row.Total).ToList(), 7)
+            : [];
+
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
             row.Label, row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
             barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null)).ToList();
 
-        // The dedicated "Per day" panel always shows by-day, provider-stacked, independent of
-        // whichever grouping the explorer chart/table above is currently set to - reusing the exact
-        // same gap-filled rows when the grouping already happens to be Day, computing them fresh
-        // otherwise.
-        var perDayRows = weekRows
-            ?? dayRows
-            ?? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, today);
-        PerDayBars = perDayRows.Select(row => new Views.Controls.StatsBarChart.Bar(row.Label, row.StackedValues)).ToList();
-
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
-        // unlike PerDayBars, stacked by all five providers rather than just the two
+        // stacked by all five providers rather than just the two
         // StackedProviderOrder names, since any of them can lead a day on this grid. Built by
         // StatsMonthGridBuilder, the one place this computation lives - the widget's own day-grid tile
         // (DayGridTileViewModel) reads the same store through the same builder, so the two never
         // disagree about a day's color or total.
         _monthGridToday = DateOnly.FromDateTime(DateTime.Now);
         _monthGridPeriodStart = from;
-        _monthGridPeriodEnd = today;
+        _monthGridPeriodEnd = to;
         RebuildMonthGrid(all, colorScale: null);
 
         Rows = (dayRows ?? groupedRows)
@@ -905,24 +1048,21 @@ public sealed partial class StatsViewModel : ObservableObject
         TopProjectRows = StatsAggregator.TopProjectsDetailed(inRange, limit: 12, loc["Stats.NoProject"]);
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
-        // The "by weekday" panel.
-        var weekdayRows = StatsAggregator.GroupByWeekday(inRange, CultureInfo.CurrentCulture);
-        WeekdayBars = weekdayRows.Select(row => new Views.Controls.StatsBarChart.Bar(row.Label, row.StackedValues)).ToList();
+        // The weekday by hour grid, in the culture's own week order.
+        HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
+        HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
 
-        // The "by hour" panel.
-        var hourRows = StatsAggregator.GroupByHour(inRange, CultureInfo.CurrentCulture);
-        HourBars = hourRows.Select(row => new Views.Controls.StatsBarChart.Bar(row.Label, row.StackedValues)).ToList();
-
-        var periodDayCount = PeriodDayCount(SelectedRange, from, today, all);
+        var periodDayCount = PeriodDayCount(SelectedRange, from, to, all);
         // The preceding period always has the range's fixed length, unlike periodDayCount, which a
         // short history can cut down.
-        var figures = StatsAggregator.ComputeHeadlineFigures(inRange, previous, periodDayCount, today.DayNumber - from.DayNumber + 1);
+        var figures = StatsAggregator.ComputeHeadlineFigures(
+            inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
         ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc);
 
         // The figures bar's mini charts - see the raw properties' own doc comments.
         // Always the period's own last periodDayCount days: "from" is DateOnly.MinValue for the whole
         // history, which would put every record outside the series.
-        DailyTotalsSeries = StatsAggregator.DailyTotalsSeries(inRange, today.AddDays(-(Math.Max(1, periodDayCount) - 1)), periodDayCount);
+        DailyTotalsSeries = StatsAggregator.DailyTotalsSeries(inRange, to.AddDays(-(Math.Max(1, periodDayCount) - 1)), periodDayCount);
         PeriodTotalRaw = figures.Total;
         PreviousPeriodTotalRaw = previous.Sum(record => record.TotalTokens);
         ActiveDayCountRaw = figures.ActiveDayCount;
@@ -939,34 +1079,14 @@ public sealed partial class StatsViewModel : ObservableObject
     /// range over three months of data averages over those three months, not over a full year. "All" has
     /// no fixed length and takes that span as is. With no records at all it falls back to one
     /// day.</summary>
-    private static int PeriodDayCount(string range, DateOnly from, DateOnly today, IReadOnlyList<StatsRecord> all)
+    private static int PeriodDayCount(string range, DateOnly from, DateOnly to, IReadOnlyList<StatsRecord> all)
     {
         if (all.Count == 0)
             return 1;
 
-        var sinceFirstRecord = Math.Max(1, today.DayNumber - all.Min(record => record.Day).DayNumber + 1);
-        return range == "All" ? sinceFirstRecord : Math.Min(today.DayNumber - from.DayNumber + 1, sinceFirstRecord);
+        var sinceFirstRecord = Math.Max(1, to.DayNumber - all.Min(record => record.Day).DayNumber + 1);
+        return range == "All" ? sinceFirstRecord : Math.Min(to.DayNumber - from.DayNumber + 1, sinceFirstRecord);
     }
-
-    /// <summary>The first entry of <see cref="PerDayViewChoices"/> reads "Per week" while the chart
-    /// bundles by week and "Per day" otherwise. The entry is swapped for a freshly keyed one only
-    /// when the wording actually changes, keeping whichever view is selected.</summary>
-    private void UpdatePerDayChoiceLabel(bool weekly)
-    {
-        if (PerDayViewChoices.Count == 0)
-            return;
-
-        var key = weekly ? "Stats.Chart.PerWeek" : "Stats.Chart.PerDay";
-        if (_perDayChoiceKey == key)
-            return;
-
-        _perDayChoiceKey = key;
-        PerDayViewChoices[0] = new Choice<StatsPerDayView>(key, StatsPerDayView.Day);
-        Choice.Select(PerDayViewChoices, SelectedPerDayView);
-        OnPropertyChanged(nameof(SelectedPerDayViewChoice));
-    }
-
-    private string _perDayChoiceKey = "Stats.Chart.PerDay";
 
     /// <summary>A language switch while the window is open: the choice labels are looked up again
     /// and every text this view model composes itself (figures, labels, the day heading) is rebuilt
@@ -977,9 +1097,10 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in GroupingChoices)
             choice.RefreshLabel();
-        foreach (var choice in PerDayViewChoices)
+        foreach (var choice in ColorByChoices)
             choice.RefreshLabel();
-        OnPropertyChanged(nameof(PerDayViewTooltip));
+        UpdateCustomChoiceLabel();
+        OnPropertyChanged(nameof(ChartTooltip));
         RecomputeFrom(_allRecords);
     }
 
@@ -1038,17 +1159,52 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Every record from the period of the same length immediately before <paramref
-    /// name="from"/> - empty for "All", which has no defined length to mirror.</summary>
-    private static List<StatsRecord> PreviousPeriod(IReadOnlyList<StatsRecord> all, string range, DateOnly from, DateOnly today)
-    {
-        if (range == "All")
-            return [];
+    /// <summary>Every record from the period compared against - empty for "All", which has no
+    /// defined length to mirror.</summary>
+    private static List<StatsRecord> PreviousPeriod(IReadOnlyList<StatsRecord> all, StatsPeriod period) =>
+        period.HasPrevious
+            ? all.Where(record => record.Day >= period.PreviousFrom && record.Day <= period.PreviousTo).ToList()
+            : [];
 
-        var periodDays = today.DayNumber - from.DayNumber + 1;
+    /// <summary>The days a range covers and the days it is compared against.</summary>
+    internal readonly record struct StatsPeriod(DateOnly From, DateOnly To, DateOnly PreviousFrom, DateOnly PreviousTo, bool HasPrevious);
+
+    /// <summary>The days of <paramref name="range"/> as of <paramref name="today"/>. The rolling
+    /// ranges end today and are compared with the period of the same length right before them. This
+    /// month and last month are calendar months, compared with the calendar month before them. A
+    /// custom range runs between its two days (never past today), compared with the same number of
+    /// days right before it. "All" has no comparison.</summary>
+    internal static StatsPeriod ResolvePeriod(string range, DateOnly today, DateOnly customFrom, DateOnly customTo)
+    {
+        switch (range)
+        {
+            case "ThisMonth":
+            case "LastMonth":
+            {
+                var first = new DateOnly(today.Year, today.Month, 1);
+                if (range == "LastMonth")
+                    first = first.AddMonths(-1);
+                var last = range == "LastMonth" ? first.AddMonths(1).AddDays(-1) : today;
+                var previousFirst = first.AddMonths(-1);
+                return new StatsPeriod(first, last, previousFirst, first.AddDays(-1), true);
+            }
+            case CustomRange:
+            {
+                var to = customTo > today ? today : customTo;
+                var from = customFrom > to ? to : customFrom;
+                return SameLengthBefore(from, to);
+            }
+            case "All":
+                return new StatsPeriod(DateOnly.MinValue, today, default, default, false);
+            default:
+                return SameLengthBefore(RangeStart(range, today), today);
+        }
+    }
+
+    private static StatsPeriod SameLengthBefore(DateOnly from, DateOnly to)
+    {
         var previousTo = from.AddDays(-1);
-        var previousFrom = previousTo.AddDays(-(periodDays - 1));
-        return all.Where(record => record.Day >= previousFrom && record.Day <= previousTo).ToList();
+        return new StatsPeriod(from, to, previousTo.AddDays(-(to.DayNumber - from.DayNumber)), previousTo, true);
     }
 
     /// <summary>The first day a gap-filled by-day chart draws a bar for: the period's own start
@@ -1192,6 +1348,8 @@ public sealed partial class StatsViewModel : ObservableObject
         "Week" => today.AddDays(-6),
         "Month" => today.AddDays(-29),
         "Year" => today.AddMonths(-12).AddDays(1),
+        "ThisMonth" => new DateOnly(today.Year, today.Month, 1),
+        "LastMonth" => new DateOnly(today.Year, today.Month, 1).AddMonths(-1),
         _ => DateOnly.MinValue,
     };
 

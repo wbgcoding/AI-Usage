@@ -2,8 +2,8 @@ namespace AiUsage.Stats;
 
 /// <summary>
 /// Short, human display names for the raw model identifiers that show up in the token usage index
-/// (e.g. <c>claude-sonnet-5</c>, <c>gpt-5.6-sol</c>). A fixed lookup table plus Claude's fixed id
-/// scheme, never a guess: a model that matches neither keeps its original, unmodified name.
+/// (e.g. <c>claude-sonnet-5</c>, <c>gpt-5.6-sol</c>). A fixed lookup table first, then Claude's
+/// fixed id scheme, then one plain spelling rule that turns any other id into readable words.
 /// </summary>
 public static class ModelDisplayNames
 {
@@ -38,8 +38,7 @@ public static class ModelDisplayNames
 
     /// <summary>Looks a raw model identifier up after normalizing it (provider prefix and
     /// <c>:free</c> suffix stripped, a trailing eight-digit date dropped, lowercased). A model that
-    /// still does not match any table entry keeps its original name exactly as given - no derived or
-    /// guessed shortening.</summary>
+    /// matches no table entry and no Claude id is spelled out by <see cref="Prettify"/>.</summary>
     public static string Resolve(string model)
     {
         if (string.IsNullOrEmpty(model))
@@ -49,7 +48,41 @@ public static class ModelDisplayNames
         if (Table.TryGetValue(normalized, out var displayName))
             return displayName;
 
-        return ClaudeFamilyName(normalized) ?? model;
+        return ClaudeFamilyName(normalized) ?? Prettify(normalized, model);
+    }
+
+    /// <summary>The last fallback: the normalized id split at <c>-</c> and <c>_</c>, each word spelled
+    /// by <see cref="SpellToken"/> and joined with spaces. <c>gpt</c> is the one word glued to the next
+    /// one with a hyphen (<c>GPT-4o Mini</c>). An id without any word keeps its original name.</summary>
+    private static string Prettify(string normalized, string original)
+    {
+        var tokens = normalized.Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+            return original;
+
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < tokens.Length; i++)
+        {
+            if (i > 0)
+                result.Append(tokens[i - 1] == "gpt" ? '-' : ' ');
+            result.Append(SpellToken(tokens[i]));
+        }
+        return result.ToString();
+    }
+
+    private static string SpellToken(string token)
+    {
+        if (token is "gpt")
+            return "GPT";
+        if (token is "glm" or "api" or "ai")
+            return token.ToUpperInvariant();
+        if (token.Length > 1 && token[0] == 'o' && char.IsAsciiDigit(token[1]))
+            return token;
+        if (token.Length > 1 && token[0] == 'v' && char.IsAsciiDigit(token[1]))
+            return "V" + token[1..];
+        if (!char.IsAsciiLetter(token[0]))
+            return token;
+        return char.ToUpperInvariant(token[0]) + token[1..];
     }
 
     /// <summary>Claude model ids follow one fixed scheme, <c>claude-&lt;family&gt;-&lt;major&gt;[-&lt;minor&gt;][-thinking]</c>,

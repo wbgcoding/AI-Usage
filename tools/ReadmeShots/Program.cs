@@ -373,7 +373,7 @@ internal static class Program
         var window = BuildStatisticsWindow(dataDirectory, records, busyDay);
         var viewModel = (StatsViewModel)window.DataContext;
 
-        // Cut just above the per-day section, and
+        // Cut just above the provider section, and
         // without the scrollbar a cut-off page would otherwise show.
         var width = minWidth ? window.MinWidth : 900;
         var root = (FrameworkElement)window.Content;
@@ -395,7 +395,7 @@ internal static class Program
         }
         var height = fullHeight
             ? Math.Ceiling(root.DesiredSize.Height)
-            : Math.Floor(window.PerDaySection.TranslatePoint(new Point(0, 0), root).Y - 4);
+            : Math.Floor(window.ProviderSection.TranslatePoint(new Point(0, 0), root).Y - 4);
         RenderToPng(root, width, height, outputPath);
     }
 

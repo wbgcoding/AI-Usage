@@ -107,10 +107,32 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"
                                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox ItemsSource="{Binding RangeChoices}"
+                                <ComboBox x:Name="RangeCombo" ItemsSource="{Binding RangeChoices}"
                                           SelectedItem="{Binding SelectedRangeChoice, Mode=TwoWay}" MinWidth="80"
                                           ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Range]}"
                                           AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"/>
+                                <!-- The two days of a custom range, asked for under the range list. -->
+                                <Popup x:Name="CustomRangePopup" PlacementTarget="{Binding ElementName=RangeCombo}" Placement="Bottom"
+                                       StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                       Closed="CustomRangePopup_Closed">
+                                    <Border x:Name="CustomRangePanel" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                            BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="12">
+                                        <StackPanel MinWidth="180">
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"
+                                                       Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
+                                            <DatePicker x:Name="CustomFromPicker" SelectedDate="{Binding CustomFromDate, Mode=TwoWay}"
+                                                        AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"/>
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.To]}"
+                                                       Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,8,0,4"/>
+                                            <DatePicker x:Name="CustomToPicker" SelectedDate="{Binding CustomToDate, Mode=TwoWay}"
+                                                        AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.To]}"/>
+                                            <Button x:Name="CustomRangeApplyButton" Style="{StaticResource AiUsageButton}" HorizontalAlignment="Right" Margin="0,12,0,0"
+                                                    Command="{Binding ApplyCustomRangeCommand}"
+                                                    Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.Apply]}"
+                                                    AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.Apply]}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
                             </StackPanel>
                             <Button x:Name="ResetLayoutButton" Grid.Column="1" Style="{StaticResource AiUsageQuietButton}"
                                     VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click"
@@ -333,14 +355,9 @@
                             </controls:CollapsibleSection>
 
                             <controls:CollapsibleSection x:Name="BreakdownSection" SectionKey="breakdown"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Breakdown]}">
-                                <controls:CollapsibleSection.Summary>
-                                    <MultiBinding StringFormat="{}{0} · {1} · {2}">
-                                        <Binding Path="InputText"/>
-                                        <Binding Path="OutputText"/>
-                                        <Binding Path="CachedText"/>
-                                    </MultiBinding>
-                                </controls:CollapsibleSection.Summary>
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Breakdown]}"
+                                    Summary="{Binding TotalFigureText}"
+                                    HeaderToolTip="{Binding ChartTooltip}">
                                 <!-- The grouping only drives this chart and the table at the bottom, so its
                                      picker sits on this section's own header rather than the window's.
                                      The CSV export follows that grouping, so its button sits next to it. -->
@@ -356,16 +373,10 @@
                                                   SelectedItem="{Binding SelectedGroupingChoice, Mode=TwoWay}" MinWidth="80"
                                                   ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Grouping]}"
                                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"/>
+
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding InputText}" ToolTip="{Binding InputExact}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"/>
-                                    <TextBlock Text="·" Margin="8,0" Foreground="{DynamicResource Text.Muted}"/>
-                                    <TextBlock Text="{Binding OutputText}" ToolTip="{Binding OutputExact}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"/>
-                                    <TextBlock Text="·" Margin="8,0" Foreground="{DynamicResource Text.Muted}"/>
-                                    <TextBlock Text="{Binding CachedText}" ToolTip="{Binding CachedExact}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"/>
-                                </StackPanel>
                                 <ItemsControl ItemsSource="{Binding ProviderRows}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -402,10 +413,24 @@
                                      collapsing "Breakdown" left it showing regardless -
                                      nested in this section's own Content, it now hides and reappears
                                      with everything else here. -->
-                                <Border Height="140" Margin="0,12,0,0"
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0"
+                                            Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
+                                               VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
+                                               Foreground="{DynamicResource Text.Secondary}"/>
+                                    <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
+                                              SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
+                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
+                                </StackPanel>
+
+                                <Border Height="140" Margin="0,4,0,0"
+                                        Visibility="{Binding IsBarChart, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsBarChart x:Name="Chart" Margin="8,4,8,0" Bars="{Binding Bars}"
+                                                             OverlayLine="{Binding ChartOverlay}"
+                                                             MaxAxisLabels="{Binding ChartMaxAxisLabels}"
+                                                             IsHourAxis="{Binding IsHourAxis}"
                                                              EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
                                                              AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
                                                              EmptyTextBrush="{DynamicResource Text.Muted}"
@@ -415,45 +440,48 @@
                                                              BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
                                                              TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
                                 </Border>
-                            </StackPanel>
-                            </controls:CollapsibleSection>
 
-                            <!-- The dedicated "Per day" panel: a view switch multiplexes three
-                                 always-computed sources (by day, by weekday, by hour) onto the one
-                                 chart below, following the same picker-on-the-header pattern as
-                                 BreakdownSection's own grouping ComboBox. -->
-                            <controls:CollapsibleSection x:Name="PerDaySection" SectionKey="perday"
-                                    Title="{Binding SelectedPerDayViewChoice.Label}"
-                                    Summary="{Binding PerDayFigureText}"
-                                    HeaderToolTip="{Binding PerDayViewTooltip}">
-                                <controls:CollapsibleSection.HeaderContent>
-                                    <ComboBox x:Name="PerDayViewCombo" ItemsSource="{Binding PerDayViewChoices}"
-                                              SelectedItem="{Binding SelectedPerDayViewChoice, Mode=TwoWay}" MinWidth="80"
-                                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ViewSwitch]}"
-                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ViewSwitch]}"/>
-                                </controls:CollapsibleSection.HeaderContent>
-                                <Border Height="160"
+                                <!-- What the colors of the stacked columns stand for. -->
+                                <ItemsControl x:Name="ChartLegend" Margin="0,8,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}"/>
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,12,4">
+                                                <Rectangle Width="12" Height="{Binding SwatchHeight}" RadiusX="2" RadiusY="2" Fill="{Binding Brush}"
+                                                           VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Text.Muted}"
+                                                           FontSize="{StaticResource Font.Size.Micro}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- The weekday by hour grouping draws a grid instead of columns. -->
+                                <Border Margin="0,12,0,0" Padding="8"
+                                        Visibility="{Binding IsHeatmap, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsBarChart x:Name="PerDayChart" Margin="8,4,8,0" Bars="{Binding PerDayViewBars}"
-                                                             MaxAxisLabels="{Binding PerDayViewMaxAxisLabels}"
-                                                             IsHourAxis="{Binding IsPerDayViewHourAxis}"
-                                                             EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
-                                                             AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
-                                                             EmptyTextBrush="{DynamicResource Text.Muted}"
-                                                             TextBrush="{DynamicResource Text.Muted}"
-                                                             TooltipBackground="{DynamicResource Bg.Raised}"
-                                                             MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
-                                                             BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
-                                                             TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
+                                    <controls:StatsHeatmap x:Name="Heatmap" Values="{Binding HeatmapValues}" FirstDay="{Binding HeatmapFirstDay}"
+                                                            AccentBrush="{DynamicResource Accent}"
+                                                            EmptyCellBrush="{DynamicResource Border}"
+                                                            TextBrush="{DynamicResource Text.Muted}"
+                                                            TooltipBackground="{DynamicResource Bg.Raised}"
+                                                            TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
+                                                            EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"/>
                                 </Border>
-                            </controls:CollapsibleSection>
 
-                            <!-- one horizontal stacked bar, four segments: the cache share of all tokens. -->
-                            <controls:CollapsibleSection x:Name="CacheSection" SectionKey="cache"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.CacheShare]}"
-                                    Summary="{Binding CachedText}"
-                                    HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.CacheShare]}">
+                                <!-- One horizontal stacked bar, four segments: how much of all tokens was new
+                                     input, cache writes, cache reads and output. -->
+                                <TextBlock Margin="0,12,0,4" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"
+                                           Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.CacheShare]}"
+                                           ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.CacheShare]}"/>
                                 <Border Height="70" Padding="8"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
@@ -463,6 +491,7 @@
                                                                   EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
                                                                   TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
                                 </Border>
+                            </StackPanel>
                             </controls:CollapsibleSection>
 
                             <controls:CollapsibleSection x:Name="ProviderSection" SectionKey="provider"

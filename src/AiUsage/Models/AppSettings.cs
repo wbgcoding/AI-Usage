@@ -207,13 +207,23 @@ public sealed class AppSettings
     [System.Text.Json.Serialization.JsonConverter(typeof(Stats.TolerantLayoutConverter))]
     public List<Stats.StatsLayoutRow>? StatsSectionLayout { get; set; }
 
-    /// <summary>Which of the "Per day" panel's three views (<c>Day</c>/<c>Weekday</c>/<c>Hour</c>,
-    /// <see cref="Stats.StatsPerDayView"/> stringified) the statistics window last showed. Stored as
-    /// a plain string, not the enum itself, so an older or newer build's own settings file round
-    /// trips a value it does not recognise instead of failing to parse; an unrecognised value is
-    /// treated the same as a missing one. <see cref="Views.StatsWindow"/> is the only reader/writer.
-    /// </summary>
-    public string StatsPerDayView { get; set; } = "Day";
+    /// <summary>The range the statistics window was left on: Week, Month, ThisMonth, LastMonth, Year,
+    /// All or Custom. Anything else reads back as Week.</summary>
+    public string StatsRange { get; set; } = "Week";
+
+    /// <summary>The grouping the statistics window was left on (a <see cref="Stats.StatsGrouping"/>
+    /// name); anything else reads back as Day.</summary>
+    public string StatsGrouping { get; set; } = "Day";
+
+    /// <summary>What the stacked day and week columns were colored by (a <see
+    /// cref="Stats.StatsColorBy"/> name); anything else reads back as Provider.</summary>
+    public string StatsColorBy { get; set; } = "Provider";
+
+    /// <summary>The first and last day of the custom range; only read while <see cref="StatsRange"/>
+    /// is Custom.</summary>
+    public DateOnly? StatsCustomFrom { get; set; }
+
+    public DateOnly? StatsCustomTo { get; set; }
 
     public WindowSettings Window { get; set; } = new();
 
@@ -262,6 +272,12 @@ public sealed class WindowSettings
     public double StatsWidth { get; set; }
 
     public double StatsHeight { get; set; }
+
+    /// <summary>Where the Stats window was left; null means it has not been moved yet and opens
+    /// centered on the widget.</summary>
+    public double? StatsLeft { get; set; }
+
+    public double? StatsTop { get; set; }
 
     public string MonitorDeviceName { get; set; } = @"\\.\DISPLAY1";
 

@@ -9,6 +9,9 @@ public enum StatsGrouping
 {
     Day,
     Week,
+    Weekday,
+    Hour,
+    WeekdayHour,
     Model,
     Project,
     Effort,
@@ -19,6 +22,11 @@ public enum StatsGrouping
 /// day/week grouping, a single segment for model/project grouping (a model or project already
 /// belongs to exactly one provider, so stacking would add nothing there).</summary>
 public readonly record struct StatsGroupedRow(string Label, IReadOnlyList<long> StackedValues, long Total);
+
+/// <summary>A day or week chart stacked by model: the model names in stacking order (largest
+/// first, the pooled remainder last when <see cref="HasOther"/>) and one row per period whose stacked
+/// values follow that order.</summary>
+public readonly record struct StatsModelSplit(IReadOnlyList<string> Series, bool HasOther, IReadOnlyList<StatsGroupedRow> Rows);
 
 /// <summary>The token totals for one period, split into the input/output/cache breakdown line and
 /// the headline total, plus the same total for the immediately preceding period of equal length -
@@ -125,12 +133,77 @@ public static class StatsAggregator
     {
         StatsGrouping.Day => GroupByDay(records, rangeStart, rangeEnd),
         StatsGrouping.Week => GroupByWeek(records, rangeStart, rangeEnd),
+        StatsGrouping.Weekday => GroupByWeekday(records, CultureInfo.CurrentCulture),
+        StatsGrouping.Hour => GroupByHour(records, CultureInfo.CurrentCulture),
+        StatsGrouping.WeekdayHour => GroupByWeekday(records, CultureInfo.CurrentCulture),
         StatsGrouping.Model => GroupBySingleValueKey(records, record => ModelDisplayNames.Resolve(record.Model)),
         StatsGrouping.Project => GroupBySingleValueKey(
             records, record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase),
         StatsGrouping.Effort => GroupBySingleValueKey(records, record => record.Effort),
         _ => [],
     };
+
+    /// <summary>The day or week rows of <see cref="Group"/>, each stacked by model instead of by
+    /// provider: the <paramref name="topCount"/> models with the most tokens in <paramref
+    /// name="records"/> keep their own segment, every other model is pooled into one last segment
+    /// named <paramref name="otherLabel"/>. The rows are exactly those <see cref="Group"/> returns for
+    /// the same arguments, so each row's total is the same total the provider stack shows.</summary>
+    public static StatsModelSplit GroupStackedByModel(
+        IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd, int topCount, string otherLabel)
+    {
+        var periods = Group(records, grouping, rangeStart, rangeEnd);
+
+        var modelTotals = records
+            .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
+            .Select(group => (Name: group.Key, Total: group.Sum(record => record.TotalTokens)))
+            .OrderByDescending(entry => entry.Total)
+            .ThenBy(entry => entry.Name, StringComparer.Ordinal)
+            .ToList();
+        var named = modelTotals.Take(topCount).Select(entry => entry.Name).ToList();
+        var hasOther = modelTotals.Count > topCount;
+        var series = hasOther ? named.Append(otherLabel).ToList() : named;
+        var slotOf = named.Select((name, index) => (name, index)).ToDictionary(pair => pair.name, pair => pair.index);
+
+        string KeyOf(StatsRecord record) => grouping == StatsGrouping.Week
+            ? IsoWeekLabel(record.Day)
+            : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var stacks = new Dictionary<string, long[]>();
+        foreach (var record in records)
+        {
+            var key = KeyOf(record);
+            if (!stacks.TryGetValue(key, out var stack))
+                stacks[key] = stack = new long[Math.Max(1, series.Count)];
+            var slot = slotOf.TryGetValue(ModelDisplayNames.Resolve(record.Model), out var found) ? found : series.Count - 1;
+            stack[slot] += record.TotalTokens;
+        }
+
+        var rows = periods
+            .Select(period =>
+            {
+                var stacked = stacks.TryGetValue(period.Label, out var values) ? values : new long[Math.Max(1, series.Count)];
+                return new StatsGroupedRow(period.Label, stacked, stacked.Sum());
+            })
+            .ToList();
+        return new StatsModelSplit(series, hasOther, rows);
+    }
+
+    /// <summary>The mean of each value and the <c>window - 1</c> values before it; the first
+    /// <c>window - 1</c> entries have no full window yet and are null.</summary>
+    public static IReadOnlyList<double?> TrailingMean(IReadOnlyList<long> totals, int window)
+    {
+        var means = new double?[totals.Count];
+        long sum = 0;
+        for (var i = 0; i < totals.Count; i++)
+        {
+            sum += totals[i];
+            if (i >= window)
+                sum -= totals[i - window];
+            if (i >= window - 1)
+                means[i] = (double)sum / window;
+        }
+        return means;
+    }
 
     private static List<StatsGroupedRow> GroupByDay(IReadOnlyList<StatsRecord> records, DateOnly? rangeStart, DateOnly? rangeEnd)
     {
@@ -643,6 +716,34 @@ public static class StatsAggregator
             rows.Add(new StatsGroupedRow(label, [total], total));
         }
         return rows;
+    }
+
+    /// <summary>The weekday by hour grid: the token totals of every weekday and hour of the day,
+    /// indexed <c>[(int)DayOfWeek, hour]</c> (Sunday is 0), hours in the same local time as <see
+    /// cref="StatsRecord.Day"/>.</summary>
+    public static long[,] GroupByWeekdayHour(IReadOnlyList<StatsRecord> records)
+    {
+        var grid = new long[7, 24];
+        foreach (var record in records)
+        {
+            if (record.Hour is >= 0 and < 24)
+                grid[(int)record.Day.DayOfWeek, record.Hour] += record.TotalTokens;
+        }
+        return grid;
+    }
+
+    /// <summary>The grid of <see cref="GroupByWeekdayHour"/> as 168 values, row by row, the first row
+    /// being <paramref name="firstDay"/>, then the days after it.</summary>
+    public static IReadOnlyList<long> FlattenWeekdayHour(long[,] grid, DayOfWeek firstDay)
+    {
+        var values = new List<long>(7 * 24);
+        for (var row = 0; row < 7; row++)
+        {
+            var day = ((int)firstDay + row) % 7;
+            for (var hour = 0; hour < 24; hour++)
+                values.Add(grid[day, hour]);
+        }
+        return values;
     }
 
     /// <summary>The month grid's day-detail panel: <paramref name="day"/>'s own records broken down

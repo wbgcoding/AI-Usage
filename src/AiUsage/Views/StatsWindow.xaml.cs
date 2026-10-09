@@ -30,8 +30,6 @@ namespace AiUsage.Views;
 /// </summary>
 public partial class StatsWindow : Window
 {
-    private const double DefaultWidth = 720;
-    private const double DefaultHeight = 520;
 
     private readonly StatsViewModel _viewModel;
     private readonly AppSettings? _settings;
@@ -52,9 +50,26 @@ public partial class StatsWindow : Window
 
         _layoutPresenter = new StatsLayoutPresenter(SectionHost, Sections.ToDictionary(section => section.SectionKey));
         _layoutPresenter.Apply(_settings?.StatsSectionLayout ?? StatsLayout.Default());
+        if (_settings is not null)
+        {
+            _viewModel.RestoreSelection(
+                _settings.StatsRange, _settings.StatsGrouping, _settings.StatsColorBy, _settings.StatsCustomFrom, _settings.StatsCustomTo);
+        }
+        _viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(StatsViewModel.SelectedRange) or nameof(StatsViewModel.SelectedGrouping)
+                or nameof(StatsViewModel.SelectedColorBy))
+                RememberSelection();
+        };
         _dragController = new StatsSectionDragController(this, ContentScroller, _layoutPresenter, CommitLayout);
         WireSectionChrome();
         UpdateResetButton();
+
+        // The custom range is picked in a popup under the range list; it opens after the list has
+        // closed, since a popup opened in the middle of the list's own click is closed again by it.
+        _viewModel.CustomRangeRequested += (_, _) =>
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => CustomRangePopup.IsOpen = true);
+        _viewModel.CustomRangeApplied += (_, _) => CustomRangePopup.IsOpen = false;
 
         PreviewKeyDown += Window_PreviewKeyDown;
         Loaded += StatsWindow_Loaded;
@@ -81,16 +96,11 @@ public partial class StatsWindow : Window
         };
         MonthGrid.SizeChanged += (_, _) => MonthGridScroller.ScrollToRightEnd();
 
-        if (_settings is not null && Enum.TryParse<StatsPerDayView>(_settings.StatsPerDayView, out var restoredView))
-            _viewModel.SetPerDayViewCommand.Execute(restoredView);
-
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(StatsViewModel.IsStackedByProvider) or nameof(StatsViewModel.Bars)
-                or nameof(StatsViewModel.SelectedPerDayView) or nameof(StatsViewModel.ProjectColors))
+                or nameof(StatsViewModel.ProjectColors) or nameof(StatsViewModel.ChartSeries) or nameof(StatsViewModel.ChartOverlay))
                 RefreshSeriesBrushes();
-            if (e.PropertyName == nameof(StatsViewModel.SelectedPerDayView))
-                PersistPerDayView();
             if (e.PropertyName == nameof(StatsViewModel.ProviderShareSlices))
                 RefreshProviderRingBrushes();
             if (e.PropertyName == nameof(StatsViewModel.ModelShareSlices))
@@ -226,6 +236,10 @@ public partial class StatsWindow : Window
     private List<string> VisibleSectionKeys() =>
         Sections.Where(section => section.Visibility == Visibility.Visible).Select(section => section.SectionKey).ToList();
 
+    /// <summary>A popup that closed without an applied range puts the list back on the range that
+    /// is really showing.</summary>
+    private void CustomRangePopup_Closed(object? sender, EventArgs e) => _viewModel.ResyncRangeChoice();
+
     private void ResetLayoutButton_Click(object sender, RoutedEventArgs e) => CommitLayout(StatsLayout.Default());
 
     /// <summary>The reset button only shows while the arrangement differs from the default.</summary>
@@ -283,7 +297,7 @@ public partial class StatsWindow : Window
     /// (its own dictionary key in <see cref="AppSettings.StatsSectionsCollapsed"/>) work through.</summary>
     private IEnumerable<Controls.CollapsibleSection> Sections =>
     [
-        FiguresSection, BreakdownSection, PerDaySection, ProviderSection, ModelSection, EffortSection, CacheSection,
+        FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection,
         ProjectsSection, MonthGridSection, TableSection,
     ];
 
@@ -307,18 +321,6 @@ public partial class StatsWindow : Window
             return;
 
         _settings.StatsSectionsCollapsed[section.SectionKey] = !section.IsExpanded;
-        _settingsStore.RequestSave(_settings);
-    }
-
-    /// <summary>Mirrors <see cref="PersistSectionState"/> for the "Per day" panel's own view switch -
-    /// same no-op-without-settings shape, restored the same way on the next construction (see the
-    /// constructor's own <see cref="Enum.TryParse{TEnum}(string?, out TEnum)"/> call).</summary>
-    private void PersistPerDayView()
-    {
-        if (_settings is null || _settingsStore is null)
-            return;
-
-        _settings.StatsPerDayView = _viewModel.SelectedPerDayView.ToString();
         _settingsStore.RequestSave(_settings);
     }
 
@@ -363,29 +365,60 @@ public partial class StatsWindow : Window
         // The view model reads nothing on construction; this is its one initial load.
         _ = RecomputeLoggedAsync();
 
-        // By handle first: with mixed scaling the per-monitor areas overlap.
-        var area = MainWindow.PickArea(
-            NativeMonitors.WorkAreas(),
-            NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
-            new WindowRect(Left + Width / 2, Top + Height / 2, 0, 0));
+        var placement = WindowPlacementService.Shared;
+        var rememberedPosition = placement?.RememberedStatsWindowPosition;
+        var monitors = NativeMonitors.WorkAreas();
 
-        var (width, height) = WindowPlacementService.ResolveStatsWindowSize(
-            WindowPlacementService.Shared?.RememberedStatsWindowSize, area, DefaultWidth, DefaultHeight);
-        if (width != Width || height != Height)
+        // A remembered position names its monitor by where it lies; otherwise the monitor the window
+        // opened on. By handle first there: with mixed scaling the per-monitor areas overlap.
+        var area = rememberedPosition is { } position
+            ? MainWindow.PickArea(monitors, null, new WindowRect(position.Left + 1, position.Top + 1, 0, 0))
+            : MainWindow.PickArea(
+                monitors,
+                NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
+                new WindowRect(Left + Width / 2, Top + Height / 2, 0, 0));
+
+        var size = WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight);
+        if (size.Width != Width || size.Height != Height)
         {
-            Width = width;
-            Height = height;
+            Width = size.Width;
+            Height = size.Height;
             UpdateLayout();
         }
 
-        // CenterOwner next to an edge-docked widget can leave the window partly off-screen.
-        WindowPlacementService.ClampIntoArea(this, area);
+        // Centered on the widget until the window was moved once; always fully on a monitor.
+        WindowRect? ownerBounds = Owner is { WindowState: WindowState.Normal } owner && !double.IsNaN(owner.Left)
+            ? new WindowRect(owner.Left, owner.Top, owner.ActualWidth, owner.ActualHeight)
+            : null;
+        var (left, top) = WindowPlacementService.ResolveStatsWindowPosition(rememberedPosition, size, ownerBounds, area);
+        Left = left;
+        Top = top;
+    }
+
+    /// <summary>Keeps the range, grouping and color choice for the next time the window opens.</summary>
+    private void RememberSelection()
+    {
+        if (_settings is null || _settingsStore is null)
+            return;
+
+        _settings.StatsRange = _viewModel.SelectedRange;
+        _settings.StatsGrouping = _viewModel.SelectedGrouping.ToString();
+        _settings.StatsColorBy = _viewModel.SelectedColorBy.ToString();
+        if (_viewModel.SelectedRange == StatsViewModel.CustomRange)
+        {
+            (_settings.StatsCustomFrom, _settings.StatsCustomTo) = _viewModel.CustomPeriod;
+        }
+        _settingsStore.RequestSave(_settings);
     }
 
     private void StatsWindow_Closed(object? sender, EventArgs e)
     {
         if (WindowPlacementService.Shared is { } placement)
+        {
             placement.RememberedStatsWindowSize = (Width, Height);
+            if (!double.IsNaN(Left) && !double.IsNaN(Top))
+                placement.RememberedStatsWindowPosition = (Left, Top);
+        }
 
         if (StatsIndexerService.Shared is { } indexer)
             indexer.IndexCompleted -= OnIndexCompleted;
@@ -407,9 +440,8 @@ public partial class StatsWindow : Window
     /// model/project grouping. The provider pair always names Claude and Codex through <see
     /// cref="ChartPalette.ForProvider"/> - the same fixed colors that name them everywhere else on
     /// this window - the single, ungrouped series names no provider or model in particular, so it
-    /// stays on the plain theme accent. The "Per day" panel is provider-stacked only in its own
-    /// by-day view (<see cref="StatsViewModel.IsPerDayViewStackedByProvider"/>) - by-weekday and
-    /// by-hour name no single provider either, so they fall back to the same plain accent. Model,
+    /// stays on the plain theme accent - weekday and hour grouping name no single provider
+    /// either, so they use it too. Model,
     /// effort and project grouping color each bar on its own instead, through <see cref="BarColorBrushes"/> -
     /// <see cref="Controls.StatsBarChart.BarBrushes"/> then wins over <see
     /// cref="Controls.StatsBarChart.SeriesBrushes"/> for those bars, so the accent assignment above
@@ -417,15 +449,20 @@ public partial class StatsWindow : Window
     private void RefreshSeriesBrushes()
     {
         var accent = (System.Windows.Media.Brush)FindResource("Accent");
-        var providerBrushes = ProviderBrushes();
 
-        Chart.SeriesBrushes = _viewModel.IsStackedByProvider ? providerBrushes : [accent];
-        Chart.SeriesLabels = _viewModel.IsStackedByProvider ? Stats.StatsViewModel.StackedProviderDisplayNames : [];
+        var mutedBrush = (System.Windows.Media.Brush)FindResource("Text.Muted");
+        var series = _viewModel.ChartSeries;
+        Chart.SeriesBrushes = series.Count > 0 ? series.Select(item => SeriesBrush(item, mutedBrush)).ToList() : [accent];
+        Chart.SeriesLabels = series.Select(item => item.Label).ToList();
+        var primary = (System.Windows.Media.Brush)FindResource("Text.Primary");
+        Chart.OverlayBrush = primary;
+        var legend = series.Select(item => new LegendEntry(SeriesBrush(item, mutedBrush), item.Label, SwatchHeight: 10)).ToList();
+        if (_viewModel.ChartOverlay.Count > 0)
+            legend.Add(new LegendEntry(primary, LocalizationService.Instance["Stats.Average7"], SwatchHeight: 2));
+        ChartLegend.ItemsSource = legend;
+        ChartLegend.Visibility = legend.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         Chart.BarBrushes = BarColorBrushes(
             _viewModel.SelectedGrouping, _viewModel.Bars, _viewModel.ProjectColors, (System.Windows.Media.Brush)FindResource("Text.Muted"));
-
-        PerDayChart.SeriesBrushes = _viewModel.IsPerDayViewStackedByProvider ? providerBrushes : [accent];
-        PerDayChart.SeriesLabels = _viewModel.IsPerDayViewStackedByProvider ? Stats.StatsViewModel.StackedProviderDisplayNames : [];
     }
 
     /// <summary>Resolves every <see cref="StatsViewModel.Bars"/> entry's own <see
@@ -461,8 +498,16 @@ public partial class StatsWindow : Window
         return [];
     }
 
-    private static List<System.Windows.Media.Brush> ProviderBrushes() =>
-        StatsAggregator.StackedProviderOrder.Select(id => (System.Windows.Media.Brush)new SolidColorBrush(ChartPalette.ForProvider(id))).ToList();
+    /// <summary>The brush of one chart series: a provider's own color, the N-th categorical color or
+    /// the muted brush of the pooled remainder.</summary>
+    internal static System.Windows.Media.Brush SeriesBrush(ChartSeriesInfo series, System.Windows.Media.Brush mutedBrush)
+    {
+        if (series.ColorKey == "other")
+            return mutedBrush;
+        if (series.ColorKey.StartsWith("cat:", StringComparison.Ordinal) && int.TryParse(series.ColorKey.AsSpan(4), out var index))
+            return new SolidColorBrush(ChartPalette.Categorical(index));
+        return new SolidColorBrush(ChartPalette.ForProvider(series.ColorKey));
+    }
 
     /// <summary>Every themed brush on this window that names no provider or model in particular. The
     /// provider ring is refreshed separately, in <see cref="RefreshProviderRingBrushes"/> - like <see
@@ -617,3 +662,6 @@ public partial class StatsWindow : Window
             placement.RememberedStatsWindowSize = (Width, Height);
     }
 }
+
+/// <summary>One entry of the chart legend: a colored swatch (a thin one for a line) and its name.</summary>
+internal sealed record LegendEntry(System.Windows.Media.Brush Brush, string Label, double SwatchHeight);

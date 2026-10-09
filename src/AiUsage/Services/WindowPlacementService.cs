@@ -92,6 +92,20 @@ public class WindowPlacementService
         }
     }
 
+    /// <summary>Where the Stats window was left, or null while it has never been moved.</summary>
+    public (double Left, double Top)? RememberedStatsWindowPosition
+    {
+        get => _settings.Window is { StatsLeft: { } left, StatsTop: { } top } && double.IsFinite(left) && double.IsFinite(top)
+            ? (left, top)
+            : null;
+        set
+        {
+            _settings.Window.StatsLeft = value?.Left;
+            _settings.Window.StatsTop = value?.Top;
+            _store?.RequestSave(_settings);
+        }
+    }
+
     private static readonly TileDensity[] DensityOrder = [TileDensity.Full, TileDensity.Mini];
 
     /// <summary>
@@ -168,15 +182,45 @@ public class WindowPlacementService
     public static double ResolveManualHeight(double storedHeight, double workAreaHeight) =>
         Math.Min(storedHeight, workAreaHeight);
 
-    /// <summary>The Stats window's own opening size: the remembered size if it still fits inside the
-    /// monitor it is about to open on, otherwise the fixed default - the same "falls back once it no
-    /// longer fits" rule <see cref="ResolvePosition"/> applies to a remembered position.</summary>
+    /// <summary>The share of the work area the Stats window takes up the first time it opens.</summary>
+    private const double StatsFirstSizeShare = 0.8;
+
+    /// <summary>The Stats window's opening size: the remembered size, or - while it was never resized -
+    /// 80 percent of the work area of the monitor it opens on (never below the window's own minimum).
+    /// Either way it is never larger than that work area.</summary>
     public static (double Width, double Height) ResolveStatsWindowSize(
-        (double Width, double Height)? remembered, MonitorArea area, double defaultWidth, double defaultHeight)
+        (double Width, double Height)? remembered, MonitorArea area, double minWidth, double minHeight)
     {
-        if (remembered is { } size && size.Width <= area.Width && size.Height <= area.Height)
-            return size;
-        return (defaultWidth, defaultHeight);
+        var width = remembered?.Width ?? Math.Max(minWidth, area.Width * StatsFirstSizeShare);
+        var height = remembered?.Height ?? Math.Max(minHeight, area.Height * StatsFirstSizeShare);
+        return (Math.Min(width, area.Width), Math.Min(height, area.Height));
+    }
+
+    /// <summary>Where the Stats window of the given size opens: where it was left, or centered on
+    /// its owner (on the work area while there is none), and in both cases pulled fully into <paramref
+    /// name="area"/> - a remembered position on a monitor that is gone still ends up on screen.</summary>
+    public static (double Left, double Top) ResolveStatsWindowPosition(
+        (double Left, double Top)? remembered, (double Width, double Height) size, WindowRect? owner, MonitorArea area)
+    {
+        double left;
+        double top;
+        if (remembered is { } position)
+        {
+            (left, top) = position;
+        }
+        else if (owner is { } bounds)
+        {
+            left = bounds.Left + (bounds.Width - size.Width) / 2;
+            top = bounds.Top + (bounds.Height - size.Height) / 2;
+        }
+        else
+        {
+            left = area.Left + (area.Width - size.Width) / 2;
+            top = area.Top + (area.Height - size.Height) / 2;
+        }
+
+        var placed = ClampIntoArea(new WindowRect(left, top, size.Width, size.Height), area);
+        return (placed.Left, placed.Top);
     }
 
     /// <summary>The window's MinHeight floor: 0 while collapsed, so SizeToContent can shrink all the
