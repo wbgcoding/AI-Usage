@@ -524,18 +524,22 @@ public partial class StatsWindow : Window
     private void RefreshShareBrushes()
     {
         var accent = (System.Windows.Media.Brush)FindResource("Accent");
-        var secondary = (System.Windows.Media.Brush)FindResource("Text.Muted");
-        var accentHover = (System.Windows.Media.Brush)FindResource("Accent.Hover");
-        var borderControl = (System.Windows.Media.Brush)FindResource("Border.Control");
 
-        // No "danger"/"warning" connotation fits four token kinds that are all perfectly normal, and
-        // none of the four is a provider or a model either - this stays on the window's own theme
-        // brushes rather than borrowing a palette built to tell providers and models apart.
-        CacheShareBar.SegmentBrushes = [accent, accentHover, borderControl, secondary];
+        // Order of the segments: new input, cache write, cache read, output. Three fixed hues that
+        // stay apart on every theme, with cache read (the largest share in practice) in the theme's
+        // own accent; none of them is a provider or model color or a danger/warning color.
+        CacheShareBar.SegmentBrushes = [FrozenBrush(0x59, 0xA1, 0x4F), FrozenBrush(0xF2, 0x8E, 0x2B), accent, FrozenBrush(0xB0, 0x72, 0xA1)];
 
         TopProjectsChart.BarBrush = accent;
 
         DayHourChart.SeriesBrushes = [accent];
+    }
+
+    private static SolidColorBrush FrozenBrush(byte red, byte green, byte blue)
+    {
+        var brush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(red, green, blue));
+        brush.Freeze();
+        return brush;
     }
 
     /// <summary>The day-detail panel's own provider share bar - recomputed on every <see

@@ -546,6 +546,21 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void The_token_kind_bar_colors_cache_read_with_the_accent_and_the_rest_with_fixed_hues()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            var brushes = window.CacheShareBar.SegmentBrushes;
+            Assert.Equal(4, brushes.Count);
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0x59, 0xA1, 0x4F), ((SolidColorBrush)brushes[0]).Color);
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0xF2, 0x8E, 0x2B), ((SolidColorBrush)brushes[1]).Color);
+            Assert.Equal(((SolidColorBrush)window.FindResource("Accent")).Color, ((SolidColorBrush)brushes[2]).Color);
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0xB0, 0x72, 0xA1), ((SolidColorBrush)brushes[3]).Color);
+            Assert.True(brushes[0].IsFrozen && brushes[1].IsFrozen && brushes[3].IsFrozen);
+        });
+    }
+
+    [Fact]
     public void A_stored_layout_decides_the_order_of_the_sections()
     {
         var settings = new AppSettings
