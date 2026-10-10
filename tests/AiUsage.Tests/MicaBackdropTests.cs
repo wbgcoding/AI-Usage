@@ -190,50 +190,26 @@ public class MicaBackdropTests
     }
 
     [Fact]
-    public void Reapply_makes_the_calls_of_a_switch_off_and_on_without_a_background_swap()
+    public void A_window_chrome_gets_the_glass_frame_over_the_whole_window_while_mica_shows()
     {
-        var (controller, dwm, transparent, log) = Build();
-        controller.Update(true, true);
-        dwm.Calls.Clear();
-        transparent.Clear();
+        var (withMica, withoutMica, plainUntouched) = RunOnSta<(System.Windows.Thickness, System.Windows.Thickness, bool)>(() =>
+        {
+            var window = new System.Windows.Window();
+            var chrome = new System.Windows.Shell.WindowChrome { GlassFrameThickness = new System.Windows.Thickness(0) };
+            System.Windows.Shell.WindowChrome.SetWindowChrome(window, chrome);
+            MicaBackdrop.MatchChromeToBackdrop(window, backdrop: true);
+            var on = chrome.GlassFrameThickness;
+            MicaBackdrop.MatchChromeToBackdrop(window, backdrop: false);
+            var off = chrome.GlassFrameThickness;
 
-        var active = controller.Reapply(dark: false);
+            var plain = new System.Windows.Window();
+            MicaBackdrop.MatchChromeToBackdrop(plain, backdrop: true);
+            return (on, off, System.Windows.Shell.WindowChrome.GetWindowChrome(plain) is null);
+        });
 
-        Assert.True(active);
-        Assert.True(controller.IsActive);
-        Assert.Equal(["backdrop 1", "frame False", "dark False", "backdrop 2", "frame True"], dwm.Calls);
-        Assert.Empty(transparent);
-        Assert.Empty(log);
-    }
-
-    [Fact]
-    public void Reapply_does_nothing_while_mica_is_not_active()
-    {
-        var (controller, dwm, transparent, _) = Build();
-
-        var active = controller.Reapply(dark: true);
-
-        Assert.False(active);
-        Assert.Empty(dwm.Calls);
-        Assert.Empty(transparent);
-    }
-
-    [Fact]
-    public void A_failing_reapply_falls_back_to_the_opaque_background_and_logs_once()
-    {
-        var (controller, dwm, transparent, log) = Build();
-        controller.Update(true, false);
-        transparent.Clear();
-        dwm.FrameResult = 1;
-
-        var active = controller.Reapply(dark: false);
-        controller.Update(true, false);
-
-        Assert.False(active);
-        Assert.False(controller.IsActive);
-        Assert.Equal([false, false], transparent);
-        Assert.Contains("frame False", dwm.Calls);
-        Assert.Single(log);
+        Assert.Equal(new System.Windows.Thickness(-1), withMica);
+        Assert.Equal(new System.Windows.Thickness(0), withoutMica);
+        Assert.True(plainUntouched);
     }
 
     [Fact]
@@ -245,6 +221,34 @@ public class MicaBackdropTests
 
         Assert.Empty(dwm.Calls);
         Assert.False(transparent[^1]);
+    }
+
+    private static T RunOnSta<T>(Func<T> work)
+    {
+        T? result = default;
+        Exception? failure = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                result = work();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown();
+            }
+        })
+        { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        worker.Join();
+        if (failure is not null)
+            throw failure;
+        return result!;
     }
 }
 

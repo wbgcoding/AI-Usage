@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Shell;
 using System.Windows.Threading;
 
 namespace AiUsage.Services;
@@ -81,20 +82,6 @@ internal sealed class MicaController(IntPtr hwnd, IDwmBackdropApi dwm, Action<bo
         IsActive = true;
         setTransparentBackground(true);
         return true;
-    }
-
-    /// <summary>Makes exactly the window manager calls a switch off and on again makes, without the
-    /// background swap in between, so a window that took the attributes before it was ever shown can
-    /// set them again once it is on screen. Does nothing while Mica is not active; a failing call
-    /// falls back to the opaque background like <see cref="Update"/>. Returns whether Mica is showing
-    /// afterwards.</summary>
-    public bool Reapply(bool dark)
-    {
-        if (!IsActive)
-            return false;
-
-        Undo();
-        return TryApply(dark);
     }
 
     /// <summary>Sets dark mode, the backdrop and the frame extension; on any failure undoes them,
@@ -208,22 +195,29 @@ internal static class MicaBackdrop
 
         Update(controller, followsOpacity);
 
-        // The attributes set before the window was first shown can come out with a wrong tint; set
-        // them once more when the first frame is up (the window is on screen by the time the
-        // background-priority callback runs).
-        void ReapplyOnScreen() =>
-            window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => Reapply(controller, followsOpacity));
+        // Attributes and background set before the window was first shown come out wrong (a tinted
+        // or missing backdrop) until Mica is switched off and on again while the window is on screen.
+        // Do exactly that once, with a rendered frame of the opaque background in between: the second
+        // step runs at background priority, after the render pass the first step queued.
+        void CycleOnScreen() =>
+            window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+            {
+                if (!controller.IsActive)
+                    return;
+                controller.Update(false, false);
+                window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => Update(controller, followsOpacity));
+            });
 
         if (alreadyRendered)
         {
-            ReapplyOnScreen();
+            CycleOnScreen();
         }
         else
         {
             void FirstRender(object? sender, EventArgs e)
             {
                 window.ContentRendered -= FirstRender;
-                ReapplyOnScreen();
+                CycleOnScreen();
             }
 
             window.ContentRendered += FirstRender;
@@ -244,13 +238,6 @@ internal static class MicaBackdrop
         controller.Update(wanted, dark);
     }
 
-    private static void Reapply(MicaController controller, bool followsOpacity)
-    {
-        var (wanted, dark) = Resolve(followsOpacity);
-        if (wanted)
-            controller.Reapply(dark);
-    }
-
     private static (bool Wanted, bool Dark) Resolve(bool followsOpacity)
     {
         var wanted = MicaPolicy.ShouldApply(Environment.OSVersion.Version.Build, ThemeService.CurrentTheme,
@@ -260,6 +247,7 @@ internal static class MicaBackdrop
 
     private static void SetTransparentBackground(Window window, HwndSource source, bool transparent, Color originalBackground)
     {
+        MatchChromeToBackdrop(window, transparent);
         if (transparent)
         {
             window.Resources[WindowKey] = Frozen(Colors.Transparent);
@@ -275,6 +263,16 @@ internal static class MicaBackdrop
             if (source.CompositionTarget is { } target)
                 target.BackgroundColor = originalBackground;
         }
+    }
+
+    /// <summary>A shell WindowChrome without a glass frame cuts the window to a region on every move
+    /// and size change, and a window with a region gets no backdrop. With the glass frame over the
+    /// whole window it drops the region and extends the frame itself, as Mica needs; without Mica the
+    /// window gets its frameless chrome back. A window without a WindowChrome is left alone.</summary>
+    internal static void MatchChromeToBackdrop(Window window, bool backdrop)
+    {
+        if (WindowChrome.GetWindowChrome(window) is { IsFrozen: false } chrome)
+            chrome.GlassFrameThickness = backdrop ? new Thickness(-1) : new Thickness(0);
     }
 
     private static SolidColorBrush Frozen(Color color)
