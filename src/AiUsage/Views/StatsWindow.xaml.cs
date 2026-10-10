@@ -36,6 +36,7 @@ public partial class StatsWindow : Window
     private readonly AppSettings? _settings;
     private readonly SettingsStore? _settingsStore;
     private double _rememberedScrollOffset;
+    private bool _reloadingFromSettings;
     private readonly StatsLayoutPresenter _layoutPresenter;
     private readonly StatsSectionDragController _dragController;
     private readonly Dictionary<Controls.CollapsibleSection, ContextMenu> _sectionMenus = [];
@@ -319,16 +320,46 @@ public partial class StatsWindow : Window
     /// expanded state for that window's own lifetime.</summary>
     private void ApplySectionStates()
     {
+        SetSectionStates();
         foreach (var section in Sections)
-        {
-            section.IsExpanded = !(_settings?.StatsSectionsCollapsed.GetValueOrDefault(section.SectionKey) ?? false);
             section.IsExpandedChanged += (_, _) => PersistSectionState(section);
+    }
+
+    private void SetSectionStates()
+    {
+        foreach (var section in Sections)
+            section.IsExpanded = !(_settings?.StatsSectionsCollapsed.GetValueOrDefault(section.SectionKey) ?? false);
+    }
+
+    /// <summary>Takes the arrangement, the collapsed sections and the period, grouping, color and
+    /// provider choices from the settings again, after a reset or an import replaced them while this
+    /// window is open. The charts follow from the records already loaded. Nothing is written back
+    /// meanwhile, so a half-applied choice never overwrites the new values.</summary>
+    public void ReloadFromSettings()
+    {
+        if (_settings is null)
+            return;
+
+        _reloadingFromSettings = true;
+        try
+        {
+            _dragController.Cancel();
+            _layoutPresenter.Apply(_settings.StatsSectionLayout ?? StatsLayout.Default());
+            UpdateResetButton();
+            SetSectionStates();
+            _viewModel.RestoreSelection(
+                _settings.StatsRange, _settings.StatsGrouping, _settings.StatsColorBy, _settings.StatsCustomFrom, _settings.StatsCustomTo,
+                _settings.StatsProvider);
+        }
+        finally
+        {
+            _reloadingFromSettings = false;
         }
     }
 
     private void PersistSectionState(Controls.CollapsibleSection section)
     {
-        if (_settings is null || _settingsStore is null)
+        if (_settings is null || _settingsStore is null || _reloadingFromSettings)
             return;
 
         _settings.StatsSectionsCollapsed[section.SectionKey] = !section.IsExpanded;
@@ -411,7 +442,7 @@ public partial class StatsWindow : Window
     /// <summary>Keeps the range, grouping and color choice for the next time the window opens.</summary>
     private void RememberSelection()
     {
-        if (_settings is null || _settingsStore is null)
+        if (_settings is null || _settingsStore is null || _reloadingFromSettings)
             return;
 
         _settings.StatsRange = _viewModel.SelectedRange;

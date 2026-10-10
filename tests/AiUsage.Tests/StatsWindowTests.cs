@@ -702,6 +702,72 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void Reloading_from_settings_takes_the_replaced_choices_layout_and_collapsed_sections_without_writing_stale_ones_back()
+    {
+        var settings = new AppSettings { StatsGrouping = "Day", StatsRange = "Week", StatsColorBy = "Provider" };
+        RunInWindow(settings, (window, _) =>
+        {
+            var viewModel = (StatsViewModel)window.DataContext;
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            viewModel.TakeSnapshot = () => new StatsDataSnapshot([new StatsRecord("claude", today, "modelA", "projA", 100, 50, 0, 0)], []);
+            Assert.True(viewModel.TryShowSnapshot());
+            var reads = 0;
+            var inner = viewModel.LoadRecords;
+            viewModel.LoadRecords = () =>
+            {
+                reads++;
+                return inner();
+            };
+            Assert.Equal(StatsGrouping.Day, viewModel.SelectedGrouping);
+
+            // What an import writes into the shared settings.
+            settings.StatsGrouping = "Model";
+            settings.StatsRange = "Month";
+            settings.StatsColorBy = "Model";
+            settings.StatsProvider = "codex";
+            settings.StatsSectionLayout = [new StatsLayoutRow { Left = ["projects"], Right = ["figures"] }];
+            settings.StatsSectionsCollapsed = new Dictionary<string, bool> { ["breakdown"] = true };
+
+            window.ReloadFromSettings();
+
+            Assert.Equal(StatsGrouping.Model, viewModel.SelectedGrouping);
+            Assert.Equal("Month", viewModel.SelectedRange);
+            Assert.Equal(StatsColorBy.Model, viewModel.SelectedColorBy);
+            Assert.Equal("Model", settings.StatsGrouping);
+            Assert.Equal("Month", settings.StatsRange);
+            Assert.Equal("Model", settings.StatsColorBy);
+            Assert.Equal("codex", settings.StatsProvider);
+            Assert.False(window.BreakdownSection.IsExpanded);
+            Assert.True(window.FiguresSection.IsExpanded);
+            Assert.Equal(Visibility.Visible, window.ResetLayoutButton.Visibility);
+            Assert.True(settings.StatsSectionsCollapsed["breakdown"]);
+            Assert.Equal(0, reads);
+
+            // A later pick writes the imported grouping along, not the one the window had before.
+            viewModel.SelectedRange = "Week";
+            Assert.Equal("Model", settings.StatsGrouping);
+
+            // And a reset: defaults back in the window, nothing stale written over them.
+            var defaults = new AppSettings();
+            settings.StatsGrouping = defaults.StatsGrouping;
+            settings.StatsRange = defaults.StatsRange;
+            settings.StatsColorBy = defaults.StatsColorBy;
+            settings.StatsSectionLayout = null;
+            settings.StatsSectionsCollapsed = [];
+
+            window.ReloadFromSettings();
+
+            Assert.Equal(StatsGrouping.Day, viewModel.SelectedGrouping);
+            Assert.Equal(defaults.StatsRange, viewModel.SelectedRange);
+            Assert.Equal(StatsColorBy.Provider, viewModel.SelectedColorBy);
+            Assert.Equal(defaults.StatsGrouping, settings.StatsGrouping);
+            Assert.True(window.BreakdownSection.IsExpanded);
+            Assert.Equal(Visibility.Collapsed, window.ResetLayoutButton.Visibility);
+            Assert.Empty(settings.StatsSectionsCollapsed);
+        }, withStore: true);
+    }
+
+    [Fact]
     public void A_ready_snapshot_fills_the_opening_window_without_reading_the_store()
     {
         RunInWindow(null, (window, _) =>

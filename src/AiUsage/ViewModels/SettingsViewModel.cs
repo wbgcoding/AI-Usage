@@ -1639,6 +1639,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// </summary>
     private void ApplyLoaded(AppSettings source)
     {
+        ApplyLoadedCore(source);
+        SettingsReplaced?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Raised after a reset or an import has replaced the settings and saved them, so an open
+    /// window that shows some of them can read them again.</summary>
+    public event EventHandler? SettingsReplaced;
+
+    private void ApplyLoadedCore(AppSettings source)
+    {
         _settings.RefreshSeconds = source.RefreshSeconds;
         _settings.RemoteRefreshMinutes = source.RemoteRefreshMinutes;
         _settings.WindowLayer = WindowLayers.Normalize(source.WindowLayer);
@@ -1675,8 +1685,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ClickThrough = source.ClickThrough;
         _settings.TrayProvider = source.TrayProvider;
         _settings.TrayWindow = source.TrayWindow;
-        // Statistics window arrangement and view choices: only read when that window opens, so a copy
-        // here never fights a live window.
+        // Statistics window arrangement and view choices: an open window reads them again on SettingsReplaced.
         _settings.StatsSectionLayout = source.StatsSectionLayout?.Select(row => new Stats.StatsLayoutRow { Left = [.. row.Left], Right = [.. row.Right] }).ToList();
         _settings.StatsSectionsCollapsed = new Dictionary<string, bool>(source.StatsSectionsCollapsed ?? []);
         _settings.StatsRange = source.StatsRange;

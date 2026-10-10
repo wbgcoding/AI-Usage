@@ -860,6 +860,32 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Reset_and_a_successful_import_each_raise_SettingsReplaced_once_a_refused_import_none()
+    {
+        var sourceSettings = new AppSettings { StatsGrouping = "Model" };
+        var exportPath = Path.Combine(TempDirectory(), "export-replaced.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var badPath = Path.Combine(TempDirectory(), "not-settings.json");
+        File.WriteAllText(badPath, "{ not json");
+        var importPath = exportPath;
+        var (targetVm, _) = Build(new AppSettings(), askForSettingsImportPath: () => importPath, showMessage: _ => { });
+        var raised = 0;
+        targetVm.SettingsReplaced += (_, _) => raised++;
+
+        targetVm.ImportSettingsCommand.Execute(null);
+        Assert.Equal(1, raised);
+
+        targetVm.ResetToDefaults();
+        Assert.Equal(2, raised);
+
+        importPath = badPath;
+        targetVm.ImportSettingsCommand.Execute(null);
+        Assert.Equal(2, raised);
+    }
+
+    [Fact]
     public void AnImportedThemeNameInAnyLetterCaseIsAppliedLive()
     {
         var sourceSettings = new AppSettings { Theme = "light" };
