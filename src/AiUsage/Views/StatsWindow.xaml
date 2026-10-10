@@ -59,7 +59,7 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-        <!-- The plain table only ever shows for Week/Model/Project grouping now - Day grouping shows
+        <!-- The plain table only ever shows for Model/Project grouping now - Day grouping shows
              the month grid instead, which owns its own visibility binding directly. Targets the whole
              collapsible section now (header included), not just the inner ItemsControl. -->
         <Style x:Key="GroupedTable" TargetType="controls:CollapsibleSection" BasedOn="{StaticResource {x:Type controls:CollapsibleSection}}">
@@ -71,6 +71,9 @@
                     <Setter Property="Visibility" Value="Collapsed"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding IsWeekdayGrouping}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsWeekGrouping}" Value="True">
                     <Setter Property="Visibility" Value="Collapsed"/>
                 </DataTrigger>
             </Style.Triggers>

@@ -1684,6 +1684,25 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
+    public async Task WeekGroupingFlagFollowsTheGroupingSoTheTableCanHide()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-week-flag");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+        var changed = new List<string?>();
+        viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Week);
+        Assert.True(viewModel.IsWeekGrouping);
+        Assert.Contains(nameof(StatsViewModel.IsWeekGrouping), changed);
+
+        foreach (var grouping in new[] { StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Session, StatsGrouping.Day })
+        {
+            await viewModel.SetGroupingCommand.ExecuteAsync(grouping);
+            Assert.False(viewModel.IsWeekGrouping);
+        }
+    }
+
+    [Fact]
     public async Task SessionRowsFollowTheRangeAndLeaveTheOtherGroupingsEmpty()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-session-range");
