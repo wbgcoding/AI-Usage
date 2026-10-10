@@ -561,6 +561,19 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void The_color_by_picker_sits_first_in_the_breakdown_body_right_under_the_grouping()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            var colorRow = (StackPanel)window.ColorByCombo.Parent;
+            var body = (StackPanel)colorRow.Parent;
+            Assert.Same(colorRow, body.Children[0]);
+            Assert.Equal(HorizontalAlignment.Right, colorRow.HorizontalAlignment);
+            Assert.Equal(4, colorRow.Margin.Top);
+        });
+    }
+
+    [Fact]
     public void A_stored_layout_decides_the_order_of_the_sections()
     {
         var settings = new AppSettings
