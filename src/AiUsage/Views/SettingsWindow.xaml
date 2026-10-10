@@ -290,10 +290,6 @@
                               SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
                               HorizontalAlignment="Left"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom.Hint]}"
-                               Style="{StaticResource Gap.Top4}"
-                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
-                               TextWrapping="Wrap"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
                     <!-- Arrangement and tile density sit side by side: two short pickers that belong to
@@ -325,10 +321,6 @@
                               SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
                               HorizontalAlignment="Stretch"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder.Hint]}"
-                               Style="{StaticResource Gap.Top4}"
-                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
-                               TextWrapping="Wrap"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
@@ -345,14 +337,15 @@
                                         Padding="4,4" MinHeight="28" MinWidth="0" Margin="0,0,4,4" Cursor="Hand"
                                         HorizontalContentAlignment="Left">
                                     <StackPanel Orientation="Horizontal">
-                                        <Path Width="18" Height="14" Stretch="Uniform" Margin="0,0,8,0"
-                                              Fill="{DynamicResource Text.Primary}">
+                                        <Path Width="18" Height="14" Stretch="Uniform" Margin="0,0,8,0">
                                             <Path.Style>
                                                 <Style TargetType="Path">
                                                     <Setter Property="Data" Value="{StaticResource Icon.Eye}"/>
+                                                    <Setter Property="Fill" Value="{DynamicResource Text.Primary}"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsHidden}" Value="True">
                                                             <Setter Property="Data" Value="{StaticResource Icon.EyeOff}"/>
+                                                            <Setter Property="Fill" Value="{DynamicResource Text.Muted}"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
