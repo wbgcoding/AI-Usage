@@ -29,7 +29,7 @@ public sealed record ChartSeriesInfo(string Label, string ColorKey);
 /// <summary>
 /// Everything the statistics window shows: the period selector, the grouping selector (day, week,
 /// model, project), the figures bar (total, per-day average, busiest day, change against the
-/// previous period), the input/output/cached breakdown line, the chart and the table. Reads
+/// previous period), the input/output/cached breakdown line and the chart. Reads
 /// straight from <see cref="StatsStore"/> - nothing here writes back to it, so opening this window
 /// twice, or leaving it open across a theme switch, never changes what is stored: it remembers
 /// nothing of its own.
@@ -136,7 +136,6 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGroupingChoice));
         OnPropertyChanged(nameof(SelectedColorByChoice));
         OnPropertyChanged(nameof(IsStackedByProvider));
-        OnPropertyChanged(nameof(IsDayGrouping));
         if (_recordsLoaded)
             RecomputeFrom(_sourceRecords);
     }
@@ -320,13 +319,13 @@ public sealed partial class StatsViewModel : ObservableObject
     private const int MaxStackedModels = 6;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack), nameof(IsSessionGrouping), nameof(ShowPlainTable), nameof(IsWeekdayGrouping), nameof(IsWeekGrouping))]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack), nameof(IsSessionGrouping))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
     /// day: only for a whole history that spans more than a year. Up to 366 days every day gets its
-    /// own column, the 12 month range included. The table under the day grouping stays per day
-    /// regardless.</summary>
+    /// own column, the 12 month range included. The exported rows under the day grouping stay per
+    /// day regardless.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChartTooltip))]
     private bool isWeeklyPerDay;
@@ -357,20 +356,11 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>True while the chart area shows the weekday by hour grid instead of columns.</summary>
     public bool IsHeatmap => SelectedGrouping == StatsGrouping.WeekdayHour;
 
-    /// <summary>True for the plain weekday grouping, whose seven columns already are the whole table.</summary>
-    public bool IsWeekdayGrouping => SelectedGrouping == StatsGrouping.Weekday;
-
-    /// <summary>True for the week grouping, whose columns already show every week's total.</summary>
-    public bool IsWeekGrouping => SelectedGrouping == StatsGrouping.Week;
-
     /// <summary>True while the chart area shows columns (the session grouping draws horizontal bars instead).</summary>
     public bool IsBarChart => !IsHeatmap && !IsSessionGrouping;
 
     /// <summary>True while the breakdown lists sessions: the largest as horizontal bars, all of them in the table.</summary>
     public bool IsSessionGrouping => SelectedGrouping == StatsGrouping.Session;
-
-    /// <summary>True for every grouping whose table is the plain label and total list.</summary>
-    public bool ShowPlainTable => !IsSessionGrouping;
 
     /// <summary>The most sessions the bars name; the table lists all of them.</summary>
     private const int MaxSessionBars = 20;
@@ -619,11 +609,6 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>True only for Day/Week grouping - the chart needs two stacked series brushes then,
     /// one per provider, instead of the single series Model/Project grouping draws.</summary>
     public bool IsStackedByProvider => SelectedGrouping is StatsGrouping.Day or StatsGrouping.Week;
-
-    /// <summary>True only for Day grouping - gates the plain table (<c>GroupedTable</c> in
-    /// StatsWindow.xaml), which the month grid above it covers for Day grouping; the grid itself shows
-    /// for every grouping and does not depend on this.</summary>
-    public bool IsDayGrouping => SelectedGrouping == StatsGrouping.Day;
 
     /// <summary>The month grid's own input - every day from the grid's start up to today (local time):
     /// the last twelve months, reaching further back on a window wide enough to show more weeks than
@@ -987,7 +972,6 @@ public sealed partial class StatsViewModel : ObservableObject
         Choice.Select(GroupingChoices, SelectedGrouping);
         OnPropertyChanged(nameof(SelectedGroupingChoice));
         OnPropertyChanged(nameof(IsStackedByProvider));
-        OnPropertyChanged(nameof(IsDayGrouping));
         await RecomputeForSelectionAsync();
     }
 
@@ -1200,7 +1184,7 @@ public sealed partial class StatsViewModel : ObservableObject
             IsLoading = true;
     }
 
-    /// <summary>Reads every stored record and rebuilds the chart, the table and the headline
+    /// <summary>Reads every stored record and rebuilds the chart, the session list and the headline
     /// figures for the currently selected period and grouping - the one place this view model
     /// touches <see cref="StatsStore"/>, called once when the window loads and again on every period or
     /// grouping change.</summary>
@@ -1244,7 +1228,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var weeklyPerDay = SelectedRange == "All" && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
         IsWeeklyPerDay = weeklyPerDay;
 
-        // The table under the day grouping stays per day; only the bars are bundled per week.
+        // The exported rows under the day grouping stay per day; only the bars are bundled per week.
         var dayRows = SelectedGrouping == StatsGrouping.Day
             ? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, to)
             : null;
@@ -1266,7 +1250,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         if (SelectedGrouping == StatsGrouping.Effort)
             groupedRows = groupedRows.Select(row => row with { Label = ResolveEffortLabel(row.Label) }).ToList();
-        // Only the bars are bundled: the table keeps every project.
+        // Only the bars are bundled: the exported rows keep every project.
         var barRows = groupedRows;
         var barKeys = barColorKeys;
         string? otherTooltipLine = null;
@@ -1277,7 +1261,7 @@ public sealed partial class StatsViewModel : ObservableObject
             barRows = groupedRows.Take(MaxProjectBars)
                 .Append(new StatsGroupedRow(LocalizationService.Instance["Stats.OtherProjects"], [restTotal], restTotal)).ToList();
             barKeys = barColorKeys.Take(MaxProjectBars).Append(new BarColorKey(OtherProjectsColorKey, 0)).ToList();
-            otherTooltipLine = string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.OtherProjects.Count"], rest.Count);
+            otherTooltipLine = BuildOtherProjectsTooltip(rest);
         }
 
         // Day and week columns are stacked by provider or, on request, by model.
@@ -1539,6 +1523,29 @@ public sealed partial class StatsViewModel : ObservableObject
 
     private static string FormatLimitPercent(double percent) =>
         StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(percent).ToString(CultureInfo.CurrentCulture));
+
+    /// <summary>How many pooled projects the "Other projects" bar names in its hover text.</summary>
+    private const int OtherProjectsTooltipNames = 15;
+
+    /// <summary>The hover text of the pooled bar: how many projects it holds, then the largest of
+    /// them with their totals, and how many more there are.</summary>
+    private static string BuildOtherProjectsTooltip(List<StatsGroupedRow> pooled)
+    {
+        var loc = LocalizationService.Instance;
+        var lines = new List<string>
+        {
+            string.Format(CultureInfo.CurrentCulture, loc["Stats.OtherProjects.Count"], pooled.Count),
+        };
+        foreach (var row in pooled.Take(OtherProjectsTooltipNames))
+        {
+            var name = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
+            lines.Add($"{name}: {row.Total.ToString("N0", CultureInfo.CurrentCulture)}");
+        }
+
+        if (pooled.Count > OtherProjectsTooltipNames)
+            lines.Add(string.Format(CultureInfo.CurrentCulture, loc["Stats.Ring.MoreCount"], pooled.Count - OtherProjectsTooltipNames));
+        return string.Join('\n', lines);
+    }
 
     /// <summary>The session grouping's views of the range: the largest <see cref="MaxSessionBars"/>
     /// sessions as bars, every session as a table row (and as the exported rows), the largest
@@ -1869,7 +1876,7 @@ public sealed partial class StatsViewModel : ObservableObject
         _ => DateOnly.MinValue,
     };
 
-    /// <summary>Writes exactly the table currently shown - same rows, same order - to a CSV file the
+    /// <summary>Writes exactly the rows of the current grouping - same rows, same order - to a CSV file the
     /// user picks, reusing <see cref="StatsExport"/>'s writer. Cancelling the dialog does
     /// nothing; a write failure shows the app's own error text, never a raw exception message.</summary>
     [RelayCommand]

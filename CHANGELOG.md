@@ -57,6 +57,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - A provider that is signed out or cannot be reached keeps showing its last known 5 hour and weekly numbers, also after a restart. Only signing out in the app clears them.
 - Token usage no longer repeats the weekday columns as a table underneath.
 - The Mica background is now off by default, with a tooltip in Settings that explains it; a choice you already made stays.
+- Token usage no longer ends in a table at the bottom: the session list sits under the session chart, and the "Other projects" bar names the projects it pools when you point at it.
 
 ### Fixed
 

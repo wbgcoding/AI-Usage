@@ -338,11 +338,11 @@ public class WindowChromeTests
     }
 
     /// <summary>The CSV export follows the grouping chosen on the breakdown section's header, so its
-    /// button sits on that header (the table section is collapsed under the Day grouping).</summary>
+    /// button sits on that header.</summary>
     [Fact]
     public void TheCsvExportButtonSitsOnTheBreakdownSectionHeader()
     {
-        var insideTableSection = OnUiThread(static _ =>
+        var insideBreakdownSection = OnUiThread(static _ =>
         {
             using var dataDir = TestPaths.CreateDisposableDirectory("stats-window-csv-button");
             var window = new StatsWindow(StatsVm.Create(new StatsStore(dataDir)));
@@ -359,7 +359,7 @@ public class WindowChromeTests
             return false;
         });
 
-        Assert.True(insideTableSection, "ExportCsvButton is not a visible part of the BreakdownSection header.");
+        Assert.True(insideBreakdownSection, "ExportCsvButton is not a visible part of the BreakdownSection header.");
     }
 
     [Fact]

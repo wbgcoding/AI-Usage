@@ -282,14 +282,14 @@ public class SettingsStoreTests : IDisposable
     {
         var directory = TempDirectory();
         using var store = new SettingsStore(directory);
-        var original = new AppSettings { StatsSectionLayout = [new StatsLayoutRow { Left = ["table"], Right = ["figures"] }] };
+        var original = new AppSettings { StatsSectionLayout = [new StatsLayoutRow { Left = ["projects"], Right = ["figures"] }] };
 
         store.SaveNow(original);
         using var reloadStore = new SettingsStore(directory);
         var loaded = reloadStore.Load();
 
         var row = Assert.Single(loaded.StatsSectionLayout!);
-        Assert.Equal(["table"], row.Left);
+        Assert.Equal(["projects"], row.Left);
         Assert.Equal(["figures"], row.Right);
     }
 
@@ -302,7 +302,7 @@ public class SettingsStoreTests : IDisposable
         File.WriteAllText(
             Path.Combine(directory, "settings.json"),
             "{\"schemaVersion\":1,\"refreshSeconds\":45,\"statsPerDayView\":\"Hour\",\"statsSectionLayout\":"
-            + "[{\"left\":[\"breakdown\"],\"right\":[]},{\"left\":[\"perday\"],\"right\":[]},{\"left\":[\"table\"],\"right\":[]}]}");
+            + "[{\"left\":[\"breakdown\"],\"right\":[]},{\"left\":[\"perday\"],\"right\":[]},{\"left\":[\"projects\"],\"right\":[]}]}");
         using var store = new SettingsStore(directory);
 
         var settings = store.Load();
@@ -311,7 +311,7 @@ public class SettingsStoreTests : IDisposable
         var normalized = StatsLayout.Normalize(settings.StatsSectionLayout);
         Assert.DoesNotContain(normalized, row => row.Left.Concat(row.Right).Contains("perday"));
         Assert.Equal("breakdown", normalized[0].Left[0]);
-        Assert.Equal("table", normalized[1].Left[0]);
+        Assert.Equal("projects", normalized[1].Left[0]);
     }
 
     [Fact]
@@ -1319,7 +1319,7 @@ public class SettingsStoreTests : IDisposable
     {
         var directory = TempDirectory();
         using var store = new SettingsStore(directory);
-        var layout = StatsLayout.Move(StatsLayout.Default(), "table", "figures", StatsDropPosition.Right);
+        var layout = StatsLayout.Move(StatsLayout.Default(), "projects", "figures", StatsDropPosition.Right);
         store.SaveNow(new AppSettings { StatsSectionLayout = layout });
 
         using var reloadStore = new SettingsStore(directory);

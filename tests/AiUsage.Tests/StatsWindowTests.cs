@@ -433,12 +433,13 @@ public class StatsWindowTests
         var lines = new List<string>();
         var sessionCount = -1;
         var realizedSessionRows = -1;
+        var hasTableSection = true;
 
         var worker = new Thread(() =>
         {
             try
             {
-                (sessionCount, realizedSessionRows) = WalkLargeData(lines);
+                (sessionCount, realizedSessionRows, hasTableSection) = WalkLargeData(lines);
             }
             catch (Exception ex)
             {
@@ -460,9 +461,11 @@ public class StatsWindowTests
             throw new InvalidOperationException("StatsWindow large-data walk failed.", failure);
 
         Assert.Equal(2100, sessionCount);
+        Assert.InRange(realizedSessionRows, 1, 60);
+        Assert.False(hasTableSection);
     }
 
-    private static (int SessionCount, int RealizedSessionRows) WalkLargeData(List<string> lines)
+    private static (int SessionCount, int RealizedSessionRows, bool HasTableSection) WalkLargeData(List<string> lines)
     {
         typeof(Application).GetField("_appCreatedInThisAppDomain", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
 
@@ -507,7 +510,7 @@ public class StatsWindowTests
             root.Measure(new Size(1100, 800));
             root.Arrange(new Rect(0, 0, 1100, 800));
             root.UpdateLayout();
-            return (viewModel.SessionRows.Count, CountSessionRowPresenters(window.FindName("SessionTable") as DependencyObject));
+            return (viewModel.SessionRows.Count, CountSessionRowPresenters(window.FindName("SessionTable") as DependencyObject), window.FindName("TableSection") is not null);
         }
         finally
         {
@@ -667,7 +670,7 @@ public class StatsWindowTests
     }
 
     [Fact]
-    public void Default_layout_puts_the_rings_and_projects_side_by_side_and_the_table_last()
+    public void Default_layout_puts_the_rings_and_projects_side_by_side_in_the_last_row()
     {
         RunInWindow(null, (window, _) =>
         {
@@ -676,7 +679,7 @@ public class StatsWindowTests
             Assert.Same(providerColumn.Parent, projectsColumn.Parent);
             Assert.Equal(0, Grid.GetColumn(providerColumn));
             Assert.Equal(1, Grid.GetColumn(projectsColumn));
-            Assert.Same(window.TableSection, window.SectionHost.Children[^1]);
+            Assert.Same(providerColumn.Parent, window.SectionHost.Children[^1]);
         });
     }
 
@@ -774,14 +777,15 @@ public class StatsWindowTests
     {
         var settings = new AppSettings
         {
-            StatsSectionLayout = [new StatsLayoutRow { Left = ["table"], Right = ["breakdown"] }],
+            StatsSectionLayout = [new StatsLayoutRow { Left = ["projects"], Right = ["breakdown"] }],
         };
 
         RunInWindow(settings, (window, root) =>
         {
+            window.ProjectsSection.Visibility = Visibility.Collapsed;
             root.UpdateLayout();
 
-            var row = (Grid)((Grid)window.TableSection.Parent).Parent;
+            var row = (Grid)((Grid)window.ProjectsSection.Parent).Parent;
             Assert.Equal(0, row.ColumnDefinitions[0].Width.Value);
             Assert.Equal(1, row.ColumnDefinitions[1].Width.Value);
         });
@@ -822,14 +826,13 @@ public class StatsWindowTests
     }
 
     [Fact]
-    public void MoveSection_up_moves_the_table_before_the_two_column_row_and_keeps_the_first_section()
+    public void MoveSection_up_moves_the_breakdown_before_the_figures_and_keeps_the_first_section()
     {
         RunInWindow(null, (window, _) =>
         {
-            window.MoveSection(window.TableSection, up: true);
+            window.MoveSection(window.BreakdownSection, up: true);
 
-            var pair = ((Grid)window.ProviderSection.Parent).Parent;
-            Assert.True(window.SectionHost.Children.IndexOf(window.TableSection) < window.SectionHost.Children.IndexOf((UIElement)pair));
+            Assert.True(window.SectionHost.Children.IndexOf(window.BreakdownSection) < window.SectionHost.Children.IndexOf(window.FiguresSection));
 
             window.MoveSection(window.MonthGridSection, up: true);
 

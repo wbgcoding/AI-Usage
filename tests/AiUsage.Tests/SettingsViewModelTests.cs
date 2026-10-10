@@ -791,7 +791,7 @@ public class SettingsViewModelTests : IDisposable
     [Fact]
     public void ResetToDefaultsClearsTheStatsWindowArrangement()
     {
-        var settings = new AppSettings { StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["table"] }] };
+        var settings = new AppSettings { StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["projects"] }] };
         settings.StatsSectionsCollapsed["breakdown"] = true;
         var (vm, _) = Build(settings);
 
@@ -806,7 +806,7 @@ public class SettingsViewModelTests : IDisposable
     {
         var sourceSettings = new AppSettings
         {
-            StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["table"], Right = ["figures"] }],
+            StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["projects"], Right = ["figures"] }],
         };
         sourceSettings.StatsSectionsCollapsed["breakdown"] = true;
         var exportPath = Path.Combine(TempDirectory(), "export-stats-layout.json");
@@ -817,7 +817,7 @@ public class SettingsViewModelTests : IDisposable
         targetVm.ImportSettingsCommand.Execute(null);
 
         var row = Assert.Single(targetSettings.StatsSectionLayout!);
-        Assert.Equal(["table"], row.Left);
+        Assert.Equal(["projects"], row.Left);
         Assert.Equal(["figures"], row.Right);
         Assert.True(targetSettings.StatsSectionsCollapsed["breakdown"]);
     }

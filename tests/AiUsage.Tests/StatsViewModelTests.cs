@@ -1755,7 +1755,6 @@ public class StatsViewModelCaptionTests
 
             Assert.True(viewModel.IsSessionGrouping);
             Assert.False(viewModel.IsBarChart);
-            Assert.False(viewModel.ShowPlainTable);
             Assert.Equal(25, viewModel.SessionRows.Count);
             Assert.Equal(20, viewModel.SessionChartRows.Count);
             Assert.Equal(25, viewModel.Rows.Count);
@@ -1783,22 +1782,44 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
-    public async Task WeekGroupingFlagFollowsTheGroupingSoTheTableCanHide()
+    public async Task SessionGroupingFlagIsTrueOnlyForTheSessionGrouping()
     {
-        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-week-flag");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-session-flag");
         var viewModel = StatsVm.Create(new StatsStore(dataDir));
         var changed = new List<string?>();
         viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
-        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Week);
-        Assert.True(viewModel.IsWeekGrouping);
-        Assert.Contains(nameof(StatsViewModel.IsWeekGrouping), changed);
+        Assert.False(viewModel.IsSessionGrouping);
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session);
+        Assert.True(viewModel.IsSessionGrouping);
+        Assert.Contains(nameof(StatsViewModel.IsSessionGrouping), changed);
 
-        foreach (var grouping in new[] { StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.Session, StatsGrouping.Day })
+        foreach (var grouping in new[] { StatsGrouping.Week, StatsGrouping.Model, StatsGrouping.Project, StatsGrouping.WeekdayHour, StatsGrouping.Day })
         {
             await viewModel.SetGroupingCommand.ExecuteAsync(grouping);
-            Assert.False(viewModel.IsWeekGrouping);
+            Assert.False(viewModel.IsSessionGrouping);
         }
+    }
+
+    [Fact]
+    public async Task TheOtherProjectsBarNamesThePooledProjectsWithTheirTotals()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-other-projects-tooltip");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        store.AddDelta(Enumerable.Range(1, 13)
+            .Select(i => new StatsRecord("claude", today, "modelA", $"proj{i:00}", i * 100, 0, 0, 0))
+            .ToList());
+        var viewModel = StatsVm.Create(store);
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Project);
+
+        var lines = viewModel.Bars[^1].ExtraTooltipLine!.Split('\n');
+        Assert.Equal(4, lines.Length);
+        Assert.Contains("3", lines[0]);
+        Assert.Equal("proj03: " + 300L.ToString("N0", CultureInfo.CurrentCulture), lines[1]);
+        Assert.Equal("proj02: " + 200L.ToString("N0", CultureInfo.CurrentCulture), lines[2]);
+        Assert.Equal("proj01: " + 100L.ToString("N0", CultureInfo.CurrentCulture), lines[3]);
     }
 
     [Fact]
@@ -1821,6 +1842,5 @@ public class StatsViewModelCaptionTests
         Assert.Empty(viewModel.SessionRows);
         Assert.Empty(viewModel.SessionChartRows);
         Assert.True(viewModel.IsBarChart);
-        Assert.True(viewModel.ShowPlainTable);
     }
 }

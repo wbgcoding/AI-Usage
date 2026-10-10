@@ -28,7 +28,7 @@ public static class StatsLayout
 {
     /// <summary>The section keys in their default order.</summary>
     public static IReadOnlyList<string> SectionKeys { get; } =
-        ["monthgrid", "figures", "breakdown", "provider", "model", "effort", "limits", "projects", "table"];
+        ["monthgrid", "figures", "breakdown", "provider", "model", "effort", "limits", "projects"];
 
     /// <summary>The arrangement a fresh install shows.</summary>
     public static List<StatsLayoutRow> Default() =>
@@ -37,7 +37,6 @@ public static class StatsLayout
         Single("figures"),
         Single("breakdown"),
         new StatsLayoutRow { Left = ["provider", "model", "effort"], Right = ["limits", "projects"] },
-        Single("table"),
     ];
 
     /// <summary>Repairs any stored arrangement: drops unknown and repeated keys and empty columns,

@@ -367,6 +367,7 @@
   <data name="Stats.NoProject" xml:space="preserve"><value>No project</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Other projects</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projects</value></data>
+  <data name="Stats.Ring.MoreCount" xml:space="preserve"><value>+{0} more</value></data>
   <data name="Stats.Project.Active" xml:space="preserve"><value>Active</value></data>
   <data name="Stats.Project.Tip.Folder" xml:space="preserve"><value>Folder: {0}</value></data>
   <data name="Stats.Project.Tip.Tokens" xml:space="preserve"><value>Tokens: {0} ({1}%)</value></data>

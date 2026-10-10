@@ -59,25 +59,6 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-        <!-- The plain table only ever shows for Model/Project grouping now - Day grouping shows
-             the month grid instead, which owns its own visibility binding directly. Targets the whole
-             collapsible section now (header included), not just the inner ItemsControl. -->
-        <Style x:Key="GroupedTable" TargetType="controls:CollapsibleSection" BasedOn="{StaticResource {x:Type controls:CollapsibleSection}}">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsDayGrouping}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding IsHeatmap}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding IsWeekdayGrouping}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding IsWeekGrouping}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
         <!-- The provider filter's drop-down button: the closed look of the app's combo boxes (surface,
              outline, accent outline on hover or focus, arrow), but a plain toggle, so the list that
              opens can hold check boxes. While the list is open the button ignores the pointer, so a
@@ -611,6 +592,86 @@
                                                                        ActiveLabel="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Active]}"/>
                                 </Border>
 
+                                <!-- The session table: a header over the same four columns the rows use (the model sits
+                                     under the project name, so a narrow window never squeezes the name). The
+                                     list scrolls inside its own box and draws only the rows in view, since a
+                                     long range holds thousands of sessions. The scroll bar is always there and
+                                     the header keeps its width free, so the header stays over its columns. -->
+                                <StackPanel Margin="0,8,0,0" Visibility="{Binding IsSessionGrouping, Converter={StaticResource BoolToVis}}">
+                                    <Grid Margin="0,0,16,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="96"/>
+                                            <ColumnDefinition Width="88"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Project], Mode=OneWay}"/><Run Text=" / "/><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Model], Mode=OneWay}"/>
+                                        </TextBlock>
+                                        <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Start]}"
+                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Duration]}"
+                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Tokens]}"
+                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                   Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                    </Grid>
+                                    <ItemsControl x:Name="SessionTable" ItemsSource="{Binding SessionRows}"
+                                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                                  VirtualizingPanel.ScrollUnit="Pixel" ScrollViewer.CanContentScroll="True"
+                                                  PreviewMouseWheel="SessionTable_PreviewMouseWheel">
+                                        <ItemsControl.Template>
+                                            <ControlTemplate TargetType="ItemsControl">
+                                                <ScrollViewer MaxHeight="360" CanContentScroll="True" VerticalScrollBarVisibility="Visible">
+                                                    <ItemsPresenter/>
+                                                </ScrollViewer>
+                                            </ControlTemplate>
+                                        </ItemsControl.Template>
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="AutomationProperties.Name">
+                                                    <Setter.Value>
+                                                        <MultiBinding StringFormat="{}{0} {1}: {2}">
+                                                            <Binding Path="Project"/>
+                                                            <Binding Path="Start"/>
+                                                            <Binding Path="Tokens"/>
+                                                        </MultiBinding>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4" ToolTip="{Binding ToolTip}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="96"/>
+                                                        <ColumnDefinition Width="88"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Model}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Start}" Foreground="{DynamicResource Text.Secondary}"
+                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Duration}" Foreground="{DynamicResource Text.Secondary}"
+                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Tokens}" TextAlignment="Right" Margin="0,0,8,0"
+                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
                                 <!-- What the colors of the stacked columns stand for. -->
                                 <ItemsControl x:Name="ChartLegend" Margin="0,8,0,0">
                                     <ItemsControl.ItemsPanel>
@@ -869,132 +930,6 @@
                                                                        ActiveFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.Active]}"
                                                                        SessionsFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.Sessions]}"/>
                                 </Border>
-                            </controls:CollapsibleSection>
-
-                            <!-- The plain table: gated to every grouping but Day, Weekday and Weekday x Hour
-                                 (GroupedTable style), since the year grid, the weekday columns and the heatmap above already
-                                 show those by weekday. Titled with whichever grouping is
-                                 currently selected - the table's own rows are grouped by exactly that. -->
-                            <controls:CollapsibleSection x:Name="TableSection" SectionKey="table" Style="{StaticResource GroupedTable}"
-                                    Title="{Binding SelectedGroupingChoice.Label}" Summary="{Binding TotalFigureText}">
-                                <StackPanel>
-                                <ItemsControl ItemsSource="{Binding Rows}"
-                                              Visibility="{Binding ShowPlainTable, Converter={StaticResource BoolToVis}}">
-                                    <ItemsControl.ItemContainerStyle>
-                                        <Style TargetType="ContentPresenter">
-                                            <Setter Property="AutomationProperties.Name">
-                                                <Setter.Value>
-                                                    <MultiBinding StringFormat="{}{0}: {1}">
-                                                        <Binding Path="Label"/>
-                                                        <Binding Path="TotalText"/>
-                                                    </MultiBinding>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ItemsControl.ItemContainerStyle>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,4" Background="Transparent" ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}"
-                                                  MouseLeftButtonUp="TableRow_MouseLeftButtonUp" KeyDown="TableRow_KeyDown">
-                                                <Grid.Style>
-                                                    <Style TargetType="Grid">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding CanFilter}" Value="True">
-                                                                <Setter Property="Cursor" Value="Hand"/>
-                                                                <Setter Property="Focusable" Value="True"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Grid.Style>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{DynamicResource Text.Secondary}"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding TotalText}"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- The session table: a header over the same four columns the rows use (the model sits
-                                     under the project name, so a narrow window never squeezes the name). The
-                                     list scrolls inside its own box and draws only the rows in view, since a
-                                     long range holds thousands of sessions. The scroll bar is always there and
-                                     the header keeps its width free, so the header stays over its columns. -->
-                                <StackPanel Visibility="{Binding IsSessionGrouping, Converter={StaticResource BoolToVis}}">
-                                    <Grid Margin="0,0,16,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="96"/>
-                                            <ColumnDefinition Width="88"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Project], Mode=OneWay}"/><Run Text=" / "/><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Model], Mode=OneWay}"/>
-                                        </TextBlock>
-                                        <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Start]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Duration]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Tokens]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <ItemsControl x:Name="SessionTable" ItemsSource="{Binding SessionRows}"
-                                                  PreviewMouseWheel="SessionTable_PreviewMouseWheel">
-                                        <ItemsControl.Template>
-                                            <ControlTemplate TargetType="ItemsControl">
-                                                <ScrollViewer MaxHeight="360" CanContentScroll="True" VerticalScrollBarVisibility="Visible">
-                                                    <ItemsPresenter/>
-                                                </ScrollViewer>
-                                            </ControlTemplate>
-                                        </ItemsControl.Template>
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemContainerStyle>
-                                            <Style TargetType="ContentPresenter">
-                                                <Setter Property="AutomationProperties.Name">
-                                                    <Setter.Value>
-                                                        <MultiBinding StringFormat="{}{0} {1}: {2}">
-                                                            <Binding Path="Project"/>
-                                                            <Binding Path="Start"/>
-                                                            <Binding Path="Tokens"/>
-                                                        </MultiBinding>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Style>
-                                        </ItemsControl.ItemContainerStyle>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,4" ToolTip="{Binding ToolTip}">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="120"/>
-                                                        <ColumnDefinition Width="96"/>
-                                                        <ColumnDefinition Width="88"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding Model}" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1" Text="{Binding Start}" Foreground="{DynamicResource Text.Secondary}"
-                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding Duration}" Foreground="{DynamicResource Text.Secondary}"
-                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding Tokens}" TextAlignment="Right" Margin="0,0,8,0"
-                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                                </StackPanel>
                             </controls:CollapsibleSection>
                         </StackPanel>
                     </StackPanel>

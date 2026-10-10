@@ -305,7 +305,7 @@ public partial class StatsWindow : Window
     private IEnumerable<Controls.CollapsibleSection> Sections =>
     [
         FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection,
-        LimitsSection, ProjectsSection, MonthGridSection, TableSection,
+        LimitsSection, ProjectsSection, MonthGridSection,
     ];
 
     /// <summary>Sets every section to its remembered state (missing from the dictionary counts as
@@ -644,24 +644,6 @@ public partial class StatsWindow : Window
     private void TopProjectsChart_RowActivated(object? sender, int index) => _viewModel.ActivateTopProject(index);
 
     private void Chart_BarActivated(object? sender, int index) => _viewModel.ActivateBar(index);
-
-    private void TableRow_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is FrameworkElement { DataContext: StatsRowViewModel { CanFilter: true } row })
-        {
-            _viewModel.ToggleFilter(row.FilterKind, row.FilterKey);
-            e.Handled = true;
-        }
-    }
-
-    private void TableRow_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key is Key.Enter or Key.Space && sender is FrameworkElement { DataContext: StatsRowViewModel { CanFilter: true } row })
-        {
-            _viewModel.ToggleFilter(row.FilterKind, row.FilterKey);
-            e.Handled = true;
-        }
-    }
 
     private void MonthGrid_DaySelected(object? sender, DateOnly day) => _viewModel.ToggleSelectedDay(day);
 
