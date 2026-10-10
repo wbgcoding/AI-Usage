@@ -117,7 +117,7 @@ public sealed class BackupServiceTests : IDisposable
     [InlineData("")]
     public void An_entry_name_outside_the_target_folder_is_never_written(string name)
     {
-        var folder = Path.Combine(Path.GetTempPath(), "staging");
+        var folder = Path.Combine("C:" + Path.DirectorySeparatorChar, "data", "staging"); // string checks only, nothing is written
 
         Assert.ThrowsAny<Exception>(() => BackupService.PathInside(folder, name));
     }
@@ -125,7 +125,7 @@ public sealed class BackupServiceTests : IDisposable
     [Fact]
     public void A_plain_entry_name_lands_directly_in_the_target_folder()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "staging");
+        var folder = Path.Combine("C:" + Path.DirectorySeparatorChar, "data", "staging"); // string checks only, nothing is written
 
         Assert.Equal(Path.Combine(folder, "settings.json"), BackupService.PathInside(folder, "settings.json"));
     }
