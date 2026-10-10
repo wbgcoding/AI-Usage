@@ -522,7 +522,14 @@
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0"
+                                <!-- Token counts per provider on the left and the color picker on the right share
+                                     one row, so the breakdown spends no extra line on either. -->
+                                <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,0,0,0"
                                             Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
                                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
                                                VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
@@ -532,7 +539,7 @@
                                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
                                 </StackPanel>
 
-                                <ItemsControl ItemsSource="{Binding ProviderRows}" Margin="0,4,0,0">
+                                <ItemsControl Grid.Column="0" ItemsSource="{Binding ProviderRows}" VerticalAlignment="Center">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
@@ -562,6 +569,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </Grid>
 
                                 <!-- The explorer chart belongs to this same breakdown: it used to sit
                                      outside this section entirely, as a bare sibling Border, so
