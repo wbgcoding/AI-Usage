@@ -161,8 +161,10 @@ public sealed class StatsIndexerService : IDisposable
             {
                 lock (_gate)
                     _lastRaisedDate = _today();
-                // Before the event, so a window that reacts to it finds the new data waiting.
-                RefreshSnapshot();
+                // Before the event, so a window that reacts to it finds the new data waiting. A walk
+                // cancelled at shutdown skips it: nobody reads it, and it would hold up the exit.
+                if (!token.IsCancellationRequested)
+                    RefreshSnapshot();
                 RaiseIndexCompleted();
             }
         }
