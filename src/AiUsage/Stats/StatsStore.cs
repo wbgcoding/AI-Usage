@@ -700,7 +700,10 @@ public sealed class StatsStore
         // A database that held no usage has nothing to backfill: the walk fills the sessions in
         // together with the usage. Only a migrated one needs the one-time pass.
         if (originalVersion is null or < 4)
+        {
             Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{SessionsBackfilledKey}', '1')");
+            Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{SubagentUsageBackfilledKey}', '1')");
+        }
 
         using (var writeVersion = connection.CreateCommand())
         {
@@ -713,6 +716,7 @@ public sealed class StatsStore
     }
 
     private const string SessionsBackfilledKey = "sessions_backfilled";
+    private const string SubagentUsageBackfilledKey = "subagent_usage_backfilled";
 
     private static void Execute(SqliteConnection connection, string sql)
     {
@@ -1066,6 +1070,128 @@ public sealed class StatsStore
         {
             return false;
         }
+    }
+
+    /// <summary>True once the usage rows written before the subagent flag existed were corrected.</summary>
+    public bool IsSubagentUsageBackfillDone()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return true;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM meta WHERE key = $key";
+            command.Parameters.AddWithValue("$key", SubagentUsageBackfilledKey);
+            return command.ExecuteScalar() as string == "1";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>Moves tokens from the main agent rows to the matching subagent rows of this machine,
+    /// so each key ends up with at least the subagent totals in <paramref name="subagentTotals"/>
+    /// (records flagged as subagent, summed per key from the source files). Per key and token column
+    /// the move is the missing part of the subagent row, never more than the main row holds, so no
+    /// token is created or lost and rows indexed after the flag existed stay as they are. A main
+    /// row left with no tokens is deleted. Marks the pass done in the same transaction. Returns the
+    /// moved token total, or null when nothing was written (the pass is then repeated).</summary>
+    public long? MoveSubagentUsageAndMarkBackfilled(IReadOnlyList<StatsRecord> subagentTotals)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using var transaction = connection.BeginTransaction();
+            long movedTotal = 0;
+            foreach (var wanted in subagentTotals)
+            {
+                var main = ReadUsageRow(connection, transaction, wanted, subagent: false);
+                if (main is null)
+                    continue;
+
+                var flagged = ReadUsageRow(connection, transaction, wanted, subagent: true);
+                var move = new StatsRecord(
+                    wanted.Provider, wanted.Day, wanted.Model, wanted.Project,
+                    MissingPart(wanted.InputTokens, flagged?.InputTokens ?? 0, main.InputTokens),
+                    MissingPart(wanted.OutputTokens, flagged?.OutputTokens ?? 0, main.OutputTokens),
+                    MissingPart(wanted.CacheCreationTokens, flagged?.CacheCreationTokens ?? 0, main.CacheCreationTokens),
+                    MissingPart(wanted.CacheReadTokens, flagged?.CacheReadTokens ?? 0, main.CacheReadTokens),
+                    wanted.Hour, wanted.Effort, Subagent: true);
+                if (move.TotalTokens == 0)
+                    continue;
+
+                var remaining = new StatsRecord(
+                    main.Provider, main.Day, main.Model, main.Project,
+                    -move.InputTokens, -move.OutputTokens, -move.CacheCreationTokens, -move.CacheReadTokens,
+                    main.Hour, main.Effort);
+                AddDeltaWithinTransaction(connection, transaction, [remaining, move]);
+                if (main.TotalTokens - move.TotalTokens == 0)
+                    DeleteUsageRow(connection, transaction, main);
+                movedTotal += move.TotalTokens;
+            }
+
+            using var mark = connection.CreateCommand();
+            mark.Transaction = transaction;
+            mark.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, '1')";
+            mark.Parameters.AddWithValue("$key", SubagentUsageBackfilledKey);
+            mark.ExecuteNonQuery();
+            transaction.Commit();
+            return movedTotal;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
+    private static long MissingPart(long wanted, long already, long available) =>
+        Math.Min(Math.Max(wanted - already, 0), available);
+
+    private static StatsRecord? ReadUsageRow(SqliteConnection connection, SqliteTransaction transaction, StatsRecord key, bool subagent)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens FROM usage
+            WHERE provider = $provider AND day = $day AND hour = $hour AND model = $model AND project = $project
+              AND effort = $effort AND machine = '' AND subagent = $subagent
+            """;
+        BindUsageKey(command, key, subagent);
+        using var reader = command.ExecuteReader();
+        return reader.Read()
+            ? new StatsRecord(key.Provider, key.Day, key.Model, key.Project,
+                reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetInt64(3), key.Hour, key.Effort, Subagent: subagent)
+            : null;
+    }
+
+    private static void DeleteUsageRow(SqliteConnection connection, SqliteTransaction transaction, StatsRecord key)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM usage
+            WHERE provider = $provider AND day = $day AND hour = $hour AND model = $model AND project = $project
+              AND effort = $effort AND machine = '' AND subagent = $subagent
+            """;
+        BindUsageKey(command, key, key.Subagent);
+        command.ExecuteNonQuery();
+    }
+
+    private static void BindUsageKey(SqliteCommand command, StatsRecord key, bool subagent)
+    {
+        command.Parameters.AddWithValue("$provider", key.Provider);
+        command.Parameters.AddWithValue("$day", key.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        command.Parameters.AddWithValue("$hour", key.Hour);
+        command.Parameters.AddWithValue("$model", key.Model);
+        command.Parameters.AddWithValue("$project", key.Project);
+        command.Parameters.AddWithValue("$effort", key.Effort);
+        command.Parameters.AddWithValue("$subagent", subagent ? 1 : 0);
     }
 
     /// <summary>Every stored session, unfiltered; the window filters them by their start day.</summary>

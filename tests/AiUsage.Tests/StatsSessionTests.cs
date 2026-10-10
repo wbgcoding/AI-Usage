@@ -79,6 +79,13 @@ public class StatsSessionTests
             .OrderBy(row => row.Provider, StringComparer.Ordinal).ThenBy(row => row.Day).ThenBy(row => row.Hour).ThenBy(row => row.Model, StringComparer.Ordinal)
             .Select(row => $"{row.Provider}|{row.Day:yyyy-MM-dd}|{row.Hour}|{row.Model}|{row.Project}|{row.Effort}|{row.InputTokens}|{row.OutputTokens}|{row.CacheCreationTokens}|{row.CacheReadTokens}"));
 
+    /// <summary>The rows with the main agent and subagent halves of one key added together - the shape
+    /// of a row from before the flag existed.</summary>
+    private static string MergedTotals(IEnumerable<StatsRecord> rows) =>
+        Totals(rows
+            .GroupBy(row => (row.Provider, row.Day, row.Hour, row.Model, row.Project, row.Effort))
+            .Select(group => group.Aggregate((left, right) => left.Add(right) with { Subagent = false })));
+
     [Fact]
     public void Migration_from_v6_keeps_every_row_and_total_and_flags_the_subagents_rows()
     {
@@ -582,8 +589,11 @@ public class StatsSessionTests
         new StatsIndexer(migrated, claudeRoot, codexRoot).IndexOnce();
 
         Assert.True(migrated.IsSessionBackfillDone());
-        Assert.Equal(Totals(usageBefore), Totals(migrated.LoadAll()));
+        Assert.Equal(MergedTotals(usageBefore), MergedTotals(migrated.LoadAll()));
         Assert.Equal(usageBefore.Sum(row => row.TotalTokens), migrated.LoadAll().Sum(row => row.TotalTokens));
+        // The subagent tokens of the old merged rows are told apart again, as in a fresh walk.
+        Assert.Equal(reference.LoadAll().Where(row => row.Subagent).Sum(row => row.TotalTokens),
+            migrated.LoadAll().Where(row => row.Subagent).Sum(row => row.TotalTokens));
 
         var sessions = migrated.LoadSessions().OrderBy(session => session.SessionId, StringComparer.Ordinal).ToList();
         Assert.Equal(expectedSessions, sessions);
@@ -592,7 +602,7 @@ public class StatsSessionTests
         // Walking again neither repeats the pass nor changes anything.
         new StatsIndexer(migrated, claudeRoot, codexRoot).IndexOnce();
         Assert.Equal(expectedSessions, migrated.LoadSessions().OrderBy(session => session.SessionId, StringComparer.Ordinal).ToList());
-        Assert.Equal(Totals(usageBefore), Totals(migrated.LoadAll()));
+        Assert.Equal(MergedTotals(usageBefore), MergedTotals(migrated.LoadAll()));
     }
 
     [Fact]

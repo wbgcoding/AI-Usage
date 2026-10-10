@@ -217,7 +217,10 @@ public sealed class StatsIndexer
         // and the pass sees the offsets the walk just reached. It runs from a snapshot read now; a
         // snapshot that could not be read skips the pass instead of finishing it with nothing.
         if (_store.TryLoadSourceFiles(out var afterWalk))
+        {
             BackfillSessionsOnce(afterWalk, cancellationToken);
+            BackfillSubagentUsageOnce(afterWalk, cancellationToken);
+        }
 
         return new StatsIndexResult(
             new StatsIndexCounters(claudeFilesSeen, claudeFilesRead, claudeLinesParsed, claudeLinesSkipped, claudeFoldersSkipped),
@@ -586,6 +589,75 @@ public sealed class StatsIndexer
         }
 
         _store.ReplaceSessionsAndMarkBackfilled(sessions.ToDeltas());
+    }
+
+    /// <summary>The one-time pass for usage rows written before the subagent flag existed: they all
+    /// hold the flag as off. Every remembered Claude file is read again up to its stored offset, the
+    /// subagent lines are summed per usage key, and the store moves exactly those tokens over to the
+    /// flagged rows (never more than the unflagged row holds). Nothing is marked done when the pass is
+    /// cancelled or cannot be written, so the next walk repeats it.</summary>
+    private void BackfillSubagentUsageOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    {
+        if (_store.IsSubagentUsageBackfillDone())
+            return;
+
+        if (known.Count == 0 && _store.HasUsageRows())
+            return;
+
+        var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort), StatsRecord>();
+        foreach (var state in known.Values)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (state.Provider != ClaudeProviderId || state.Offset <= 0)
+                continue;
+
+            try
+            {
+                SumClaudeSubagentTokens(state, totals, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A file that vanished or is locked has nothing to give.
+            }
+        }
+
+        if (_store.MoveSubagentUsageAndMarkBackfilled([.. totals.Values]) is { } moved)
+            Log?.LogInfo($"Statistics: {moved} tokens of earlier usage were assigned to subagents.");
+    }
+
+    private void SumClaudeSubagentTokens(
+        StatsSourceFileState state, Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort), StatsRecord> totals,
+        CancellationToken cancellationToken)
+    {
+        var path = state.Path;
+        var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
+        var countedKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < state.Offset)
+            return;
+
+        var project = ProbeClaudeProject(path, ClaudeUsageLogParser.ExtractProjectFromFilePath(path), cancellationToken);
+        var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
+        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        {
+            if (!ClaudeUsageLogParser.TryParse(line, out var usageEvent))
+                return;
+            if (usageEvent.MessageKey.Length > 0 && !countedKeys.Add(usageEvent.MessageKey))
+                return;
+            if (!fileIsSubagent && !usageEvent.IsSidechain)
+                return;
+
+            Accumulate(buckets, ClaudeProviderId, project, usageEvent.Timestamp, usageEvent.Model,
+                usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens,
+                usageEvent.Effort, subagent: true);
+        }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
+
+        foreach (var record in buckets.Values)
+        {
+            var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort);
+            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
+        }
     }
 
     private void BackfillClaudeFile(StatsSourceFileState state, StatsSessionAccumulator sessions, CancellationToken cancellationToken)
