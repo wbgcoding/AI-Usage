@@ -110,6 +110,26 @@ public sealed class BackupServiceTests : IDisposable
 
     // ---- create ----------------------------------------------------------------------------
 
+    [Theory]
+    [InlineData(@"..\settings.json")]
+    [InlineData(@"sub\settings.json")]
+    [InlineData(@"C:\settings.json")]
+    [InlineData("")]
+    public void An_entry_name_outside_the_target_folder_is_never_written(string name)
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "staging");
+
+        Assert.ThrowsAny<Exception>(() => BackupService.PathInside(folder, name));
+    }
+
+    [Fact]
+    public void A_plain_entry_name_lands_directly_in_the_target_folder()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "staging");
+
+        Assert.Equal(Path.Combine(folder, "settings.json"), BackupService.PathInside(folder, "settings.json"));
+    }
+
     [Fact]
     public void Create_writes_the_manifest_and_only_the_known_files()
     {

@@ -361,6 +361,19 @@ public static class BackupService
         }
     }
 
+    /// <summary>The entry's file directly inside <paramref name="directory"/>. <see cref="Validate"/>
+    /// already admits only fixed plain names; this second check keeps any name that would land
+    /// elsewhere from ever being written.</summary>
+    internal static string PathInside(string directory, string name)
+    {
+        var root = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var full = Path.GetFullPath(Path.Combine(root, name));
+        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase) || full.Length == root.Length
+            || full.IndexOf(Path.DirectorySeparatorChar, root.Length) >= 0)
+            throw new RefusedException(BackupRefusal.NotABackup);
+        return full;
+    }
+
     /// <summary>Checks every entry's name, kind and declared sizes; returns the accepted entries by name.</summary>
     private static Dictionary<string, ZipArchiveEntry> Validate(ZipArchive zip)
     {
@@ -715,7 +728,7 @@ public static class BackupService
             {
                 long total = 0;
                 foreach (var name in backup.DataNames)
-                    backup.Extract(name, Path.Combine(staging, name), ref total);
+                    backup.Extract(name, PathInside(staging, name), ref total);
                 stagedNames = [.. backup.DataNames];
                 manifest = backup.Manifest;
             }
