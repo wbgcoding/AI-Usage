@@ -145,6 +145,10 @@
                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"/>
                         </Grid>
 
+                        <TextBlock Text="{Binding ImportedFromText}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                                   Visibility="{Binding HasImportedFrom, Converter={StaticResource BoolToVis}}"/>
+
                         <!-- The filters a click on a model or a project set; one chip each, with a button to lift it. -->
                         <WrapPanel Margin="0,0,0,12" Visibility="{Binding HasAnyFilter, Converter={StaticResource BoolToVis}}">
                                 <Border Margin="0,0,8,0" Padding="8,4" VerticalAlignment="Center"

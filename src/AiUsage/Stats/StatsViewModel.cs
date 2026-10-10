@@ -525,6 +525,17 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Reads one provider's quota history between two moments - a seam so a test can supply points.</summary>
     internal Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>> LoadHistory { get; set; }
 
+    /// <summary>The names of the other PCs whose token history was imported into the index; set by the
+    /// window that owns the settings, empty for a view model that has none.</summary>
+    internal Func<IReadOnlyList<string>> ImportedMachineNames { get; set; } = () => [];
+
+    /// <summary>The muted line under the selectors naming the PCs whose history is in the figures.</summary>
+    public string ImportedFromText => ImportedMachineNames() is { Count: > 0 } names
+        ? LocalizationService.Instance.Format("Stats.ImportedFrom", string.Join(", ", names))
+        : "";
+
+    public bool HasImportedFrom => ImportedFromText.Length > 0;
+
     /// <summary>Throwaway instances built only to read <see cref="Services.IUsageProvider.DisplayName"/> -
     /// the same reasoning <see cref="Views.SettingsWindow.BuildAboutReadLocationsList"/> already uses for its
     /// own "every known provider" list, never a second, hand-typed copy of the same five names.
@@ -1121,6 +1132,8 @@ public sealed partial class StatsViewModel : ObservableObject
     private void RecomputeFrom(IReadOnlyList<StatsRecord> source)
     {
         _sourceRecords = source;
+        OnPropertyChanged(nameof(ImportedFromText));
+        OnPropertyChanged(nameof(HasImportedFrom));
         var all = ApplyFilters(source);
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);

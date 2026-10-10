@@ -100,7 +100,20 @@ public sealed class SettingsStore : IDisposable
     /// <summary>Set by the most recent <see cref="Load"/> when the file was newer than this app understands.</summary>
     public bool LastLoadWasFromNewerVersion { get; private set; }
 
+    /// <summary>True when the last <see cref="Load"/> had to create this PC's machine id: the caller
+    /// saves once so the id survives the session.</summary>
+    public bool MachineIdWasCreated { get; private set; }
+
     public AppSettings Load()
+    {
+        var settings = LoadCore();
+        MachineIdWasCreated = string.IsNullOrEmpty(settings.MachineId);
+        if (MachineIdWasCreated)
+            settings.MachineId = Guid.NewGuid().ToString("D");
+        return settings;
+    }
+
+    private AppSettings LoadCore()
     {
         LastLoadWasFromNewerVersion = false;
         _readOnly = false;
@@ -634,6 +647,9 @@ public sealed class SettingsStore : IDisposable
         settings.Window ??= new WindowSettings();
         ClampWindow(settings.Window);
 
+        settings.MachineId = BackupService.TryNormalizeMachineId(settings.MachineId, out var machineId) ? machineId : "";
+        settings.ImportedMachines = CleanImportedMachines(settings.ImportedMachines);
+
         foreach (var provider in settings.Providers.Values)
         {
             provider.Thresholds ??= new ThresholdSettings();
@@ -643,6 +659,24 @@ public sealed class SettingsStore : IDisposable
             provider.HiddenWindows ??= [];
             provider.AccountName = ProviderSettings.NormalizeAccountName(provider.AccountName);
         }
+    }
+
+    private const int MaxImportedMachines = 50;
+
+    /// <summary>The imported-PC list from a file: valid distinct ids only, tidy names, a sane length.</summary>
+    private static List<ImportedMachine> CleanImportedMachines(List<ImportedMachine>? list)
+    {
+        var clean = new List<ImportedMachine>();
+        foreach (var item in list ?? [])
+        {
+            if (item is null || !BackupService.TryNormalizeMachineId(item.Id, out var id) || clean.Any(m => m.Id == id))
+                continue;
+            clean.Add(new ImportedMachine { Id = id, Name = BackupService.CleanMachineName(item.Name, id), Imported = item.Imported });
+            if (clean.Count == MaxImportedMachines)
+                break;
+        }
+
+        return clean;
     }
 
     private static string CanonicalEnumName<TEnum>(string? value, string fallback) where TEnum : struct, Enum =>

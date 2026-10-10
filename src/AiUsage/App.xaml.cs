@@ -112,6 +112,10 @@ public partial class App : Application, IDisposable
             }
         }
 
+        // A restore asked for in the previous run happens here: this process owns the single-instance
+        // lock and the previous copy is gone, so no data file is open anywhere yet.
+        BackupService.ApplyPendingRestore(AppPaths.DataDirectory, DateTime.Now, _logService.LogInfo);
+
         // Best-effort: a copy the reader could not delete last run (file still locked, app killed
         // mid-read) should not sit in the cache folder forever waiting for another lookup to fail.
         AntigravityStateReader.CleanUpLeftoverSnapshots();
@@ -121,6 +125,9 @@ public partial class App : Application, IDisposable
 
         _settingsStore = new SettingsStore(logService: _logService);
         var settings = _settingsStore.Load();
+        // The id that names this PC in a backup is created once and kept.
+        if (_settingsStore.MachineIdWasCreated)
+            _settingsStore.RequestSave(settings);
 
         // A copy that was moved since autostart was switched on would otherwise start nothing at logon.
         if (settings.Autostart && Environment.ProcessPath is { } ownPath && AutostartService.RepairIfMoved(ownPath))

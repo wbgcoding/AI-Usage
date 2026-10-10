@@ -37,6 +37,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string?> _askForDataFolder;
     private readonly Action<string, string> _copyIndex;
     private readonly Action<string, string> _copySmallFiles;
+    private readonly Func<string, string?> _askForBackupSavePath;
+    private readonly Func<string?> _askForBackupOpenPath;
+    private readonly Func<bool> _confirmRestore;
+    private readonly Func<bool> _restartApp;
+    private readonly Stats.StatsStore _statsStore;
     private readonly Func<Uri, ResourceDictionary> _loadThemeDictionary;
 
     // Same theme-to-file mapping ThemeService.ThemeUris keeps for the live app - kept here too
@@ -484,7 +489,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Action<string>? showMessage = null, Func<string?>? askForDataFolder = null,
         Func<CancellationToken, Task<UpdateCheck.Release?>>? fetchLatestRelease = null,
         Action<string, string>? copyIndex = null,
-        Action<string, string>? copySmallFiles = null)
+        Action<string, string>? copySmallFiles = null,
+        Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
+        Func<bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
     {
         Main = main;
         _settings = settings;
@@ -501,6 +508,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _askForDataFolder = askForDataFolder ?? ShowRealFolderDialog;
         _copyIndex = copyIndex ?? CopyIndexFiles;
         _copySmallFiles = copySmallFiles ?? CopySmallFiles;
+        _askForBackupSavePath = askForBackupSavePath ?? ShowRealBackupSaveDialog;
+        _askForBackupOpenPath = askForBackupOpenPath ?? ShowRealBackupOpenDialog;
+        _confirmRestore = confirmRestore ?? ShowRealRestoreConfirm;
+        _restartApp = restartApp ?? RestartForRestore;
+        _statsStore = statsStore ?? new Stats.StatsStore();
         if (fetchLatestRelease is not null)
             main.Update.FetchLatestRelease = fetchLatestRelease;
 
@@ -554,6 +566,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Choice.Select(TileOrderChoices, settings.TileOrderMode);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
 
+        RebuildImportedPcs();
         RebuildProviderRows();
         // An account added or removed while this window is open gets or loses its rows right away.
         Main.Tiles.CollectionChanged += OnTilesChanged;
@@ -1326,6 +1339,250 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             File.Copy(sourcePath, destinationPath, overwrite: true);
     }
 
+    /// <summary>True while a backup, restore or history import runs; the three buttons wait.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateBackupCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RestoreBackupCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ImportPcCommand))]
+    private bool isBackupBusy;
+
+    private bool CanRunBackupAction() => !IsBackupBusy;
+
+    /// <summary>The other PCs whose token history sits in this PC's index, listed under the import button.</summary>
+    public ObservableCollection<ImportedPcRow> ImportedPcs { get; } = [];
+
+    public bool HasImportedPcs => ImportedPcs.Count > 0;
+
+    private void RebuildImportedPcs()
+    {
+        ImportedPcs.Clear();
+        foreach (var machine in _settings.ImportedMachines)
+            ImportedPcs.Add(new ImportedPcRow(machine.Id, machine.Name));
+        OnPropertyChanged(nameof(HasImportedPcs));
+    }
+
+    /// <summary>This PC's id, created here too when a settings object never went through a load.</summary>
+    private string EnsureMachineId()
+    {
+        if (!BackupService.TryNormalizeMachineId(_settings.MachineId, out var id))
+        {
+            id = Guid.NewGuid().ToString("D");
+            _settings.MachineId = id;
+            _store.RequestSave(_settings);
+        }
+
+        return id;
+    }
+
+    /// <summary>One zip with everything in the data folder (never the web sign-in profiles), written
+    /// under its final name only once complete. Cancelling the dialog does nothing.</summary>
+    [RelayCommand(CanExecute = nameof(CanRunBackupAction))]
+    private async Task CreateBackupAsync()
+    {
+        var path = _askForBackupSavePath($"ai-usage-backup-{DateTime.Now:yyyy-MM-dd}.zip");
+        if (path is null)
+            return;
+
+        var machineId = EnsureMachineId();
+        _store.SaveNow(_settings); // the file on disk holds what is on screen
+        var dataDirectory = _store.DataDirectory;
+        IsBackupBusy = true;
+        try
+        {
+            await Task.Run(() => BackupService.Create(dataDirectory, path, AppInfo.Version, machineId, Environment.MachineName, DateTimeOffset.Now));
+            _showMessage(LocalizationService.Instance["Settings.Backup.Saved"]);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Checks the chosen backup completely (a foreign, damaged, unsafe or newer file is refused here,
+    /// with nothing changed), asks for confirmation, then hands the restore to the next start: the
+    /// request is written, the program starts itself again and ends. The new process applies it before
+    /// it opens any data file.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRunBackupAction))]
+    private async Task RestoreBackupAsync()
+    {
+        var path = _askForBackupOpenPath();
+        if (path is null)
+            return;
+
+        IsBackupBusy = true;
+        try
+        {
+            var inspection = await Task.Run(() => BackupService.Inspect(path));
+            if (!inspection.IsAccepted)
+            {
+                _showMessage(LocalizationService.Instance["Settings.Backup.Refused"]);
+                return;
+            }
+
+            if (!_confirmRestore())
+                return;
+
+            _store.SaveNow(_settings);
+            var dataDirectory = _store.DataDirectory;
+            try
+            {
+                BackupService.SchedulePendingRestore(dataDirectory, path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+                return;
+            }
+
+            if (!_restartApp())
+            {
+                BackupService.CancelPendingRestore(dataDirectory);
+                _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+            }
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
+    private static bool ShowRealRestoreConfirm()
+    {
+        var loc = LocalizationService.Instance;
+        var dialog = new Views.ConfirmWindow(AppInfo.ProductName, loc["Settings.Backup.RestoreConfirm"],
+            loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
+        Views.OwnerWindowResolver.ApplyOwner(dialog, null);
+        return dialog.ShowDialog() == true;
+    }
+
+    /// <summary>Starts this program again the way a portable update does (the new copy waits for this
+    /// one to end) and shuts this one down. False when the new copy could not be started.</summary>
+    private static bool RestartForRestore()
+    {
+        if (Environment.ProcessPath is not { } exe)
+            return false;
+
+        var arguments = $"{UpdateHost.AfterUpdateSwitch} {Environment.ProcessId}";
+        if (SecondInstanceMode.IsRequested(Environment.GetCommandLineArgs()))
+            arguments += $" {SecondInstanceMode.Switch}";
+
+        try
+        {
+            using var started = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, arguments) { UseShellExecute = false });
+            if (started is null)
+                return false;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return false;
+        }
+
+        Application.Current?.Shutdown();
+        return true;
+    }
+
+    private static string? ShowRealBackupSaveDialog(string suggestedFileName)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = suggestedFileName,
+            Filter = LocalizationService.Instance["Settings.Backup.Filter"],
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    private static string? ShowRealBackupOpenDialog()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = LocalizationService.Instance["Settings.Backup.Filter"],
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    /// <summary>What the history import found out, handed back from the worker thread.</summary>
+    private enum ImportOutcome { Refused, SamePc, Imported }
+
+    /// <summary>
+    /// Brings the token history of another PC in from one of its backups: only the token index, filed
+    /// under that PC's id, so importing the same PC again replaces its rows instead of adding to
+    /// them. A backup from this PC is refused; this PC's own rows are never touched.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRunBackupAction))]
+    private async Task ImportPcAsync()
+    {
+        var path = _askForBackupOpenPath();
+        if (path is null)
+            return;
+
+        var ownId = EnsureMachineId();
+        IsBackupBusy = true;
+        try
+        {
+            var (outcome, days, id, name) = await Task.Run(() =>
+            {
+                using var source = BackupService.OpenForImport(path, out _);
+                if (source is null)
+                    return (ImportOutcome.Refused, 0, "", "");
+                if (source.Manifest.MachineId == ownId)
+                    return (ImportOutcome.SamePc, 0, "", "");
+
+                var imported = _statsStore.ImportMachine(source.StatsDatabasePath, source.Manifest.MachineId, ownId);
+                return imported is { } count
+                    ? (ImportOutcome.Imported, count, source.Manifest.MachineId, source.Manifest.MachineName)
+                    : (ImportOutcome.Refused, 0, "", "");
+            });
+
+            var loc = LocalizationService.Instance;
+            switch (outcome)
+            {
+                case ImportOutcome.SamePc:
+                    _showMessage(loc["Settings.Backup.SamePc"]);
+                    break;
+                case ImportOutcome.Imported:
+                    _settings.ImportedMachines.RemoveAll(machine => machine.Id == id);
+                    _settings.ImportedMachines.Add(new ImportedMachine { Id = id, Name = name, Imported = DateTimeOffset.Now });
+                    _store.RequestSave(_settings);
+                    RebuildImportedPcs();
+                    _showMessage(loc.Format("Settings.Backup.Imported", days, name));
+                    break;
+                default:
+                    _showMessage(loc["Settings.Backup.Refused"]);
+                    break;
+            }
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
+    /// <summary>Deletes the rows of one imported PC and forgets it. Only ids in the list are accepted.</summary>
+    [RelayCommand]
+    private void RemoveImportedPc(string? machineId)
+    {
+        if (machineId is null || !_settings.ImportedMachines.Any(machine => machine.Id == machineId))
+            return;
+
+        if (!_statsStore.RemoveMachine(machineId))
+        {
+            _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+            return;
+        }
+
+        _settings.ImportedMachines.RemoveAll(machine => machine.Id == machineId);
+        _store.RequestSave(_settings);
+        RebuildImportedPcs();
+    }
+
     /// <summary>
     /// Reset to defaults, behind a confirmation prompt: every preference this window
     /// itself surfaces goes back to <see cref="AppSettings"/>'s own defaults and is re-applied to the
@@ -1520,3 +1777,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private static ResourceDictionary LoadThemeDictionary(Uri uri) =>
         Application.Current is not null ? new ResourceDictionary { Source = uri } : new ResourceDictionary();
 }
+
+/// <summary>One imported PC in the settings list.</summary>
+public sealed record ImportedPcRow(string Id, string Name);

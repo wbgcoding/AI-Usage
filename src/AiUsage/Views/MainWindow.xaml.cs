@@ -1515,7 +1515,10 @@ public partial class MainWindow : Window, IDisposable
     {
         if (_statsWindow is null)
         {
-            _statsWindow = new StatsWindow(new StatsViewModel(new StatsStore()), _settings, _settingsStore);
+            _statsWindow = new StatsWindow(new StatsViewModel(new StatsStore())
+            {
+                ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
+            }, _settings, _settingsStore);
             OwnerWindowResolver.ApplyOwner(_statsWindow, this);
             _statsWindow.Closed += (_, _) => _statsWindow = null;
         }

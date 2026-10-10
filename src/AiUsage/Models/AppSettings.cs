@@ -17,6 +17,14 @@ public sealed class AppSettings
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
+    /// <summary>Names this PC in a backup and in another PC's token index (a GUID). Created on the
+    /// first load, never changed by a settings import or a reset, and kept across a restore.</summary>
+    public string MachineId { get; set; } = "";
+
+    /// <summary>The other PCs whose token history was imported into this PC's index, so each can be
+    /// listed and removed again.</summary>
+    public List<ImportedMachine> ImportedMachines { get; set; } = [];
+
     public int RefreshSeconds { get; set; } = 60;
 
     /// <summary>Floor for a web-backed provider's own refresh interval (the Claude web session), in
@@ -405,4 +413,14 @@ public sealed class ThresholdSettings
     public double Other { get; set; } = 85;
 
     public bool OtherEnabled { get; set; } = true;
+}
+
+/// <summary>One PC whose token history lives in this PC's index.</summary>
+public sealed class ImportedMachine
+{
+    public string Id { get; set; } = "";
+
+    public string Name { get; set; } = "";
+
+    public DateTimeOffset Imported { get; set; }
 }

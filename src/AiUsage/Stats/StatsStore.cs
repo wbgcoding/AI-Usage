@@ -79,6 +79,240 @@ public sealed class StatsStore
         source.BackupDatabase(destination);
     }
 
+    /// <summary>A consistent copy of the index file at <paramref name="sourcePath"/> through SQLite's own
+    /// backup (never a raw file copy, which can catch a write half done), for a backup zip. The source
+    /// is opened read-only and the destination file must not exist yet.</summary>
+    internal static void SnapshotIndex(string sourcePath, string destinationPath)
+    {
+        var sourceConnectionString = new SqliteConnectionStringBuilder { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
+        var destinationConnectionString = new SqliteConnectionStringBuilder { DataSource = destinationPath, Mode = SqliteOpenMode.ReadWriteCreate, Pooling = false }.ToString();
+        using var source = new SqliteConnection(sourceConnectionString);
+        using var destination = new SqliteConnection(destinationConnectionString);
+        source.Open();
+        destination.Open();
+        source.BackupDatabase(destination);
+    }
+
+    /// <summary>The schema version a database file names, read without changing the file; null when
+    /// it is no SQLite file, fails SQLite's own quick check or has no version row.</summary>
+    internal static int? TryReadSchemaVersion(string databasePath)
+    {
+        try
+        {
+            var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            using (var check = connection.CreateCommand())
+            {
+                check.CommandText = "PRAGMA quick_check(1)";
+                if (!string.Equals(check.ExecuteScalar() as string, "ok", StringComparison.OrdinalIgnoreCase))
+                    return null;
+            }
+
+            using var version = connection.CreateCommand();
+            version.CommandText = "SELECT MAX(version) FROM schema_version";
+            var value = version.ExecuteScalar();
+            return value is null or DBNull ? null : (int)Math.Min(int.MaxValue, Convert.ToInt64(value, CultureInfo.InvariantCulture));
+        }
+        catch (SqliteException)
+        {
+            return null;
+        }
+    }
+
+    private static readonly string[] UsageColumns =
+        ["provider", "day", "hour", "model", "project", "effort", "machine", "subagent", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens"];
+
+    private static readonly string[] SessionColumns =
+        ["provider", "machine", "session_id", "project", "first_utc", "last_utc", "input", "output", "cache_creation", "cache_read", "main_model", "subagent_tokens"];
+
+    private static readonly string[] SessionModelColumns = ["provider", "machine", "session_id", "model", "tokens"];
+
+    /// <summary>True when the foreign file is a token index this build can read: a version this build
+    /// knows (not newer) that already has the machine column, and the three tables with every column
+    /// the import copies. Checked before a single row is read.</summary>
+    private static bool HasImportableSchema(string databasePath)
+    {
+        if (TryReadSchemaVersion(databasePath) is not { } version || version < 7 || version > SchemaVersion)
+            return false;
+
+        try
+        {
+            var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            return TableHasColumns(connection, "usage", UsageColumns)
+                && TableHasColumns(connection, "session", SessionColumns)
+                && TableHasColumns(connection, "session_model", SessionModelColumns);
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TableHasColumns(SqliteConnection connection, string table, string[] columns)
+    {
+        using (var type = connection.CreateCommand())
+        {
+            type.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $name";
+            type.Parameters.AddWithValue("$name", table);
+            if (Convert.ToInt64(type.ExecuteScalar(), CultureInfo.InvariantCulture) != 1)
+                return false;
+        }
+
+        using var info = connection.CreateCommand();
+        info.CommandText = $"SELECT name FROM pragma_table_info('{table}')";
+        var present = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var reader = info.ExecuteReader();
+        while (reader.Read())
+            present.Add(reader.GetString(0));
+        return columns.All(present.Contains);
+    }
+
+    /// <summary>
+    /// Brings another PC's token history in from <paramref name="foreignDatabasePath"/> (a backup's
+    /// index, already extracted to a file of its own). Its own rows (machine column empty there)
+    /// are filed here under <paramref name="foreignId"/>; rows it holds for third PCs come along only
+    /// when this index has none for that PC yet; rows carrying <paramref name="ownId"/> (its copy of
+    /// this PC's history) are skipped. Whatever rows this index already holds for
+    /// <paramref name="foreignId"/> are replaced first, in the same transaction, so importing the same
+    /// PC again changes nothing. Rows of this PC (machine column empty here) are never touched.
+    /// Returns the number of distinct days now filed under the PC, or null when nothing was imported:
+    /// an id that is not a GUID or is this PC's own, a foreign file of an unknown or newer schema, a
+    /// damaged file, or this index being unusable.
+    /// </summary>
+    internal int? ImportMachine(string foreignDatabasePath, string foreignId, string ownId)
+    {
+        if (!BackupService.TryNormalizeMachineId(foreignId, out var id)
+            || !BackupService.TryNormalizeMachineId(ownId, out var own)
+            || id == own
+            || !HasImportableSchema(foreignDatabasePath))
+            return null;
+
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using (var attach = connection.CreateCommand())
+            {
+                attach.CommandText = "ATTACH DATABASE $path AS imported_source";
+                attach.Parameters.AddWithValue("$path", foreignDatabasePath);
+                attach.ExecuteNonQuery();
+            }
+
+            try
+            {
+                Execute(connection, "BEGIN IMMEDIATE");
+                try
+                {
+                    var usage = string.Join(", ", UsageColumns);
+                    var usageFromSource = string.Join(", ", UsageColumns.Select(c => c == "machine" ? "$id" : c));
+                    var session = string.Join(", ", SessionColumns);
+                    var sessionFromSource = string.Join(", ", SessionColumns.Select(c => c == "machine" ? "$id" : c));
+                    var model = string.Join(", ", SessionModelColumns);
+                    var modelFromSource = string.Join(", ", SessionModelColumns.Select(c => c == "machine" ? "$id" : c));
+
+                    ExecuteWith(connection, $"""
+                        DELETE FROM session_model WHERE machine = $id;
+                        DELETE FROM session WHERE machine = $id;
+                        DELETE FROM usage WHERE machine = $id;
+                        INSERT INTO usage ({usage}) SELECT {usageFromSource} FROM imported_source.usage WHERE machine = '';
+                        INSERT INTO session ({session}) SELECT {sessionFromSource} FROM imported_source.session WHERE machine = '';
+                        INSERT INTO session_model ({model}) SELECT {modelFromSource} FROM imported_source.session_model WHERE machine = '';
+                        INSERT OR IGNORE INTO usage ({usage}) SELECT {usage} FROM imported_source.usage WHERE machine <> '' AND machine <> $id AND machine <> $own;
+                        INSERT OR IGNORE INTO session ({session}) SELECT {session} FROM imported_source.session WHERE machine <> '' AND machine <> $id AND machine <> $own;
+                        INSERT OR IGNORE INTO session_model ({model}) SELECT {model} FROM imported_source.session_model WHERE machine <> '' AND machine <> $id AND machine <> $own;
+                        """, id, own);
+
+                    int days;
+                    using (var count = connection.CreateCommand())
+                    {
+                        count.CommandText = "SELECT COUNT(DISTINCT day) FROM usage WHERE machine = $id";
+                        count.Parameters.AddWithValue("$id", id);
+                        days = Convert.ToInt32(count.ExecuteScalar(), CultureInfo.InvariantCulture);
+                    }
+
+                    Execute(connection, "COMMIT");
+                    return days;
+                }
+                catch
+                {
+                    TryExecute(connection, "ROLLBACK");
+                    throw;
+                }
+            }
+            finally
+            {
+                TryExecute(connection, "DETACH DATABASE imported_source");
+            }
+        }
+        catch (SqliteException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Deletes every row filed under another PC's id (see <see cref="ImportMachine"/>). Only a
+    /// GUID is accepted, so the empty id that marks this PC's own rows can never be named here.
+    /// False when the id is not valid or the index could not be changed.</summary>
+    internal bool RemoveMachine(string machineId)
+    {
+        if (!BackupService.TryNormalizeMachineId(machineId, out var id))
+            return false;
+
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            Execute(connection, "BEGIN IMMEDIATE");
+            try
+            {
+                ExecuteWith(connection, """
+                    DELETE FROM session_model WHERE machine = $id;
+                    DELETE FROM session WHERE machine = $id;
+                    DELETE FROM usage WHERE machine = $id;
+                    """, id, null);
+                Execute(connection, "COMMIT");
+                return true;
+            }
+            catch
+            {
+                TryExecute(connection, "ROLLBACK");
+                throw;
+            }
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
+    }
+
+    private static void ExecuteWith(SqliteConnection connection, string sql, string id, string? own)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.Parameters.AddWithValue("$id", id);
+        if (own is not null)
+            command.Parameters.AddWithValue("$own", own);
+        command.ExecuteNonQuery();
+    }
+
+    private static void TryExecute(SqliteConnection connection, string sql)
+    {
+        try
+        {
+            Execute(connection, sql);
+        }
+        catch (SqliteException)
+        {
+        }
+    }
+
     /// <summary>False once an existing database names a schema version newer than <see
     /// cref="SchemaVersion"/> - every read answers empty and every write is refused rather than
     /// touching a file a newer build understands better than this one does.</summary>

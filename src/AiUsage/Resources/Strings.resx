@@ -543,4 +543,17 @@
   <data name="Stats.Range.Apply" xml:space="preserve"><value>Apply</value></data>
   <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Previous month</value></data>
   <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Next month</value></data>
+  <data name="Settings.Group.Data" xml:space="preserve"><value>Data</value></data>
+  <data name="Settings.Backup.Create" xml:space="preserve"><value>Create backup…</value></data>
+  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Restore backup…</value></data>
+  <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage backup (*.zip)|*.zip</value></data>
+  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Restore this backup? Your current settings, quota history and token index are replaced, then AI-Usage restarts.</value></data>
+  <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restore</value></data>
+  <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup saved.</value></data>
+  <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import another PC's history…</value></data>
+  <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
+  <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
+  <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>
+  <data name="Stats.ImportedFrom" xml:space="preserve"><value>Includes history from: {0}</value></data>
 </root>

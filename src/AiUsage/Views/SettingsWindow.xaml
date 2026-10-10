@@ -858,6 +858,7 @@
                                   HorizontalAlignment="Left"/>
                     </StackPanel>
 
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Data]}" Style="{StaticResource GroupHeading}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RetentionLabel]}" Style="{StaticResource FieldLabel}"/>
                     <!-- The chosen span and the size on disk sit under the slider rather than beside
                          it: the two of them together are longer than the slider itself at this window
@@ -901,6 +902,27 @@
                         <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Export]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ExportSettingsCommand}"/>
                         <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Import]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ImportSettingsCommand}"/>
                     </WrapPanel>
+                    <WrapPanel>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Create]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding CreateBackupCommand}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Restore]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding RestoreBackupCommand}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ImportPcCommand}"/>
+                    </WrapPanel>
+                    <!-- The PCs whose token history was imported, each removable again. -->
+                    <ItemsControl ItemsSource="{Binding ImportedPcs}"
+                                  Visibility="{Binding HasImportedPcs, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4" LastChildFill="True">
+                                    <Button DockPanel.Dock="Right" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.RemovePc]}"
+                                            Style="{StaticResource AiUsageQuietButton}" Padding="8,4" Margin="8,0,0,0"
+                                            Command="{Binding DataContext.RemoveImportedPcCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding Id}"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
         </StackPanel>

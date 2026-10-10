@@ -48,11 +48,13 @@ public class SettingsViewModelTests : IDisposable
     private (SettingsViewModel Vm, AppSettings Settings) Build(AppSettings? settings = null, bool fakeAutostartEnabled = false,
         Func<string, string?>? askForSettingsExportPath = null, Func<string?>? askForSettingsImportPath = null,
         Func<CancellationToken, Task<UpdateCheck.Release?>>? fetchLatestRelease = null,
-        IReadOnlyList<FakeProvider>? providers = null, Action<string>? showMessage = null, string? historyDirectory = null)
+        IReadOnlyList<FakeProvider>? providers = null, Action<string>? showMessage = null, string? historyDirectory = null,
+        string? dataDirectory = null, Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
+        Func<bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
     {
         settings ??= new AppSettings();
         providers ??= [new("codex"), new("claude"), new("gemini"), new("copilot")];
-        var settingsStore = new SettingsStore(TempDirectory());
+        var settingsStore = new SettingsStore(dataDirectory ?? TempDirectory());
         var historyStore = new HistoryStore(historyDirectory ?? TempDirectory(), () => Now);
         var main = new MainViewModel(settingsStore, settings, providers, historyStore);
         // Never the real AutostartService here - a test that flips Autostart must not touch the
@@ -72,7 +74,13 @@ public class SettingsViewModelTests : IDisposable
             // Never the real MessageBox.Show here - it would pop a real, blocking dialog with no
             // Application around to own it and hang the test run.
             showMessage: showMessage ?? (_ => { }),
-            fetchLatestRelease: fetchLatestRelease);
+            fetchLatestRelease: fetchLatestRelease,
+            // Never a real dialog, a real restart or the real data folder's index here either.
+            askForBackupSavePath: askForBackupSavePath ?? (_ => null),
+            askForBackupOpenPath: askForBackupOpenPath ?? (() => null),
+            confirmRestore: confirmRestore ?? (() => false),
+            restartApp: restartApp ?? (() => false),
+            statsStore: statsStore ?? new Stats.StatsStore(dataDirectory ?? TempDirectory()));
         return (vm, settings);
     }
 
@@ -1527,5 +1535,195 @@ public class SettingsViewModelTests : IDisposable
         foreach (var name in new[] { "stats.v4.bak", "stats.v5.bak", "stats.v6.bak" })
             Assert.Equal(name, File.ReadAllText(Path.Combine(destination, name)));
         Assert.False(File.Exists(Path.Combine(destination, "stats.v6.bak.tmp")));
+    }
+
+    // ---- backup, restore and importing another PC ----------------------------------------------
+
+    private const string OtherPc = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    private const string OwnPc = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+
+    private static string Loc(string key) => LocalizationService.Instance[key];
+
+    /// <summary>A data folder with a settings file and an index holding one row of <paramref name="tokens"/>.</summary>
+    private string SeededDataFolder(string machineId, long tokens, string machine = "")
+    {
+        var directory = TempDirectory();
+        var settings = new AppSettings { MachineId = machineId };
+        File.WriteAllText(Path.Combine(directory, "settings.json"), System.Text.Json.JsonSerializer.Serialize(settings, SettingsStore.JsonOptions));
+        new Stats.StatsStore(directory).AddDelta([new Stats.StatsRecord("claude", new DateOnly(2026, 5, 1), "modelA", "projA", tokens, 0, 0, 0, Machine: machine)]);
+        IndexPools.Release(directory);
+        return directory;
+    }
+
+    [Fact]
+    public async Task Creating_a_backup_saves_one_zip_and_says_so()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zip = Path.Combine(TempDirectory(), "b.zip");
+        var messages = new List<string>();
+        var (vm, settings) = Build(new AppSettings { MachineId = OwnPc }, dataDirectory: data,
+            askForBackupSavePath: name => { Assert.Matches(@"^ai-usage-backup-\d{4}-\d{2}-\d{2}\.zip$", name); return zip; }, showMessage: messages.Add);
+
+        await vm.CreateBackupCommand.ExecuteAsync(null);
+        IndexPools.Release(data);
+
+        var inspection = BackupService.Inspect(zip, TempDirectory());
+        Assert.True(inspection.IsAccepted);
+        Assert.Equal(settings.MachineId, inspection.Manifest!.MachineId);
+        Assert.Equal([Loc("Settings.Backup.Saved")], messages);
+        Assert.False(vm.IsBackupBusy);
+    }
+
+    [Fact]
+    public async Task Cancelling_the_backup_dialogs_does_nothing()
+    {
+        var messages = new List<string>();
+        var restarted = false;
+        var (vm, _) = Build(showMessage: messages.Add, restartApp: () => restarted = true);
+
+        await vm.CreateBackupCommand.ExecuteAsync(null);
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+        await vm.ImportPcCommand.ExecuteAsync(null);
+
+        Assert.Empty(messages);
+        Assert.False(restarted);
+    }
+
+    [Fact]
+    public async Task Restoring_a_file_that_is_not_a_backup_is_refused_and_asks_for_nothing()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var junk = Path.Combine(TempDirectory(), "notes.zip");
+        File.WriteAllText(junk, "not a zip");
+        var messages = new List<string>();
+        var asked = false;
+        var restarted = false;
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => junk, showMessage: messages.Add,
+            confirmRestore: () => asked = true, restartApp: () => restarted = true);
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        Assert.Equal([Loc("Settings.Backup.Refused")], messages);
+        Assert.False(asked);
+        Assert.False(restarted);
+        Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
+    }
+
+    [Fact]
+    public async Task A_confirmed_restore_writes_the_request_and_restarts_and_a_declined_one_does_neither()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zip = Path.Combine(TempDirectory(), "b.zip");
+        BackupService.Create(SeededDataFolder(OtherPc, 99), zip, "1", OtherPc, "PC", DateTimeOffset.UtcNow, TempDirectory());
+        var confirm = false;
+        var restarts = 0;
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip, confirmRestore: () => confirm, restartApp: () => { restarts++; return true; });
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+        Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
+        Assert.Equal(0, restarts);
+
+        confirm = true;
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, restarts);
+        Assert.Equal(zip, File.ReadAllText(Path.Combine(data, "restore-pending.txt")));
+        // Nothing in the data folder is touched by the running process: the next start does the swap.
+        Assert.Equal(10, new Stats.StatsStore(data).LoadAll().Single().InputTokens);
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public async Task A_restart_that_fails_takes_the_restore_request_back()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zip = Path.Combine(TempDirectory(), "b.zip");
+        BackupService.Create(SeededDataFolder(OtherPc, 99), zip, "1", OtherPc, "PC", DateTimeOffset.UtcNow, TempDirectory());
+        var messages = new List<string>();
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip, confirmRestore: () => true, restartApp: () => false, showMessage: messages.Add);
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
+        Assert.Single(messages);
+    }
+
+    [Fact]
+    public async Task Importing_another_PCs_backup_files_its_history_once_lists_it_and_can_remove_it()
+    {
+        var data = SeededDataFolder(OwnPc, 1000);
+        var zip = Path.Combine(TempDirectory(), "other.zip");
+        BackupService.Create(SeededDataFolder(OtherPc, 77), zip, "1", OtherPc, "Work PC", DateTimeOffset.UtcNow, TempDirectory());
+        var messages = new List<string>();
+        var stats = new Stats.StatsStore(data);
+        var (vm, settings) = Build(new AppSettings { MachineId = OwnPc }, dataDirectory: data, askForBackupOpenPath: () => zip,
+            showMessage: messages.Add, statsStore: stats);
+
+        await vm.ImportPcCommand.ExecuteAsync(null);
+        await vm.ImportPcCommand.ExecuteAsync(null); // the same PC again
+
+        var expected = LocalizationService.Instance.Format("Settings.Backup.Imported", 1, "Work PC");
+        Assert.Equal([expected, expected], messages);
+        var imported = Assert.Single(settings.ImportedMachines);
+        Assert.Equal((OtherPc, "Work PC"), (imported.Id, imported.Name));
+        Assert.Equal(new ImportedPcRow(OtherPc, "Work PC"), Assert.Single(vm.ImportedPcs));
+        Assert.True(vm.HasImportedPcs);
+        Assert.Equal(77, stats.LoadAll().Where(r => r.Machine == OtherPc).Sum(r => r.TotalTokens));
+        Assert.Equal(1000, stats.LoadAll().Where(r => r.Machine == "").Sum(r => r.TotalTokens));
+
+        vm.RemoveImportedPcCommand.Execute(OtherPc);
+
+        Assert.Empty(settings.ImportedMachines);
+        Assert.Empty(vm.ImportedPcs);
+        Assert.False(vm.HasImportedPcs);
+        Assert.DoesNotContain(stats.LoadAll(), r => r.Machine == OtherPc);
+        Assert.Equal(1000, stats.LoadAll().Where(r => r.Machine == "").Sum(r => r.TotalTokens));
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public async Task A_backup_from_this_PC_is_not_imported()
+    {
+        var data = SeededDataFolder(OwnPc, 1000);
+        var zip = Path.Combine(TempDirectory(), "mine.zip");
+        BackupService.Create(data, zip, "1", OwnPc, "This PC", DateTimeOffset.UtcNow, TempDirectory());
+        var messages = new List<string>();
+        var stats = new Stats.StatsStore(data);
+        var (vm, settings) = Build(new AppSettings { MachineId = OwnPc }, dataDirectory: data, askForBackupOpenPath: () => zip,
+            showMessage: messages.Add, statsStore: stats);
+
+        await vm.ImportPcCommand.ExecuteAsync(null);
+
+        Assert.Equal([Loc("Settings.Backup.SamePc")], messages);
+        Assert.Empty(settings.ImportedMachines);
+        Assert.Equal(1000, stats.LoadAll().Single().InputTokens);
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public void Removing_an_id_that_is_not_in_the_list_changes_nothing()
+    {
+        var data = SeededDataFolder(OwnPc, 1000, machine: OtherPc);
+        var stats = new Stats.StatsStore(data);
+        var (vm, _) = Build(dataDirectory: data, statsStore: stats);
+
+        vm.RemoveImportedPcCommand.Execute(OtherPc);
+        vm.RemoveImportedPcCommand.Execute("");
+        vm.RemoveImportedPcCommand.Execute(null);
+
+        Assert.Equal(1000, stats.LoadAll().Single().InputTokens);
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public void A_reset_never_changes_this_PCs_id_or_the_imported_list()
+    {
+        var settings = new AppSettings { MachineId = OwnPc, ImportedMachines = [new() { Id = OtherPc, Name = "Work PC" }] };
+        var (vm, _) = Build(settings);
+
+        vm.ResetToDefaults();
+
+        Assert.Equal(OwnPc, settings.MachineId);
+        Assert.Equal(OtherPc, Assert.Single(settings.ImportedMachines).Id);
     }
 }

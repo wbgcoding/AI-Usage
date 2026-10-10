@@ -542,4 +542,17 @@
   <data name="Stats.Range.Apply" xml:space="preserve"><value>Übernehmen</value></data>
   <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Voriger Monat</value></data>
   <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Nächster Monat</value></data>
+  <data name="Settings.Group.Data" xml:space="preserve"><value>Daten</value></data>
+  <data name="Settings.Backup.Create" xml:space="preserve"><value>Sicherung erstellen…</value></data>
+  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Sicherung einspielen…</value></data>
+  <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage-Sicherung (*.zip)|*.zip</value></data>
+  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Diese Sicherung einspielen? Deine aktuellen Einstellungen, der Kontingent-Verlauf und der Token-Index werden ersetzt, danach startet AI-Usage neu.</value></data>
+  <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Einspielen</value></data>
+  <data name="Settings.Backup.Saved" xml:space="preserve"><value>Sicherung gespeichert.</value></data>
+  <data name="Settings.Backup.Refused" xml:space="preserve"><value>Diese Datei ist keine AI-Usage-Sicherung oder stammt aus einer neueren Version.</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Verlauf eines anderen PCs importieren…</value></data>
+  <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Diese Sicherung stammt von diesem PC.</value></data>
+  <data name="Settings.Backup.Imported" xml:space="preserve"><value>{0} Tage Token-Verlauf von {1} importiert.</value></data>
+  <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Entfernen</value></data>
+  <data name="Stats.ImportedFrom" xml:space="preserve"><value>Enthält Verlauf von: {0}</value></data>
 </root>
