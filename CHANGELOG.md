@@ -54,9 +54,13 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The button that closes the welcome window now reads "Done".
 - The "Show tooltips" switch is gone from the settings; tooltips stay on, and `settings.json` can still turn them off.
 - The README explains that project colors come from app icons found in your project folders.
+- A provider that is signed out or cannot be reached keeps showing its last known 5 hour and weekly numbers, also after a restart. Only signing out in the app clears them.
+- Token usage no longer repeats the weekday columns as a table underneath.
 
 ### Fixed
 
+- Claude and Gemini no longer time out on networks that announce IPv6 without a working IPv6 route: connections try IPv4 first.
+- Drop-down lists, menus and tooltips are fully opaque again with the Mica background.
 - Settings changed just before closing the app are no longer lost, and saving them no longer stutters while you drag a slider or the window.
 - The app starts next to a copy running as administrator and with a broken data folder pointer, and closes without an error message.
 - Claude no longer shows "waiting for you" right after you send a prompt, and a reached limit stays visible while a log file rotates.
