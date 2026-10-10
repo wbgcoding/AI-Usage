@@ -45,6 +45,19 @@ public class WelcomeRowTests
     }
 
     [Fact]
+    public void A_copilot_row_without_numbers_shows_no_empty_button()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var tile = new ProviderTileViewModel("copilot", "Copilot");
+        tile.Apply(new ProviderSnapshot("copilot", [], null, SourceKind.None, now, null, ProviderStatus.NoLocalData, null), now);
+        var row = new WelcomeRow(tile);
+
+        Assert.True(tile.ShowSignIn);
+        Assert.False(tile.HasAction);
+        Assert.False(row.ShowSignIn);
+    }
+
+    [Fact]
     public void Only_gemini_and_copilot_carry_a_hint()
     {
         var loc = LocalizationService.Instance;

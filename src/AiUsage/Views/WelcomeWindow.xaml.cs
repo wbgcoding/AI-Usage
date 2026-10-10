@@ -63,7 +63,8 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged
         Hint = HintFor(tile.RealProviderId);
         tile.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(ProviderTileViewModel.Status) or nameof(ProviderTileViewModel.ShowSignIn))
+            if (e.PropertyName is nameof(ProviderTileViewModel.Status) or nameof(ProviderTileViewModel.ShowSignIn)
+                or nameof(ProviderTileViewModel.ActionLabelText) or nameof(ProviderTileViewModel.HasAction))
             {
                 PropertyChanged?.Invoke(this, new(nameof(IsFound)));
                 PropertyChanged?.Invoke(this, new(nameof(ShowSignIn)));
@@ -78,7 +79,9 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged
     /// <summary>The provider already delivers numbers (fresh or merely out of date).</summary>
     public bool IsFound => Tile.Status is ProviderStatus.Ok or ProviderStatus.Stale;
 
-    public bool ShowSignIn => !IsFound && Tile.ShowSignIn;
+    /// <summary>The row's button runs the tile's own action, so a tile without one (Copilot before
+    /// the GitHub CLI is signed in: the hint says what to do) shows no button rather than an empty one.</summary>
+    public bool ShowSignIn => !IsFound && Tile.ShowSignIn && Tile.HasAction;
 
     public string? Hint { get; }
 
