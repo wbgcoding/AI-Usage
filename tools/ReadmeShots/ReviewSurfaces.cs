@@ -132,6 +132,13 @@ internal static class ReviewSurfaces
                 context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
                 context.OutputPath("stats.filtered"), minWidth: context.Size == SizeKind.Min,
                 configure: ApplySampleFilters), HasMinSize: true),
+            new("stats.projects", GroupStats, context => Program.RenderStatistics(
+                context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
+                context.OutputPath("stats.projects"), minWidth: context.Size == SizeKind.Min,
+                configure: viewModel => viewModel.SetGroupingCommand.Execute(StatsGrouping.Project)), HasMinSize: true),
+            Heatmap("stats.heatmap.provider", StatsColorBy.Provider),
+            Heatmap("stats.heatmap.model", StatsColorBy.Model),
+            Heatmap("stats.heatmap.agent", StatsColorBy.Agent),
         };
 
         foreach (var category in settingsCategories)
@@ -172,6 +179,17 @@ internal static class ReviewSurfaces
             context.OutputPath("stats.window"), minWidth: context.Size == SizeKind.Min,
             seed: _ => SampleLimits.Seed(folder, context.Now));
     }
+
+    /// <summary>The weekday by hour grid colored by one "Color by" choice, with subagent work so the agent split shows.</summary>
+    private static Surface Heatmap(string id, StatsColorBy colorBy) =>
+        new(id, GroupStats, context => Program.RenderStatistics(
+            context.NextDataFolder("stats"), WithSubagents(context.Records), context.BusyDay, fullHeight: true,
+            context.OutputPath(id), minWidth: context.Size == SizeKind.Min,
+            configure: viewModel =>
+            {
+                viewModel.SetGroupingCommand.Execute(StatsGrouping.WeekdayHour);
+                viewModel.SetColorByCommand.Execute(colorBy);
+            }), HasMinSize: true);
 
     private static IReadOnlyList<StatsRecord> WithSubagents(IReadOnlyList<StatsRecord> records) =>
         records.Select((record, index) => record.Provider == "claude" && index % 4 == 0 ? record with { Subagent = true } : record).ToList();
