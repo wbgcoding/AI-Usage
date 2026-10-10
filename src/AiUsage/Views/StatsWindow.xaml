@@ -706,6 +706,14 @@
                             <!-- Quota history of the shown range: how often each window's limit was reached. -->
                             <controls:CollapsibleSection x:Name="LimitsSection" SectionKey="limits"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits]}">
+                                <!-- One provider at a time: the picker on the header names it, so the body
+                                     needs no provider line and the column stays as tall as the rings. -->
+                                <controls:CollapsibleSection.HeaderContent>
+                                    <ComboBox x:Name="LimitProviderCombo" ItemsSource="{Binding LimitProviderChoices}"
+                                              SelectedItem="{Binding SelectedLimitProviderChoice, Mode=TwoWay}" MinWidth="80"
+                                              Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}"
+                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}"/>
+                                </controls:CollapsibleSection.HeaderContent>
                                 <Border Padding="12"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
@@ -713,15 +721,14 @@
                                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Empty]}"
                                                    Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
                                                    Visibility="{Binding HasNoLimitRows, Converter={StaticResource BoolToVis}}"/>
-                                        <!-- One block per provider: its name, then each window with a bar of the
+                                        <!-- The picked provider's block: each window with a bar of the
                                              highest level it reached (a tick at the average peak), how often
                                              it hit the limit on the right and both figures underneath. -->
-                                        <ItemsControl ItemsSource="{Binding LimitGroups}"
+                                        <ItemsControl ItemsSource="{Binding ShownLimitGroups}"
                                                       Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <StackPanel Margin="0,0,0,12">
-                                                        <TextBlock Text="{Binding ProviderName}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                                    <StackPanel>
                                                         <ItemsControl ItemsSource="{Binding Rows}">
                                                             <ItemsControl.ItemContainerStyle>
                                                                 <Style TargetType="ContentPresenter">

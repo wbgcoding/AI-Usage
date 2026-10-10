@@ -526,6 +526,61 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public bool HasNoLimitRows => LimitGroups.Count == 0;
 
+    /// <summary>The providers that have limit rows, for the picker on the limits section's header.</summary>
+    public ObservableCollection<Choice<string>> LimitProviderChoices { get; } = [];
+
+    /// <summary>The provider the user picked in the limits section; empty until one is picked, and
+    /// again once it has no rows. Kept only while the window is open.</summary>
+    private string _pickedLimitProvider = "";
+
+    /// <summary>The provider whose limit rows the section shows: the picked one, else the one provider
+    /// of the provider filter, else the first provider with rows. Empty without any rows.</summary>
+    public string SelectedLimitProvider { get; private set; } = "";
+
+    /// <summary>The one provider block the limits section shows; none without rows.</summary>
+    public IReadOnlyList<StatsLimitGroupViewModel> ShownLimitGroups { get; private set; } = [];
+
+    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the limits provider picker.</summary>
+    public Choice<string>? SelectedLimitProviderChoice
+    {
+        get => LimitProviderChoices.FirstOrDefault(choice => choice.IsSelected);
+        set
+        {
+            if (value is null || value.Value == SelectedLimitProvider)
+                return;
+
+            _pickedLimitProvider = value.Value;
+            ResolveLimitProvider();
+        }
+    }
+
+    partial void OnLimitGroupsChanged(IReadOnlyList<StatsLimitGroupViewModel> value) => ResolveLimitProvider();
+
+    /// <summary>Settles which provider the limits section shows and refreshes the picker and the block.</summary>
+    private void ResolveLimitProvider()
+    {
+        var ids = LimitGroups.Select(group => group.ProviderId).ToList();
+        if (!ids.Contains(_pickedLimitProvider))
+            _pickedLimitProvider = "";
+
+        SelectedLimitProvider = _pickedLimitProvider.Length > 0 ? _pickedLimitProvider
+            : _selectedProviders.Count == 1 && ids.Contains(_selectedProviders[0]) ? _selectedProviders[0]
+            : ids.FirstOrDefault() ?? "";
+        ShownLimitGroups = [.. LimitGroups.Where(group => group.ProviderId == SelectedLimitProvider)];
+
+        if (!LimitProviderChoices.Select(choice => choice.Value).SequenceEqual(ids))
+        {
+            LimitProviderChoices.Clear();
+            foreach (var group in LimitGroups)
+                LimitProviderChoices.Add(Choice.WithFixedLabel(group.ProviderName, group.ProviderId));
+        }
+
+        Choice.Select(LimitProviderChoices, SelectedLimitProvider);
+        OnPropertyChanged(nameof(SelectedLimitProvider));
+        OnPropertyChanged(nameof(ShownLimitGroups));
+        OnPropertyChanged(nameof(SelectedLimitProviderChoice));
+    }
+
     /// <summary>How many accounts a provider has - a seam the window fills from the settings. The
     /// tokens-per-percent estimate needs exactly one: usage of several accounts is mixed in the logs.</summary>
     internal Func<string, int> AccountCountOf { get; set; } = _ => 1;

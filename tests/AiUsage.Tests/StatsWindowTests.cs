@@ -562,6 +562,18 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void The_limits_section_carries_its_provider_picker_on_the_header()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            Assert.Same(window.LimitProviderCombo, window.LimitsSection.HeaderContent);
+            Assert.False(string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(window.LimitProviderCombo)));
+            // No limit history in the fixture: the picker stays out of sight.
+            Assert.Equal(Visibility.Collapsed, window.LimitProviderCombo.Visibility);
+        });
+    }
+
+    [Fact]
     public void The_color_by_picker_sits_first_in_the_breakdown_body_right_under_the_grouping()
     {
         RunInWindow(null, (window, _) =>

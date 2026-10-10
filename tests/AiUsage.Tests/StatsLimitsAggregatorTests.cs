@@ -148,6 +148,74 @@ public class StatsViewModelLimitsTests
     }
 
     [Fact]
+    public void The_limits_show_one_provider_at_a_time_defaulting_to_the_first_with_rows()
+    {
+        var reset = DateTimeOffset.Now.AddDays(2);
+        var viewModel = Create((id, _, _) => id is "claude" or "codex" ? [Weekly(50, reset)] : []);
+
+        Assert.Equal(["claude", "codex"], viewModel.LimitProviderChoices.Select(choice => choice.Value));
+        Assert.Equal("claude", viewModel.SelectedLimitProvider);
+        Assert.Equal("claude", viewModel.SelectedLimitProviderChoice?.Value);
+        Assert.Equal("claude", Assert.Single(viewModel.ShownLimitGroups).ProviderId);
+        Assert.True(viewModel.HasLimitRows);
+    }
+
+    [Fact]
+    public void The_default_limits_provider_is_the_filtered_one_when_exactly_one_is_selected()
+    {
+        var reset = DateTimeOffset.Now.AddDays(2);
+        var viewModel = Create((id, _, _) => id is "claude" or "codex" ? [Weekly(50, reset)] : []);
+
+        viewModel.SetProviderCommand.Execute("codex");
+        Assert.Equal("codex", viewModel.SelectedLimitProvider);
+        Assert.Equal("codex", Assert.Single(viewModel.ShownLimitGroups).ProviderId);
+
+        // Two selected providers: the first one with rows.
+        viewModel.ToggleProviderCommand.Execute("claude");
+        Assert.Equal("claude", viewModel.SelectedLimitProvider);
+
+        viewModel.SetProviderCommand.Execute("");
+        Assert.Equal("claude", viewModel.SelectedLimitProvider);
+    }
+
+    [Fact]
+    public void A_picked_limits_provider_is_kept_until_it_loses_its_rows()
+    {
+        var reset = DateTimeOffset.Now.AddDays(2);
+        var codexHasRows = true;
+        var viewModel = Create((id, _, _) => id == "claude" || (id == "codex" && codexHasRows) ? [Weekly(50, reset)] : []);
+
+        viewModel.SelectedLimitProviderChoice = viewModel.LimitProviderChoices.First(choice => choice.Value == "codex");
+        Assert.Equal("codex", viewModel.SelectedLimitProvider);
+        Assert.Equal("codex", Assert.Single(viewModel.ShownLimitGroups).ProviderId);
+
+        // A new calculation leaves the pick alone.
+        viewModel.Recompute();
+        Assert.Equal("codex", viewModel.SelectedLimitProvider);
+
+        codexHasRows = false;
+        viewModel.Recompute();
+        Assert.Equal(["claude"], viewModel.LimitProviderChoices.Select(choice => choice.Value));
+        Assert.Equal("claude", viewModel.SelectedLimitProvider);
+
+        // The pick does not come back when the rows do.
+        codexHasRows = true;
+        viewModel.Recompute();
+        Assert.Equal("claude", viewModel.SelectedLimitProvider);
+    }
+
+    [Fact]
+    public void Without_limit_rows_there_is_no_provider_to_pick()
+    {
+        var viewModel = Create((_, _, _) => []);
+
+        Assert.Empty(viewModel.LimitProviderChoices);
+        Assert.Empty(viewModel.ShownLimitGroups);
+        Assert.Equal("", viewModel.SelectedLimitProvider);
+        Assert.False(viewModel.HasLimitRows);
+    }
+
+    [Fact]
     public void The_range_bounds_are_passed_to_the_history_read()
     {
         DateTimeOffset? from = null;
