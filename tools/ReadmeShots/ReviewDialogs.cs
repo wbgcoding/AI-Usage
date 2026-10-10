@@ -136,7 +136,7 @@ internal static class ReviewDialogs
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
-    private const string SampleSetAsideFolder = @"C:\Users\Example\AppData\Roaming\AI-Usage\before-restore-20261010-084524";
+    private const string SampleSetAsideFolder = @"D:/Data/AI-Usage/before-restore-20261010-084524";
 
     /// <summary>Draws a never-shown window's content at its own width; a NaN height means the content
     /// decides (the window sizes to its content). The window's own background is part of the picture,
