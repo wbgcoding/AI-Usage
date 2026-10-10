@@ -14,6 +14,7 @@ using AiUsage.Stats;
 using AiUsage.Views;
 using AiUsage.Views.Controls;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace AiUsage.Tests;
 
@@ -29,6 +30,10 @@ namespace AiUsage.Tests;
 [Collection(SharedStateTestsCollection.Name)]
 public class StatsWindowTests
 {
+    private readonly ITestOutputHelper? _output;
+
+    public StatsWindowTests(ITestOutputHelper? output = null) => _output = output;
+
     [Fact]
     public void StatsWindow_builds_and_renders_without_throwing_across_every_theme()
     {
@@ -416,6 +421,146 @@ public class StatsWindowTests
         Assert.Equal(StatsGrouping.Model, viewModel.SelectedGrouping);
         Assert.True(modelChoice.IsSelected);
         Assert.Same(modelChoice, viewModel.SelectedGroupingChoice);
+    }
+
+    /// <summary>Measuring rig: the whole window on a year of realistic volume, one rebuild per grouping
+    /// under range "All". The timings are informational (they depend on the host); the session list
+    /// is the part with a real assertion.</summary>
+    [Fact]
+    public void Large_data_per_grouping()
+    {
+        Exception? failure = null;
+        var lines = new List<string>();
+        var sessionCount = -1;
+        var realizedSessionRows = -1;
+
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                (sessionCount, realizedSessionRows) = WalkLargeData(lines);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        })
+        {
+            IsBackground = true,
+        };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+
+        var finished = worker.Join(TimeSpan.FromSeconds(120));
+        foreach (var line in lines)
+            _output?.WriteLine(line);
+        if (!finished)
+            throw new TimeoutException("StatsWindow large-data walk did not finish");
+        if (failure is not null)
+            throw new InvalidOperationException("StatsWindow large-data walk failed.", failure);
+
+        Assert.Equal(2100, sessionCount);
+    }
+
+    private static (int SessionCount, int RealizedSessionRows) WalkLargeData(List<string> lines)
+    {
+        typeof(Application).GetField("_appCreatedInThisAppDomain", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
+
+        var app = new AiUsage.App();
+        app.InitializeComponent();
+
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-window-large-data");
+        var store = new StatsStore(dataDir);
+        SeedLargeData(store);
+
+        try
+        {
+            ThemeService.Apply(AppTheme.Nebula, Application.Current!.Resources.MergedDictionaries, LoadFromProductionAssembly, () => false);
+
+            var viewModel = StatsVm.Create(store);
+            var window = new StatsWindow(viewModel);
+            var root = (UIElement)window.Content;
+            viewModel.Recompute();
+            viewModel.SetRangeCommand.ExecuteAsync("All").GetAwaiter().GetResult();
+
+            // Day is the starting grouping, so it is measured last, coming back from Session.
+            var order = Enum.GetValues<StatsGrouping>().Where(g => g != StatsGrouping.Day).Append(StatsGrouping.Day);
+            foreach (var grouping in order)
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                viewModel.SetGroupingCommand.ExecuteAsync(grouping).GetAwaiter().GetResult();
+                var rebuilt = watch.ElapsedMilliseconds;
+                root.Measure(new Size(1100, 800));
+                root.Arrange(new Rect(0, 0, 1100, 800));
+                root.UpdateLayout();
+                watch.Stop();
+                lines.Add($"{grouping}: {watch.ElapsedMilliseconds} ms (rebuild {rebuilt} ms)");
+
+                if (grouping == StatsGrouping.Session)
+                {
+                    var realized = CountSessionRowPresenters(window.FindName("SessionTable") as DependencyObject);
+                    lines.Add($"Session rows realized: {realized} of {viewModel.SessionRows.Count}");
+                }
+            }
+
+            viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session).GetAwaiter().GetResult();
+            root.Measure(new Size(1100, 800));
+            root.Arrange(new Rect(0, 0, 1100, 800));
+            root.UpdateLayout();
+            return (viewModel.SessionRows.Count, CountSessionRowPresenters(window.FindName("SessionTable") as DependencyObject));
+        }
+        finally
+        {
+            Application.Current?.Shutdown();
+            Dispatcher.CurrentDispatcher.InvokeShutdown();
+            ResetApplicationCurrent();
+        }
+    }
+
+    private static int CountSessionRowPresenters(DependencyObject? node)
+    {
+        if (node is null)
+            return 0;
+        var count = node is ContentPresenter { DataContext: StatsSessionRowViewModel } ? 1 : 0;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+            count += CountSessionRowPresenters(VisualTreeHelper.GetChild(node, i));
+        return count;
+    }
+
+    /// <summary>A year of mixed usage: 4,000 usage rows over two providers, eight models and forty
+    /// projects, and 2,100 sessions over the same days. Fixed seed, so every run sees the same data.</summary>
+    private static void SeedLargeData(StatsStore store)
+    {
+        var random = new Random(42);
+        string[] models = ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-1", "gpt-5", "gpt-5-codex", "gpt-5-mini", "o4-mini"];
+        var projects = Enumerable.Range(1, 40).Select(n => $@"C:\work\client-{n}\repo-{n}").ToList();
+        var today = DateOnly.FromDateTime(DateTime.Now);
+
+        var records = new List<StatsRecord>();
+        for (var i = 0; i < 4000; i++)
+        {
+            var model = models[random.Next(models.Length)];
+            var provider = model.StartsWith("claude", StringComparison.Ordinal) ? "claude" : "codex";
+            var tokens = (long)(1_000_000 * Math.Exp(1.2 * (random.NextDouble() * 2 - 1)));
+            records.Add(new StatsRecord(
+                provider, today.AddDays(-random.Next(0, 365)), model, projects[random.Next(projects.Count)],
+                tokens / 10, tokens / 20, tokens / 8, tokens, Hour: random.Next(0, 24)));
+        }
+        store.AddDelta(records);
+
+        var deltas = new List<StatsSessionDelta>();
+        for (var i = 0; i < 2100; i++)
+        {
+            var start = DateTimeOffset.Now.AddDays(-random.Next(0, 365)).AddMinutes(-random.Next(0, 600));
+            var tokens = (long)(2_000_000 * Math.Exp(0.9 * (random.NextDouble() * 2 - 1)));
+            var model = models[random.Next(models.Length)];
+            var provider = model.StartsWith("claude", StringComparison.Ordinal) ? "claude" : "codex";
+            deltas.Add(new StatsSessionDelta(
+                provider, "bench-" + i, projects[random.Next(projects.Count)], start, start.AddMinutes(10 + random.Next(0, 240)),
+                tokens / 10, tokens / 20, tokens / 8, tokens, 0,
+                new Dictionary<string, long> { [model] = tokens + tokens / 10 + tokens / 20 + tokens / 8 }));
+        }
+        store.ApplyIndexResult([], new StatsSourceFileState("bench-sessions", "claude", 0, 0, DateTime.UtcNow), deltas);
     }
 
     private static void WalkAllThemes()
