@@ -48,16 +48,30 @@ internal static class NativeWindowStyle
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
-    /// <summary>Click-through needs a layered window, so the layered bit and the alpha follow through
-    /// <see cref="WindowOpacity.Apply"/>: turning click-through off on a fully opaque window makes it
-    /// an ordinary window again, a translucent one stays layered at its alpha.</summary>
+    /// <summary>The extended style of a window with click-through <paramref name="clickThrough"/> at
+    /// <paramref name="percent"/> opacity: the transparent bit follows the flag and the layered bit
+    /// follows <see cref="WindowOpacity.RequiredExStyle"/> (click-through needs a layered window), so
+    /// both change in one write. Pure.</summary>
+    public static long ClickThroughExStyle(long currentExStyle, bool clickThrough, int percent)
+    {
+        var withFlag = clickThrough ? currentExStyle | WsExTransparent : currentExStyle & ~WsExTransparent;
+        return WindowOpacity.RequiredExStyle(withFlag, percent);
+    }
+
+    /// <summary>Switches click-through on or off with one style write, then sets the alpha of the
+    /// current opacity right away; a style change is followed by one redraw. The caller sets
+    /// <see cref="WindowOpacity.CurrentPercent"/> first, so the layered bit and the alpha belong to
+    /// the final opacity from the start.</summary>
     public static void SetClickThrough(IntPtr hwnd, bool clickThrough)
     {
         var current = GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
-        var updated = clickThrough ? current | WsExTransparent : current & ~WsExTransparent;
+        var updated = ClickThroughExStyle(current, clickThrough, WindowOpacity.CurrentPercent);
         if (updated != current)
             SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
+
         WindowOpacity.Apply(hwnd, WindowOpacity.CurrentPercent);
+        if (updated != current)
+            WindowOpacity.Redraw(hwnd);
     }
 
     [DllImport("user32.dll")]

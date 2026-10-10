@@ -1111,20 +1111,29 @@ public partial class MainWindow : Window, IDisposable
     /// live window is never out of sync with the setting.</summary>
     private void ApplyClickThrough(bool clickThrough)
     {
-        if (PresentationSource.FromVisual(this) is HwndSource hwndSource)
-            NativeWindowStyle.SetClickThrough(hwndSource.Handle, clickThrough);
-
+        // Resolve first, so the window changes once: the final opacity is current before the one
+        // style write that sets click-through and layering. Mica steps aside before a window turns
+        // translucent and comes back only once it is no longer layered.
         var resolution = _clickThroughPolicy.Resolve(clickThrough, ViewModel.WindowLayer, _settings.WindowOpacityPercent);
         if (resolution.WindowLayer != ViewModel.WindowLayer)
             ViewModel.WindowLayer = resolution.WindowLayer;
 
         var resolvedOpacity = (int)resolution.WindowOpacityPercent;
-        if (resolvedOpacity != _settings.WindowOpacityPercent)
+        var opacityChanged = resolvedOpacity != _settings.WindowOpacityPercent;
+        if (opacityChanged)
         {
             _settings.WindowOpacityPercent = resolvedOpacity;
             _settingsStore.RequestSave(_settings);
-            WindowOpacity.ApplyToAllOpenWindows(resolvedOpacity);
+            WindowOpacity.SetCurrentPercent(resolvedOpacity);
+            if (resolvedOpacity < 100)
+                MicaBackdrop.Reevaluate();
         }
+
+        if (PresentationSource.FromVisual(this) is HwndSource hwndSource)
+            NativeWindowStyle.SetClickThrough(hwndSource.Handle, clickThrough);
+
+        if (opacityChanged && resolvedOpacity >= 100)
+            MicaBackdrop.Reevaluate();
 
         _tray.UpdateClickThrough(clickThrough);
 

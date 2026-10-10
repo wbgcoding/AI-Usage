@@ -148,6 +148,11 @@ public static class WindowOpacity
         MicaBackdrop.Reevaluate();
     }
 
+    /// <summary>Makes <paramref name="percent"/> the current opacity without touching any window's own
+    /// style, alpha or Mica state. For a caller that changes the window style itself right afterwards,
+    /// so the layered bit and the alpha are the final ones from the first write.</summary>
+    public static void SetCurrentPercent(int percent) => CurrentPercent = percent;
+
     /// <summary>The P/Invoke seam: kept separate from the pure arithmetic above so
     /// <see cref="AlphaFromPercent"/> and <see cref="RequiredExStyle"/> stay testable with no real window.</summary>
     private static class NativeMethods
