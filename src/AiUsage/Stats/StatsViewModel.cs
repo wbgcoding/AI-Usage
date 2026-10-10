@@ -1362,13 +1362,25 @@ public sealed partial class StatsViewModel : ObservableObject
             .GroupBy(row => row.ProviderId)
             .Select(group =>
             {
-                var rows = group.Select(row => new StatsLimitRowViewModel(
-                    $"{ProviderDisplayNames.GetValueOrDefault(row.ProviderId, row.ProviderId)} · {StatusTextMap.Resolve(row.WindowLabelKey)}",
-                    string.Format(CultureInfo.CurrentCulture, loc["Stats.Limits.ReachedCount"], row.ReachedCount),
-                    FormatLimitPercent(row.Highest),
-                    FormatLimitPercent(row.AveragePeak))).ToList();
+                var rows = group.Select(row =>
+                {
+                    var highest = FormatLimitPercent(row.Highest);
+                    var averagePeak = FormatLimitPercent(row.AveragePeak);
+                    return new StatsLimitRowViewModel(
+                        StatusTextMap.Resolve(row.WindowLabelKey),
+                        row.ReachedCount > 0
+                            ? string.Format(CultureInfo.CurrentCulture, loc["Stats.Limits.ReachedCount"], row.ReachedCount)
+                            : loc["Stats.Limits.NeverReached"],
+                        highest,
+                        averagePeak,
+                        loc.Format("Stats.Limits.Detail", highest, averagePeak),
+                        Math.Clamp(row.Highest, 0, 100),
+                        Math.Clamp(row.AveragePeak, 0, 100),
+                        row.ReachedCount);
+                }).ToList();
                 var (note, tip) = PerPercentNote(group.Key, loc);
-                return new StatsLimitGroupViewModel(group.Key, rows, note, tip);
+                return new StatsLimitGroupViewModel(
+                    group.Key, ProviderDisplayNames.GetValueOrDefault(group.Key, group.Key), rows, note, tip);
             })
             .ToList();
     }

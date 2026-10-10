@@ -391,13 +391,14 @@ public class ShipCleanTests
     private static readonly int[] AllowedCornerRadiusNumbers = [0, 2, 4, 6, 8, 12];
 
     // The two documented bar radii: a progress/slider bar's own corner is geometry (half the bar's
-    // height), not a design token - Controls.xaml's Slider track/fill, ProviderTile's mini bar and
-    // UsageBar's main bar all carry a comment saying so immediately above.
+    // height), not a design token - Controls.xaml's Slider track/fill, ProviderTile's mini bar,
+    // UsageBar's main bar and the statistics window's limit bars all carry a comment saying so.
     private static readonly (string File, int Value)[] BarRadiusExceptionFiles =
     [
         ("Themes/Controls.xaml", 2),
         ("Views/Controls/ProviderTile.xaml", 2),
         ("Views/Controls/UsageBar.xaml", 4),
+        ("Views/StatsWindow.xaml", 4),
     ];
 
     [Fact]

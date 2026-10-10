@@ -352,11 +352,10 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Ausgabe</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Stärkste Projekte</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
-  <data name="Stats.Limits.Window" xml:space="preserve"><value>Fenster</value></data>
-  <data name="Stats.Limits.Reached" xml:space="preserve"><value>Limit erreicht</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}×</value></data>
-  <data name="Stats.Limits.Highest" xml:space="preserve"><value>Höchstwert</value></data>
-  <data name="Stats.Limits.AvgPeak" xml:space="preserve"><value>Ø Spitze</value></data>
+  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× am Limit</value></data>
+  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>nie am Limit</value></data>
+  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Spitze {0} · Ø Spitze {1}</value></data>
+  <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Spitze: der höchste Stand im Zeitraum. Ø Spitze: der mittlere Höchststand je Zeitfenster, auf dem Balken als Strich markiert.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Für diesen Zeitraum gibt es noch keinen Kontingent-Verlauf.</value></data>
   <data name="Stats.PerPercent" xml:space="preserve"><value>1 % der Woche ≈ {0}</value></data>
   <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} Token {1}</value></data>

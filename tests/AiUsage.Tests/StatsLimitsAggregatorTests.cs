@@ -112,10 +112,13 @@ public class StatsViewModelLimitsTests
         var reset = DateTimeOffset.Now.AddDays(2);
         var viewModel = Create((id, _, _) => id == "claude" ? [Weekly(100, reset), Weekly(40, reset)] : []);
 
+        var group = Assert.Single(viewModel.LimitGroups);
+        Assert.Equal("Claude", group.ProviderName);
         var row = Assert.Single(viewModel.LimitRows);
-        Assert.StartsWith("Claude", row.Label, StringComparison.Ordinal);
-        Assert.Contains(" · ", row.Label, StringComparison.Ordinal);
-        Assert.Equal("1×", row.ReachedText);
+        Assert.DoesNotContain("Claude", row.Label, StringComparison.Ordinal);
+        Assert.Equal(1, row.ReachedCount);
+        Assert.Equal("Crit", row.Level);
+        Assert.Equal(100, row.HighestPercent);
         Assert.Equal(StatusTextMap.FormatPercent("100"), row.HighestText);
         Assert.Equal(StatusTextMap.FormatPercent("100"), row.AveragePeakText);
         Assert.True(viewModel.HasLimitRows);
@@ -140,8 +143,8 @@ public class StatsViewModelLimitsTests
 
         viewModel.SetProviderCommand.Execute("codex");
 
-        var row = Assert.Single(viewModel.LimitRows);
-        Assert.StartsWith(StatsViewModel.ProviderDisplayNames["codex"], row.Label, StringComparison.Ordinal);
+        Assert.Single(viewModel.LimitRows);
+        Assert.Equal(StatsViewModel.ProviderDisplayNames["codex"], Assert.Single(viewModel.LimitGroups).ProviderName);
     }
 
     [Fact]
