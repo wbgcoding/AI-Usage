@@ -1576,6 +1576,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                     _settings.ImportedMachines.Add(new ImportedMachine { Id = id, Name = name, Imported = DateTimeOffset.Now });
                     _store.RequestSave(_settings);
                     RebuildImportedPcs();
+                    Stats.StatsIndexerService.Shared?.RefreshSnapshotInBackground();
                     _showMessage(loc.Format("Settings.Backup.Imported", days, name));
                     break;
                 default:
@@ -1605,6 +1606,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ImportedMachines.RemoveAll(machine => machine.Id == machineId);
         _store.RequestSave(_settings);
         RebuildImportedPcs();
+        Stats.StatsIndexerService.Shared?.RefreshSnapshotInBackground();
     }
 
     /// <summary>

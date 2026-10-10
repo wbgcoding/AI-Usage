@@ -119,6 +119,110 @@ public class StatsIndexerServiceTests
     private static StatsIndexResult Walk(int claudeRead, int codexRead) =>
         new(new StatsIndexCounters(10, claudeRead, 0, 0, 0), new StatsIndexCounters(10, codexRead, 0, 0, 0));
 
+    private static StatsDataSnapshot EmptySnapshot() => new([], []);
+
+    private static void RunWalk(StatsIndexerService service)
+    {
+        using var raised = new ManualResetEventSlim();
+        void OnRaised(object? sender, EventArgs e) => raised.Set();
+        service.IndexCompleted += OnRaised;
+        service.StartInBackground();
+        Assert.True(raised.Wait(TimeSpan.FromSeconds(5)));
+        service.IndexCompleted -= OnRaised;
+    }
+
+    [Fact]
+    public void A_raising_walk_sets_Latest_and_a_walk_that_read_nothing_keeps_the_old_one()
+    {
+        var results = new Queue<StatsIndexResult>([Walk(1, 0), Walk(0, 0), Walk(1, 0)]);
+        var loads = 0;
+        using var service = StatsIndexerService.ForTest(_ => results.Dequeue(), loadSnapshot: () =>
+        {
+            Interlocked.Increment(ref loads);
+            return EmptySnapshot();
+        });
+        Assert.Null(service.Latest);
+
+        RunWalk(service);
+        var first = service.Latest;
+        Assert.NotNull(first);
+
+        service.StartInBackground();
+        Assert.True(SpinWait.SpinUntil(() => !service.IsRunning, TimeSpan.FromSeconds(5)));
+        Thread.Sleep(150); // a quiet walk has nothing to load; give a wrongly started load time to show
+        Assert.Same(first, service.Latest);
+        Assert.Equal(1, loads);
+
+        RunWalk(service);
+        Assert.NotSame(first, service.Latest);
+        Assert.Equal(2, loads);
+    }
+
+    [Fact]
+    public void The_snapshot_is_ready_before_IndexCompleted_is_raised()
+    {
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: EmptySnapshot);
+        StatsDataSnapshot? seenByHandler = null;
+        using var raised = new ManualResetEventSlim();
+        service.IndexCompleted += (_, _) =>
+        {
+            seenByHandler = service.Latest;
+            raised.Set();
+        };
+
+        service.StartInBackground();
+
+        Assert.True(raised.Wait(TimeSpan.FromSeconds(5)));
+        Assert.NotNull(seenByHandler);
+    }
+
+    [Fact]
+    public void RefreshSnapshotInBackground_clears_Latest_at_once_and_sets_the_new_snapshot_after()
+    {
+        using var release = new ManualResetEventSlim();
+        var loads = 0;
+        var fresh = EmptySnapshot();
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: () =>
+        {
+            if (Interlocked.Increment(ref loads) == 1)
+                return EmptySnapshot();
+            release.Wait(TimeSpan.FromSeconds(5));
+            return fresh;
+        });
+        RunWalk(service);
+        Assert.NotNull(service.Latest);
+
+        service.RefreshSnapshotInBackground();
+
+        Assert.Null(service.Latest);
+        release.Set();
+        Assert.True(SpinWait.SpinUntil(() => service.Latest is not null, TimeSpan.FromSeconds(5)));
+        Assert.Same(fresh, service.Latest);
+    }
+
+    [Fact]
+    public void A_failing_snapshot_load_keeps_the_old_snapshot_and_logs_once()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("stats-indexer-snapshot-log");
+        var log = new AiUsage.Services.LogService(directory);
+        var loads = 0;
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: () =>
+        {
+            if (Interlocked.Increment(ref loads) == 1)
+                return EmptySnapshot();
+            throw new InvalidOperationException("broken index");
+        }, logService: log);
+        RunWalk(service);
+        var first = service.Latest;
+        Assert.NotNull(first);
+
+        RunWalk(service);
+
+        Assert.Same(first, service.Latest);
+        var logged = File.ReadAllLines(log.CurrentFile).Count(line => line.Contains("Statistics snapshot failed"));
+        Assert.Equal(1, logged);
+    }
+
     [Fact]
     public void ShouldRaise_needs_a_file_read_the_first_completed_walk_or_a_new_day()
     {

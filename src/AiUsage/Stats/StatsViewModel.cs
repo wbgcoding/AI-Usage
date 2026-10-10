@@ -1123,6 +1123,24 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Reads every stored session - a seam like <see cref="LoadRecords"/>.</summary>
     internal Func<IReadOnlyList<StatsSessionRecord>> LoadSessions { get; set; }
 
+    /// <summary>The prepared data to open with, if the indexer has some (the window wires its service
+    /// in); null means the window has to read the store itself.</summary>
+    internal Func<StatsDataSnapshot?> TakeSnapshot { get; set; } = () => null;
+
+    /// <summary>Shows the prepared data right away, without reading the store. False when there is
+    /// none, which leaves the window to its normal load.</summary>
+    public bool TryShowSnapshot()
+    {
+        if (TakeSnapshot() is not { } snapshot)
+            return false;
+
+        _allSessions = snapshot.Sessions;
+        RecomputeFrom(snapshot.Records);
+        _recordsLoaded = true;
+        IsLoading = false;
+        return true;
+    }
+
     /// <summary>Every stored session, kept from the last load for the session grouping.</summary>
     private IReadOnlyList<StatsSessionRecord> _allSessions = [];
 
@@ -1145,19 +1163,26 @@ public sealed partial class StatsViewModel : ObservableObject
     /// time - reading every stored record - moved off the window's own thread, so picking the whole
     /// history keeps the window drawing and answering instead of standing still until it is done.
     /// Everything that touches a bound property still runs on the calling thread afterwards. The
-    /// loading state only shows once the run has taken longer than <see cref="LoadingDelay"/>.</summary>
-    public async Task RecomputeAsync()
+    /// loading state only shows once the run has taken longer than <see cref="LoadingDelay"/>, and
+    /// never with <paramref name="showLoading"/> off - then the data on screen is a prepared one, and
+    /// a read that finds the same counts leaves it exactly as it is.</summary>
+    public async Task RecomputeAsync(bool showLoading = true)
     {
         var generation = ++_recomputeGeneration;
         using var delayCancellation = new CancellationTokenSource();
-        _ = ShowLoadingAfterDelayAsync(generation, delayCancellation.Token);
+        if (showLoading)
+            _ = ShowLoadingAfterDelayAsync(generation, delayCancellation.Token);
         try
         {
             var (all, sessions) = await Task.Run(() => (LoadRecords(), LoadSessions()));
             if (generation == _recomputeGeneration)
             {
-                _allSessions = sessions;
-                RecomputeFrom(all);
+                if (showLoading || !_recordsLoaded || !MatchesShown(all, sessions))
+                {
+                    _allSessions = sessions;
+                    RecomputeFrom(all);
+                }
+
                 _recordsLoaded = true;
             }
         }
@@ -1168,6 +1193,13 @@ public sealed partial class StatsViewModel : ObservableObject
                 IsLoading = false;
         }
     }
+
+    /// <summary>True when a fresh read has the same row counts and the same token total as what is
+    /// shown, both before any filter - a cheap stand-in for "nothing changed since the prepared data".</summary>
+    private bool MatchesShown(IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions) =>
+        records.Count == _sourceRecords.Count
+        && sessions.Count == _allSessions.Count
+        && records.Sum(record => record.TotalTokens) == _sourceRecords.Sum(record => record.TotalTokens);
 
     private async Task ShowLoadingAfterDelayAsync(int generation, CancellationToken cancellation)
     {

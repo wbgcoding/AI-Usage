@@ -15,6 +15,7 @@ public sealed class StatsIndexerService : IDisposable
 {
     // Null result: the walk's outcome is unknown (the test seam, or a cancelled/failed walk).
     private readonly Func<CancellationToken, StatsIndexResult?> _runIndexOnce;
+    private readonly Func<StatsDataSnapshot>? _loadSnapshot;
     private readonly LogService? _logService;
     private readonly object _gate = new();
     private CancellationTokenSource? _cancellation;
@@ -34,6 +35,11 @@ public sealed class StatsIndexerService : IDisposable
     private DateOnly _lastRaisedDate;
     private Func<DateOnly> _today = () => DateOnly.FromDateTime(DateTime.Now);
 
+    // The prepared data of the last raising walk. Every change bumps the generation, so a slow load
+    // that was overtaken by a newer one never replaces it.
+    private StatsDataSnapshot? _latest;
+    private int _snapshotGeneration;
+
     /// <summary>Raised on the background thread after a walk finishes (cancelled or not) that read at
     /// least one file, and after the first walk of the process whatever it read, and after the first walk on a new local
     /// day. A walk that found everything unchanged raises nothing otherwise: there is nothing new to
@@ -48,8 +54,20 @@ public sealed class StatsIndexerService : IDisposable
     /// every test that never sets it, which then simply skips that wiring.</summary>
     public static StatsIndexerService? Shared { get; set; }
 
+    /// <summary>The data as of the last walk that announced itself, or null before the first one and
+    /// while a refresh is under way. A window that opens shows it at once instead of reading the
+    /// store.</summary>
+    public StatsDataSnapshot? Latest
+    {
+        get
+        {
+            lock (_gate)
+                return _latest;
+        }
+    }
+
     public StatsIndexerService(StatsStore store, LogService? logService = null)
-        : this(token => new StatsIndexer(store, logService).IndexOnce(token), logService)
+        : this(token => new StatsIndexer(store, logService).IndexOnce(token), () => StatsDataSnapshot.Load(store), logService)
     {
     }
 
@@ -61,18 +79,21 @@ public sealed class StatsIndexerService : IDisposable
         {
             runIndexOnce(token);
             return (StatsIndexResult?)null;
-        }, logService)
+        }, null, logService)
     {
     }
 
     /// <summary>Test seam like the one above, but the stand-in reports what the walk did, so the
     /// "only announce a walk that read something" rule can be driven.</summary>
-    internal static StatsIndexerService ForTest(Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null) =>
-        new(token => runIndexOnce(token), null) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+    internal static StatsIndexerService ForTest(
+        Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null,
+        Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null) =>
+        new(token => runIndexOnce(token), loadSnapshot, logService) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
 
-    private StatsIndexerService(Func<CancellationToken, StatsIndexResult?> runIndexOnce, LogService? logService)
+    private StatsIndexerService(Func<CancellationToken, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService)
     {
         _runIndexOnce = runIndexOnce;
+        _loadSnapshot = loadSnapshot;
         _logService = logService;
     }
 
@@ -140,8 +161,60 @@ public sealed class StatsIndexerService : IDisposable
             {
                 lock (_gate)
                     _lastRaisedDate = _today();
+                // Before the event, so a window that reacts to it finds the new data waiting.
+                RefreshSnapshot();
                 RaiseIndexCompleted();
             }
+        }
+    }
+
+    /// <summary>Drops the prepared data at once and loads it again on a pool thread, for a change to
+    /// the store that no walk announces (an imported or removed PC). The window reads the store itself
+    /// while <see cref="Latest"/> is null. Raises no event.</summary>
+    public void RefreshSnapshotInBackground()
+    {
+        if (_loadSnapshot is null)
+            return;
+
+        var generation = ClearSnapshot();
+        Task.Run(() => LoadSnapshot(generation));
+    }
+
+    private void RefreshSnapshot()
+    {
+        if (_loadSnapshot is null)
+            return;
+
+        int generation;
+        lock (_gate)
+            generation = ++_snapshotGeneration;
+        LoadSnapshot(generation);
+    }
+
+    private int ClearSnapshot()
+    {
+        lock (_gate)
+        {
+            _latest = null;
+            return ++_snapshotGeneration;
+        }
+    }
+
+    private void LoadSnapshot(int generation)
+    {
+        try
+        {
+            var snapshot = _loadSnapshot!();
+            lock (_gate)
+            {
+                if (generation == _snapshotGeneration)
+                    _latest = snapshot;
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // The old snapshot stays; the window falls back to reading the store itself when it has none.
+            _logService?.LogError($"Statistics snapshot failed ({ex.GetType().Name}).");
         }
     }
 

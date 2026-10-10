@@ -1295,8 +1295,9 @@ public class StatsViewModelTests
         Assert.True(start >= 0);
         var end = source.IndexOf("private void StatsWindow_Closed", start, StringComparison.Ordinal);
 
-        Assert.Contains("RecomputeLoggedAsync()", source[start..end], StringComparison.Ordinal);
-        Assert.Contains("await _viewModel.RecomputeAsync()", source, StringComparison.Ordinal);
+        Assert.Contains("RecomputeLoggedAsync(", source[start..end], StringComparison.Ordinal);
+        Assert.Contains("TryShowSnapshot()", source[start..end], StringComparison.Ordinal);
+        Assert.Contains("await _viewModel.RecomputeAsync(showLoading)", source, StringComparison.Ordinal);
     }
 }
 
@@ -1779,6 +1780,57 @@ public class StatsViewModelCaptionTests
         {
             LocalizationService.Instance.SetLanguage("de");
         }
+    }
+
+    [Fact]
+    public void TryShowSnapshot_fills_the_chart_without_reading_the_store_and_is_false_without_a_snapshot()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-snapshot");
+        var reads = 0;
+        var viewModel = new StatsViewModel(new StatsStore(dataDir))
+        {
+            LoadRecords = () =>
+            {
+                reads++;
+                return [];
+            },
+        };
+
+        Assert.False(viewModel.TryShowSnapshot());
+        Assert.True(viewModel.IsLoading);
+        Assert.Empty(viewModel.Bars);
+
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        viewModel.TakeSnapshot = () => new StatsDataSnapshot([new StatsRecord("claude", today, "modelA", "projA", 100, 50, 0, 0)], []);
+
+        Assert.True(viewModel.TryShowSnapshot());
+        Assert.False(viewModel.IsLoading);
+        Assert.NotEmpty(viewModel.Bars);
+        Assert.Equal(0, reads);
+    }
+
+    [Fact]
+    public async Task RecomputeAsync_without_the_loading_state_never_shows_the_pill_and_skips_an_unchanged_rebuild()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-quiet-reload");
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var records = new List<StatsRecord> { new("claude", today, "modelA", "projA", 100, 50, 0, 0) };
+        var viewModel = new StatsViewModel(new StatsStore(dataDir)) { LoadingDelay = TimeSpan.FromMilliseconds(1) };
+        viewModel.LoadRecords = () => records;
+        viewModel.TakeSnapshot = () => new StatsDataSnapshot(records, []);
+        Assert.True(viewModel.TryShowSnapshot());
+        var shown = viewModel.Bars;
+        var pillShown = false;
+        viewModel.PropertyChanged += (_, e) => pillShown |= e.PropertyName == nameof(StatsViewModel.IsLoading) && viewModel.IsLoading;
+
+        await viewModel.RecomputeAsync(showLoading: false);
+        Assert.Same(shown, viewModel.Bars); // the same data again: nothing is rebuilt
+
+        records = [.. records, new StatsRecord("codex", today, "modelB", "projB", 10, 5, 0, 0)];
+        await viewModel.RecomputeAsync(showLoading: false);
+        Assert.NotSame(shown, viewModel.Bars); // the read found more: rebuilt
+        Assert.False(pillShown);
+        Assert.False(viewModel.IsLoading);
     }
 
     [Fact]

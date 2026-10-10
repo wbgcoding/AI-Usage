@@ -58,6 +58,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Token usage no longer repeats the weekday columns as a table underneath.
 - The Mica background is now off by default, with a tooltip in Settings that explains it; a choice you already made stays.
 - Token usage no longer ends in a table at the bottom: the session list sits under the session chart, and the "Other projects" bar names the projects it pools when you point at it.
+- Token usage opens with its numbers already in place: the app keeps them ready after each scan of your session logs.
 
 ### Fixed
 

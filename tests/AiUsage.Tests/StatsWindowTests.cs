@@ -684,6 +684,29 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void A_ready_snapshot_fills_the_opening_window_without_reading_the_store()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            var viewModel = (StatsViewModel)window.DataContext;
+            var reads = 0;
+            var inner = viewModel.LoadRecords;
+            viewModel.LoadRecords = () =>
+            {
+                reads++;
+                return inner();
+            };
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            viewModel.TakeSnapshot = () => new StatsDataSnapshot([new StatsRecord("claude", today, "modelA", "projA", 100, 50, 0, 0)], []);
+
+            Assert.True(viewModel.TryShowSnapshot());
+
+            Assert.NotEmpty(viewModel.Bars);
+            Assert.Equal(0, reads);
+        });
+    }
+
+    [Fact]
     public void Default_layout_stacks_the_limits_above_the_projects_in_the_right_column()
     {
         RunInWindow(null, (window, _) =>

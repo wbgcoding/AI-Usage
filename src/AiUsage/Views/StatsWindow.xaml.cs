@@ -78,6 +78,8 @@ public partial class StatsWindow : Window
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => CustomRangePopup.IsOpen = true);
         _viewModel.CustomRangeApplied += (_, _) => CustomRangePopup.IsOpen = false;
 
+        _viewModel.TakeSnapshot = () => StatsIndexerService.Shared?.Latest;
+
         PreviewKeyDown += Window_PreviewKeyDown;
         Loaded += StatsWindow_Loaded;
         Closed += StatsWindow_Closed;
@@ -353,11 +355,11 @@ public partial class StatsWindow : Window
 
     /// <summary>The initial load runs unawaited, so a failure is logged here instead of vanishing
     /// in an unobserved task.</summary>
-    private async Task RecomputeLoggedAsync()
+    private async Task RecomputeLoggedAsync(bool showLoading = true)
     {
         try
         {
-            await _viewModel.RecomputeAsync();
+            await _viewModel.RecomputeAsync(showLoading);
         }
         catch (Exception ex)
         {
@@ -369,8 +371,10 @@ public partial class StatsWindow : Window
     /// monitor's work area against - the constructor still only knows the XAML default.</summary>
     private void StatsWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        // The view model reads nothing on construction; this is its one initial load.
-        _ = RecomputeLoggedAsync();
+        // The view model reads nothing on construction. With the indexer's prepared data the window is
+        // filled at once and the read below only checks whether anything moved; without it this is the
+        // one initial load.
+        _ = _viewModel.TryShowSnapshot() ? RecomputeLoggedAsync(showLoading: false) : RecomputeLoggedAsync();
 
         var placement = WindowPlacementService.Shared;
         var rememberedPosition = placement?.RememberedStatsWindowPosition;
