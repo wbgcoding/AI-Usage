@@ -23,8 +23,8 @@ public enum StatsColorBy
 }
 
 /// <summary>One stacked series of the chart: its name and the key its color is looked up by (a
-/// provider id, <c>cat:N</c> for the N-th categorical color, or <c>other</c> for the pooled
-/// remainder).</summary>
+/// provider id, <c>model:provider:rank</c> for a model colored like its ring slice, <c>cat:N</c>
+/// for the N-th categorical color, or <c>other</c> for the pooled remainder).</summary>
 public sealed record ChartSeriesInfo(string Label, string ColorKey);
 
 /// <summary>
@@ -1369,8 +1369,7 @@ public sealed partial class StatsViewModel : ObservableObject
             }
 
             var ranking = StatsAggregator.RankModels(inRange, MaxStackedModels, modelOtherLabel);
-            series.AddRange(ranking.Series.Select((name, index) =>
-                new ChartSeriesInfo(name, ranking.HasOther && index == ranking.Series.Count - 1 ? "other" : "cat:" + index)));
+            series.AddRange(ranking.Series.Select((name, index) => new ChartSeriesInfo(name, ranking.SlotKeys[index])));
             heatmapKeyOf = ranking.KeyFor;
         }
         else if (IsAgentStack)

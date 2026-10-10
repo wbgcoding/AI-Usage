@@ -35,14 +35,17 @@ public readonly record struct StatsHeatmapCell(long Total, string LeaderKey, lon
 
 /// <summary>The models ranked by tokens: the largest keep a slot of their own, every other model is
 /// pooled into one last slot. Shared by the stacked columns and the weekday by hour grid, so both name
-/// the same models in the same order.</summary>
+/// the same models in the same order. Each slot's color key names its provider and its rank among that
+/// provider's slots (<c>model:claude:1</c>), the identity the model ring colors a slice by, so a model
+/// keeps one color everywhere.</summary>
 public sealed class StatsModelRanking
 {
     private readonly Dictionary<string, int> _slotOf;
 
-    internal StatsModelRanking(IReadOnlyList<string> series, bool hasOther, Dictionary<string, int> slotOf)
+    internal StatsModelRanking(IReadOnlyList<string> series, IReadOnlyList<string> slotKeys, bool hasOther, Dictionary<string, int> slotOf)
     {
         Series = series;
+        SlotKeys = slotKeys;
         HasOther = hasOther;
         _slotOf = slotOf;
     }
@@ -50,18 +53,18 @@ public sealed class StatsModelRanking
     /// <summary>The slot names in stacking order, the pooled remainder last when <see cref="HasOther"/>.</summary>
     public IReadOnlyList<string> Series { get; }
 
+    /// <summary>The color key of each slot in <see cref="Series"/> order: <c>model:provider:rank</c>, or
+    /// <c>other</c> for the pooled one.</summary>
+    public IReadOnlyList<string> SlotKeys { get; }
+
     public bool HasOther { get; }
 
     /// <summary>The slot of <paramref name="record"/>'s model; the last one for a pooled model.</summary>
     public int SlotOf(StatsRecord record) =>
         _slotOf.TryGetValue(ModelDisplayNames.Resolve(record.Model), out var slot) ? slot : Series.Count - 1;
 
-    /// <summary>The color key of the record's slot: <c>cat:N</c>, or <c>other</c> for the pooled one.</summary>
-    public string KeyFor(StatsRecord record)
-    {
-        var slot = SlotOf(record);
-        return HasOther && slot == Series.Count - 1 ? "other" : "cat:" + slot.ToString(CultureInfo.InvariantCulture);
-    }
+    /// <summary>The color key of the record's slot.</summary>
+    public string KeyFor(StatsRecord record) => SlotKeys[SlotOf(record)];
 }
 
 /// <summary>How much of the Claude tokens in a set of records subagents used. <see
@@ -229,21 +232,42 @@ public static class StatsAggregator
 
     /// <summary>The <paramref name="topCount"/> models with the most tokens in <paramref name="records"/>
     /// keep their own slot, largest first; every other model is pooled into one last slot named
-    /// <paramref name="otherLabel"/>.</summary>
+    /// <paramref name="otherLabel"/>. The order is the one <see cref="ShareByModel"/> lists the model
+    /// ring in, so a slot's rank within its provider is the rank the ring slice has.</summary>
     public static StatsModelRanking RankModels(IReadOnlyList<StatsRecord> records, int topCount, string otherLabel)
     {
         var modelTotals = records
             .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
-            .Select(group => (Name: group.Key, Total: group.Sum(record => record.TotalTokens)))
+            .Select(group => (Name: group.Key, Total: group.Sum(record => record.TotalTokens), ProviderId: DominantProvider(group)))
             .OrderByDescending(entry => entry.Total)
             .ThenBy(entry => entry.Name, StringComparer.Ordinal)
             .ToList();
-        var named = modelTotals.Take(topCount).Select(entry => entry.Name).ToList();
+        var named = modelTotals.Take(topCount).ToList();
         var hasOther = modelTotals.Count > topCount;
-        var series = hasOther ? named.Append(otherLabel).ToList() : named;
-        var slotOf = named.Select((name, index) => (name, index)).ToDictionary(pair => pair.name, pair => pair.index);
-        return new StatsModelRanking(series, hasOther, slotOf);
+        var names = named.Select(entry => entry.Name).ToList();
+        var series = hasOther ? names.Append(otherLabel).ToList() : names;
+
+        var rankByProvider = new Dictionary<string, int>();
+        var keys = new List<string>();
+        foreach (var entry in named)
+        {
+            var rank = rankByProvider.GetValueOrDefault(entry.ProviderId);
+            rankByProvider[entry.ProviderId] = rank + 1;
+            keys.Add("model:" + entry.ProviderId + ":" + rank.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (hasOther)
+            keys.Add("other");
+        var slotOf = names.Select((name, index) => (name, index)).ToDictionary(pair => pair.name, pair => pair.index);
+        return new StatsModelRanking(series, keys, hasOther, slotOf);
     }
+
+    /// <summary>The provider that contributed the most tokens to one model's records; on a tie, the
+    /// first one met.</summary>
+    private static string DominantProvider(IEnumerable<StatsRecord> modelRecords) =>
+        modelRecords.GroupBy(record => record.Provider)
+            .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))
+            .First().Key;
 
     /// <summary>The sessions that started on a day from <paramref name="from"/> to <paramref name="to"/>
     /// (local time), the largest first; the start decides, a session that runs past the end of the
@@ -607,10 +631,9 @@ public static class StatsAggregator
             .Select(group => (
                 Label: group.Key,
                 Total: group.Sum(record => record.TotalTokens),
-                ProviderId: group.GroupBy(record => record.Provider)
-                    .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))
-                    .First().Key))
+                ProviderId: DominantProvider(group)))
             .OrderByDescending(entry => entry.Total)
+            .ThenBy(entry => entry.Label, StringComparer.Ordinal)
             .ToList();
 
         double Percent(long total) => grandTotal > 0 ? total * 100.0 / grandTotal : 0;

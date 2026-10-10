@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -523,15 +524,34 @@ public partial class StatsWindow : Window
         return [];
     }
 
-    /// <summary>The brush of one chart series: a provider's own color, the N-th categorical color or
-    /// the muted brush of the pooled remainder.</summary>
+    /// <summary>The brush of one chart series: a model's ring color (<c>model:provider:rank</c>), a
+    /// provider's own color, the N-th categorical color or the muted brush of the pooled remainder.</summary>
     internal static System.Windows.Media.Brush SeriesBrush(ChartSeriesInfo series, System.Windows.Media.Brush mutedBrush)
     {
         if (series.ColorKey == "other")
             return mutedBrush;
+        if (TryParseModelKey(series.ColorKey, out var modelProvider, out var modelRank))
+            return new SolidColorBrush(ChartPalette.ForModel(modelProvider, modelRank));
         if (series.ColorKey.StartsWith("cat:", StringComparison.Ordinal) && int.TryParse(series.ColorKey.AsSpan(4), out var index))
             return new SolidColorBrush(ChartPalette.Categorical(index));
         return new SolidColorBrush(ChartPalette.ForProvider(series.ColorKey));
+    }
+
+    /// <summary>Splits a <c>model:provider:rank</c> color key; false for any other key.</summary>
+    private static bool TryParseModelKey(string colorKey, out string providerId, out int rank)
+    {
+        providerId = "";
+        rank = 0;
+        const string prefix = "model:";
+        if (!colorKey.StartsWith(prefix, StringComparison.Ordinal))
+            return false;
+
+        var split = colorKey.LastIndexOf(':');
+        if (split < prefix.Length || !int.TryParse(colorKey.AsSpan(split + 1), NumberStyles.None, CultureInfo.InvariantCulture, out rank))
+            return false;
+
+        providerId = colorKey[prefix.Length..split];
+        return true;
     }
 
     /// <summary>Every themed brush on this window that names no provider or model in particular. The

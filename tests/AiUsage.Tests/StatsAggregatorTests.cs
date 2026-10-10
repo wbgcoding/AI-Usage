@@ -458,6 +458,72 @@ public class StatsAggregatorTests
     }
 
     [Fact]
+    public void RankModels_keys_a_model_by_its_provider_and_its_rank_within_that_provider()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Record("claude", day, "modelA", "proj", 100),
+            Record("codex", day, "modelB", "proj", 90),
+            Record("claude", day, "modelC", "proj", 80),
+            Record("codex", day, "modelD", "proj", 70),
+            Record("claude", day, "modelE", "proj", 60),
+        };
+
+        var ranking = StatsAggregator.RankModels(records, 6, "Other");
+
+        Assert.Equal(["model:claude:0", "model:codex:0", "model:claude:1", "model:codex:1", "model:claude:2"], ranking.SlotKeys);
+        Assert.Equal("model:claude:1", ranking.KeyFor(records[2]));
+        Assert.Equal("model:codex:1", ranking.KeyFor(records[3]));
+    }
+
+    [Fact]
+    public void RankModels_pools_the_tail_under_other_and_ranks_only_the_named_models()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Record("claude", day, "modelA", "proj", 100),
+            Record("claude", day, "modelB", "proj", 90),
+            Record("codex", day, "modelC", "proj", 80),
+        };
+
+        var ranking = StatsAggregator.RankModels(records, 2, "Other");
+
+        Assert.True(ranking.HasOther);
+        Assert.Equal(["model:claude:0", "model:claude:1", "other"], ranking.SlotKeys);
+        Assert.Equal("other", ranking.KeyFor(records[2]));
+    }
+
+    // The stacked columns and the model ring must rank equal-sized models the same way, else a tie
+    // would give one model two colors.
+    [Fact]
+    public void RankModels_orders_models_exactly_like_ShareByModel_also_on_a_tie()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var records = new[]
+        {
+            Record("claude", day, "modelZ", "proj", 50),
+            Record("claude", day, "modelA", "proj", 50),
+            Record("codex", day, "modelM", "proj", 50),
+            Record("claude", day, "modelB", "proj", 80),
+        };
+
+        var ranking = StatsAggregator.RankModels(records, 6, "Other");
+        var slices = StatsAggregator.ShareByModel(records, 6, "Other");
+
+        Assert.Equal(slices.Select(slice => slice.Label), ranking.Series);
+        var rankByProvider = new Dictionary<string, int>();
+        var expected = slices.Select(slice =>
+        {
+            var rank = rankByProvider.GetValueOrDefault(slice.ProviderId);
+            rankByProvider[slice.ProviderId] = rank + 1;
+            return $"model:{slice.ProviderId}:{rank}";
+        });
+        Assert.Equal(expected, ranking.SlotKeys);
+    }
+
+    [Fact]
     public void CacheShare_sums_the_four_token_kinds_separately_across_every_record()
     {
         var records = new[]

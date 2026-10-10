@@ -67,8 +67,8 @@ public class StatsHeatmapTests
         Assert.Equal(stacked.Series, ranking.Series);
         Assert.True(ranking.HasOther);
         Assert.Equal(new StatsHeatmapCell(100, "other", 100), cells[CellIndex(DayOfWeek.Monday, Tuesday, 10)]);
-        Assert.Equal("cat:0", cells[CellIndex(DayOfWeek.Monday, Tuesday.AddDays(-1), 9)].LeaderKey);
-        Assert.Equal("cat:5", cells[CellIndex(DayOfWeek.Monday, Tuesday.AddDays(-6), 9)].LeaderKey);
+        Assert.Equal("model:claude:0", cells[CellIndex(DayOfWeek.Monday, Tuesday.AddDays(-1), 9)].LeaderKey);
+        Assert.Equal("model:claude:5", cells[CellIndex(DayOfWeek.Monday, Tuesday.AddDays(-6), 9)].LeaderKey);
     }
 
     [Fact]

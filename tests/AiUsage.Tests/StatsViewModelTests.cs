@@ -1027,6 +1027,41 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public async Task A_model_has_the_same_color_in_the_ring_the_stacked_series_and_the_heatmap()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-model-color-everywhere");
+        var viewModel = HeatmapViewModel(new StatsStore(dataDir));
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.WeekdayHour);
+        viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Model);
+
+        var ringColorByLabel = new Dictionary<string, Color>();
+        var rankByProvider = new Dictionary<string, int>();
+        foreach (var slice in viewModel.ModelShareSlices.Where(slice => !string.IsNullOrEmpty(slice.ProviderId)))
+        {
+            var rank = rankByProvider.GetValueOrDefault(slice.ProviderId);
+            rankByProvider[slice.ProviderId] = rank + 1;
+            ringColorByLabel[slice.Label] = ChartPalette.ForModel(slice.ProviderId, rank);
+        }
+
+        var muted = Brushes.Gray;
+        Assert.True(ringColorByLabel.Count >= 2);
+        foreach (var series in viewModel.ChartSeries)
+        {
+            var brush = AiUsage.Views.StatsWindow.SeriesBrush(series, muted);
+            var cellColor = AiUsage.Views.StatsWindow.HeatmapCellColors([series], [series.ColorKey], muted)[0];
+            if (series.ColorKey == "other")
+            {
+                Assert.Same(muted, brush);
+                continue;
+            }
+
+            Assert.True(ringColorByLabel.TryGetValue(series.Label, out var ringColor), $"no ring slice for series '{series.Label}'");
+            Assert.Equal(ringColor, Assert.IsType<SolidColorBrush>(brush).Color);
+            Assert.Equal(ringColor, cellColor);
+        }
+    }
+
+    [Fact]
     public async Task The_heatmap_colored_by_agent_names_main_and_subagent_and_goes_back_to_providers()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-heatmap-agent");
@@ -1068,7 +1103,7 @@ public class StatsViewModelTests
 
         Assert.True(viewModel.IsModelStack);
         Assert.Equal(new[] { "modelA", "modelB" }.Select(ModelDisplayNames.Resolve).ToArray(), viewModel.ChartSeries.Select(series => series.Label).ToArray());
-        Assert.Equal(["cat:0", "cat:1"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal(["model:claude:0", "model:codex:0"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
         Assert.Equal([700L, 300L], viewModel.Bars[^1].StackedValues.ToArray());
         Assert.Equal(1000, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
 
