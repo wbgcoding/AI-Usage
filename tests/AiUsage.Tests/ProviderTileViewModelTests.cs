@@ -181,16 +181,16 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
-    public void AFailedReadAfterNumbersOlderThanTheStaleLimitShowsThePlaceholder()
+    public void AFailedReadKeepsNumbersOlderThanTheStaleLimitToo()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
         tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
 
         tile.Apply(FailedSnapshot(FailureKind.ServerError, 502), Now + ProviderFreshness.StaleAfter + TimeSpan.FromMinutes(1));
 
-        Assert.False(tile.IsShowingLastValues);
-        Assert.True(tile.ShowPlaceholder);
-        Assert.Empty(tile.Rows);
+        Assert.True(tile.IsShowingLastValues);
+        Assert.False(tile.ShowPlaceholder);
+        Assert.Single(tile.Rows);
     }
 
     [Fact]
@@ -207,12 +207,26 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
-    public void ANotSignedInSnapshotAfterGoodNumbersBehavesAsBefore()
+    public void ANotSignedInSnapshotAfterGoodNumbersKeepsThemAndOffersTheSignIn()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true, DisconnectsLocalSignIn = true };
+        tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
+
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now.AddMinutes(5));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.Single(tile.Rows);
+        Assert.False(tile.ShowPlaceholder);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ASignOutFromTheAppForgetsTheLastNumbers()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
         tile.Apply(Snapshot(ProviderStatus.Ok, percent: 42), Now);
 
-        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now.AddMinutes(5));
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now.AddMinutes(5), keepLastValues: false);
 
         Assert.False(tile.IsShowingLastValues);
         Assert.Empty(tile.Rows);
@@ -817,7 +831,7 @@ public class ProviderTileViewModelTests
         tile.MarkSignedIn(SignedInAt);
         Assert.EndsWith(Via("Settings.Via.WebAlsoSignedIn"), tile.SettingsRowText);
 
-        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [], SourceKind = SourceKind.None, FetchedAt = SignedInAt.AddMinutes(1) }, SignedInAt.AddMinutes(1));
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [], SourceKind = SourceKind.None, FetchedAt = SignedInAt.AddMinutes(1) }, SignedInAt.AddMinutes(1), keepLastValues: false);
         Assert.Equal(Via("Settings.Via.None"), tile.SettingsRowText);
     }
 
@@ -1719,7 +1733,7 @@ public class ProviderTileViewModelTests
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
         tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { SourceKind = SourceKind.WebSession }, Now);
-        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [], SourceKind = SourceKind.None }, Now);
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [], SourceKind = SourceKind.None }, Now, keepLastValues: false);
 
         Assert.Equal(LocalizationService.Instance["Settings.Via.None"], tile.SettingsRowText);
     }

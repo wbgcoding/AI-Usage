@@ -163,6 +163,29 @@ public class MainViewModelTests : IDisposable
         Assert.NotEmpty(historyStore.Load("gemini", TimeSpan.FromDays(1)));
     }
 
+    // A provider that is signed out or unreachable after a restart still shows the numbers it last had.
+    [Fact]
+    public void The_last_recorded_reading_comes_back_from_the_history_with_reset_windows_at_zero()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var historyStore = new HistoryStore(TempDirectory(), () => Now.AddHours(-1));
+        historyStore.Append("claude", WindowKind.FiveHour, 74, Now.AddMinutes(-10), tokens: 3800, label: "Window_FiveHour");
+        historyStore.Append("claude", WindowKind.Weekly, 44, Now.AddDays(3), label: "Window_Weekly");
+        var providers = new List<IUsageProvider> { new FakeProvider("codex"), new FakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, historyStore);
+
+        var reading = vm.LastRecordedReading("claude", Now);
+
+        Assert.NotNull(reading);
+        Assert.True(reading.HeldOver);
+        Assert.Equal(ProviderStatus.Ok, reading.Status);
+        Assert.Equal(Now.AddHours(-1), reading.DataTimestamp);
+        var fiveHour = reading.Windows.Single(window => window.Kind == WindowKind.FiveHour);
+        Assert.Equal(0, fiveHour.UsedPercent);
+        Assert.Equal(44, reading.Windows.Single(window => window.Kind == WindowKind.Weekly).UsedPercent);
+        Assert.Null(vm.LastRecordedReading("gemini", Now));
+    }
+
     // A snapshot that only repeats an hour-old reading (a held-over expired token, a cached web read)
     // still refreshes the tile but is not a new data point for the chart.
     [Fact]

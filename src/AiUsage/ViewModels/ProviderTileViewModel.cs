@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using AiUsage.Models;
+using AiUsage.Providers;
 using AiUsage.Services;
 using AiUsage.Views.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -946,7 +947,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (_lastSnapshot is { } snapshot)
             Apply(snapshot, DateTimeOffset.Now, _lastThresholds, _lastShowAttentionMark, advanceSilenceClock: false, refreshInterval: _lastRefreshInterval);
         if (keptFailure is not null)
-            ShowKeptFailure(keptFailure);
+            ShowKeptFailure(keptFailure, DateTimeOffset.Now);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
         OnPropertyChanged(nameof(StatusLinkText));
         OnPropertyChanged(nameof(ChartMenuHeader));
@@ -969,7 +970,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// age - null (every existing caller that has none handy) leaves the tooltip empty.</summary>
     public void Apply(
         ProviderSnapshot snapshot, DateTimeOffset now, ThresholdSettings? thresholds = null,
-        bool showAttentionMark = true, bool advanceSilenceClock = true, TimeSpan? refreshInterval = null)
+        bool showAttentionMark = true, bool advanceSilenceClock = true, TimeSpan? refreshInterval = null,
+        bool keepLastValues = true)
     {
         var staleSignedOut = IsSignedOutVerdictFromBeforeTheSignIn(snapshot);
         // An answer that carries nothing but that stale verdict has nothing else to show either: the
@@ -977,10 +979,11 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         if (staleSignedOut && snapshot.Windows.Count == 0 && snapshot.Status == ProviderStatus.NotSignedIn)
             return;
 
-        // A failed read after good numbers keeps those numbers on show instead of emptying the tile.
-        if (ShouldKeepLastValues(snapshot, now))
+        // A failed read or a lost sign-in after good numbers keeps those numbers on show instead of
+        // emptying the tile; only a sign-out from this app (keepLastValues false) forgets them.
+        if (keepLastValues && ShouldKeepLastValues(snapshot))
         {
-            ShowKeptFailure(snapshot);
+            ShowKeptFailure(snapshot, now);
             return;
         }
 
@@ -1082,22 +1085,35 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(ShowHeaderSignIn));
     }
 
-    /// <summary>Whether <paramref name="snapshot"/> is a failed read that arrives while the tile still
-    /// shows numbers from an Ok or Stale snapshot younger than <see cref="ProviderFreshness.StaleAfter"/>.</summary>
-    private bool ShouldKeepLastValues(ProviderSnapshot snapshot, DateTimeOffset now) =>
-        snapshot.Status == ProviderStatus.Failed
+    /// <summary>Whether <paramref name="snapshot"/> is a failed read or a signed-out answer without
+    /// numbers that arrives while the tile still shows numbers from an Ok or Stale snapshot. The last
+    /// numbers stay however old they are: the notice line and the data age say how much they still mean.</summary>
+    private bool ShouldKeepLastValues(ProviderSnapshot snapshot) =>
+        snapshot.Status is ProviderStatus.Failed or ProviderStatus.NotSignedIn
+        && snapshot.Windows.Count == 0
         && Status is ProviderStatus.Ok or ProviderStatus.Stale
         && Rows.Count > 0
-        && LastSuccessAt is { } lastGood
-        && now - lastGood < ProviderFreshness.StaleAfter;
+        && LastSuccessAt is not null;
 
     /// <summary>Puts the failed read's wording in the notice line and leaves rows, chart, status and
-    /// age exactly as the last good snapshot set them.</summary>
-    private void ShowKeptFailure(ProviderSnapshot snapshot)
+    /// age as the last good snapshot set them; a window that reset since starts over at 0 %. A lost
+    /// sign-in also brings back the sign-in button.</summary>
+    private void ShowKeptFailure(ProviderSnapshot snapshot, DateTimeOffset now)
     {
         _keptFailure = snapshot;
         FailureKind = snapshot.Error?.Kind ?? FailureKind.Other;
-        var (headlineKey, reasonKey, _) = ErrorPresenter.Describe(ProviderStatus.Failed, snapshot.Error);
+        if (_lastSnapshot is { } last && ProviderSnapshots.ExpirePastWindows(last, now) is var expired && !ReferenceEquals(expired, last))
+        {
+            _lastSnapshot = expired;
+            ApplyRows(expired.Windows, now, _lastThresholds);
+        }
+        if (snapshot.Status == ProviderStatus.NotSignedIn)
+        {
+            SignInState = SignInState.SignedOut;
+            OnPropertyChanged(nameof(ShowSignIn));
+            OnPropertyChanged(nameof(ShowHeaderSignIn));
+        }
+        var (headlineKey, reasonKey, _) = ErrorPresenter.Describe(snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn, RealProviderId);
         FailureNoticeText = $"{StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus)} · "
             + StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);
         IsShowingLastValues = true;

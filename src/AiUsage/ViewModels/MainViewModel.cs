@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using AiUsage.Models;
+using AiUsage.Providers;
 using AiUsage.Services;
 using AiUsage.Stats;
 using AiUsage.Storage;
@@ -610,6 +611,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 RebuildTrayWindowChoices();
         };
         _tilesById[provider.AccountKey] = tile;
+        if (!IsAccountDisconnected(provider.AccountKey) && LastRecordedReading(provider.AccountKey, DateTimeOffset.Now) is { } lastReading)
+            tile.Apply(lastReading, DateTimeOffset.Now, ResolvedThresholds(provider.AccountKey), _settings.ShowAttentionMark, advanceSilenceClock: false);
         tile.LevelAnnounced += text => LevelAnnounced?.Invoke(text);
         Tiles.Add(tile);
         // Mirrors Tiles.Add: a freshly built tile (startup, or a further account added later) always
@@ -617,6 +620,39 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // only) then re-sorts everything, including this one, by each row's own persisted Order.
         DisplayRows.Add(tile);
         _ownRows.Add(tile);
+    }
+
+    /// <summary>How far back the start of the app looks for the last recorded numbers of a tile.</summary>
+    private static readonly TimeSpan LastReadingLookback = TimeSpan.FromDays(8);
+
+    /// <summary>The newest reading the history holds for one account, as a held-over snapshot: the
+    /// tile starts with the numbers it last showed instead of an empty body, so a provider that is
+    /// signed out or unreachable after a restart still shows its last known 5 hour and weekly values.
+    /// Windows that reset since start over at 0 %. Null when the history has nothing recent.</summary>
+    internal ProviderSnapshot? LastRecordedReading(string providerId, DateTimeOffset now)
+    {
+        var points = _historyStore.Load(providerId, LastReadingLookback);
+        if (points.Count == 0)
+            return null;
+
+        var newest = points.Max(point => point.Timestamp);
+        // One read writes all its windows within a few milliseconds; a minute keeps them together.
+        var windows = points
+            .Where(point => point.Timestamp >= newest - TimeSpan.FromMinutes(1) && point.CompactionLevel is null)
+            .GroupBy(point => (point.Window, point.Label))
+            .Select(group => group.MaxBy(point => point.Timestamp)!)
+            .Select(point => new UsageWindow(
+                point.Label is { Length: > 0 } label ? label : $"Window_{point.Window}", point.Window, point.Percent,
+                point.ResetsAt, windowMinutes: null, point.Tokens is { } tokens ? new TokenUsage(tokens) : null))
+            .ToList();
+        if (windows.Count == 0)
+            return null;
+
+        var snapshot = new ProviderSnapshot(
+            providerId, windows, PlanType: null, SourceKind.None, FetchedAt: newest, DataTimestamp: newest,
+            ProviderFreshness.IsStale(newest, [], now) ? ProviderStatus.Stale : ProviderStatus.Ok, Error: null,
+            HeldOver: true);
+        return ProviderSnapshots.ExpirePastWindows(snapshot, now);
     }
 
     /// <summary>Builds the widget's initial on-screen order from scratch: every row currently in <see
@@ -1210,9 +1246,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (snapshot.Status != ProviderStatus.NotSignedIn && IsAccountDisconnected(snapshot.ProviderId))
                 return;
 
+            // A sign-out from this app forgets the numbers; any other lost sign-in keeps them on show.
             tile.Apply(
                 snapshot, now, ResolvedThresholds(snapshot.ProviderId), _settings.ShowAttentionMark,
-                refreshInterval: TimeSpan.FromSeconds(_settings.RefreshSeconds));
+                refreshInterval: TimeSpan.FromSeconds(_settings.RefreshSeconds),
+                keepLastValues: !IsAccountDisconnected(snapshot.ProviderId));
             if (OrderedByUsage)
                 ApplyTileOrder();
             var displayName = tile.NotificationName;
