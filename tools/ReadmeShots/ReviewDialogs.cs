@@ -120,6 +120,24 @@ internal static class ReviewDialogs
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
+    /// <summary>The restore question (with a long set-aside folder in it) and the notice shown after the restart.</summary>
+    internal static void RenderRestoreConfirm(string outputPath)
+    {
+        var loc = LocalizationService.Instance;
+        var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Settings.Backup.RestoreConfirm", SampleSetAsideFolder),
+            loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
+        RenderWindowContent(window, window.Width, double.NaN, outputPath);
+    }
+
+    internal static void RenderRestoreNotice(string outputPath)
+    {
+        var loc = LocalizationService.Instance;
+        var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Backup.Restored", SampleSetAsideFolder), loc["Action.Ok"], "");
+        RenderWindowContent(window, window.Width, double.NaN, outputPath);
+    }
+
+    private const string SampleSetAsideFolder = @"C:\Users\Example\AppData\Roaming\AI-Usage\before-restore-20261010-084524";
+
     /// <summary>Draws a never-shown window's content at its own width; a NaN height means the content
     /// decides (the window sizes to its content). The window's own background is part of the picture,
     /// as it is on screen.</summary>

@@ -148,6 +148,8 @@ internal static class ReviewSurfaces
         list.Add(new Surface("dialog.signin-blocked", GroupDialogs, context => ReviewDialogs.RenderBlockedSignIn(context.OutputPath("dialog.signin-blocked"))));
         list.Add(new Surface("dialog.welcome", GroupDialogs, context => ReviewDialogs.RenderWelcome(context.Now, context.OutputPath("dialog.welcome"))));
         list.Add(new Surface("dialog.remove-account", GroupDialogs, context => ReviewDialogs.RenderRemoveAccountConfirm(context.OutputPath("dialog.remove-account"))));
+        list.Add(new Surface("dialog.restore-confirm", GroupDialogs, context => ReviewDialogs.RenderRestoreConfirm(context.OutputPath("dialog.restore-confirm"))));
+        list.Add(new Surface("dialog.restore-notice", GroupDialogs, context => ReviewDialogs.RenderRestoreNotice(context.OutputPath("dialog.restore-notice"))));
         list.Add(new Surface("dialog.crash", GroupDialogs, context => ReviewDialogs.RenderCrash(context.OutputPath("dialog.crash"))));
 
         list.Add(new Surface("menu.titlebar", GroupMenus, context => ReviewMenus.RenderTitleBarMenu(context, "menu.titlebar")));
