@@ -13,8 +13,8 @@ internal static class AllowListedDownloader
 {
     internal const int MaxRedirects = 5;
 
-    /// <summary>The largest body accepted. The files downloaded here (an installer, the WebView2
-    /// bootstrapper) are a few megabytes; anything far beyond that is not what was asked for.</summary>
+    /// <summary>The largest body accepted by default. The WebView2 bootstrapper is about 2 MB; anything
+    /// far beyond that is not what was asked for. A caller that expects larger files passes its own cap.</summary>
     internal const long MaxDownloadBytes = 32L * 1024 * 1024;
 
     /// <summary>A download ends when no byte has arrived for this long, so a slow link still finishes.</summary>
@@ -25,7 +25,7 @@ internal static class AllowListedDownloader
 
     internal static Task DownloadAsync(
         string url, string destination, Func<Uri, bool> isAllowed, IProgress<double>? progress, CancellationToken ct) =>
-        DownloadAsync(url, destination, isAllowed, null, StallTimeout, OverallTimeout, progress, ct);
+        DownloadAsync(url, destination, isAllowed, null, StallTimeout, OverallTimeout, MaxDownloadBytes, progress, ct);
 
     /// <summary>The handler and the limits are parameters so a test can stall the body: the stall limit
     /// restarts with the headers and after every chunk read. Without a handler the download uses one
@@ -33,7 +33,7 @@ internal static class AllowListedDownloader
     /// there is never written through.</summary>
     internal static async Task DownloadAsync(
         string url, string destination, Func<Uri, bool> isAllowed, HttpMessageHandler? handler,
-        TimeSpan stallLimit, TimeSpan overallLimit, IProgress<double>? progress, CancellationToken ct)
+        TimeSpan stallLimit, TimeSpan overallLimit, long maxBytes, IProgress<double>? progress, CancellationToken ct)
     {
         using var overall = CancellationTokenSource.CreateLinkedTokenSource(ct);
         overall.CancelAfter(overallLimit);
@@ -60,7 +60,7 @@ internal static class AllowListedDownloader
 
             response.EnsureSuccessStatusCode();
             var total = response.Content.Headers.ContentLength;
-            if (total > MaxDownloadBytes)
+            if (total > maxBytes)
                 throw new InvalidOperationException("download is larger than allowed");
 
             await using var source = await response.Content.ReadAsStreamAsync(limit.Token);
@@ -73,7 +73,7 @@ internal static class AllowListedDownloader
             {
                 limit.CancelAfter(stallLimit);
                 received += read;
-                if (received > MaxDownloadBytes)
+                if (received > maxBytes)
                     throw new InvalidOperationException("download is larger than allowed");
                 await target.WriteAsync(buffer.AsMemory(0, read), limit.Token);
                 if (total is > 0)
