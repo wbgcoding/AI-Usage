@@ -17,6 +17,71 @@ public class StatsHeatmapTests
     private static StatsRecord Record(DateOnly day, int hour, long tokens) =>
         new("claude", day, "modelA", "projA", tokens, 0, 0, 0, Hour: hour);
 
+    private static StatsRecord Tokens(string provider, string model, DateOnly day, int hour, long tokens, bool subagent = false) =>
+        new(provider, day, model, "projA", tokens, 0, 0, 0, Hour: hour, Subagent: subagent);
+
+    private static readonly DateOnly Tuesday = new(2026, 3, 17);
+
+    private static int CellIndex(DayOfWeek first, DateOnly day, int hour) =>
+        (((int)day.DayOfWeek - (int)first + 7) % 7) * 24 + hour;
+
+    [Fact]
+    public void A_cell_with_two_providers_names_the_larger_one_as_its_leader()
+    {
+        var cells = StatsAggregator.WeekdayHourLeaders(
+            [Tokens("claude", "m1", Tuesday, 14, 70), Tokens("codex", "m2", Tuesday, 14, 30)], record => record.Provider, DayOfWeek.Monday);
+
+        Assert.Equal(168, cells.Count);
+        var cell = cells[CellIndex(DayOfWeek.Monday, Tuesday, 14)];
+        Assert.Equal(new StatsHeatmapCell(100, "claude", 70), cell);
+        Assert.Equal(new StatsHeatmapCell(0, "", 0), cells[0]);
+        Assert.Equal(100, cells.Sum(c => c.Total));
+    }
+
+    [Fact]
+    public void The_cells_follow_the_row_order_of_the_flattened_grid()
+    {
+        StatsRecord[] records = [Tokens("claude", "m1", Tuesday, 14, 100), Tokens("codex", "m2", Tuesday.AddDays(1), 3, 7)];
+        foreach (var first in new[] { DayOfWeek.Monday, DayOfWeek.Sunday, DayOfWeek.Tuesday })
+        {
+            var flat = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(records), first);
+            var cells = StatsAggregator.WeekdayHourLeaders(records, record => record.Provider, first);
+
+            Assert.Equal(flat, cells.Select(c => c.Total).ToList());
+        }
+    }
+
+    [Fact]
+    public void Model_mode_pools_beyond_the_same_top_six_as_the_stacked_columns_into_other()
+    {
+        var records = new List<StatsRecord>();
+        for (var i = 1; i <= 6; i++)
+            records.Add(Tokens("claude", "model" + i, Tuesday.AddDays(-i), 9, 1000 * (7 - i)));
+        records.Add(Tokens("claude", "model7", Tuesday, 10, 70));
+        records.Add(Tokens("codex", "model8", Tuesday, 10, 30));
+
+        var ranking = StatsAggregator.RankModels(records, 6, "Other");
+        var cells = StatsAggregator.WeekdayHourLeaders(records, ranking.KeyFor, DayOfWeek.Monday);
+        var stacked = StatsAggregator.GroupStackedByModel(records, StatsGrouping.Day, Tuesday.AddDays(-7), Tuesday, 6, "Other");
+
+        Assert.Equal(stacked.Series, ranking.Series);
+        Assert.True(ranking.HasOther);
+        Assert.Equal(new StatsHeatmapCell(100, "other", 100), cells[CellIndex(DayOfWeek.Monday, Tuesday, 10)]);
+        Assert.Equal("cat:0", cells[CellIndex(DayOfWeek.Monday, Tuesday.AddDays(-1), 9)].LeaderKey);
+        Assert.Equal("cat:5", cells[CellIndex(DayOfWeek.Monday, Tuesday.AddDays(-6), 9)].LeaderKey);
+    }
+
+    [Fact]
+    public void Agent_mode_uses_the_main_and_subagent_split_of_the_stacked_columns()
+    {
+        var cells = StatsAggregator.WeekdayHourLeaders(
+            [Tokens("claude", "m1", Tuesday, 8, 20), Tokens("claude", "m1", Tuesday, 8, 80, subagent: true), Tokens("claude", "m1", Tuesday, 9, 50)],
+            record => record.Subagent ? "cat:1" : "cat:0", DayOfWeek.Monday);
+
+        Assert.Equal(new StatsHeatmapCell(100, "cat:1", 80), cells[CellIndex(DayOfWeek.Monday, Tuesday, 8)]);
+        Assert.Equal(new StatsHeatmapCell(50, "cat:0", 50), cells[CellIndex(DayOfWeek.Monday, Tuesday, 9)]);
+    }
+
     [Fact]
     public void A_record_lands_in_the_cell_of_its_weekday_and_hour()
     {
@@ -125,6 +190,50 @@ public class StatsHeatmapTests
         Assert.Equal(600, width);
         Assert.InRange(height, 100, 250);
         Assert.True(rendered);
+    }
+
+    [Fact]
+    public void A_cell_is_shaded_in_its_own_color_and_the_rest_keep_the_accent()
+    {
+        var (own, accent) = RunOnSta(() =>
+        {
+            (byte R, byte B) Pixel(bool withColor)
+            {
+                var values = new long[168];
+                values[24 + 14] = 500;
+                var colors = new Color[168];
+                if (withColor)
+                    colors[24 + 14] = Colors.Red;
+                var heatmap = new StatsHeatmap { Values = values, CellColors = colors, LeaderTexts = Enumerable.Repeat("", 168).ToList() };
+                heatmap.Measure(new Size(600, double.PositiveInfinity));
+                heatmap.Arrange(new Rect(heatmap.DesiredSize));
+                var bitmap = new RenderTargetBitmap(600, (int)heatmap.DesiredSize.Height, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(heatmap);
+                var cellWidth = (600.0 - 30 - 23 * 2) / 24;
+                var pixel = new byte[4];
+                bitmap.CopyPixels(new Int32Rect((int)(30 + 14 * (cellWidth + 2) + cellWidth / 2), (int)(16 + (cellWidth + 2) + cellWidth / 2), 1, 1), pixel, 4, 0);
+                return (pixel[2], pixel[0]);
+            }
+
+            return (Pixel(withColor: true), Pixel(withColor: false));
+        });
+
+        Assert.True(own.R > own.B, $"{own}");
+        Assert.True(accent.B > accent.R, $"{accent}");
+    }
+
+    [Fact]
+    public void The_window_colors_each_cell_with_the_color_of_its_leading_series()
+    {
+        var series = new[] { new ChartSeriesInfo("Claude", "claude"), new ChartSeriesInfo("Other", "other") };
+        var muted = new SolidColorBrush(Colors.Gray);
+
+        var colors = AiUsage.Views.StatsWindow.HeatmapCellColors(series, ["claude", "", "other"], muted);
+
+        Assert.Equal(3, colors.Count);
+        Assert.Equal(ChartPalette.ForProvider("claude"), colors[0]);
+        Assert.Equal(default, colors[1]);
+        Assert.Equal(Colors.Gray, colors[2]);
     }
 
     private static T RunOnSta<T>(Func<T> action)

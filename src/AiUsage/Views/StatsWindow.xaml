@@ -672,6 +672,21 @@
                                     </ItemsControl>
                                 </StackPanel>
 
+                                <!-- The weekday by hour grouping draws a grid instead of columns. -->
+                                <Border Margin="0,12,0,0" Padding="8"
+                                        Visibility="{Binding IsHeatmap, Converter={StaticResource BoolToVis}}"
+                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
+                                    <controls:StatsHeatmap x:Name="Heatmap" Values="{Binding HeatmapValues}" FirstDay="{Binding HeatmapFirstDay}"
+                                                            AccentBrush="{DynamicResource Accent}"
+                                                            EmptyCellBrush="{DynamicResource Border}"
+                                                            TextBrush="{DynamicResource Text.Muted}"
+                                                            TooltipBackground="{DynamicResource Bg.Raised}"
+                                                            LeaderTexts="{Binding HeatmapLeaderTexts}"
+                                                            TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
+                                                            EmptyText="{Binding EmptyChartText}"/>
+                                </Border>
+
                                 <!-- What the colors of the stacked columns stand for. -->
                                 <ItemsControl x:Name="ChartLegend" Margin="0,8,0,0">
                                     <ItemsControl.ItemsPanel>
@@ -693,20 +708,6 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-
-                                <!-- The weekday by hour grouping draws a grid instead of columns. -->
-                                <Border Margin="0,12,0,0" Padding="8"
-                                        Visibility="{Binding IsHeatmap, Converter={StaticResource BoolToVis}}"
-                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsHeatmap x:Name="Heatmap" Values="{Binding HeatmapValues}" FirstDay="{Binding HeatmapFirstDay}"
-                                                            AccentBrush="{DynamicResource Accent}"
-                                                            EmptyCellBrush="{DynamicResource Border}"
-                                                            TextBrush="{DynamicResource Text.Muted}"
-                                                            TooltipBackground="{DynamicResource Bg.Raised}"
-                                                            TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
-                                                            EmptyText="{Binding EmptyChartText}"/>
-                                </Border>
 
                                 <!-- One horizontal stacked bar, four segments: how much of all tokens was new
                                      input, cache writes, cache reads and output. -->

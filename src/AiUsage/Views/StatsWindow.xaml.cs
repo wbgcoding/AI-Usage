@@ -108,7 +108,8 @@ public partial class StatsWindow : Window
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(StatsViewModel.IsStackedByProvider) or nameof(StatsViewModel.Bars)
-                or nameof(StatsViewModel.ProjectColors) or nameof(StatsViewModel.ChartSeries) or nameof(StatsViewModel.ChartOverlay))
+                or nameof(StatsViewModel.ProjectColors) or nameof(StatsViewModel.ChartSeries) or nameof(StatsViewModel.ChartOverlay)
+                or nameof(StatsViewModel.HeatmapLeaderKeys))
                 RefreshSeriesBrushes();
             if (e.PropertyName == nameof(StatsViewModel.ProviderShareSlices))
                 RefreshProviderRingBrushes();
@@ -475,6 +476,18 @@ public partial class StatsWindow : Window
         ChartLegend.Visibility = legend.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         Chart.BarBrushes = BarColorBrushes(
             _viewModel.SelectedGrouping, _viewModel.Bars, _viewModel.ProjectColors, (System.Windows.Media.Brush)FindResource("Text.Muted"));
+        Heatmap.CellColors = HeatmapCellColors(series, _viewModel.HeatmapLeaderKeys, mutedBrush);
+    }
+
+    /// <summary>The color of each grid cell: its leading series' color; a cell with no leader gets the
+    /// default (transparent) color, which the grid draws in its accent.</summary>
+    internal static List<System.Windows.Media.Color> HeatmapCellColors(
+        IReadOnlyList<ChartSeriesInfo> series, IReadOnlyList<string> leaderKeys, System.Windows.Media.Brush mutedBrush)
+    {
+        var colors = new Dictionary<string, System.Windows.Media.Color>();
+        foreach (var item in series)
+            colors[item.ColorKey] = SeriesBrush(item, mutedBrush) is SolidColorBrush solid ? solid.Color : default;
+        return leaderKeys.Select(key => colors.GetValueOrDefault(key)).ToList();
     }
 
     /// <summary>Resolves every <see cref="StatsViewModel.Bars"/> entry's own <see

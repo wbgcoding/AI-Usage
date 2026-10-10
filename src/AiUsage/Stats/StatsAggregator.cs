@@ -29,6 +29,41 @@ public readonly record struct StatsGroupedRow(string Label, IReadOnlyList<long> 
 /// values follow that order.</summary>
 public readonly record struct StatsModelSplit(IReadOnlyList<string> Series, bool HasOther, IReadOnlyList<StatsGroupedRow> Rows);
 
+/// <summary>One cell of the weekday by hour grid: its token total and which color key put the most
+/// tokens into it (empty for a cell with no tokens), with that key's share of the total.</summary>
+public readonly record struct StatsHeatmapCell(long Total, string LeaderKey, long LeaderTotal);
+
+/// <summary>The models ranked by tokens: the largest keep a slot of their own, every other model is
+/// pooled into one last slot. Shared by the stacked columns and the weekday by hour grid, so both name
+/// the same models in the same order.</summary>
+public sealed class StatsModelRanking
+{
+    private readonly Dictionary<string, int> _slotOf;
+
+    internal StatsModelRanking(IReadOnlyList<string> series, bool hasOther, Dictionary<string, int> slotOf)
+    {
+        Series = series;
+        HasOther = hasOther;
+        _slotOf = slotOf;
+    }
+
+    /// <summary>The slot names in stacking order, the pooled remainder last when <see cref="HasOther"/>.</summary>
+    public IReadOnlyList<string> Series { get; }
+
+    public bool HasOther { get; }
+
+    /// <summary>The slot of <paramref name="record"/>'s model; the last one for a pooled model.</summary>
+    public int SlotOf(StatsRecord record) =>
+        _slotOf.TryGetValue(ModelDisplayNames.Resolve(record.Model), out var slot) ? slot : Series.Count - 1;
+
+    /// <summary>The color key of the record's slot: <c>cat:N</c>, or <c>other</c> for the pooled one.</summary>
+    public string KeyFor(StatsRecord record)
+    {
+        var slot = SlotOf(record);
+        return HasOther && slot == Series.Count - 1 ? "other" : "cat:" + slot.ToString(CultureInfo.InvariantCulture);
+    }
+}
+
 /// <summary>How much of the Claude tokens in a set of records subagents used. <see
 /// cref="ClaudeTokens"/> counts the main agent and its subagents together; other providers do not
 /// count here at all.</summary>
@@ -129,7 +164,7 @@ public readonly record struct StatsCacheShareRow(long NewInput, long CacheWrite,
 public static class StatsAggregator
 {
     /// <summary>Fixed stacking order for day/week grouping - the only two providers a
-    /// <see cref="StatsRecord"/> can ever name, always in the same order so a bar's colours
+    /// <see cref="StatsRecord"/> can ever name, always in the same order so a bar's colors
     /// never swap between two consecutive periods.</summary>
     public static readonly IReadOnlyList<string> StackedProviderOrder = ProviderCoverage.IndexedProviderIds;
 
@@ -165,17 +200,9 @@ public static class StatsAggregator
         IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd, int topCount, string otherLabel)
     {
         var periods = Group(records, grouping, rangeStart, rangeEnd);
-
-        var modelTotals = records
-            .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
-            .Select(group => (Name: group.Key, Total: group.Sum(record => record.TotalTokens)))
-            .OrderByDescending(entry => entry.Total)
-            .ThenBy(entry => entry.Name, StringComparer.Ordinal)
-            .ToList();
-        var named = modelTotals.Take(topCount).Select(entry => entry.Name).ToList();
-        var hasOther = modelTotals.Count > topCount;
-        var series = hasOther ? named.Append(otherLabel).ToList() : named;
-        var slotOf = named.Select((name, index) => (name, index)).ToDictionary(pair => pair.name, pair => pair.index);
+        var ranking = RankModels(records, topCount, otherLabel);
+        var series = ranking.Series;
+        var hasOther = ranking.HasOther;
 
         string KeyOf(StatsRecord record) => grouping == StatsGrouping.Week
             ? IsoWeekLabel(record.Day)
@@ -187,8 +214,7 @@ public static class StatsAggregator
             var key = KeyOf(record);
             if (!stacks.TryGetValue(key, out var stack))
                 stacks[key] = stack = new long[Math.Max(1, series.Count)];
-            var slot = slotOf.TryGetValue(ModelDisplayNames.Resolve(record.Model), out var found) ? found : series.Count - 1;
-            stack[slot] += record.TotalTokens;
+            stack[ranking.SlotOf(record)] += record.TotalTokens;
         }
 
         var rows = periods
@@ -199,6 +225,24 @@ public static class StatsAggregator
             })
             .ToList();
         return new StatsModelSplit(series, hasOther, rows);
+    }
+
+    /// <summary>The <paramref name="topCount"/> models with the most tokens in <paramref name="records"/>
+    /// keep their own slot, largest first; every other model is pooled into one last slot named
+    /// <paramref name="otherLabel"/>.</summary>
+    public static StatsModelRanking RankModels(IReadOnlyList<StatsRecord> records, int topCount, string otherLabel)
+    {
+        var modelTotals = records
+            .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
+            .Select(group => (Name: group.Key, Total: group.Sum(record => record.TotalTokens)))
+            .OrderByDescending(entry => entry.Total)
+            .ThenBy(entry => entry.Name, StringComparer.Ordinal)
+            .ToList();
+        var named = modelTotals.Take(topCount).Select(entry => entry.Name).ToList();
+        var hasOther = modelTotals.Count > topCount;
+        var series = hasOther ? named.Append(otherLabel).ToList() : named;
+        var slotOf = named.Select((name, index) => (name, index)).ToDictionary(pair => pair.name, pair => pair.index);
+        return new StatsModelRanking(series, hasOther, slotOf);
     }
 
     /// <summary>The sessions that started on a day from <paramref name="from"/> to <paramref name="to"/>
@@ -806,6 +850,40 @@ public static class StatsAggregator
                 values.Add(grid[day, hour]);
         }
         return values;
+    }
+
+    /// <summary>The weekday by hour grid as 168 cells in the order of <see cref="FlattenWeekdayHour"/>:
+    /// each cell's total and the key (from <paramref name="keyOf"/>) that put the most tokens into it,
+    /// the smaller key winning a tie so the result never depends on record order.</summary>
+    public static IReadOnlyList<StatsHeatmapCell> WeekdayHourLeaders(
+        IReadOnlyList<StatsRecord> records, Func<StatsRecord, string> keyOf, DayOfWeek firstDay)
+    {
+        var perKey = new Dictionary<(int Cell, string Key), long>();
+        foreach (var record in records)
+        {
+            if (record.Hour is < 0 or >= 24)
+                continue;
+
+            var cell = (((int)record.Day.DayOfWeek - (int)firstDay + 7) % 7) * 24 + record.Hour;
+            var key = (cell, keyOf(record));
+            perKey[key] = perKey.GetValueOrDefault(key) + record.TotalTokens;
+        }
+
+        var totals = new long[7 * 24];
+        var leaderKeys = new string[7 * 24];
+        var leaderTotals = new long[7 * 24];
+        Array.Fill(leaderKeys, "");
+        foreach (var ((cell, key), value) in perKey)
+        {
+            totals[cell] += value;
+            if (value > leaderTotals[cell] || (value == leaderTotals[cell] && value > 0 && string.CompareOrdinal(key, leaderKeys[cell]) < 0))
+            {
+                leaderKeys[cell] = key;
+                leaderTotals[cell] = value;
+            }
+        }
+
+        return totals.Select((total, cell) => new StatsHeatmapCell(total, leaderKeys[cell], leaderTotals[cell])).ToList();
     }
 
     /// <summary>The month grid's day-detail panel: <paramref name="day"/>'s own records broken down

@@ -967,6 +967,86 @@ public class StatsViewModelTests
         Assert.Equal(1000, viewModel.HeatmapValues.Sum());
     }
 
+    private static StatsViewModel HeatmapViewModel(StatsStore store)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var yesterday = today.AddDays(-1);
+        var records = new List<StatsRecord>
+        {
+            new("claude", today, "modelA", "projA", 700, 0, 0, 0, Hour: 14),
+            new("codex", today, "modelB", "projA", 300, 0, 0, 0, Hour: 14),
+            new("claude", yesterday, "modelA", "projA", 50, 0, 0, 0, Hour: 3, Subagent: true),
+            new("claude", yesterday, "modelC", "projA", 10, 0, 0, 0, Hour: 3),
+        };
+        for (var i = 1; i <= 9; i++)
+            records.Add(new StatsRecord("claude", today.AddDays(-2), "extra" + i, "projA", i, 0, 0, 0, Hour: 20));
+        store.AddDelta(records);
+        return StatsVm.Create(store);
+    }
+
+    [Fact]
+    public async Task The_heatmap_is_colored_by_provider_and_says_who_leads_each_cell()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-heatmap-provider");
+        var viewModel = HeatmapViewModel(new StatsStore(dataDir));
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.WeekdayHour);
+
+        Assert.True(viewModel.CanChooseColor);
+        Assert.Equal(StatsAggregator.StackedProviderOrder, viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal(168, viewModel.HeatmapLeaderKeys.Count);
+        Assert.Equal(168, viewModel.HeatmapLeaderTexts.Count);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var index = (((int)today.DayOfWeek - (int)viewModel.HeatmapFirstDay + 7) % 7) * 24 + 14;
+        Assert.Equal("claude", viewModel.HeatmapLeaderKeys[index]);
+        var expected = string.Format(
+            CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Heatmap.Leader"], "Claude",
+            AiUsage.Views.Controls.StatsBarChart.PercentLabel(70, CultureInfo.CurrentCulture));
+        Assert.Equal(expected, viewModel.HeatmapLeaderTexts[index]);
+        Assert.Equal(168 - 3, viewModel.HeatmapLeaderKeys.Count(key => key.Length == 0));
+        Assert.Equal(viewModel.HeatmapLeaderKeys.Select(key => key.Length == 0), viewModel.HeatmapLeaderTexts.Select(text => text.Length == 0));
+    }
+
+    [Fact]
+    public async Task The_heatmap_colored_by_model_keeps_at_most_seven_series_and_does_not_rebuild_the_bars()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-heatmap-model");
+        var viewModel = HeatmapViewModel(new StatsStore(dataDir));
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.WeekdayHour);
+        var providerBars = viewModel.Bars.Select(bar => bar.Label + ":" + string.Join(",", bar.StackedValues)).ToList();
+
+        viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Model);
+
+        Assert.True(viewModel.IsModelStack);
+        Assert.InRange(viewModel.ChartSeries.Count, 2, 7);
+        Assert.Equal("other", viewModel.ChartSeries[^1].ColorKey);
+        Assert.Equal(168, viewModel.HeatmapLeaderKeys.Count);
+        Assert.All(viewModel.HeatmapLeaderKeys.Where(key => key.Length > 0), key => Assert.Contains(key, viewModel.ChartSeries.Select(series => series.ColorKey)));
+        Assert.Equal(providerBars, viewModel.Bars.Select(bar => bar.Label + ":" + string.Join(",", bar.StackedValues)).ToList());
+        Assert.All(viewModel.Bars, bar => Assert.Single(bar.StackedValues));
+    }
+
+    [Fact]
+    public async Task The_heatmap_colored_by_agent_names_main_and_subagent_and_goes_back_to_providers()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-heatmap-agent");
+        var viewModel = HeatmapViewModel(new StatsStore(dataDir));
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.WeekdayHour);
+
+        viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Agent);
+
+        Assert.Equal(["cat:0", "cat:1"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Contains("cat:1", viewModel.HeatmapLeaderKeys);
+
+        viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Provider);
+        Assert.Equal(StatsAggregator.StackedProviderOrder, viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+
+        await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Model);
+        Assert.Empty(viewModel.HeatmapLeaderKeys);
+        Assert.Empty(viewModel.HeatmapLeaderTexts);
+        Assert.Empty(viewModel.ChartSeries);
+    }
+
     [Fact]
     public async Task ColorByModelStacksTheDayColumnsByModelAndBackToProvider()
     {

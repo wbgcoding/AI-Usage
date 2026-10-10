@@ -307,10 +307,11 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The shortest day range the average line is drawn for.</summary>
     private const int OverlayMinDays = 14;
 
-    /// <summary>True for the groupings whose columns can be stacked by provider or by model.</summary>
-    public bool CanChooseColor => IsStackedByProvider;
+    /// <summary>True for the groupings whose colors can be chosen: the stacked day and week columns and
+    /// the weekday by hour grid.</summary>
+    public bool CanChooseColor => IsStackedByProvider || IsHeatmap;
 
-    /// <summary>True while the stacked columns are split by model.</summary>
+    /// <summary>True while the stacked columns (or the grid's cells) are split by model.</summary>
     public bool IsModelStack => CanChooseColor && SelectedColorBy == StatsColorBy.Model;
 
     /// <summary>True while the stacked columns are split into main agent and subagents.</summary>
@@ -382,6 +383,17 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The culture's first day of the week, the weekday of the grid's first row.</summary>
     [ObservableProperty]
     private DayOfWeek heatmapFirstDay = DayOfWeek.Monday;
+
+    /// <summary>The color key (a <see cref="ChartSeriesInfo.ColorKey"/>) that leads each of the grid's
+    /// 168 cells, in the order of <see cref="HeatmapValues"/>; empty for a cell with no tokens, and
+    /// empty altogether outside the grid.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> heatmapLeaderKeys = [];
+
+    /// <summary>The second hover line of each grid cell, naming its leader and the leader's share;
+    /// empty for a cell with no tokens.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> heatmapLeaderTexts = [];
 
     // The figures bar's own five cards. BusiestDayDateText and the two Change properties are
     // "" / false whenever their underlying figure has nothing to show (an empty period, or - for the
@@ -1338,29 +1350,42 @@ public sealed partial class StatsViewModel : ObservableObject
         }
 
         // Day and week columns are stacked by provider or, on request, by model.
+        // The weekday by hour grid takes the same series for its cells' colors; its columns stay as they are.
         var series = new List<ChartSeriesInfo>();
-        if (IsStackedByProvider && !IsModelStack && !IsAgentStack)
+        Func<StatsRecord, string>? heatmapKeyOf = null;
+        if (CanChooseColor && !IsModelStack && !IsAgentStack)
         {
             series.AddRange(StatsAggregator.StackedProviderOrder.Select(id =>
                 new ChartSeriesInfo(ProviderDisplayNames.GetValueOrDefault(id, id), id)));
+            heatmapKeyOf = record => record.Provider;
         }
         else if (IsModelStack)
         {
-            var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
-            var stack = StatsAggregator.GroupStackedByModel(
-                inRange, stackGrouping, gapFillFrom, to, MaxStackedModels, LocalizationService.Instance["Stats.Other"]);
-            barRows = stack.Rows;
-            series.AddRange(stack.Series.Select((name, index) =>
-                new ChartSeriesInfo(name, stack.HasOther && index == stack.Series.Count - 1 ? "other" : "cat:" + index)));
+            var modelOtherLabel = LocalizationService.Instance["Stats.Other"];
+            if (IsStackedByProvider)
+            {
+                var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+                barRows = StatsAggregator.GroupStackedByModel(inRange, stackGrouping, gapFillFrom, to, MaxStackedModels, modelOtherLabel).Rows;
+            }
+
+            var ranking = StatsAggregator.RankModels(inRange, MaxStackedModels, modelOtherLabel);
+            series.AddRange(ranking.Series.Select((name, index) =>
+                new ChartSeriesInfo(name, ranking.HasOther && index == ranking.Series.Count - 1 ? "other" : "cat:" + index)));
+            heatmapKeyOf = ranking.KeyFor;
         }
         else if (IsAgentStack)
         {
-            var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
             var mainLabel = LocalizationService.Instance["Stats.Agent.Main"];
             var subagentLabel = LocalizationService.Instance["Stats.SubagentShare"];
-            barRows = StatsAggregator.GroupStackedByAgent(inRange, stackGrouping, gapFillFrom, to, mainLabel, subagentLabel).Rows;
+            if (IsStackedByProvider)
+            {
+                var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+                barRows = StatsAggregator.GroupStackedByAgent(inRange, stackGrouping, gapFillFrom, to, mainLabel, subagentLabel).Rows;
+            }
+
             series.Add(new ChartSeriesInfo(mainLabel, "cat:0"));
             series.Add(new ChartSeriesInfo(subagentLabel, "cat:1"));
+            heatmapKeyOf = record => record.Subagent ? "cat:1" : "cat:0";
         }
         ChartSeries = series;
         ChartOverlay = SelectedGrouping == StatsGrouping.Day && !weeklyPerDay && barRows.Count >= OverlayMinDays
@@ -1438,7 +1463,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         LimitGroups = BuildLimitGroups(from, to, loc);
 
-        // The two donut charts - provider stays in the fixed StackedProviderOrder (same colour
+        // The two donut charts - provider stays in the fixed StackedProviderOrder (same color
         // convention the stacked charts already use), model is sorted by size with everything past
         // the largest six pooled into one "Other"/"Andere" entry.
         var million = loc["Number.Million"];
@@ -1502,6 +1527,18 @@ public sealed partial class StatsViewModel : ObservableObject
         // The weekday by hour grid, in the culture's own week order.
         HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
         HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
+        IReadOnlyList<StatsHeatmapCell> leaders = IsHeatmap && heatmapKeyOf is not null
+            ? StatsAggregator.WeekdayHourLeaders(inRange, heatmapKeyOf, HeatmapFirstDay)
+            : [];
+        var seriesLabels = series.ToDictionary(item => item.ColorKey, item => item.Label);
+        HeatmapLeaderKeys = leaders.Select(cell => cell.LeaderKey).ToList();
+        HeatmapLeaderTexts = leaders
+            .Select(cell => cell.LeaderKey.Length > 0 && seriesLabels.TryGetValue(cell.LeaderKey, out var label)
+                ? string.Format(
+                    CultureInfo.CurrentCulture, loc["Stats.Heatmap.Leader"], label,
+                    Views.Controls.StatsBarChart.PercentLabel(cell.LeaderTotal * 100.0 / cell.Total, CultureInfo.CurrentCulture))
+                : "")
+            .ToList();
 
         var periodDayCount = PeriodDayCount(SelectedRange, from, to, all);
         // The preceding period always has the range's fixed length, unlike periodDayCount, which a

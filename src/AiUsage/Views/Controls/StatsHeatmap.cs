@@ -8,8 +8,8 @@ namespace AiUsage.Views.Controls;
 
 /// <summary>
 /// Self-drawn weekday by hour grid: seven rows (the culture's first day of the week on top) and 24
-/// columns, one cell per weekday and hour of the day, shaded in steps of the accent color by the
-/// tokens that fell into it. Built like <see cref="StatsMonthGrid"/>: a bare <see
+/// columns, one cell per weekday and hour of the day, shaded in steps of one color by the tokens
+/// that fell into it - the accent color, or the color of the series that leads the cell. Built like <see cref="StatsMonthGrid"/>: a bare <see
 /// cref="FrameworkElement"/> that draws itself, keeps the cell rectangles of the last render for hit
 /// testing, and can be walked cell by cell with the arrow keys.
 /// </summary>
@@ -55,6 +55,30 @@ public sealed class StatsHeatmap : FrameworkElement
     {
         get => (DayOfWeek)GetValue(FirstDayProperty);
         set => SetValue(FirstDayProperty, value);
+    }
+
+    /// <summary>The color each cell is shaded in, in the order of <see cref="Values"/>; a cell without
+    /// a color (or a list that is too short) uses <see cref="AccentBrush"/>.</summary>
+    public static readonly DependencyProperty CellColorsProperty = DependencyProperty.Register(
+        nameof(CellColors), typeof(IReadOnlyList<Color>), typeof(StatsHeatmap),
+        new FrameworkPropertyMetadata(Array.Empty<Color>(), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public IReadOnlyList<Color> CellColors
+    {
+        get => (IReadOnlyList<Color>)GetValue(CellColorsProperty);
+        set => SetValue(CellColorsProperty, value);
+    }
+
+    /// <summary>A second hover line per cell, in the order of <see cref="Values"/>; empty or missing
+    /// shows none.</summary>
+    public static readonly DependencyProperty LeaderTextsProperty = DependencyProperty.Register(
+        nameof(LeaderTexts), typeof(IReadOnlyList<string>), typeof(StatsHeatmap),
+        new FrameworkPropertyMetadata(Array.Empty<string>(), OnDataChanged));
+
+    public IReadOnlyList<string> LeaderTexts
+    {
+        get => (IReadOnlyList<string>)GetValue(LeaderTextsProperty);
+        set => SetValue(LeaderTextsProperty, value);
     }
 
     /// <summary>The hover text with four placeholders: weekday, first hour, last hour, token count.</summary>
@@ -251,7 +275,9 @@ public sealed class StatsHeatmap : FrameworkElement
                 var value = Values[row * Columns + column];
                 var rect = new Rect(LeftLabelWidth + column * (cellWidth + CellGap), y, cellWidth, cellHeight);
                 var step = Step(value, sorted);
-                var fill = step == 0 ? EmptyCellBrush : StatsMonthGrid.IntensityBrush(accent, step);
+                var index = row * Columns + column;
+                var color = index < CellColors.Count && CellColors[index].A != 0 ? CellColors[index] : accent;
+                var fill = step == 0 ? EmptyCellBrush : StatsMonthGrid.IntensityBrush(color, step);
                 drawingContext.DrawRoundedRectangle(fill, null, rect, CellCorner, CellCorner);
 
                 if (IsKeyboardFocused && _focusedCell == (row, column))
@@ -272,10 +298,23 @@ public sealed class StatsHeatmap : FrameworkElement
     private string TextOf(int row, int column) =>
         BuildTooltip(TooltipFormat, DayOfRow(FirstDay, row), column, Values[row * Columns + column], CultureInfo.CurrentCulture);
 
+    /// <summary>The leader line of one cell, empty when there is none.</summary>
+    private string LeaderOf(int row, int column)
+    {
+        var index = row * Columns + column;
+        return index < LeaderTexts.Count ? LeaderTexts[index] : "";
+    }
+
+    private string[] LinesOf(int row, int column)
+    {
+        var leader = LeaderOf(row, column);
+        return leader.Length == 0 ? [TextOf(row, column)] : [TextOf(row, column), leader];
+    }
+
     private void ShowTooltip(CellHit hit)
     {
         _tooltipPopup ??= new ChartTooltipPopup();
-        _tooltipPopup.Show(this, hit.Rect, [TextOf(hit.Row, hit.Column)], TooltipBackground, TextBrush, TextBrush);
+        _tooltipPopup.Show(this, hit.Rect, LinesOf(hit.Row, hit.Column), TooltipBackground, TextBrush, TextBrush);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -354,7 +393,7 @@ public sealed class StatsHeatmap : FrameworkElement
         if (_focusedCell is not { } cell || Values.Count < Rows * Columns)
             return;
 
-        AutomationProperties.SetName(this, TextOf(cell.Row, cell.Column));
+        AutomationProperties.SetName(this, string.Join(", ", LinesOf(cell.Row, cell.Column)));
     }
 
     /// <summary>What a screen reader announces for the whole grid: the busiest weekday and hour.</summary>
@@ -373,6 +412,6 @@ public sealed class StatsHeatmap : FrameworkElement
                 best = i;
         }
 
-        AutomationProperties.SetName(this, TextOf(best / Columns, best % Columns));
+        AutomationProperties.SetName(this, string.Join(", ", LinesOf(best / Columns, best % Columns)));
     }
 }
