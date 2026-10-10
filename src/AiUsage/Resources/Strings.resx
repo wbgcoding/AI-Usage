@@ -544,7 +544,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restore</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup saved.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import another PC…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import history…</value></data>
+  <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Reads the token history from another PC's backup and merges it with the history here. This PC's own data stays untouched; importing the same PC again replaces its earlier copy.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>

@@ -945,7 +945,8 @@
                         </Grid.RowDefinitions>
                         <Button Grid.Row="0" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Create]}" Style="{StaticResource SystemAction}" Command="{Binding CreateBackupCommand}"/>
                         <Button Grid.Row="0" Grid.Column="2" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Restore]}" Style="{StaticResource SystemAction}" Command="{Binding RestoreBackupCommand}"/>
-                        <Button Grid.Row="1" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource SystemAction}" Command="{Binding ImportPcCommand}"/>
+                        <Button Grid.Row="1" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource SystemAction}"
+                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.ImportPc]}" Command="{Binding ImportPcCommand}"/>
                     </Grid>
                     <!-- The PCs whose token history was imported, each removable again. -->
                     <ItemsControl ItemsSource="{Binding ImportedPcs}"

@@ -543,7 +543,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Einspielen</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Sicherung gespeichert.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Diese Datei ist keine AI-Usage-Sicherung oder stammt aus einer neueren Version.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Anderen PC importieren…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Verlauf importieren…</value></data>
+  <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Liest den Token-Verlauf aus der Sicherung eines anderen PCs ein und führt ihn mit dem Verlauf hier zusammen. Die eigenen Daten bleiben unverändert; derselbe PC erneut importiert ersetzt seinen alten Stand.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Diese Sicherung stammt von diesem PC.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>{0} Tage Token-Verlauf von {1} importiert.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Entfernen</value></data>
