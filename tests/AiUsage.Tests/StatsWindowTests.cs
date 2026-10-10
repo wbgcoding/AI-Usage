@@ -724,6 +724,41 @@ public class StatsWindowTests
         });
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public void The_rings_keep_their_size_whatever_the_window_height_and_the_limits_card(int limitProviders)
+    {
+        var providers = ProviderCoverage.AllProviderIds.Take(limitProviders).ToHashSet();
+        var now = DateTimeOffset.Now;
+        // Many projects make the right column (limits, projects) much taller than the three ring cards.
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var records = Enumerable.Range(1, 12)
+            .Select(i => new StatsRecord("claude", today, "modelA", $"project-{i:00}", i * 1000, 0, 0, 0))
+            .ToList();
+        RunInWindow(null, (window, root) =>
+        {
+            Assert.Equal(limitProviders, ((StatsViewModel)window.DataContext).LimitGroups.Count);
+            foreach (var height in new[] { 800.0, 1400.0 })
+            {
+                root.Measure(new Size(1100, height));
+                root.Arrange(new Rect(0, 0, 1100, height));
+                root.UpdateLayout();
+
+                Assert.Equal(132, window.ProviderRing.ActualHeight);
+                Assert.Equal(132, window.ModelRing.ActualHeight);
+                Assert.Equal(132, window.EffortRing.ActualHeight);
+            }
+        }, configureViewModel: viewModel =>
+        {
+            viewModel.LoadRecords = () => records;
+            viewModel.LoadHistory = (id, _, _) => providers.Contains(id)
+                ? [new HistoryPoint(1, now.AddHours(-3), WindowKind.Weekly, 60, now.AddDays(2))]
+                : [];
+            viewModel.Recompute();
+        });
+    }
+
     [Fact]
     public void Default_layout_stacks_the_limits_above_the_projects_in_the_right_column()
     {
@@ -1043,7 +1078,8 @@ public class StatsWindowTests
 
     /// <summary>Builds the real window on an STA thread (the same set-up the other walks here use),
     /// lays it out once and hands it to <paramref name="check"/>.</summary>
-    private static void RunInWindow(AppSettings? settings, Action<StatsWindow, UIElement> check, bool withStore = false)
+    private static void RunInWindow(
+        AppSettings? settings, Action<StatsWindow, UIElement> check, bool withStore = false, Action<StatsViewModel>? configureViewModel = null)
     {
         Exception? failure = null;
         var worker = new Thread(() =>
@@ -1060,7 +1096,7 @@ public class StatsWindowTests
                 try
                 {
                     ThemeService.Apply(AppTheme.Nebula, Application.Current!.Resources.MergedDictionaries, LoadFromProductionAssembly, () => false);
-                    var window = new StatsWindow(StatsVm.Create(store), settings, settingsStore);
+                    var window = new StatsWindow(StatsVm.Create(store, configureViewModel), settings, settingsStore);
                     var root = (UIElement)window.Content;
                     root.Measure(new Size(720, 520));
                     root.Arrange(new Rect(0, 0, 720, 520));

@@ -730,7 +730,7 @@
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByProvider]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ProviderRing" Margin="8" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ProviderShareSlices}"
+                                    <controls:StatsRingChart x:Name="ProviderRing" Margin="8" Height="132" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ProviderShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
@@ -745,7 +745,7 @@
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByModel]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ModelRing" Margin="8" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
+                                    <controls:StatsRingChart x:Name="ModelRing" Margin="8" Height="132" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
                                                               SliceActivated="ModelRing_SliceActivated"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
@@ -761,7 +761,7 @@
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByEffort]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="EffortRing" Margin="8" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding EffortShareSlices}"
+                                    <controls:StatsRingChart x:Name="EffortRing" Margin="8" Height="132" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding EffortShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
