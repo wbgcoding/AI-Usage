@@ -4,20 +4,77 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.1] - unreleased
+## [Unreleased]
+
+Backups, history from a second PC, real Windows notifications and a much deeper token usage window, a far smaller download, and a long list of fixes from a full review of the app.
 
 ### Added
 
+- One backup file holds your settings, the usage history and the token index. Restoring it replaces everything and restarts the app; your previous state is kept aside until the restore has finished.
+- The token history of a second PC can be imported from its backup. Importing the same backup twice counts nothing twice, and each imported PC can be removed again in the settings.
+- Notifications appear as real Windows notifications with a "Show widget" button, grouped in the notification center and respecting Do Not Disturb.
+- A warning when the forecast says a window fills within 30 minutes, and a notification when a limit is reached. Each has its own switch, and both are on.
+- Notifications can stay quiet all weekend.
+- A screen reader announces when a window turns yellow, red or full.
+- A short tick on each bar shows how much of the window's time has passed, so you can see at a glance whether you are using it faster than it refills.
+- An error tile names what went wrong, keeps the last numbers dimmed in view and links to the provider's status page on server errors and timeouts.
+- Clicking a provider's name shows its details; "Refresh" and "Hide chart" sit in the tile's right-click menu.
+- Tiles can be sorted by how full they are (Settings > Display, off by default).
+- Each account can have its own name, such as "Work", shown on the tile, in the tooltip and in notifications.
+- Window level "On the desktop": the widget sits behind all windows and survives Win+D.
+- The widget hides while a game, video or presentation runs in full screen and comes back afterwards (on by default).
+- Widget size 90, 100, 125 or 150 %, on top of the Windows scaling.
+- The "System" theme follows your Windows accent color and, on Windows 11, shows a Mica background.
+- Battery saver: on battery the widget fetches half as often, and in energy saver mode it reads only local files (on by default).
+- "Pause for 1 hour" in the notification area menu stops all network fetches for an hour.
+- Keyboard shortcuts Ctrl+T for token usage and Ctrl+L for the layout; the title bar tooltips name them.
+- "Help and FAQ" on the About page and "Help" in the menu of a tile with an error.
+- The widget keeps `status.json` in its data folder up to date, and `AI-Usage.exe --status` prints the current values for a terminal or a status line.
+- Token usage: new groupings by weekday, by hour, a weekday by hour grid and a list of your largest sessions.
+- Token usage: color the columns by provider, by model or by main agent and subagents, with a 7 day average line over the days.
+- Token usage: the share of Claude tokens spent by subagents, a provider filter and a click on a model or project that filters every section.
+- Token usage: a "Limits" section shows how often you hit each provider's limit, with the highest value and the average peak.
+- Token usage: an estimate of how many tokens one percent of a window holds for each model, based on your own usage.
+- Token usage: Gemini usage from the Antigravity CLI is counted too.
+- Token usage: periods "This month", "Last month" and a custom range with a calendar.
 - A portable exe for ARM64, `AI-Usage-arm64.exe`, joins the downloads.
 
 ### Changed
 
 - AI-Usage no longer carries its own copy of .NET, so the downloads shrink from about 136 MB to a fraction of that. It uses the .NET 10 Desktop Runtime installed on your PC: the installer downloads it from Microsoft when it is missing, and a portable copy shows a download link instead of starting. A portable 1.1.0 that updates itself therefore starts only once the runtime is installed. See "Coming from version 1.1.0" in the README.
-
+- Token usage shows one chart instead of a breakdown and a per day chart; the cache share appears once, in the breakdown.
+- Token usage remembers its period, grouping and position, and opens at 80 % of the screen the first time, never larger than the screen.
+- Unknown model names are shown in a readable form ("GPT-5.1 Codex Max"), and the project list shows folder names with the full path in the tooltip.
+- The welcome window lists all five providers, marks the ones already found and explains what Gemini and Copilot need.
+- The refresh icon left the title bar; refresh is in the title bar's right-click menu, and F5 still works.
+- Autostart waits 10 seconds after you sign in to Windows.
+- Plan and email are fetched now and then instead of on every fetch, so the providers see fewer requests.
+- The installer texts address you informally, like the app.
 - In the small layout the usage per day tile shows as many recent days as fit across its full width, not just the last seven.
 - The button that closes the welcome window now reads "Done".
 - The "Show tooltips" switch is gone from the settings; tooltips stay on, and `settings.json` can still turn them off.
 - The README explains that project colors come from app icons found in your project folders.
+
+### Fixed
+
+- Settings changed just before closing the app are no longer lost, and saving them no longer stutters while you drag a slider or the window.
+- The app starts next to a copy running as administrator and with a broken data folder pointer, and closes without an error message.
+- Claude no longer shows "waiting for you" right after you send a prompt, and a reached limit stays visible while a log file rotates.
+- Codex shows a real limit as 100 % at once, and a stray "429" in an error message no longer counts as one.
+- Implausible reset times are dropped for every provider, and Cursor no longer shows 0 % without a known limit.
+- Gemini keeps reading after an Antigravity CLI update without a restart.
+- Cancelling a sign-in no longer shows an error, and a signed out Gemini web session offers "Sign in".
+- Token usage lists a model with and without a date in its name only once, and a half written Codex log line no longer counts everything twice.
+- The token usage window no longer clips text in its smallest size, and its charts use the "Terminal" theme's font.
+- Dates use the same month abbreviations everywhere.
+- The 1.1.0 weekday or hour chart choice carries over into the new groupings.
+
+### Security
+
+- Every update downloads into its own new folder and is checked from the same bytes it installs. A portable copy accepts only a portable file of its own architecture, an installed copy only a setup, and an older or equal version is refused.
+- An installation for all users starts the verified setup with administrator rights directly, and the previous program file is kept until the new one has started.
+- Dialogs on a provider's page can no longer block the hidden browser, and the sign-in window shows the address of any page that is not the provider's own.
+- The key file created for signing updates is readable only by your user and the system.
 
 ## [1.1.0] - 2026-10-08
 
