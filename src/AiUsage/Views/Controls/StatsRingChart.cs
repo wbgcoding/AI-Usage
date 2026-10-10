@@ -30,12 +30,14 @@ public sealed class StatsRingChart : FrameworkElement
     /// slice, which needs none, and for the pooled entry, which belongs to none) - what the window's
     /// own code-behind colors each slice by. <see cref="LegendText"/> overrides the percentage text the
     /// legend would otherwise print for this one slice (e.g. "not countable here" for a provider this
-    /// machine keeps no local token count for at all) - null keeps the ordinary "12.3%" text.</summary>
-    public readonly record struct Slice(string Label, double Percent, string ProviderId = "", string? LegendText = null, long Total = 0);
+    /// machine keeps no local token count for at all) - null keeps the ordinary "12.3%" text.
+    /// <see cref="Tooltip"/> is the hover text, one line per "\n"; null or empty shows none.</summary>
+    public readonly record struct Slice(
+        string Label, double Percent, string ProviderId = "", string? LegendText = null, long Total = 0, string? Tooltip = null);
 
     public static readonly DependencyProperty SlicesProperty = DependencyProperty.Register(
         nameof(Slices), typeof(IReadOnlyList<Slice>), typeof(StatsRingChart),
-        new FrameworkPropertyMetadata(Array.Empty<Slice>(), FrameworkPropertyMetadataOptions.AffectsRender, OnAccessibleNameInputChanged));
+        new FrameworkPropertyMetadata(Array.Empty<Slice>(), FrameworkPropertyMetadataOptions.AffectsRender, OnSlicesChanged));
 
     public IReadOnlyList<Slice> Slices
     {
@@ -47,6 +49,13 @@ public sealed class StatsRingChart : FrameworkElement
     /// plus <see cref="AccessibleLargestFormat"/> and the three compact-number suffixes) so a locale
     /// switch keeps the name in step, not just a data refresh.</summary>
     private static void OnAccessibleNameInputChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) => RefreshAccessibleName((StatsRingChart)d);
+
+    private static void OnSlicesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var ring = (StatsRingChart)d;
+        ring.HideTooltip();
+        RefreshAccessibleName(ring);
+    }
 
     private static void RefreshAccessibleName(StatsRingChart ring)
     {
@@ -248,6 +257,51 @@ public sealed class StatsRingChart : FrameworkElement
 
     /// <summary>Raised with the index of the slice whose arc or legend entry was clicked.</summary>
     public event EventHandler<int>? SliceActivated;
+
+    public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
+        nameof(TooltipBackground), typeof(Brush), typeof(StatsRingChart),
+        new FrameworkPropertyMetadata(Brushes.Black));
+
+    public Brush TooltipBackground
+    {
+        get => (Brush)GetValue(TooltipBackgroundProperty);
+        set => SetValue(TooltipBackgroundProperty, value);
+    }
+
+    private ChartTooltipPopup? _tooltipPopup;
+    private int _hoverIndex = -1;
+
+    protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        var point = e.GetPosition(this);
+        var index = SliceIndexAt(point, ActualWidth, ActualHeight, Slices);
+        if (index == _hoverIndex)
+            return;
+
+        _hoverIndex = index;
+        var tooltip = index >= 0 ? Slices[index].Tooltip : null;
+        if (string.IsNullOrEmpty(tooltip))
+        {
+            _tooltipPopup?.Hide();
+            return;
+        }
+
+        _tooltipPopup ??= new ChartTooltipPopup();
+        _tooltipPopup.Show(this, new Rect(point, new Size(1, 1)), tooltip.Split('\n'), TooltipBackground, TextBrush, TextBrush);
+    }
+
+    protected override void OnMouseLeave(System.Windows.Input.MouseEventArgs e)
+    {
+        base.OnMouseLeave(e);
+        HideTooltip();
+    }
+
+    private void HideTooltip()
+    {
+        _hoverIndex = -1;
+        _tooltipPopup?.Hide();
+    }
 
     protected override void OnMouseLeftButtonUp(System.Windows.Input.MouseButtonEventArgs e)
     {

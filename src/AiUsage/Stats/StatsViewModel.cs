@@ -1446,18 +1446,25 @@ public sealed partial class StatsViewModel : ObservableObject
 
         var providerShares = StatsAggregator.ShareByProvider(inRange);
         ProviderShareSlices = providerShares
-            .Select(slice => new Views.Controls.StatsRingChart.Slice(
-                ProviderDisplayNames.GetValueOrDefault(slice.Label, slice.Label),
-                slice.Percent,
-                ProviderId: slice.Label,
-                Total: slice.Total))
+            .Select(slice =>
+            {
+                var name = ProviderDisplayNames.GetValueOrDefault(slice.Label, slice.Label);
+                return new Views.Controls.StatsRingChart.Slice(
+                    name, slice.Percent, ProviderId: slice.Label, Total: slice.Total, Tooltip: RingTooltip(name, slice, loc));
+            })
             .ToList();
 
         var otherLabel = loc["Stats.Other"];
         var modelShares = StatsAggregator.ShareByModel(inRange, topCount: 6, otherLabel);
+        // The pooled slice names what it holds; asking for every model with no pooling yields the same
+        // ranking, so the pooled ones are simply the tail after the six shown.
+        var pooledModels = modelShares.Count > 6
+            ? StatsAggregator.ShareByModel(inRange, topCount: int.MaxValue, otherLabel).Skip(6).ToList()
+            : [];
         ModelShareSlices = modelShares
             .Select(slice => new Views.Controls.StatsRingChart.Slice(
-                slice.Label, slice.Percent, slice.ProviderId, Total: slice.Total))
+                slice.Label, slice.Percent, slice.ProviderId, Total: slice.Total,
+                Tooltip: RingTooltip(slice.Label, slice, loc, slice.Label == otherLabel && slice.ProviderId.Length == 0 ? pooledModels : null)))
             .ToList();
 
         // The "share per effort level" ring, beside the model ring. ProviderId here carries the raw
@@ -1465,7 +1472,12 @@ public sealed partial class StatsViewModel : ObservableObject
         // same seam ShareByProvider's own ProviderId already serves for a provider slice.
         var effortShares = StatsAggregator.ShareByEffort(inRange);
         EffortShareSlices = effortShares
-            .Select(slice => new Views.Controls.StatsRingChart.Slice(ResolveEffortLabel(slice.Label), slice.Percent, ProviderId: slice.Label, Total: slice.Total))
+            .Select(slice =>
+            {
+                var name = ResolveEffortLabel(slice.Label);
+                return new Views.Controls.StatsRingChart.Slice(
+                    name, slice.Percent, ProviderId: slice.Label, Total: slice.Total, Tooltip: RingTooltip(name, slice, loc));
+            })
             .ToList();
 
         // The subagent share card: left out while the range holds no Claude tokens.
@@ -1596,6 +1608,31 @@ public sealed partial class StatsViewModel : ObservableObject
 
     private static string FormatLimitPercent(double percent) =>
         StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(percent).ToString(CultureInfo.CurrentCulture));
+
+    /// <summary>How many pooled models the "Other" ring slice names in its hover text.</summary>
+    private const int OtherModelsTooltipNames = 8;
+
+    /// <summary>The hover text of one ring slice: its name, token total and share (the share written
+    /// the way the legend writes it), then, for a pooled slice, its largest members and how many more
+    /// there are.</summary>
+    private static string RingTooltip(string name, StatsShareSlice slice, LocalizationService loc, List<StatsShareSlice>? pooled = null)
+    {
+        var lines = new List<string>
+        {
+            string.Format(
+                CultureInfo.CurrentCulture, loc["Stats.Ring.SliceTooltip"], name,
+                slice.Total.ToString("N0", CultureInfo.CurrentCulture),
+                Views.Controls.StatsBarChart.PercentLabel(slice.Percent, CultureInfo.CurrentCulture)),
+        };
+        if (pooled is not null)
+        {
+            lines.AddRange(pooled.Take(OtherModelsTooltipNames).Select(member => $"{member.Label}: {member.Total.ToString("N0", CultureInfo.CurrentCulture)}"));
+            if (pooled.Count > OtherModelsTooltipNames)
+                lines.Add(string.Format(CultureInfo.CurrentCulture, loc["Stats.Ring.MoreCount"], pooled.Count - OtherModelsTooltipNames));
+        }
+
+        return string.Join('\n', lines);
+    }
 
     /// <summary>How many pooled projects the "Other projects" bar names in its hover text.</summary>
     private const int OtherProjectsTooltipNames = 15;

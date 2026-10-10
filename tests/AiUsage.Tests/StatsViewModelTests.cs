@@ -1879,6 +1879,66 @@ public class StatsViewModelCaptionTests
         Assert.Equal(["stats view Day/All: 612 ms"], logged);
     }
 
+    private static StatsViewModel RingViewModel(StatsStore store, int models)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta(Enumerable.Range(1, models)
+            .Select(i => new StatsRecord(i % 2 == 0 ? "claude" : "codex", today, $"model{i:00}", "projA", i * 100, 0, 0, 0, Effort: i % 3 == 0 ? "high" : "low"))
+            .ToList());
+        return StatsVm.Create(store);
+    }
+
+    [Fact]
+    public void Every_ring_slice_names_itself_in_its_tooltip()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-ring-tooltips");
+        var viewModel = RingViewModel(new StatsStore(dataDir), 9);
+        var loc = LocalizationService.Instance;
+
+        foreach (var ring in new[] { viewModel.ProviderShareSlices, viewModel.ModelShareSlices, viewModel.EffortShareSlices })
+        {
+            Assert.NotEmpty(ring);
+            foreach (var slice in ring)
+            {
+                var expected = string.Format(
+                    CultureInfo.CurrentCulture, loc["Stats.Ring.SliceTooltip"], slice.Label,
+                    slice.Total.ToString("N0", CultureInfo.CurrentCulture), AiUsage.Views.Controls.StatsBarChart.PercentLabel(slice.Percent, CultureInfo.CurrentCulture));
+                Assert.Equal(expected, slice.Tooltip!.Split('\n')[0]);
+            }
+        }
+    }
+
+    [Fact]
+    public void The_other_model_slice_lists_the_pooled_models_largest_first()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-ring-other");
+        var viewModel = RingViewModel(new StatsStore(dataDir), 9);
+
+        var other = viewModel.ModelShareSlices[^1];
+        var lines = other.Tooltip!.Split('\n');
+
+        Assert.Equal(7, viewModel.ModelShareSlices.Count);
+        Assert.Equal(4, lines.Length);
+        Assert.Equal($"{ModelDisplayNames.Resolve("model03")}: {300L.ToString("N0", CultureInfo.CurrentCulture)}", lines[1]);
+        Assert.Equal($"{ModelDisplayNames.Resolve("model02")}: {200L.ToString("N0", CultureInfo.CurrentCulture)}", lines[2]);
+        Assert.Equal($"{ModelDisplayNames.Resolve("model01")}: {100L.ToString("N0", CultureInfo.CurrentCulture)}", lines[3]);
+    }
+
+    [Fact]
+    public void The_other_model_slice_stops_at_eight_names_and_counts_the_rest()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-ring-other-many");
+        var viewModel = RingViewModel(new StatsStore(dataDir), 16);
+
+        var lines = viewModel.ModelShareSlices[^1].Tooltip!.Split('\n');
+
+        Assert.Equal(1 + 8 + 1, lines.Length);
+        Assert.StartsWith(ModelDisplayNames.Resolve("model10") + ": ", lines[1], StringComparison.Ordinal);
+        Assert.StartsWith(ModelDisplayNames.Resolve("model03") + ": ", lines[8], StringComparison.Ordinal);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Ring.MoreCount"], 2), lines[9]);
+        Assert.All(viewModel.ModelShareSlices.Take(6), slice => Assert.Single(slice.Tooltip!.Split('\n')));
+    }
+
     [Fact]
     public async Task SessionGroupingFlagIsTrueOnlyForTheSessionGrouping()
     {

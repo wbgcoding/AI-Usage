@@ -60,6 +60,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Token usage no longer ends in a table at the bottom: the session list sits under the session chart, and the "Other projects" bar names the projects it pools when you point at it.
 - Token usage opens with its numbers already in place: the app keeps them ready after each scan of your session logs.
 - Token usage charts say "Loading data..." while the numbers are on their way, instead of claiming that nothing was counted.
+- Token usage: pointing at a slice of the provider, model or effort ring shows its name, tokens and share; the "Other" model slice lists the models it holds.
 
 ### Fixed
 
