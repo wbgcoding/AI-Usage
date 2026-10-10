@@ -55,6 +55,10 @@ public static class StatsTokensPerPercent
         var cacheReads = new Dictionary<DateTime, long>();
         foreach (var record in records)
         {
+            // A row with an hour outside the day (a damaged index) cannot be placed.
+            if (record.Hour is < 0 or > 23)
+                continue;
+
             var hour = record.Day.ToDateTime(new TimeOnly(record.Hour, 0));
             if (!models.TryGetValue(hour, out var perModel))
             {
@@ -128,7 +132,7 @@ public static class StatsTokensPerPercent
     {
         var count = intervals.Count;
         var totalPercent = intervals.Sum(interval => interval.DeltaPercent);
-        if (count < MinIntervals || totalPercent <= 0)
+        if (count < MinIntervals || !double.IsFinite(totalPercent) || totalPercent <= 0)
             return PerPercentResult.TooFew(count);
 
         var modelTotals = new Dictionary<string, long>();
@@ -142,7 +146,9 @@ public static class StatsTokensPerPercent
         if (allTokens == 0)
             return PerPercentResult.TooFew(count);
 
-        var totalPerPercent = (long)(allTokens / totalPercent + 0.5);
+        if (ToCount(allTokens / totalPercent) is not { } totalPerPercent)
+            return PerPercentResult.TooFew(count);
+
         var total = new PerPercentResult(PerPercentStatus.Total, count, [], 0, totalPerPercent);
 
         // The largest models get a column each; the rest share one.
@@ -169,7 +175,7 @@ public static class StatsTokensPerPercent
 
         var target = intervals.Select(interval => interval.DeltaPercent).ToList();
         var weights = Nnls.Solve(rows, target);
-        if (RSquared(rows, target, weights) < MinRSquared)
+        if (!(RSquared(rows, target, weights) >= MinRSquared))
             return total;
 
         var items = new List<PerPercentItem>();
@@ -179,18 +185,23 @@ public static class StatsTokensPerPercent
             var columnTokens = isOther
                 ? modelTotals.Where(entry => !named.Contains(entry.Key)).Sum(entry => entry.Value)
                 : modelTotals[named[column]];
-            if ((double)columnTokens / allTokens < MinShare || weights[column] <= 0)
+            if ((double)columnTokens / allTokens < MinShare || !(weights[column] > 0) || ToCount(1 / weights[column]) is not { } perPercent)
                 continue;
 
-            items.Add(new PerPercentItem(isOther ? "" : named[column], isOther, (long)(1 / weights[column] + 0.5)));
+            items.Add(new PerPercentItem(isOther ? "" : named[column], isOther, perPercent));
         }
 
         if (items.Count == 0)
             return total;
 
-        var cachePerPercent = weights[cacheColumn] > 0 ? (long)(1 / weights[cacheColumn] + 0.5) : 0;
+        var cachePerPercent = weights[cacheColumn] > 0 ? ToCount(1 / weights[cacheColumn]) ?? 0 : 0;
         return new PerPercentResult(PerPercentStatus.PerModel, count, items, cachePerPercent, totalPerPercent);
     }
+
+    /// <summary>A whole token count from a fitted value, or null when the value is not a finite number
+    /// of a believable size (a tiny weight or a damaged reading would otherwise wrap in the cast).</summary>
+    private static long? ToCount(double value) =>
+        double.IsFinite(value) && value >= 0 && value < 1e15 ? (long)(value + 0.5) : null;
 
     /// <summary>The share of the variation in <paramref name="target"/> the fit explains.</summary>
     internal static double RSquared(IReadOnlyList<double[]> rows, IReadOnlyList<double> target, double[] weights)

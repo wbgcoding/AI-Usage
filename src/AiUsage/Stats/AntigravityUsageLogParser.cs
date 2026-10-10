@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Data.Sqlite;
 
@@ -17,7 +18,27 @@ namespace AiUsage.Stats;
 /// </summary>
 public static class AntigravityUsageLogParser
 {
-    private const string LastStepKey = "last_step_index";
+    /// <summary>Largest call blob, and largest metadata blob, that is read at all. A bigger one is a
+    /// damaged or foreign file and counts as a skipped row; the size test runs inside SQLite, so the
+    /// blob is never loaded.</summary>
+    private const int MaxCallBlobBytes = 4 * 1024 * 1024;
+    private const int MaxMetadataBlobBytes = 1024 * 1024;
+    private const int MaxModelBytes = 128;
+    private const int MaxProjectBytes = 4096;
+
+    /// <summary>One read takes at most this many rows and this much time; the rest follows on the next
+    /// walk, so a huge or hostile file never holds the indexer.</summary>
+    internal const int MaxRowsPerRead = 5000;
+    private const int MaxStepRows = 100_000;
+    private static readonly TimeSpan ReadBudget = TimeSpan.FromSeconds(10);
+
+    /// <summary>A real count is far below this; anything above is a corrupt row, not usage.</summary>
+    private const long MaxTokenCount = 1_000_000_000;
+    private const long MaxRowIndex = 1_000_000_000_000;
+
+    /// <summary>How long after its last write a conversation may still be waiting for a step's time
+    /// before the call is dated at the conversation's start instead.</summary>
+    private static readonly TimeSpan StepGrace = TimeSpan.FromMinutes(10);
 
     /// <summary>The numbers of one model call. <see cref="StepIndex"/> is -1 when the call names no step.</summary>
     public readonly record struct Generation(string Model, long InputTokens, long CacheReadTokens, long OutputTokens, long StepIndex);
@@ -27,8 +48,11 @@ public static class AntigravityUsageLogParser
         long Index, DateTimeOffset Timestamp, string Model, long InputTokens, long OutputTokens, long CacheReadTokens);
 
     /// <summary>What one conversation file yielded: the new calls, where to resume, the folder the
-    /// conversation ran in, and how many rows could not be used.</summary>
-    public sealed record ReadResult(IReadOnlyList<UsageEvent> Events, long NextIndex, string Project, int RowsSkipped);
+    /// conversation ran in, and how many rows could not be used. <paramref name="Incomplete"/> is set
+    /// when the read stopped early (row or time limit, or a call still waiting for its step), so the
+    /// file has to be looked at again even when it does not change.</summary>
+    public sealed record ReadResult(
+        IReadOnlyList<UsageEvent> Events, long NextIndex, string Project, int RowsSkipped, bool Incomplete = false);
 
     /// <summary>Decodes one <c>gen_metadata</c> blob. False for a call that carries no model or no
     /// token count (the tool writes a few such rows), or for a blob that is not valid protobuf.</summary>
@@ -42,7 +66,7 @@ public static class AntigravityUsageLogParser
                 return false;
 
             var usage = default(ReadOnlySpan<byte>);
-            var model = "";
+            var modelBytes = default(ReadOnlySpan<byte>);
             long step = -1;
             var reader = new ProtoReader(call);
             while (reader.Next())
@@ -53,7 +77,7 @@ public static class AntigravityUsageLogParser
                         usage = reader.Bytes;
                         break;
                     case 19 when reader.IsBytes:
-                        model = Encoding.UTF8.GetString(reader.Bytes);
+                        modelBytes = reader.Bytes;
                         break;
                     case 20 when reader.IsBytes && TryReadStep(reader.Bytes, out var parsed):
                         step = parsed;
@@ -61,7 +85,7 @@ public static class AntigravityUsageLogParser
                 }
             }
 
-            if (model.Length == 0 || usage.IsEmpty)
+            if (modelBytes.IsEmpty || modelBytes.Length > MaxModelBytes || usage.IsEmpty)
                 return false;
 
             long input = 0, cacheRead = 0, output = 0;
@@ -71,7 +95,10 @@ public static class AntigravityUsageLogParser
                 if (!usageReader.IsVarint)
                     continue;
 
-                var value = (long)Math.Min(usageReader.Value, long.MaxValue);
+                if (usageReader.Value > MaxTokenCount)
+                    return false;
+
+                var value = (long)usageReader.Value;
                 switch (usageReader.Field)
                 {
                     case 2:
@@ -89,6 +116,14 @@ public static class AntigravityUsageLogParser
             if (input + cacheRead + output == 0)
                 return false;
 
+            // The model name is a short printable label; anything else is not a call this reader knows.
+            foreach (var character in modelBytes)
+            {
+                if (character is < 0x20 or > 0x7e)
+                    return false;
+            }
+
+            var model = Encoding.ASCII.GetString(modelBytes);
             generation = new Generation(model, input, cacheRead, output, step);
             return true;
         }
@@ -122,8 +157,10 @@ public static class AntigravityUsageLogParser
                     if (inner.Field != 1 || !inner.IsBytes)
                         continue;
 
-                    var text = Encoding.UTF8.GetString(inner.Bytes);
-                    if (text.StartsWith("file:///", StringComparison.Ordinal) && Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.IsFile)
+                    if (inner.Bytes.Length > MaxProjectBytes || !inner.Bytes.StartsWith("file:///"u8))
+                        continue;
+
+                    if (Uri.TryCreate(Encoding.UTF8.GetString(inner.Bytes), UriKind.Absolute, out var uri) && uri.IsFile)
                         return uri.LocalPath;
                 }
 
@@ -137,32 +174,73 @@ public static class AntigravityUsageLogParser
         return "";
     }
 
-    /// <summary>Reads every model call of the conversation file at <paramref name="path"/> whose row
-    /// index is at least <paramref name="fromIndex"/>. The file is opened read-only without a pooled
-    /// connection, so the tool that owns it is never blocked or changed; a file that is locked or
-    /// unreadable throws <see cref="SqliteException"/>, which the caller treats as "try again later".</summary>
-    public static ReadResult ReadConversation(string path, long fromIndex, DateTime fileWriteTimeUtc)
+    /// <summary>Reads the model calls of the conversation file at <paramref name="path"/> whose row
+    /// index is at least <paramref name="fromIndex"/>, at most <see cref="MaxRowsPerRead"/> rows per
+    /// call. The file is opened read-only without a pooled connection and with a one second lock wait,
+    /// so the tool that owns it is never blocked or changed (a read-only connection to a write-ahead
+    /// database may still create the empty <c>-wal</c> and <c>-shm</c> files beside it). A file that is
+    /// locked or unreadable throws <see cref="SqliteException"/>; one whose call table is not a plain
+    /// table throws <see cref="InvalidDataException"/>. <paramref name="utcNow"/> only matters for the
+    /// grace a call gets to receive its step time.</summary>
+    public static ReadResult ReadConversation(
+        string path, long fromIndex, DateTime fileWriteTimeUtc, DateTime? utcNow = null, CancellationToken cancellationToken = default)
     {
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = path,
             Mode = SqliteOpenMode.ReadOnly,
             Pooling = false,
+            DefaultTimeout = 1,
         }.ToString();
 
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
+        var clock = Stopwatch.StartNew();
+
+        // A view or virtual table could generate rows without end; only plain tables are read.
+        if (!IsPlainTable(connection, "gen_metadata"))
+            throw new InvalidDataException("The call table is not a plain table.");
 
         var calls = new List<(long Index, Generation Generation)>();
         var skipped = 0;
+        var rowsSeen = 0;
+        var lastRowIndex = fromIndex - 1;
+        var incomplete = false;
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT idx, data FROM gen_metadata WHERE idx >= $from ORDER BY idx";
-            command.Parameters.AddWithValue("$from", fromIndex);
+            // The size test is part of the query: an oversized or non-blob value comes back as NULL
+            // without its bytes being loaded.
+            command.CommandText =
+                "SELECT idx, CASE WHEN typeof(data) = 'blob' AND length(data) <= $max THEN data END " +
+                "FROM gen_metadata WHERE typeof(idx) = 'integer' AND idx >= $from ORDER BY idx LIMIT $cap";
+            command.Parameters.AddWithValue("$max", MaxCallBlobBytes);
+            command.Parameters.AddWithValue("$from", Math.Max(fromIndex, 0));
+            command.Parameters.AddWithValue("$cap", MaxRowsPerRead);
             using var rows = command.ExecuteReader();
             while (rows.Read())
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (clock.Elapsed > ReadBudget)
+                {
+                    incomplete = true;
+                    break;
+                }
+
+                rowsSeen++;
+                if (rows.IsDBNull(0))
+                {
+                    skipped++;
+                    continue;
+                }
+
                 var index = rows.GetInt64(0);
+                if (index < 0 || index > MaxRowIndex)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                lastRowIndex = index;
                 if (!rows.IsDBNull(1) && TryParseGeneration((byte[])rows.GetValue(1), out var generation))
                     calls.Add((index, generation));
                 else
@@ -170,14 +248,25 @@ public static class AntigravityUsageLogParser
             }
         }
 
+        if (rowsSeen >= MaxRowsPerRead)
+            incomplete = true;
+
+        var capped = incomplete;
         if (calls.Count == 0)
-            return new ReadResult([], fromIndex, "", skipped);
+        {
+            // A capped read made progress even when every row in it was unusable.
+            var next = capped ? Math.Max(fromIndex, lastRowIndex + 1) : fromIndex;
+            return new ReadResult([], next, "", skipped, incomplete);
+        }
 
         DateTimeOffset? start = null;
         var project = "";
-        using (var command = connection.CreateCommand())
+        if (IsPlainTable(connection, "trajectory_metadata_blob"))
         {
-            command.CommandText = "SELECT data FROM trajectory_metadata_blob LIMIT 1";
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT CASE WHEN typeof(data) = 'blob' AND length(data) <= $max THEN data END FROM trajectory_metadata_blob LIMIT 1";
+            command.Parameters.AddWithValue("$max", MaxMetadataBlobBytes);
             if (command.ExecuteScalar() is byte[] blob)
             {
                 start = TryParseConversationStart(blob);
@@ -185,28 +274,92 @@ public static class AntigravityUsageLogParser
             }
         }
 
+        var stepTimes = IsPlainTable(connection, "steps")
+            ? LoadStepTimes(connection, calls, clock, cancellationToken)
+            : [];
+        var settled = (utcNow ?? DateTime.UtcNow) - fileWriteTimeUtc > StepGrace;
         var fallback = start ?? new DateTimeOffset(DateTime.SpecifyKind(fileWriteTimeUtc, DateTimeKind.Utc));
         var events = new List<UsageEvent>(calls.Count);
-        using (var command = connection.CreateCommand())
+        var deferredAt = -1L;
+        foreach (var (index, generation) in calls)
         {
-            command.CommandText = "SELECT metadata FROM steps WHERE idx = $step";
-            var parameter = command.Parameters.Add("$step", SqliteType.Integer);
-            foreach (var (index, generation) in calls)
+            cancellationToken.ThrowIfCancellationRequested();
+            var moment = fallback;
+            if (generation.StepIndex >= 0 && stepTimes.TryGetValue(generation.StepIndex, out var stepTime))
             {
-                var moment = fallback;
-                if (generation.StepIndex >= 0)
-                {
-                    parameter.Value = generation.StepIndex;
-                    if (command.ExecuteScalar() is byte[] metadata && TryParseStepTime(metadata) is { } stepTime)
-                        moment = stepTime;
-                }
-
-                events.Add(new UsageEvent(
-                    index, moment, generation.Model, generation.InputTokens, generation.OutputTokens, generation.CacheReadTokens));
+                moment = stepTime;
             }
+            else if (generation.StepIndex >= 0 && !settled)
+            {
+                // The step may simply not be written yet: stop before this call and try again later.
+                deferredAt = index;
+                incomplete = true;
+                break;
+            }
+
+            events.Add(new UsageEvent(
+                index, moment, generation.Model, generation.InputTokens, generation.OutputTokens, generation.CacheReadTokens));
         }
 
-        return new ReadResult(events, calls[^1].Index + 1, project, skipped);
+        // Rows after the last counted call that carry no usage yet may be filled in later, so the
+        // resume point only moves past them when the read was capped (to guarantee progress).
+        long nextIndex;
+        if (deferredAt >= 0)
+            nextIndex = deferredAt;
+        else if (capped)
+            nextIndex = lastRowIndex + 1;
+        else
+            nextIndex = calls[^1].Index + 1;
+        return new ReadResult(events, nextIndex, project, skipped, incomplete);
+    }
+
+    private static bool IsPlainTable(SqliteConnection connection, string name)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT type FROM sqlite_master WHERE name = $name";
+        command.Parameters.AddWithValue("$name", name);
+        return command.ExecuteScalar() is string type && type == "table";
+    }
+
+    /// <summary>The Unix time of every step the given calls refer to, from one range query. Only the
+    /// needed steps are decoded, and an oversized metadata blob is never loaded.</summary>
+    private static Dictionary<long, DateTimeOffset> LoadStepTimes(
+        SqliteConnection connection, List<(long Index, Generation Generation)> calls, Stopwatch clock, CancellationToken cancellationToken)
+    {
+        var needed = new HashSet<long>();
+        foreach (var (_, generation) in calls)
+        {
+            if (generation.StepIndex >= 0)
+                needed.Add(generation.StepIndex);
+        }
+
+        var times = new Dictionary<long, DateTimeOffset>();
+        if (needed.Count == 0)
+            return times;
+
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT idx, CASE WHEN typeof(metadata) = 'blob' AND length(metadata) <= $max THEN metadata END " +
+            "FROM steps WHERE idx >= $low AND idx <= $high LIMIT $cap";
+        command.Parameters.AddWithValue("$max", MaxMetadataBlobBytes);
+        command.Parameters.AddWithValue("$low", needed.Min());
+        command.Parameters.AddWithValue("$high", needed.Max());
+        command.Parameters.AddWithValue("$cap", MaxStepRows);
+        using var rows = command.ExecuteReader();
+        while (rows.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (clock.Elapsed > ReadBudget)
+                break;
+            if (rows.IsDBNull(0) || rows.IsDBNull(1))
+                continue;
+
+            var index = rows.GetInt64(0);
+            if (needed.Contains(index) && TryParseStepTime((byte[])rows.GetValue(1)) is { } time)
+                times[index] = time;
+        }
+
+        return times;
     }
 
     private static bool TryReadStep(ReadOnlySpan<byte> entry, out long step)

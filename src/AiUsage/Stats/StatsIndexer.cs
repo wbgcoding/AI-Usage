@@ -193,6 +193,9 @@ public sealed class StatsIndexer
         var geminiRowsParsed = 0L;
         var geminiRowsSkipped = 0L;
         var geminiFoldersSkipped = 0;
+        // A conversation id counts once even when two folders hold a file of that name; a symlinked
+        // database is not followed (the walk skips linked folders for the same reason).
+        var conversationIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var antigravityRoot in AntigravityRoots)
         {
             var conversations = EnumerateNewestFirstWithInfo(antigravityRoot, "*.db", out var skippedFolders, cancellationToken);
@@ -200,8 +203,11 @@ public sealed class StatsIndexer
             foreach (var listed in conversations)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (listed.Attributes.HasFlag(FileAttributes.ReparsePoint) || !conversationIds.Add(listed.Name))
+                    continue;
+
                 geminiFilesSeen++;
-                var (read, rowsParsed, rowsSkipped) = IndexAntigravityFile(listed, known);
+                var (read, rowsParsed, rowsSkipped) = IndexAntigravityFile(listed, known, cancellationToken);
                 if (read)
                     geminiFilesRead++;
                 geminiRowsParsed += rowsParsed;
@@ -482,7 +488,8 @@ public sealed class StatsIndexer
     /// the next row index to read, so a row is counted once however often the file is looked at.
     /// Anything that stops the read (the tool holds a lock, the file is not a database) leaves the
     /// stored state as it was, so the file is tried again on the next walk.</summary>
-    private (bool Read, long RowsParsed, long RowsSkipped) IndexAntigravityFile(FileInfo listed, Dictionary<string, StatsSourceFileState> known)
+    private (bool Read, long RowsParsed, long RowsSkipped) IndexAntigravityFile(
+        FileInfo listed, Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         var path = listed.FullName;
         if (TryStat(path) is not { } info)
@@ -506,10 +513,20 @@ public sealed class StatsIndexer
         AntigravityUsageLogParser.ReadResult result;
         try
         {
-            result = AntigravityUsageLogParser.ReadConversation(path, existing?.Offset ?? 0, info.LastWriteTimeUtc);
+            result = AntigravityUsageLogParser.ReadConversation(path, existing?.Offset ?? 0, writeTime, cancellationToken: cancellationToken);
         }
-        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or InvalidCastException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+            || ex is SqliteException { SqliteErrorCode: not (1 or 11 or 26) })
         {
+            // Locked by the tool, or briefly unreadable: tried again on the next walk.
+            return (false, 0, 0);
+        }
+        catch (Exception ex) when (ex is not (OutOfMemoryException or OperationCanceledException))
+        {
+            // A file that is not a usable database (wrong schema, corrupt, unexpected value types).
+            // It is remembered as it is now, so it is skipped, and logged once, until it changes.
+            Log?.LogError($"Statistics: an Antigravity conversation file could not be read and is skipped until it changes ({ex.GetType().Name}).");
+            _store.ApplyIndexResult([], new StatsSourceFileState(path, GeminiProviderId, existing?.Offset ?? 0, size, writeTime), []);
             return (false, 0, 0);
         }
 
@@ -526,7 +543,9 @@ public sealed class StatsIndexer
 
         _store.ApplyIndexResult(
             [.. buckets.Values],
-            new StatsSourceFileState(path, GeminiProviderId, result.NextIndex, size, writeTime),
+            // A read that stopped early is stored with a size that never matches, so the next walk
+            // continues it even when the file itself does not change.
+            new StatsSourceFileState(path, GeminiProviderId, result.NextIndex, result.Incomplete ? -1 : size, writeTime),
             sessions.ToDeltas());
         return (true, result.Events.Count, result.RowsSkipped);
     }

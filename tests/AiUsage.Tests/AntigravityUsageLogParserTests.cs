@@ -255,7 +255,7 @@ public class AntigravityUsageLogParserTests
         AntigravityFixtures.CreateDatabase(path, Start);
         AntigravityFixtures.AddCall(path, 0, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: 9));
 
-        var result = AntigravityUsageLogParser.ReadConversation(path, 0, DateTime.UtcNow);
+        var result = AntigravityUsageLogParser.ReadConversation(path, 0, DateTime.UtcNow.AddHours(-1));
 
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(Start), Assert.Single(result.Events).Timestamp);
     }
@@ -379,7 +379,11 @@ public class AntigravityIndexingTests
             begin.CommandText = "BEGIN EXCLUSIVE;";
             begin.ExecuteNonQuery();
 
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             var blocked = Run(store, conversations, claude, codex);
+
+            // The lock wait is short, never the library's default of thirty seconds.
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"The walk waited {watch.Elapsed} for a locked file.");
 
             Assert.Equal(0, blocked.Gemini.FilesRead);
             Assert.Empty(store.LoadAll());
