@@ -190,7 +190,7 @@ public class MicaBackdropTests
     }
 
     [Fact]
-    public void A_window_chrome_gets_the_glass_frame_over_the_whole_window_while_mica_shows()
+    public void A_window_chrome_gets_the_glass_frame_over_the_whole_window_and_keeps_it()
     {
         var (withMica, withoutMica, plainUntouched) = RunOnSta<(System.Windows.Thickness, System.Windows.Thickness, bool)>(() =>
         {
@@ -208,9 +208,19 @@ public class MicaBackdropTests
         });
 
         Assert.Equal(new System.Windows.Thickness(-1), withMica);
-        Assert.Equal(new System.Windows.Thickness(0), withoutMica);
+        Assert.Equal(new System.Windows.Thickness(-1), withoutMica);
         Assert.True(plainUntouched);
     }
+
+    [Theory]
+    [InlineData(0x02E0, "A", "A", true)]   // DPI change
+    [InlineData(0x007E, "A", "A", true)]   // display change
+    [InlineData(0x0047, "A", "B", true)]   // moved to another monitor
+    [InlineData(0x0047, "A", "A", false)]  // moved on the same monitor
+    [InlineData(0x0047, "A", null, false)] // monitor not known
+    [InlineData(0x0005, "A", "B", false)]  // any other message
+    public void A_backdrop_cycle_follows_monitor_dpi_and_display_changes(int msg, string? before, string? now, bool cycle) =>
+        Assert.Equal(cycle, MicaBackdrop.NeedsCycle(msg, before, now));
 
     [Fact]
     public void Staying_off_makes_no_window_manager_call()

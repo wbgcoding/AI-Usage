@@ -196,17 +196,47 @@ internal static class MicaBackdrop
         Update(controller, followsOpacity);
 
         // Attributes and background set before the window was first shown come out wrong (a tinted
-        // or missing backdrop) until Mica is switched off and on again while the window is on screen.
-        // Do exactly that once, with a rendered frame of the opaque background in between: the second
-        // step runs at background priority, after the render pass the first step queued.
-        void CycleOnScreen() =>
+        // or missing backdrop) until Mica is switched off and on again while the window is on screen;
+        // the same happens after the window moves to another monitor or the displays change. Do
+        // exactly that switch, with a rendered frame of the opaque background in between: the second
+        // step runs at background priority, after the render pass the first step queued. A cycle
+        // asked for while one is pending is folded into it.
+        var cyclePending = false;
+        void CycleOnScreen()
+        {
+            if (cyclePending)
+                return;
+            cyclePending = true;
             window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
             {
                 if (!controller.IsActive)
+                {
+                    cyclePending = false;
                     return;
+                }
+
                 controller.Update(false, false);
-                window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => Update(controller, followsOpacity));
+                window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+                {
+                    cyclePending = false;
+                    Update(controller, followsOpacity);
+                });
             });
+        }
+
+        var monitor = NativeMonitors.DeviceNameOfWindow(source.Handle);
+        source.AddHook((IntPtr hwnd, int msg, IntPtr _, IntPtr _, ref bool _) =>
+        {
+            if (msg is WmWindowPosChanged or WmDpiChanged or WmDisplayChange)
+            {
+                var now = NativeMonitors.DeviceNameOfWindow(hwnd);
+                if (NeedsCycle(msg, monitor, now))
+                    CycleOnScreen();
+                monitor = now;
+            }
+
+            return IntPtr.Zero;
+        });
 
         if (alreadyRendered)
         {
@@ -223,6 +253,16 @@ internal static class MicaBackdrop
             window.ContentRendered += FirstRender;
         }
     }
+
+    private const int WmWindowPosChanged = 0x0047;
+    private const int WmDisplayChange = 0x007E;
+    private const int WmDpiChanged = 0x02E0;
+
+    /// <summary>Whether a window message means the backdrop has to be switched off and on again: a DPI
+    /// or display change always, a move only when it took the window to another monitor. Pure.</summary>
+    internal static bool NeedsCycle(int msg, string? monitorBefore, string? monitorNow) =>
+        msg is WmDpiChanged or WmDisplayChange
+        || (msg == WmWindowPosChanged && monitorNow is not null && !string.Equals(monitorBefore, monitorNow, StringComparison.Ordinal));
 
     /// <summary>Re-checks every managed window against the current theme, opacity, contrast mode and
     /// setting; also the entry point for a desktop composition change.</summary>
@@ -267,12 +307,14 @@ internal static class MicaBackdrop
 
     /// <summary>A shell WindowChrome without a glass frame cuts the window to a region on every move
     /// and size change, and a window with a region gets no backdrop. With the glass frame over the
-    /// whole window it drops the region and extends the frame itself, as Mica needs; without Mica the
-    /// window gets its frameless chrome back. A window without a WindowChrome is left alone.</summary>
+    /// whole window it drops the region and extends the frame itself, as Mica needs. The glass frame
+    /// stays once set: taking it away again would put a region back on the visible window, and with
+    /// Mica off the opaque window background covers the glass anyway. A window without a WindowChrome
+    /// is left alone.</summary>
     internal static void MatchChromeToBackdrop(Window window, bool backdrop)
     {
-        if (WindowChrome.GetWindowChrome(window) is { IsFrozen: false } chrome)
-            chrome.GlassFrameThickness = backdrop ? new Thickness(-1) : new Thickness(0);
+        if (backdrop && WindowChrome.GetWindowChrome(window) is { IsFrozen: false } chrome)
+            chrome.GlassFrameThickness = new Thickness(-1);
     }
 
     private static SolidColorBrush Frozen(Color color)
