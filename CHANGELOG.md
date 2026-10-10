@@ -62,6 +62,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Token usage charts say "Loading data..." while the numbers are on their way, instead of claiming that nothing was counted.
 - Token usage: pointing at a slice of the provider, model or effort ring shows its name, tokens and share; the "Other" model slice lists the models it holds.
 - Token usage: the provider, model and effort rings keep their size when the cards beside them grow.
+- Token usage: importing or removing a PC refreshes an open window at once.
 - Token usage: resetting or importing settings while the window is open updates its period, grouping, colors, section arrangement and collapsed sections at once.
 - Token usage: a model has the same color in the model ring, the stacked columns and the weekday by hour grid.
 - Token usage: the weekday by hour grid is colored by the "Color by" choice; each cell takes the color of what leads it and its hover text names that leader.

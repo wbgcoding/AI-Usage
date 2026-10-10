@@ -40,11 +40,11 @@ public sealed class StatsIndexerService : IDisposable
     private StatsDataSnapshot? _latest;
     private int _snapshotGeneration;
 
-    /// <summary>Raised on the background thread after a walk finishes (cancelled or not) that read at
-    /// least one file, and after the first walk of the process whatever it read, and after the first walk on a new local
-    /// day. A walk that found everything unchanged raises nothing otherwise: there is nothing new to
-    /// load. A subscriber that touches UI
-    /// state must marshal back to its own dispatcher itself.</summary>
+    /// <summary>Raised on a background thread after a walk finishes (cancelled or not) that read at
+    /// least one file, after the first walk of the process whatever it read, after the first walk on a
+    /// new local day, and after <see cref="RefreshSnapshotInBackground"/> has reloaded the data. A walk
+    /// that found everything unchanged raises nothing otherwise: there is nothing new to load. A
+    /// subscriber that touches UI state must marshal back to its own dispatcher itself.</summary>
     public event EventHandler? IndexCompleted;
 
     /// <summary>The instance <see cref="App"/> starts at launch and keeps for the app's whole
@@ -172,14 +172,19 @@ public sealed class StatsIndexerService : IDisposable
 
     /// <summary>Drops the prepared data at once and loads it again on a pool thread, for a change to
     /// the store that no walk announces (an imported or removed PC). The window reads the store itself
-    /// while <see cref="Latest"/> is null. Raises no event.</summary>
+    /// while <see cref="Latest"/> is null. Raises <see cref="IndexCompleted"/> once the load is over,
+    /// also when it failed, so an open window reloads.</summary>
     public void RefreshSnapshotInBackground()
     {
         if (_loadSnapshot is null)
             return;
 
         var generation = ClearSnapshot();
-        Task.Run(() => LoadSnapshot(generation));
+        Task.Run(() =>
+        {
+            LoadSnapshot(generation);
+            RaiseIndexCompleted();
+        });
     }
 
     private void RefreshSnapshot()

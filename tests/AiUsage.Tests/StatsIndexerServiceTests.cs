@@ -201,6 +201,57 @@ public class StatsIndexerServiceTests
     }
 
     [Fact]
+    public void RefreshSnapshotInBackground_raises_IndexCompleted_once_with_the_new_snapshot_in_place()
+    {
+        var loads = 0;
+        var fresh = EmptySnapshot();
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: () =>
+            Interlocked.Increment(ref loads) == 1 ? EmptySnapshot() : fresh);
+        RunWalk(service);
+
+        var raised = 0;
+        StatsDataSnapshot? seenByHandler = null;
+        using var signal = new ManualResetEventSlim();
+        service.IndexCompleted += (_, _) =>
+        {
+            seenByHandler = service.Latest;
+            Interlocked.Increment(ref raised);
+            signal.Set();
+        };
+
+        service.RefreshSnapshotInBackground();
+
+        Assert.True(signal.Wait(TimeSpan.FromSeconds(5)));
+        Thread.Sleep(150); // a second, wrongly raised event would land by now
+        Assert.Equal(1, raised);
+        Assert.Same(fresh, seenByHandler);
+    }
+
+    [Fact]
+    public void RefreshSnapshotInBackground_raises_IndexCompleted_also_when_the_load_failed()
+    {
+        var loads = 0;
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: () =>
+            Interlocked.Increment(ref loads) == 1 ? EmptySnapshot() : throw new InvalidOperationException("broken index"));
+        RunWalk(service);
+
+        var raised = 0;
+        using var signal = new ManualResetEventSlim();
+        service.IndexCompleted += (_, _) =>
+        {
+            Interlocked.Increment(ref raised);
+            signal.Set();
+        };
+
+        service.RefreshSnapshotInBackground();
+
+        Assert.True(signal.Wait(TimeSpan.FromSeconds(5)));
+        Thread.Sleep(150);
+        Assert.Equal(1, raised);
+        Assert.Null(service.Latest); // the window reads the store itself
+    }
+
+    [Fact]
     public void A_failing_snapshot_load_keeps_the_old_snapshot_and_logs_once()
     {
         using var directory = TestPaths.CreateDisposableDirectory("stats-indexer-snapshot-log");
