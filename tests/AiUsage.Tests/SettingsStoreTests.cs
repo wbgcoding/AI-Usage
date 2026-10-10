@@ -1024,7 +1024,9 @@ public class SettingsStoreTests : IDisposable
         var ownSettings = Path.Combine(directory, "settings.json.123.tmp");
         var ownHistory = Path.Combine(directory, "history-claude.jsonl.456.tmp");
         var ownNotifications = Path.Combine(directory, "notifications.json.tmp");
-        string[] all = [foreign, ownSettings, ownHistory, ownNotifications];
+        var ownPending = Path.Combine(directory, BackupService.PendingFileName + ".789.tmp");
+        var ownJournal = Path.Combine(directory, BackupService.JournalFileName + ".789.tmp");
+        string[] all = [foreign, ownSettings, ownHistory, ownNotifications, ownPending, ownJournal];
         foreach (var path in all)
         {
             File.WriteAllText(path, "old");
@@ -1037,6 +1039,8 @@ public class SettingsStoreTests : IDisposable
         Assert.False(File.Exists(ownSettings));
         Assert.False(File.Exists(ownHistory));
         Assert.False(File.Exists(ownNotifications));
+        Assert.False(File.Exists(ownPending));
+        Assert.False(File.Exists(ownJournal));
     }
 
     [Fact]
