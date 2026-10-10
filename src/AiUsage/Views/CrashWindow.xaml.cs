@@ -24,7 +24,7 @@ public partial class CrashWindow : Window
         // The opacity setting itself may not have loaded yet (a crash this early falls back to
         // WindowOpacity's own default) - this dialog must never throw on the way to reporting
         // another crash.
-        WindowChromeNative.Bootstrap(this);
+        WindowChromeNative.Bootstrap(this, mica: false);
         _details = details;
         _logFolder = logFolder;
 

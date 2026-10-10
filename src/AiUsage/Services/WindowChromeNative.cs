@@ -17,7 +17,7 @@ public static class WindowChromeNative
     /// <param name="followsOpacity">True only for the widget: the opacity setting is there to let the
     /// desktop show through it, and a settings, statistics or dialog window that turned translucent
     /// with it was just harder to read.</param>
-    public static void Bootstrap(Window window, bool roundedCorners = true, bool followsOpacity = false)
+    public static void Bootstrap(Window window, bool roundedCorners = true, bool followsOpacity = false, bool mica = true)
     {
         // A window that starts translucent is layered before its first frame; one repaint after that
         // frame makes sure the layered surface actually carries it.
@@ -32,21 +32,25 @@ public static class WindowChromeNative
 
         if (PresentationSource.FromVisual(window) is HwndSource hwndSource)
         {
-            Apply(hwndSource.Handle, roundedCorners, followsOpacity);
+            Apply(hwndSource.Handle, roundedCorners, followsOpacity, mica);
             return;
         }
 
         window.SourceInitialized += (_, _) =>
         {
             if (PresentationSource.FromVisual(window) is HwndSource lateSource)
-                Apply(lateSource.Handle, roundedCorners, followsOpacity);
+                Apply(lateSource.Handle, roundedCorners, followsOpacity, mica);
         };
     }
 
-    private static void Apply(IntPtr hwnd, bool roundedCorners, bool followsOpacity)
+    private static void Apply(IntPtr hwnd, bool roundedCorners, bool followsOpacity, bool mica)
     {
+        // The widget gets its backdrop through WindowOpacity.Follow, every other window here, so the
+        // Mica setting reaches all of them.
         if (followsOpacity)
             WindowOpacity.Follow(hwnd);
+        else if (mica && HwndSource.FromHwnd(hwnd) is { } source)
+            MicaBackdrop.Attach(source, followsOpacity: false);
         if (!roundedCorners)
             return;
 

@@ -123,9 +123,10 @@ internal sealed class MicaController(IntPtr hwnd, IDwmBackdropApi dwm, Action<bo
 }
 
 /// <summary>
-/// Owns the Mica state of the app: the setting, the widget window it applies to, and the window-local
-/// resource overrides that make the window background transparent and the cards slightly see-through.
-/// The shared theme tokens are never touched, so other windows keep their opaque look.
+/// Owns the Mica state of the app: the setting, the windows it applies to, and the window-local
+/// resource overrides that make each window's background transparent and its cards slightly
+/// see-through. The shared theme tokens are never touched, so a window without Mica keeps its opaque
+/// look.
 /// </summary>
 internal static class MicaBackdrop
 {
@@ -133,7 +134,7 @@ internal static class MicaBackdrop
     private const string SurfaceKey = "Bg.Surface";
     private const byte CardAlpha = 0xE0; // 88 %
 
-    private static readonly List<MicaController> Controllers = [];
+    private static readonly List<(MicaController Controller, bool FollowsOpacity)> Controllers = [];
     private static bool _enabled = true;
     private static bool _subscribed;
 
@@ -149,9 +150,10 @@ internal static class MicaBackdrop
     /// <summary>A card color at 88 % opacity, so the backdrop shows faintly through the tiles.</summary>
     public static Color CardColor(Color color) => Color.FromArgb(CardAlpha, color.R, color.G, color.B);
 
-    /// <summary>Starts managing one real window (the widget). Called once per window, when it begins to
-    /// follow the opacity setting.</summary>
-    public static void Attach(HwndSource source)
+    /// <summary>Starts managing one real window. Called once per window: the widget when it begins to
+    /// follow the opacity setting, every other window when its chrome is set up. Only a window that
+    /// follows the opacity setting loses Mica to a translucent opacity; the others are always opaque.</summary>
+    public static void Attach(HwndSource source, bool followsOpacity = true)
     {
         if (source.RootVisual is not Window window)
         {
@@ -160,7 +162,7 @@ internal static class MicaBackdrop
             {
                 source.ContentRendered -= Retry;
                 if (source.RootVisual is Window)
-                    Attach(source);
+                    Attach(source, followsOpacity);
             }
 
             source.ContentRendered += Retry;
@@ -171,8 +173,9 @@ internal static class MicaBackdrop
         var controller = new MicaController(source.Handle, new SystemDwmBackdropApi(),
             transparent => SetTransparentBackground(window, source, transparent, originalBackground),
             message => LogService.Shared.LogInfo(message));
-        Controllers.Add(controller);
-        source.Disposed += (_, _) => Controllers.Remove(controller);
+        var entry = (controller, followsOpacity);
+        Controllers.Add(entry);
+        source.Disposed += (_, _) => Controllers.Remove(entry);
 
         if (!_subscribed)
         {
@@ -180,21 +183,21 @@ internal static class MicaBackdrop
             ThemeService.Applied += (_, _) => Reevaluate();
         }
 
-        Update(controller);
+        Update(controller, followsOpacity);
     }
 
     /// <summary>Re-checks every managed window against the current theme, opacity, contrast mode and
     /// setting; also the entry point for a desktop composition change.</summary>
     public static void Reevaluate()
     {
-        foreach (var controller in Controllers.ToArray())
-            Update(controller);
+        foreach (var (controller, followsOpacity) in Controllers.ToArray())
+            Update(controller, followsOpacity);
     }
 
-    private static void Update(MicaController controller)
+    private static void Update(MicaController controller, bool followsOpacity)
     {
         var wanted = MicaPolicy.ShouldApply(Environment.OSVersion.Version.Build, ThemeService.CurrentTheme,
-            WindowOpacity.CurrentPercent, SystemParameters.HighContrast, _enabled);
+            followsOpacity ? WindowOpacity.CurrentPercent : 100, SystemParameters.HighContrast, _enabled);
         var dark = wanted && !ThemeService.IsWindowsUsingLightTheme();
         controller.Update(wanted, dark);
     }
