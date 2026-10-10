@@ -1471,7 +1471,7 @@ public class StatsViewModelCaptionTests
         viewModel.SetProviderCommand.Execute("codex");
 
         Assert.Equal("codex", viewModel.SelectedProvider);
-        Assert.Equal("codex", viewModel.SelectedProviderChoice?.Value);
+        Assert.Equal(["codex"], viewModel.ProviderChoices.Where(choice => choice.IsChecked).Select(choice => choice.Value));
         Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
         Assert.Equal(300, viewModel.MonthGridDays.Sum(day => day.Total));
 
@@ -1516,6 +1516,105 @@ public class StatsViewModelCaptionTests
         var other = TwoProviderViewModel("stats-viewmodel-provider-restore-unknown");
         other.RestoreSelection(null, null, null, null, null, "copilot");
         Assert.Equal("", other.SelectedProvider);
+    }
+
+    [Fact]
+    public void TheProviderSelectionTextRoundTripsAndReadsAnOldSingleIdAsAOneItemList()
+    {
+        var known = ProviderCoverage.IndexedProviderIds;
+
+        Assert.Equal("claude,codex", StatsProviderSelection.Format(StatsProviderSelection.Parse("claude,codex", known)));
+        // The order of the provider list wins, an id counts once, an unknown one is dropped.
+        Assert.Equal(["claude", "codex"], StatsProviderSelection.Parse("codex, claude,codex,copilot", known));
+        Assert.Equal(["codex"], StatsProviderSelection.Parse("codex", known));
+        Assert.Empty(StatsProviderSelection.Parse("", known));
+        Assert.Empty(StatsProviderSelection.Parse(null, known));
+        Assert.Empty(StatsProviderSelection.Parse("copilot", known));
+        Assert.Equal("", StatsProviderSelection.Format([]));
+    }
+
+    [Fact]
+    public void TwoSelectedProvidersFilterTheFiguresTogetherAndComeBackFromTheStoredText()
+    {
+        var viewModel = TwoProviderViewModel("stats-viewmodel-provider-two");
+        var changed = new List<string?>();
+        viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        viewModel.ToggleProviderCommand.Execute("codex");
+        viewModel.ToggleProviderCommand.Execute("claude");
+
+        Assert.Equal("claude,codex", viewModel.SelectedProvider);
+        Assert.Contains(nameof(StatsViewModel.SelectedProvider), changed);
+        Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.Equal(["claude", "codex"], viewModel.ProviderChoices.Where(choice => choice.IsChecked).Select(choice => choice.Value));
+
+        var restored = TwoProviderViewModel("stats-viewmodel-provider-two-restore");
+        restored.RestoreSelection(null, null, null, null, null, viewModel.SelectedProvider);
+        Assert.Equal(["claude", "codex"], restored.SelectedProviders);
+        Assert.Equal(1300, restored.Bars.Sum(bar => bar.StackedValues.Sum()));
+
+        // An old value with a single id reads as that one provider.
+        var old = TwoProviderViewModel("stats-viewmodel-provider-old");
+        old.RestoreSelection(null, null, null, null, null, "codex");
+        Assert.Equal(["codex"], old.SelectedProviders);
+        Assert.Equal(300, old.Bars.Sum(bar => bar.StackedValues.Sum()));
+    }
+
+    [Fact]
+    public void TheAllProvidersRowClearsTheOthersAndTakingOutTheLastProviderMeansAll()
+    {
+        var viewModel = TwoProviderViewModel("stats-viewmodel-provider-all");
+
+        viewModel.ToggleProviderCommand.Execute("claude");
+        viewModel.ToggleProviderCommand.Execute("codex");
+        Assert.Equal(["claude", "codex"], viewModel.SelectedProviders);
+        Assert.False(viewModel.ProviderChoices[0].IsChecked);
+
+        viewModel.ToggleProviderCommand.Execute("");
+        Assert.Empty(viewModel.SelectedProviders);
+        Assert.Equal(["" ], viewModel.ProviderChoices.Where(choice => choice.IsChecked).Select(choice => choice.Value));
+
+        // A click on the checked "all" row changes nothing and keeps it checked.
+        var changed = new List<string?>();
+        viewModel.ProviderChoices[0].PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        viewModel.ToggleProviderCommand.Execute("");
+        Assert.True(viewModel.ProviderChoices[0].IsChecked);
+        Assert.Contains(nameof(StatsProviderOption.IsChecked), changed);
+
+        viewModel.ToggleProviderCommand.Execute("codex");
+        Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        viewModel.ToggleProviderCommand.Execute("codex");
+        Assert.Empty(viewModel.SelectedProviders);
+        Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
+        Assert.True(viewModel.ProviderChoices[0].IsChecked);
+    }
+
+    [Fact]
+    public void TheProviderButtonNamesOneOrTwoProvidersAndCountsThreeOrMore()
+    {
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = TwoProviderViewModel("stats-viewmodel-provider-button");
+            Assert.Equal("All providers", viewModel.ProviderButtonText);
+
+            viewModel.ToggleProviderCommand.Execute("claude");
+            Assert.Equal(StatsViewModel.ProviderDisplayNames["claude"], viewModel.ProviderButtonText);
+
+            viewModel.ToggleProviderCommand.Execute("codex");
+            Assert.Equal($"{StatsViewModel.ProviderDisplayNames["claude"]}, {StatsViewModel.ProviderDisplayNames["codex"]}", viewModel.ProviderButtonText);
+
+            viewModel.ToggleProviderCommand.Execute("gemini");
+            Assert.Equal("3 providers", viewModel.ProviderButtonText);
+
+            LocalizationService.Instance.SetLanguage("de");
+            viewModel.RefreshLanguage();
+            Assert.Equal("3 Anbieter", viewModel.ProviderButtonText);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
     }
 
     private static StatsViewModel ThreeModelViewModel(string name)

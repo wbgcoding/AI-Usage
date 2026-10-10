@@ -44,7 +44,7 @@ public sealed partial class StatsViewModel : ObservableObject
     public ObservableCollection<Choice<string>> RangeChoices { get; } = [];
     public ObservableCollection<Choice<StatsGrouping>> GroupingChoices { get; } = [];
     public ObservableCollection<Choice<StatsColorBy>> ColorByChoices { get; } = [];
-    public ObservableCollection<Choice<string>> ProviderChoices { get; } = [];
+    public ObservableCollection<StatsProviderOption> ProviderChoices { get; } = [];
 
     /// <summary>The row a ComboBox binds <c>SelectedItem</c> to - <see cref="Choice{TValue}"/> itself
     /// carries no such property, only <see cref="Choice{TValue}.IsSelected"/> on each row, so this
@@ -124,15 +124,14 @@ public sealed partial class StatsViewModel : ObservableObject
         if (Enum.TryParse<StatsColorBy>(colorBy, out var parsedColorBy) && Enum.IsDefined(parsedColorBy))
             SelectedColorBy = parsedColorBy;
 
-        if (provider is not null && ProviderChoices.Any(choice => choice.Value == provider))
-            SelectedProvider = provider;
+        if (provider is not null)
+            _selectedProviders = StatsProviderSelection.Parse(provider, ProviderCoverage.IndexedProviderIds);
 
         UpdateCustomChoiceLabel();
         Choice.Select(RangeChoices, SelectedRange);
         Choice.Select(GroupingChoices, SelectedGrouping);
         Choice.Select(ColorByChoices, SelectedColorBy);
-        Choice.Select(ProviderChoices, SelectedProvider);
-        OnPropertyChanged(nameof(SelectedProviderChoice));
+        SyncProviderOptions();
         OnPropertyChanged(nameof(SelectedRangeChoice));
         OnPropertyChanged(nameof(SelectedGroupingChoice));
         OnPropertyChanged(nameof(SelectedColorByChoice));
@@ -202,17 +201,6 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the provider filter.</summary>
-    public Choice<string>? SelectedProviderChoice
-    {
-        get => ProviderChoices.FirstOrDefault(choice => choice.IsSelected);
-        set
-        {
-            if (value is not null)
-                SetProviderCommand.Execute(value.Value);
-        }
-    }
-
     /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the color-by group.</summary>
     public Choice<StatsColorBy>? SelectedColorByChoice
     {
@@ -227,9 +215,45 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private string selectedRange = "Week";
 
-    /// <summary>The one provider every figure is limited to; empty for all providers.</summary>
-    [ObservableProperty]
-    private string selectedProvider = "";
+    /// <summary>The providers every figure is limited to, in the order of the provider list; empty
+    /// for all providers.</summary>
+    private List<string> _selectedProviders = [];
+
+    /// <summary>The providers every figure is limited to; empty for all providers.</summary>
+    public IReadOnlyList<string> SelectedProviders => _selectedProviders;
+
+    /// <summary>The provider filter as it is remembered between sessions: the ids joined by commas,
+    /// empty for all providers.</summary>
+    public string SelectedProvider => StatsProviderSelection.Format(_selectedProviders);
+
+    /// <summary>True while some providers, not all, are selected.</summary>
+    public bool HasProviderFilter => _selectedProviders.Count > 0;
+
+    /// <summary>The text of the provider drop-down button: all providers, one or two names, or the
+    /// number of selected providers.</summary>
+    public string ProviderButtonText
+    {
+        get
+        {
+            var loc = LocalizationService.Instance;
+            if (_selectedProviders.Count == 0)
+                return loc["Stats.Filter.AllProviders"];
+            if (_selectedProviders.Count <= 2)
+                return string.Join(", ", _selectedProviders.Select(id => ProviderDisplayNames.GetValueOrDefault(id, id)));
+            return string.Format(CultureInfo.CurrentCulture, loc["Stats.Filter.ProviderCount"], _selectedProviders.Count);
+        }
+    }
+
+    /// <summary>Brings the check boxes, the button text and the remembered text in line with the selection.</summary>
+    private void SyncProviderOptions()
+    {
+        foreach (var option in ProviderChoices)
+            option.SetChecked(option.Value.Length == 0 ? _selectedProviders.Count == 0 : _selectedProviders.Contains(option.Value));
+        OnPropertyChanged(nameof(SelectedProviders));
+        OnPropertyChanged(nameof(SelectedProvider));
+        OnPropertyChanged(nameof(HasProviderFilter));
+        OnPropertyChanged(nameof(ProviderButtonText));
+    }
 
     /// <summary>The model (its display name) a click narrowed every figure to; empty for none. Not
     /// remembered between sessions.</summary>
@@ -869,10 +893,10 @@ public sealed partial class StatsViewModel : ObservableObject
         ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Agent", StatsColorBy.Agent));
         Choice.Select(ColorByChoices, SelectedColorBy);
 
-        ProviderChoices.Add(new Choice<string>("Stats.Filter.AllProviders", ""));
+        ProviderChoices.Add(new StatsProviderOption("Stats.Filter.AllProviders"));
         foreach (var id in ProviderCoverage.IndexedProviderIds)
-            ProviderChoices.Add(Choice.WithFixedLabel(ProviderDisplayNames.GetValueOrDefault(id, id), id));
-        Choice.Select(ProviderChoices, SelectedProvider);
+            ProviderChoices.Add(new StatsProviderOption(id, ProviderDisplayNames.GetValueOrDefault(id, id)));
+        SyncProviderOptions();
 
         // Nothing is read here: the window loads once it is shown (see StatsWindow), so opening it
         // never waits on the database.
@@ -926,29 +950,49 @@ public sealed partial class StatsViewModel : ObservableObject
             RecomputeFrom(_sourceRecords);
     }
 
-    /// <summary>Limits every figure to one provider, or back to all of them with an empty id. The
-    /// records are already in memory, so everything is rebuilt from them.</summary>
+    /// <summary>Limits every figure to exactly the given provider (a stored selection text is
+    /// accepted too), or back to all of them with an empty id. The records are already in memory,
+    /// so everything is rebuilt from them.</summary>
     [RelayCommand]
-    private void SetProvider(string provider)
+    private void SetProvider(string provider) =>
+        ApplyProviderSelection(StatsProviderSelection.Parse(provider, ProviderCoverage.IndexedProviderIds));
+
+    /// <summary>A click on one check box of the provider drop-down: the "all providers" row clears
+    /// the others, a provider row adds or removes that provider, and taking out the last one
+    /// means all providers again.</summary>
+    [RelayCommand]
+    private void ToggleProvider(string provider)
     {
-        if (provider == SelectedProvider)
+        if (provider.Length == 0)
+        {
+            ApplyProviderSelection([]);
             return;
-        SelectedProvider = provider;
-        Choice.Select(ProviderChoices, SelectedProvider);
-        OnPropertyChanged(nameof(SelectedProviderChoice));
-        if (_recordsLoaded)
+        }
+
+        var wanted = _selectedProviders.Contains(provider)
+            ? _selectedProviders.Where(id => id != provider)
+            : _selectedProviders.Append(provider);
+        ApplyProviderSelection(StatsProviderSelection.Parse(StatsProviderSelection.Format(wanted), ProviderCoverage.IndexedProviderIds));
+    }
+
+    private void ApplyProviderSelection(List<string> selection)
+    {
+        var changed = !selection.SequenceEqual(_selectedProviders);
+        _selectedProviders = selection;
+        SyncProviderOptions();
+        if (changed && _recordsLoaded)
             RecomputeFrom(_sourceRecords);
     }
 
     /// <summary>Keeps what the active filters let through.</summary>
     private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all)
     {
-        if (SelectedProvider.Length == 0 && !HasAnyFilter)
+        if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
         var noProject = LocalizationService.Instance["Stats.NoProject"];
         return all.Where(record =>
-                (SelectedProvider.Length == 0 || record.Provider == SelectedProvider)
+                (!HasProviderFilter || _selectedProviders.Contains(record.Provider))
                 && (!HasModelFilter || ModelDisplayNames.Resolve(record.Model) == SelectedModelFilter)
                 && (!HasProjectFilter || MatchesProject(record.Project, noProject)))
             .ToList();
@@ -956,12 +1000,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
     private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all)
     {
-        if (SelectedProvider.Length == 0 && !HasAnyFilter)
+        if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
         var noProject = LocalizationService.Instance["Stats.NoProject"];
         return all.Where(session =>
-                (SelectedProvider.Length == 0 || session.Provider == SelectedProvider)
+                (!HasProviderFilter || _selectedProviders.Contains(session.Provider))
                 && (!HasModelFilter || ModelDisplayNames.Resolve(session.MainModel) == SelectedModelFilter)
                 && (!HasProjectFilter || MatchesProject(session.Project, noProject)))
             .ToList();
@@ -1362,7 +1406,7 @@ public sealed partial class StatsViewModel : ObservableObject
             ? DateTimeOffset.MinValue
             : new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue));
         var end = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue));
-        IEnumerable<string> providerIds = SelectedProvider.Length > 0 ? [SelectedProvider] : ProviderCoverage.AllProviderIds;
+        IEnumerable<string> providerIds = HasProviderFilter ? _selectedProviders : ProviderCoverage.AllProviderIds;
         var series = providerIds.Select(id => (id, LoadHistory(id, start, end))).ToList();
         return StatsLimitsAggregator.Build(series)
             .GroupBy(row => row.ProviderId)
@@ -1513,6 +1557,7 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in ProviderChoices)
             choice.RefreshLabel();
+        OnPropertyChanged(nameof(ProviderButtonText));
         OnPropertyChanged(nameof(ModelFilterText));
         OnPropertyChanged(nameof(ProjectFilterText));
         UpdateCustomChoiceLabel();

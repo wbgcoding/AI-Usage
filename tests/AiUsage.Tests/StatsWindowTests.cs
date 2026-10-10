@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -570,6 +571,26 @@ public class StatsWindowTests
             Assert.Same(colorRow, body.Children[0]);
             Assert.Equal(HorizontalAlignment.Right, colorRow.HorizontalAlignment);
             Assert.Equal(4, colorRow.Margin.Top);
+        });
+    }
+
+    [Fact]
+    public void The_provider_filter_is_a_named_drop_down_button_that_ignores_the_click_while_its_list_is_open()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(window.ProviderButton)));
+            Assert.NotNull(window.ProviderButton.ToolTip);
+            Assert.Equal(window.ProviderButton, window.ProviderPopup.PlacementTarget);
+            Assert.True(window.ProviderButton.IsHitTestVisible);
+
+            // While the list is open the button must not take the click that closes the list.
+            var trigger = Assert.Single(window.ProviderButton.Style.Triggers.OfType<DataTrigger>());
+            Assert.Equal("True", trigger.Value?.ToString());
+            Assert.Equal("ProviderPopup", ((Binding)trigger.Binding).ElementName);
+            var setter = Assert.Single(trigger.Setters.OfType<Setter>());
+            Assert.Equal(UIElement.IsHitTestVisibleProperty, setter.Property);
+            Assert.Equal("False", setter.Value?.ToString());
         });
     }
 

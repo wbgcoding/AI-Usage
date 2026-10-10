@@ -233,8 +233,9 @@ public sealed class AppSettings
     /// cref="Stats.StatsColorBy"/> name); anything else reads back as Provider.</summary>
     public string StatsColorBy { get; set; } = "Provider";
 
-    /// <summary>The provider the statistics window was limited to (a provider id); empty for all
-    /// providers. An id that is not indexed reads back as all providers.</summary>
+    /// <summary>The providers the statistics window was limited to: provider ids joined by commas;
+    /// empty for all providers. One id (an older value) is a one-item list, an id that is not
+    /// indexed is dropped.</summary>
     public string StatsProvider { get; set; } = "";
 
     /// <summary>The first and last day of the custom range; only read while <see cref="StatsRange"/>

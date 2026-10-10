@@ -78,6 +78,57 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <!-- The provider filter's drop-down button: the closed look of the app's combo boxes (surface,
+             outline, accent outline on hover or focus, arrow), but a plain toggle, so the list that
+             opens can hold check boxes. While the list is open the button ignores the pointer, so a
+             click on it closes the list instead of closing and reopening it. -->
+        <Style x:Key="ProviderDropDownButton" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Margin" Value="16,0,0,0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Root" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" TextElement.Foreground="{TemplateBinding Foreground}"
+                                                  VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <Path Grid.Column="1" Width="10" Height="10" Stretch="Uniform" Margin="8,0,0,0" VerticalAlignment="Center"
+                                      Data="F1 M 12.983,16.313 L 11.017,17.687 L 4.017,7.687 L 5.983,6.313 Z M 11.017,16.313 L 12.983,17.687 L 19.983,7.687 L 18.017,6.313 Z"
+                                      Fill="{DynamicResource Text.Secondary}"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOpen, ElementName=ProviderPopup}" Value="True">
+                    <Setter Property="IsHitTestVisible" Value="False"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <!-- The day-detail hint line: shown only until a day is actually picked, then the four
              columns of real numbers replace it. -->
         <Style x:Key="DayDetailHint" TargetType="TextBlock">
@@ -121,10 +172,32 @@
                                           SelectedItem="{Binding SelectedRangeChoice, Mode=TwoWay}" MinWidth="80"
                                           ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Range]}"
                                           AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"/>
-                                <ComboBox x:Name="ProviderCombo" ItemsSource="{Binding ProviderChoices}"
-                                          SelectedItem="{Binding SelectedProviderChoice, Mode=TwoWay}" MinWidth="80" Margin="16,0,0,0"
-                                          ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Provider]}"
-                                          AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}"/>
+                                <!-- A drop-down button that looks like the combo boxes beside it and opens a
+                                     list of check boxes, so several providers can be picked at once. -->
+                                <ToggleButton x:Name="ProviderButton" Style="{StaticResource ProviderDropDownButton}"
+                                              IsChecked="{Binding IsOpen, ElementName=ProviderPopup, Mode=TwoWay}"
+                                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Provider]}"
+                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}">
+                                    <TextBlock Text="{Binding ProviderButtonText}" TextTrimming="CharacterEllipsis"/>
+                                </ToggleButton>
+                                <Popup x:Name="ProviderPopup" PlacementTarget="{Binding ElementName=ProviderButton}" Placement="Bottom"
+                                       StaysOpen="False" AllowsTransparency="True" PopupAnimation="None">
+                                    <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                            CornerRadius="{StaticResource Radius.Control}" Padding="8,4"
+                                            MinWidth="{Binding ActualWidth, ElementName=ProviderButton}">
+                                        <ItemsControl ItemsSource="{Binding ProviderChoices}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Margin="0,4" Content="{Binding Label}"
+                                                              IsChecked="{Binding IsChecked, Mode=OneWay}"
+                                                              Command="{Binding DataContext.ToggleProviderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                              CommandParameter="{Binding Value}"
+                                                              AutomationProperties.Name="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Border>
+                                </Popup>
                                 <!-- The two days of a custom range, asked for under the range list. -->
                                 <Popup x:Name="CustomRangePopup" PlacementTarget="{Binding ElementName=RangeCombo}" Placement="Bottom"
                                        StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
