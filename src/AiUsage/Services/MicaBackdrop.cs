@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace AiUsage.Services;
 
@@ -74,6 +75,32 @@ internal sealed class MicaController(IntPtr hwnd, IDwmBackdropApi dwm, Action<bo
             return false;
         }
 
+        if (!TryApply(dark))
+            return false;
+
+        IsActive = true;
+        setTransparentBackground(true);
+        return true;
+    }
+
+    /// <summary>Makes exactly the window manager calls a switch off and on again makes, without the
+    /// background swap in between, so a window that took the attributes before it was ever shown can
+    /// set them again once it is on screen. Does nothing while Mica is not active; a failing call
+    /// falls back to the opaque background like <see cref="Update"/>. Returns whether Mica is showing
+    /// afterwards.</summary>
+    public bool Reapply(bool dark)
+    {
+        if (!IsActive)
+            return false;
+
+        Undo();
+        return TryApply(dark);
+    }
+
+    /// <summary>Sets dark mode, the backdrop and the frame extension; on any failure undoes them,
+    /// restores the opaque background and logs once. Returns whether all of it was set.</summary>
+    private bool TryApply(bool dark)
+    {
         var ok = false;
         string? failure = null;
         try
@@ -89,23 +116,19 @@ internal sealed class MicaController(IntPtr hwnd, IDwmBackdropApi dwm, Action<bo
             failure = ex.Message;
         }
 
-        if (!ok)
-        {
-            Undo();
-            IsActive = false;
-            setTransparentBackground(false);
-            if (!_logged)
-            {
-                _logged = true;
-                log($"Mica background not applied: {failure}.");
-            }
+        if (ok)
+            return true;
 
-            return false;
+        Undo();
+        IsActive = false;
+        setTransparentBackground(false);
+        if (!_logged)
+        {
+            _logged = true;
+            log($"Mica background not applied: {failure}.");
         }
 
-        IsActive = true;
-        setTransparentBackground(true);
-        return true;
+        return false;
     }
 
     private void Undo()
@@ -153,7 +176,7 @@ internal static class MicaBackdrop
     /// <summary>Starts managing one real window. Called once per window: the widget when it begins to
     /// follow the opacity setting, every other window when its chrome is set up. Only a window that
     /// follows the opacity setting loses Mica to a translucent opacity; the others are always opaque.</summary>
-    public static void Attach(HwndSource source, bool followsOpacity = true)
+    public static void Attach(HwndSource source, bool followsOpacity = true, bool alreadyRendered = false)
     {
         if (source.RootVisual is not Window window)
         {
@@ -162,7 +185,7 @@ internal static class MicaBackdrop
             {
                 source.ContentRendered -= Retry;
                 if (source.RootVisual is Window)
-                    Attach(source, followsOpacity);
+                    Attach(source, followsOpacity, alreadyRendered: true);
             }
 
             source.ContentRendered += Retry;
@@ -184,6 +207,27 @@ internal static class MicaBackdrop
         }
 
         Update(controller, followsOpacity);
+
+        // The attributes set before the window was first shown can come out with a wrong tint; set
+        // them once more when the first frame is up (the window is on screen by the time the
+        // background-priority callback runs).
+        void ReapplyOnScreen() =>
+            window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => Reapply(controller, followsOpacity));
+
+        if (alreadyRendered)
+        {
+            ReapplyOnScreen();
+        }
+        else
+        {
+            void FirstRender(object? sender, EventArgs e)
+            {
+                window.ContentRendered -= FirstRender;
+                ReapplyOnScreen();
+            }
+
+            window.ContentRendered += FirstRender;
+        }
     }
 
     /// <summary>Re-checks every managed window against the current theme, opacity, contrast mode and
@@ -196,10 +240,22 @@ internal static class MicaBackdrop
 
     private static void Update(MicaController controller, bool followsOpacity)
     {
+        var (wanted, dark) = Resolve(followsOpacity);
+        controller.Update(wanted, dark);
+    }
+
+    private static void Reapply(MicaController controller, bool followsOpacity)
+    {
+        var (wanted, dark) = Resolve(followsOpacity);
+        if (wanted)
+            controller.Reapply(dark);
+    }
+
+    private static (bool Wanted, bool Dark) Resolve(bool followsOpacity)
+    {
         var wanted = MicaPolicy.ShouldApply(Environment.OSVersion.Version.Build, ThemeService.CurrentTheme,
             followsOpacity ? WindowOpacity.CurrentPercent : 100, SystemParameters.HighContrast, _enabled);
-        var dark = wanted && !ThemeService.IsWindowsUsingLightTheme();
-        controller.Update(wanted, dark);
+        return (wanted, wanted && !ThemeService.IsWindowsUsingLightTheme());
     }
 
     private static void SetTransparentBackground(Window window, HwndSource source, bool transparent, Color originalBackground)

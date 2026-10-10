@@ -190,6 +190,53 @@ public class MicaBackdropTests
     }
 
     [Fact]
+    public void Reapply_makes_the_calls_of_a_switch_off_and_on_without_a_background_swap()
+    {
+        var (controller, dwm, transparent, log) = Build();
+        controller.Update(true, true);
+        dwm.Calls.Clear();
+        transparent.Clear();
+
+        var active = controller.Reapply(dark: false);
+
+        Assert.True(active);
+        Assert.True(controller.IsActive);
+        Assert.Equal(["backdrop 1", "frame False", "dark False", "backdrop 2", "frame True"], dwm.Calls);
+        Assert.Empty(transparent);
+        Assert.Empty(log);
+    }
+
+    [Fact]
+    public void Reapply_does_nothing_while_mica_is_not_active()
+    {
+        var (controller, dwm, transparent, _) = Build();
+
+        var active = controller.Reapply(dark: true);
+
+        Assert.False(active);
+        Assert.Empty(dwm.Calls);
+        Assert.Empty(transparent);
+    }
+
+    [Fact]
+    public void A_failing_reapply_falls_back_to_the_opaque_background_and_logs_once()
+    {
+        var (controller, dwm, transparent, log) = Build();
+        controller.Update(true, false);
+        transparent.Clear();
+        dwm.FrameResult = 1;
+
+        var active = controller.Reapply(dark: false);
+        controller.Update(true, false);
+
+        Assert.False(active);
+        Assert.False(controller.IsActive);
+        Assert.Equal([false, false], transparent);
+        Assert.Contains("frame False", dwm.Calls);
+        Assert.Single(log);
+    }
+
+    [Fact]
     public void Staying_off_makes_no_window_manager_call()
     {
         var (controller, dwm, transparent, _) = Build();
