@@ -1673,10 +1673,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ClickThrough = source.ClickThrough;
         _settings.TrayProvider = source.TrayProvider;
         _settings.TrayWindow = source.TrayWindow;
-        // Statistics window arrangement: only read when that window opens, so a copy here never
-        // fights a live window.
+        // Statistics window arrangement and view choices: only read when that window opens, so a copy
+        // here never fights a live window.
         _settings.StatsSectionLayout = source.StatsSectionLayout?.Select(row => new Stats.StatsLayoutRow { Left = [.. row.Left], Right = [.. row.Right] }).ToList();
         _settings.StatsSectionsCollapsed = new Dictionary<string, bool>(source.StatsSectionsCollapsed ?? []);
+        _settings.StatsRange = source.StatsRange;
+        _settings.StatsGrouping = source.StatsGrouping;
+        _settings.StatsColorBy = source.StatsColorBy;
+        _settings.StatsProvider = source.StatsProvider;
+        _settings.StatsCustomFrom = source.StatsCustomFrom;
+        _settings.StatsCustomTo = source.StatsCustomTo;
         var previousProviders = _settings.Providers;
         _settings.Providers = source.Providers ?? AppSettings.CreateDefaultProviders();
         // A sign-out belongs to this machine (its browser profile is already gone), so neither a reset

@@ -823,6 +823,43 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Reset_and_import_carry_the_token_usage_view_choices()
+    {
+        var sourceSettings = new AppSettings
+        {
+            StatsRange = "Month",
+            StatsGrouping = "Model",
+            StatsColorBy = "Model",
+            StatsProvider = "codex",
+            StatsCustomFrom = new DateOnly(2026, 3, 1),
+            StatsCustomTo = new DateOnly(2026, 3, 20),
+        };
+        var exportPath = Path.Combine(TempDirectory(), "export-stats-view.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(new AppSettings(), askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal("Month", targetSettings.StatsRange);
+        Assert.Equal("Model", targetSettings.StatsGrouping);
+        Assert.Equal("Model", targetSettings.StatsColorBy);
+        Assert.Equal("codex", targetSettings.StatsProvider);
+        Assert.Equal(new DateOnly(2026, 3, 1), targetSettings.StatsCustomFrom);
+        Assert.Equal(new DateOnly(2026, 3, 20), targetSettings.StatsCustomTo);
+
+        targetVm.ResetToDefaults();
+
+        var defaults = new AppSettings();
+        Assert.Equal(defaults.StatsRange, targetSettings.StatsRange);
+        Assert.Equal(defaults.StatsGrouping, targetSettings.StatsGrouping);
+        Assert.Equal(defaults.StatsColorBy, targetSettings.StatsColorBy);
+        Assert.Equal(defaults.StatsProvider, targetSettings.StatsProvider);
+        Assert.Equal(defaults.StatsCustomFrom, targetSettings.StatsCustomFrom);
+        Assert.Equal(defaults.StatsCustomTo, targetSettings.StatsCustomTo);
+    }
+
+    [Fact]
     public void AnImportedThemeNameInAnyLetterCaseIsAppliedLive()
     {
         var sourceSettings = new AppSettings { Theme = "light" };
