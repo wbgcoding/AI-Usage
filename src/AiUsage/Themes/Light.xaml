@@ -3,6 +3,8 @@
     <!-- Light. -->
     <SolidColorBrush x:Key="Bg.Base" Color="#F1F2F6"/>
     <SolidColorBrush x:Key="Bg.Surface" Color="#FFFFFF"/>
+    <!-- Drop-downs, menus and tooltips: never the see-through Mica card color. -->
+    <SolidColorBrush x:Key="Bg.Popup" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Bg.Raised" Color="#F6F7FA"/>
     <SolidColorBrush x:Key="Border" Color="#D5D6DE"/>
     <SolidColorBrush x:Key="Border.Window" Color="#E4E4EA"/>

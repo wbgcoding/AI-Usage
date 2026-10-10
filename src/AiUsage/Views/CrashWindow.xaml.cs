@@ -51,6 +51,7 @@ public partial class CrashWindow : Window
         SeedIfMissing("Bg.Base", new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x1B)));
         SeedIfMissing("Bg.Window", new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x1B)));
         SeedIfMissing("Bg.Surface", new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x23)));
+        SeedIfMissing("Bg.Popup", new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x23)));
         SeedIfMissing("Bg.Raised", new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x2A)));
         SeedIfMissing("Border.Window", new SolidColorBrush(Color.FromRgb(0x0E, 0x0E, 0x10)));
         SeedIfMissing("Text.Primary", new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF5)));

@@ -267,7 +267,7 @@
     <!-- The tile's right-click menu (and any future one): the same surface/border tokens as every
          other floating panel in this app, never the native white Windows menu. -->
     <Style TargetType="ContextMenu">
-        <Setter Property="Background" Value="{DynamicResource Bg.Surface}"/>
+        <Setter Property="Background" Value="{DynamicResource Bg.Popup}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="4"/>
@@ -319,7 +319,7 @@
                             </DockPanel>
                             <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-2" AllowsTransparency="True" Focusable="False"
                                    PopupAnimation="None" IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
-                                <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                         CornerRadius="{StaticResource Radius.Control}" Padding="4">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
                                 </Border>
@@ -364,7 +364,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
-                    <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                    <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}"
                             BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="8,4">
                         <ContentPresenter/>
                     </Border>
@@ -496,7 +496,7 @@
                                  drop-down's own text look smeared next to every other text in the app.
                                  The border alone separates the list from what is behind it, the same
                                  trade the window frame (WindowChrome below) already made. -->
-                            <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                     CornerRadius="{StaticResource Radius.Control}" Padding="4"
                                     MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
@@ -804,7 +804,7 @@
                         </DataTemplate>
                     </ControlTemplate.Resources>
                     <Grid x:Name="PART_Root">
-                        <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                        <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                 CornerRadius="{StaticResource Radius.Control}" Padding="8">
                             <Grid>
                                 <Grid.ColumnDefinitions>

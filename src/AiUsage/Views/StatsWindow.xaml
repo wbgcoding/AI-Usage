@@ -123,7 +123,7 @@
                                 <Popup x:Name="CustomRangePopup" PlacementTarget="{Binding ElementName=RangeCombo}" Placement="Bottom"
                                        StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                        Closed="CustomRangePopup_Closed">
-                                    <Border x:Name="CustomRangePanel" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                    <Border x:Name="CustomRangePanel" Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}"
                                             BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="12">
                                         <StackPanel MinWidth="180">
                                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"
