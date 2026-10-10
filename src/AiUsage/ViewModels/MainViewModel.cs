@@ -1186,7 +1186,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (snapshot.Status is ProviderStatus.Failed or ProviderStatus.Blocked or ProviderStatus.NotSignedIn && !repeatedNotSignedIn)
         {
             var reasonWord = snapshot.SkipReasonWord is { Length: > 0 } word ? $" ({word})" : "";
-            _logService?.LogInfo($"Provider '{snapshot.ProviderId}' {snapshot.Status}: {snapshot.Error?.ReasonKey ?? "(default)"}{reasonWord}.");
+            // Kind and HTTP code say why a read failed without a token or a body, so a log alone can
+            // tell a refusal from a timeout or a server error.
+            var failure = snapshot.Error is { } error && (error.Kind != FailureKind.Other || error.HttpStatus is not null)
+                ? $" [{error.Kind}{(error.HttpStatus is { } code ? $" {code}" : "")}]"
+                : "";
+            _logService?.LogInfo($"Provider '{snapshot.ProviderId}' {snapshot.Status}: {snapshot.Error?.ReasonKey ?? "(default)"}{reasonWord}{failure}.");
         }
 
         void Tail()
