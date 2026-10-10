@@ -137,6 +137,10 @@ internal static class ReviewSurfaces
                 context.OutputPath("stats.projects"), minWidth: context.Size == SizeKind.Min,
                 configure: viewModel => viewModel.SetGroupingCommand.Execute(StatsGrouping.Project)), HasMinSize: true),
             Heatmap("stats.heatmap.provider", StatsColorBy.Provider),
+            new("stats.models", GroupStats, context => Program.RenderStatistics(
+                context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
+                context.OutputPath("stats.models"), minWidth: context.Size == SizeKind.Min,
+                configure: viewModel => viewModel.SetColorByCommand.Execute(StatsColorBy.Model)), HasMinSize: true),
             Heatmap("stats.heatmap.model", StatsColorBy.Model),
             Heatmap("stats.heatmap.agent", StatsColorBy.Agent),
         };
