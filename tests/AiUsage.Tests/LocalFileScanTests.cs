@@ -5,12 +5,8 @@ namespace AiUsage.Tests;
 public class LocalFileScanTests : IDisposable
 {
     [Fact]
-    public void The_newest_file_is_selected_even_when_it_is_last_in_enumeration_order()
+    public void Only_the_newest_files_are_kept_and_returned_newest_first()
     {
-        // 100 synthetic paths, oldest-to-newest in ENUMERATION order (the real file system's own
-        // order, unrelated to write time) - the newest file is therefore the very last one touched.
-        // The old bounding logic took only the first maxFiles entries out of the enumeration and
-        // never saw this one at all.
         var root = TempDirectory();
         var now = DateTime.UtcNow;
         var paths = new List<string>();
@@ -22,27 +18,24 @@ public class LocalFileScanTests : IDisposable
             paths.Add(path);
         }
 
-        var newestPath = paths[^1];
-        var result = LocalFileScan.NewestFiles(paths, maxFiles: 5);
+        var result = LocalFileScan.NewestFiles(root, "*", maxDepth: 0, maxFiles: 5);
 
-        Assert.Contains(result, f => f.FullName == newestPath);
-        Assert.Equal(newestPath, result[0].FullName);
+        Assert.Equal(paths.AsEnumerable().Reverse().Take(5), result.Select(f => f.FullName));
     }
 
     [Fact]
     public void A_tree_past_the_touched_entry_ceiling_stops_walking_instead_of_scanning_everything()
     {
-        var touched = 0;
-        IEnumerable<string> CountingPaths()
-        {
-            for (var i = 0; i < 10_000; i++)
-            {
-                touched++;
-                yield return $"path-{i}.txt";
-            }
-        }
+        var root = TempDirectory();
+        for (var i = 0; i < 5100; i++)
+            File.WriteAllText(Path.Combine(root, $"file-{i}.txt"), "x");
 
-        LocalFileScan.NewestFiles(CountingPaths(), maxFiles: 40, isExcluded: _ => true);
+        var touched = 0;
+        LocalFileScan.NewestFiles(root, "*", maxDepth: 0, maxFiles: 40, isExcluded: _ =>
+        {
+            touched++;
+            return true;
+        });
 
         Assert.Equal(5000, touched);
     }

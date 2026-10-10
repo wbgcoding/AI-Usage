@@ -157,10 +157,6 @@
   <data name="Stats.Section.Figures" xml:space="preserve"><value>Kennzahlen</value></data>
   <data name="Stats.Total" xml:space="preserve"><value>Gesamt</value></data>
   <data name="Stats.Section.Breakdown" xml:space="preserve"><value>Aufschlüsselung</value></data>
-  <data name="Stats.Input" xml:space="preserve"><value>Eingabe</value></data>
-  <data name="Stats.Output" xml:space="preserve"><value>Ausgabe</value></data>
-  <data name="Stats.Cached" xml:space="preserve"><value>Zwischengespeichert</value></data>
-  <data name="Stats.LabelValue" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="Stats.ByDay" xml:space="preserve"><value>Tag</value></data>
   <data name="Stats.ByWeek" xml:space="preserve"><value>Woche</value></data>
   <data name="Stats.ByModel" xml:space="preserve"><value>Modell</value></data>
@@ -171,7 +167,6 @@
   <data name="Tile.Hide" xml:space="preserve"><value>Diesen Anbieter ausblenden</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Diesen Anbieter einblenden</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Quelle: {0}</value></data>
-  <data name="Tile.RefreshHint" xml:space="preserve"><value>Diesen Anbieter jetzt aktualisieren</value></data>
   <data name="Eye.Menu" xml:space="preserve"><value>Anbieter und Darstellung</value></data>
   <data name="Eye.HiddenCount" xml:space="preserve"><value>{0} ausgeblendet</value></data>
   <data name="Eye.MoveUp" xml:space="preserve"><value>Nach oben</value></data>
@@ -347,8 +342,6 @@
   <data name="Stats.RingCompact.Billion" xml:space="preserve"><value> Mrd</value></data>
   <data name="Stats.Ring.Largest" xml:space="preserve"><value>Größter Anteil: {0}, {1}</value></data>
   <data name="Tile.SnapshotAge" xml:space="preserve"><value>Stand der Daten: vor {0}</value></data>
-  <data name="Stats.Chart.PerDay" xml:space="preserve"><value>Pro Tag</value></data>
-  <data name="Stats.Chart.PerWeek" xml:space="preserve"><value>Pro Woche</value></data>
   <data name="Stats.Chart.ByProvider" xml:space="preserve"><value>Anteil je Anbieter</value></data>
   <data name="Stats.Chart.ByModel" xml:space="preserve"><value>Anteil je Modell</value></data>
   <data name="Stats.Chart.ByEffort" xml:space="preserve"><value>Anteil je Effort-Stufe</value></data>
@@ -383,13 +376,10 @@
   <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Hauptmodell: {0}</value></data>
   <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Aktiv: {0}</value></data>
   <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sitzungen: {0}</value></data>
-  <data name="Stats.Chart.ByWeekday" xml:space="preserve"><value>Nach Wochentag</value></data>
-  <data name="Stats.Chart.ByHour" xml:space="preserve"><value>Nach Stunde</value></data>
   <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0 Uhr</value></data>
   <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6 Uhr</value></data>
   <data name="Stats.Hour.Axis12" xml:space="preserve"><value>12 Uhr</value></data>
   <data name="Stats.Hour.Axis18" xml:space="preserve"><value>18 Uhr</value></data>
-  <data name="Stats.Chart.ViewSwitch" xml:space="preserve"><value>Ansicht wählen</value></data>
   <data name="Settings.SignIn" xml:space="preserve"><value>Anmelden</value></data>
   <data name="Tip.Stats.Total" xml:space="preserve"><value>Alle Token im gewählten Zeitraum, über alle gezeigten Anbieter.</value></data>
   <data name="Tip.Stats.PerDay" xml:space="preserve"><value>Die Summe geteilt durch die Tage im Zeitraum, ab dem ersten erfassten Tag gezählt, nicht nur durch die Tage, an denen du gearbeitet hast.</value></data>

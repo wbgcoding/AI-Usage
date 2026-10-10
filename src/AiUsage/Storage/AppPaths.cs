@@ -92,10 +92,6 @@ public static class AppPaths
     /// root does not leak into whichever test happens to run in this process next.</summary>
     internal static void ClearPointerRootOverrideForTests() => _pointerRootOverride = null;
 
-    public static string SettingsFile => Path.Combine(DataDirectory, "settings.json");
-
-    public static string NotificationsFile => Path.Combine(DataDirectory, "notifications.json");
-
     public static string LogsDirectory => Path.Combine(DataDirectory, "logs");
 
     public static string HistoryFile(string accountKey) =>

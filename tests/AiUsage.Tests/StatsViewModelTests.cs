@@ -1298,16 +1298,6 @@ public class StatsViewModelTests
         Assert.Contains("RecomputeLoggedAsync()", source[start..end], StringComparison.Ordinal);
         Assert.Contains("await _viewModel.RecomputeAsync()", source, StringComparison.Ordinal);
     }
-
-    [Fact]
-    public void TheHeadlineLabelsAreComposedFromTheSharedLabelValueText()
-    {
-        using var dataDir = TestPaths.CreateDisposableDirectory("stats-vm-label-value");
-        var viewModel = StatsVm.Create(new StatsStore(dataDir));
-        var loc = AiUsage.Services.LocalizationService.Instance;
-
-        Assert.StartsWith(loc.Format("Stats.LabelValue", loc["Stats.Input"], ""), viewModel.InputText, StringComparison.Ordinal);
-    }
 }
 
 
@@ -1358,12 +1348,6 @@ public class StatsViewModelCaptionTests
             var viewModel = StatsVm.Create(store, vm => vm.SelectedRange = "Week");
             viewModel.Recompute();
 
-            Assert.Equal("Input: 946 M", viewModel.InputText);
-            Assert.Equal("945,804,386", viewModel.InputExact);
-            Assert.Equal("Output: 12.3 K", viewModel.OutputText);
-            Assert.Equal("12,345", viewModel.OutputExact);
-            Assert.Equal("Cached: 3.00 K", viewModel.CachedText);
-            Assert.Equal("3,000", viewModel.CachedExact);
             var claude = Assert.Single(viewModel.ProviderRows, row => row.DisplayName.Contains("Claude", StringComparison.OrdinalIgnoreCase));
             Assert.Equal("946 M", claude.ValueText);
             Assert.Equal("945,819,731", claude.ExactText);

@@ -41,23 +41,10 @@ public static class CountdownFormatter
         return Loc["Reset.LessThanMinute"];
     }
 
-    /// <summary>Relative text (see <see cref="Format"/>), then " · ", then the local wall-clock
-    /// instant the window resets at - the relative text alone answers "how long", the clock answers
-    /// "when exactly", which matters once that is more than a couple of hours out. Under 24h away
-    /// uses a bare time ("21:15"); 24h or more adds the weekday ("Mi 21:15"), six days or more the
-    /// short date ("22. Okt. 21:15"), all through
-    /// <see cref="CultureInfo.CurrentCulture"/> so the OS regional format decides the exact
-    /// rendering. Empty whenever <see cref="Format"/> itself would be empty (no known reset time).</summary>
-    public static string FormatWithClock(DateTimeOffset? resetsAt, DateTimeOffset now)
-    {
-        var relative = Format(resetsAt, now);
-        var clock = FormatClock(resetsAt, now);
-        return clock.Length == 0 ? relative : $"{relative} · {clock}";
-    }
-
-    /// <summary>Just the local clock portion of <see cref="FormatWithClock"/>, split out so <see
-    /// cref="ViewModels.UsageRowViewModel"/> can show it on its own (its "ClockText") without
-    /// re-deriving the day/hour math already done here.</summary>
+    /// <summary>The local wall-clock instant a window resets at: a bare time ("21:15") under 24h
+    /// away, with the weekday ("Mi 21:15") from 24h on, and the short date ("22. Okt. 21:15") from six
+    /// days on, all through <see cref="CultureInfo.CurrentCulture"/> so the OS regional format decides
+    /// the exact rendering. Empty when no reset time is known.</summary>
     internal static string FormatClock(DateTimeOffset? resetsAt, DateTimeOffset now) =>
         FormatClock(resetsAt, now, TimeZoneInfo.Local);
 

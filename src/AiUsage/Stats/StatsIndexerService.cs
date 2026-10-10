@@ -49,7 +49,7 @@ public sealed class StatsIndexerService : IDisposable
     public static StatsIndexerService? Shared { get; set; }
 
     public StatsIndexerService(StatsStore store, LogService? logService = null)
-        : this(token => new StatsIndexer(store, logService).IndexOnce(token), logService, resultAware: true)
+        : this(token => new StatsIndexer(store, logService).IndexOnce(token), logService)
     {
     }
 
@@ -61,18 +61,17 @@ public sealed class StatsIndexerService : IDisposable
         {
             runIndexOnce(token);
             return (StatsIndexResult?)null;
-        }, logService, resultAware: true)
+        }, logService)
     {
     }
 
     /// <summary>Test seam like the one above, but the stand-in reports what the walk did, so the
     /// "only announce a walk that read something" rule can be driven.</summary>
     internal static StatsIndexerService ForTest(Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null) =>
-        new(token => runIndexOnce(token), null, resultAware: true) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+        new(token => runIndexOnce(token), null) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
 
-    private StatsIndexerService(Func<CancellationToken, StatsIndexResult?> runIndexOnce, LogService? logService, bool resultAware)
+    private StatsIndexerService(Func<CancellationToken, StatsIndexResult?> runIndexOnce, LogService? logService)
     {
-        _ = resultAware; // only tells this constructor apart from the Action one
         _runIndexOnce = runIndexOnce;
         _logService = logService;
     }

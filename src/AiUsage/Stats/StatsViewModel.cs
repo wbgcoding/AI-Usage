@@ -445,26 +445,6 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private string activeDaysOfText = "";
 
-    // The breakdown figures are shortened ("946 M"); the *Exact twins hold the full number for the
-    // tooltip.
-    [ObservableProperty]
-    private string inputText = "";
-
-    [ObservableProperty]
-    private string inputExact = "";
-
-    [ObservableProperty]
-    private string outputText = "";
-
-    [ObservableProperty]
-    private string outputExact = "";
-
-    [ObservableProperty]
-    private string cachedText = "";
-
-    [ObservableProperty]
-    private string cachedExact = "";
-
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsBarChart.Bar> bars = [];
 
@@ -1296,13 +1276,6 @@ public sealed partial class StatsViewModel : ObservableObject
 
         LimitGroups = BuildLimitGroups(from, to, loc);
 
-        InputText = LabelValue(loc, "Stats.Input", ShortenTokens(summary.InputTokens, loc));
-        InputExact = summary.InputTokens.ToString("N0", CultureInfo.CurrentCulture);
-        OutputText = LabelValue(loc, "Stats.Output", ShortenTokens(summary.OutputTokens, loc));
-        OutputExact = summary.OutputTokens.ToString("N0", CultureInfo.CurrentCulture);
-        CachedText = LabelValue(loc, "Stats.Cached", ShortenTokens(summary.CacheTokens, loc));
-        CachedExact = summary.CacheTokens.ToString("N0", CultureInfo.CurrentCulture);
-
         // The two donut charts - provider stays in the fixed StackedProviderOrder (same colour
         // convention the stacked charts already use), model is sorted by size with everything past
         // the largest six pooled into one "Other"/"Andere" entry.
@@ -1493,9 +1466,6 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>How many characters of the project name a session bar's label keeps.</summary>
     private const int SessionBarProjectChars = 18;
-
-    private static string LabelValue(LocalizationService loc, string labelKey, string value) =>
-        loc.Format("Stats.LabelValue", loc[labelKey], value);
 
     /// <summary>The current period's own calendar-day length that the figures bar's "per day"
     /// average divides by: the fixed length <see cref="RangeStart"/> used for every named range, but

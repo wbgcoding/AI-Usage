@@ -4,31 +4,6 @@ using AiUsage.Models;
 namespace AiUsage.Services;
 
 /// <summary>
-/// The single highest usage row across a set of visible, numbered tiles: the one computation
-/// behind both the title bar summary (<see cref="AiUsage.ViewModels.MainViewModel"/>) and the tray
-/// icon/tooltip, pulled out so the two surfaces read the same provider, window kind, percent and
-/// level instead of picking it independently and only agreeing by coincidence. Each caller keeps
-/// its own row objects and formats the four fields its own way.
-/// </summary>
-public readonly record struct HighestUsageRow(string ProviderName, WindowKind Kind, double Percent, UsageLevel Level);
-
-public static class UsageHighlight
-{
-    /// <summary>Highest by <see cref="HighestUsageRow.Percent"/>; a tie keeps whichever row was
-    /// seen first, the same rule the previous separate implementations both used.</summary>
-    public static HighestUsageRow? Highest(IEnumerable<HighestUsageRow> rows)
-    {
-        HighestUsageRow? best = null;
-        foreach (var row in rows)
-        {
-            if (best is null || row.Percent > best.Value.Percent)
-                best = row;
-        }
-        return best;
-    }
-}
-
-/// <summary>
 /// Builds the tray icon's tooltip text: one line per visible provider,
 /// name, then each window's percentage. The shell's own <c>NOTIFYICONDATA.szTip</c> field hard-caps
 /// the tooltip at 127 characters - this shortens provider names to three characters once the full

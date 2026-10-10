@@ -19,21 +19,6 @@ internal static class LocalFileScan
     /// stops and returns whatever it has already selected.</summary>
     private const int MaxTouchedEntries = 5000;
 
-    /// <summary>
-    /// The actual bounding + selection logic, over any path sequence - split out from the file-system
-    /// walk above purely so a test can hand it a counting wrapper around the real enumeration and
-    /// prove the ceiling is respected, without needing to fake the file system itself. Every eligible
-    /// entry up to <see cref="MaxTouchedEntries"/> is looked at (one <see cref="FileInfo"/> stat each,
-    /// not a file open), but only the newest <paramref name="maxFiles"/> of them are ever held onto -
-    /// a bounded insert into a list kept sorted oldest-first, so memory stays proportional to
-    /// <paramref name="maxFiles"/> the whole walk through. <paramref name="isExcluded"/> is checked
-    /// per touched path and, when true, drops that file from the result without ever being compared
-    /// against the kept set - it still counts toward <see cref="MaxTouchedEntries"/>, since skipping
-    /// it is still a touch.
-    /// </summary>
-    internal static IReadOnlyList<FileInfo> NewestFiles(IEnumerable<string> candidatePaths, int maxFiles, Func<string, bool>? isExcluded = null) =>
-        SelectNewest(candidatePaths.Select(path => new FileInfo(path)), maxFiles, isExcluded);
-
     /// <summary>The selection over the candidate entries; each one is re-read from disk before it is
     /// compared, so what is kept (and later read by callers) is current.</summary>
     private static List<FileInfo> SelectNewest(IEnumerable<FileInfo> candidates, int maxFiles, Func<string, bool>? isExcluded)

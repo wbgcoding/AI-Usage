@@ -1,17 +1,18 @@
 using AiUsage.Models;
+using AiUsage.Providers;
 using AiUsage.Providers.Parsing;
 
 namespace AiUsage.Tests;
 
 /// <summary>
-/// GeminiWebUsageParser reads the same groups/buckets/remainingFraction shape
-/// <see cref="GeminiUsageParser"/> already reads from the Antigravity CLI's own sign-in (see that
-/// class's own remarks on why) - these tests prove the same real-shaped body, reached through the
-/// app's own browser session instead, still yields the two windows, and that an unrecognised shape
-/// yields none rather than a guessed number.
+/// The Gemini web endpoint reads the same groups/buckets/remainingFraction shape as
+/// <see cref="GeminiUsageParser"/>: a real-shaped body yields both windows, an unrecognised shape
+/// fails instead of showing a guessed number.
 /// </summary>
-public class GeminiWebUsageParserTests
+public class GeminiUsageEndpointTests
 {
+    private static readonly GeminiUsageEndpoint Endpoint = new();
+
     private const string QuotaSummary = """
         {
           "groups": [
@@ -29,8 +30,10 @@ public class GeminiWebUsageParserTests
     [Fact]
     public void A_real_shaped_body_becomes_both_windows()
     {
-        var windows = GeminiWebUsageParser.Parse(QuotaSummary);
+        var result = Endpoint.ParseBody(QuotaSummary);
+        var windows = result.Windows;
 
+        Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Equal(2, windows.Count);
         Assert.Equal(0, windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
         Assert.Equal(10, windows.Single(w => w.Kind == WindowKind.Weekly).UsedPercent, precision: 3);
@@ -43,6 +46,9 @@ public class GeminiWebUsageParserTests
     [InlineData("""{"error":"unauthorized"}""")]
     public void An_unknown_shape_yields_no_window_instead_of_a_guess(string json)
     {
-        Assert.Empty(GeminiWebUsageParser.Parse(json));
+        var result = Endpoint.ParseBody(json);
+
+        Assert.Equal(WebUsageOutcome.Failed, result.Outcome);
+        Assert.Empty(result.Windows);
     }
 }

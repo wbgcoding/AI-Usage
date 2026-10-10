@@ -936,9 +936,6 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private DateOnly? _focusedDay;
 
-    /// <summary>The day the keyboard focus sits on, null while the grid has no focus.</summary>
-    internal DateOnly? FocusedDay => _focusedDay;
-
     /// <summary>Where an arrow key moves the focus, or <paramref name="current"/> when it cannot move
     /// that way. Left and right step to the neighbouring column in the same row (the next or
     /// previous day in a single-row strip), up and down to the day above or below, wrapping into the

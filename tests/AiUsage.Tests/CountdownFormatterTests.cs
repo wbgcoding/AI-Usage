@@ -108,24 +108,6 @@ public class CountdownFormatterTests
     }
 
     [Fact]
-    public void ClockAppendedAsBareTimeWhenUnderOneDayAway()
-    {
-        var reset = Now + TimeSpan.FromMinutes(134);
-        var expectedClock = reset.ToLocalTime().ToString("t", CultureInfo.CurrentCulture);
-
-        Assert.Equal($"noch 2h 14m · {expectedClock}", CountdownFormatter.FormatWithClock(reset, Now));
-    }
-
-    [Fact]
-    public void ClockAppendedWithWeekdayWhenADayOrMoreAway()
-    {
-        var reset = Now + TimeSpan.FromHours(76);
-        var expectedClock = reset.ToLocalTime().ToString("ddd " + CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern, CultureInfo.CurrentCulture);
-
-        Assert.Equal($"noch 3d 4h · {expectedClock}", CountdownFormatter.FormatWithClock(reset, Now));
-    }
-
-    [Fact]
     public void AWeekdayClockUsesTheCulturesOwnTimeFormat()
     {
         var reset = new DateTimeOffset(2026, 10, 5, 23, 59, 0, TimeSpan.Zero);
@@ -177,10 +159,6 @@ public class CountdownFormatterTests
             CultureInfo.CurrentCulture = previous;
         }
     }
-
-    [Fact]
-    public void FormatWithClockStaysEmptyWithoutAKnownResetTime() =>
-        Assert.Equal("", CountdownFormatter.FormatWithClock(null, Now));
 
     // Format subtracts two DateTimeOffset values, which is absolute-time arithmetic - immune by
     // construction to a daylight-saving change, but that was never pinned by a test. These three

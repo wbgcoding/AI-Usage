@@ -4,7 +4,7 @@ namespace AiUsage.Providers;
 
 /// <summary>
 /// Gemini's half of a web-backed read: the scripts in <see cref="GeminiDiscoveryScript"/> and the
-/// quota shape <see cref="GeminiWebUsageParser"/> knows. Unlike <see cref="CodexUsageEndpoint"/> this
+/// quota shape <see cref="GeminiUsageParser"/> knows. Unlike <see cref="CodexUsageEndpoint"/> this
 /// needs no clock: the response's own reset instants already arrive as absolute timestamps.
 /// </summary>
 public sealed class GeminiUsageEndpoint : IWebUsageEndpoint
@@ -17,7 +17,7 @@ public sealed class GeminiUsageEndpoint : IWebUsageEndpoint
 
     public WebUsageResult ParseBody(string body)
     {
-        var windows = GeminiWebUsageParser.Parse(body);
+        var windows = GeminiUsageParser.Parse(body);
         return windows.Count == 0 ? WebUsageResult.Failed : new WebUsageResult(WebUsageOutcome.Ok, windows);
     }
 }

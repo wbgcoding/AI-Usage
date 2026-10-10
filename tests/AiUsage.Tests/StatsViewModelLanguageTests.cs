@@ -23,14 +23,12 @@ public class StatsViewModelLanguageTests
             var viewModel = StatsVm.Create(store);
             viewModel.ToggleSelectedDay(day);
             var rangeBefore = viewModel.RangeChoices[0].Label;
-            var inputBefore = viewModel.InputText;
             var headBefore = viewModel.SelectedDayHeadText;
 
             loc.SetLanguage("de");
             viewModel.RefreshLanguage();
 
             Assert.NotEqual(rangeBefore, viewModel.RangeChoices[0].Label);
-            Assert.NotEqual(inputBefore, viewModel.InputText);
             Assert.NotEqual(headBefore, viewModel.SelectedDayHeadText);
         }
         finally
