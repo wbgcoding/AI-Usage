@@ -4,6 +4,7 @@
          inherits from another, so a theme switch is a single dictionary swap. -->
     <SolidColorBrush x:Key="Bg.Base" Color="#1D1233"/>
     <SolidColorBrush x:Key="Bg.Surface" Color="#291A47"/>
+    <SolidColorBrush x:Key="Bg.TitleBar" Color="#291A47"/>
     <!-- Drop-downs, menus and tooltips: never the see-through Mica card color. -->
     <SolidColorBrush x:Key="Bg.Popup" Color="#291A47"/>
     <SolidColorBrush x:Key="Bg.Raised" Color="#352259"/>

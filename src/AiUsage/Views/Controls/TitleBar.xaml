@@ -50,7 +50,7 @@
          property. The drag/context-menu handlers move here with it, so the whole area stays hit-test
          visible (a plain Grid below with no background of its own would leave the gaps between its
          children unable to catch the mouse). -->
-    <Border Background="{DynamicResource Bg.Surface}" CornerRadius="{StaticResource Radius.Window.Top}"
+    <Border Background="{DynamicResource Bg.TitleBar}" CornerRadius="{StaticResource Radius.Window.Top}"
             MouseLeftButtonDown="TitleArea_MouseLeftButtonDown"
             ContextMenuOpening="TitleGrid_ContextMenuOpening">
         <!-- The window menu AllowsTransparency=True cost the app: right-click or Alt+Space (see

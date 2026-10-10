@@ -31,7 +31,7 @@ public class ThemeContrastTests
     // tokens to five.
     private static readonly string[] AllThemeFiles = ["Nebula.xaml", "Terminal.xaml", "Dark.xaml", "Light.xaml", "HighContrast.xaml"];
     private static readonly string[] TextTokens = ["Text.Primary", "Text.Secondary"];
-    private static readonly string[] SurfaceTokens = ["Bg.Base", "Bg.Surface", "Bg.Raised"];
+    private static readonly string[] SurfaceTokens = ["Bg.Base", "Bg.Surface", "Bg.TitleBar", "Bg.Raised"];
     private static readonly string[] LevelTokens = ["Level.Ok", "Level.Warn", "Level.Crit"];
 
     private static ResourceDictionary Load(string fileName)

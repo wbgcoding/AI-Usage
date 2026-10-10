@@ -7,6 +7,7 @@
          already running needs a re-apply (no window exists yet to wire that up). -->
     <SolidColorBrush x:Key="Bg.Base" Color="{x:Static SystemColors.WindowColor}"/>
     <SolidColorBrush x:Key="Bg.Surface" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Bg.TitleBar" Color="{x:Static SystemColors.WindowColor}"/>
     <!-- Drop-downs, menus and tooltips: never the see-through Mica card color. -->
     <SolidColorBrush x:Key="Bg.Popup" Color="{x:Static SystemColors.WindowColor}"/>
     <SolidColorBrush x:Key="Bg.Raised" Color="{x:Static SystemColors.ControlColor}"/>

@@ -3,6 +3,7 @@
     <!-- Dark (neutral grey). -->
     <SolidColorBrush x:Key="Bg.Base" Color="#18181B"/>
     <SolidColorBrush x:Key="Bg.Surface" Color="#202023"/>
+    <SolidColorBrush x:Key="Bg.TitleBar" Color="#202023"/>
     <!-- Drop-downs, menus and tooltips: never the see-through Mica card color. -->
     <SolidColorBrush x:Key="Bg.Popup" Color="#202023"/>
     <SolidColorBrush x:Key="Bg.Raised" Color="#28282C"/>

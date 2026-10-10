@@ -142,6 +142,7 @@ internal static class MicaBackdrop
 {
     private const string WindowKey = "Bg.Window";
     private const string SurfaceKey = "Bg.Surface";
+    private const string TitleBarKey = "Bg.TitleBar";
     private const byte CardAlpha = 0xE0; // 88 %
 
     private static readonly List<(MicaController Controller, bool FollowsOpacity)> Controllers = [];
@@ -290,6 +291,8 @@ internal static class MicaBackdrop
         if (transparent)
         {
             window.Resources[WindowKey] = Frozen(Colors.Transparent);
+            // The title bar shows the backdrop itself, like the title bar of a Windows 11 app.
+            window.Resources[TitleBarKey] = Frozen(Colors.Transparent);
             if (Application.Current?.Resources[SurfaceKey] is SolidColorBrush surface)
                 window.Resources[SurfaceKey] = Frozen(CardColor(surface.Color));
             if (source.CompositionTarget is { } target)
@@ -298,6 +301,7 @@ internal static class MicaBackdrop
         else
         {
             window.Resources.Remove(WindowKey);
+            window.Resources.Remove(TitleBarKey);
             window.Resources.Remove(SurfaceKey);
             if (source.CompositionTarget is { } target)
                 target.BackgroundColor = originalBackground;

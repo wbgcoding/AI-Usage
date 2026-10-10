@@ -3,6 +3,7 @@
     <!-- Terminal (green-on-black). -->
     <SolidColorBrush x:Key="Bg.Base" Color="#0A0E0A"/>
     <SolidColorBrush x:Key="Bg.Surface" Color="#0F150F"/>
+    <SolidColorBrush x:Key="Bg.TitleBar" Color="#0F150F"/>
     <!-- Drop-downs, menus and tooltips: never the see-through Mica card color. -->
     <SolidColorBrush x:Key="Bg.Popup" Color="#0F150F"/>
     <SolidColorBrush x:Key="Bg.Raised" Color="#141C14"/>

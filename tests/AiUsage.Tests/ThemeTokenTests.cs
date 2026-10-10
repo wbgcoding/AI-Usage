@@ -13,6 +13,7 @@ public class ThemeTokenTests
     {
         ["Bg.Base"] = typeof(SolidColorBrush),
         ["Bg.Surface"] = typeof(SolidColorBrush),
+        ["Bg.TitleBar"] = typeof(SolidColorBrush),
         ["Bg.Popup"] = typeof(SolidColorBrush),
         ["Bg.Raised"] = typeof(SolidColorBrush),
         ["Border"] = typeof(SolidColorBrush),
@@ -68,7 +69,7 @@ public class ThemeTokenTests
 
     [Theory]
     [MemberData(nameof(Themes))]
-    public void Every_theme_defines_no_more_and_no_less_than_the_twenty_five_tokens(string fileName)
+    public void Every_theme_defines_no_more_and_no_less_than_the_twenty_six_tokens(string fileName)
     {
         var dictionary = Load(fileName);
 
