@@ -1834,6 +1834,52 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
+    public void EmptyChartText_says_loading_until_the_first_load_and_the_empty_text_after()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-empty-text");
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = new StatsViewModel(new StatsStore(dataDir));
+            var changed = new List<string?>();
+            viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+            Assert.Equal(LocalizationService.Instance["StatsWindow.Loading"], viewModel.EmptyChartText);
+
+            viewModel.Recompute();
+
+            Assert.Equal(LocalizationService.Instance["Stats.Chart.Empty"], viewModel.EmptyChartText);
+            Assert.Contains(nameof(StatsViewModel.EmptyChartText), changed);
+
+            LocalizationService.Instance.SetLanguage("de");
+            changed.Clear();
+            viewModel.RefreshLanguage();
+
+            Assert.Equal(LocalizationService.Instance["Stats.Chart.Empty"], viewModel.EmptyChartText);
+            Assert.Contains(nameof(StatsViewModel.EmptyChartText), changed);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
+    public void A_rebuild_over_half_a_second_writes_one_log_line_and_a_quicker_one_none()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-slow-log");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+        viewModel.SetRangeCommand.ExecuteAsync("All").GetAwaiter().GetResult();
+        var logged = new List<string>();
+        viewModel.LogSlowRebuild = logged.Add;
+
+        viewModel.ReportRebuildDuration(TimeSpan.FromMilliseconds(500));
+        Assert.Empty(logged);
+
+        viewModel.ReportRebuildDuration(TimeSpan.FromMilliseconds(612));
+        Assert.Equal(["stats view Day/All: 612 ms"], logged);
+    }
+
+    [Fact]
     public async Task SessionGroupingFlagIsTrueOnlyForTheSessionGrouping()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-session-flag");

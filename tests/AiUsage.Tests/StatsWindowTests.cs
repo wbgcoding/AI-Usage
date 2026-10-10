@@ -506,6 +506,24 @@ public class StatsWindowTests
                 }
             }
 
+            // Warm pass: both ranges, every grouping, so a cold first rebuild does not hide the steady state.
+            long Timed(Func<Task> pick)
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                pick().GetAwaiter().GetResult();
+                root.Measure(new Size(1100, 800));
+                root.Arrange(new Rect(0, 0, 1100, 800));
+                root.UpdateLayout();
+                return watch.ElapsedMilliseconds;
+            }
+
+            foreach (var range in new[] { "Week", "All" })
+            {
+                lines.Add($"range {range}: {Timed(() => viewModel.SetRangeCommand.ExecuteAsync(range))} ms");
+                foreach (var grouping in order)
+                    lines.Add($"{range}/{grouping}: {Timed(() => viewModel.SetGroupingCommand.ExecuteAsync(grouping))} ms");
+            }
+
             viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session).GetAwaiter().GetResult();
             root.Measure(new Size(1100, 800));
             root.Arrange(new Rect(0, 0, 1100, 800));

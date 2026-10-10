@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Windows;
@@ -136,7 +137,7 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGroupingChoice));
         OnPropertyChanged(nameof(SelectedColorByChoice));
         OnPropertyChanged(nameof(IsStackedByProvider));
-        if (_recordsLoaded)
+        if (RecordsLoaded)
             RecomputeFrom(_sourceRecords);
     }
 
@@ -985,7 +986,7 @@ public sealed partial class StatsViewModel : ObservableObject
         SelectedColorBy = colorBy;
         Choice.Select(ColorByChoices, SelectedColorBy);
         OnPropertyChanged(nameof(SelectedColorByChoice));
-        if (_recordsLoaded)
+        if (RecordsLoaded)
             RecomputeFrom(_sourceRecords);
     }
 
@@ -1019,7 +1020,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var changed = !selection.SequenceEqual(_selectedProviders);
         _selectedProviders = selection;
         SyncProviderOptions();
-        if (changed && _recordsLoaded)
+        if (changed && RecordsLoaded)
             RecomputeFrom(_sourceRecords);
     }
 
@@ -1073,7 +1074,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 return;
         }
 
-        if (_recordsLoaded)
+        if (RecordsLoaded)
             RecomputeFrom(_sourceRecords);
     }
 
@@ -1136,7 +1137,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         _allSessions = snapshot.Sessions;
         RecomputeFrom(snapshot.Records);
-        _recordsLoaded = true;
+        RecordsLoaded = true;
         IsLoading = false;
         return true;
     }
@@ -1149,7 +1150,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// reading the whole store again. Before that first load it is the normal read.</summary>
     private Task RecomputeForSelectionAsync()
     {
-        if (!_recordsLoaded)
+        if (!RecordsLoaded)
             return RecomputeAsync();
 
         RecomputeFrom(_sourceRecords);
@@ -1158,6 +1159,22 @@ public sealed partial class StatsViewModel : ObservableObject
 
     // Set once records read from the store have been shown; _allRecords is empty-but-valid before it.
     private bool _recordsLoaded;
+
+    private bool RecordsLoaded
+    {
+        get => _recordsLoaded;
+        set
+        {
+            if (_recordsLoaded == value)
+                return;
+            _recordsLoaded = value;
+            OnPropertyChanged(nameof(EmptyChartText));
+        }
+    }
+
+    /// <summary>What an empty chart says: that the data is still on its way until the first load has
+    /// been shown, and only then that the period holds no tokens.</summary>
+    public string EmptyChartText => LocalizationService.Instance[RecordsLoaded ? "Stats.Chart.Empty" : "StatsWindow.Loading"];
 
     /// <summary>The same rebuild as <see cref="Recompute"/>, with the one part that can take real
     /// time - reading every stored record - moved off the window's own thread, so picking the whole
@@ -1177,13 +1194,13 @@ public sealed partial class StatsViewModel : ObservableObject
             var (all, sessions) = await Task.Run(() => (LoadRecords(), LoadSessions()));
             if (generation == _recomputeGeneration)
             {
-                if (showLoading || !_recordsLoaded || !MatchesShown(all, sessions))
+                if (showLoading || !RecordsLoaded || !MatchesShown(all, sessions))
                 {
                     _allSessions = sessions;
                     RecomputeFrom(all);
                 }
 
-                _recordsLoaded = true;
+                RecordsLoaded = true;
             }
         }
         finally
@@ -1224,13 +1241,37 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         _allSessions = LoadSessions();
         RecomputeFrom(LoadRecords());
-        _recordsLoaded = true;
+        RecordsLoaded = true;
         IsLoading = false;
     }
 
     /// <summary>The rebuild itself, on records already read - the one half <see
     /// cref="RecomputeAsync"/> keeps on the window's own thread.</summary>
     private void RecomputeFrom(IReadOnlyList<StatsRecord> source)
+    {
+        var started = Stopwatch.GetTimestamp();
+        RebuildFrom(source);
+        ReportRebuildDuration(Stopwatch.GetElapsedTime(started));
+    }
+
+    /// <summary>Where a rebuild that took longer than <see cref="SlowRebuildThreshold"/> says so; the
+    /// app log by default.</summary>
+    internal Action<string> LogSlowRebuild { get; set; } = message => LogService.Shared.LogInfo(message);
+
+    private static readonly TimeSpan SlowRebuildThreshold = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>Writes one log line for a rebuild over half a second, naming the view it was for, so a
+    /// slow combination of grouping and range shows up in a bug report without a stopwatch.</summary>
+    internal void ReportRebuildDuration(TimeSpan elapsed)
+    {
+        if (elapsed <= SlowRebuildThreshold)
+            return;
+
+        LogSlowRebuild(string.Create(
+            CultureInfo.InvariantCulture, $"stats view {SelectedGrouping}/{SelectedRange}: {(long)elapsed.TotalMilliseconds} ms"));
+    }
+
+    private void RebuildFrom(IReadOnlyList<StatsRecord> source)
     {
         _sourceRecords = source;
         OnPropertyChanged(nameof(ImportedFromText));
@@ -1656,6 +1697,7 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(ProjectFilterText));
         UpdateCustomChoiceLabel();
         OnPropertyChanged(nameof(ChartTooltip));
+        OnPropertyChanged(nameof(EmptyChartText));
         RecomputeFrom(_sourceRecords);
     }
 
@@ -1857,7 +1899,7 @@ public sealed partial class StatsViewModel : ObservableObject
             if (_monthGridAvailableWidth == value)
                 return;
             _monthGridAvailableWidth = value;
-            if (_recordsLoaded && DesiredMonthGridStart() != MonthGridRangeStart)
+            if (RecordsLoaded && DesiredMonthGridStart() != MonthGridRangeStart)
                 RebuildMonthGrid(_allRecords, MonthGridColorScale);
         }
     }

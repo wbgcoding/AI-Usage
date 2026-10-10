@@ -318,7 +318,7 @@
                                             <controls:StatsCacheShareBar x:Name="DayProviderBar" Values="{Binding SelectedDayDetail.ProviderValues}"
                                                                           SegmentLabels="{Binding SelectedDayDetail.ProviderLabels}"
                                                                           TextBrush="{DynamicResource Text.Muted}"
-                                                                          EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                          EmptyText="{Binding EmptyChartText}"
                                                                           TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"
                                                                           Height="70"/>
                                         </StackPanel>
@@ -327,7 +327,7 @@
                                                        Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
                                             <controls:StatsHorizontalBarChart x:Name="DayModelChart" Rows="{Binding SelectedDayDetail.ModelRows}"
                                                                                TextBrush="{DynamicResource Text.Secondary}"
-                                                                               EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                               EmptyText="{Binding EmptyChartText}"
                                                                                ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Thousand]}"
                                                                                MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                                                BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
@@ -341,7 +341,7 @@
                                                        Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
                                             <controls:StatsHorizontalBarChart x:Name="DayProjectChart" Rows="{Binding SelectedDayDetail.ProjectRows}"
                                                                                TextBrush="{DynamicResource Text.Secondary}"
-                                                                               EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                               EmptyText="{Binding EmptyChartText}"
                                                                                ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Thousand]}"
                                                                                MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                                                BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
@@ -355,7 +355,7 @@
                                                        Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
                                             <controls:StatsBarChart x:Name="DayHourChart" Bars="{Binding SelectedDayDetail.HourBars}"
                                                                      MaxAxisLabels="8" IsHourAxis="True"
-                                                                     EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                     EmptyText="{Binding EmptyChartText}"
                                                                      AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
                                                                      EmptyTextBrush="{DynamicResource Text.Muted}"
                                                                      TextBrush="{DynamicResource Text.Muted}"
@@ -566,7 +566,7 @@
                                                              OverlayLine="{Binding ChartOverlay}"
                                                              MaxAxisLabels="{Binding ChartMaxAxisLabels}"
                                                              IsHourAxis="{Binding IsHourAxis}"
-                                                             EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                             EmptyText="{Binding EmptyChartText}"
                                                              AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
                                                              EmptyTextBrush="{DynamicResource Text.Muted}"
                                                              TextBrush="{DynamicResource Text.Muted}"
@@ -583,7 +583,7 @@
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsHorizontalBarChart x:Name="SessionChart" Rows="{Binding SessionChartRows}"
                                                                        TextBrush="{DynamicResource Text.Secondary}"
-                                                                       EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                       EmptyText="{Binding EmptyChartText}"
                                                                        ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Thousand]}"
                                                                        MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                                        BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
@@ -705,7 +705,7 @@
                                                             TextBrush="{DynamicResource Text.Muted}"
                                                             TooltipBackground="{DynamicResource Bg.Raised}"
                                                             TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
-                                                            EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"/>
+                                                            EmptyText="{Binding EmptyChartText}"/>
                                 </Border>
 
                                 <!-- One horizontal stacked bar, four segments: how much of all tokens was new
@@ -719,7 +719,7 @@
                                     <controls:StatsCacheShareBar x:Name="CacheShareBar" Values="{Binding CacheShareValues}"
                                                                   SegmentLabels="{Binding CacheShareLabels}"
                                                                   TextBrush="{DynamicResource Text.Muted}"
-                                                                  EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                  EmptyText="{Binding EmptyChartText}"
                                                                   TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
                                 </Border>
                             </StackPanel>
@@ -733,7 +733,7 @@
                                     <controls:StatsRingChart x:Name="ProviderRing" Margin="8" Slices="{Binding ProviderShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
-                                                              EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                              EmptyText="{Binding EmptyChartText}"
                                                               ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Thousand]}"
                                                               MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Million]}"
                                                               BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Billion]}"
@@ -749,7 +749,7 @@
                                                               SliceActivated="ModelRing_SliceActivated"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
-                                                              EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                              EmptyText="{Binding EmptyChartText}"
                                                               ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Thousand]}"
                                                               MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Million]}"
                                                               BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Billion]}"
@@ -764,7 +764,7 @@
                                     <controls:StatsRingChart x:Name="EffortRing" Margin="8" Slices="{Binding EffortShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
-                                                              EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                              EmptyText="{Binding EmptyChartText}"
                                                               ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Thousand]}"
                                                               MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Million]}"
                                                               BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.RingCompact.Billion]}"
@@ -914,7 +914,7 @@
                                                                        MutedBrush="{DynamicResource Text.Muted}"
                                                                        TooltipBackground="{DynamicResource Bg.Raised}"
                                                                        TooltipBorderBrush="{DynamicResource Border}"
-                                                                       EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.Empty]}"
+                                                                       EmptyText="{Binding EmptyChartText}"
                                                                        ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Thousand]}"
                                                                        MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                                        BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
