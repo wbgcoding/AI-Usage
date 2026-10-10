@@ -24,12 +24,8 @@ public readonly record struct HeightResolution(TileDensity Density, double Windo
 /// Pure placement math for the frameless main window: where the window lands
 /// relative to the monitors it remembers, and how its automatic height reacts when the desired
 /// content does not fit the screen. No real window or Win32 call here - MainWindow.xaml.cs supplies
-/// the monitor rectangles (from System.Windows.Forms.Screen) and calls into this. All of that stays
-/// static, called the same way it always was; the one instance member below
-/// (<see cref="RememberedStatsWindowSize"/>) is the sole exception - it needs a live
-/// <see cref="AppSettings"/> to read and write through, so the class itself is no longer declared
-/// "static" (an ordinary class with only static callers behaves identically to one), but nothing
-/// about the static API above changed.
+/// the monitor rectangles and calls into this. Everything is static except the remembered Stats
+/// window size and position, which need a live <see cref="AppSettings"/> to read and write through.
 /// </summary>
 public class WindowPlacementService
 {
@@ -71,9 +67,8 @@ public class WindowPlacementService
 
     /// <summary>The one instance every window in the process reads and writes through - set once
     /// from App.xaml.cs's OnStartup with the same settings instance and store every other window
-    /// already mutates and saves in place. StatsWindow.xaml.cs has no constructor path back to
-    /// App.xaml.cs (MainWindow.xaml.cs's sole "new StatsWindow(...)" call site takes no settings
-    /// argument), so this static seam is what it reads instead.</summary>
+    /// already mutates and saves in place. StatsWindow has no constructor path back to App.xaml.cs, so
+    /// this static seam is what it reads instead.</summary>
     public static WindowPlacementService? Shared { get; set; }
 
     /// <summary>The Stats window's own remembered size, persisted into <see cref="AppSettings"/>
@@ -149,12 +144,6 @@ public class WindowPlacementService
     }
 
     /// <summary>
-    /// The width the window needs so that every visible tile gets its full width: one tile wide when
-    /// the tiles are stacked, all of them side by side when they stand in a row. Capped to the work
-    /// area, so four tiles on a small screen produce a scrollable row rather than a window running
-    /// off the edge.
-    /// </summary>
-    /// <summary>
     /// Keeps a window that sizes itself to its content inside the work area. The cap is the whole
     /// work area, and a window that has grown taller than the space below it slides up instead of
     /// hanging behind the taskbar - a tile can always turn out taller than any height model assumed.
@@ -166,6 +155,12 @@ public class WindowPlacementService
         return (Math.Clamp(top, area.Top, lowestTop), area.Height);
     }
 
+    /// <summary>
+    /// The width the window needs so that every visible tile gets its full width: one tile wide when
+    /// the tiles are stacked, all of them side by side when they stand in a row. Capped to the work
+    /// area, so four tiles on a small screen produce a scrollable row rather than a window running
+    /// off the edge.
+    /// </summary>
     public static double ResolveContentWidth(int visibleTiles, bool horizontal, double workAreaWidth, double zoom = 1)
     {
         var tiles = Math.Max(1, visibleTiles);
@@ -246,10 +241,8 @@ public class WindowPlacementService
     /// <see cref="ClampToContentHeight"/> so the window still never grows past its own tiles, and
     /// finally capped at <paramref name="workAreaHeight"/> - always the CURRENT monitor's work area,
     /// never whatever <c>Window.MaxHeight</c> was last pinned to while the height was automatic. A
-    /// drag pulling the window small used to leave that stale ceiling in place for the rest of the
-    /// manual session, so growing back afterwards silently stopped at it instead of the mouse -
-    /// this recomputes the ceiling fresh on every call instead of trusting a value that might be
-    /// stale by now.</summary>
+    /// ceiling pinned during a drag that pulled the window small would go stale for the rest of the
+    /// manual session and silently stop growth at it, so the ceiling is recomputed fresh on every call.</summary>
     public static double GrowManualHeight(double currentHeight, double delta, double minHeight, double workAreaHeight, double contentDesiredHeight, double zoom = 1)
     {
         var raised = Math.Max(minHeight, currentHeight + delta);

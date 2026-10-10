@@ -32,9 +32,9 @@ public static class AttentionDetector
     public static readonly TimeSpan MinAge = TimeSpan.FromSeconds(20);
 
     /// <summary>The setting's own default for <c>maxAge</c> below when nothing configures it
-    /// otherwise (<see cref="Models.AppSettings.AttentionMaxAgeMinutes"/>'s default) - two hours,
-    /// down from the twelve hours this used to be a fixed field, since half a day of "waiting" was
-    /// reading as abandoned sessions that had simply stopped, not ones actually parked on a prompt.</summary>
+    /// otherwise (<see cref="Models.AppSettings.AttentionMaxAgeMinutes"/>'s default) - two hours, since
+    /// half a day of "waiting" reads as abandoned sessions that simply stopped, not ones actually
+    /// parked on a prompt.</summary>
     public static readonly TimeSpan DefaultMaxAge = TimeSpan.FromHours(2);
 
     /// <summary>The providers that read a session file and so can tell whether an agent is waiting

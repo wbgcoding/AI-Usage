@@ -218,12 +218,12 @@ public sealed class ClaudeProvider : IUsageProvider
         DateTimeOffset? sessionLastEventAt = null;
         try
         {
-            if (_projectsRoots.Count > 0)
             // This provider itself stays off the scheduler's thread-pool wrap (see RunsOnUiThread) so
             // the web fallback below keeps starting on the calling (UI) thread it needs - but that
             // means this synchronous directory walk would otherwise run right there instead. Moving
             // just this call (and the attention read and token sum below, on the same file) to the
             // thread pool keeps the UI thread free without touching the web path.
+            if (_projectsRoots.Count > 0)
             (limit, isWaitingForUser, waitingSince, sessionTokens, sessionLastEventAt) = await Task.Run(() =>
             {
                 var (found, newestFile) = ScanRoots(fetchedAt, ct);
@@ -283,8 +283,8 @@ public sealed class ClaudeProvider : IUsageProvider
         }
 
         // Every configured source builds its own candidate; SnapshotChooser picks between them
-        // instead of the old first-source-wins order, so a signed-out local login no longer hides a
-        // perfectly usable web session underneath it.
+        // instead of the first source winning, so a signed-out local login never hides a perfectly
+        // usable web session underneath it.
         var candidates = new List<ProviderSnapshot>();
         if (_localLogin is not null)
             candidates.Add(await BuildLocalLoginSnapshot(fetchedAt, ct));

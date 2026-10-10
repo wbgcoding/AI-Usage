@@ -130,8 +130,7 @@ internal static class AuthenticodeSignature
 
             // The verify call keeps state that only the close call frees.
             data.StateAction = WtdStateActionClose;
-            var closeResult = WinVerifyTrust(IntPtr.Zero, GenericVerifyV2, ref data);
-            GC.KeepAlive(closeResult);
+            _ = WinVerifyTrust(IntPtr.Zero, GenericVerifyV2, ref data);
             return result;
         }
         finally

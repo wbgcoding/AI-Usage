@@ -46,8 +46,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
     // Deliberately NOT "System"-by-default (see _active's own field comment above): every view model
     // that never runs inside a live App (every unit test in this project) would otherwise read
     // whichever language the machine running the test suite happens to have installed -
-    // non-deterministic, and every test written before this file existed already asserts on the
-    // German wording that was the app's only text back then.
+    // non-deterministic, and the tests assert on the German wording.
     private LocalizationService()
     {
     }

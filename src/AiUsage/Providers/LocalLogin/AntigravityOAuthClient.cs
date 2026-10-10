@@ -8,8 +8,8 @@ namespace AiUsage.Providers.LocalLogin;
 /// installed <c>agy.exe</c> for them - the same credentials that binary already ships and uses on
 /// this machine, read only to refresh the user's own already-granted token. Nothing here is a user
 /// secret and nothing is written anywhere; the discovered pairs are cached in memory so the (large)
-/// binary is scanned at most once per version, and only when a token actually needs
-/// refreshing. A scan that finds nothing is remembered for the same file (length and write time), so
+/// binary is scanned once and the result kept until no pair is accepted any more, and only when a token
+/// actually needs refreshing. A scan that finds nothing is remembered for the same file (length and write time), so
 /// an exe without a complete pair is not read in full on every attempt.
 /// </summary>
 internal static class AntigravityOAuthClient

@@ -14,7 +14,7 @@ namespace AiUsage.Views;
 /// (already wired to the real sign-in flow in MainWindow's constructor), so there is no second
 /// sign-in path to keep working. Has no <see cref="Models.AppSettings"/> reference of its own - the
 /// opacity mode comes from <see cref="WindowOpacity.CurrentPercent"/>,
-/// already synced by App.xaml.cs before this window is ever constructed.
+/// already synced by App.xaml.cs before the window is constructed.
 /// </summary>
 public partial class WelcomeWindow : Window
 {

@@ -64,8 +64,8 @@ public partial class SignInWindow : Window
     private void TitleBarControl_CloseRequested(object? sender, EventArgs e) => Close();
 
     /// <summary>The runtime-missing panel's own way to reach the download page - a second, weaker
-    /// version of the confirm dialog <see cref="WebSignInFlow"/> already offers before this window
-    /// ever opens, for the case where the runtime disappeared between that check and here.</summary>
+    /// version of the confirm dialog <see cref="WebSignInFlow"/> already offers before the window ever
+    /// opens, for the case where the runtime disappeared between that check and here.</summary>
     private void OpenDownloadPage_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -403,7 +403,7 @@ public partial class SignInWindow : Window
     /// <summary>Takes the window the same way <see cref="ShowBlockedNotice"/> does, and for the same
     /// reason: the page is a native child window WPF content is never drawn over, so the code-behind
     /// hides it while this notice stands. The one button closes the window - the tile already treats
-    /// <see cref="SignedIn"/> (set before this is called) as done, and starts reading through the
+    /// <see cref="SignedIn"/> (set by the caller) as done, and starts reading through the
     /// session from its next tick.</summary>
     private void ShowAlreadySignedIn()
     {

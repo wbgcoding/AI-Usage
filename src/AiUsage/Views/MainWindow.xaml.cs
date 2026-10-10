@@ -46,10 +46,10 @@ public partial class MainWindow : Window, IDisposable
     private bool _minimizedByUser;
     private double _uncollapsedHeight;
 
-    // The one place that now carries the "is the height automatic" meaning: SizeToContent itself no
-    // longer stays on Height once a density has been resolved (see UpdateDensity()), since that let
-    // WPF's own layout pass silently overwrite a height this program had just computed. Set at every
-    // point that used to switch SizeToContent between Height and Manual for that reason.
+    // The one place that carries the "is the height automatic" meaning: SizeToContent itself does not
+    // stay on Height once a density has been resolved (see UpdateDensity()), since that would let WPF's
+    // own layout pass silently overwrite a height this program had just computed. Set at every point
+    // that switches SizeToContent between Height and Manual for that reason.
     private bool _heightIsAutomatic;
 
     // Set for the duration of UpdateDensity()'s own height assignment: setting Height there raises
@@ -126,8 +126,8 @@ public partial class MainWindow : Window, IDisposable
         };
         // The visible tile count is the one density input ViewModel_PropertyChanged does not already
         // cover (Layout/HiddenCount/DensityMode do) - adding or removing an account changes Tiles
-        // itself, not one of those properties, so the tick no longer picking this up (see below)
-        // would otherwise leave the density stale until something else happened to touch it.
+        // itself, not one of those properties, and the tick does not pick it up (see below), so the
+        // density would otherwise stay stale until something else happened to touch it.
         ViewModel.Tiles.CollectionChanged += ViewModel_Tiles_CollectionChanged;
         // The day-grid tile's own show/hide never touches HiddenCount (see MainViewModel.RefreshHiddenCount)
         // - that badge and IsEmpty stay providers-only - so its visibility change needs this one direct
@@ -147,7 +147,7 @@ public partial class MainWindow : Window, IDisposable
         _zoom = WindowZoom.Factor(_settings.ZoomPercent);
         ChromeBorder.LayoutTransform = ZoomTransform(_zoom);
         MinWidth = WindowPlacementService.MinWidthFor(_zoom);
-        // XAML no longer carries a fixed MinHeight (Collapse/Restore own it from here on) - a window
+        // XAML carries no fixed MinHeight (Collapse/Restore own it) - a window
         // that starts collapsed needs the floor at 0 from its very first layout pass, not just from
         // the next Collapse() call.
         MinHeight = WindowPlacementService.MinHeightFor(_settings.Window.Collapsed, _zoom);
@@ -219,10 +219,10 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.SetPower(PowerStatus.Read());
         ViewModel.RefreshNow();
         UpdateTray();
-        // UpdateDensity() no longer runs from here - its own inputs (Layout/HiddenCount/DensityMode
+        // UpdateDensity() does not run from here - its own inputs (Layout/HiddenCount/DensityMode
         // via ViewModel_PropertyChanged, the tile count via the CollectionChanged subscription above,
         // and a live resize via MainWindow_SizeChanged) already call it directly, so a second's worth
-        // of countdown ticks in between never had anything new to recompute.
+        // of countdown ticks in between has nothing new to recompute.
         _tickTimer.Tick += (_, _) =>
         {
             ViewModel.Tick(DateTimeOffset.Now);
@@ -231,9 +231,9 @@ public partial class MainWindow : Window, IDisposable
         };
         _tickTimer.Start();
 
-        // History compaction/pruning used to run synchronously in MainViewModel's own constructor,
-        // blocking cold start on a full read-rewrite of every history file - moved off the UI thread
-        // and here, so the window can show first. Runs forever on the view model's own lifetime
+        // History compaction/pruning runs here, off the UI thread, so the window can show first: in
+        // MainViewModel's own constructor it would block cold start on a full read-rewrite of every
+        // history file. Runs forever on the view model's own lifetime
         // token; Dispose() below is the only thing that ever stops it.
         _ = Task.Run(() => ViewModel.RunMaintenanceForeverAsync());
     }
@@ -279,7 +279,7 @@ public partial class MainWindow : Window, IDisposable
             text, "AiUsage.Level");
     }
 
-    /// <summary>Tray double-click / "Anzeigen/Verstecken" - also restores a
+    /// <summary>Tray double-click / "Show/Hide" - also restores a
     /// minimized window, the usual Windows convention for a tray toggle.</summary>
     private void ToggleVisibility()
     {
@@ -353,8 +353,8 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Mirrors the tile list into the tray icon's colour and tooltip - only
     /// tiles that are both visible and actually showing numbers contribute. A tick with nothing new
     /// to say (every provider's numbers still read the same as last time) touches neither the
-    /// tooltip nor the icon: <see cref="TryComputeTraySummary"/> already carries the memo check that
-    /// used to run separately, so there is no second, redundant comparison here.</summary>
+    /// tooltip nor the icon: <see cref="TryComputeTraySummary"/> already carries the memo check, so
+    /// there is no second comparison here.</summary>
     private void UpdateTray()
     {
         if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow, ViewModel.PausedUntil))
@@ -368,8 +368,8 @@ public partial class MainWindow : Window, IDisposable
     }
 
     /// <summary>The real work behind <see cref="UpdateTray"/>, pulled out so it is unit-testable
-    /// without a live window: builds the tooltip text once (previously built once here for the memo
-    /// comparison and a second time inside <see cref="TrayService.UpdateTooltip"/>) and reports
+    /// without a live window: builds the tooltip text once (shared by the memo comparison and <see
+    /// cref="TrayService.UpdateTooltip"/>) and reports
     /// whether it actually changed since the last call - false means neither the tooltip nor the
     /// icon need touching, since both are derived from the very same tile data and the chosen tray
     /// provider. The tooltip always lists every tile; the icon shows <paramref name="trayProvider"/>'s
@@ -920,8 +920,8 @@ public partial class MainWindow : Window, IDisposable
     private static bool Contains(MonitorArea monitor, WindowRect rect) =>
         rect.Left >= monitor.Left && rect.Left < monitor.Right && rect.Top >= monitor.Top && rect.Top < monitor.Bottom;
 
-    /// <summary>The monitor the window currently sits on, from the cached enumeration - shared by
-    /// every call site that used to re-enumerate the native monitor list on its own.</summary>
+    /// <summary>The monitor the window currently sits on, from the cached enumeration - shared by every
+    /// call site, so none re-enumerates the native monitor list on its own.</summary>
     private MonitorArea CurrentArea() => PickArea(
         _monitorAreas.Areas,
         NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
@@ -1355,7 +1355,7 @@ public partial class MainWindow : Window, IDisposable
     }
 
     /// <summary>Every move the window really makes is written, not just the end of a mouse drag: a
-    /// window moved by the keyboard, by the shell or by one of this app's own snaps used to keep the
+    /// window moved by the keyboard, by the shell or by one of this app's own snaps would keep the
     /// position it had at the last drag, and a process that is terminated rather than closed (an
     /// update installing over the running copy) then restored that stale one - far enough from where
     /// the window actually stood that the remembered rectangle could miss every monitor, which puts
@@ -1388,7 +1388,7 @@ public partial class MainWindow : Window, IDisposable
         // window that assignment can resize the HWND and raise SizeChanged synchronously, right here,
         // rather than on a later layout pass - MainWindow_SizeChanged() must already see Collapsed as
         // true at that point, or its own reentrant UpdateDensity() call resolves and reassigns the
-        // ordinary automatic height, overwriting the collapse before this method even returns.
+        // ordinary automatic height, overwriting the collapse before the method even returns.
         _settings.Window.Collapsed = true;
         ContentScroll.Visibility = Visibility.Collapsed;
         // MinHeight must already be 0 before SizeToContent recalculates, or the old floor still

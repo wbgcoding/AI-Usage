@@ -18,9 +18,8 @@ public static class ClaudeLocalLimitReader
 {
     private const int MaxFilesToCheck = 10;
 
-    // Real project transcripts live under projects/<project>/ - three levels including the root is
-    // enough for that layout with a little headroom, and bounds the walk regardless of what is
-    // actually there.
+    // Real project transcripts live one folder below the root (projects/<project>/); six levels leaves
+    // headroom for nested folders and bounds the walk regardless of what is actually there.
     private const int MaxDepth = 6;
 
     /// <summary>

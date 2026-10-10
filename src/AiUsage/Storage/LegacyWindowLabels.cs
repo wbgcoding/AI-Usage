@@ -3,9 +3,9 @@ using AiUsage.Services;
 
 namespace AiUsage.Storage;
 
-/// <summary>Window labels a provider used to store as plain English words and now stores as resource
-/// keys. Everything persisted under the old label (hidden windows, the tray window choice, recorded
-/// history points) is renamed on load so it keeps matching the live windows.</summary>
+/// <summary>Window labels older files hold as plain English words; providers now store resource keys.
+/// Everything persisted under the old label (hidden windows, the tray window choice, recorded history
+/// points) is renamed on load so it keeps matching the live windows.</summary>
 internal static class LegacyWindowLabels
 {
     private static readonly Dictionary<string, string> Copilot = new(StringComparer.Ordinal)

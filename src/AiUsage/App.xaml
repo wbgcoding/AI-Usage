@@ -8,8 +8,8 @@
                 <!-- Tokens carries no colours, so a theme swap (Services/ThemeService.cs) never
                      touches it - it stays first and is never removed. -->
                 <ResourceDictionary Source="Themes/Tokens.xaml"/>
-                <!-- Nebula is the default theme; Services/ThemeService.cs
-                     swaps this entry, never recreating a window. -->
+                <!-- Nebula is only the bootstrap theme; Services/ThemeService.cs swaps this entry for
+                     the chosen one, never recreating a window. -->
                 <ResourceDictionary Source="Themes/Nebula.xaml"/>
                 <ResourceDictionary Source="Themes/Controls.xaml"/>
                 <!-- Icons are plain geometry and take their colour from whatever draws them, so this

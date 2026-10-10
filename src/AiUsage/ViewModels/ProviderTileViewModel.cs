@@ -558,10 +558,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     }
 
     /// <summary>"Claude: Show this provider"/"Claude: Hide this provider" for the two provider-toggle
-    /// buttons (Settings window's Anzeige card, the title bar's eye popup) - both used to announce
-    /// only the bare provider name, giving no hint that the button is a bidirectional show/hide
-    /// toggle or which way it would flip next. The "Tile.Show" resx string existed for exactly this
-    /// and was never actually bound anywhere.</summary>
+    /// buttons (Settings window's display card, the title bar's eye popup), so the text names the
+    /// action and shows which way the show/hide toggle flips next, not just the bare provider name.</summary>
     public string ToggleVisibilityActionText =>
         $"{HeaderDisplayName}: {LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]}";
 
@@ -610,7 +608,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>Whether the age line shows at all - once there has ever been a real timestamp, and
     /// never in Mini (which has no room for it). Kept visible through a failed fetch, deliberately:
     /// the age of the last GOOD number matters most exactly when the current one cannot be trusted,
-    /// so this no longer lives inside the Ok-only content block that a failure hides along with the
+    /// so this does not live inside the Ok-only content block that a failure hides along with the
     /// bars.</summary>
     public bool ShowLastUpdated => LastSuccessAt is not null && !IsMini;
 

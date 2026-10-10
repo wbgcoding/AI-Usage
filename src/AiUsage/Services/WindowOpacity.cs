@@ -4,9 +4,9 @@ using System.Windows.Interop;
 namespace AiUsage.Services;
 
 /// <summary>
-/// Applies the "Deckkraft des Fensters" setting through a DWM-composed, per-window alpha
-/// (WS_EX_LAYERED + SetLayeredWindowAttributes) instead of the software-rendered translucent brush
-/// this app used to build from <c>AllowsTransparency=True</c>. A layered top-level window still
+/// Applies the window opacity setting through a DWM-composed, per-window alpha
+/// (WS_EX_LAYERED + SetLayeredWindowAttributes) instead of a software-rendered translucent brush on an
+/// <c>AllowsTransparency=True</c> window. A layered top-level window still
 /// renders and composites on the GPU through the DWM (true since Windows 8) - only the pre-8
 /// software-layering path this app never targets was slow, so this is a strict improvement with no
 /// AllowsTransparency, no window re-creation, and no restart needed to see a change.

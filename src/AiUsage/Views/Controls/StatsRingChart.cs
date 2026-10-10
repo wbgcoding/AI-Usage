@@ -368,8 +368,8 @@ public sealed class StatsRingChart : FrameworkElement
     /// the ring's own hole. Both lines are centered over the ring and draw in <see cref="CenterTextBrush"/>,
     /// the normal text color of the active theme. Nothing drawn
     /// when no slice qualifies (see <see cref="LargestSliceIndex"/>) - the empty-ring case already
-    /// returned out of <see cref="OnRender"/> before this is ever called with data that could reach
-    /// that state.</summary>
+    /// returns out of <see cref="OnRender"/>, so this is never called with data that could reach that
+    /// state.</summary>
     private void DrawCenterText(
         DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes,
         Point center, double radius, double strokeThickness, double dpi, Typeface typeface)

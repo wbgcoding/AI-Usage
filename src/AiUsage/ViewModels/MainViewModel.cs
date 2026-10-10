@@ -544,12 +544,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         RefreshHiddenCount();
         RefreshMoveEligibility();
 
-        // Compaction/pruning used to run right here, synchronously, once per launch - but this
-        // constructor runs on the UI thread inside MainWindow's own constructor, before the window
-        // is shown, so a cold start waited for a full read-rewrite of every history file. Moved to
-        // RunMaintenanceAsync, started once the window is up and repeated every 24h for the process
-        // lifetime instead of only once per launch - this app runs as an autostart tray widget for
-        // weeks at a time, so "once at startup" alone never enforces retention.
+        // Compaction/pruning does not run here: this constructor runs on the UI thread inside
+        // MainWindow's own constructor, before the window is shown, so a cold start would wait for a
+        // full read-rewrite of every history file. RunMaintenanceAsync does it, started once the window
+        // is up and repeated every 24h for the process lifetime - this app runs as an autostart tray
+        // widget for weeks at a time, so "once at startup" alone never enforces retention.
         _scheduler = new RefreshScheduler(providers, TimeSpan.FromSeconds(settings.RefreshSeconds),
             log: line => (_logService ?? LogService.Shared).LogError(line));
         _scheduler.SetSaveEnergyOnBattery(settings.SaveEnergyOnBattery);
@@ -624,7 +623,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// cref="Tiles"/> plus <see cref="DayGridTile"/>, sorted ascending by each row's own persisted
     /// <see cref="Models.ProviderSettings.Order"/> - a row with no settings entry at all (the day-grid
     /// tile before it is ever shown or moved for the first time) sorts to -1, ahead of every real
-    /// provider, which is exactly the "first show lands at the very top" contract the spec asks for.
+    /// provider, which is exactly the "first show lands at the very top" contract.
     /// Called once, right after the day-grid tile is built; every later structural change (an account
     /// added or removed, a reorder) updates <see cref="DisplayRows"/> incrementally instead.</summary>
     private void RebuildDisplayRowsInitial()
@@ -681,9 +680,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>A row with an explicit settings entry sorts by its own <see
     /// cref="ProviderSettings.Order"/>; a row with none at all (only ever the day-grid tile, before
     /// its very first reveal - every real provider already has an entry from <see
-    /// cref="AppSettings.CreateDefaultProviders"/>) sorts last, so a fresh install's widget looks
-    /// exactly like it did before this tile existed. <see cref="SetHidden"/> is the one place that
-    /// then moves it to the very top the first time it is shown, per spec.</summary>
+    /// cref="AppSettings.CreateDefaultProviders"/>) sorts last, so the provider tiles keep their order
+    /// on a fresh install. <see cref="SetHidden"/> is the one place that
+    /// then moves it to the very top the first time it is shown.</summary>
     private int ResolveRowOrder(string id) => _settings.Providers.TryGetValue(id, out var settings) ? settings.Order : int.MaxValue;
 
     /// <summary>Starts the background walk over the local session logs (a no-op while one is already
@@ -892,7 +891,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.Apply(new ProviderSnapshot(providerId, [], null, SourceKind.None, now, null, ProviderStatus.Blocked, error), now);
     }
 
-    /// <summary>Settings window's "Aktualisierung" slider - applies from the next
+    /// <summary>Settings window's refresh interval slider - applies from the next
     /// completed fetch per provider onward, see <see cref="RefreshScheduler.UpdateBaseInterval"/>.</summary>
     public void UpdateRefreshInterval(int seconds)
     {
@@ -1031,7 +1030,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public void SetHidden(string providerId, bool hidden)
     {
         // A fresh install sorts the hidden day grid last, out of every real provider's way. The very
-        // first time it is shown, the spec puts it at the very top instead - done here, once, as an
+        // first time it is shown it goes to the very top instead - done here, once, as an
         // explicit move rather than relying on sort order, since merely flipping Visible on the row
         // already sitting at the end would leave it there.
         var isFirstDayGridReveal = IsDayGridRow(providerId) && !hidden && !_settings.DayGridShownOnce;
@@ -1395,8 +1394,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Reloads one tile's history chart data for whatever range is currently selected
     /// - called after every snapshot so a fresh point shows up immediately, not just on the next
-    /// full refresh. Every caller is already on the UI thread (OnSnapshotReady's own tail is
-    /// marshalled there before this runs). The file reads happen on the thread pool; only the
+    /// full refresh. Every caller is already on the UI thread (OnSnapshotReady's own tail is marshalled
+    /// there first). The file reads happen on the thread pool; only the
     /// eventual assignment onto the tile comes back to the UI thread, and the chart keeps showing its
     /// previous points until that lands, so nothing blinks empty in between. A second call for the
     /// same provider before the first has landed replaces it outright (the superseded read's result

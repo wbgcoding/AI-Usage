@@ -127,8 +127,8 @@ public static class ThemeService
 
         // Built here, from whichever base colour just became active, rather than baked into each
         // theme file: a value living in a theme file could not be swapped out per-call. Always fully
-        // opaque - the adjustable opacity setting is no longer a brush-level concern at all (see
-        // WindowOpacity), which applies it as native, per-window DWM alpha instead.
+        // opaque - the adjustable opacity setting is not a brush-level concern (see WindowOpacity),
+        // which applies it as native, per-window DWM alpha.
         if (dictionary[BaseBrushKey] is SolidColorBrush baseBrush)
         {
             var windowBrush = new SolidColorBrush(baseBrush.Color);
@@ -172,9 +172,9 @@ public static class ThemeService
 
     /// <summary>Reads <c>HKCU\...\Personalize\AppsUseLightTheme</c> directly rather than through
     /// <see cref="SystemParameters"/> (WPF exposes no such property) - 0 means dark, 1 or a missing
-    /// value means light, matching the key's own documented default.</summary>
-    /// <summary>Internal, not private: the Settings window's own "follow Windows" swatch needs the
-    /// same live answer to show a preview that matches what <see cref="Apply"/> would actually pick.</summary>
+    /// value means light, matching the key's own documented default. Internal, not private: the
+    /// Settings window's own "follow Windows" swatch needs the same live answer to show a preview
+    /// that matches what <see cref="Apply"/> would actually pick.</summary>
     internal static bool IsWindowsUsingLightTheme()
     {
         try

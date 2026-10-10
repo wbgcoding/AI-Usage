@@ -293,7 +293,7 @@ public sealed class WebUsageSource
     /// the log. At most <see cref="MaxShapeDepth"/> levels deep and <see cref="MaxShapeEntries"/>
     /// entries total, so a huge or deeply nested response cannot grow the log unbounded. Internal, not
     /// private: this class's own testable surface runs through <c>InternalsVisibleTo</c>, the same as
-    /// <see cref="Interpret"/> above.</summary>
+    /// <see cref="Interpret"/>.</summary>
     internal static string DescribeShape(string bodyJson)
     {
         try

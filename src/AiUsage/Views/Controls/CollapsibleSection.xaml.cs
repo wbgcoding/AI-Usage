@@ -45,9 +45,9 @@ public class CollapsibleSection : ContentControl
         DependencyProperty.Register(nameof(SectionKey), typeof(string), typeof(CollapsibleSection), new PropertyMetadata(""));
 
     /// <summary>The explanatory text shown only over the heading itself, not the inherited
-    /// <c>FrameworkElement.ToolTip</c>, which the control's own template no longer sets on the root
-    /// at all - setting <c>ToolTip</c> directly on a <see cref="CollapsibleSection"/> instance would
-    /// cover its whole card, header and content alike. Mirrored onto
+    /// <c>FrameworkElement.ToolTip</c>, which the control's own template does not set on the root -
+    /// setting <c>ToolTip</c> directly on a <see cref="CollapsibleSection"/> instance would cover its
+    /// whole card, header and content alike. Mirrored onto
     /// <see cref="AutomationProperties.HelpTextProperty"/> on the control itself so a screen reader
     /// still gets the same text a sighted hover would.</summary>
     public static readonly DependencyProperty HeaderToolTipProperty =

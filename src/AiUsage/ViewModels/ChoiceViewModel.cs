@@ -8,8 +8,8 @@ namespace AiUsage.ViewModels;
 /// may not declare a static member of its own type parameter.</summary>
 public static class Choice
 {
-    /// <summary>Marks the one row whose Value matches as selected and every other row not - the
-    /// loop each choice group used to write out for itself.</summary>
+    /// <summary>Marks the one row whose Value matches as selected and every other row not - the loop
+    /// every choice group would otherwise write out for itself.</summary>
     public static void Select<TValue>(IEnumerable<Choice<TValue>> choices, TValue value)
     {
         foreach (var choice in choices)

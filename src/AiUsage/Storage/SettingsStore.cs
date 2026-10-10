@@ -209,8 +209,8 @@ public sealed class SettingsStore : IDisposable
     /// <summary>A brand new <see cref="AppSettings"/> is already valid for every other field via its
     /// own initializers, but <see cref="ProviderSettings.Order"/> needs its owning id to mean
     /// anything - every fallback path in <see cref="LoadBackupOrDefault"/> goes through this so tile
-    /// order always matches <see cref="AppSettings.KnownProviderIds"/> instead of only the one path
-    /// that used to remember to fill it in.</summary>
+    /// order always matches <see cref="AppSettings.KnownProviderIds"/> instead of only one path
+    /// remembering to fill it in.</summary>
     private static AppSettings CreateDefaultSettings()
     {
         var settings = new AppSettings { WindowLayer = WindowLayers.Normal };
@@ -224,7 +224,7 @@ public sealed class SettingsStore : IDisposable
     internal enum ImportRefusal { NewerVersion, Unparseable }
 
     /// <summary>
-    /// The one gate every settings file goes through before this app trusts it - <see cref="Load"/>
+    /// The one gate every settings file goes through before the app trusts it - <see cref="Load"/>
     /// for the primary file and its backup, and <see cref="ViewModels.SettingsViewModel"/>'s own
     /// settings import for a file the user picked by hand. A schema version newer than this build
     /// understands, or anything that fails to parse into an <see cref="AppSettings"/> at all, is
@@ -489,8 +489,8 @@ public sealed class SettingsStore : IDisposable
     /// debounce one, for up to <see cref="MaxFlushAttempts"/> attempts total - a setting changed
     /// right before the disk briefly becomes unwritable (a sync client, an antivirus scan) is not
     /// silently dropped the moment that happens. Once every attempt has failed, the snapshot is
-    /// dropped and one line is logged; the change stays lost for this session, same as before this
-    /// retry existed, rather than retrying forever against a disk that is simply gone.
+    /// dropped and one line is logged; the change stays lost for this session rather than retrying
+    /// forever against a disk that is simply gone.
     /// <paramref name="allowRetry"/> is false only from <see cref="Dispose"/>, which flushes once on
     /// the way out and must not re-arm a timer it is about to dispose.
     /// </summary>

@@ -44,21 +44,14 @@ internal static class CursorDiscoveryScript
     public static bool IsAllowedUsagePath(string? path) =>
         !string.IsNullOrEmpty(path) && AllowedUsagePathPattern.IsMatch(path);
 
-    /// <summary>Full discovery: read the signed-in account id from /api/auth/me, then try every
-    /// candidate path in turn, collecting every one that answers with JSON rather than stopping at
-    /// the first - which one carries numbers depends on the account's plan, so
-    /// <see cref="WebUsageSource.Interpret"/> is the one that picks a winner among them. Every attempt
-    /// (path and status code, never a body or a cookie) comes back too, so a run against the live site
-    /// says in the app's own log which address exists today - exactly how the Codex path already
-    /// reports its own walk.</summary>
     // Shared by Discover and Fetch: merges the Grok Bot weekly bar onto an already-fetched usage
     // summary body. Its own path (/api/dashboard/get-sand-usage-status) is a fixed literal, never a
     // discovery candidate of its own and never added to CandidatePaths / the allow-list - that list
     // gates paths a *cached* answer gets re-fetched from later (see Fetch), and this one is always
-    // called fresh, right alongside the summary read that needs it.
-    // summary body. Any failure (network, non-200, non-JSON, unparsable) leaves the original body
-    // untouched - the summary itself still counts even when this extra read does not answer. Copies
-    // only the two fields the parser reads, never the upgrade links the endpoint also carries.
+    // called fresh, right alongside the summary read that needs it. Any failure (network, non-200,
+    // non-JSON, unparsable) leaves the original body untouched - the summary itself still counts
+    // even when this extra read does not answer. Copies only the two fields the parser reads, never
+    // the upgrade links the endpoint also carries.
     private const string MergeGrokBotFunction = """
         let freshGrokBot = null;
         const applyGrokBot = (text, grokBot) => {
@@ -91,6 +84,13 @@ internal static class CursorDiscoveryScript
         };
         """;
 
+    /// <summary>Full discovery: read the signed-in account id from /api/auth/me, then try every
+    /// candidate path in turn, collecting every one that answers with JSON rather than stopping at
+    /// the first - which one carries numbers depends on the account's plan, so
+    /// <see cref="WebUsageSource.Interpret"/> is the one that picks a winner among them. Every attempt
+    /// (path and status code, never a body or a cookie) comes back too, so a run against the live site
+    /// says in the app's own log which address exists today - exactly how the Codex path already
+    /// reports its own walk.</summary>
     public static string Discover()
     {
         var candidates = string.Join(",", CandidatePaths.Select(p => $"'{p}'"));

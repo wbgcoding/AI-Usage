@@ -86,13 +86,14 @@ public static class CodexWebUsageParser
         windows.Add(new UsageWindow(label, kind, usedPercent, ResetsAt(window, now), windowMinutes));
     }
 
-    /// <summary>Every spelling the rate-limit block is known to use: an absolute unix instant
-    /// (<c>resets_at</c> in the session files, <c>reset_at</c> on the web) and a relative countdown
-    /// (<c>resets_in_seconds</c>, <c>reset_after_seconds</c>). A countdown that has already run out describes a window that is
-    /// over, not one resetting right now, so it is dropped rather than shown as a past instant.</summary>
     // No usage window runs longer than a year; anything beyond reads as no reset at all.
     private const long MaxCountdownSeconds = 400L * 24 * 60 * 60;
 
+    /// <summary>Every spelling the rate-limit block is known to use: an absolute unix instant
+    /// (<c>resets_at</c> in the session files, <c>reset_at</c> on the web) and a relative countdown
+    /// (<c>resets_in_seconds</c>, <c>reset_after_seconds</c>). A countdown that has already run out
+    /// describes a window that is over, not one resetting right now, so it is dropped rather than
+    /// shown as a past instant.</summary>
     private static DateTimeOffset? ResetsAt(JsonElement window, DateTimeOffset now)
     {
         if ((TryGetInt64(window, "resets_at") ?? TryGetInt64(window, "reset_at")) is { } unixTime)

@@ -47,11 +47,10 @@ public partial class App : Application, IDisposable
             return;
         }
 
-        // --set-autostart: the installer's own "Mit Windows
-        // starten" task runs the just-installed exe with this switch instead of writing the
-        // registry value itself, so there is exactly one place - AutostartService.Enable - that
-        // decides what the value looks like. Headless: no window, no log service, no single-
-        // instance check, gone before any of that would matter.
+        // --set-autostart: the installer's own autostart task runs the just-installed exe with this
+        // switch instead of writing the registry value itself, so there is exactly one place -
+        // AutostartService.Enable - that decides what the value looks like. Headless: no window, no
+        // log service, no single-instance check, gone before any of that would matter.
         if (e.Args.Contains("--set-autostart", StringComparer.OrdinalIgnoreCase))
         {
             AutostartService.Enable(Environment.ProcessPath ?? AppContext.BaseDirectory);
@@ -135,9 +134,8 @@ public partial class App : Application, IDisposable
         if (settings.Autostart && Environment.ProcessPath is { } ownPath && AutostartService.RepairIfMoved(ownPath))
             _logService.LogInfo("Autostart: the entry pointed at a program file that no longer exists and now names this copy.");
 
-        // StatsWindow has no constructor path back here (MainWindow.xaml.cs's sole "new
-        // StatsWindow(...)" call site takes no settings argument), so this static seam hands it the
-        // same live settings instance and store every other window already reads and saves through -
+        // StatsWindow has no constructor path back here, so this static seam hands it the same live
+        // settings instance and store every other window already reads and saves through -
         // see WindowPlacementService.Shared.
         WindowPlacementService.Shared = new WindowPlacementService(settings, _settingsStore);
 
@@ -213,6 +211,8 @@ public partial class App : Application, IDisposable
         _statsIndexerReindexTimer.Tick += (_, _) => _statsIndexerService?.StartInBackground();
         _statsIndexerReindexTimer.Start();
 
+        // Kept in a field (not a local) so the running instance has an explicit GC root regardless
+        // of Show() being called.
         _mainWindow = new MainWindow(settingsStore, settings, logService);
         // The previous program a portable update left beside the exe is the way back if this copy
         // cannot run, so it goes only once the window has rendered.
@@ -230,8 +230,6 @@ public partial class App : Application, IDisposable
 
         // --tray (Autostart): the tray icon and background polling
         // already start inside MainWindow's own constructor - only the visible window is skipped.
-        // Kept in a field (not a local) so the running instance has an explicit GC root regardless
-        // of Show() being called.
         if (!args.Contains("--tray", StringComparer.OrdinalIgnoreCase))
         {
             // Shown once, on the very first real start on a fresh profile - before the widget itself

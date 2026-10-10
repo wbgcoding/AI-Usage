@@ -23,7 +23,7 @@ public sealed class WebViewHost : IAsyncDisposable
     // descriptor-built session (set by the public constructor below, after the chain to the test
     // seams has already run) - the two internal test seams a unit test builds from a bare folder
     // default to writing nothing at all, so a test that happens to hit one of those branches can
-    // never open the app's own real log file the way SignOut() used to (see PrivacyTests).
+    // never open the app's own real log file (see PrivacyTests).
     private readonly Action<string> _logRefusedRootDeletion = _ => { };
     private readonly Action _logSignOutStillOpen = () => { };
 

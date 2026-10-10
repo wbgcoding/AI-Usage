@@ -138,7 +138,7 @@ public sealed class NotificationService
             _filePath = Path.Combine(dataDirectory, "notifications.json");
     }
 
-    // Up to four provider fetches complete on their own ThreadPool threads and can call this
+    // Provider fetches complete on their own ThreadPool threads and can call this
     // concurrently for different (or the same) provider/window keys - the whole decision runs under
     // _gate so a concurrent Add/lookup on _state can never corrupt it; the notification itself is
     // only raised after the lock is released, so a slow subscriber can never hold the gate.

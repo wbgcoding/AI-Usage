@@ -289,8 +289,8 @@ public partial class UsageRowViewModel : ObservableObject
     private static LocalizationService Loc => LocalizationService.Instance;
 
     /// <summary>Matches the display rounding that shows "100 %" - the row reports itself as at its
-    /// limit exactly when the number on screen would already read 100, never at the merely-Crit 95%
-    /// that used to look identical to it.</summary>
+    /// limit exactly when the number on screen would already read 100, never at the merely-Crit 95%,
+    /// which must look different.</summary>
     internal const double LimitReachedPercent = 99.5;
 
     private bool IsAtLimit => UsedPercent >= LimitReachedPercent;

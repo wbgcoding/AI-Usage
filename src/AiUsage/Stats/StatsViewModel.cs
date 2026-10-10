@@ -535,10 +535,9 @@ public sealed partial class StatsViewModel : ObservableObject
     /// one per provider, instead of the single series Model/Project grouping draws.</summary>
     public bool IsStackedByProvider => SelectedGrouping is StatsGrouping.Day or StatsGrouping.Week;
 
-    /// <summary>True only for Day grouping - still gates the plain table (<c>GroupedTable</c>
-    /// in StatsWindow.xaml), which the month grid above it covers for Day grouping the same way it
-    /// always has; the grid itself no longer depends on this, since it now shows for every
-    /// grouping.</summary>
+    /// <summary>True only for Day grouping - gates the plain table (<c>GroupedTable</c> in
+    /// StatsWindow.xaml), which the month grid above it covers for Day grouping; the grid itself shows
+    /// for every grouping and does not depend on this.</summary>
     public bool IsDayGrouping => SelectedGrouping == StatsGrouping.Day;
 
     /// <summary>The month grid's own input - every day from the grid's start up to today (local time):
@@ -622,7 +621,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>Every stored record, kept for the day detail: the day grid spans the whole year
     /// whatever period is selected, so a day clicked there must not be looked up in the selected
-    /// period only (a colored day outside a seven-day period used to show zero tokens).</summary>
+    /// period only (a colored day outside a seven-day period would otherwise show zero tokens).</summary>
     private IReadOnlyList<StatsRecord> _allRecords = [];
 
     /// <summary>Every stored record before the filters; <see cref="_allRecords"/> is what they let through.</summary>

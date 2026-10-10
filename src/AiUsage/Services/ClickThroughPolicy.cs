@@ -10,9 +10,8 @@ public readonly record struct ClickThroughResolution(bool ClickThrough, string W
 /// <summary>Resolves the window-level/opacity side effects of switching click-through on or off.
 /// One instance per window: it remembers, only for as long as click-through stays on, whichever
 /// opacity was active right before it was switched on, so switching it back off can put that value
-/// back. Stateful on purpose - see <see cref="Resolve"/> for why a call still counts as pure given
-/// the same history of prior calls, and is proven that way below rather than only eyeballed once by
-/// hand.</summary>
+/// back. Stateful on purpose - see <see cref="Resolve"/> for why a call still counts as pure given the
+/// same history of prior calls.</summary>
 public sealed class ClickThroughPolicy
 {
     /// <summary>A fully opaque window that also ignores the mouse is a bug report waiting to happen -

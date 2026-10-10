@@ -71,7 +71,7 @@ public static class CountdownFormatter
             : DateLabels.ShortMonthDay(local.DateTime, culture) + " " + local.ToString(time, culture);
     }
 
-    /// <summary>"Letzte Aktualisierung vor …"/"Last update … ago" for the Stale state
+    /// <summary>"Last update … ago" for the Stale state
     /// - same day/hour/minute rounding as <see cref="Format"/>, just phrased as
     /// elapsed time. The bare duration ("2h 15m") is not looked up per language: the identical
     /// "d"/"h"/"m" unit letters are used in both EN and DE, so this is

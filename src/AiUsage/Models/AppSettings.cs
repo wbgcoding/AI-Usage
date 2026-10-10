@@ -32,8 +32,8 @@ public sealed class AppSettings
     /// UI for this value lands in a later step; today it is the fetch-side clamp only.</summary>
     public int RemoteRefreshMinutes { get; set; } = 5;
 
-    /// <summary>One of <see cref="WindowLayers"/>; null means the file does not say yet (a file written
-    /// before this setting existed), which <see cref="Storage.SettingsStore"/> resolves on load.</summary>
+    /// <summary>One of <see cref="WindowLayers"/>; null means the file does not say yet (a file from an
+    /// older version), which <see cref="Storage.SettingsStore"/> resolves on load.</summary>
     public string? WindowLayer { get; set; }
 
     /// <summary>The old on/off "always on top" flag, read only to migrate it into <see cref="WindowLayer"/>
@@ -203,8 +203,8 @@ public sealed class AppSettings
     public string? KnownLatestUrl { get; set; }
 
     /// <summary>Section key (<see cref="Views.Controls.CollapsibleSection.SectionKey"/>) -> whether
-    /// that section of the statistics window is collapsed. A key missing here - including on an
-    /// older settings file written before this property existed - counts as expanded; <see
+    /// that section of the statistics window is collapsed. A key missing here - including on an older
+    /// settings file - counts as expanded; <see
     /// cref="Views.StatsWindow"/> is the only reader/writer.</summary>
     public Dictionary<string, bool> StatsSectionsCollapsed { get; set; } = [];
 

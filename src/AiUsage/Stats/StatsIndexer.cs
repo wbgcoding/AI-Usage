@@ -7,11 +7,11 @@ using Microsoft.Data.Sqlite;
 namespace AiUsage.Stats;
 
 /// <summary>What one <see cref="StatsIndexer.IndexOnce"/> call actually did, per provider - the
-/// number behind "how much of the real usage does this index actually cover", which nothing
-/// reported before this existed. A line the walk chose not to look at (a file skipped because its
-/// size and write time already matched what was stored) counts toward neither <see
-/// cref="StatsIndexCounters.LinesParsed"/> nor <see cref="StatsIndexCounters.LinesSkipped"/> - only
-/// lines an actually opened file yields land in either bucket.</summary>
+/// number behind "how much of the real usage does this index actually cover". A line the walk chose
+/// not to look at (a file skipped because its size and write time already matched what was stored)
+/// counts toward neither <see cref="StatsIndexCounters.LinesParsed"/> nor <see
+/// cref="StatsIndexCounters.LinesSkipped"/> - only lines an actually opened file yields land in either
+/// bucket.</summary>
 public readonly record struct StatsIndexResult(StatsIndexCounters Claude, StatsIndexCounters Codex, StatsIndexCounters Gemini = default);
 
 /// <summary><see cref="FilesSeen"/> is every matching file the walk found under a provider's
@@ -231,7 +231,7 @@ public sealed class StatsIndexer
     /// subdirectory never hides every other file under <paramref name="root"/>: each subdirectory is
     /// listed on its own, and one that throws is counted into <paramref name="foldersSkipped"/>
     /// rather than failing the whole walk or vanishing without a trace the way blanket <see
-    /// cref="EnumerationOptions.IgnoreInaccessible"/> used to.</summary>
+    /// cref="EnumerationOptions.IgnoreInaccessible"/> does.</summary>
     internal static IReadOnlyList<string> EnumerateNewestFirst(
         string root, string searchPattern, out int foldersSkipped, CancellationToken cancellationToken = default) =>
         EnumerateNewestFirstWithInfo(root, searchPattern, out foldersSkipped, cancellationToken)
@@ -722,9 +722,9 @@ public sealed class StatsIndexer
         Log?.LogError("Statistics: a session record larger than the size limit was skipped.");
 
     /// <summary>The day and hour bucket are this machine's own LOCAL day/hour of <paramref
-    /// name="timestamp"/>, not UTC - a session made at 23:30 local time in a zone ahead of UTC used to
-    /// land on the next UTC day, and every hour in the "by hour" chart used to read one or two hours
-    /// off in Germany (UTC+1/+2). <see cref="MainViewModel.RefreshWeekTokens"/> already computes its
+    /// name="timestamp"/>, not UTC - a session made at 23:30 local time in a zone ahead of UTC would
+    /// land on the next UTC day, and every hour in the "by hour" chart would read one or two hours off
+    /// in Germany (UTC+1/+2). <see cref="MainViewModel.RefreshWeekTokens"/> already computes its
     /// own week start in local time, so this makes the index consistent with it rather than the other
     /// way around.</summary>
     private static void Accumulate(

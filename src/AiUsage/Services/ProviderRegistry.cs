@@ -78,7 +78,8 @@ public static class ProviderRegistry
         BaseUrl: "https://aistudio.google.com/usage",
         // Google account sign-in with the usage page as its return address, not aistudio.google.com
         // itself: signed out, that address answers with the product welcome page, which carries no
-        // visible way in and is exactly the "just a Google page, no sign-in" this used to show.
+        // visible way in and is exactly the "just a Google page, no sign-in" a signed-out user would
+        // see.
         SignInUrl: "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Faistudio.google.com%2Fusage",
         // The sign-in hosts include the country account hosts: after the login Google sets the
         // session cookies through accounts.google.<the user's country domain>.
@@ -210,17 +211,13 @@ public static class ProviderRegistry
 
     /// <summary>The primary account's own provider, built the one way <see cref="CreateAll"/> builds
     /// it (the local Claude Code sign-in, never a web session) - shared with
-    /// <see cref="Views.SettingsWindow"/>'s read-locations panel, which used to build a throwaway
-    /// default-constructed <c>ClaudeProvider</c> instead and so named the web session even though the
-    /// running primary account never reads through it.</summary>
+    /// <see cref="Views.SettingsWindow"/>'s read-locations panel, so the panel never names the web
+    /// session, which the running primary account does not read through.</summary>
     internal static IUsageProvider CreatePrimaryClaudeAccount(AppSettings? settings = null) =>
         new ClaudeProvider(
             AppSettings.CreateDefaultAccounts().Keys.Single(), ClaudeCodeLogin.FetchAsync, settings,
             settings is null ? null : () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes));
 
-    /// <summary>Every runner is handed back rather than only captured as a method group, so the
-    /// caller can own and dispose it (sign-out needs to tear it down before it deletes the browser
-    /// profile it still has open).</summary>
     /// <summary>Copilot's own primary provider and, for every account key <see
     /// cref="AppSettings.CopilotAccountLogins"/> names, a further one reading as that already
     /// signed-in GitHub user - never a new sign-in, never a web session (see <see
@@ -230,6 +227,9 @@ public static class ProviderRegistry
             ? new CopilotProvider()
             : new CopilotProvider(accountKey, settings.CopilotAccountLogins.GetValueOrDefault(accountKey, accountKey));
 
+    /// <summary>Every runner is handed back rather than only captured as a method group, so the
+    /// caller can own and dispose it (sign-out needs to tear it down before it deletes the browser
+    /// profile it still has open).</summary>
     public static (IReadOnlyList<IUsageProvider> Providers, IReadOnlyDictionary<string, WebSessionScriptRunner> Runners) CreateAll(
         AppSettings settings, SettingsStore store, LogService? logService = null)
     {

@@ -262,10 +262,10 @@ public sealed class StatsMonthGrid : FrameworkElement
         set => SetValue(LegendMoreTextProperty, value);
     }
 
-    /// <summary>True (the default, unchanged from before this existed - the statistics window never
-    /// sets it) draws the color-key/intensity-scale row below the grid; false skips it and its own
-    /// height entirely, for a caller with too little room to spare - the widget's own day-grid tile
-    /// at Mini density (see <see cref="ViewModels.DayGridTileViewModel.ShowLegend"/>).</summary>
+    /// <summary>True (the default; the statistics window never sets it) draws the
+    /// color-key/intensity-scale row below the grid; false skips it and its own height entirely, for a
+    /// caller with too little room to spare - the widget's own day-grid tile at Mini density (see <see
+    /// cref="ViewModels.DayGridTileViewModel.ShowLegend"/>).</summary>
     public static readonly DependencyProperty ShowLegendProperty = DependencyProperty.Register(
         nameof(ShowLegend), typeof(bool), typeof(StatsMonthGrid),
         new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
@@ -490,8 +490,8 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     /// <summary>A day's own fill step: 0 for no usage at all, otherwise 1..4 by which quarter of
     /// <paramref name="sortedNonZeroTotals"/> it falls into - a handful of days at the top of a
-    /// heavily skewed distribution no longer wash out every other day into "empty", the way scaling
-    /// against the single busiest day used to.</summary>
+    /// heavily skewed distribution no longer wash out every other day into "empty", unlike scaling
+    /// against the single busiest day.</summary>
     internal static int QuantileStep(long value, IReadOnlyList<long> sortedNonZeroTotals)
     {
         if (value <= 0 || sortedNonZeroTotals.Count == 0)

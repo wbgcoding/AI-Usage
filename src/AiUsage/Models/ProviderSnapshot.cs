@@ -18,10 +18,9 @@ public sealed record ProviderSnapshot(
     // successful one - stays as short to write as it was before.
     IReadOnlyList<string>? Diagnostics = null,
     // Which account this is, when a display name is available - may be the account's email address
-    // or login (a deliberate, later loosening of the rule this field used to carry, which forbade an
-    // email address outright). Shown on the tile itself, but never anywhere the value could leave the
-    // screen: not diagnostics, not the clipboard, not the log file. Same "must never reach a log"
-    // contract as PathSanitizer.cs applies to user paths.
+    // or login (an email address is allowed here on purpose). Shown on the tile itself, but never
+    // anywhere the value could leave the screen: not diagnostics, not the clipboard, not the log file.
+    // Same "must never reach a log" contract as PathSanitizer.cs applies to user paths.
     string? AccountLabel = null,
     // A provider with more than one read route (Claude: the local Claude Code sign-in, then the
     // app's own browser session) fills this with a plain, stable word naming why the primary route

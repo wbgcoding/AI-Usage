@@ -24,8 +24,7 @@ public sealed class HistoryChart : FrameworkElement
     }
 
     // No hardcoded literal here on purpose: every visible string comes from LocalizationService
-    // - the caller binds this to [Chart.Empty], same key the surrounding
-    // XAML already showed before this control was actually wired in.
+    // - the caller binds this to [Chart.Empty].
     public static readonly DependencyProperty EmptyTextProperty = DependencyProperty.Register(
         nameof(EmptyText), typeof(string), typeof(HistoryChart),
         new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
@@ -124,7 +123,7 @@ public sealed class HistoryChart : FrameworkElement
     /// <summary>Last week's figures, already shifted forward by seven days by the caller so they
     /// draw on the same axis as the current window. Drawn last, on top of both real series (a plain
     /// muted line with no fill and no per-level color, so it still reads as background context rather
-    /// than a third measurement competing with the real ones) - drawing it first, behind them, used to
+    /// than a third measurement competing with the real ones) - drawing it first, behind them, would
     /// let a real series' own opaque line paint over it and erase it completely whenever the two
     /// agreed, which for a steady user is often most of the time.</summary>
     public static readonly DependencyProperty PreviousWeekValuesProperty = DependencyProperty.Register(
@@ -537,7 +536,7 @@ public sealed class HistoryChart : FrameworkElement
 
         // Drawn last, on top of both real series: a steady user's week-over-week figure often tracks
         // its own current one closely, and a comparison line drawn UNDER an opaque real series' own
-        // line used to be painted over completely and vanish exactly when the two values agreed -
+        // line would be painted over completely and vanish exactly when the two values agreed -
         // the one case a comparison is most likely to actually apply to. On top, its own opacity keeps
         // it reading as background context without ever depending on how close the real line happens
         // to run.

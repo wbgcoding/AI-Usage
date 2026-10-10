@@ -24,7 +24,7 @@ public static class SettingsRanges
     public static double ClampThreshold(double percent) => Math.Clamp(percent, MinThresholdPercent, MaxThresholdPercent);
 
     // 20 is the floor: low enough to see straight through the window onto the desktop behind it,
-    // while Maximum (100, also the default) keeps the window fully opaque - see ThemeService.Apply.
+    // while Maximum (100, also the default) keeps the window fully opaque.
     public const int MinWindowOpacityPercent = 20;
     public const int MaxWindowOpacityPercent = 100;
 
@@ -73,7 +73,7 @@ public static class SettingsRanges
     }
 
     /// <summary>The retention slider's rungs: days below a year, then every whole year from one to
-    /// ten - no gaps (four, six, seven, eight and nine years used to be unreachable).</summary>
+    /// ten - no gaps.</summary>
     public static readonly IReadOnlyList<int> RetentionRungsDays =
         [7, 14, 30, 60, 90, 180, 365, 730, 1095, 1460, 1825, 2190, 2555, 2920, 3285, 3650];
 

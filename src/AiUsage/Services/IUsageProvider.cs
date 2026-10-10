@@ -4,7 +4,7 @@ namespace AiUsage.Services;
 
 /// <summary>
 /// One provider (Codex, Claude, Gemini, Copilot, ...). A new provider needs only a class implementing
-/// this plus a registry entry - the acceptance test for the fourth provider.
+/// this plus a registry entry.
 /// </summary>
 public interface IUsageProvider
 {
@@ -16,7 +16,7 @@ public interface IUsageProvider
     /// <see cref="Models.AppSettings.Accounts"/>). The key everything account-specific goes through -
     /// settings, the history file, the browser sign-in profile, the tile itself - so two accounts of
     /// the same provider never collide. Defaults to <see cref="Id"/>, so a provider that can only ever
-    /// have one account (every provider except Claude, today) needs to do nothing to get this right.</summary>
+    /// have one account needs to do nothing to get this right.</summary>
     string AccountKey => Id;
 
     /// <summary>Display name for the tile header, e.g. "Codex".</summary>

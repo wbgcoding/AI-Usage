@@ -15,11 +15,11 @@ public sealed record HistoryPoint(
     // 1 = compacted to one value per hour, 2 = one value per day, null = raw.
     [property: JsonPropertyName("c")] int? CompactionLevel = null,
     // Real token count measured alongside this point; null when the provider
-    // had no local source for it at the time.
+    // had no local source for it.
     [property: JsonPropertyName("tok")] long? Tokens = null,
     // The window's own resource key (see UsageWindow.Label), e.g. "Window_CursorModels" - lets more
     // than one WindowKind.Other series for the same provider be told apart (Cursor's per-model bars,
-    // its Grok Bot bar); null for a line written before this field existed, or for a provider that
-    // never had more than one window of that kind. Pre-release, no migration: an old line without it
+    // its Grok Bot bar); null for a line without it, or for a provider that never has more than one
+    // window of that kind. Pre-release, no migration: an old line without it
     // still reads, it simply carries no label.
     [property: JsonPropertyName("l")] string? Label = null);

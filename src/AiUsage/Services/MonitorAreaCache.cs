@@ -2,9 +2,8 @@ namespace AiUsage.Services;
 
 /// <summary>
 /// Caches the last monitor enumeration and only re-enumerates on an explicit <see cref="Refresh"/> -
-/// MainWindow used to call NativeMonitors.WorkAreas() (a Win32 EnumDisplayMonitors round trip) from
-/// four places, every one of them re-run by the once-a-second tick timer even though the monitor
-/// layout essentially never changes mid-session.
+/// NativeMonitors.WorkAreas() is a Win32 EnumDisplayMonitors round trip, too costly to repeat on the
+/// once-a-second tick when the monitor layout essentially never changes mid-session.
 /// </summary>
 internal sealed class MonitorAreaCache(Func<IReadOnlyList<MonitorArea>> lookup)
 {

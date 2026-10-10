@@ -152,7 +152,7 @@ public partial class SettingsWindow : Window
     /// <para>The guard matters as much as the reset: toggling <c>Manual</c> then back to <c>Height</c>
     /// unconditionally - even when nothing was ever dragged - froze the window at whatever height the
     /// PREVIOUS category left it at, because the toggle captured that still-stale height as "Manual"
-    /// before this switch's own layout pass had shrunk anything. Only actually reassert it when a
+    /// before the switch's own layout pass had shrunk anything. Only actually reassert it when a
     /// drag really did leave the property sitting on <c>Manual</c>; otherwise WPF's own
     /// <c>SizeToContent="Height"</c> already recomputes correctly on its own.</para></summary>
     private void CategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)

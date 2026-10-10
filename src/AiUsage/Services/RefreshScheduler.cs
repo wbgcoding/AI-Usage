@@ -122,7 +122,7 @@ public sealed class RefreshScheduler
     public event Action<string>? FetchEnded;
 
     /// <summary>
-    /// Changes the base interval the Settings window's "Aktualisierung" slider controls.
+    /// Changes the base interval the Settings window's refresh interval slider controls.
     /// Takes effect from each provider's next completed fetch onward (<see cref="RunOneAsync"/> reads
     /// <see cref="_baseInterval"/> fresh every time) - a provider already waiting keeps its current
     /// wait rather than being retroactively rescheduled.

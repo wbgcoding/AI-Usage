@@ -84,9 +84,9 @@ public static class StatusTextMap
 
         // A provider may also hand over a resource key directly instead of one of the internal
         // words above - ClaudeProvider does it for the sign-in hints (State.NotSignedIn.ClaudeCode,
-        // State.NotSignedIn.WebSession, State.NotSignedIn.ClaudeExpired). Those carry dots, so they
-        // never matched the internal key shape and used to be passed through verbatim, which put
-        // the bare key on the tile where the sentence belongs. Resolve it when the resource file
+        // State.NotSignedIn.WebSession, State.NotSignedIn.ClaudeExpired). Those carry dots, so they do
+        // not match the internal key shape and would be passed through verbatim, putting the bare key
+        // on the tile where the sentence belongs. Resolve it when the resource file
         // knows it; a value that is genuinely no resource key (a model display name from a provider
         // response) still comes back untouched.
         var resolved = LocalizationService.Instance[key];
@@ -126,10 +126,8 @@ public static class StatusTextMap
     };
 
     /// <summary>The one place a usage percentage is rounded to a whole number for display - away
-    /// from zero, matching what the tile's own bar has always shown. Before this, the tray tooltip
-    /// used the same away-from-zero rounding but the threshold notification used bare
-    /// <c>Math.Round</c> (banker's rounding, to even), so 62.5% could read 63% on the tile and tray
-    /// but 62% in the balloon.</summary>
+    /// from zero, matching the tile's own bar, so 62.5% reads 63% on the tile, in the tray and in the
+    /// notification alike (bare <c>Math.Round</c> rounds to even and would give 62%).</summary>
     public static int UsagePercent(double percent) => (int)Math.Round(percent, MidpointRounding.AwayFromZero);
 
     /// <summary>A formatted number with the percent sign in the active language's own convention

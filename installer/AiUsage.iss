@@ -5,10 +5,9 @@
 ; wizard itself runs (PrivilegesRequired/PrivilegesRequiredOverridesAllowed below). The folder
 ; page that follows carries the second choice: a checkbox switches to a portable copy - one
 ; single exe dropped into a folder the user picks, with nothing else written to this PC.
-; Everything downstream reads IsPortableMode in [Code]. The foreground-activation plumbing below
-; is a proven pattern, hardened across many rounds of real installer testing on an earlier project
-; - trimmed here of everything specific to that project's own self-updater (no relaunch parameter,
-; no dev update channel). The in-app update downloads this setup and runs it silently.
+; Everything downstream reads IsPortableMode in [Code]. The foreground-activation plumbing below brings
+; Setup to the front when a browser, Explorer or another app launched it. The in-app update downloads
+; this setup and runs it silently.
 ;
 ; The app needs the .NET 10 Desktop Runtime and does not carry its own copy. When the runtime is
 ; missing, the [Code] section below downloads Microsoft's installer through RuntimeSetup.ps1 (which
@@ -254,8 +253,8 @@ var
   FinishedLabelExtended: Boolean;
   { The directory page's own default wording, captured once before anything here overwrites it -
     SetupMessage(msgSelectDirDesc) cannot stand in for it: unlike the page's own default caption,
-    it does not substitute the "[name]" token, so re-using it left a literal "[name]" on screen
-    (caught in VM testing 2026-09-06). Restored verbatim when returning to a plain standard
+    it does not substitute the "[name]" token, so re-using it would leave a literal "[name]" on screen.
+    Restored verbatim when returning to a plain standard
     install after visiting Portable or an update folder. }
   DefaultSelectDirCaption: String;
   HoldingFront: Boolean;
@@ -304,9 +303,9 @@ const
   ASFW_ANY = $FFFFFFFF;
 
 { Windows refuses SetForegroundWindow to a process that is not already in front, which is exactly
-  the position Setup is in when launched from a browser, Explorer or another app - the same
-  ForceForeground fix proven in the sister project's installer (measured there across several
-  rounds of VM testing), reused verbatim here. }
+  the position Setup is in when launched from a browser, Explorer or another app. This
+  procedure attaches to the foreground thread's input for the call and, if that is not enough,
+  switches to the window and toggles topmost. }
 procedure ForceForeground(Wnd: HWND);
 var
   ForegroundWnd: HWND;
@@ -612,7 +611,7 @@ begin
 end;
 
 { Setup starting behind the window that launched it looks like nothing happened at all - held on
-  top and released only once it has actually been activated (same fix as the sister project). }
+  top and released only once it has actually been activated (see ForceForeground). }
 procedure BringWizardToFront;
 begin
   if FrontRequested then

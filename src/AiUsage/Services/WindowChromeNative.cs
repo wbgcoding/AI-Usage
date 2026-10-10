@@ -6,8 +6,8 @@ namespace AiUsage.Services;
 /// One-line bootstrap every custom-chrome window calls right after <c>InitializeComponent</c>:
 /// applies the current window opacity (<see cref="WindowOpacity"/>) to the widget itself and, on
 /// Windows 11, the DWM
-/// rounded-corner preference that replaced the rounded corners this app used to get for free from
-/// painting a rounded card on top of an <c>AllowsTransparency=True</c> window background.
+/// rounded-corner preference (the window is opaque, not a transparent window with a rounded card
+/// painted on it).
 /// </summary>
 public static class WindowChromeNative
 {

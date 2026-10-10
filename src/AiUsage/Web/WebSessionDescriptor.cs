@@ -1,11 +1,11 @@
 namespace AiUsage.Web;
 
 /// <summary>
-/// Everything a web-backed provider's own session needs that used to be hardcoded to one provider's
-/// name throughout this folder: the page its hidden reader session starts from, the page its
-/// sign-in window opens, which hosts that window may navigate to, and which subfolder of the shared
-/// webview profile root is its own. One instance per provider that has a web session; a further
-/// provider brings its own instance instead of a copy of this plumbing.
+/// Everything a web-backed provider's own session needs, kept apart from any one provider's name: the
+/// page its hidden reader session starts from, the page its sign-in window opens, which hosts that
+/// window may navigate to, and which subfolder of the shared webview profile root is its own. One
+/// instance per provider that has a web session; a further provider brings its own instance instead of
+/// a copy of this plumbing.
 /// </summary>
 /// <param name="BaseUrl">Where the hidden reader session starts - a usage page, so the fetch script
 /// runs on the provider's own origin.</param>

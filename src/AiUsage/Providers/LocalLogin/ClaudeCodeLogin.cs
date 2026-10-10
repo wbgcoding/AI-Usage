@@ -41,7 +41,7 @@ internal static class ClaudeCodeLogin
 
     // Claude Code's own CLI always sends a "claude-code/<version>" User-Agent on this call; a request
     // with none of it lands in a separate, far more aggressively rate-limited bucket on the server
-    // side (observed elsewhere as a persistent 429 on this exact endpoint). This local-only read
+    // side (a persistent 429 on this exact endpoint). This local-only read
     // mimics that shape for the same reason AntigravityLocalLogin sends its own tool's User-Agent
     // rather than none.
     private const string UserAgent = "claude-code/1.0.0";

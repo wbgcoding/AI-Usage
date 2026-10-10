@@ -27,8 +27,8 @@ public sealed partial class MainViewModel
 
     /// <summary>How long <see cref="SignOutAsync"/> waits between two attempts at the same folder.
     /// The browser process does not disappear the moment its last wrapper is released, so the first
-    /// delete after a sign-out regularly still finds one of its own files open - which used to leave
-    /// the session on disk and the account signed in. A test seam so proving the retry does not cost
+    /// delete after a sign-out regularly still finds one of its own files open - which would leave the
+    /// session on disk and the account signed in. A test seam so proving the retry does not cost
     /// real seconds.</summary>
     internal TimeSpan SignOutRetryDelay { get; set; } = TimeSpan.FromMilliseconds(400);
 

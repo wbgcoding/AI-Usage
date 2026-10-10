@@ -3,8 +3,8 @@ namespace AiUsage.Services;
 /// <summary>
 /// The pure "which thread am I on" decision behind App.xaml.cs's HandleFatal, pulled out so it is
 /// unit-testable without a live WPF Application: AppDomain.UnhandledException can fire on any
-/// thread, and creating a Window off the UI thread throws InvalidOperationException, which used to
-/// mean the crash dialog silently never appeared for exactly the class of crash it exists for.
+/// thread, and creating a Window off the UI thread throws InvalidOperationException, which would mean
+/// the crash dialog silently never appears for exactly the class of crash it exists for.
 /// </summary>
 internal static class FatalHandler
 {

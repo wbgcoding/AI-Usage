@@ -12,8 +12,7 @@ namespace AiUsage.Services;
 /// a UI framework's own wrapper - a hidden message window receives the shell callback, and the
 /// right-click menu is a plain WPF <see cref="ContextMenu"/> themed the same way as every other
 /// popup in this app. Not unit-testable (a live shell tray icon needs a real desktop
-/// session) - only <see cref="TrayTooltipBuilder"/>'s pure text-building is tested (the design's own
-/// Test section names only that).
+/// session) - only <see cref="TrayTooltipBuilder"/>'s pure text-building is tested.
 /// </summary>
 public sealed class TrayService : IDisposable
 {
@@ -117,7 +116,7 @@ public sealed class TrayService : IDisposable
     // False until the dispatcher's own startup burst has drained: a fresh tray icon can
     // receive a stray WM_RBUTTONUP the instant the message pump starts pumping - Explorer replaying
     // a queued click meant for whatever previously sat at this same taskbar slot, a known quirk right
-    // after a restart, before the old instance's icon is fully gone. Before this flips true,
+    // after a restart, before the old instance's icon is fully gone. Until this flips true,
     // ShowContextMenu never runs, so the foreground call inside it (the one documented way to make
     // the popup close on an outside click) can never fire before a user could possibly have clicked
     // for real.
@@ -152,7 +151,7 @@ public sealed class TrayService : IDisposable
         });
         _hwndSource.AddHook(WndProc);
         // Explorer restarting (crash, "Restart Explorer" from Task Manager) drops every tray icon
-        // silently; re-adding on this broadcast message is what NotifyIcon did for this app before.
+        // silently; re-adding the icon on this broadcast message brings it back.
         _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
         var loc = LocalizationService.Instance;
@@ -189,7 +188,7 @@ public sealed class TrayService : IDisposable
 
         // Menu items are only ever built once (this class lives for the whole
         // process) - a language switch must still reach them immediately, so this
-        // re-reads all five texts on every LocalizationService change rather than only at startup.
+        // re-reads every menu text on every LocalizationService change rather than only at startup.
         // Named so Dispose can unsubscribe it - the singleton outlives this instance otherwise and
         // keeps calling RefreshMenuText on already-disposed menu items.
         _localizationChanged = (_, _) => RefreshMenuText();
@@ -333,7 +332,7 @@ public sealed class TrayService : IDisposable
         RefreshMenuText();
     }
 
-    /// <summary>Names the active global shortcut (e.g. "Ctrl+Alt+U") in the "Anzeigen/Verstecken"
+    /// <summary>Names the active global shortcut (e.g. "Ctrl+Alt+U") in the "Show/Hide"
     /// entry itself - null while the hotkey is off or could not be registered, which drops back to
     /// the plain, unnamed entry.</summary>
     public void UpdateHotkeyShortcut(string? shortcutText)
@@ -418,8 +417,7 @@ public sealed class TrayService : IDisposable
         DestroyIcon(previousHandle);
     }
 
-    /// <summary>A threshold warning as a balloon tip: the same shell mechanism
-    /// <c>NotifyIcon.ShowBalloonTip</c> used to wrap, called directly.</summary>
+    /// <summary>A threshold warning as a balloon tip: the shell's own balloon notification.</summary>
     public void ShowBalloon(string text)
     {
         var data = NewNotifyIconData(NIF_INFO);

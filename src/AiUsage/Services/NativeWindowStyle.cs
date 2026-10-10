@@ -6,8 +6,8 @@ namespace AiUsage.Services;
 /// Native window styling this app makes outside WPF's own reach and outside <see
 /// cref="WindowOpacity"/>'s own layered alpha: WS_EX_TRANSPARENT makes a window ignore the mouse
 /// entirely (the click-through overlay mode), which needs WS_EX_LAYERED alongside it to take
-/// effect; DWMWA_WINDOW_CORNER_PREFERENCE rounds a window that no longer gets rounded corners from
-/// painting a rounded card on an <c>AllowsTransparency=True</c> background. Pure Win32, never a
+/// effect; DWMWA_WINDOW_CORNER_PREFERENCE rounds the corners of an opaque window, which has no painted
+/// rounded card to do it. Pure Win32, never a
 /// pixel touched - x64/ARM64 only, so the *Ptr entry points are safe to call directly rather than
 /// branching on pointer size.
 /// </summary>
@@ -74,9 +74,8 @@ internal static class NativeWindowStyle
     /// <summary>Shows the native window again without taking the focus from whatever is in front.</summary>
     public static void ShowNativeNoActivate(IntPtr hwnd) => ShowWindow(hwnd, SwShowNoActivate);
 
-    /// <summary>Asks the window manager to round a window's corners - the replacement for the rounded
-    /// corners this app used to get for free from painting a rounded card on a fully transparent
-    /// window background. No-op (square window) on Windows 10, which has no such attribute; the build
+    /// <summary>Asks the window manager to round a window's corners; the window itself is opaque, so
+    /// no painted card has to fake them. No-op (square window) on Windows 10, which has no such attribute; the build
     /// check keeps this from making a call nobody there would honour anyway, and
     /// DwmSetWindowAttribute never throws for a failing HRESULT on top of that, it only returns
     /// one, which this swallows on purpose.</summary>

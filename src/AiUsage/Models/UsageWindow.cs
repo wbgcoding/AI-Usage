@@ -25,7 +25,7 @@ public sealed record UsageWindow
     public TokenUsage? Tokens { get; }
 
     /// <summary>Optional used/total pair alongside the raw percentage; null when the provider's
-    /// response carries no such denominator. Not yet shown anywhere - a pure data carrier for now.</summary>
+    /// response carries no such denominator. Shown as the row's allowance text.</summary>
     public UsageAllowance? Allowance { get; }
 
     public UsageWindow(

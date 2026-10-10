@@ -15,8 +15,7 @@ namespace AiUsage.Views.Controls;
 /// main tiles' line chart, no chart library either. Each bar can carry more than one stacked
 /// segment (one per provider), drawn bottom to top in the order <see cref="SeriesBrushes"/> lists
 /// them. The chart adds a labelled X axis, three Y gridlines with shortened figures, and a hover tooltip
-/// naming the date and every segment's own figure - the same drawing this control already did for
-/// the stacking, just no longer bare.
+/// naming the date and every segment's own figure.
 /// </summary>
 public sealed class StatsBarChart : FrameworkElement
 {
@@ -258,8 +257,7 @@ public sealed class StatsBarChart : FrameworkElement
     }
 
     /// <summary>The unit word appended after every absolute token figure the hover tooltip prints
-    /// (e.g. "tokens"/"Token") - empty by default, which leaves the tooltip exactly as it read
-    /// before this property existed.</summary>
+    /// (e.g. "tokens"/"Token") - empty by default, which leaves the tooltip without a unit word.</summary>
     public static readonly DependencyProperty TokenWordProperty = DependencyProperty.Register(
         nameof(TokenWord), typeof(string), typeof(StatsBarChart),
         new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
@@ -629,8 +627,7 @@ public sealed class StatsBarChart : FrameworkElement
     // which have no drawing context to measure text with) so hit testing lines up with what the last
     // render pass actually drew. The two DefaultLeftMargin/DefaultBottomMargin constants are the
     // fallback for the one case nothing can be measured against: an empty chart, with no Y ticks and
-    // no bars to size a band from - the same fixed width this control used everywhere before this
-    // measured band existed.
+    // no bars to size a band from.
     private double _leftMargin = DefaultLeftMargin;
     private double _bottomMargin = DefaultBottomMargin;
     private const double DefaultLeftMargin = 56;
@@ -697,8 +694,7 @@ public sealed class StatsBarChart : FrameworkElement
 
         if (bars.Count == 0)
         {
-            // Nothing to measure a tight band against - the same fixed margins this control always
-            // used before this measured, content-sized band existed.
+            // Nothing to measure a tight band against - the fixed default margins apply.
             _leftMargin = DefaultLeftMargin;
             _bottomMargin = DefaultBottomMargin;
             var emptyChartHeight = Math.Max(0, height - _bottomMargin);

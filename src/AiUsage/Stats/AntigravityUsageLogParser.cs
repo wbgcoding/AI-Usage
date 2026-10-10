@@ -291,7 +291,7 @@ public static class AntigravityUsageLogParser
             }
             else if (generation.StepIndex >= 0 && !settled)
             {
-                // The step may simply not be written yet: stop before this call and try again later.
+                // The step may simply not be written yet: stop at this call and try again later.
                 deferredAt = index;
                 incomplete = true;
                 break;

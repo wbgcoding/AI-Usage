@@ -22,8 +22,8 @@ public sealed partial class CodexProvider : IUsageProvider
     // costs anything when there is genuinely nothing to find - and the age cut-off bounds that case.
     private const int MaxFilesToCheck = 40;
 
-    // Real session files live under sessions/YYYY/MM/DD/ - four levels including the root is enough
-    // for that layout with a little headroom, and bounds the walk regardless of what is actually there.
+    // Real session files live three folders below the root (sessions/YYYY/MM/DD/); six levels leaves
+    // headroom and bounds the walk regardless of what is actually there.
     private const int MaxDepth = 6;
 
     private static readonly TimeSpan OldestFileToOpen = SessionLineAge.MaxAge;
@@ -393,9 +393,9 @@ public sealed partial class CodexProvider : IUsageProvider
     /// <summary>A genuine rejection, not a coincidental substring: matched only on the structured
     /// shape Codex itself writes for one (<c>type: "event_msg"</c>, <c>payload.type: "error"</c>,
     /// naming an HTTP 429 or a usage limit in its own message text) - never a plain text search across
-    /// the whole line, which used to also match a session's own conversation and tool-output content
+    /// the whole line, which would also match a session's own conversation and tool-output content
     /// (an assistant reply quoting this very file, a hash or id that happens to contain "429") and
-    /// reported a five-hour window as fully used from nothing but that coincidence. See
+    /// report a five-hour window as fully used from nothing but that coincidence. See
     /// <see cref="ApplyPlausibilityGuard"/> for the second, independent guard against exactly that
     /// failure mode.</summary>
     internal static bool IsUsageLimitRejection(string line)
