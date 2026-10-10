@@ -184,7 +184,6 @@ internal static class MicaBackdrop
             transparent => SetTransparentBackground(window, source, transparent, originalBackground),
             message => LogService.Shared.LogInfo(message));
         var entry = (controller, followsOpacity);
-        Controllers.Add(entry);
         source.Disposed += (_, _) => Controllers.Remove(entry);
 
         if (!_subscribed)
@@ -193,34 +192,34 @@ internal static class MicaBackdrop
             ThemeService.Applied += (_, _) => Reevaluate();
         }
 
-        Update(controller, followsOpacity);
+        // Attributes and background set before the window is on screen come out wrong (an untinted
+        // or missing backdrop) until Mica is switched off and on again while it is visible. So a window
+        // starts opaque and takes the backdrop right after its first frame (loaded priority: ahead of
+        // any background work the window has queued), which is that same switch;
+        // until then it is not managed, so a theme change cannot set the backdrop early either.
+        void StartOnScreen()
+        {
+            if (source.IsDisposed || Controllers.Contains(entry))
+                return;
+            Controllers.Add(entry);
+            Update(controller, followsOpacity);
+        }
 
-        // Attributes and background set before the window was first shown come out wrong (a tinted
-        // or missing backdrop) until Mica is switched off and on again while the window is on screen;
-        // the same happens after the window moves to another monitor or the displays change. Do
-        // exactly that switch, with a rendered frame of the opaque background in between: the second
-        // step runs at background priority, after the render pass the first step queued. A cycle
+        // Moving to another monitor or a display change spoils the backdrop the same way: switch it
+        // off at once and on again at loaded priority, which runs right after the render pass that
+        // shows the opaque frame and ahead of any background work the window has queued. A cycle
         // asked for while one is pending is folded into it.
         var cyclePending = false;
         void CycleOnScreen()
         {
-            if (cyclePending)
+            if (cyclePending || !controller.IsActive)
                 return;
             cyclePending = true;
-            window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+            controller.Update(false, false);
+            window.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
             {
-                if (!controller.IsActive)
-                {
-                    cyclePending = false;
-                    return;
-                }
-
-                controller.Update(false, false);
-                window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
-                {
-                    cyclePending = false;
-                    Update(controller, followsOpacity);
-                });
+                cyclePending = false;
+                Update(controller, followsOpacity);
             });
         }
 
@@ -231,7 +230,7 @@ internal static class MicaBackdrop
             {
                 var now = NativeMonitors.DeviceNameOfWindow(hwnd);
                 if (NeedsCycle(msg, monitor, now))
-                    CycleOnScreen();
+                    window.Dispatcher.BeginInvoke(DispatcherPriority.Send, CycleOnScreen);
                 monitor = now;
             }
 
@@ -240,14 +239,14 @@ internal static class MicaBackdrop
 
         if (alreadyRendered)
         {
-            CycleOnScreen();
+            StartOnScreen();
         }
         else
         {
             void FirstRender(object? sender, EventArgs e)
             {
                 window.ContentRendered -= FirstRender;
-                CycleOnScreen();
+                window.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, StartOnScreen);
             }
 
             window.ContentRendered += FirstRender;
