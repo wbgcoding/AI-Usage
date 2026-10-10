@@ -936,6 +936,41 @@ public class WebSessionScriptRunnerTests
         }
     }
 
+    [Fact]
+    public async Task A_finished_read_logs_its_time_and_the_browser_size()
+    {
+        var fake = new FakeHiddenBrowserHost { ProcessId = Environment.ProcessId };
+        var lines = new List<string>();
+        var runner = new WebSessionScriptRunner(() => fake, providerId: "claude", timingLog: new WebReadTimingLog(), writeTimingLine: lines.Add);
+        fake.CompleteNavigate(true);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        while (fake.ExecuteCalls == 0)
+            await Task.Delay(5);
+        fake.CompleteScript("{}");
+        await call;
+
+        var line = Assert.Single(lines);
+        Assert.Matches("^web read claude: [0-9]+ ms, browser [0-9]+ MB$", line);
+    }
+
+    [Fact]
+    public async Task A_read_without_a_browser_process_logs_the_time_only()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var lines = new List<string>();
+        var runner = new WebSessionScriptRunner(() => fake, providerId: "codex", timingLog: new WebReadTimingLog(), writeTimingLine: lines.Add);
+        fake.CompleteNavigate(true);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        while (fake.ExecuteCalls == 0)
+            await Task.Delay(5);
+        fake.CompleteScript("{}");
+        await call;
+
+        Assert.Matches("^web read codex: [0-9]+ ms$", Assert.Single(lines));
+    }
+
     private sealed class FakeHiddenBrowserHost : IHiddenBrowserHost
     {
         private readonly TaskCompletionSource<bool> _navigate = new();
@@ -946,6 +981,10 @@ public class WebSessionScriptRunnerTests
         private TaskCompletionSource<string> _script = new();
 
         public bool Disposed { get; private set; }
+
+        public int? ProcessId { get; init; }
+
+        public int? BrowserProcessId => ProcessId;
 
         public int SuspendCalls { get; private set; }
 

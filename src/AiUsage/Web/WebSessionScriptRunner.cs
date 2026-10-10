@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using System.Windows;
 using Microsoft.Web.WebView2.Wpf;
 using AiUsage.Services;
@@ -35,6 +36,9 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     private const string NotSignedInEnvelope = """{"status":"not_signed_in"}""";
 
     private readonly Func<IHiddenBrowserHost> _hostFactory;
+    private readonly string _providerId;
+    private readonly WebReadTimingLog? _timingLog;
+    private readonly Action<string>? _writeTimingLine;
     private readonly TimeSpan _navigationTimeout;
     private readonly TimeSpan _scriptTimeout;
     private readonly TimeProvider _timeProvider;
@@ -74,7 +78,9 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     private readonly CancellationTokenSource _lifetime = new();
 
     public WebSessionScriptRunner(WebSessionDescriptor descriptor)
-        : this(() => new WebView2HiddenBrowserHost(new WebViewHost(descriptor), descriptor))
+        : this(() => new WebView2HiddenBrowserHost(new WebViewHost(descriptor), descriptor),
+            providerId: descriptor.ProviderId, timingLog: WebReadTimingLog.Shared,
+            writeTimingLine: LogService.Shared.LogInfo)
     {
     }
 
@@ -84,8 +90,12 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     /// how many times a failed start is retried.</summary>
     internal WebSessionScriptRunner(
         Func<IHiddenBrowserHost> hostFactory, TimeSpan? navigationTimeout = null, TimeSpan? scriptTimeout = null, TimeProvider? timeProvider = null,
-        TimeSpan? suspendWait = null)
+        TimeSpan? suspendWait = null, string providerId = "web", WebReadTimingLog? timingLog = null,
+        Action<string>? writeTimingLine = null)
     {
+        _providerId = providerId;
+        _timingLog = timingLog;
+        _writeTimingLine = writeTimingLine;
         _suspendWait = suspendWait ?? DefaultSuspendWait;
         _hostFactory = hostFactory;
         _navigationTimeout = navigationTimeout ?? DefaultNavigationTimeout;
@@ -102,14 +112,50 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
 
         Interlocked.Increment(ref _inFlight);
         DisarmIdleTimer();
+        var stopwatch = Stopwatch.StartNew();
         try
         {
-            return await RunScriptAsync(script, ct);
+            var result = await RunScriptAsync(script, ct);
+            LogReadTiming(stopwatch.ElapsedMilliseconds);
+            return result;
         }
         finally
         {
             if (Interlocked.Decrement(ref _inFlight) == 0)
                 ArmIdleTimer();
+        }
+    }
+
+    /// <summary>One line per finished read for the first reads of a provider (see
+    /// <see cref="WebReadTimingLog"/>): the time the read took and the working set of the browser
+    /// process. Never fails a read.</summary>
+    private void LogReadTiming(long elapsedMilliseconds)
+    {
+        if (_timingLog is null || _writeTimingLine is null)
+            return;
+
+        try
+        {
+            long? browserBytes = null;
+            if (_host?.BrowserProcessId is { } processId)
+            {
+                try
+                {
+                    using var browser = Process.GetProcessById(processId);
+                    browserBytes = browser.WorkingSet64;
+                }
+                catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    // The browser process is already gone: the line carries the time only.
+                }
+            }
+
+            if (_timingLog.NextLine(_providerId, elapsedMilliseconds, browserBytes) is { } line)
+                _writeTimingLine(line);
+        }
+        catch (Exception)
+        {
+            // A timing line is never worth a failed read.
         }
     }
 
@@ -385,6 +431,9 @@ internal interface IHiddenBrowserHost : IAsyncDisposable
 
     /// <summary>Wakes the page before the next script. Safe when it was never suspended.</summary>
     void Resume();
+
+    /// <summary>The id of the browser process behind this session; null when unknown.</summary>
+    int? BrowserProcessId => null;
 }
 
 /// <summary>
@@ -421,6 +470,11 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     // browser: whatever it would build afterwards has no owner left to dispose it.
     private volatile bool _disposed;
     private TaskCompletionSource<bool>? _navigated;
+
+    // Read once on the UI thread, where the browser object may be used; the runner reads it later.
+    private int? _browserProcessId;
+
+    public int? BrowserProcessId => _browserProcessId;
 
     public WebView2HiddenBrowserHost(WebViewHost host, WebSessionDescriptor descriptor)
     {
@@ -469,6 +523,8 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
             ct.ThrowIfCancellationRequested();
             return false;
         }
+
+        _browserProcessId = (int)webView.CoreWebView2.BrowserProcessId;
 
         // Never shown, never interacted with by a person - so nothing here needs F12, a right-click
         // menu, or the browser's own accelerator keys, and every one of those is a way this hidden
