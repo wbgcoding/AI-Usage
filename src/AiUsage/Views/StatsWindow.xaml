@@ -70,6 +70,9 @@
                 <DataTrigger Binding="{Binding IsHeatmap}" Value="True">
                     <Setter Property="Visibility" Value="Collapsed"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsWeekdayGrouping}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
         <!-- The day-detail hint line: shown only until a day is actually picked, then the four
@@ -777,8 +780,8 @@
                                 </Border>
                             </controls:CollapsibleSection>
 
-                            <!-- The plain table: gated to every grouping but Day and Weekday x Hour
-                                 (GroupedTable style), since the year grid and the heatmap above already
+                            <!-- The plain table: gated to every grouping but Day, Weekday and Weekday x Hour
+                                 (GroupedTable style), since the year grid, the weekday columns and the heatmap above already
                                  show those by weekday. Titled with whichever grouping is
                                  currently selected - the table's own rows are grouped by exactly that. -->
                             <controls:CollapsibleSection x:Name="TableSection" SectionKey="table" Style="{StaticResource GroupedTable}"

@@ -296,7 +296,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private const int MaxStackedModels = 6;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack), nameof(IsSessionGrouping), nameof(ShowPlainTable))]
+    [NotifyPropertyChangedFor(nameof(ChartMaxAxisLabels), nameof(IsHourAxis), nameof(ChartTooltip), nameof(IsHeatmap), nameof(IsBarChart), nameof(CanChooseColor), nameof(IsModelStack), nameof(IsAgentStack), nameof(IsSessionGrouping), nameof(ShowPlainTable), nameof(IsWeekdayGrouping))]
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
@@ -332,6 +332,9 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>True while the chart area shows the weekday by hour grid instead of columns.</summary>
     public bool IsHeatmap => SelectedGrouping == StatsGrouping.WeekdayHour;
+
+    /// <summary>True for the plain weekday grouping, whose seven columns already are the whole table.</summary>
+    public bool IsWeekdayGrouping => SelectedGrouping == StatsGrouping.Weekday;
 
     /// <summary>True while the chart area shows columns (the session grouping draws horizontal bars instead).</summary>
     public bool IsBarChart => !IsHeatmap && !IsSessionGrouping;
