@@ -223,6 +223,12 @@ public sealed class AppSettings
     /// name); anything else reads back as Day.</summary>
     public string StatsGrouping { get; set; } = "Day";
 
+    /// <summary>The 1.1.0 chart switch under the day grouping (Day, Weekday or Hour), read only to carry
+    /// it into <see cref="StatsGrouping"/> and then cleared, so it is never written back.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("StatsPerDayView")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyStatsPerDayView { get; set; }
+
     /// <summary>What the stacked day and week columns were colored by (a <see
     /// cref="Stats.StatsColorBy"/> name); anything else reads back as Provider.</summary>
     public string StatsColorBy { get; set; } = "Provider";

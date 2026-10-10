@@ -252,6 +252,7 @@ public sealed class SettingsStore : IDisposable
         FillMissingProviders(loaded, onDroppedAccount);
         LegacyWindowLabels.Migrate(loaded, MainViewModel.TrayWindowLabelPrefix);
         MigrateWindowLayer(loaded);
+        MigrateStatsPerDayView(loaded);
         ClampToValidRanges(loaded);
         return (loaded, null);
     }
@@ -263,6 +264,15 @@ public sealed class SettingsStore : IDisposable
     {
         settings.WindowLayer = WindowLayers.Normalize(settings.WindowLayer ?? WindowLayers.FromLegacy(settings.LegacyAlwaysOnTop));
         settings.LegacyAlwaysOnTop = null;
+    }
+
+    /// <summary>A 1.1.0 file that left the day grouping on its weekday or hour chart opens on that
+    /// grouping now, since both became groupings of their own; the old key is cleared.</summary>
+    internal static void MigrateStatsPerDayView(AppSettings settings)
+    {
+        if (settings.StatsGrouping == "Day" && settings.LegacyStatsPerDayView is "Weekday" or "Hour")
+            settings.StatsGrouping = settings.LegacyStatsPerDayView;
+        settings.LegacyStatsPerDayView = null;
     }
 
     /// <summary>Debounced entry point: a burst of changes (a dragged slider) collapses into one write.</summary>
