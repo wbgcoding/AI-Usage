@@ -170,17 +170,45 @@ public sealed class StatsStore
         return columns.All(present.Contains);
     }
 
+    private const string DayGlob = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]";
+
+    // A foreign or restored file is data, not code: values outside what this app writes (a text or
+    // negative number where a count belongs, an hour off the clock, a megabyte-long label) are never
+    // taken over, so no later reader has to guard against them.
+    private const string ValidUsageRow =
+        "typeof(hour) = 'integer' AND hour BETWEEN 0 AND 23 AND typeof(subagent) = 'integer' "
+        + "AND typeof(input_tokens) = 'integer' AND input_tokens >= 0 AND typeof(output_tokens) = 'integer' AND output_tokens >= 0 "
+        + "AND typeof(cache_creation_tokens) = 'integer' AND cache_creation_tokens >= 0 AND typeof(cache_read_tokens) = 'integer' AND cache_read_tokens >= 0 "
+        + "AND day GLOB '" + DayGlob + "' AND length(provider) <= 512 AND length(model) <= 512 AND length(project) <= 4096 "
+        + "AND length(effort) <= 512 AND length(machine) <= 64";
+
+    private const string ValidSessionRow =
+        "typeof(input) = 'integer' AND input >= 0 AND typeof(output) = 'integer' AND output >= 0 "
+        + "AND typeof(cache_creation) = 'integer' AND cache_creation >= 0 AND typeof(cache_read) = 'integer' AND cache_read >= 0 "
+        + "AND typeof(subagent_tokens) = 'integer' AND subagent_tokens >= 0 AND length(provider) <= 512 AND length(session_id) <= 512 "
+        + "AND length(project) <= 4096 AND length(main_model) <= 512 AND length(first_utc) <= 64 AND length(last_utc) <= 64 AND length(machine) <= 64";
+
+    private const string ValidSessionModelRow =
+        "typeof(tokens) = 'integer' AND tokens >= 0 AND length(provider) <= 512 AND length(session_id) <= 512 "
+        + "AND length(model) <= 512 AND length(machine) <= 64";
+
+    /// <summary>Canonical lower-case GUID text, as a SQLite GLOB pattern.</summary>
+    private const string GuidGlob =
+        "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-"
+        + "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]";
+
     /// <summary>
     /// Brings another PC's token history in from <paramref name="foreignDatabasePath"/> (a backup's
     /// index, already extracted to a file of its own). Its own rows (machine column empty there)
-    /// are filed here under <paramref name="foreignId"/>; rows it holds for third PCs come along only
-    /// when this index has none for that PC yet; rows carrying <paramref name="ownId"/> (its copy of
-    /// this PC's history) are skipped. Whatever rows this index already holds for
-    /// <paramref name="foreignId"/> are replaced first, in the same transaction, so importing the same
-    /// PC again changes nothing. Rows of this PC (machine column empty here) are never touched.
+    /// are filed here under <paramref name="foreignId"/>; rows it holds for third PCs (canonical GUID
+    /// labels only) come along only for a PC this index has no rows for yet; rows carrying
+    /// <paramref name="ownId"/> (its copy of this PC's history) are skipped. Whatever rows this index
+    /// already holds for <paramref name="foreignId"/> are replaced first, in the same transaction, so
+    /// importing the same PC again changes nothing. Rows of this PC (machine column empty here) are
+    /// never touched, and rows that do not look like what this app writes are left out.
     /// Returns the number of distinct days now filed under the PC, or null when nothing was imported:
-    /// an id that is not a GUID or is this PC's own, a foreign file of an unknown or newer schema, a
-    /// damaged file, or this index being unusable.
+    /// an id that is not a GUID or is this PC's own (in any letter case), a foreign file of an unknown
+    /// or newer schema, a damaged file, or this index being unusable.
     /// </summary>
     internal int? ImportMachine(string foreignDatabasePath, string foreignId, string ownId)
     {
@@ -196,6 +224,8 @@ public sealed class StatsStore
             if (!IsUsable)
                 return null;
 
+            // The attached file is a foreign schema: nothing it declares (views, triggers, functions) may run.
+            Execute(connection, "PRAGMA trusted_schema = OFF");
             using (var attach = connection.CreateCommand())
             {
                 attach.CommandText = "ATTACH DATABASE $path AS imported_source";
@@ -214,17 +244,20 @@ public sealed class StatsStore
                     var sessionFromSource = string.Join(", ", SessionColumns.Select(c => c == "machine" ? "$id" : c));
                     var model = string.Join(", ", SessionModelColumns);
                     var modelFromSource = string.Join(", ", SessionModelColumns.Select(c => c == "machine" ? "$id" : c));
+                    var third = $"machine GLOB '{GuidGlob}' AND machine <> $id AND machine <> $own AND machine NOT IN (SELECT machine FROM temp.known_machines)";
 
                     ExecuteWith(connection, $"""
                         DELETE FROM session_model WHERE machine = $id;
                         DELETE FROM session WHERE machine = $id;
                         DELETE FROM usage WHERE machine = $id;
-                        INSERT INTO usage ({usage}) SELECT {usageFromSource} FROM imported_source.usage WHERE machine = '';
-                        INSERT INTO session ({session}) SELECT {sessionFromSource} FROM imported_source.session WHERE machine = '';
-                        INSERT INTO session_model ({model}) SELECT {modelFromSource} FROM imported_source.session_model WHERE machine = '';
-                        INSERT OR IGNORE INTO usage ({usage}) SELECT {usage} FROM imported_source.usage WHERE machine <> '' AND machine <> $id AND machine <> $own;
-                        INSERT OR IGNORE INTO session ({session}) SELECT {session} FROM imported_source.session WHERE machine <> '' AND machine <> $id AND machine <> $own;
-                        INSERT OR IGNORE INTO session_model ({model}) SELECT {model} FROM imported_source.session_model WHERE machine <> '' AND machine <> $id AND machine <> $own;
+                        CREATE TEMP TABLE known_machines AS SELECT machine FROM main.usage UNION SELECT machine FROM main.session UNION SELECT machine FROM main.session_model;
+                        INSERT INTO usage ({usage}) SELECT {usageFromSource} FROM imported_source.usage WHERE machine = '' AND {ValidUsageRow};
+                        INSERT INTO session ({session}) SELECT {sessionFromSource} FROM imported_source.session WHERE machine = '' AND {ValidSessionRow};
+                        INSERT INTO session_model ({model}) SELECT {modelFromSource} FROM imported_source.session_model WHERE machine = '' AND {ValidSessionModelRow};
+                        INSERT OR IGNORE INTO session ({session}) SELECT {session} FROM imported_source.session WHERE {third} AND {ValidSessionRow};
+                        INSERT OR IGNORE INTO session_model ({model}) SELECT {model} FROM imported_source.session_model WHERE {third} AND {ValidSessionModelRow};
+                        INSERT OR IGNORE INTO usage ({usage}) SELECT {usage} FROM imported_source.usage WHERE {third} AND {ValidUsageRow};
+                        DROP TABLE temp.known_machines;
                         """, id, own);
 
                     int days;
@@ -255,13 +288,43 @@ public sealed class StatsStore
         }
     }
 
-    /// <summary>Deletes every row filed under another PC's id (see <see cref="ImportMachine"/>). Only a
-    /// GUID is accepted, so the empty id that marks this PC's own rows can never be named here.
-    /// False when the id is not valid or the index could not be changed.</summary>
+    /// <summary>Every machine label other than this PC's own (the empty one) that has rows in the
+    /// index, whoever put it there: imported PCs and whatever came along with them.</summary>
+    internal IReadOnlyList<string> ListMachines()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return [];
+
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT machine FROM usage WHERE machine <> '' AND length(machine) <= 64
+                UNION SELECT machine FROM session WHERE machine <> '' AND length(machine) <= 64
+                UNION SELECT machine FROM session_model WHERE machine <> '' AND length(machine) <= 64
+                ORDER BY 1 LIMIT 200
+                """;
+            var found = new List<string>();
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                found.Add(reader.GetString(0));
+            return found;
+        }
+        catch (SqliteException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Deletes every row filed under one other machine label (see <see cref="ListMachines"/>).
+    /// Any non-empty label is accepted, exactly as listed; the empty label that marks this PC's own
+    /// rows can never be named here. False when the label is not valid or the index could not be changed.</summary>
     internal bool RemoveMachine(string machineId)
     {
-        if (!BackupService.TryNormalizeMachineId(machineId, out var id))
+        if (string.IsNullOrEmpty(machineId) || machineId.Length > 64)
             return false;
+        var id = machineId;
 
         try
         {
@@ -289,6 +352,85 @@ public sealed class StatsStore
         catch (SqliteException)
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Gets an index file taken from a backup ready to become this PC's: rows that do not look like what
+    /// this app writes are dropped, and every row filed under one of <paramref name="machineIdsToOwn"/>
+    /// (the backup PC's own id and this PC's id) becomes a row of this PC (machine column empty), counts
+    /// added up where such a row exists already. Rows of every other imported PC keep their label.
+    /// Works on the file directly, in one transaction; the live index is not involved.
+    /// </summary>
+    internal static void PrepareRestoredIndex(string databasePath, IReadOnlyCollection<string> machineIdsToOwn)
+    {
+        var ids = machineIdsToOwn.Select(i => i.ToLowerInvariant()).Distinct().ToList();
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString();
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+        Execute(connection, "PRAGMA trusted_schema = OFF");
+        Execute(connection, "BEGIN IMMEDIATE");
+        try
+        {
+            using var command = connection.CreateCommand();
+            var names = ids.Count == 0 ? "NULL" : string.Join(", ", ids.Select((_, i) => "$m" + i));
+            for (var i = 0; i < ids.Count; i++)
+                command.Parameters.AddWithValue("$m" + i, ids[i]);
+
+            var usage = string.Join(", ", UsageColumns);
+            var usageKeys = "provider, day, hour, model, project, effort, subagent";
+            var usageKeysConflict = "provider, day, hour, model, project, effort, machine, subagent";
+            var session = string.Join(", ", SessionColumns);
+            var sessionAsOwn = string.Join(", ", SessionColumns.Select(c => c == "machine" ? "''" : c));
+            var model = string.Join(", ", SessionModelColumns);
+            var modelAsOwn = string.Join(", ", SessionModelColumns.Select(c => c == "machine" ? "''" : c));
+            command.CommandText = $"""
+                DELETE FROM usage WHERE NOT COALESCE(({ValidUsageRow}), 0);
+                DELETE FROM session WHERE NOT COALESCE(({ValidSessionRow}), 0);
+                DELETE FROM session_model WHERE NOT COALESCE(({ValidSessionModelRow}), 0);
+                INSERT INTO usage ({usage})
+                    SELECT provider, day, hour, model, project, effort, '', subagent,
+                           SUM(input_tokens), SUM(output_tokens), SUM(cache_creation_tokens), SUM(cache_read_tokens)
+                    FROM usage WHERE lower(machine) IN ({names}) GROUP BY {usageKeys}
+                    ON CONFLICT ({usageKeysConflict}) DO UPDATE SET
+                        input_tokens = input_tokens + excluded.input_tokens,
+                        output_tokens = output_tokens + excluded.output_tokens,
+                        cache_creation_tokens = cache_creation_tokens + excluded.cache_creation_tokens,
+                        cache_read_tokens = cache_read_tokens + excluded.cache_read_tokens;
+                DELETE FROM usage WHERE lower(machine) IN ({names});
+                INSERT OR IGNORE INTO session ({session}) SELECT {sessionAsOwn} FROM session WHERE lower(machine) IN ({names});
+                DELETE FROM session WHERE lower(machine) IN ({names});
+                INSERT OR IGNORE INTO session_model ({model}) SELECT {modelAsOwn} FROM session_model WHERE lower(machine) IN ({names});
+                DELETE FROM session_model WHERE lower(machine) IN ({names});
+                """;
+            command.ExecuteNonQuery();
+            Execute(connection, "COMMIT");
+        }
+        catch
+        {
+            TryExecute(connection, "ROLLBACK");
+            throw;
+        }
+
+        // The file leaves this method as one plain database file, no journal beside it.
+        TryExecute(connection, "PRAGMA wal_checkpoint(TRUNCATE)");
+        TryExecute(connection, "PRAGMA journal_mode = DELETE");
+    }
+
+    /// <summary>Folds the write-ahead log of the index at <paramref name="databasePath"/> into the
+    /// database file and closes it again, so the file is complete by itself and can be moved alone.
+    /// Failing (no such file, not a database) is not an error here.</summary>
+    internal static void CheckpointIndex(string databasePath)
+    {
+        try
+        {
+            var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString();
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            TryExecute(connection, "PRAGMA wal_checkpoint(TRUNCATE)");
+        }
+        catch (SqliteException)
+        {
         }
     }
 

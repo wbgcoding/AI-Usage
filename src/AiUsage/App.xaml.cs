@@ -18,6 +18,8 @@ public partial class App : Application, IDisposable
     private SettingsStore? _settingsStore;
     private MainWindow? _mainWindow;
     private SingleInstanceService? _singleInstance;
+    private RestoreOutcome _restoreOutcome;
+    private string? _restoredFrom;
     private LogService? _logService;
     private StatsIndexerService? _statsIndexerService;
     private DispatcherTimer? _statsIndexerReindexTimer;
@@ -114,7 +116,7 @@ public partial class App : Application, IDisposable
 
         // A restore asked for in the previous run happens here: this process owns the single-instance
         // lock and the previous copy is gone, so no data file is open anywhere yet.
-        BackupService.ApplyPendingRestore(AppPaths.DataDirectory, DateTime.Now, _logService.LogInfo);
+        _restoreOutcome = BackupService.ApplyPendingRestore(AppPaths.DataDirectory, DateTime.Now, _logService.LogInfo, out _restoredFrom);
 
         // Best-effort: a copy the reader could not delete last run (file still locked, app killed
         // mid-read) should not sit in the cache folder forever waiting for another lookup to fail.
@@ -249,6 +251,17 @@ public partial class App : Application, IDisposable
             // doing nothing.
             if (ShouldShowMainWindow(Dispatcher.HasShutdownStarted))
                 _mainWindow.Show();
+        }
+
+        // The one visible trace of a restore: where the previous data went, or that nothing changed.
+        if (_restoreOutcome != RestoreOutcome.NoPending)
+        {
+            var loc = LocalizationService.Instance;
+            var notice = _restoreOutcome == RestoreOutcome.Restored && _restoredFrom is not null
+                ? loc.Format("Backup.Restored", _restoredFrom)
+                : loc["Backup.RestoreFailed"];
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                () => Views.ConfirmWindow.ShowInfo(null, notice));
         }
 
         // A later start (window hidden into the tray, or a --tray instance with no window at all)

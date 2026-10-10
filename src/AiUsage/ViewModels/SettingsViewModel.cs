@@ -39,9 +39,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Action<string, string> _copySmallFiles;
     private readonly Func<string, string?> _askForBackupSavePath;
     private readonly Func<string?> _askForBackupOpenPath;
-    private readonly Func<bool> _confirmRestore;
+    private readonly Func<string, bool> _confirmRestore;
     private readonly Func<bool> _restartApp;
     private readonly Stats.StatsStore _statsStore;
+    private readonly bool _readsMachineList;
     private readonly Func<Uri, ResourceDictionary> _loadThemeDictionary;
 
     // Same theme-to-file mapping ThemeService.ThemeUris keeps for the live app - kept here too
@@ -491,7 +492,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Action<string, string>? copyIndex = null,
         Action<string, string>? copySmallFiles = null,
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
-        Func<bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
+        Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
     {
         Main = main;
         _settings = settings;
@@ -513,6 +514,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _confirmRestore = confirmRestore ?? ShowRealRestoreConfirm;
         _restartApp = restartApp ?? RestartForRestore;
         _statsStore = statsStore ?? new Stats.StatsStore();
+        // The list of other PCs reads the index; a settings store of its own folder (a test) never touches the real one.
+        _readsMachineList = statsStore is not null
+            || string.Equals(Path.GetFullPath(store.DataDirectory), Path.GetFullPath(AppPaths.DataDirectory), StringComparison.OrdinalIgnoreCase);
         if (fetchLatestRelease is not null)
             main.Update.FetchLatestRelease = fetchLatestRelease;
 
@@ -1355,9 +1359,27 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void RebuildImportedPcs()
     {
-        ImportedPcs.Clear();
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var machine in _settings.ImportedMachines)
-            ImportedPcs.Add(new ImportedPcRow(machine.Id, machine.Name));
+            names.TryAdd(machine.Id, machine.Name);
+
+        // Every label the index holds rows for, whoever put it there, plus the entries kept in the settings.
+        var ids = _readsMachineList ? _statsStore.ListMachines().ToList() : [];
+        foreach (var id in names.Keys)
+        {
+            if (!ids.Contains(id, StringComparer.Ordinal))
+                ids.Add(id);
+        }
+
+        var unknown = LocalizationService.Instance["Settings.Machine.Unknown"];
+        var unknownCount = ids.Count(id => !names.ContainsKey(id));
+        ImportedPcs.Clear();
+        foreach (var id in ids)
+        {
+            var name = names.TryGetValue(id, out var known) ? known : unknownCount > 1 ? $"{unknown} ({id[..Math.Min(8, id.Length)]})" : unknown;
+            ImportedPcs.Add(new ImportedPcRow(id, name));
+        }
+
         OnPropertyChanged(nameof(HasImportedPcs));
     }
 
@@ -1425,14 +1447,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (!_confirmRestore())
+            var dataDirectory = _store.DataDirectory;
+            var setAside = BackupService.PlanSetAside(dataDirectory, DateTime.Now);
+            if (!_confirmRestore(setAside))
                 return;
 
             _store.SaveNow(_settings);
-            var dataDirectory = _store.DataDirectory;
             try
             {
-                BackupService.SchedulePendingRestore(dataDirectory, path);
+                BackupService.SchedulePendingRestore(dataDirectory, path, setAside);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -1452,10 +1475,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static bool ShowRealRestoreConfirm()
+    private static bool ShowRealRestoreConfirm(string setAsideFolder)
     {
         var loc = LocalizationService.Instance;
-        var dialog = new Views.ConfirmWindow(AppInfo.ProductName, loc["Settings.Backup.RestoreConfirm"],
+        var dialog = new Views.ConfirmWindow(AppInfo.ProductName, loc.Format("Settings.Backup.RestoreConfirm", setAsideFolder),
             loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
         Views.OwnerWindowResolver.ApplyOwner(dialog, null);
         return dialog.ShowDialog() == true;
@@ -1532,7 +1555,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 using var source = BackupService.OpenForImport(path, out _);
                 if (source is null)
                     return (ImportOutcome.Refused, 0, "", "");
-                if (source.Manifest.MachineId == ownId)
+                if (string.Equals(source.Manifest.MachineId, ownId, StringComparison.OrdinalIgnoreCase))
                     return (ImportOutcome.SamePc, 0, "", "");
 
                 var imported = _statsStore.ImportMachine(source.StatsDatabasePath, source.Manifest.MachineId, ownId);
@@ -1565,11 +1588,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Deletes the rows of one imported PC and forgets it. Only ids in the list are accepted.</summary>
+    /// <summary>Deletes the rows of one other PC and forgets it. Only labels in the list are accepted.</summary>
     [RelayCommand]
     private void RemoveImportedPc(string? machineId)
     {
-        if (machineId is null || !_settings.ImportedMachines.Any(machine => machine.Id == machineId))
+        if (machineId is null || !ImportedPcs.Any(row => row.Id == machineId))
             return;
 
         if (!_statsStore.RemoveMachine(machineId))

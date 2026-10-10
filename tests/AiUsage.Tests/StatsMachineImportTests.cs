@@ -132,19 +132,34 @@ public sealed class StatsMachineImportTests : IDisposable
         Assert.Contains(own.LoadSessions(), s => s.SessionId == "own-session");
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("not-a-guid")]
-    [InlineData("00000000-0000-0000-0000-000000000000")]
-    public void Removing_with_an_id_that_could_name_this_PCs_own_rows_is_refused(string id)
+    [Fact]
+    public void Removing_the_empty_label_that_marks_this_PCs_own_rows_is_refused()
     {
         var own = OwnIndex(out _);
 
-        Assert.False(own.RemoveMachine(id));
+        Assert.False(own.RemoveMachine(""));
+        Assert.False(own.RemoveMachine(new string('x', 65)));
 
         Assert.Equal(1000, Total(own, ""));
         Assert.Contains(own.LoadSessions(), s => s.SessionId == "own-session");
+    }
+
+    [Fact]
+    public void Every_label_in_the_index_is_listed_and_removable_exactly_as_listed()
+    {
+        var own = OwnIndex(out _);
+        own.AddDelta([Row(Day1, 5, "x"), Row(Day1, 6, Own.ToUpperInvariant()), Row(Day1, 7, Third)]);
+        own.ReplaceSessionsAndMarkBackfilled([Session("own-session", 1000, ""), Session("only-session", 1, "sess-only")]);
+
+        var listed = own.ListMachines();
+
+        Assert.Equal([Own.ToUpperInvariant(), Third, "sess-only", "x"], listed.OrderBy(l => l, StringComparer.Ordinal).ToList());
+        Assert.DoesNotContain("", listed);
+        Assert.True(own.RemoveMachine("x"));
+        Assert.True(own.RemoveMachine(Own.ToUpperInvariant()));
+        Assert.True(own.RemoveMachine("sess-only"));
+        Assert.Equal([Third], own.ListMachines());
+        Assert.Equal(1000, Total(own, ""));
     }
 
     [Theory]
@@ -160,6 +175,59 @@ public sealed class StatsMachineImportTests : IDisposable
         Assert.Null(own.ImportMachine(ForeignIndexFile(), foreignId, Own));
 
         Assert.Equal(before, Ordered(own));
+    }
+
+    [Fact]
+    public void An_upper_case_spelling_of_this_PCs_id_is_this_PC_both_as_the_imported_id_and_as_a_label_in_the_file()
+    {
+        var own = OwnIndex(out _);
+
+        Assert.Null(own.ImportMachine(ForeignIndexFile(), Own, Own.ToUpperInvariant()));
+        Assert.Null(own.ImportMachine(ForeignIndexFile(), Own.ToUpperInvariant(), Own));
+
+        var foreign = ForeignIndexFile();
+        using (var connection = Open(foreign))
+        {
+            Run(connection, "INSERT INTO usage SELECT provider, day, hour, model, project, effort, '" + Own.ToUpperInvariant() + "', subagent, 500, 0, 0, 0 FROM usage WHERE machine = ''");
+            Run(connection, "INSERT INTO usage SELECT provider, day, hour, model, project, effort, 'not-a-guid', subagent, 600, 0, 0, 0 FROM usage WHERE machine = ''");
+            Run(connection, "INSERT INTO usage SELECT provider, day, hour, model, project, effort, '" + Third.ToUpperInvariant() + "', subagent, 700, 0, 0, 0 FROM usage WHERE machine = ''");
+        }
+
+        Assert.NotNull(own.ImportMachine(foreign, Foreign, Own));
+
+        Assert.Equal([Foreign, Third], own.ListMachines().OrderBy(l => l, StringComparer.Ordinal).ToList());
+        Assert.Equal(1000, Total(own, ""));
+    }
+
+    [Fact]
+    public void Rows_a_foreign_file_holds_that_this_app_never_writes_are_left_out()
+    {
+        var own = OwnIndex(out _);
+        var foreign = ForeignIndexFile();
+        using (var connection = Open(foreign))
+        {
+            Run(connection, "INSERT INTO usage VALUES ('claude', '2026-05-03', 99, 'm', 'p', '', '', 0, 1, 1, 1, 1)");
+            Run(connection, "INSERT INTO usage VALUES ('claude', '2026-05-03', 1, 'm', 'p', '', '', 0, -5, 1, 1, 1)");
+            Run(connection, "INSERT INTO usage VALUES ('claude', '2026-05-03', 2, 'm', 'p', '', '', 0, 'lots', 1, 1, 1)");
+            Run(connection, "INSERT INTO usage VALUES ('claude', 'yesterday', 3, 'm', 'p', '', '', 0, 1, 1, 1, 1)");
+            Run(connection, "INSERT INTO usage VALUES ('claude', '2026-05-03', 4, '" + new string('m', 600) + "', 'p', '', '', 0, 1, 1, 1, 1)");
+            Run(connection, "INSERT INTO usage VALUES ('claude', '2026-05-03', 5, 'm', 'p', '', '', 0, 11, 0, 0, 0)");
+        }
+
+        Assert.Equal(3, own.ImportMachine(foreign, Foreign, Own));
+
+        Assert.Equal(150 + 11, Total(own, Foreign));
+    }
+
+    [Fact]
+    public void A_third_PCs_rows_come_along_only_as_a_whole_for_a_PC_this_index_has_no_rows_for()
+    {
+        var own = OwnIndex(out _);
+        own.AddDelta([Row(Day2, 3, Third)]); // some history of the third PC is held already (another day)
+
+        own.ImportMachine(ForeignIndexFile(), Foreign, Own);
+
+        Assert.Equal(3, Total(own, Third)); // the foreign copy's day 1 is not mixed in
     }
 
     [Fact]

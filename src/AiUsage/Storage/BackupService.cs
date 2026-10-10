@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AiUsage.Stats;
+using Microsoft.Data.Sqlite;
 
 namespace AiUsage.Storage;
 
@@ -81,15 +82,16 @@ public static class BackupService
     private const long RatioCheckFloorBytes = 16L * 1024 * 1024;
 
     /// <summary>A restore request older than this is dropped instead of applied, so one left behind
-    /// by a start that never happened cannot surprise a much later start.</summary>
-    internal static readonly TimeSpan PendingMaxAge = TimeSpan.FromHours(1);
+    /// by a start that never happened cannot surprise a much later start. A day leaves room for a
+    /// restart that came late (the previous copy was slow to end).</summary>
+    internal static readonly TimeSpan PendingMaxAge = TimeSpan.FromHours(24);
 
     private const string SettingsName = "settings.json";
     private const string NotificationsName = "notifications.json";
     private const string ProjectColorsName = "project-colors.json";
     private const string StatsName = "stats.db";
 
-    private static readonly Regex HistoryName = new(@"^history-[A-Za-z0-9_-]{1,100}\.jsonl$", RegexOptions.CultureInvariant);
+    private static readonly Regex HistoryName = new(@"^history-[A-Za-z0-9_-]{1,100}\.jsonl\z", RegexOptions.CultureInvariant);
 
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
@@ -146,18 +148,27 @@ public static class BackupService
         return found;
     }
 
-    /// <summary>Everything a restore moves aside: the data files plus what only exists next to them.</summary>
-    private static List<string> SetAsideCandidates(string dataDirectory)
+    /// <summary>True when <paramref name="path"/> lies in <paramref name="folder"/> or below it.</summary>
+    internal static bool IsInsideFolder(string path, string folder)
     {
-        var found = DataFilesIn(dataDirectory);
-        foreach (var extra in new[] { SettingsName + ".bak", StatsName + "-wal", StatsName + "-shm", StatsName + "-journal" })
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar;
+        return Path.GetFullPath(path).StartsWith(root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The name of a data file that is a link (symlink or junction), or null.</summary>
+    private static string? LinkedDataFileIn(string dataDirectory)
+    {
+        if (!Directory.Exists(dataDirectory))
+            return null;
+
+        foreach (var path in Directory.EnumerateFiles(dataDirectory))
         {
-            var path = Path.Combine(dataDirectory, extra);
-            if (File.Exists(path))
-                found.Add(path);
+            var name = Path.GetFileName(path);
+            if (IsDataFileName(name) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                return name;
         }
 
-        return found;
+        return null;
     }
 
     // ---- create ----------------------------------------------------------------------------
@@ -173,6 +184,11 @@ public static class BackupService
     {
         var full = Path.GetFullPath(zipPath);
         var folder = Path.GetDirectoryName(full)!;
+        if (IsInsideFolder(full, dataDirectory))
+            throw new IOException("A backup is never written into the data folder it is made from.");
+        // A linked data file would be left out silently; better no backup than one missing the index.
+        if (LinkedDataFileIn(dataDirectory) is { } linked)
+            throw new IOException($"{linked} is a link; the backup would miss it.");
         Directory.CreateDirectory(folder);
         var temp = $"{full}.{Guid.NewGuid():N}.tmp";
         var scratch = Path.Combine(scratchDirectory ?? Path.GetTempPath(), $"AI-Usage-backup-{Guid.NewGuid():N}");
@@ -271,6 +287,9 @@ public static class BackupService
             try
             {
                 stream = new FileStream(zipPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                // The central directory is only read into memory once its own entry count is known to be sane.
+                if (!(DeclaredEntryCount(stream) is { } count && count >= 1 && count <= MaxEntries))
+                    throw new RefusedException(BackupRefusal.NotABackup);
                 zip = new ZipArchive(stream, ZipArchiveMode.Read);
                 var entries = Validate(zip);
                 var manifest = ReadManifest(entries[ManifestName]);
@@ -313,7 +332,9 @@ public static class BackupService
 
         private static void CopyChecked(ZipArchiveEntry entry, Stream target, string name, ref long totalWritten)
         {
-            var limit = MaxBytesFor(name);
+            // Never past what the entry itself declares: a size that lies low is caught as soon as the
+            // real data exceeds it, not after the whole thing has been unpacked.
+            var limit = Math.Min(MaxBytesFor(name), entry.Length);
             long written = 0;
             uint crc = 0xFFFFFFFF;
             var buffer = new byte[81920];
@@ -379,10 +400,57 @@ public static class BackupService
             entries[name] = entry;
         }
 
-        if (!entries.ContainsKey(ManifestName) || entries.Count < 2)
+        // Every backup this app writes has the manifest and the settings: without the settings a
+        // restore would leave this PC with a new identity and its imported histories unlisted.
+        if (!entries.ContainsKey(ManifestName) || !entries.ContainsKey(SettingsName))
             throw new RefusedException(BackupRefusal.NotABackup);
 
         return entries;
+    }
+
+    /// <summary>The entry count the end-of-central-directory record names (zip64 record when the
+    /// plain field is saturated), read from the file's tail without building any entry. Null when
+    /// no such record is found.</summary>
+    private static long? DeclaredEntryCount(FileStream stream)
+    {
+        const int endRecordSize = 22;
+        const int maxComment = 65535;
+        var length = stream.Length;
+        if (length < endRecordSize)
+            return null;
+
+        var tailLength = (int)Math.Min(length, endRecordSize + maxComment);
+        var tail = new byte[tailLength];
+        stream.Seek(length - tailLength, SeekOrigin.Begin);
+        stream.ReadExactly(tail, 0, tailLength);
+
+        for (var i = tailLength - endRecordSize; i >= 0; i--)
+        {
+            if (tail[i] != 0x50 || tail[i + 1] != 0x4B || tail[i + 2] != 5 || tail[i + 3] != 6)
+                continue;
+
+            var count = BitConverter.ToUInt16(tail, i + 10);
+            if (count != 0xFFFF)
+                return count;
+
+            // Zip64: the locator sits right before the end record and points at the zip64 end record.
+            var locator = i - 20;
+            if (locator < 0 || tail[locator] != 0x50 || tail[locator + 1] != 0x4B || tail[locator + 2] != 6 || tail[locator + 3] != 7)
+                return null;
+            var offset = BitConverter.ToInt64(tail, locator + 8);
+            if (offset < 0 || offset > length - 56)
+                return null;
+
+            var record = new byte[56];
+            stream.Seek(offset, SeekOrigin.Begin);
+            stream.ReadExactly(record, 0, record.Length);
+            if (record[0] != 0x50 || record[1] != 0x4B || record[2] != 6 || record[3] != 6)
+                return null;
+            var total = BitConverter.ToInt64(record, 32);
+            return total < 0 ? null : total;
+        }
+
+        return null;
     }
 
     private static BackupManifest ReadManifest(ZipArchiveEntry entry)
@@ -557,34 +625,82 @@ public static class BackupService
 
     // ---- restore ----------------------------------------------------------------------------
 
-    /// <summary>Asks the next start to restore <paramref name="zipPath"/>. Nothing in the data folder
-    /// is touched now: the running process still holds those files.</summary>
-    public static void SchedulePendingRestore(string dataDirectory, string zipPath)
+    /// <summary>Lists every move of a swap before it happens, so a start after a crash can put the
+    /// previous files back whatever else is gone (the zip, the request, the staging folder).</summary>
+    public const string JournalFileName = "restore-journal.json";
+
+    private static readonly Regex SetAsideNamePattern = new(@"^before-restore-[0-9]{8}-[0-9]{6}(-[0-9]{1,3})?\z", RegexOptions.CultureInvariant);
+
+    private static readonly string[] AsideExtraNames = [SettingsName + ".bak", StatsName + "-wal", StatsName + "-shm", StatsName + "-journal"];
+
+    /// <summary>Test seam: called with the index of each move right before it is made. Throwing an IO
+    /// exception makes that move fail; any other exception stands for a crash.</summary>
+    internal static Action<int>? BeforeSwapMove;
+
+    private sealed class SwapJournal
     {
+        public string SetAside { get; set; } = "";
+
+        /// <summary>Data folder files to move into the set-aside folder, one group per step, in order.</summary>
+        public List<List<string>> Aside { get; set; } = [];
+
+        /// <summary>The staged files that are moved into the data folder afterwards, in order.</summary>
+        public List<string> Place { get; set; } = [];
+    }
+
+    private sealed record PendingRequest(string ZipPath, string? SetAsideName);
+
+    /// <summary>The folder (not created yet) a restore started at <paramref name="now"/> sets the
+    /// current data aside into. The confirm dialog names it before the restore is asked for.</summary>
+    public static string PlanSetAside(string dataDirectory, DateTime now)
+    {
+        var stamp = now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+        var name = $"{SetAsidePrefix}{stamp}";
+        for (var suffix = 2; Directory.Exists(Path.Combine(dataDirectory, name)) && suffix < 1000; suffix++)
+            name = $"{SetAsidePrefix}{stamp}-{suffix}";
+        return Path.Combine(dataDirectory, name);
+    }
+
+    /// <summary>Asks the next start to restore <paramref name="zipPath"/>, setting the current data
+    /// aside in <paramref name="setAsidePath"/> (a folder of the data folder, see
+    /// <see cref="PlanSetAside"/>). Nothing in the data folder is touched now: the running process
+    /// still holds those files.</summary>
+    public static void SchedulePendingRestore(string dataDirectory, string zipPath, string? setAsidePath = null)
+    {
+        var name = Path.GetFileName(setAsidePath ?? PlanSetAside(dataDirectory, DateTime.Now));
         var pending = Path.Combine(dataDirectory, PendingFileName);
         var temp = $"{pending}.{Environment.ProcessId}.tmp";
-        File.WriteAllBytes(temp, Utf8NoBom.GetBytes(Path.GetFullPath(zipPath)));
+        File.WriteAllBytes(temp, Utf8NoBom.GetBytes(Path.GetFullPath(zipPath) + "\n" + name));
         File.Move(temp, pending, overwrite: true);
     }
 
     /// <summary>Takes a scheduled restore back (the restart did not happen).</summary>
     public static void CancelPendingRestore(string dataDirectory) => TryDeleteFile(Path.Combine(dataDirectory, PendingFileName));
 
+    public static RestoreOutcome ApplyPendingRestore(string dataDirectory, DateTime now, Action<string> log) =>
+        ApplyPendingRestore(dataDirectory, now, log, out _);
+
     /// <summary>
-    /// Run once at start, before anything opens the data files. Order: read the request, check and
-    /// extract the whole zip into a staging folder (any failure ends here with the data untouched),
-    /// move the current files into <c>before-restore-*</c>, move the staged files in, drop the request.
-    /// A failure in the swap puts the moved files back. Nothing the old state held is ever deleted; a
-    /// crash in the middle leaves every old file in a before-restore folder.
+    /// Run once at start, before anything opens the data files. First an interrupted earlier swap is
+    /// undone from its journal (whatever else is missing). Then, when a restore is waiting: the whole
+    /// zip is checked and extracted into a staging folder (any failure ends here with the data
+    /// untouched), the staged index and settings are made this PC's (own machine id kept, histories
+    /// relabelled), the swap is journalled, the current files are moved into the set-aside folder and
+    /// the staged files are moved in. A failure in the swap puts the moved files back. Nothing the old
+    /// state held is ever deleted. <paramref name="setAsidePath"/> is the folder holding the previous
+    /// files after a restore.
     /// </summary>
-    public static RestoreOutcome ApplyPendingRestore(string dataDirectory, DateTime now, Action<string> log)
+    public static RestoreOutcome ApplyPendingRestore(string dataDirectory, DateTime now, Action<string> log, out string? setAsidePath)
     {
+        setAsidePath = null;
+        var recovered = RecoverInterruptedSwap(dataDirectory, log);
+
         var pending = Path.Combine(dataDirectory, PendingFileName);
         if (!File.Exists(pending))
-            return RestoreOutcome.NoPending;
+            return recovered ? RestoreOutcome.Unchanged : RestoreOutcome.NoPending;
 
-        var zipPath = ReadPending(pending);
-        if (zipPath is null)
+        var request = ReadPending(pending);
+        if (request is null)
         {
             TryDeleteFile(pending);
             log("Restore: the request was invalid or too old and was dropped.");
@@ -597,29 +713,37 @@ public static class BackupService
             DeleteStaging(staging);
             Directory.CreateDirectory(staging);
             string[] stagedNames;
-            using (var backup = OpenedBackup.Open(zipPath))
+            BackupManifest manifest;
+            using (var backup = OpenedBackup.Open(request.ZipPath))
             {
                 long total = 0;
                 foreach (var name in backup.DataNames)
                     backup.Extract(name, Path.Combine(staging, name), ref total);
                 stagedNames = [.. backup.DataNames];
+                manifest = backup.Manifest;
             }
 
             // The staged copies are what gets installed, so they are what gets checked.
-            if (stagedNames.Contains(SettingsName))
-                CheckSettingsText(File.ReadAllText(Path.Combine(staging, SettingsName)));
+            CheckSettingsText(File.ReadAllText(Path.Combine(staging, SettingsName)));
             if (stagedNames.Contains(StatsName))
                 CheckStatsSchema(Path.Combine(staging, StatsName));
 
-            KeepOwnMachineId(dataDirectory, staging);
-            return Swap(dataDirectory, staging, stagedNames, now, log);
+            // Read before any file moves: this PC keeps its identity, and whatever the backup holds
+            // under its own id or under the id of the PC that made it is this PC's history now.
+            var ownId = ReadOwnMachineId(dataDirectory);
+            PrepareStagedSettings(Path.Combine(staging, SettingsName), ownId, manifest.MachineId);
+            if (stagedNames.Contains(StatsName))
+                StatsStore.PrepareRestoredIndex(Path.Combine(staging, StatsName), [manifest.MachineId, ownId]);
+
+            var setAsideName = request.SetAsideName ?? Path.GetFileName(PlanSetAside(dataDirectory, now));
+            return Swap(dataDirectory, staging, stagedNames, setAsideName, now, log, out setAsidePath);
         }
         catch (RefusedException ex)
         {
             log($"Restore: the backup was refused ({ex.Refusal}); nothing was changed.");
             return RestoreOutcome.Unchanged;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or SqliteException)
         {
             log($"Restore: the backup could not be read ({ex.GetType().Name}); nothing was changed.");
             return RestoreOutcome.Unchanged;
@@ -627,24 +751,34 @@ public static class BackupService
         finally
         {
             DeleteStaging(staging);
-            // Dropped last: a crash before this line leaves the request, and the next start redoes
-            // the whole restore from the zip (any file already moved stays in its before-restore folder).
             TryDeleteFile(pending);
         }
     }
 
-    private static string? ReadPending(string pending)
+    private static PendingRequest? ReadPending(string pending)
     {
         try
         {
             if (new FileInfo(pending).Length > 4096 || DateTime.UtcNow - File.GetLastWriteTimeUtc(pending) > PendingMaxAge)
                 return null;
 
-            var text = File.ReadAllText(pending).Trim();
+            var lines = File.ReadAllText(pending).Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length is < 1 or > 2)
+                return null;
+
+            var text = lines[0];
             if (text.Length == 0 || text.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathFullyQualified(text) || !File.Exists(text))
                 return null;
 
-            return text;
+            string? setAside = null;
+            if (lines.Length == 2)
+            {
+                if (!SetAsideNamePattern.IsMatch(lines[1]))
+                    return null;
+                setAside = lines[1];
+            }
+
+            return new PendingRequest(text, setAside);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -652,83 +786,283 @@ public static class BackupService
         }
     }
 
-    /// <summary>The backup may come from another PC; this PC keeps its own machine id so its imported
-    /// histories and "same PC" checks stay right. Only rewritten when the two differ.</summary>
-    private static void KeepOwnMachineId(string dataDirectory, string staging)
+    /// <summary>This PC's machine id from the current settings; a new one when there is none to read,
+    /// so the restored settings never adopt the identity of the PC the backup came from.</summary>
+    private static string ReadOwnMachineId(string dataDirectory)
     {
-        var stagedSettings = Path.Combine(staging, SettingsName);
-        var currentSettings = Path.Combine(dataDirectory, SettingsName);
-        if (!File.Exists(stagedSettings) || !File.Exists(currentSettings))
-            return;
-
         try
         {
-            var current = JsonNode.Parse(File.ReadAllText(currentSettings)) as JsonObject;
-            if (!TryNormalizeMachineId(current?["machineId"]?.GetValue<string>(), out var ownId))
-                return;
+            var path = Path.Combine(dataDirectory, SettingsName);
+            if (File.Exists(path)
+                && JsonNode.Parse(File.ReadAllText(path)) is JsonObject current
+                && current["machineId"] is JsonValue value
+                && value.TryGetValue<string>(out var text)
+                && TryNormalizeMachineId(text, out var id))
+                return id;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+        }
 
-            var staged = JsonNode.Parse(File.ReadAllText(stagedSettings)) as JsonObject;
-            if (staged is null)
-                return;
-            if (TryNormalizeMachineId(staged["machineId"]?.GetValue<string>(), out var stagedId) && stagedId == ownId)
-                return;
+        return Guid.NewGuid().ToString("D");
+    }
+
+    /// <summary>The staged settings get this PC's machine id, and lose any imported-PC entry for this
+    /// PC or for the PC the backup came from: their rows are this PC's own history now.</summary>
+    private static void PrepareStagedSettings(string stagedSettings, string ownId, string backupMachineId)
+    {
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(stagedSettings)) is not JsonObject staged)
+                throw new RefusedException(BackupRefusal.NotABackup);
 
             staged["machineId"] = ownId;
+            if (staged["importedMachines"] is JsonArray list)
+            {
+                for (var i = list.Count - 1; i >= 0; i--)
+                {
+                    if (list[i] is JsonObject item
+                        && item["id"] is JsonValue idValue
+                        && idValue.TryGetValue<string>(out var text)
+                        && TryNormalizeMachineId(text, out var id)
+                        && (id == ownId || id == backupMachineId))
+                        list.RemoveAt(i);
+                }
+            }
+
             File.WriteAllBytes(stagedSettings, Utf8NoBom.GetBytes(staged.ToJsonString(SettingsStore.JsonOptions)));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or FormatException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
         {
-            // Best effort: without it the restored file keeps the id it came with.
+            throw new RefusedException(BackupRefusal.NotABackup);
         }
     }
 
-    private static RestoreOutcome Swap(string dataDirectory, string staging, string[] stagedNames, DateTime now, Action<string> log)
+    /// <summary>What a restore moves aside, in the order it is moved: every data file the data folder
+    /// holds (a link under a data name moves as the link), the settings backup copy, and, when the
+    /// backup brings its own index, the index together with its write-ahead files as one step. A
+    /// folder without a backup index keeps its index.</summary>
+    private static List<List<string>> AsideGroups(string dataDirectory, bool replacesIndex)
     {
-        var setAside = Path.Combine(dataDirectory, $"{SetAsidePrefix}{now:yyyyMMdd-HHmmss}");
-        for (var suffix = 2; Directory.Exists(setAside); suffix++)
-            setAside = Path.Combine(dataDirectory, $"{SetAsidePrefix}{now:yyyyMMdd-HHmmss}-{suffix}");
-        Directory.CreateDirectory(setAside);
+        var groups = new List<List<string>>();
+        if (!Directory.Exists(dataDirectory))
+            return groups;
 
-        var moved = new List<(string From, string To)>();
-        var placed = new List<string>();
+        var names = Directory.EnumerateFiles(dataDirectory).Select(Path.GetFileName).OfType<string>()
+            .Where(n => IsDataFileName(n) && n != StatsName).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        if (File.Exists(Path.Combine(dataDirectory, SettingsName + ".bak")))
+            names.Add(SettingsName + ".bak");
+        foreach (var name in names)
+            groups.Add([name]);
+
+        if (replacesIndex)
+        {
+            var index = new[] { StatsName, StatsName + "-wal", StatsName + "-shm", StatsName + "-journal" }
+                .Where(n => File.Exists(Path.Combine(dataDirectory, n))).ToList();
+            if (index.Count > 0)
+                groups.Add(index);
+        }
+
+        return groups;
+    }
+
+    private static RestoreOutcome Swap(string dataDirectory, string staging, string[] stagedNames, string setAsideName, DateTime now,
+        Action<string> log, out string? setAsidePath)
+    {
+        setAsidePath = null;
+        var setAside = Path.Combine(dataDirectory, setAsideName);
+        if (Directory.Exists(setAside))
+            setAside = PlanSetAside(dataDirectory, now);
+
+        var journal = new SwapJournal
+        {
+            SetAside = Path.GetFileName(setAside),
+            Aside = AsideGroups(dataDirectory, stagedNames.Contains(StatsName)),
+            Place = [.. stagedNames],
+        };
+
         try
         {
-            foreach (var path in SetAsideCandidates(dataDirectory))
+            Directory.CreateDirectory(setAside);
+            WriteJournal(dataDirectory, journal);
+
+            // The write-ahead log of the old index goes into its database file first, so the file
+            // that is moved aside is complete on its own.
+            if (stagedNames.Contains(StatsName))
+                StatsStore.CheckpointIndex(Path.Combine(dataDirectory, StatsName));
+
+            var step = 0;
+            foreach (var group in journal.Aside)
             {
-                var target = Path.Combine(setAside, Path.GetFileName(path));
-                File.Move(path, target);
-                moved.Add((path, target));
+                BeforeSwapMove?.Invoke(step++);
+                foreach (var name in group)
+                {
+                    // The checkpoint above removes the write-ahead files it folded in.
+                    var source = Path.Combine(dataDirectory, name);
+                    if (File.Exists(source))
+                        MoveWithRetry(source, Path.Combine(setAside, name));
+                }
             }
 
             foreach (var name in stagedNames)
             {
-                var target = Path.Combine(dataDirectory, name);
-                File.Move(Path.Combine(staging, name), target);
-                placed.Add(target);
+                BeforeSwapMove?.Invoke(step++);
+                MoveWithRetry(Path.Combine(staging, name), Path.Combine(dataDirectory, name));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             log($"Restore: the swap failed ({ex.GetType().Name}); putting the previous files back.");
-            foreach (var path in placed)
-                TryDeleteFile(path);
-            for (var i = moved.Count - 1; i >= 0; i--)
-            {
-                try
-                {
-                    File.Move(moved[i].To, moved[i].From);
-                }
-                catch (Exception back) when (back is IOException or UnauthorizedAccessException)
-                {
-                    log($"Restore: {Path.GetFileName(moved[i].From)} could not be put back; it stays in {setAside}.");
-                }
-            }
-
+            if (RollBack(dataDirectory, journal, log))
+                TryDeleteFile(Path.Combine(dataDirectory, JournalFileName));
             return RestoreOutcome.Unchanged;
         }
 
+        TryDeleteFile(Path.Combine(dataDirectory, JournalFileName));
+        setAsidePath = setAside;
         log($"Restore: done; the previous files are in {Path.GetFileName(setAside)}.");
         return RestoreOutcome.Restored;
+    }
+
+    private static void MoveWithRetry(string from, string to)
+    {
+        // A virus scanner can hold a freshly written file for a moment.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(from, to);
+                return;
+            }
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && attempt < 3)
+            {
+                Thread.Sleep(150 * attempt);
+            }
+        }
+    }
+
+    private static void WriteJournal(string dataDirectory, SwapJournal journal)
+    {
+        var path = Path.Combine(dataDirectory, JournalFileName);
+        var temp = $"{path}.{Environment.ProcessId}.tmp";
+        File.WriteAllBytes(temp, Utf8NoBom.GetBytes(JsonSerializer.Serialize(journal)));
+        File.Move(temp, path, overwrite: true);
+    }
+
+    private static bool IsJournalName(string? name) => name is not null && (IsDataFileName(name) || AsideExtraNames.Contains(name, StringComparer.Ordinal));
+
+    private static SwapJournal? ReadJournal(string path)
+    {
+        try
+        {
+            if (new FileInfo(path).Length > 64 * 1024)
+                return null;
+
+            var journal = JsonSerializer.Deserialize<SwapJournal>(File.ReadAllText(path));
+            if (journal is null
+                || !SetAsideNamePattern.IsMatch(journal.SetAside ?? "")
+                || journal.Aside is null || journal.Place is null
+                || journal.Aside.Count > 64 || journal.Place.Count > 64
+                || journal.Aside.Any(g => g is null || g.Count > 8 || !g.All(IsJournalName))
+                || !journal.Place.All(IsJournalName))
+                return null;
+
+            return journal;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Undoes an unfinished swap from its journal: the files already placed are removed (the zip still
+    /// has them), then everything that was moved aside goes back. Done from what the folders hold now,
+    /// so it works after a crash at any move. True when every file is back.
+    /// </summary>
+    private static bool RollBack(string dataDirectory, SwapJournal journal, Action<string> log)
+    {
+        var setAside = Path.Combine(dataDirectory, journal.SetAside);
+        var asideNames = journal.Aside.SelectMany(g => g).ToHashSet(StringComparer.Ordinal);
+        var complete = true;
+
+        foreach (var name in journal.Place)
+        {
+            var current = Path.Combine(dataDirectory, name);
+            if (!File.Exists(current))
+                continue;
+            // A name that was due to move aside but is not in the set-aside folder is still the old file.
+            if (asideNames.Contains(name) && !File.Exists(Path.Combine(setAside, name)))
+                continue;
+
+            TryDeleteFile(current);
+            if (File.Exists(current))
+            {
+                complete = false;
+                log($"Restore: {name} could not be removed again.");
+            }
+        }
+
+        for (var g = journal.Aside.Count - 1; g >= 0; g--)
+        {
+            var group = journal.Aside[g];
+            for (var i = group.Count - 1; i >= 0; i--)
+            {
+                var from = Path.Combine(setAside, group[i]);
+                var to = Path.Combine(dataDirectory, group[i]);
+                if (!File.Exists(from))
+                    continue;
+                if (File.Exists(to))
+                {
+                    complete = false;
+                    log($"Restore: {group[i]} could not be put back, a file with that name exists; it stays in {journal.SetAside}.");
+                    continue;
+                }
+
+                try
+                {
+                    MoveWithRetry(from, to);
+                }
+                catch (Exception back) when (back is IOException or UnauthorizedAccessException)
+                {
+                    complete = false;
+                    log($"Restore: {group[i]} could not be put back; it stays in {journal.SetAside}.");
+                }
+            }
+        }
+
+        return complete;
+    }
+
+    /// <summary>Start-up recovery: a journal in the data folder means a swap never finished. True when one was found.</summary>
+    private static bool RecoverInterruptedSwap(string dataDirectory, Action<string> log)
+    {
+        var path = Path.Combine(dataDirectory, JournalFileName);
+        if (!File.Exists(path))
+            return false;
+
+        DeleteStaging(Path.Combine(dataDirectory, StagingFolderName));
+        var journal = ReadJournal(path);
+        if (journal is null)
+        {
+            log("Restore: an interrupted restore left a journal that cannot be read; it was set aside as it is.");
+            try
+            {
+                File.Move(path, path + ".bad", overwrite: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+
+            return true;
+        }
+
+        log("Restore: an interrupted restore was found; putting the previous files back.");
+        if (RollBack(dataDirectory, journal, log))
+            TryDeleteFile(path);
+        else
+            log($"Restore: some files are still in {journal.SetAside}; the journal stays for the next start.");
+        return true;
     }
 
     // ---- helpers ------------------------------------------------------------------------------

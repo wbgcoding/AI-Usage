@@ -546,7 +546,10 @@
   <data name="Settings.Backup.Create" xml:space="preserve"><value>Sicherung erstellen…</value></data>
   <data name="Settings.Backup.Restore" xml:space="preserve"><value>Sicherung einspielen…</value></data>
   <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage-Sicherung (*.zip)|*.zip</value></data>
-  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Diese Sicherung einspielen? Deine aktuellen Einstellungen, der Kontingent-Verlauf und der Token-Index werden ersetzt, danach startet AI-Usage neu.</value></data>
+  <data name="Backup.Restored" xml:space="preserve"><value>Sicherung eingespielt. Die vorherigen Daten liegen in {0}.</value></data>
+  <data name="Backup.RestoreFailed" xml:space="preserve"><value>Die Sicherung konnte nicht eingespielt werden. Deine Daten sind unverändert.</value></data>
+  <data name="Settings.Machine.Unknown" xml:space="preserve"><value>Unbekannter PC</value></data>
+  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Das Einspielen ersetzt alle aktuellen Einstellungen, den Verlauf und den Token-Index durch die Sicherung. Alles, was neuer ist als die Sicherung, wird im Ordner {0} beiseitegelegt und nicht mehr angezeigt.</value></data>
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Einspielen</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Sicherung gespeichert.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Diese Datei ist keine AI-Usage-Sicherung oder stammt aus einer neueren Version.</value></data>

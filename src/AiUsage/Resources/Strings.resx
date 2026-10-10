@@ -547,7 +547,10 @@
   <data name="Settings.Backup.Create" xml:space="preserve"><value>Create backup…</value></data>
   <data name="Settings.Backup.Restore" xml:space="preserve"><value>Restore backup…</value></data>
   <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage backup (*.zip)|*.zip</value></data>
-  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Restore this backup? Your current settings, quota history and token index are replaced, then AI-Usage restarts.</value></data>
+  <data name="Backup.Restored" xml:space="preserve"><value>Backup restored. The previous data is in {0}.</value></data>
+  <data name="Backup.RestoreFailed" xml:space="preserve"><value>The backup could not be restored. Your data is unchanged.</value></data>
+  <data name="Settings.Machine.Unknown" xml:space="preserve"><value>Unknown PC</value></data>
+  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Restoring replaces all current settings, history and token index with the backup. Anything newer than the backup is set aside in the folder {0} and is no longer shown.</value></data>
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restore</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup saved.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
