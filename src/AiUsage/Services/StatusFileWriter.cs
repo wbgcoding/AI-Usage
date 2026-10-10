@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using AiUsage.Io;
 using AiUsage.Models;
 
 namespace AiUsage.Services;
@@ -24,8 +25,6 @@ public sealed class StatusFileWriter : IDisposable
     public const int FormatVersion = 1;
 
     public static readonly TimeSpan DefaultDebounce = TimeSpan.FromSeconds(2);
-
-    private static readonly UTF8Encoding Utf8NoBom = new(false);
 
     private readonly Func<string> _pathProvider;
     private readonly Action<string>? _log;
@@ -156,7 +155,7 @@ public sealed class StatusFileWriter : IDisposable
             json.WriteEndObject();
         }
 
-        return Utf8NoBom.GetString(stream.ToArray());
+        return AppEncoding.Utf8NoBom.GetString(stream.ToArray());
     }
 
     /// <summary>Writes <paramref name="json"/> to a temp file beside <paramref name="path"/> and moves
@@ -171,7 +170,7 @@ public sealed class StatusFileWriter : IDisposable
         var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
-            File.WriteAllText(tempPath, json, Utf8NoBom);
+            File.WriteAllText(tempPath, json, AppEncoding.Utf8NoBom);
             MoveIntoPlace(tempPath, path);
         }
         catch

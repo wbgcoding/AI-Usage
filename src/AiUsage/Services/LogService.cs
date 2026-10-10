@@ -1,4 +1,5 @@
 using System.Text;
+using AiUsage.Io;
 using AiUsage.Storage;
 
 namespace AiUsage.Services;
@@ -58,7 +59,7 @@ public sealed class LogService
             {
                 Directory.CreateDirectory(_directory());
                 var line = $"{_now():yyyy-MM-dd HH:mm:ss.fff} [{level}] {PathSanitizer.Sanitize(message)}{Environment.NewLine}";
-                var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(line);
+                var bytes = AppEncoding.Utf8NoBom.GetBytes(line);
 
                 var current = CurrentFile;
                 var existingLength = File.Exists(current) ? new FileInfo(current).Length : 0;

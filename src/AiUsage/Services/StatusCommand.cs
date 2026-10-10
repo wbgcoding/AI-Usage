@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
+using AiUsage.Io;
 
 namespace AiUsage.Services;
 
@@ -174,7 +175,7 @@ public static class StatusCommand
 
     private static StreamWriter PipeWriter(IntPtr handle) => new(
         new FileStream(new SafeFileHandle(handle, ownsHandle: false), FileAccess.Write, 1, isAsync: false),
-        new UTF8Encoding(false)) { AutoFlush = true };
+        AppEncoding.Utf8NoBom) { AutoFlush = true };
 
     private static bool IsUsable(IntPtr handle) => handle != IntPtr.Zero && handle != InvalidHandle;
 

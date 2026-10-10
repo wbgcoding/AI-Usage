@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Net;
-using System.Net.Http;
 
 namespace AiUsage.Web;
 
@@ -43,11 +41,6 @@ public sealed class WebViewRuntimeInstaller
     // The two hosts the download touches: the fixed address above and the host it redirects to.
     // Exact names, no wildcard - a redirect anywhere else ends the download.
     private static readonly string[] AllowedDownloadHosts = ["go.microsoft.com", "msedge.sf.dl.delivery.mp.microsoft.com"];
-
-    private const int MaxRedirects = 5;
-
-    // The bootstrapper is about 2 MB; anything far beyond that is not it.
-    private const long MaxDownloadBytes = 32L * 1024 * 1024;
 
     internal static readonly TimeSpan InstallTimeout = TimeSpan.FromMinutes(10);
 
@@ -185,56 +178,10 @@ public sealed class WebViewRuntimeInstaller
         uri.Scheme == Uri.UriSchemeHttps
         && AllowedDownloadHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Plain GET with the redirects followed by hand, so every hop is checked against
-    /// <see cref="IsAllowedDownloadUrl"/> before a request goes out; the body is capped.</summary>
-    internal static async Task DownloadAsync(string url, string destination, IProgress<double>? progress, CancellationToken ct)
-    {
-        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
-
-        var current = new Uri(url);
-        for (var hop = 0; hop <= MaxRedirects; hop++)
-        {
-            if (!IsAllowedDownloadUrl(current))
-                throw new InvalidOperationException("download address is not on the allow-list");
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, current);
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-
-            if (response.StatusCode is HttpStatusCode.MovedPermanently or HttpStatusCode.Found or HttpStatusCode.SeeOther
-                or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect
-                && response.Headers.Location is { } location)
-            {
-                current = location.IsAbsoluteUri ? location : new Uri(current, location);
-                continue;
-            }
-
-            response.EnsureSuccessStatusCode();
-            var total = response.Content.Headers.ContentLength;
-            if (total > MaxDownloadBytes)
-                throw new InvalidOperationException("download is larger than the bootstrapper can be");
-
-            await using var source = await response.Content.ReadAsStreamAsync(ct);
-            await using var target = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
-            var buffer = new byte[81920];
-            long received = 0;
-            int read;
-            while ((read = await source.ReadAsync(buffer, ct)) > 0)
-            {
-                received += read;
-                if (received > MaxDownloadBytes)
-                    throw new InvalidOperationException("download is larger than the bootstrapper can be");
-                await target.WriteAsync(buffer.AsMemory(0, read), ct);
-                if (total is > 0)
-                    progress?.Report(Math.Min(1.0, (double)received / total.Value));
-            }
-
-            progress?.Report(1.0);
-            return;
-        }
-
-        throw new HttpRequestException("too many redirects");
-    }
+    /// <summary>The download itself, through the shared allow-listed downloader: every hop is checked
+    /// against <see cref="IsAllowedDownloadUrl"/> before a request goes out.</summary>
+    internal static Task DownloadAsync(string url, string destination, IProgress<double>? progress, CancellationToken ct) =>
+        Services.AllowListedDownloader.DownloadAsync(url, destination, IsAllowedDownloadUrl, progress, ct);
 
     internal static Task<int> RunProcessAsync(string path, string arguments, CancellationToken ct) =>
         RunProcessAsync(path, arguments, InstallTimeout, ct);

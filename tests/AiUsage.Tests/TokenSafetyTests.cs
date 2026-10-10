@@ -26,15 +26,17 @@ public class TokenSafetyTests
     // URLs (proven below), so a bug can never turn it into a general web client.
     private const string LocalLoginHttpRelativePath = "src/AiUsage/Providers/LocalLogin/LocalLoginHttp.cs";
 
-    // The third: the one-time download of Microsoft's WebView2 bootstrapper. It follows its redirects
-    // by hand and refuses every address but Microsoft's two download hosts (proven below).
-    private const string WebViewInstallerRelativePath = "src/AiUsage/Web/WebViewRuntimeInstaller.cs";
+    // The third and last: the one file downloader behind the update download and the one-time download
+    // of Microsoft's WebView2 bootstrapper. It follows its redirects by hand and refuses every address
+    // its caller's host list does not name (proven below).
+    private const string DownloaderRelativePath = "src/AiUsage/Services/AllowListedDownloader.cs";
 
-    // The fourth and last: the update download loads release files from a fixed host list only.
+    // Callers of the downloader: they hold the host lists but make no request themselves.
+    private const string WebViewInstallerRelativePath = "src/AiUsage/Web/WebViewRuntimeInstaller.cs";
     private const string UpdateHostRelativePath = "src/AiUsage/Services/UpdateHost.cs";
 
     private static readonly string[] HttpClientAllowedFiles =
-        [UpdateCheckRelativePath, LocalLoginHttpRelativePath, WebViewInstallerRelativePath, UpdateHostRelativePath];
+        [UpdateCheckRelativePath, LocalLoginHttpRelativePath, DownloaderRelativePath];
 
     private static readonly Regex HttpClientType = new(
         @"\b(?:HttpClient|WebRequest|WebClient|TcpClient|SocketsHttpHandler)\b", RegexOptions.Compiled);
@@ -127,9 +129,8 @@ public class TokenSafetyTests
         var text = File.ReadAllText(Path.Combine(FindRepoRoot(), UpdateHostRelativePath));
 
         Assert.False(HasForbiddenRequestShape(text));
-        Assert.Contains("GetAsync", text, StringComparison.Ordinal);
+        Assert.Contains("AllowListedDownloader.DownloadAsync", text, StringComparison.Ordinal);
         Assert.Contains("UpdateInstaller.IsAllowedUrl", text, StringComparison.Ordinal);
-        Assert.Contains("AllowAutoRedirect = false", text, StringComparison.Ordinal);
         Assert.DoesNotContain("PostAsync", text, StringComparison.Ordinal);
         Assert.DoesNotContain("PutAsync", text, StringComparison.Ordinal);
         Assert.DoesNotContain("DeleteAsync", text, StringComparison.Ordinal);
@@ -173,13 +174,31 @@ public class TokenSafetyTests
     }
 
     [Fact]
+    public void The_downloader_only_reads_follows_redirects_by_hand_and_names_no_address()
+    {
+        var text = File.ReadAllText(Path.Combine(FindRepoRoot(), DownloaderRelativePath));
+
+        Assert.False(HasForbiddenRequestShape(text));
+        Assert.False(ReferencesAProviderOrigin(text));
+        Assert.Contains("GetAsync", text, StringComparison.Ordinal);
+        Assert.Contains("AllowAutoRedirect = false", text, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttps", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("HttpMethod.Post", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("PostAsync", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("PutAsync", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("DeleteAsync", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("SendAsync", text, StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"https://[A-Za-z0-9.\-]+", text);
+    }
+
+    [Fact]
     public void The_webview_installer_names_only_the_two_microsoft_download_hosts_and_only_ever_reads()
     {
         var text = File.ReadAllText(Path.Combine(FindRepoRoot(), WebViewInstallerRelativePath));
 
         Assert.False(HasForbiddenRequestShape(text));
         Assert.False(ReferencesAProviderOrigin(text));
-        Assert.Contains("HttpMethod.Get", text, StringComparison.Ordinal);
+        Assert.Contains("AllowListedDownloader.DownloadAsync", text, StringComparison.Ordinal);
         Assert.DoesNotContain("HttpMethod.Post", text, StringComparison.Ordinal);
         Assert.DoesNotContain("PostAsync", text, StringComparison.Ordinal);
         Assert.DoesNotContain("PutAsync", text, StringComparison.Ordinal);

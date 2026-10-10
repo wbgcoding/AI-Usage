@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using AiUsage.Io;
 using AiUsage.Stats;
 using Microsoft.Data.Sqlite;
 
@@ -92,8 +93,6 @@ public static class BackupService
     private const string StatsName = "stats.db";
 
     private static readonly Regex HistoryName = new(@"^history-[A-Za-z0-9_-]{1,100}\.jsonl\z", RegexOptions.CultureInvariant);
-
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>True for the exact file names a backup may hold besides the manifest.</summary>
     internal static bool IsDataFileName(string name) =>
@@ -246,7 +245,7 @@ public static class BackupService
     {
         var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
         using var target = entry.Open();
-        var bytes = Utf8NoBom.GetBytes(text);
+        var bytes = AppEncoding.Utf8NoBom.GetBytes(text);
         target.Write(bytes, 0, bytes.Length);
     }
 
@@ -315,7 +314,7 @@ public static class BackupService
             using var memory = new MemoryStream();
             long total = 0;
             CopyChecked(_entries[name], memory, name, ref total);
-            return Utf8NoBom.GetString(memory.GetBuffer(), 0, (int)memory.Length);
+            return AppEncoding.Utf8NoBom.GetString(memory.GetBuffer(), 0, (int)memory.Length);
         }
 
         /// <summary>Reads the whole entry and discards it: the really decompressed size and the stored
@@ -669,9 +668,7 @@ public static class BackupService
     {
         var name = Path.GetFileName(setAsidePath ?? PlanSetAside(dataDirectory, DateTime.Now));
         var pending = Path.Combine(dataDirectory, PendingFileName);
-        var temp = $"{pending}.{Environment.ProcessId}.tmp";
-        File.WriteAllBytes(temp, Utf8NoBom.GetBytes(Path.GetFullPath(zipPath) + "\n" + name));
-        File.Move(temp, pending, overwrite: true);
+        AtomicFile.WriteAllBytes(pending, AppEncoding.Utf8NoBom.GetBytes(Path.GetFullPath(zipPath) + "\n" + name));
     }
 
     /// <summary>Takes a scheduled restore back (the restart did not happen).</summary>
@@ -830,7 +827,7 @@ public static class BackupService
                 }
             }
 
-            File.WriteAllBytes(stagedSettings, Utf8NoBom.GetBytes(staged.ToJsonString(SettingsStore.JsonOptions)));
+            File.WriteAllBytes(stagedSettings, AppEncoding.Utf8NoBom.GetBytes(staged.ToJsonString(SettingsStore.JsonOptions)));
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
         {
@@ -944,9 +941,7 @@ public static class BackupService
     private static void WriteJournal(string dataDirectory, SwapJournal journal)
     {
         var path = Path.Combine(dataDirectory, JournalFileName);
-        var temp = $"{path}.{Environment.ProcessId}.tmp";
-        File.WriteAllBytes(temp, Utf8NoBom.GetBytes(JsonSerializer.Serialize(journal)));
-        File.Move(temp, path, overwrite: true);
+        AtomicFile.WriteAllBytes(path, AppEncoding.Utf8NoBom.GetBytes(JsonSerializer.Serialize(journal)));
     }
 
     private static bool IsJournalName(string? name) => name is not null && (IsDataFileName(name) || AsideExtraNames.Contains(name, StringComparer.Ordinal));

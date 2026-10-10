@@ -42,8 +42,6 @@ public sealed class StatsIndexer
     public const string CodexProviderId = "codex";
     public const string GeminiProviderId = "gemini";
 
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
-
     private readonly StatsStore _store;
     private readonly IReadOnlyList<string> _claudeProjectsRoots;
     private readonly string _codexSessionsRoot;
@@ -666,7 +664,7 @@ public sealed class StatsIndexer
             if (newline >= 0)
             {
                 collected.Write(buffer, 0, newline);
-                return Utf8NoBom.GetString(collected.GetBuffer(), 0, (int)collected.Length).TrimEnd('\r');
+                return AppEncoding.Utf8NoBom.GetString(collected.GetBuffer(), 0, (int)collected.Length).TrimEnd('\r');
             }
 
             collected.Write(buffer, 0, read);
@@ -674,7 +672,7 @@ public sealed class StatsIndexer
 
         // No line break within the cap: a short file that simply ends is one line, a long one is not read.
         return stream.Position >= stream.Length && collected.Length > 0 && collected.Length < maxBytes
-            ? Utf8NoBom.GetString(collected.GetBuffer(), 0, (int)collected.Length).TrimEnd('\r')
+            ? AppEncoding.Utf8NoBom.GetString(collected.GetBuffer(), 0, (int)collected.Length).TrimEnd('\r')
             : null;
     }
 
@@ -715,7 +713,7 @@ public sealed class StatsIndexer
             cancellationToken.ThrowIfCancellationRequested();
             var newline = Array.IndexOf(buffer, (byte)'\n', start, end - start);
             var lineEnd = newline < 0 ? end : newline;
-            yield return Utf8NoBom.GetString(buffer, start, lineEnd - start).TrimEnd('\r');
+            yield return AppEncoding.Utf8NoBom.GetString(buffer, start, lineEnd - start).TrimEnd('\r');
             start = lineEnd + 1;
         }
     }

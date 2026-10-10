@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using AiUsage.Io;
 using AiUsage.Models;
 using AiUsage.Storage;
 
@@ -92,8 +93,6 @@ public sealed class NotificationService
     private static readonly TimeSpan Lockout = TimeSpan.FromMinutes(30);
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
-
     private readonly object _gate = new();
     // Keyed by Label too, not only Kind: a provider can carry more than one Other window at once
     // (Cursor's per-model bars, its Grok Bot bar), and each needs its own arm/lockout state -
@@ -412,9 +411,7 @@ public sealed class NotificationService
                     kvp.Value.ForecastFiredFor, kvp.Value.LimitFired, kvp.Value.LimitFiredFor)).ToList();
                 var json = JsonSerializer.Serialize(entries, JsonOptions);
 
-                var tempPath = $"{_filePath}.tmp";
-                File.WriteAllBytes(tempPath, Utf8NoBom.GetBytes(json));
-                File.Move(tempPath, _filePath, overwrite: true);
+                AtomicFile.WriteAllBytes(_filePath, AppEncoding.Utf8NoBom.GetBytes(json));
                 SavesWritten++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

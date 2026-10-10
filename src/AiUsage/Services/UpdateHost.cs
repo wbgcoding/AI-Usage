@@ -1,15 +1,13 @@
 using System.Diagnostics;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 
 namespace AiUsage.Services;
 
 /// <summary>
 /// The real machine behind <see cref="UpdateInstaller"/>: the download, the swap of the running exe,
-/// the silent setup and the exit. Downloads are plain GET requests, never anything else; every
+/// the silent setup and the exit. Downloads go through <see cref="AllowListedDownloader"/>; every
 /// address, redirects included, has to be on <see cref="UpdateInstaller.AllowedHosts"/>.
-/// This file is on the HTTP client allow-list in <c>TokenSafetyTests</c>.
 /// </summary>
 public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 {
@@ -17,13 +15,6 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     /// before it takes the single-instance lock.</summary>
     public const string AfterUpdateSwitch = "--after-update";
 
-    private const int MaxRedirects = 5;
-    private const long MaxDownloadBytes = 600L * 1024 * 1024;
-
-    // A download ends when no byte has arrived for this long, so a slow link still finishes; the overall
-    // cap is only the last resort against a connection that trickles forever.
-    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(60);
-    private static readonly TimeSpan OverallTimeout = TimeSpan.FromHours(2);
     private static readonly TimeSpan StaleAfter = TimeSpan.FromDays(1);
 
     public bool IsInstalled => AppInfo.IsInstalled;
@@ -108,76 +99,27 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     public static string DefaultWorkFolder => Path.Combine(Path.GetTempPath(), AppInfo.ProductName, "update");
 
     public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct) =>
-        DownloadAsync(url, destination, new HttpClientHandler { AllowAutoRedirect = false }, StallTimeout, OverallTimeout, ct);
+        DownloadAsync(url, destination, null, AllowListedDownloader.StallTimeout, AllowListedDownloader.OverallTimeout, ct);
 
-    /// <summary>The handler and the limits are parameters so a test can stall the body: the stall limit
-    /// restarts with the headers and after every chunk read, so a connection that goes quiet ends the
-    /// download instead of holding the update open; the overall cap bounds the whole transfer.</summary>
+    /// <summary>The handler and the limits are parameters so a test can stall the body. A failed
+    /// download is <c>false</c>; only the caller's own cancellation propagates.</summary>
     internal static async Task<bool> DownloadAsync(
-        string url, string destination, HttpMessageHandler handler, TimeSpan stallLimit, TimeSpan overallLimit, CancellationToken ct)
+        string url, string destination, HttpMessageHandler? handler, TimeSpan stallLimit, TimeSpan overallLimit, CancellationToken ct)
     {
-        using var overall = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        overall.CancelAfter(overallLimit);
-        using var limit = CancellationTokenSource.CreateLinkedTokenSource(overall.Token);
         try
         {
-            // Redirects are followed by hand (the handler must not follow them) so every hop is
-            // checked against the host list.
-            using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
-            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(AppInfo.ProductName, AppInfo.Version));
-
-            var current = url;
-            for (var hop = 0; hop <= MaxRedirects; hop++)
-            {
-                if (!UpdateInstaller.IsAllowedUrl(current))
-                    return false;
-
-                limit.CancelAfter(stallLimit);
-                using var response = await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, limit.Token);
-                if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
-                {
-                    current = new Uri(new Uri(current), location).AbsoluteUri;
-                    continue;
-                }
-
-                if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxDownloadBytes)
-                    return false;
-
-                await using var source = await response.Content.ReadAsStreamAsync(limit.Token);
-                // CreateNew: a file or link already at the destination is never written through.
-                await using var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                return await CopyCappedAsync(source, target, limit, stallLimit);
-            }
-
-            return false;
+            await AllowListedDownloader.DownloadAsync(
+                url, destination, uri => UpdateInstaller.IsAllowedUrl(uri.AbsoluteUri), handler, stallLimit, overallLimit, null, ct);
+            return true;
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException
-            or UnauthorizedAccessException or UriFormatException)
+            or UnauthorizedAccessException or UriFormatException or InvalidOperationException)
         {
             // The caller's own cancellation propagates; the time limit running out is a failed download.
             if (ct.IsCancellationRequested)
                 throw;
             return false;
         }
-    }
-
-    private static async Task<bool> CopyCappedAsync(Stream source, Stream target, CancellationTokenSource limit, TimeSpan stallLimit)
-    {
-        var ct = limit.Token;
-        var buffer = new byte[81920];
-        long total = 0;
-        int read;
-        limit.CancelAfter(stallLimit);
-        while ((read = await source.ReadAsync(buffer, ct)) > 0)
-        {
-            limit.CancelAfter(stallLimit);
-            total += read;
-            if (total > MaxDownloadBytes)
-                return false;
-            await target.WriteAsync(buffer.AsMemory(0, read), ct);
-        }
-
-        return total > 0;
     }
 
     public void StartSetupAndExit(string setupPath)

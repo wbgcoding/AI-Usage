@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text;
 using System.Windows;
+using AiUsage.Io;
 using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Services;
@@ -1767,7 +1768,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         try
         {
-            File.WriteAllText(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(path, csv, AppEncoding.Utf8NoBom);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

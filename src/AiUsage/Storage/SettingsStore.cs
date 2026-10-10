@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using AiUsage.Io;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.ViewModels;
@@ -27,8 +28,6 @@ public sealed class SettingsStore : IDisposable
     private static readonly TimeSpan DefaultDebounceDelay = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan DefaultFailedSaveRetryDelay = TimeSpan.FromSeconds(5);
     private const int MaxFlushAttempts = 3;
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
-
     private string _dataDirectory;
     private readonly TimeSpan _debounceDelay;
     private readonly TimeSpan _failedSaveRetryDelay;
@@ -123,7 +122,7 @@ public sealed class SettingsStore : IDisposable
 
         try
         {
-            // File.ReadAllText, not Utf8NoBom.GetString(File.ReadAllBytes(...)): the latter decodes a
+            // File.ReadAllText, not AppEncoding.Utf8NoBom.GetString(File.ReadAllBytes(...)): the latter decodes a
             // leading BOM (if the file was ever saved by an external editor) as a literal U+FEFF
             // character, which then fails to parse as JSON and quarantines a perfectly good file.
             // File.ReadAllText auto-detects and strips a BOM, falling back to UTF-8 when there is none.
@@ -435,21 +434,13 @@ public sealed class SettingsStore : IDisposable
             settings.SchemaVersion = AppSettings.CurrentSchemaVersion;
 
             var json = JsonSerializer.Serialize(settings, JsonOptions);
-            // Carries this process's id so two simultaneous copies (--new-instance is a
-            // debugging aid, deliberately not a supported configuration) never write through
-            // the same temp file - cross-process locking was considered instead and left out on
-            // purpose, since --new-instance already means "you're on your own". A copy left
-            // behind by a process killed between this write and the move below is swept up by
-            // AppPaths.CleanUpLeftoverTempFiles at the next startup.
-            var tempPath = $"{SettingsFilePath}.{Environment.ProcessId}.tmp";
-            File.WriteAllBytes(tempPath, Utf8NoBom.GetBytes(json));
 
             // Snapshot the previous state before it is overwritten - a valid file carrying a
-            // value nobody wanted has no other way back once the move below lands.
+            // value nobody wanted has no other way back once the new one lands.
             if (File.Exists(SettingsFilePath))
                 TryBackUpCurrentFile();
 
-            File.Move(tempPath, SettingsFilePath, overwrite: true);
+            AtomicFile.WriteAllBytes(SettingsFilePath, AppEncoding.Utf8NoBom.GetBytes(json));
             return true;
         }
         catch (InvalidOperationException ex)

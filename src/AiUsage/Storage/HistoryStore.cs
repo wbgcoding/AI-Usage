@@ -18,8 +18,6 @@ public class HistoryStore
     private static readonly TimeSpan MinAppendInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan HourCompactionAge = TimeSpan.FromDays(30);
     private static readonly TimeSpan DayCompactionAge = TimeSpan.FromDays(365);
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
-
     private volatile string _dataDirectory;
     private readonly Func<DateTimeOffset> _now;
 
@@ -329,7 +327,7 @@ public class HistoryStore
         stream.Seek(consumed, SeekOrigin.Begin);
         var got = stream.ReadAtLeast(tail, tail.Length, throwOnEndOfStream: false);
         Interlocked.Increment(ref _loadLinesParsed);
-        return ParseLineOrNull(Utf8NoBom.GetString(tail, 0, got).TrimEnd('\r'), providerId) is { } tailPoint
+        return ParseLineOrNull(AppEncoding.Utf8NoBom.GetString(tail, 0, got).TrimEnd('\r'), providerId) is { } tailPoint
             ? [.. cache.Points, tailPoint]
             : cache.Points;
     }
@@ -361,7 +359,7 @@ public class HistoryStore
             var isTail = first && !endsWithNewline;
             first = false;
             if (isTail)
-                tailBytes = Utf8NoBom.GetByteCount(line);
+                tailBytes = AppEncoding.Utf8NoBom.GetByteCount(line);
 
             Interlocked.Increment(ref _loadLinesParsed);
             var point = ParseLineOrNull(line, providerId);
@@ -677,7 +675,7 @@ public class HistoryStore
             // onto it would lose both as one corrupt line.
             if (EndsWithoutNewline(path))
                 json = "\n" + json;
-            File.AppendAllText(path, json, Utf8NoBom);
+            File.AppendAllText(path, json, AppEncoding.Utf8NoBom);
             _lastPoints[(providerId, point.Window, point.Label ?? "")] = point;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -708,13 +706,7 @@ public class HistoryStore
                 builder.Append(JsonSerializer.Serialize(point)).Append('\n');
 
             var path = FilePath(providerId);
-            // Carries this process's id, same reasoning as SettingsStore.SaveNow's own temp file:
-            // two simultaneous copies (--new-instance) must never write through the same temp file,
-            // and a copy left behind by a process killed before the move below is swept up by
-            // AppPaths.CleanUpLeftoverTempFiles at the next startup.
-            var tempPath = $"{path}.{Environment.ProcessId}.tmp";
-            File.WriteAllBytes(tempPath, Utf8NoBom.GetBytes(builder.ToString()));
-            File.Move(tempPath, path, overwrite: true);
+            AtomicFile.WriteAllBytes(path, AppEncoding.Utf8NoBom.GetBytes(builder.ToString()));
             StateOf(providerId).Points = null;
             RememberNewestOf(providerId, written);
         }

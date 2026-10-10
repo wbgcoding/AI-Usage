@@ -106,8 +106,6 @@ public class WindowPlacementService
         }
     }
 
-    private static readonly TileDensity[] DensityOrder = [TileDensity.Full, TileDensity.Mini];
-
     /// <summary>
     /// Resolves a remembered window rectangle against the monitors that exist now: unchanged if it
     /// fully fits one of them, clamped into the nearest one if it only partially overlaps, or
@@ -138,10 +136,10 @@ public class WindowPlacementService
     /// </summary>
     public static HeightResolution ResolveAutomaticHeight(int visibleTileCount, TileDensity preferredDensity, double workAreaHeight)
     {
-        var startIndex = Array.IndexOf(DensityOrder, preferredDensity);
-        for (var i = startIndex; i < DensityOrder.Length; i++)
+        var startIndex = Array.IndexOf(TileDensitySelector.Order, preferredDensity);
+        for (var i = startIndex; i < TileDensitySelector.Order.Length; i++)
         {
-            var density = DensityOrder[i];
+            var density = TileDensitySelector.Order[i];
             var height = ContentHeight(visibleTileCount, density);
             if (height <= workAreaHeight)
                 return new HeightResolution(density, height, NeedsScroll: false);

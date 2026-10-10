@@ -16,7 +16,7 @@ public static class TileDensitySelector
     /// <summary>Rounding slack, so content that fits to within a pixel never counts as overflowing.</summary>
     public const double FitTolerance = 1;
 
-    private static readonly TileDensity[] Order = [TileDensity.Full, TileDensity.Mini];
+    internal static readonly TileDensity[] Order = [TileDensity.Full, TileDensity.Mini];
 
     // First-estimate heights per tile including the gap below it. Full is a tile with two bar rows and
     // the history chart (about 196 px) plus the 4 px gap.

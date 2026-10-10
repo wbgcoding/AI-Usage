@@ -37,9 +37,8 @@ public static class UpdateCheck
     /// </summary>
     public static bool IsNewer(string runningVersion, string tagName)
     {
-        var trimmedTag = tagName.Length > 0 && (tagName[0] == 'v' || tagName[0] == 'V') ? tagName[1..] : tagName;
         return Version.TryParse(runningVersion, out var running) &&
-               Version.TryParse(trimmedTag, out var tag) &&
+               Version.TryParse(DisplayVersion(tagName), out var tag) &&
                tag > running;
     }
 

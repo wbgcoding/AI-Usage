@@ -20,14 +20,14 @@ internal static class ClipboardHelper
         {
             setText(text);
         }
-        catch (Exception ex) when (ex is COMException or ExternalException)
+        catch (Exception ex) when (ex is ExternalException)
         {
             Thread.Sleep(RetryDelay);
             try
             {
                 setText(text);
             }
-            catch (Exception ex2) when (ex2 is COMException or ExternalException)
+            catch (Exception ex2) when (ex2 is ExternalException)
             {
                 // Still locked after one retry - nothing sensible to recover into.
             }

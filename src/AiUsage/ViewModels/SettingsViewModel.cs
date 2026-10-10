@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
+using AiUsage.Io;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Storage;
@@ -1137,7 +1138,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
-            File.WriteAllText(path, HistoryExport.ToCsv(byProvider), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(path, HistoryExport.ToCsv(byProvider), AppEncoding.Utf8NoBom);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1170,7 +1171,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var json = JsonSerializer.Serialize(_settings, SettingsStore.JsonOptions);
-            File.WriteAllBytes(path, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(json));
+            File.WriteAllBytes(path, AppEncoding.Utf8NoBom.GetBytes(json));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

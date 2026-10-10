@@ -20,7 +20,7 @@ public static class ReverseLineReader
     /// measured it never sees bytes another writer appended since.</summary>
     public static IEnumerable<string> ReadLinesReversed(string path, Encoding? encoding = null, long? upToLength = null)
     {
-        encoding ??= new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        encoding ??= AppEncoding.Utf8NoBom;
 
         using var stream = new FileStream(
             path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);

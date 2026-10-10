@@ -5,8 +5,6 @@ namespace AiUsage.Io;
 /// <summary>Chunked, memory-bounded line reader shared by the session log readers.</summary>
 internal static class CompleteLineReader
 {
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
-
     /// <summary>Decides from a complete line's raw bytes, before any UTF-8 decoding, whether the
     /// caller could use it at all. Must never reject a line the caller would have acted on.</summary>
     internal delegate bool LinePrefilter(ReadOnlySpan<byte> line);
@@ -59,7 +57,7 @@ internal static class CompleteLineReader
                 return;
             }
 
-            onLine(Utf8NoBom.GetString(lineBytes).TrimEnd('\r'));
+            onLine(AppEncoding.Utf8NoBom.GetString(lineBytes).TrimEnd('\r'));
         }
 
         while (remaining > 0)
