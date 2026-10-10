@@ -21,6 +21,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Started from a PowerShell 7 window, the inherited module path lists its modules first, and Windows
+# PowerShell then fails to load even its own signature cmdlets. Use the system's module path.
+$env:PSModulePath = "$PSHOME\Modules;" + [Environment]::GetEnvironmentVariable('PSModulePath', 'Machine')
+
 # Exit codes besides 0.
 $ExitBadUrl = 10
 $ExitDownload = 11
