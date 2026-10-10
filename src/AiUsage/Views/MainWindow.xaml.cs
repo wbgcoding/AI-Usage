@@ -680,6 +680,11 @@ public partial class MainWindow : Window, IDisposable
             Height = ActualHeight;
         }
         UpdateDensity();
+        // The toggle arrives from the open title bar popup, before the window's own layout pass has
+        // caught up with the new SizeToContent: the synchronous pass above can measure the old
+        // height, so one more pass after layout settles it.
+        if (automatic)
+            QueueDensityUpdate();
         SaveWindowSettings();
     }
 
