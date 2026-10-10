@@ -402,6 +402,7 @@
   <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>The projects with the most tokens. Sessions without a folder are pooled.</value></data>
   <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Which weekdays the tokens fall on, added up over the whole period.</value></data>
   <data name="Tip.Stats.Chart.ByHour" xml:space="preserve"><value>Which hours of the day the tokens fall on.</value></data>
+  <data name="Tip.Settings.Mica" xml:space="preserve"><value>Mica is a Windows 11 material: the window background takes on a soft tint of your desktop wallpaper and shifts slightly as you move the window. It only shows with the "System" theme at full opacity and uses a little graphics power.</value></data>
   <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Sets how tall one tile is. On automatic the tiles fit themselves to the window height.</value></data>
   <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Picks whose usage the icon in the taskbar notification area shows. On automatic it shows the highest usage of all tiles.</value></data>
   <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Picks which time window the icon shows, for example 5 hours or week. On automatic it shows the highest value.</value></data>

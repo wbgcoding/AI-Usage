@@ -401,6 +401,7 @@
   <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>Die Projekte mit den meisten Token. Sitzungen ohne Ordner sind zusammengefasst.</value></data>
   <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Auf welche Wochentage die Token fallen, über den ganzen Zeitraum summiert.</value></data>
   <data name="Tip.Stats.Chart.ByHour" xml:space="preserve"><value>Auf welche Tagesstunden die Token fallen.</value></data>
+  <data name="Tip.Settings.Mica" xml:space="preserve"><value>Mica ist ein Effekt von Windows 11: Der Fensterhintergrund nimmt einen zarten Farbton deines Desktophintergrunds an und ändert sich leicht, wenn du das Fenster verschiebst. Er erscheint nur im Design „System“ bei voller Deckkraft und kostet etwas Grafikleistung.</value></data>
   <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Legt fest, wie hoch eine Kachel ist. Bei automatischer Einstellung passen sich die Kacheln an die Fensterhöhe an.</value></data>
   <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Legt fest, wessen Verbrauch das Symbol im Infobereich der Taskleiste zeigt. Auf automatisch zeigt es den höchsten Verbrauch aller Kacheln.</value></data>
   <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Legt fest, welches Zeitfenster das Symbol zeigt. Auf automatisch zeigt es den höchsten Wert.</value></data>

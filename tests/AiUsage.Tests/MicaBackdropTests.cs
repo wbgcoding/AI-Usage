@@ -51,10 +51,11 @@ public class MicaBackdropTests
     }
 
     [Fact]
-    public void MicaEnabled_is_on_by_default()
+    public void MicaEnabled_is_off_by_default()
     {
-        Assert.True(new AppSettings().MicaEnabled);
-        Assert.True(JsonSerializer.Deserialize<AppSettings>("{}")!.MicaEnabled);
+        Assert.False(new AppSettings().MicaEnabled);
+        Assert.False(JsonSerializer.Deserialize<AppSettings>("{}")!.MicaEnabled);
+        Assert.True(JsonSerializer.Deserialize<AppSettings>("{\"MicaEnabled\": true}")!.MicaEnabled);
         Assert.False(JsonSerializer.Deserialize<AppSettings>("{\"MicaEnabled\": false}")!.MicaEnabled);
     }
 

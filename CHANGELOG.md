@@ -56,6 +56,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The README explains that project colors come from app icons found in your project folders.
 - A provider that is signed out or cannot be reached keeps showing its last known 5 hour and weekly numbers, also after a restart. Only signing out in the app clears them.
 - Token usage no longer repeats the weekday columns as a table underneath.
+- The Mica background is now off by default, with a tooltip in Settings that explains it; a choice you already made stays.
 
 ### Fixed
 

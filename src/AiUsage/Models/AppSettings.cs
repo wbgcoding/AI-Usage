@@ -61,8 +61,9 @@ public sealed class AppSettings
     public int WindowOpacityPercent { get; set; } = 100;
 
     /// <summary>Whether the widget uses the Windows 11 Mica background in the "follow Windows" theme
-    /// (see <see cref="Services.MicaPolicy"/>). Kept when the value is not offered, on Windows 10.</summary>
-    public bool MicaEnabled { get; set; } = true;
+    /// (see <see cref="Services.MicaPolicy"/>). Off by default; a stored value is kept as it is, also when it is not
+    /// offered, on Windows 10.</summary>
+    public bool MicaEnabled { get; set; }
 
     public string Language { get; set; } = "System";
 
