@@ -288,9 +288,10 @@
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Verlauf als CSV speichern…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>Die Datei konnte nicht geschrieben werden. Wähle einen anderen Ordner.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Einstellungen zurücksetzen</value></data>
+  <data name="Settings.ResetShort" xml:space="preserve"><value>Zurücksetzen…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Aufgezeichneten Verlauf ebenfalls löschen</value></data>
-  <data name="Settings.Export" xml:space="preserve"><value>Einstellungen exportieren…</value></data>
-  <data name="Settings.Import" xml:space="preserve"><value>Einstellungen importieren…</value></data>
+  <data name="Settings.Export" xml:space="preserve"><value>Exportieren…</value></data>
+  <data name="Settings.Import" xml:space="preserve"><value>Importieren…</value></data>
   <data name="Settings.ImportDone" xml:space="preserve"><value>Einstellungen übernommen. Fensterposition und -größe sind geblieben.</value></data>
   <data name="Settings.ImportRefused" xml:space="preserve"><value>Diese Datei ist keine brauchbare Einstellungsdatei.</value></data>
   <data name="Settings.DataFolder" xml:space="preserve"><value>Datenordner</value></data>
@@ -302,7 +303,6 @@
   <data name="About.Installed" xml:space="preserve"><value>Installierte Version</value></data>
   <data name="About.Portable" xml:space="preserve"><value>Tragbare Version</value></data>
   <data name="About.DataFolder" xml:space="preserve"><value>Datenordner: {0}</value></data>
-  <data name="About.DataFolder.Default" xml:space="preserve"><value>Standardordner im Benutzerprofil</value></data>
   <data name="About.DataFolder.Chosen" xml:space="preserve"><value>Von dir gewählter Ordner</value></data>
   <data name="About.DataFolder.Fallback" xml:space="preserve"><value>Notfallordner, weil das Benutzerprofil nicht beschreibbar war</value></data>
   <data name="SignIn.Title" xml:space="preserve"><value>Anmelden</value></data>
@@ -486,7 +486,8 @@
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: Limit für {1} erreicht, wieder frei in {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: Limit für {1} erreicht</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Widget zeigen</value></data>
-  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Im Akkubetrieb Strom sparen: halb so oft abrufen, im Energiesparmodus nur lokale Quellen</value></data>
+  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Im Akkubetrieb Strom sparen</value></data>
+  <data name="Tip.Settings.SaveEnergy" xml:space="preserve"><value>Halb so oft abrufen, im Energiesparmodus nur lokale Quellen.</value></data>
   <data name="Tray.Pause" xml:space="preserve"><value>Abrufe 1 Stunde pausieren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Abrufe fortsetzen (pausiert bis {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausiert bis {0}</value></data>
@@ -531,8 +532,10 @@
   <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Voriger Monat</value></data>
   <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Nächster Monat</value></data>
   <data name="Settings.Group.Data" xml:space="preserve"><value>Daten</value></data>
-  <data name="Settings.Backup.Create" xml:space="preserve"><value>Sicherung erstellen…</value></data>
-  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Sicherung einspielen…</value></data>
+  <data name="Settings.Backup.Heading" xml:space="preserve"><value>Sicherung</value></data>
+  <data name="Settings.Transfer.Heading" xml:space="preserve"><value>Einstellungen</value></data>
+  <data name="Settings.Backup.Create" xml:space="preserve"><value>Erstellen…</value></data>
+  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Einspielen…</value></data>
   <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage-Sicherung (*.zip)|*.zip</value></data>
   <data name="Backup.Restored" xml:space="preserve"><value>Sicherung eingespielt. Die vorherigen Daten liegen in {0}.</value></data>
   <data name="Backup.RestoreFailed" xml:space="preserve"><value>Die Sicherung konnte nicht eingespielt werden. Deine Daten sind unverändert.</value></data>
@@ -541,7 +544,7 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Einspielen</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Sicherung gespeichert.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Diese Datei ist keine AI-Usage-Sicherung oder stammt aus einer neueren Version.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Verlauf eines anderen PCs importieren…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Anderen PC importieren…</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Diese Sicherung stammt von diesem PC.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>{0} Tage Token-Verlauf von {1} importiert.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Entfernen</value></data>

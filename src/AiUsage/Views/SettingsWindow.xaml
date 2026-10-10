@@ -161,11 +161,19 @@
         <Style x:Key="AiUsageButton.GapTop8" TargetType="Button" BasedOn="{StaticResource AiUsageButton}">
             <Setter Property="Margin" Value="0,8,0,0"/>
         </Style>
-        <!-- The row of buttons in a WrapPanel (data folder, logs, export/import, reset): each one
-             keeps its own right and bottom gap so a wrapped row keeps the same spacing regardless of
-             where it breaks. -->
-        <Style x:Key="AiUsageButton.Wrapped" TargetType="Button" BasedOn="{StaticResource AiUsageButton}">
-            <Setter Property="Margin" Value="0,0,8,8"/>
+        <!-- An equal-width action button in the System card's two-column grids: a long label wraps
+             inside the button, and the bottom gap spaces the grid's rows. -->
+        <Style x:Key="SystemAction" TargetType="Button" BasedOn="{StaticResource AiUsageButton}">
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Center"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -359,11 +367,14 @@
                     </ItemsControl>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Chart]}" Style="{StaticResource GroupHeading}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ComboBox ItemsSource="{Binding ChartRangeChoices}"
-                              SelectedItem="{Binding SelectedChartRangeChoice, Mode=TwoWay}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}"
-                              HorizontalAlignment="Left"/>
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PreviousWeekLine]}" IsChecked="{Binding ShowPreviousWeekLine}"/>
+                    <WrapPanel>
+                        <ComboBox ItemsSource="{Binding ChartRangeChoices}"
+                                  SelectedItem="{Binding SelectedChartRangeChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}"
+                                  VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PreviousWeekLine]}" IsChecked="{Binding ShowPreviousWeekLine}"
+                                  VerticalAlignment="Center" Margin="0"/>
+                    </WrapPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartPerProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
                         <ItemsControl.ItemsPanel>
@@ -388,8 +399,22 @@
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                TextWrapping="Wrap"
                                Visibility="{Binding WindowLayerIsDesktop, Converter={StaticResource BoolToVis}}"/>
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}" IsChecked="{Binding HideOnFullscreen}"/>
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" IsChecked="{Binding Main.ClickThrough}"/>
+                    <!-- Side by side in two equal columns; a label wraps inside its own column instead
+                         of a box dropping to the next line in a narrow window. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" IsChecked="{Binding HideOnFullscreen}" VerticalAlignment="Top" Margin="0,4,12,4"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}" TextWrapping="Wrap"/>
+                        </CheckBox>
+                        <CheckBox Grid.Column="1" IsChecked="{Binding Main.ClickThrough}" VerticalAlignment="Top" Margin="0,4"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" TextWrapping="Wrap"/>
+                        </CheckBox>
+                    </Grid>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThroughHint]}"
                                Style="{StaticResource Gap.Top4}"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Warn}"
@@ -447,6 +472,7 @@
                             AutomationProperties.Name="{Binding RemoteIntervalLabelText}"/>
 
                     <CheckBox IsChecked="{Binding SaveEnergyOnBattery}" Style="{StaticResource CheckBox.GapM}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.SaveEnergy]}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SaveEnergy]}">
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SaveEnergy]}" TextWrapping="Wrap"/>
                     </CheckBox>
@@ -830,6 +856,7 @@
 
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Hotkey]}"
                                   IsChecked="{Binding Main.HotkeyEnabled}" Style="{StaticResource CheckBox.GapM}"/>
+                        <StackPanel Visibility="{Binding Main.HotkeyEnabled, Converter={StaticResource BoolToVis}}">
                         <TextBox x:Name="HotkeyCaptureBox" Width="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
                                  Text="{Binding Main.HotkeyText, Mode=OneWay}" IsReadOnly="True" Focusable="True"
                                  PreviewKeyDown="HotkeyCaptureBox_PreviewKeyDown"
@@ -843,6 +870,7 @@
                                    Style="{StaticResource TextBlock.GapS}"
                                    FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}"
                                    Visibility="{Binding Main.HotkeyNeedsModifier, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
 
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}" Style="{StaticResource FieldLabel.Top8}"/>
                         <ComboBox ItemsSource="{Binding LanguageChoices}"
@@ -873,33 +901,52 @@
                              FontSize="{StaticResource Font.Size.Body}" Cursor="IBeam"
                              ToolTip="{Binding DataFolderToolTip}" AutomationProperties.Name="{Binding DataFolderPath}"/>
                     <TextBlock Text="{Binding DataFolderKindText}" FontSize="{StaticResource Font.Size.Small}"
-                               Foreground="{DynamicResource Text.Secondary}" Style="{StaticResource Gap.Top4}"/>
-                    <!-- WrapPanels, not horizontal StackPanels: the German labels are long enough to
-                         run past a narrow window. Every button carries its own right and bottom gap, so
-                         a wrapped row keeps the same spacing; the rows below start 8 px closer to
-                         account for that bottom gap. -->
-                    <WrapPanel Style="{StaticResource Gap.Top8}">
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChooseDataFolder]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ChooseDataFolderCommand}"/>
-                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.MovingData]}" FontSize="{StaticResource Font.Size.Small}"
-                                   Foreground="{DynamicResource Text.Secondary}" VerticalAlignment="Center" Margin="0,0,8,8"
-                                   Visibility="{Binding IsMovingData, Converter={StaticResource BoolToVis}}"/>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OpenDataFolder]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding OpenDataFolderCommand}"/>
-                    </WrapPanel>
+                               Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DataFolderKindText}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <!-- Every action sits in a two-column grid under the heading of what it acts on. -->
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Button Grid.Row="0" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChooseDataFolder]}" Style="{StaticResource SystemAction}" Command="{Binding ChooseDataFolderCommand}"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OpenDataFolder]}" Style="{StaticResource SystemAction}" Command="{Binding OpenDataFolderCommand}"/>
+                        <Button Grid.Row="1" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OpenLogsFolder]}" Style="{StaticResource SystemAction}" Command="{Binding OpenLogsFolderCommand}"/>
+                        <Button Grid.Row="1" Grid.Column="2" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ExportHistory]}" Style="{StaticResource SystemAction}" Command="{Binding ExportHistoryCommand}"/>
+                    </Grid>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.MovingData]}" FontSize="{StaticResource Font.Size.Small}"
+                               Foreground="{DynamicResource Text.Secondary}" Margin="0,0,0,8"
+                               Visibility="{Binding IsMovingData, Converter={StaticResource BoolToVis}}"/>
 
-                    <WrapPanel Style="{StaticResource Gap.Top8}">
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OpenLogsFolder]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding OpenLogsFolderCommand}"/>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ExportHistory]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ExportHistoryCommand}"/>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ResetButton]}" Style="{StaticResource AiUsageButton.Wrapped}" Click="ResetSettings_Click"/>
-                    </WrapPanel>
-                    <WrapPanel>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Export]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ExportSettingsCommand}"/>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Import]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ImportSettingsCommand}"/>
-                    </WrapPanel>
-                    <WrapPanel>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Create]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding CreateBackupCommand}"/>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Restore]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding RestoreBackupCommand}"/>
-                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource AiUsageButton.Wrapped}" Command="{Binding ImportPcCommand}"/>
-                    </WrapPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Heading]}" Style="{StaticResource FieldLabel}"/>
+                    <Grid Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Button Grid.Row="0" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Create]}" Style="{StaticResource SystemAction}" Command="{Binding CreateBackupCommand}"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.Restore]}" Style="{StaticResource SystemAction}" Command="{Binding RestoreBackupCommand}"/>
+                        <Button Grid.Row="1" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource SystemAction}" Command="{Binding ImportPcCommand}"/>
+                    </Grid>
                     <!-- The PCs whose token history was imported, each removable again. -->
                     <ItemsControl ItemsSource="{Binding ImportedPcs}"
                                   Visibility="{Binding HasImportedPcs, Converter={StaticResource BoolToVis}}">
@@ -916,6 +963,22 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Transfer.Heading]}" Style="{StaticResource FieldLabel}"/>
+                    <Grid Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Button Grid.Row="0" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Export]}" Style="{StaticResource SystemAction}" Command="{Binding ExportSettingsCommand}"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Import]}" Style="{StaticResource SystemAction}" Command="{Binding ImportSettingsCommand}"/>
+                        <Button Grid.Row="1" Grid.Column="0" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ResetShort]}" Style="{StaticResource SystemAction}" Click="ResetSettings_Click"/>
+                    </Grid>
                 </StackPanel>
             </Border>
         </StackPanel>

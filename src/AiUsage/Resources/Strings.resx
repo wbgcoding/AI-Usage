@@ -289,9 +289,10 @@
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Save history as CSV…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>The file could not be written. Pick a different folder.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Reset settings</value></data>
+  <data name="Settings.ResetShort" xml:space="preserve"><value>Reset…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Also delete the recorded history</value></data>
-  <data name="Settings.Export" xml:space="preserve"><value>Export settings…</value></data>
-  <data name="Settings.Import" xml:space="preserve"><value>Import settings…</value></data>
+  <data name="Settings.Export" xml:space="preserve"><value>Export…</value></data>
+  <data name="Settings.Import" xml:space="preserve"><value>Import…</value></data>
   <data name="Settings.ImportDone" xml:space="preserve"><value>Settings applied. Window position and size were kept.</value></data>
   <data name="Settings.ImportRefused" xml:space="preserve"><value>This file is not a usable settings file.</value></data>
   <data name="Settings.DataFolder" xml:space="preserve"><value>Data folder</value></data>
@@ -303,7 +304,6 @@
   <data name="About.Installed" xml:space="preserve"><value>Installed copy</value></data>
   <data name="About.Portable" xml:space="preserve"><value>Portable copy</value></data>
   <data name="About.DataFolder" xml:space="preserve"><value>Data folder: {0}</value></data>
-  <data name="About.DataFolder.Default" xml:space="preserve"><value>Default folder in your user profile</value></data>
   <data name="About.DataFolder.Chosen" xml:space="preserve"><value>Folder you chose</value></data>
   <data name="About.DataFolder.Fallback" xml:space="preserve"><value>Fallback folder, because your user profile was not writable</value></data>
   <data name="SignIn.Title" xml:space="preserve"><value>Sign in</value></data>
@@ -487,7 +487,8 @@
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} limit reached, resets in {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
-  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Save energy on battery: fetch half as often, and only local sources while energy saver is on</value></data>
+  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Save energy on battery</value></data>
+  <data name="Tip.Settings.SaveEnergy" xml:space="preserve"><value>Fetch half as often, and only local sources while energy saver is on.</value></data>
   <data name="Tray.Pause" xml:space="preserve"><value>Pause fetching for 1 hour</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Resume fetching (paused until {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Paused until {0}</value></data>
@@ -532,8 +533,10 @@
   <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Previous month</value></data>
   <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Next month</value></data>
   <data name="Settings.Group.Data" xml:space="preserve"><value>Data</value></data>
-  <data name="Settings.Backup.Create" xml:space="preserve"><value>Create backup…</value></data>
-  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Restore backup…</value></data>
+  <data name="Settings.Backup.Heading" xml:space="preserve"><value>Backup</value></data>
+  <data name="Settings.Transfer.Heading" xml:space="preserve"><value>Settings</value></data>
+  <data name="Settings.Backup.Create" xml:space="preserve"><value>Create…</value></data>
+  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Restore…</value></data>
   <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage backup (*.zip)|*.zip</value></data>
   <data name="Backup.Restored" xml:space="preserve"><value>Backup restored. The previous data is in {0}.</value></data>
   <data name="Backup.RestoreFailed" xml:space="preserve"><value>The backup could not be restored. Your data is unchanged.</value></data>
@@ -542,7 +545,7 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restore</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup saved.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import another PC's history…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import another PC…</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>

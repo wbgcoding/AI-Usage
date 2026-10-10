@@ -290,17 +290,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         return string.Concat(path.AsSpan(0, head), "...", path.AsSpan(path.Length - tail));
     }
 
-    /// <summary>The same default/chosen/fallback sentence <see cref="Views.SettingsWindow"/> already
-    /// shows next to its own copy of the path - reused verbatim (same resource keys) so a redirected
-    /// folder never looks like the normal one, here or there.</summary>
+    /// <summary>A note under the path when the data folder is not the normal one (chosen by the user,
+    /// or the temp fallback), so a redirected folder never looks like the default; empty for the
+    /// default folder, which needs no explanation.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Bound from XAML against this instance; classifies the live AppPaths.DataDirectory, not per-instance state.")]
-    public string DataFolderKindText => LocalizationService.Instance[AppPaths.ClassifyDataDirectory() switch
+    public string DataFolderKindText => AppPaths.ClassifyDataDirectory() switch
     {
-        AppPaths.DataFolderKind.Chosen => "About.DataFolder.Chosen",
-        AppPaths.DataFolderKind.Fallback => "About.DataFolder.Fallback",
-        _ => "About.DataFolder.Default",
-    }];
+        AppPaths.DataFolderKind.Chosen => LocalizationService.Instance["About.DataFolder.Chosen"],
+        AppPaths.DataFolderKind.Fallback => LocalizationService.Instance["About.DataFolder.Fallback"],
+        _ => "",
+    };
 
     [ObservableProperty]
     private bool autostart;
