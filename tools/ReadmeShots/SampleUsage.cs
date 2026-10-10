@@ -69,7 +69,31 @@ internal static class SampleUsage
             if (codexShare > 0)
                 AddProviderDay(records, random, "codex", day, dayTotal * codexShare, progress, hours, focusProject);
         }
+        AddGeminiDays(records, today);
         return records;
+    }
+
+    /// <summary>Gemini from the Antigravity CLI: a few working days a week over the last four months, on
+    /// its own random stream so the other providers keep their picture.</summary>
+    private static void AddGeminiDays(List<StatsRecord> records, DateOnly today)
+    {
+        var random = new Random(20261010);
+        for (var day = today.AddDays(-120); day <= today; day = day.AddDays(1))
+        {
+            if (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday || random.NextDouble() > 0.4)
+                continue;
+
+            var start = random.Next(9, 16);
+            for (var hour = start; hour < start + random.Next(1, 4); hour++)
+            {
+                var total = 2_000_000 * (0.5 + random.NextDouble());
+                var cacheRead = (long)(total * 0.9);
+                var input = (long)(total * 0.03);
+                var model = random.NextDouble() < 0.7 ? "gemini-3-pro" : "gemini-3-flash";
+                records.Add(new StatsRecord(
+                    "gemini", day, model, Projects[random.Next(Projects.Length)], input, (long)total - cacheRead - input, 0, cacheRead, hour, ""));
+            }
+        }
     }
 
     /// <summary>Most weekends, the summer break, the days around new year and a few sick days carry
