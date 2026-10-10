@@ -7,12 +7,12 @@ namespace AiUsage.Tests;
 public class StatsProviderCoverageTests
 {
     [Fact]
-    public void Exactly_claude_and_codex_have_local_token_data()
+    public void Exactly_claude_codex_and_gemini_have_local_token_data()
     {
         Assert.True(ProviderCoverage.HasLocalTokenData("claude"));
         Assert.True(ProviderCoverage.HasLocalTokenData("codex"));
+        Assert.True(ProviderCoverage.HasLocalTokenData("gemini"));
         Assert.False(ProviderCoverage.HasLocalTokenData("cursor"));
-        Assert.False(ProviderCoverage.HasLocalTokenData("gemini"));
         Assert.False(ProviderCoverage.HasLocalTokenData("copilot"));
 
         Assert.Equal(["claude", "codex", "cursor", "gemini", "copilot"], ProviderCoverage.AllProviderIds);

@@ -2,6 +2,7 @@ using System.Text;
 using AiUsage.Io;
 using AiUsage.Providers;
 using AiUsage.Services;
+using Microsoft.Data.Sqlite;
 
 namespace AiUsage.Stats;
 
@@ -11,7 +12,7 @@ namespace AiUsage.Stats;
 /// size and write time already matched what was stored) counts toward neither <see
 /// cref="StatsIndexCounters.LinesParsed"/> nor <see cref="StatsIndexCounters.LinesSkipped"/> - only
 /// lines an actually opened file yields land in either bucket.</summary>
-public readonly record struct StatsIndexResult(StatsIndexCounters Claude, StatsIndexCounters Codex);
+public readonly record struct StatsIndexResult(StatsIndexCounters Claude, StatsIndexCounters Codex, StatsIndexCounters Gemini = default);
 
 /// <summary><see cref="FilesSeen"/> is every matching file the walk found under a provider's
 /// root(s), whether or not it ended up being opened. <see cref="FilesRead"/> is the subset that was
@@ -24,21 +25,22 @@ public readonly record struct StatsIndexResult(StatsIndexCounters Claude, StatsI
 public readonly record struct StatsIndexCounters(int FilesSeen, int FilesRead, long LinesParsed, long LinesSkipped, int FoldersSkipped);
 
 /// <summary>
-/// Walks every Claude and Codex session log on this machine and folds whatever is new since the
+/// Walks every Claude and Codex session log and every Antigravity conversation database on this
+/// machine and folds whatever is new since the
 /// last run into <see cref="StatsStore"/>. A single <see cref="IndexOnce"/> call is the whole
 /// contract: safe to call repeatedly (a file whose size and write time match what is already stored
 /// is skipped without being opened), safe to cancel mid-walk (already-finished files stay
 /// finished - the next call simply continues with whatever is left), and never throws (a file that
 /// vanishes or locks up mid-read is left for the next run rather than failing the whole walk).
 ///
-/// Gemini/Antigravity and Copilot are not walked here at all: neither keeps a local, per-line token
-/// count to index - <see cref="ProviderCoverage"/> is what the statistics window itself
-/// reads to say so.
+/// Copilot is not walked here at all: it keeps no local token count to index - <see
+/// cref="ProviderCoverage"/> is what the statistics window itself reads to say so.
 /// </summary>
 public sealed class StatsIndexer
 {
     public const string ClaudeProviderId = "claude";
     public const string CodexProviderId = "codex";
+    public const string GeminiProviderId = "gemini";
 
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
@@ -56,10 +58,15 @@ public sealed class StatsIndexer
 
     internal LogService? Log { get; init; }
 
+    /// <summary>The Antigravity conversation folders to read. Empty unless set: only the production
+    /// constructor points it at this machine's real folders, so a test walk never reads them.</summary>
+    internal IReadOnlyList<string> AntigravityRoots { get; init; } = [];
+
     public StatsIndexer(StatsStore store, LogService? logService = null)
         : this(store, DefaultClaudeProjectsRoots(), DefaultCodexSessionsRoot, DefaultCodexArchivedRoot, () => DateTime.UtcNow)
     {
         Log = logService;
+        AntigravityRoots = DefaultAntigravityRoots();
     }
 
     /// <summary>Test seam: fake roots instead of the real <c>~/.claude/projects</c> and
@@ -115,6 +122,14 @@ public sealed class StatsIndexer
     /// <summary>Same as the default, from a given variable value and profile folder.</summary>
     internal static List<string> ClaudeProjectsRootsFor(string? configDirValue, string userProfile) =>
         ClaudeConfigRoot.ExistingProjectsRoots(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
+
+    /// <summary>The conversation folders of the Antigravity command line tool and, when present, of the
+    /// Antigravity IDE, under <c>~/.gemini</c>.</summary>
+    private static List<string> DefaultAntigravityRoots()
+    {
+        var gemini = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini");
+        return [Path.Combine(gemini, "antigravity-cli", "conversations"), Path.Combine(gemini, "antigravity-ide", "conversations")];
+    }
 
     private static string DefaultCodexSessionsRoot => Providers.CodexPaths.Sessions;
 
@@ -173,6 +188,27 @@ public sealed class StatsIndexer
             codexLinesSkipped += linesSkipped;
         }
 
+        var geminiFilesSeen = 0;
+        var geminiFilesRead = 0;
+        var geminiRowsParsed = 0L;
+        var geminiRowsSkipped = 0L;
+        var geminiFoldersSkipped = 0;
+        foreach (var antigravityRoot in AntigravityRoots)
+        {
+            var conversations = EnumerateNewestFirstWithInfo(antigravityRoot, "*.db", out var skippedFolders, cancellationToken);
+            geminiFoldersSkipped += skippedFolders;
+            foreach (var listed in conversations)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                geminiFilesSeen++;
+                var (read, rowsParsed, rowsSkipped) = IndexAntigravityFile(listed, known);
+                if (read)
+                    geminiFilesRead++;
+                geminiRowsParsed += rowsParsed;
+                geminiRowsSkipped += rowsSkipped;
+            }
+        }
+
         // After the walk, so the usage that is not stored yet is never held up by a display-only pass,
         // and the pass sees the offsets the walk just reached. It runs from a snapshot read now; a
         // snapshot that could not be read skips the pass instead of finishing it with nothing.
@@ -181,7 +217,8 @@ public sealed class StatsIndexer
 
         return new StatsIndexResult(
             new StatsIndexCounters(claudeFilesSeen, claudeFilesRead, claudeLinesParsed, claudeLinesSkipped, claudeFoldersSkipped),
-            new StatsIndexCounters(codexFilesSeen, codexFilesRead, codexLinesParsed, codexLinesSkipped, codexFoldersSkipped));
+            new StatsIndexCounters(codexFilesSeen, codexFilesRead, codexLinesParsed, codexLinesSkipped, codexFoldersSkipped),
+            new StatsIndexCounters(geminiFilesSeen, geminiFilesRead, geminiRowsParsed, geminiRowsSkipped, geminiFoldersSkipped));
     }
 
     /// <summary>Every matching file under <paramref name="root"/>, newest write time first - so a
@@ -437,6 +474,61 @@ public sealed class StatsIndexer
                 state.Effort),
             sessions.ToDeltas());
         return (true, linesParsed, linesSkipped);
+    }
+
+    /// <summary>Reads the model calls added to one Antigravity conversation file since the last run.
+    /// The file counts as unchanged while the size and write time of the database plus its write-ahead
+    /// log match what was stored (the tool keeps new rows in the log for a while). The stored offset is
+    /// the next row index to read, so a row is counted once however often the file is looked at.
+    /// Anything that stops the read (the tool holds a lock, the file is not a database) leaves the
+    /// stored state as it was, so the file is tried again on the next walk.</summary>
+    private (bool Read, long RowsParsed, long RowsSkipped) IndexAntigravityFile(FileInfo listed, Dictionary<string, StatsSourceFileState> known)
+    {
+        var path = listed.FullName;
+        if (TryStat(path) is not { } info)
+            return (false, 0, 0);
+
+        var size = info.Length;
+        var writeTime = info.LastWriteTimeUtc;
+        // An empty log is what a reader leaves behind just by opening the file; only a log with content counts.
+        if (TryStat(path + "-wal") is { Length: > 0 } log)
+        {
+            size += log.Length;
+            if (log.LastWriteTimeUtc > writeTime)
+                writeTime = log.LastWriteTimeUtc;
+        }
+
+        if (!TryFindState(path, known, out var existing))
+            return (false, 0, 0);
+        if (existing is not null && existing.Size == size && existing.WriteTimeUtc == writeTime)
+            return (false, 0, 0);
+
+        AntigravityUsageLogParser.ReadResult result;
+        try
+        {
+            result = AntigravityUsageLogParser.ReadConversation(path, existing?.Offset ?? 0, info.LastWriteTimeUtc);
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or InvalidCastException)
+        {
+            return (false, 0, 0);
+        }
+
+        var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
+        var sessions = new StatsSessionAccumulator();
+        var sessionId = Path.GetFileNameWithoutExtension(path);
+        foreach (var call in result.Events)
+        {
+            Accumulate(buckets, GeminiProviderId, result.Project, call.Timestamp, call.Model,
+                call.InputTokens, call.OutputTokens, 0, call.CacheReadTokens, "", subagent: false);
+            sessions.Add(GeminiProviderId, sessionId, result.Project, call.Timestamp, call.Model, subagent: false,
+                call.InputTokens, call.OutputTokens, 0, call.CacheReadTokens);
+        }
+
+        _store.ApplyIndexResult(
+            [.. buckets.Values],
+            new StatsSourceFileState(path, GeminiProviderId, result.NextIndex, size, writeTime),
+            sessions.ToDeltas());
+        return (true, result.Events.Count, result.RowsSkipped);
     }
 
     /// <summary>The one-time pass after a migration that left usage rows without sessions: every

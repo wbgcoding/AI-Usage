@@ -28,7 +28,7 @@ public class StatsAggregatorTests
         Assert.Equal(2, rows.Count);
         Assert.Equal("2026-01-01", rows[0].Label);
         Assert.Equal(150, rows[0].Total);
-        Assert.Equal([100, 50], rows[0].StackedValues); // claude first, codex second
+        Assert.Equal([100, 50, 0], rows[0].StackedValues); // claude, codex, gemini
         Assert.Equal("2026-01-02", rows[1].Label);
         Assert.Equal(30, rows[1].Total);
     }
@@ -316,7 +316,7 @@ public class StatsAggregatorTests
         Assert.Equal(100, rows[0].Total);
         Assert.Equal("2026-01-02", rows[1].Label);
         Assert.Equal(0, rows[1].Total);
-        Assert.Equal([0, 0], rows[1].StackedValues);
+        Assert.Equal([0, 0, 0], rows[1].StackedValues);
         Assert.Equal("2026-01-03", rows[2].Label);
         Assert.Equal(40, rows[2].Total);
     }
@@ -347,7 +347,7 @@ public class StatsAggregatorTests
 
         var slices = StatsAggregator.ShareByProvider(records);
 
-        Assert.Equal(["claude", "codex"], slices.Select(slice => slice.Label).ToArray());
+        Assert.Equal(["claude", "codex", "gemini"], slices.Select(slice => slice.Label).ToArray());
         Assert.Equal(75, slices[0].Total);
         Assert.Equal(75.0, slices[0].Percent);
         Assert.Equal(25, slices[1].Total);

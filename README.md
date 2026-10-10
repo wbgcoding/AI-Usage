@@ -117,8 +117,8 @@ dashboard for any period you pick: 7 days, 30 days, a year or everything.
 - **Your layout:** drag a section by its heading above, below or beside another one, or move it
   with Alt+Up and Alt+Down. The layout is remembered and can be reset.
 
-Cursor, Gemini and Copilot keep no token counts on your PC, so the window says so instead of
-showing a guess.
+Cursor and Copilot keep no token counts on your PC, so the window says so instead of showing a guess.
+Gemini counts come from the local conversations of the Antigravity CLI.
 
 <div align="center">
 <img src=".github/images/token-usage.png" width="820" alt="The token usage window with the activity grid, figures and charts, dark theme">

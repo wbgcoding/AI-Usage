@@ -131,7 +131,7 @@ public static class StatsAggregator
     /// <summary>Fixed stacking order for day/week grouping - the only two providers a
     /// <see cref="StatsRecord"/> can ever name, always in the same order so a bar's colours
     /// never swap between two consecutive periods.</summary>
-    public static readonly IReadOnlyList<string> StackedProviderOrder = [StatsIndexer.ClaudeProviderId, StatsIndexer.CodexProviderId];
+    public static readonly IReadOnlyList<string> StackedProviderOrder = ProviderCoverage.IndexedProviderIds;
 
     /// <summary><paramref name="rangeStart"/>/<paramref name="rangeEnd"/> only ever affect Day and Week
     /// grouping: every calendar day (or ISO week) across that span gets a row, even one with no records at

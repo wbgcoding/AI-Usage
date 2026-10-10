@@ -1267,7 +1267,7 @@ public sealed partial class StatsViewModel : ObservableObject
             SessionRows = [];
         }
 
-        // A provider without local token counts (Gemini/Antigravity, Copilot) is dropped
+        // A provider without local token counts (Cursor, Copilot) is dropped
         // entirely rather than shown with an explanatory sentence - not here, and not in any chart,
         // legend or grouping either, since none of those ever aggregate a record this provider never
         // wrote to the store in the first place.

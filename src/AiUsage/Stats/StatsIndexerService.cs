@@ -91,7 +91,7 @@ public sealed class StatsIndexerService : IDisposable
     /// announcement. A walk without a result (cancelled or failed) may have read files, so it is
     /// announced too.</summary>
     internal static bool ShouldRaise(StatsIndexResult? result, bool firstWalkDone, bool dateChanged) =>
-        result is not { } walk || !firstWalkDone || dateChanged || walk.Claude.FilesRead > 0 || walk.Codex.FilesRead > 0;
+        result is not { } walk || !firstWalkDone || dateChanged || walk.Claude.FilesRead > 0 || walk.Codex.FilesRead > 0 || walk.Gemini.FilesRead > 0;
 
     public void StartInBackground()
     {

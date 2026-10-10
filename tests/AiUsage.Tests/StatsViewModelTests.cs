@@ -13,7 +13,7 @@ namespace AiUsage.Tests;
 /// </summary>
 public class StatsViewModelTests
 {
-    // a provider without local token counts (Gemini/Antigravity, Copilot) is dropped entirely
+    // a provider without local token counts (Cursor, Copilot) is dropped entirely
     // from the provider row list instead of showing an explanatory "no local data" sentence.
     [Fact]
     public void A_provider_without_local_token_counts_creates_no_row()
@@ -26,7 +26,7 @@ public class StatsViewModelTests
 
         var viewModel = StatsVm.Create(store);
 
-        Assert.DoesNotContain(viewModel.ProviderRows, row => row.DisplayName.Contains("Gemini", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(viewModel.ProviderRows, row => row.DisplayName.Contains("Cursor", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(viewModel.ProviderRows, row => row.DisplayName.Contains("Copilot", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(ProviderCoverage.IndexedProviderIds.Count, viewModel.ProviderRows.Count);
     }
@@ -44,7 +44,7 @@ public class StatsViewModelTests
 
         var viewModel = StatsVm.Create(store);
 
-        Assert.Equal(["claude", "codex"], viewModel.ProviderShareSlices.Select(slice => slice.ProviderId).ToArray());
+        Assert.Equal(["claude", "codex", "gemini"], viewModel.ProviderShareSlices.Select(slice => slice.ProviderId).ToArray());
         Assert.All(viewModel.ProviderShareSlices, slice => Assert.Null(slice.LegendText));
     }
 
@@ -981,8 +981,8 @@ public class StatsViewModelTests
 
         Assert.True(viewModel.CanChooseColor);
         Assert.False(viewModel.IsModelStack);
-        Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
-        Assert.Equal(2, viewModel.Bars[^1].StackedValues.Count);
+        Assert.Equal(["claude", "codex", "gemini"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal(3, viewModel.Bars[^1].StackedValues.Count);
 
         viewModel.SelectedColorByChoice = viewModel.ColorByChoices.Single(choice => choice.Value == StatsColorBy.Model);
 
@@ -1001,7 +1001,7 @@ public class StatsViewModelTests
         Assert.True(viewModel.IsModelStack);
 
         viewModel.SetColorByCommand.Execute(StatsColorBy.Provider);
-        Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal(["claude", "codex", "gemini"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
     }
 
     [Fact]
@@ -1462,7 +1462,7 @@ public class StatsViewModelCaptionTests
 
         viewModel.SetColorByCommand.Execute(StatsColorBy.Provider);
         Assert.False(viewModel.IsAgentStack);
-        Assert.Equal(["claude", "codex"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
+        Assert.Equal(["claude", "codex", "gemini"], viewModel.ChartSeries.Select(series => series.ColorKey).ToArray());
     }
 
     private static StatsViewModel TwoProviderViewModel(string name)
@@ -1481,7 +1481,7 @@ public class StatsViewModelCaptionTests
     public async Task TheProviderFilterNarrowsTheFiguresTheChartAndTheTableToOneProvider()
     {
         var viewModel = TwoProviderViewModel("stats-viewmodel-provider-filter");
-        Assert.Equal(["", "claude", "codex"], viewModel.ProviderChoices.Select(choice => choice.Value).ToArray());
+        Assert.Equal(["", "claude", "codex", "gemini"], viewModel.ProviderChoices.Select(choice => choice.Value).ToArray());
         Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
 
         viewModel.SetProviderCommand.Execute("codex");
@@ -1530,7 +1530,7 @@ public class StatsViewModelCaptionTests
         Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
 
         var other = TwoProviderViewModel("stats-viewmodel-provider-restore-unknown");
-        other.RestoreSelection(null, null, null, null, null, "gemini");
+        other.RestoreSelection(null, null, null, null, null, "copilot");
         Assert.Equal("", other.SelectedProvider);
     }
 
