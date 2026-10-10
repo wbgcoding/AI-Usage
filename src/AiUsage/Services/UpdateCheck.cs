@@ -97,7 +97,7 @@ public static class UpdateCheck
     {
         try
         {
-            using var client = new HttpClient { Timeout = RequestTimeout };
+            using var client = new HttpClient(new SocketsHttpHandler { ConnectCallback = Ipv4FirstConnect.ConnectAsync }) { Timeout = RequestTimeout };
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("AI-Usage", AppInfo.Version));
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 

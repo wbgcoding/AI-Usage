@@ -38,7 +38,7 @@ internal static class AllowListedDownloader
         using var overall = CancellationTokenSource.CreateLinkedTokenSource(ct);
         overall.CancelAfter(overallLimit);
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(overall.Token);
-        using var client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false })
+        using var client = new HttpClient(handler ?? new SocketsHttpHandler { AllowAutoRedirect = false, ConnectCallback = Ipv4FirstConnect.ConnectAsync })
         {
             Timeout = Timeout.InfiniteTimeSpan,
         };

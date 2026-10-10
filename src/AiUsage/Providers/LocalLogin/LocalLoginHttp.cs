@@ -38,7 +38,10 @@ internal static class LocalLoginHttp
     internal static readonly TimeSpan BodyTimeout = TimeSpan.FromSeconds(20);
 
     internal static HttpClient CreateClient() =>
-        new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(20) };
+        new(new SocketsHttpHandler { AllowAutoRedirect = false, ConnectCallback = Ipv4FirstConnect.ConnectAsync })
+        {
+            Timeout = TimeSpan.FromSeconds(20),
+        };
 
     internal static bool IsAllowedUrl(string url) => AllowedUrls.Contains(url);
 
