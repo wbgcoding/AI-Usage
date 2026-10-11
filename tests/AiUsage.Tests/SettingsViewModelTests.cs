@@ -1384,6 +1384,37 @@ public class SettingsViewModelTests : IDisposable
         Assert.Same(vm.ChartRangeChoices.Single(c => c.Value == "Month"), vm.SelectedChartRangeChoice);
     }
 
+    [Theory]
+    [InlineData("Year", 30, "Month")]
+    [InlineData("Month", 7, "Week")]
+    [InlineData("Year", 7, "Week")]
+    [InlineData("All", 30, "All")]
+    public void LoweringTheRetentionKeepsTheLongestRangeItStillCoversAndRefreshesTheTiles(string range, int retentionDays, string expected)
+    {
+        var settings = new AppSettings { HistoryRetentionDays = 3650, ChartRange = range };
+        var (vm, _) = Build(settings);
+        var refreshesBefore = vm.Main.HistoryRefreshAllCount;
+
+        vm.HistoryRetentionDays = retentionDays;
+
+        Assert.Equal(expected, settings.ChartRange);
+        Assert.Equal(expected, vm.SelectedChartRangeChoice?.Value);
+        Assert.Equal(range == expected ? refreshesBefore : refreshesBefore + 1, vm.Main.HistoryRefreshAllCount);
+    }
+
+    [Fact]
+    public void AChartRangeThatIsStillCoveredIsLeftAlone()
+    {
+        var settings = new AppSettings { HistoryRetentionDays = 3650, ChartRange = "Week" };
+        var (vm, _) = Build(settings);
+        var refreshesBefore = vm.Main.HistoryRefreshAllCount;
+
+        vm.HistoryRetentionDays = 365;
+
+        Assert.Equal("Week", settings.ChartRange);
+        Assert.Equal(refreshesBefore, vm.Main.HistoryRefreshAllCount);
+    }
+
     [Fact]
     public void SelectedLanguageChoiceAppliesTheSameChangeAsTheLanguageCommand()
     {

@@ -1552,10 +1552,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _notifications.Redirect(dataDirectory);
     }
 
+    /// <summary>How often every tile's history was asked for again; a test reads it.</summary>
+    internal int HistoryRefreshAllCount { get; private set; }
+
     /// <summary>Settings window's chart-range picker calls this so every tile's chart reflects the
     /// new range immediately, instead of waiting for each provider's next scheduled fetch.</summary>
     public void RefreshHistoryForAllTiles()
     {
+        HistoryRefreshAllCount++;
         foreach (var tile in Tiles)
             RefreshTileHistory(tile.ProviderId);
     }

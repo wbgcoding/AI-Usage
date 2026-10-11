@@ -1790,7 +1790,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private void RebuildChartRangeChoices()
     {
         var available = SettingsRanges.AvailableChartRanges(HistoryRetentionDays);
-        var selected = available.Any(o => o.Value == _settings.ChartRange) ? _settings.ChartRange : available[0].Value;
+        var selected = available.Any(o => o.Value == _settings.ChartRange)
+            ? _settings.ChartRange
+            : SettingsRanges.ChartRangeFitting(_settings.ChartRange, HistoryRetentionDays);
 
         ChartRangeChoices.Clear();
         foreach (var option in available)
@@ -1801,6 +1803,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _settings.ChartRange = selected;
             _store.RequestSave(_settings);
+            Main.RefreshHistoryForAllTiles();
         }
     }
 

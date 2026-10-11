@@ -108,6 +108,18 @@ public static class SettingsRanges
     public static IReadOnlyList<ChartRangeOption> AvailableChartRanges(int retentionDays) =>
         AllChartRanges.Where(option => retentionDays >= option.RequiredRetentionDays).ToList();
 
+    /// <summary>The range to fall back to when <paramref name="range"/> is no longer covered by
+    /// <paramref name="retentionDays"/>: the longest offered range that is not longer than it, else
+    /// the longest offered one.</summary>
+    public static string ChartRangeFitting(string range, int retentionDays)
+    {
+        var available = AvailableChartRanges(retentionDays);
+        var order = AllChartRanges.Select(option => option.Value).ToList();
+        var wanted = order.IndexOf(range);
+        var fitting = available.LastOrDefault(option => order.IndexOf(option.Value) <= wanted);
+        return (fitting ?? available[^1]).Value;
+    }
+
     /// <summary>Turns a <see cref="Models.AppSettings.ChartRange"/> value into how far back
     /// <see cref="Storage.HistoryStore.Load"/> should read. "All" uses the longest retention rung
     /// rather than <see cref="TimeSpan.MaxValue"/> - history is never actually kept longer than that.</summary>
