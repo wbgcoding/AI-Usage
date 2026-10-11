@@ -389,7 +389,7 @@ public sealed class StatsIndexer
         _store.ApplyIndexResult(
             [.. buckets.Values],
             new StatsSourceFileState(
-                path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc, LastMessageKey: lastMessageKey),
+                existing?.Path ?? path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc, LastMessageKey: lastMessageKey),
             sessions.ToDeltas());
         return (true, linesParsed, linesSkipped);
     }
@@ -476,7 +476,7 @@ public sealed class StatsIndexer
         _store.ApplyIndexResult(
             [.. buckets.Values],
             new StatsSourceFileState(
-                path, CodexProviderId, consumedOffset, openLength, info.LastWriteTimeUtc,
+                existing?.Path ?? path, CodexProviderId, consumedOffset, openLength, info.LastWriteTimeUtc,
                 state.Model, state.CumulativeInput, state.CumulativeOutput, state.CumulativeCacheCreation, state.CumulativeCacheRead,
                 state.Effort),
             sessions.ToDeltas());
@@ -527,7 +527,7 @@ public sealed class StatsIndexer
             // A file that is not a usable database (wrong schema, corrupt, unexpected value types).
             // It is remembered as it is now, so it is skipped, and logged once, until it changes.
             Log?.LogError($"Statistics: an Antigravity conversation file could not be read and is skipped until it changes ({ex.GetType().Name}).");
-            _store.ApplyIndexResult([], new StatsSourceFileState(path, GeminiProviderId, existing?.Offset ?? 0, size, writeTime), []);
+            _store.ApplyIndexResult([], new StatsSourceFileState(existing?.Path ?? path, GeminiProviderId, existing?.Offset ?? 0, size, writeTime), []);
             return (false, 0, 0);
         }
 
@@ -546,7 +546,7 @@ public sealed class StatsIndexer
             [.. buckets.Values],
             // A read that stopped early is stored with a size that never matches, so the next walk
             // continues it even when the file itself does not change.
-            new StatsSourceFileState(path, GeminiProviderId, result.NextIndex, result.Incomplete ? -1 : size, writeTime),
+            new StatsSourceFileState(existing?.Path ?? path, GeminiProviderId, result.NextIndex, result.Incomplete ? -1 : size, writeTime),
             sessions.ToDeltas());
         return (true, result.Events.Count, result.RowsSkipped);
     }

@@ -1332,15 +1332,15 @@ public sealed class StatsStore
 
             using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT provider, offset, size, write_time_utc, current_model,
+                SELECT path, provider, offset, size, write_time_utc, current_model,
                        cumulative_input_tokens, cumulative_output_tokens, cumulative_cache_creation_tokens, cumulative_cache_read_tokens,
                        current_effort, last_message_key
-                FROM source_file WHERE path = $path
+                FROM source_file WHERE path = $path COLLATE NOCASE ORDER BY offset DESC LIMIT 1
                 """;
             command.Parameters.AddWithValue("$path", path);
             using var reader = command.ExecuteReader();
             if (reader.Read())
-                state = ReadSourceFileState(reader, path, firstColumn: 0);
+                state = ReadSourceFileState(reader, reader.GetString(0), firstColumn: 1);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
@@ -1349,7 +1349,8 @@ public sealed class StatsStore
         }
     }
 
-    /// <summary>Every remembered source file in one query, keyed by path exactly as stored. The indexer
+    /// <summary>Every remembered source file in one query, keyed by path without regard to case (the
+    /// state itself keeps the path as stored). The indexer
     /// reads this once per walk instead of opening the database once for each of several thousand
     /// unchanged session files. Empty when the index cannot be read, so the caller falls back to
     /// asking per file.</summary>
@@ -1364,7 +1365,7 @@ public sealed class StatsStore
     /// files, which a one-time pass must never mistake for "nothing to do".</summary>
     public bool TryLoadSourceFiles(out Dictionary<string, StatsSourceFileState> states)
     {
-        states = new Dictionary<string, StatsSourceFileState>(StringComparer.Ordinal);
+        states = new Dictionary<string, StatsSourceFileState>(StringComparer.OrdinalIgnoreCase);
         try
         {
             using var connection = Open();
@@ -1382,14 +1383,17 @@ public sealed class StatsStore
             while (reader.Read())
             {
                 var path = reader.GetString(0);
-                states[path] = ReadSourceFileState(reader, path, firstColumn: 1);
+                var state = ReadSourceFileState(reader, path, firstColumn: 1);
+                // Rows that differ only by case: the one that has read furthest is the one to resume from.
+                if (!states.TryGetValue(path, out var twin) || state.Offset > twin.Offset)
+                    states[path] = state;
             }
 
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or FormatException)
         {
-            states = new Dictionary<string, StatsSourceFileState>(StringComparer.Ordinal);
+            states = new Dictionary<string, StatsSourceFileState>(StringComparer.OrdinalIgnoreCase);
             return false;
         }
     }
@@ -1425,7 +1429,7 @@ public sealed class StatsStore
             var candidates = new List<string>();
             using (var list = connection.CreateCommand())
             {
-                list.CommandText = "SELECT path FROM source_file WHERE provider = $provider AND path <> $path";
+                list.CommandText = "SELECT path FROM source_file WHERE provider = $provider AND path <> $path COLLATE NOCASE";
                 list.Parameters.AddWithValue("$provider", provider);
                 list.Parameters.AddWithValue("$path", newPath);
                 using var reader = list.ExecuteReader();
