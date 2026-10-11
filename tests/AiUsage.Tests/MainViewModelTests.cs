@@ -175,13 +175,6 @@ public class MainViewModelTests : IDisposable
         return vm;
     }
 
-    private static async Task WaitUntil(Func<bool> condition)
-    {
-        for (var attempt = 0; attempt < 200 && !condition(); attempt++)
-            await Task.Delay(25);
-        Assert.True(condition(), "the condition did not become true in time");
-    }
-
     [Fact]
     public async Task A_finished_index_run_makes_the_next_tick_ask_for_the_week_tokens_again()
     {
@@ -190,7 +183,7 @@ public class MainViewModelTests : IDisposable
         vm.WeekTokensQuery = (_, _) => Interlocked.Increment(ref calls);
 
         vm.RefreshWeekTokens(Now);
-        await WaitUntil(() => Volatile.Read(ref calls) == tiles.Count);
+        await TestWait.UntilAsync(() => Volatile.Read(ref calls) == tiles.Count);
         vm.RefreshWeekTokens(Now.AddSeconds(1));
         await Task.Delay(100);
         Assert.Equal(tiles.Count, Volatile.Read(ref calls));
@@ -198,7 +191,7 @@ public class MainViewModelTests : IDisposable
         vm.OnStatsIndexCompleted();
         vm.RefreshWeekTokens(Now.AddSeconds(2));
 
-        await WaitUntil(() => Volatile.Read(ref calls) == tiles.Count * 2);
+        await TestWait.UntilAsync(() => Volatile.Read(ref calls) == tiles.Count * 2);
     }
 
     [Fact]
@@ -208,7 +201,7 @@ public class MainViewModelTests : IDisposable
         long? answer = 500;
         vm.WeekTokensQuery = (_, _) => answer;
         vm.RefreshWeekTokens(Now);
-        await WaitUntil(() => tiles.All(tile => tile.WeekTokens == 500));
+        await TestWait.UntilAsync(() => tiles.All(tile => tile.WeekTokens == 500));
 
         answer = null;
         vm.OnStatsIndexCompleted();
@@ -220,7 +213,7 @@ public class MainViewModelTests : IDisposable
         answer = 700;
         vm.OnStatsIndexCompleted();
         vm.RefreshWeekTokens(Now.AddSeconds(2));
-        await WaitUntil(() => tiles.All(tile => tile.WeekTokens == 700));
+        await TestWait.UntilAsync(() => tiles.All(tile => tile.WeekTokens == 700));
     }
 
     // A provider that is signed out or unreachable after a restart still shows the numbers it last had.
@@ -1463,7 +1456,7 @@ public class MainViewModelTests : IDisposable
 
         var result = await vm.SignOutAsync("copilot");
         vm.Reconnect("copilot");
-        await Task.Delay(20);
+        await TestWait.UntilAsync(() => providers.Single(p => p.Id == "copilot").WasFetched);
 
         Assert.True(result);
         Assert.Equal(0, rebuilt);
@@ -1483,7 +1476,7 @@ public class MainViewModelTests : IDisposable
         await vm.SignOutAsync("claude");
 
         vm.Reconnect("claude");
-        await Task.Delay(20);
+        await TestWait.UntilAsync(() => freshClaude?.WasFetched == true);
 
         Assert.False(settings.Providers["claude"].Disconnected);
         Assert.NotNull(freshClaude);
@@ -1523,7 +1516,7 @@ public class MainViewModelTests : IDisposable
 
         // The sign-in finished: the first read after it fills the tile.
         vm.CompleteSignIn("claude", signedIn: true);
-        await Task.Delay(50);
+        await TestWait.UntilAsync(() => freshClaude.WasFetched && tile.Status == ProviderStatus.Ok);
         Assert.False(settings.Providers["claude"].Disconnected);
         Assert.True(freshClaude.WasFetched);
         Assert.Equal(ProviderStatus.Ok, tile.Status);
@@ -1717,9 +1710,9 @@ public class MainViewModelTests : IDisposable
         // otherwise correctly keep skipping the fetch, see the flag's own tests) is what proves the
         // swapped-in provider, not the old disposed runner's, actually answers.
         vm.Reconnect("claude");
-        await Task.Delay(20);
-
         var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+        await TestWait.UntilAsync(() => tile.Status == ProviderStatus.Ok);
+
         Assert.Equal(ProviderStatus.Ok, tile.Status);
     }
 
@@ -1829,7 +1822,7 @@ public class MainViewModelTests : IDisposable
         // Polls rather than sleeping a fixed guess: a fixed delay was long enough while this suite ran
         // one class at a time, but not once every class runs beside every other one - a generous
         // timeout here only ever costs real time on a genuinely stuck run, never a flake on a busy one.
-        await WaitUntilAsync(() => historyStore.CompactCalls >= providers.Count && historyStore.PruneCalls >= providers.Count);
+        await TestWait.UntilAsync(() => historyStore.CompactCalls >= providers.Count && historyStore.PruneCalls >= providers.Count);
         cts.Cancel();
         try { await run; } catch (OperationCanceledException) { }
 
@@ -1850,27 +1843,12 @@ public class MainViewModelTests : IDisposable
         var run = vm.RunMaintenanceAsync(cts.Token, TimeSpan.FromMilliseconds(15));
         // Same reasoning as the poll above: waits for two real passes instead of guessing how long
         // several 15ms-interval passes take on whatever else this thread pool is doing right now.
-        await WaitUntilAsync(() => historyStore.CompactCalls >= 2);
+        await TestWait.UntilAsync(() => historyStore.CompactCalls >= 2);
         cts.Cancel();
         try { await run; } catch (OperationCanceledException) { }
 
         Assert.True(historyStore.CompactCalls >= 2, $"expected at least 2 passes, got {historyStore.CompactCalls}");
         Assert.Equal(1, historyStore.MaxObservedConcurrentCompacts);
-    }
-
-    // A busy machine running every test class at once can genuinely take longer than a fixed sleep
-    // ever assumed - this polls for the real condition instead, so a slow-but-working run just takes
-    // longer rather than reading as a failure. Ten seconds is generous even under heavy load; a run
-    // that still has not met the condition by then really is stuck, not just slow.
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-        while (!condition())
-        {
-            if (DateTime.UtcNow >= deadline)
-                throw new TimeoutException("condition was never met");
-            await Task.Delay(5);
-        }
     }
 
     [Fact]
@@ -2823,7 +2801,7 @@ public class MainViewModelTests : IDisposable
 
         Assert.False(await vm.TrySignOutAsync("claude"));
         vm.RefreshNow();
-        await Task.Delay(20);
+        await TestWait.UntilAsync(() => fresh?.WasFetched == true);
 
         Assert.NotNull(fresh);
         Assert.True(fresh!.WasFetched);
