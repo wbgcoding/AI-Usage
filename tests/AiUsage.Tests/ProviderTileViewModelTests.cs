@@ -935,6 +935,18 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
+    public void ATileThatTurnsSilentByTimePassingAloneDropsItsForecast()
+    {
+        var tile = TileWithARisingFiveHourForecast();
+        Assert.NotEqual("", tile.Rows.Single().ForecastText);
+
+        tile.TickCountdowns(Now.AddHours(25));
+
+        Assert.True(tile.IsSilent);
+        Assert.Equal("", tile.Rows.Single().ForecastText);
+    }
+
+    [Fact]
     public void AForecastFollowsTheDensityBackAndForthWithoutANewHistoryRead()
     {
         var tile = TileWithARisingFiveHourForecast();

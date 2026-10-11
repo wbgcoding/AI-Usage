@@ -1135,6 +1135,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         {
             IsSilent = silent;
             OnPropertyChanged(nameof(IsSilent));
+            // The forecast is only offered while the provider is not silent.
+            RefreshForecastsFromLastSeries();
         }
 
         if (reason != SilentReasonText)
