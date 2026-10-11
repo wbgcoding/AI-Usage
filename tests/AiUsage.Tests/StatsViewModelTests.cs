@@ -678,6 +678,56 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public async Task A_day_whose_project_colors_were_dropped_asks_for_them_again()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-dropped-colors");
+        var store = new StatsStore(dataDir);
+        var first = DateOnly.FromDateTime(DateTime.Now).AddDays(-90);
+        var second = first.AddDays(1);
+        store.AddDelta([
+            new StatsRecord("claude", first, "modelA", "C:/Projects/One", 500, 0, 0, 0),
+            new StatsRecord("claude", second, "modelA", "C:/Projects/Two", 300, 0, 0, 0),
+        ]);
+        using var gate = new ManualResetEventSlim();
+        var calls = new List<string[]>();
+        var viewModel = new StatsViewModel(store)
+        {
+            ProjectColorResolve = (folders, _) =>
+            {
+                int number;
+                lock (calls)
+                {
+                    calls.Add([.. folders]);
+                    number = calls.Count;
+                }
+
+                // The first request is still running when the second one starts and supersedes it.
+                if (number == 1)
+                    gate.Wait(TimeSpan.FromSeconds(10));
+                return folders.ToDictionary(folder => folder, _ => new ProjectColorInfo(System.Windows.Media.Color.FromRgb(1, 2, 3), null));
+            },
+        };
+        viewModel.Recompute();
+
+        viewModel.SelectDay(first);
+        var superseded = viewModel.LastProjectColorRefresh;
+        viewModel.SelectDay(second);
+        await viewModel.LastProjectColorRefresh;
+        gate.Set();
+        await superseded;
+        Assert.Equal(2, calls.Count);
+        Assert.DoesNotContain(viewModel.ProjectColors.Keys, key => key.Contains("One", StringComparison.OrdinalIgnoreCase));
+
+        // Back on the first day: its colors were never delivered, so they are requested once more.
+        viewModel.SelectDay(first);
+        await viewModel.LastProjectColorRefresh;
+
+        Assert.Equal(3, calls.Count);
+        Assert.Contains(calls[2], folder => folder.Contains("One", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(viewModel.ProjectColors.Keys, key => key.Contains("One", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void A_day_picked_from_the_widget_survives_the_rebuild_that_follows()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-requested-day");

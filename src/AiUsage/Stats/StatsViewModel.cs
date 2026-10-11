@@ -815,7 +815,14 @@ public sealed partial class StatsViewModel : ObservableObject
     /// never waits on this before showing anything - it just redraws a second time, in color, once
     /// this finishes.</summary>
     private void RefreshProjectColors(IReadOnlyList<StatsProjectRow> rows, IReadOnlyList<string> barProjects) =>
-        _ = RefreshProjectColorsAsync(rows, barProjects);
+        LastProjectColorRefresh = RefreshProjectColorsAsync(rows, barProjects);
+
+    /// <summary>The newest background color request, so a test can wait for it.</summary>
+    internal Task LastProjectColorRefresh { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Test seam for the folder walk behind the project colors.</summary>
+    internal Func<IReadOnlyList<string>, string, IReadOnlyDictionary<string, ProjectColorInfo>> ProjectColorResolve { get; init; } =
+        ProjectColorResolver.ResolveAll;
 
     /// <summary>Each project folder's own color, the same one its "top projects" row shows - the
     /// project grouping's bars look their color up here, so a project never has two colors on this
@@ -833,7 +840,8 @@ public sealed partial class StatsViewModel : ObservableObject
     private async Task RefreshProjectColorsAsync(IReadOnlyList<StatsProjectRow> rows, IReadOnlyList<string> barProjects)
     {
         var generation = ++_projectColorGeneration;
-        var folders = rows.Select(row => row.FullPath).Concat(barProjects).Concat(_dayProjectKeys).Distinct().ToList();
+        var dayKeys = _dayProjectKeys;
+        var folders = rows.Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct().ToList();
         if (folders.Count == 0)
             return;
 
@@ -841,15 +849,21 @@ public sealed partial class StatsViewModel : ObservableObject
         IReadOnlyDictionary<string, ProjectColorInfo> resolved;
         try
         {
-            resolved = await Task.Run(() => ProjectColorResolver.ResolveAll(folders, cacheFilePath));
+            resolved = await Task.Run(() => ProjectColorResolve(folders, cacheFilePath));
         }
         catch (Exception)
         {
+            // Nothing arrived for the day's projects: they are asked for again the next time that day is shown.
+            _requestedDayProjectKeys.ExceptWith(dayKeys);
             return;
         }
 
         if (generation != _projectColorGeneration)
+        {
+            // A newer request may not have covered this day's projects; let them be asked for again.
+            _requestedDayProjectKeys.ExceptWith(dayKeys);
             return;
+        }
 
         TopProjectRows = TopProjectRows
             .Select(row => resolved.TryGetValue(row.FullPath, out var info)
