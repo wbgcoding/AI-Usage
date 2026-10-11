@@ -55,6 +55,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// one-second <see cref="Tick"/> would just be wasted SQLite work.</summary>
     private static readonly TimeSpan WeekTokensQueryInterval = TimeSpan.FromMinutes(5);
 
+    /// <summary>Test seam for the weekly token query; null uses the store's own.</summary>
+    internal Func<string, DateOnly, long?>? WeekTokensQuery { get; set; }
+
     /// <summary>Per real provider id (not per account - two Claude accounts would otherwise double
     /// the query for numbers <see cref="Stats.StatsStore"/> cannot even tell apart by account), the
     /// last time <see cref="RefreshWeekTokens"/> actually queried. Empty at construction, so the very
@@ -764,11 +767,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher is not null && !dispatcher.CheckAccess())
-                dispatcher.BeginInvoke(RefreshDayGridIfShown);
+                dispatcher.BeginInvoke(OnStatsIndexCompleted);
             else
-                RefreshDayGridIfShown();
+                OnStatsIndexCompleted();
         };
         indexer.StartInBackground();
+    }
+
+    /// <summary>New index data (a walk, an import, a removed PC): the weekly token figures are asked
+    /// for again on the next tick instead of after the usual wait, and the day grid reloads.</summary>
+    internal void OnStatsIndexCompleted()
+    {
+        _lastWeekTokensQueryAt.Clear();
+        RefreshDayGridIfShown();
     }
 
     /// <summary>A hidden day-grid tile skips the reload (it reads the whole year from the index);
@@ -856,10 +867,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// "read off the UI thread, only the landed result comes back to it" split as <see
     /// cref="RefreshTileHistory"/>; two accounts of the same provider share one query and one
     /// answer, since <see cref="Stats.StatsStore"/> indexes by provider id, not by account.</summary>
-    private void RefreshWeekTokens(DateTimeOffset now)
+    internal void RefreshWeekTokens(DateTimeOffset now)
     {
         if (_statsStore is not { } store)
             return;
+
+        var query = WeekTokensQuery ?? store.SumTokensSince;
 
         var localNow = now.LocalDateTime;
         var weekStart = StatsAggregator.WeekStart(DateOnly.FromDateTime(localNow));
@@ -875,7 +888,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
             Task.Run(() =>
             {
-                var tokens = store.SumTokensSince(providerId, weekStart);
+                // Null: the index could not be read, so the figure already shown stays.
+                if (query(providerId, weekStart) is not { } tokens)
+                    return;
 
                 void Apply()
                 {

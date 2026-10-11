@@ -1395,14 +1395,15 @@ public sealed class StatsStore
     /// <summary>The sum of every token column across every row for <paramref name="providerId"/> on
     /// or after <paramref name="from"/>, computed directly in SQL rather than through <see
     /// cref="LoadAll"/> - a caller that only wants one provider's running weekly total should never
-    /// pay for pulling and summing every row of every provider first.</summary>
-    public long SumTokensSince(string providerId, DateOnly from)
+    /// pay for pulling and summing every row of every provider first. Null when the index could not
+    /// be read, which is not the same as no tokens.</summary>
+    public long? SumTokensSince(string providerId, DateOnly from)
     {
         try
         {
             using var connection = Open();
             if (!IsUsable)
-                return 0;
+                return null;
 
             using var command = connection.CreateCommand();
             command.CommandText = """
@@ -1416,7 +1417,7 @@ public sealed class StatsStore
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
-            return 0;
+            return null;
         }
     }
 

@@ -163,6 +163,66 @@ public class MainViewModelTests : IDisposable
         Assert.NotEmpty(historyStore.Load("gemini", TimeSpan.FromDays(1)));
     }
 
+    private MainViewModel BuildWithStats(out List<ProviderTileViewModel> weekTiles)
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var providers = new List<IUsageProvider> { new FakeProvider("codex"), new FakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
+        var vm = new MainViewModel(
+            new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now),
+            statsStore: new Stats.StatsStore(TempDirectory()));
+        weekTiles = [.. vm.Tiles.Where(tile => Stats.ProviderCoverage.HasLocalTokenData(tile.RealProviderId))];
+        Assert.NotEmpty(weekTiles);
+        return vm;
+    }
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var attempt = 0; attempt < 200 && !condition(); attempt++)
+            await Task.Delay(25);
+        Assert.True(condition(), "the condition did not become true in time");
+    }
+
+    [Fact]
+    public async Task A_finished_index_run_makes_the_next_tick_ask_for_the_week_tokens_again()
+    {
+        var vm = BuildWithStats(out var tiles);
+        var calls = 0;
+        vm.WeekTokensQuery = (_, _) => Interlocked.Increment(ref calls);
+
+        vm.RefreshWeekTokens(Now);
+        await WaitUntil(() => Volatile.Read(ref calls) == tiles.Count);
+        vm.RefreshWeekTokens(Now.AddSeconds(1));
+        await Task.Delay(100);
+        Assert.Equal(tiles.Count, Volatile.Read(ref calls));
+
+        vm.OnStatsIndexCompleted();
+        vm.RefreshWeekTokens(Now.AddSeconds(2));
+
+        await WaitUntil(() => Volatile.Read(ref calls) == tiles.Count * 2);
+    }
+
+    [Fact]
+    public async Task A_week_token_query_that_fails_keeps_the_figure_shown()
+    {
+        var vm = BuildWithStats(out var tiles);
+        long? answer = 500;
+        vm.WeekTokensQuery = (_, _) => answer;
+        vm.RefreshWeekTokens(Now);
+        await WaitUntil(() => tiles.All(tile => tile.WeekTokens == 500));
+
+        answer = null;
+        vm.OnStatsIndexCompleted();
+        vm.RefreshWeekTokens(Now.AddSeconds(1));
+        await Task.Delay(150);
+
+        Assert.All(tiles, tile => Assert.Equal(500, tile.WeekTokens));
+
+        answer = 700;
+        vm.OnStatsIndexCompleted();
+        vm.RefreshWeekTokens(Now.AddSeconds(2));
+        await WaitUntil(() => tiles.All(tile => tile.WeekTokens == 700));
+    }
+
     // A provider that is signed out or unreachable after a restart still shows the numbers it last had.
     [Fact]
     public void The_last_recorded_reading_comes_back_from_the_history_with_reset_windows_at_zero()
