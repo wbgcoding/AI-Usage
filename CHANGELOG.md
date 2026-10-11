@@ -69,6 +69,23 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Fixed
 
+- Claude output tokens in the token usage window were about a third too low: Claude Code writes each response several times and only the first copy, with a provisional output count, was counted. The final count is used now, and a one-time pass adds the missing tokens from every session file that still exists.
+- A session file is no longer counted twice when the Claude or Codex folder is spelled with different letter case.
+- After an in-app update the installed widget starts again on its own.
+- With an auto-hiding taskbar a maximized window no longer counts as full screen, so the widget stays visible.
+- A weekly-only Codex limit is shown as the weekly window instead of "5 h".
+- A lost network connection no longer signs Gemini out on the tile.
+- Claude reads the organization with chat access when the account belongs to several.
+- Pause and energy saver also hold back the web reads of Claude, Codex and Gemini, while their local files are still read.
+- "Limit reached" appears once per period, also when the first reading had no reset time.
+- An update check cancelled by closing the window no longer counts as done for the day.
+- Reset and import apply thresholds and the tile order at once; the notification area icon no longer follows a removed account.
+- Lowering the history retention keeps the longest chart range it still covers.
+- A tile that has been silent for a day no longer shows a forecast.
+- The weekly token count on a tile is right straight after start and after an import.
+- The token usage window no longer breaks on a custom range far in the past, keeps the "No project" filter across a language switch and colors every day's projects.
+- Moving the data folder into the temp folder is refused, since Windows empties it.
+- An unknown Copilot quota shows a readable name, Antigravity calls with extra fields are counted, `--status` skips a damaged entry instead of crashing, and autostart is repaired after a move also when the setup turned it on.
 - Claude and Gemini no longer time out on networks that announce IPv6 without a working IPv6 route: connections try IPv4 first.
 - Drop-down lists, menus and tooltips are fully opaque again with the Mica background.
 - Settings changed just before closing the app are no longer lost, and saving them no longer stutters while you drag a slider or the window.
