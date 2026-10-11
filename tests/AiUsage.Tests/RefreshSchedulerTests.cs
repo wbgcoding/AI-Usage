@@ -336,12 +336,12 @@ public class RefreshSchedulerTests
         var slow = new FakeProvider("claude", async ct => { await hangGate.Task; return Ok("claude"); });
         var fast = new FakeProvider("codex", _ => Task.FromResult(Ok("codex")));
         var scheduler = new RefreshScheduler([slow, fast], BaseInterval, clock);
-        var reported = new List<string>();
-        scheduler.SnapshotReady += s => reported.Add(s.ProviderId);
+        var reported = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        scheduler.SnapshotReady += s => reported.Enqueue(s.ProviderId);
 
         var started = scheduler.Tick();
-        await Task.Delay(20); // let the fast provider's task complete while the slow one still hangs
-        Assert.Contains("codex", reported);
+        // The fast provider's result arrives while the slow one still hangs.
+        await TestWait.UntilAsync(() => reported.Contains("codex"));
         Assert.DoesNotContain("claude", reported);
 
         hangGate.SetResult();
