@@ -130,8 +130,9 @@ public partial class App : Application, IDisposable
         if (_settingsStore.MachineIdWasCreated)
             _settingsStore.RequestSave(settings);
 
-        // A copy that was moved since autostart was switched on would otherwise start nothing at logon.
-        if (settings.Autostart && Environment.ProcessPath is { } ownPath && AutostartService.RepairIfMoved(ownPath))
+        // The Run value itself decides, not the settings mirror (the installer switches autostart on
+        // without touching it): an entry whose program file is gone would start nothing at logon.
+        if (Environment.ProcessPath is { } ownPath && AutostartService.RepairIfMoved(ownPath))
             _logService.LogInfo("Autostart: the entry pointed at a program file that no longer exists and now names this copy.");
 
         // StatsWindow has no constructor path back here, so this static seam hands it the same live
