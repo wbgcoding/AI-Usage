@@ -137,7 +137,7 @@ public sealed class GeminiProvider : IUsageProvider
         if (_webSource is null)
             return await WithAccountLabelAsync(local);
 
-        var web = await ReadWebAsync(fetchedAt, ct);
+        var web = await ReadWebUnlessHeldAsync(fetchedAt, ct);
 
         var candidates = new List<ProviderSnapshot> { local };
         if (web is not null)
@@ -167,6 +167,11 @@ public sealed class GeminiProvider : IUsageProvider
     /// scheduler's own pace without paying for a page load every time.</summary>
     private Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
         _webReader is null ? Task.FromResult<ProviderSnapshot?>(null) : _webReader.ReadAsync(fetchedAt, ct);
+
+    /// <summary>The web read of a fetch that has a local source beside it: skipped while the scheduler
+    /// holds network reads back, so a pause or the energy saver never loads a page.</summary>
+    private Task<ProviderSnapshot?> ReadWebUnlessHeldAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
+        FetchContext.NetworkHeld ? Task.FromResult<ProviderSnapshot?>(null) : ReadWebAsync(fetchedAt, ct);
 
     private ProviderSnapshot BuildSnapshot(AntigravityUsage usage, DateTimeOffset fetchedAt)
     {

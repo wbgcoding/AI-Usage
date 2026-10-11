@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AiUsage.Models;
 using AiUsage.Providers;
+using AiUsage.Services;
 using AiUsage.Web;
 
 namespace AiUsage.Tests;
@@ -540,6 +541,19 @@ public class CodexProviderTests : IDisposable
         });
 
         return new CodexProvider(sessionsRoot, clock, source, new AppSettings(), _ => { });
+    }
+
+    [Fact]
+    public async Task The_web_read_is_left_out_while_the_network_is_held_and_made_otherwise()
+    {
+        var provider = ProviderWithWebSession(NewSessionsDirectory(), _ => OkEnvelope, out var scriptRuns);
+
+        using (FetchContext.HoldNetwork())
+            await provider.FetchAsync(CancellationToken.None);
+        Assert.Empty(scriptRuns);
+
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.NotEmpty(scriptRuns);
     }
 
     [Fact]

@@ -197,6 +197,7 @@ public sealed class RefreshScheduler
         Func<string, bool>? isDisconnected, bool ignoreNetworkSkip, CancellationToken ct)
     {
         List<IUsageProvider> due;
+        bool holdNetwork;
         lock (_gate)
         {
             // Remembered for RunOneAsync (including a later single-provider RefreshNow, which has no
@@ -212,9 +213,13 @@ public sealed class RefreshScheduler
             due = _providers.Where(p => IsDueLocked(p, now, ignoreNetworkSkip)).ToList();
             foreach (var provider in due)
                 _state[provider.AccountKey].InFlight = true;
+
+            // While the network is held back, a provider only runs because its last reading was
+            // local: its fetch must leave out any network part (see FetchContext).
+            holdNetwork = !ignoreNetworkSkip && NetworkIsOffLocked(now);
         }
 
-        return due.Select(provider => RunOneAsync(provider, ct)).ToList();
+        return due.Select(provider => RunOneAsync(provider, holdNetwork, ct)).ToList();
     }
 
     /// <summary>
@@ -254,7 +259,7 @@ public sealed class RefreshScheduler
             state.NextDueAt = _timeProvider.GetUtcNow();
             state.InFlight = true;
         }
-        return [RunOneAsync(provider, ct)];
+        return [RunOneAsync(provider, holdNetwork: false, ct)];
     }
 
     /// <summary>
@@ -339,7 +344,7 @@ public sealed class RefreshScheduler
             return state.CancelledByOwner;
     }
 
-    private async Task RunOneAsync(IUsageProvider provider, CancellationToken ct)
+    private async Task RunOneAsync(IUsageProvider provider, bool holdNetwork, CancellationToken ct)
     {
         ProviderState? state;
         lock (_gate)
@@ -349,7 +354,7 @@ public sealed class RefreshScheduler
                 return;
         }
         var attemptStartedAt = _timeProvider.GetUtcNow();
-        var runTask = RunOneCoreAsync(provider, state, attemptStartedAt, ct);
+        var runTask = RunOneCoreAsync(provider, state, attemptStartedAt, holdNetwork, ct);
         lock (_gate)
             state.RunningTask = runTask;
         try
@@ -366,7 +371,8 @@ public sealed class RefreshScheduler
         }
     }
 
-    private async Task RunOneCoreAsync(IUsageProvider provider, ProviderState state, DateTimeOffset attemptStartedAt, CancellationToken ct)
+    private async Task RunOneCoreAsync(
+        IUsageProvider provider, ProviderState state, DateTimeOffset attemptStartedAt, bool holdNetwork, CancellationToken ct)
     {
         // Disposed by hand in the finally below rather than with "using": when the caller's token is
         // cancelled synchronously, the WaitAsync continuation can run inline and reach this method's
@@ -417,9 +423,12 @@ public sealed class RefreshScheduler
                 // the UI thread's dispatcher timer. Starting the fetch on the thread pool keeps that
                 // off the UI thread. The one provider that must not move is the web-session-backed
                 // one: it already marshals its own work and expects to start on the calling thread.
-                fetchTask = provider.RunsOnUiThread
-                    ? provider.FetchAsync(timeoutCts.Token)
-                    : Task.Run(() => provider.FetchAsync(timeoutCts.Token), timeoutCts.Token);
+                using (holdNetwork ? FetchContext.HoldNetwork() : null)
+                {
+                    fetchTask = provider.RunsOnUiThread
+                        ? provider.FetchAsync(timeoutCts.Token)
+                        : Task.Run(() => provider.FetchAsync(timeoutCts.Token), timeoutCts.Token);
+                }
                 snapshot = await fetchTask.WaitAsync(timeout, ct);
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))

@@ -29,6 +29,57 @@ public class RefreshSchedulerPauseTests
     }
 
     [Fact]
+    public async Task A_local_provider_kept_running_by_a_pause_fetches_with_the_network_held()
+    {
+        var clock = new FakeClock();
+        var file = new HeldProbe("file", SourceKind.LocalFile);
+        var scheduler = new RefreshScheduler([file], BaseInterval, clock);
+        await Task.WhenAll(scheduler.Tick());
+        Assert.Equal([false], file.HeldDuringFetch);
+
+        scheduler.PauseFor(Hour);
+        clock.Advance(TimeSpan.FromMinutes(10));
+        await Task.WhenAll(scheduler.Tick());
+        Assert.Equal([false, true], file.HeldDuringFetch);
+
+        scheduler.Resume();
+        clock.Advance(TimeSpan.FromMinutes(10));
+        await Task.WhenAll(scheduler.Tick());
+        Assert.Equal([false, true, false], file.HeldDuringFetch);
+    }
+
+    [Fact]
+    public async Task A_manual_refresh_during_a_pause_does_not_hold_the_network()
+    {
+        var clock = new FakeClock();
+        var file = new HeldProbe("file", SourceKind.LocalFile);
+        var scheduler = new RefreshScheduler([file], BaseInterval, clock);
+        await Task.WhenAll(scheduler.Tick());
+        scheduler.PauseFor(Hour);
+
+        await Task.WhenAll(scheduler.RefreshNow());
+
+        Assert.Equal([false, false], file.HeldDuringFetch);
+        Assert.False(FetchContext.NetworkHeld);
+    }
+
+    private sealed class HeldProbe(string id, SourceKind source) : IUsageProvider
+    {
+        public string Id { get; } = id;
+        public string DisplayName => Id;
+        public TimeSpan? MinRefreshInterval => null;
+        public bool RunsOnUiThread => false;
+        public List<bool> HeldDuringFetch { get; } = [];
+
+        public Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
+        {
+            HeldDuringFetch.Add(FetchContext.NetworkHeld);
+            var now = DateTimeOffset.UtcNow;
+            return Task.FromResult(new ProviderSnapshot(Id, [], "plus", source, now, now, ProviderStatus.Ok, null));
+        }
+    }
+
+    [Fact]
     public async Task A_provider_without_a_reading_yet_is_fetched_once_during_a_pause()
     {
         var clock = new FakeClock();

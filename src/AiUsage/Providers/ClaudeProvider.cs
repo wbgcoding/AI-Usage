@@ -286,6 +286,10 @@ public sealed class ClaudeProvider : IUsageProvider
         // instead of the first source winning, so a signed-out local login never hides a perfectly
         // usable web session underneath it.
         var candidates = new List<ProviderSnapshot>();
+        // Both remaining sources reach the network; a held fetch has only the transcripts above to go on.
+        if (FetchContext.NetworkHeld)
+            return NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+
         if (_localLogin is not null)
             candidates.Add(await BuildLocalLoginSnapshot(fetchedAt, ct));
 
@@ -310,6 +314,11 @@ public sealed class ClaudeProvider : IUsageProvider
             return AttachSessionTokens(chosen, sessionTokens, sessionLastEventAt, fetchedAt);
         }
 
+        return NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+    }
+
+    private ProviderSnapshot NoLocalDataSnapshot(DateTimeOffset fetchedAt, bool isWaitingForUser, DateTimeOffset? waitingSince)
+    {
         var diagnostics = new ProviderDiagnostics();
         if (_projectsRoots.Count > 0)
         {

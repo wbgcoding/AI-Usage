@@ -21,6 +21,26 @@ public class ClaudeProviderTests : IDisposable
         settings: null, saveSettings: null, localLogin: localLogin);
 
     [Fact]
+    public async Task The_local_login_is_not_asked_while_the_network_is_held()
+    {
+        var asked = 0;
+        var provider = LocalLoginProviderWithoutTranscripts(_ =>
+        {
+            asked++;
+            return Task.FromResult(ClaudeCodeUsage.NotSignedIn);
+        });
+
+        ProviderSnapshot held;
+        using (FetchContext.HoldNetwork())
+            held = await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(0, asked);
+        Assert.Equal(ProviderStatus.NoLocalData, held.Status);
+
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(1, asked);
+    }
+
+    [Fact]
     public void A_local_login_account_holds_the_remote_refresh_floor_not_the_per_tick_default()
     {
         var provider = new ClaudeProvider("claude", _ => Task.FromResult(ClaudeCodeUsage.NotSignedIn));
