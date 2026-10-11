@@ -37,6 +37,22 @@ internal static class GeminiDiscoveryScript
     internal static bool IsAllowedUsagePath(string? path) =>
         !string.IsNullOrEmpty(path) && AllowedUsagePathPattern.IsMatch(path);
 
+    /// <summary>A thrown fetch is either the redirect of a signed-out session to the Google sign-in page
+    /// or a plain network failure. Only a site whose own front page still answers (a redirect counts as
+    /// an answer) makes it the former; offline, or no answer at all, is a failure. The probe never
+    /// follows a redirect and sends no body.</summary>
+    private const string ReachableFunction = """
+        const reachable = async () => {
+            if (navigator.onLine === false) return false;
+            try {
+                await fetch(location.origin + '/', {method: 'GET', credentials: 'include', redirect: 'manual'});
+                return true;
+            } catch (e) {
+                return false;
+            }
+        };
+        """;
+
     /// <summary>Full discovery: try every candidate path in order, return the first one that answers
     /// with JSON. The answer also carries what each candidate replied with (path and status code
     /// only, never a body, a cookie or a token), so a run against the live site says in the app's own
@@ -46,9 +62,11 @@ internal static class GeminiDiscoveryScript
         var candidates = string.Join(",", CandidatePaths.Select(p => $"'{p}'"));
         return $$"""
             (async () => {
+                {{ReachableFunction}}
                 const attempts = [];
                 try {
                     let sawAuthFailure = false;
+                    let online;
                     for (const path of [{{candidates}}]) {
                         let res;
                         try {
@@ -56,8 +74,10 @@ internal static class GeminiDiscoveryScript
                         } catch (e) {
                             // A signed-out session is redirected to the Google sign-in page, which the
                             // browser refuses to hand to this page: the fetch throws instead of answering.
+                            // A network failure throws the same way and is not a sign-in problem.
                             attempts.push(path + ' 000');
-                            sawAuthFailure = true;
+                            if (online === undefined) online = await reachable();
+                            if (online) sawAuthFailure = true;
                             continue;
                         }
                         attempts.push(path + ' ' + res.status);
@@ -91,12 +111,14 @@ internal static class GeminiDiscoveryScript
         var pathJson = JsonSerializer.Serialize(path);
         return $$"""
             (async () => {
+                {{ReachableFunction}}
                 let res;
                 try {
                     res = await fetch({{pathJson}}, {method: 'GET', credentials: 'include'});
                 } catch (e) {
-                    // See Discover: a redirect to the sign-in page surfaces as a thrown fetch.
-                    return {status: 'not_signed_in'};
+                    // See Discover: a redirect to the sign-in page surfaces as a thrown fetch, and so
+                    // does a network failure.
+                    return {status: await reachable() ? 'not_signed_in' : 'failed'};
                 }
                 try {
                     if (res.type === 'opaqueredirect' || (res.redirected && new URL(res.url).origin !== location.origin)) return {status: 'not_signed_in'};

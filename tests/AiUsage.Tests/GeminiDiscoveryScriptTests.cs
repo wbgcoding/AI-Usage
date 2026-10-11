@@ -78,4 +78,27 @@ public class GeminiDiscoveryScriptTests
             Assert.Contains("not_signed_in", script, StringComparison.Ordinal);
         }
     }
+
+    /// <summary>A plain network failure throws the same error as the sign-in redirect. It must read as a
+    /// failure: offline, or when the site's own front page does not answer either.</summary>
+    [Fact]
+    public void A_network_failure_answers_failed_not_signed_out()
+    {
+        foreach (var script in new[] { GeminiDiscoveryScript.Discover(), GeminiDiscoveryScript.Fetch(GeminiDiscoveryScript.CandidatePaths[0]) })
+        {
+            Assert.Contains("navigator.onLine === false", script, StringComparison.Ordinal);
+            Assert.Contains("redirect: 'manual'", script, StringComparison.Ordinal);
+            Assert.Contains("location.origin + '/'", script, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void A_thrown_fetch_while_offline_is_not_counted_as_a_sign_in_failure_in_the_discovery()
+    {
+        var script = GeminiDiscoveryScript.Discover();
+        var offline = script.IndexOf("navigator.onLine === false", StringComparison.Ordinal);
+        var firstAuthFlag = script.IndexOf("sawAuthFailure = true", StringComparison.Ordinal);
+
+        Assert.True(offline >= 0 && offline < firstAuthFlag, "the offline check has to come before the first sign-in flag");
+    }
 }
