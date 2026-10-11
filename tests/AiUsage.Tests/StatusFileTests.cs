@@ -124,6 +124,23 @@ public sealed class StatusFileTests : IDisposable
         Assert.DoesNotContain("old", Assert.Single(lines!));
     }
 
+    [Theory]
+    [InlineData("{ \"kind\": \"fiveHour\" }")]
+    [InlineData("{ \"kind\": \"fiveHour\", \"usedPercent\": \"12\" }")]
+    [InlineData("{ \"kind\": \"fiveHour\", \"usedPercent\": 12.5 }")]
+    public void AWindowWithoutAUsableUsedPercentIsSkippedAndTheValidOneStays(string brokenWindow)
+    {
+        var json = "{ \"version\": " + StatusFileWriter.FormatVersion + ", \"providers\": [ { \"name\": \"Claude\", \"status\": \"ok\", \"windows\": ["
+            + brokenWindow + ", { \"kind\": \"weekly\", \"usedPercent\": 63 } ] } ] }";
+        File.WriteAllText(StatusFileWriter.PathIn(_directory.Path), json);
+        var output = new StringWriter();
+
+        var exitCode = StatusCommand.Run(["--status"], _directory.Path, Now, output);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("Claude 63% week", output.ToString().Trim());
+    }
+
     [Fact]
     public void AMissingFileExitsWithOneAndSaysSo()
     {

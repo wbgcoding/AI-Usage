@@ -107,13 +107,16 @@ public static class StatusCommand
         {
             foreach (var window in windows.EnumerateArray())
             {
+                if (!window.TryGetProperty("usedPercent", out var used) || used.ValueKind != JsonValueKind.Number || !used.TryGetInt32(out var percent))
+                    continue;
+
                 var label = Text(window, "kind") switch
                 {
                     "fiveHour" => "5h",
                     "weekly" => "week",
                     _ => Text(window, "label"),
                 };
-                var segment = $"{window.GetProperty("usedPercent").GetInt32()}% {label}";
+                var segment = $"{percent}% {label}";
                 if (Text(window, "resetsAt") is { Length: > 0 } resetsAt
                     && DateTimeOffset.TryParse(resetsAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var reset)
                     && reset > now)
