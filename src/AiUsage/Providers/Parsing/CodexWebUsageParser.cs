@@ -31,8 +31,8 @@ public static class CodexWebUsageParser
             // each with the window length and the reset in seconds.
             if (TryGetObject(root, "rate_limit") is { } rateLimit)
             {
-                AddWindow(windows, TryGetObject(rateLimit, "primary_window"), "Window_FiveHour", WindowKind.FiveHour, now);
-                AddWindow(windows, TryGetObject(rateLimit, "secondary_window"), "Window_Weekly", WindowKind.Weekly, now);
+                AddWindow(windows, TryGetObject(rateLimit, "primary_window"), WindowKind.FiveHour, now);
+                AddWindow(windows, TryGetObject(rateLimit, "secondary_window"), WindowKind.Weekly, now);
                 if (windows.Count > 0)
                     return windows;
             }
@@ -40,8 +40,8 @@ public static class CodexWebUsageParser
             // The session files' shape: the block nested under "rate_limits", or the same block at
             // the root.
             var limits = TryGetObject(root, "rate_limits") ?? root;
-            AddWindow(windows, TryGetObject(limits, "primary"), "Window_FiveHour", WindowKind.FiveHour, now);
-            AddWindow(windows, TryGetObject(limits, "secondary"), "Window_Weekly", WindowKind.Weekly, now);
+            AddWindow(windows, TryGetObject(limits, "primary"), WindowKind.FiveHour, now);
+            AddWindow(windows, TryGetObject(limits, "secondary"), WindowKind.Weekly, now);
             return windows;
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException)
@@ -73,7 +73,7 @@ public static class CodexWebUsageParser
     }
 
     private static void AddWindow(
-        List<UsageWindow> windows, JsonElement? block, string label, WindowKind kind, DateTimeOffset now)
+        List<UsageWindow> windows, JsonElement? block, WindowKind byPosition, DateTimeOffset now)
     {
         if (block is not { } window || TryGetDouble(window, "used_percent") is not { } usedPercent)
             return;
@@ -83,7 +83,10 @@ public static class CodexWebUsageParser
         long? minutes = TryGetInt32(window, "window_minutes");
         minutes ??= TryGetInt64(window, "limit_window_seconds") is { } seconds ? seconds / 60 : null;
         var windowMinutes = minutes is > 0 and <= int.MaxValue ? (int?)minutes : null;
-        windows.Add(new UsageWindow(label, kind, usedPercent, ResetsAt(window, now), windowMinutes));
+
+        // The length decides which bar this is; the position only answers when the length is unknown.
+        var kind = CodexWindowKinds.KindFor(windowMinutes, byPosition, windows.Count > 0 ? windows[^1].Kind : null);
+        windows.Add(new UsageWindow(CodexWindowKinds.LabelFor(kind), kind, usedPercent, ResetsAt(window, now), windowMinutes));
     }
 
     // No usage window runs longer than a year; anything beyond reads as no reset at all.

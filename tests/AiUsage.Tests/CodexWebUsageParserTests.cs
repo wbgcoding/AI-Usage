@@ -23,6 +23,50 @@ public class CodexWebUsageParserTests
     }
 
     [Fact]
+    public void A_week_long_primary_window_alone_is_the_weekly_window()
+    {
+        const string json = """{"rate_limits":{"primary":{"used_percent":30,"window_minutes":10080,"resets_in_seconds":86400}}}""";
+
+        var window = Assert.Single(CodexWebUsageParser.Parse(json, Now));
+
+        Assert.Equal(WindowKind.Weekly, window.Kind);
+        Assert.Equal("Window_Weekly", window.Label);
+        Assert.Equal(30, window.UsedPercent);
+    }
+
+    [Fact]
+    public void The_web_apps_week_long_primary_window_alone_is_the_weekly_window()
+    {
+        const string json = """{"rate_limit":{"primary_window":{"used_percent":30,"limit_window_seconds":604800}}}""";
+
+        var window = Assert.Single(CodexWebUsageParser.Parse(json, Now));
+
+        Assert.Equal(WindowKind.Weekly, window.Kind);
+        Assert.Equal("Window_Weekly", window.Label);
+    }
+
+    [Fact]
+    public void Windows_without_a_length_keep_their_position()
+    {
+        const string json = """{"rate_limits":{"primary":{"used_percent":10},"secondary":{"used_percent":20}}}""";
+
+        var windows = CodexWebUsageParser.Parse(json, Now);
+
+        Assert.Equal([WindowKind.FiveHour, WindowKind.Weekly], windows.Select(w => w.Kind));
+        Assert.Equal(["Window_FiveHour", "Window_Weekly"], windows.Select(w => w.Label));
+    }
+
+    [Fact]
+    public void A_second_window_that_resolves_to_the_same_kind_keeps_its_position()
+    {
+        const string json = """{"rate_limits":{"primary":{"used_percent":10,"window_minutes":300},"secondary":{"used_percent":20,"window_minutes":120}}}""";
+
+        var windows = CodexWebUsageParser.Parse(json, Now);
+
+        Assert.Equal([WindowKind.FiveHour, WindowKind.Weekly], windows.Select(w => w.Kind));
+    }
+
+    [Fact]
     public void A_nested_rate_limits_block_becomes_both_windows()
     {
         const string json = """

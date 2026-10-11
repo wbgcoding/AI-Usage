@@ -180,6 +180,35 @@ public class CodexProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task FetchAsync_shows_a_week_long_primary_window_without_a_second_one_as_weekly()
+    {
+        var now = DateTimeOffset.Parse("2026-09-10T10:00:00Z");
+        var directory = NewSessionsDirectory();
+        var line = JsonSerializer.Serialize(new
+        {
+            timestamp = now.AddMinutes(-5).ToString("O"),
+            type = "event_msg",
+            payload = new
+            {
+                type = "token_count",
+                rate_limits = new
+                {
+                    primary = new { used_percent = 42.0, window_minutes = 10080, resets_at = UnixSeconds(now.AddDays(3)) },
+                    secondary = (object?)null,
+                },
+            },
+        });
+        File.WriteAllText(Path.Combine(directory, "rollout-test.jsonl"), line + Environment.NewLine);
+
+        var snapshot = await new CodexProvider(directory, () => now).FetchAsync(CancellationToken.None);
+
+        var window = Assert.Single(snapshot.Windows);
+        Assert.Equal(WindowKind.Weekly, window.Kind);
+        Assert.Equal("Window_Weekly", window.Label);
+        Assert.Equal(42, window.UsedPercent);
+    }
+
+    [Fact]
     public async Task FetchAsync_still_reads_a_recent_rate_limit_line_behind_a_recent_plain_line()
     {
         var now = DateTimeOffset.Parse("2026-09-10T10:00:00Z");

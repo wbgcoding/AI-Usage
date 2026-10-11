@@ -355,9 +355,12 @@ public sealed partial class CodexProvider : IUsageProvider
     {
         var windows = new List<UsageWindow>(capacity: 2);
 
+        // The reported length decides which bar a block is (a weekly-only plan reports its week as the
+        // primary block); the position only answers when the length is missing.
+        var primaryKind = CodexWindowKinds.KindFor(limits.PrimaryWindowMinutes, WindowKind.FiveHour);
         if (limits.PrimaryUsedPercent is { } primaryUsedPercent)
             windows.Add(new UsageWindow(
-                "Window_FiveHour", WindowKind.FiveHour, primaryUsedPercent,
+                CodexWindowKinds.LabelFor(primaryKind), primaryKind, primaryUsedPercent,
                 limits.PrimaryResetsAt, limits.PrimaryWindowMinutes,
                 // The figure counts the whole rollout; it describes this window only while the rollout
                 // was still talking inside it.
@@ -366,9 +369,13 @@ public sealed partial class CodexProvider : IUsageProvider
                     : null));
 
         if (limits.SecondaryUsedPercent is { } secondaryUsedPercent)
+        {
+            var secondaryKind = CodexWindowKinds.KindFor(
+                limits.SecondaryWindowMinutes, WindowKind.Weekly, limits.PrimaryUsedPercent is null ? null : primaryKind);
             windows.Add(new UsageWindow(
-                "Window_Weekly", WindowKind.Weekly, secondaryUsedPercent,
+                CodexWindowKinds.LabelFor(secondaryKind), secondaryKind, secondaryUsedPercent,
                 limits.SecondaryResetsAt, limits.SecondaryWindowMinutes));
+        }
 
         if (windows.Count == 0)
             return null;
