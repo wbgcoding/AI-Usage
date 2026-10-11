@@ -65,7 +65,7 @@ public static class AppPaths
     /// <summary>True when <paramref name="path"/> is <paramref name="root"/> itself or lies inside
     /// it - boundary-safe, so a sibling folder that merely shares the root as a string prefix
     /// (<c>C:\Temp2</c> against root <c>C:\Temp</c>) is never mistaken for being under it.</summary>
-    private static bool IsUnderRoot(string path, string root)
+    internal static bool IsUnderRoot(string path, string root)
     {
         var fullPath = Path.GetFullPath(path);
         var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

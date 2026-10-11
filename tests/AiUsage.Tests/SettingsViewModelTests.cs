@@ -26,10 +26,31 @@ public class SettingsViewModelTests : IDisposable
         return directory;
     }
 
+    private readonly List<string> _moveTargets = [];
+
+    /// <summary>A folder to move the data to: next to the test binaries, because a destination under
+    /// the temp folder is refused.</summary>
+    private string MoveTarget()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "move-target-" + Guid.NewGuid().ToString("N"))).FullName;
+        _moveTargets.Add(directory);
+        return directory;
+    }
+
     public void Dispose()
     {
         foreach (var directory in _tempDirectories)
             directory.Dispose();
+        foreach (var directory in _moveTargets)
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
     }
 
     /// <summary>Stands in for the real pack-URI load, which needs a live Application this test
@@ -908,7 +929,7 @@ public class SettingsViewModelTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDirectory, "settings.json.bak"), "{}");
         File.WriteAllText(Path.Combine(sourceDirectory, "history-codex.jsonl"), "1\n");
         File.WriteAllText(Path.Combine(sourceDirectory, "history-claude.jsonl"), "1\n");
-        var destinationDirectory = TempDirectory();
+        var destinationDirectory = MoveTarget();
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
         var settingsStore = new SettingsStore(sourceDirectory);
@@ -946,10 +967,51 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task ChooseDataFolderReturnsBeforeASlowCopyFinishesAndIsBusyMeanwhile()
+    public async Task ChooseDataFolderRefusesAFolderUnderTheTempFolderAndChangesNothing()
     {
         var sourceDirectory = TempDirectory();
         var destinationDirectory = TempDirectory();
+        var fakePointerRoot = TempDirectory();
+        var settings = new AppSettings();
+        var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
+        var settingsStore = new SettingsStore(sourceDirectory);
+        var historyStore = new HistoryStore(sourceDirectory, () => Now);
+        var main = new MainViewModel(settingsStore, settings, providers, historyStore);
+        var messages = new List<string>();
+        var copyCalls = 0;
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false,
+            enableAutostart: _ => true,
+            disableAutostart: () => true,
+            applyLanguage: _ => { },
+            loadThemeDictionary: LoadThemeFixture,
+            historyStore: historyStore,
+            showMessage: messages.Add,
+            askForDataFolder: () => destinationDirectory,
+            copyIndex: (_, _) => copyCalls++,
+            copySmallFiles: (_, _) => copyCalls++);
+
+        AppPaths.SetPointerRootOverride(fakePointerRoot);
+        try
+        {
+            await vm.ChooseDataFolderCommand.ExecuteAsync(null);
+
+            Assert.Equal(LocalizationService.Instance["Settings.DataFolderTemp"], Assert.Single(messages));
+            Assert.Equal(0, copyCalls);
+            Assert.False(File.Exists(Path.Combine(fakePointerRoot, "AI-Usage", "location.txt")));
+        }
+        finally
+        {
+            AppPaths.ClearOverrideForTests();
+            AppPaths.ClearPointerRootOverrideForTests();
+        }
+    }
+
+    [Fact]
+    public async Task ChooseDataFolderReturnsBeforeASlowCopyFinishesAndIsBusyMeanwhile()
+    {
+        var sourceDirectory = TempDirectory();
+        var destinationDirectory = MoveTarget();
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
         var settingsStore = new SettingsStore(sourceDirectory);
@@ -1020,7 +1082,7 @@ public class SettingsViewModelTests : IDisposable
         var day = new DateOnly(2026, 9, 1);
         new Stats.StatsStore(sourceDirectory).AddDelta([new Stats.StatsRecord("codex", day, "modelA", "projA", 1234, 0, 0, 0)]);
         File.WriteAllText(Path.Combine(sourceDirectory, "project-colors.json"), "{}");
-        var destinationDirectory = TempDirectory();
+        var destinationDirectory = MoveTarget();
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
         var settingsStore = new SettingsStore(sourceDirectory);
@@ -1096,7 +1158,7 @@ public class SettingsViewModelTests : IDisposable
     public async Task DataFolderPathExposesAppPathsDataDirectoryAndUpdatesAfterAMove()
     {
         var sourceDirectory = TempDirectory();
-        var destinationDirectory = TempDirectory();
+        var destinationDirectory = MoveTarget();
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
         var settingsStore = new SettingsStore(sourceDirectory);
@@ -1139,7 +1201,7 @@ public class SettingsViewModelTests : IDisposable
         var realPointerWriteTimeBefore = realPointerExistedBefore ? File.GetLastWriteTimeUtc(realPointerFile) : default;
         var sourceDirectory = TempDirectory();
         File.WriteAllText(Path.Combine(sourceDirectory, "settings.json"), "{}");
-        var destinationDirectory = TempDirectory();
+        var destinationDirectory = MoveTarget();
         var fakePointerRoot = TempDirectory();
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };

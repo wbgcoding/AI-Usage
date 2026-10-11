@@ -1261,6 +1261,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (string.Equals(Path.GetFullPath(destination), Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase))
             return; // already there
 
+        // Windows empties temporary folders, and the next start ignores a pointer into one.
+        if (AppPaths.IsUnderRoot(Path.GetFullPath(destination), Path.GetTempPath()))
+        {
+            _showMessage(LocalizationService.Instance["Settings.DataFolderTemp"]);
+            return;
+        }
+
         _store.SaveNow(_settings); // drain a still-pending debounced save before anything else moves
 
         if (!AppPaths.TryEnsureWritableDirectory(destination))
