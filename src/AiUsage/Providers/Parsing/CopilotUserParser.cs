@@ -14,13 +14,21 @@ namespace AiUsage.Providers.Parsing;
 public static class CopilotUserParser
 {
     // Label keys (resolved by StatusTextMap) for the known quota ids; an unknown id falls back to its
-    // own text so a future bucket still shows rather than being dropped.
+    // own words so a future bucket still shows rather than being dropped.
     private static readonly Dictionary<string, string> KnownLabels = new(StringComparer.Ordinal)
     {
         ["chat"] = "Window_CopilotChat",
         ["completions"] = "Window_CopilotCompletions",
         ["premium_interactions"] = "Window_CopilotPremium",
     };
+
+    /// <summary>A bucket id such as <c>code_review</c> as words: it would otherwise match the shape of an
+    /// internal key and resolve to nothing on screen.</summary>
+    private static string Readable(string id)
+    {
+        var words = id.Replace('_', ' ').Trim();
+        return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
+    }
 
     public static IReadOnlyList<UsageWindow> Parse(string responseText)
     {
@@ -66,7 +74,7 @@ public static class CopilotUserParser
                 if (remaining is < 0 or > 100)
                     continue;
 
-                var label = KnownLabels.TryGetValue(snapshot.Name, out var known) ? known : snapshot.Name;
+                var label = KnownLabels.TryGetValue(snapshot.Name, out var known) ? known : Readable(snapshot.Name);
                 windows.Add(new UsageWindow(label, WindowKind.Other, 100 - remaining, resetsAt, windowMinutes: null));
             }
 

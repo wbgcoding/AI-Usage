@@ -90,6 +90,23 @@ public class CopilotProviderTests
     }
 
     [Fact]
+    public void An_unknown_bucket_gets_a_readable_label_the_tile_can_show()
+    {
+        const string json = """
+            {
+              "quota_snapshots": {
+                "code_review": { "percent_remaining": 75.0, "unlimited": false, "has_quota": true }
+              }
+            }
+            """;
+
+        var window = Assert.Single(AiUsage.Providers.Parsing.CopilotUserParser.Parse(json));
+
+        Assert.Equal("Code review", window.Label);
+        Assert.Equal("Code review", AiUsage.Services.StatusTextMap.Resolve(window.Label));
+    }
+
+    [Fact]
     public void A_bucket_with_a_percent_remaining_outside_0_to_100_is_dropped_while_a_valid_bucket_still_shows()
     {
         const string json = """
