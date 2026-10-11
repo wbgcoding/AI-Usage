@@ -277,7 +277,14 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public string ProjectFilterText => LocalizationService.Instance.Format(
         "Stats.Filter.Project",
-        StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(SelectedProjectFilter), StatsAggregator.ProjectLabelMaxChars));
+        SelectedProjectFilter == NoProjectFilterKey
+            ? LocalizationService.Instance["Stats.NoProject"]
+            : StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(SelectedProjectFilter), StatsAggregator.ProjectLabelMaxChars));
+
+    /// <summary>What <see cref="SelectedProjectFilter"/> holds for the records that carry no project: a
+    /// value no folder can have, so the filter keeps matching after the display language (and with it
+    /// the "no project" wording) changes.</summary>
+    internal const string NoProjectFilterKey = "\u0001";
 
     /// <summary>True while the breakdown chart draws one bar per model or project, so a click on a bar
     /// can filter.</summary>
@@ -1041,11 +1048,10 @@ public sealed partial class StatsViewModel : ObservableObject
         if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
-        var noProject = LocalizationService.Instance["Stats.NoProject"];
         return all.Where(record =>
                 (!HasProviderFilter || _selectedProviders.Contains(record.Provider))
                 && (!HasModelFilter || ModelDisplayNames.Resolve(record.Model) == SelectedModelFilter)
-                && (!HasProjectFilter || MatchesProject(record.Project, noProject)))
+                && (!HasProjectFilter || MatchesProject(record.Project)))
             .ToList();
     }
 
@@ -1054,16 +1060,15 @@ public sealed partial class StatsViewModel : ObservableObject
         if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
-        var noProject = LocalizationService.Instance["Stats.NoProject"];
         return all.Where(session =>
                 (!HasProviderFilter || _selectedProviders.Contains(session.Provider))
                 && (!HasModelFilter || ModelDisplayNames.Resolve(session.MainModel) == SelectedModelFilter)
-                && (!HasProjectFilter || MatchesProject(session.Project, noProject)))
+                && (!HasProjectFilter || MatchesProject(session.Project)))
             .ToList();
     }
 
-    private bool MatchesProject(string project, string noProjectLabel) => string.Equals(
-        string.IsNullOrEmpty(project) ? noProjectLabel : StatsAggregator.ProjectKey(project),
+    private bool MatchesProject(string project) => string.Equals(
+        string.IsNullOrEmpty(project) ? NoProjectFilterKey : StatsAggregator.ProjectKey(project),
         SelectedProjectFilter, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>A click on a model or a project: narrows every figure to it, or lifts that filter
@@ -1079,6 +1084,10 @@ public sealed partial class StatsViewModel : ObservableObject
                 SelectedModelFilter = SelectedModelFilter == key ? "" : key;
                 break;
             case StatsFilterKind.Project:
+                // The rows and bars name the no-project group in the display language; the filter
+                // keeps the neutral key.
+                if (key == LocalizationService.Instance["Stats.NoProject"])
+                    key = NoProjectFilterKey;
                 SelectedProjectFilter = string.Equals(SelectedProjectFilter, key, StringComparison.OrdinalIgnoreCase) ? "" : key;
                 break;
             default:

@@ -1864,6 +1864,45 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
+    public void TheNoProjectFilterSurvivesALanguageSwitch()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-noproject-language");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("codex", today, "gpt-5", "", 500, 0, 0, 0),
+            new StatsRecord("claude", today, "claude-opus-4-5", "C:/Projects/One", 100, 0, 0, 0),
+        ]);
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = StatsVm.Create(store);
+            var index = viewModel.TopProjectRows.ToList().FindIndex(row => row.FullPath == "No project");
+            Assert.True(index >= 0);
+
+            viewModel.ActivateTopProject(index);
+            Assert.Equal(500, viewModel.PeriodTotalRaw);
+            Assert.Equal("Project: No project", viewModel.ProjectFilterText);
+
+            LocalizationService.Instance.SetLanguage("de");
+            viewModel.RefreshLanguage();
+
+            Assert.True(viewModel.HasProjectFilter);
+            Assert.Equal(500, viewModel.PeriodTotalRaw);
+            Assert.Equal("Projekt: Ohne Projekt", viewModel.ProjectFilterText);
+
+            // The row of the new language lifts the filter again.
+            viewModel.ActivateTopProject(viewModel.TopProjectRows.ToList().FindIndex(row => row.FullPath == "Ohne Projekt"));
+            Assert.False(viewModel.HasProjectFilter);
+            Assert.Equal(600, viewModel.PeriodTotalRaw);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
     public async Task ABarOfTheModelOrProjectBreakdownFiltersButADayBarAndThePooledProjectBarDoNot()
     {
         var viewModel = ThreeModelViewModel("stats-viewmodel-bar-filter");
