@@ -95,20 +95,24 @@ public static class AntigravityUsageLogParser
                 if (!usageReader.IsVarint)
                     continue;
 
-                if (usageReader.Value > MaxTokenCount)
-                    return false;
-
-                var value = (long)usageReader.Value;
+                // Only the counts this reader uses are range-checked; any other field is skipped
+                // whatever it holds.
                 switch (usageReader.Field)
                 {
                     case 2:
-                        input = value;
+                        if (usageReader.Value > MaxTokenCount)
+                            return false;
+                        input = (long)usageReader.Value;
                         break;
                     case 3:
-                        output = value;
+                        if (usageReader.Value > MaxTokenCount)
+                            return false;
+                        output = (long)usageReader.Value;
                         break;
                     case 5:
-                        cacheRead = value;
+                        if (usageReader.Value > MaxTokenCount)
+                            return false;
+                        cacheRead = (long)usageReader.Value;
                         break;
                 }
             }

@@ -166,6 +166,24 @@ public class AntigravityUsageLogParserTests
     }
 
     [Fact]
+    public void A_field_this_reader_does_not_use_may_hold_any_number()
+    {
+        var usage = new ProtoBuilder()
+            .Varint(2, 4692)
+            .Varint(3, 458)
+            .Varint(5, 52710)
+            .Varint(9, 5_000_000_000_000);
+        var call = new ProtoBuilder().Message(4, usage).Text(19, "m");
+        var blob = new ProtoBuilder().Message(1, call).ToArray();
+
+        Assert.True(AntigravityUsageLogParser.TryParseGeneration(blob, out var parsed));
+
+        Assert.Equal(4692, parsed.InputTokens);
+        Assert.Equal(458, parsed.OutputTokens);
+        Assert.Equal(52710, parsed.CacheReadTokens);
+    }
+
+    [Fact]
     public void A_call_without_cache_reads_has_none_and_one_without_a_step_names_none()
     {
         var blob = AntigravityFixtures.Generation("gemini-3.7-flash", 100, 0, 10, 5, step: null);
