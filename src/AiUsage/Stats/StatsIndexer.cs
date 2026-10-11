@@ -145,6 +145,16 @@ public sealed class StatsIndexer
         // thousands of files and change none of them.
         var known = _store.LoadSourceFiles();
 
+        // Before the walk: the walk counts a response's fullest copy from the first line it reads, so
+        // a pass that ran after it would add the same tokens to files the walk just read for the
+        // first time. The passes it depends on come first so none of them undoes another.
+        if (!_store.IsClaudeCopyBackfillDone())
+        {
+            BackfillSessionsOnce(known, cancellationToken);
+            BackfillSubagentUsageOnce(known, cancellationToken);
+            BackfillClaudeCopiesOnce(known, cancellationToken);
+        }
+
         foreach (var claudeRoot in _claudeProjectsRoots)
         {
             var claudeFiles = EnumerateNewestFirstWithInfo(claudeRoot, "*.jsonl", out var foldersSkipped, cancellationToken);
@@ -329,10 +339,7 @@ public sealed class StatsIndexer
         }
 
         var offset = existing?.Offset ?? 0;
-        var countedKeys = new HashSet<string>(StringComparer.Ordinal);
-        var lastMessageKey = existing?.LastMessageKey ?? "";
-        if (lastMessageKey.Length > 0)
-            countedKeys.Add(lastMessageKey);
+        var copies = new ClaudeCopyTracker(existing);
         var project = ClaudeUsageLogParser.ExtractProjectFromFilePath(path);
         var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
         var fallbackSessionId = ClaudeUsageLogParser.FallbackSessionId(path);
@@ -354,26 +361,21 @@ public sealed class StatsIndexer
             {
                 if (ClaudeUsageLogParser.TryParse(line, out var usageEvent))
                 {
-                    // The same response is written more than once; only its first copy counts.
-                    if (usageEvent.MessageKey.Length > 0)
+                    // The same response is written more than once while it streams, the early copies with
+                    // placeholder output counts: the first copy counts, a fuller one adds its excess.
+                    if (copies.Observe(usageEvent) is not { } add)
                     {
-                        if (!countedKeys.Add(usageEvent.MessageKey))
-                        {
-                            linesSkipped++;
-                            return;
-                        }
-
-                        lastMessageKey = usageEvent.MessageKey;
+                        linesSkipped++;
+                        return;
                     }
 
                     linesParsed++;
                     var subagent = fileIsSubagent || usageEvent.IsSidechain;
                     Accumulate(buckets, ClaudeProviderId, project, usageEvent.Timestamp, usageEvent.Model,
-                        usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens,
-                        usageEvent.Effort, subagent);
+                        add.Input, add.Output, add.CacheCreation, add.CacheRead, usageEvent.Effort, subagent);
                     sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,
                         usageEvent.Timestamp, usageEvent.Model, subagent,
-                        usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens);
+                        add.Input, add.Output, add.CacheCreation, add.CacheRead);
                 }
                 else
                 {
@@ -386,12 +388,87 @@ public sealed class StatsIndexer
             return (false, 0, 0); // left exactly as it was - retried next run
         }
 
+        var lastCounted = copies.CountedForLastKey;
         _store.ApplyIndexResult(
             [.. buckets.Values],
             new StatsSourceFileState(
-                existing?.Path ?? path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc, LastMessageKey: lastMessageKey),
+                existing?.Path ?? path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc,
+                LastMessageKey: copies.LastKey,
+                CountedInputTokens: lastCounted?.Input, CountedOutputTokens: lastCounted?.Output,
+                CountedCacheCreationTokens: lastCounted?.CacheCreation, CountedCacheReadTokens: lastCounted?.CacheRead),
             sessions.ToDeltas());
         return (true, linesParsed, linesSkipped);
+    }
+
+    /// <summary>What a Claude file's repeated responses have added to the totals so far. A response
+    /// is written several times while it streams and the early copies carry placeholder output
+    /// counts, so the first copy of a key counts as it stands and every later copy adds only the part
+    /// by which it exceeds what is counted (per field, never negative). Only the last response is
+    /// kept across runs, with its counted tokens; a row from before those were stored seeds from the
+    /// first copy met, which is then not counted again.</summary>
+    private sealed class ClaudeCopyTracker
+    {
+        private readonly Dictionary<string, ClaudeCopyTokens> _counted = new(StringComparer.Ordinal);
+        private string? _legacyKey;
+
+        public ClaudeCopyTracker(StatsSourceFileState? existing)
+        {
+            LastKey = existing?.LastMessageKey ?? "";
+            if (LastKey.Length == 0)
+                return;
+
+            if (existing!.CountedForLastMessage is { } counted)
+                _counted[LastKey] = counted;
+            else
+                _legacyKey = LastKey;
+        }
+
+        /// <summary>The key of the latest response seen, kept for the next run.</summary>
+        public string LastKey { get; private set; }
+
+        /// <summary>The tokens counted for <see cref="LastKey"/>; null when it is not known.</summary>
+        public ClaudeCopyTokens? CountedForLastKey =>
+            LastKey.Length > 0 && _counted.TryGetValue(LastKey, out var counted) ? counted : null;
+
+        public ClaudeCopyTokens? CountedFor(string key) => _counted.TryGetValue(key, out var counted) ? counted : null;
+
+        /// <summary>The tokens this copy adds to the totals; null when it adds nothing.</summary>
+        public ClaudeCopyTokens? Observe(ClaudeUsageLogParser.UsageEvent usageEvent) => Observe(usageEvent, out _);
+
+        /// <param name="isFirstCopy">True when the returned tokens are the whole first copy.</param>
+        public ClaudeCopyTokens? Observe(ClaudeUsageLogParser.UsageEvent usageEvent, out bool isFirstCopy)
+        {
+            isFirstCopy = false;
+            var copy = new ClaudeCopyTokens(
+                usageEvent.InputTokens, usageEvent.OutputTokens, usageEvent.CacheCreationTokens, usageEvent.CacheReadTokens);
+            var key = usageEvent.MessageKey;
+            if (key.Length == 0)
+            {
+                isFirstCopy = true;
+                return copy;
+            }
+
+            LastKey = key;
+            if (!_counted.TryGetValue(key, out var counted))
+            {
+                _counted[key] = copy;
+                if (key == _legacyKey)
+                {
+                    _legacyKey = null;
+                    return null;
+                }
+
+                isFirstCopy = true;
+                return copy;
+            }
+
+            var excess = copy.ExcessOver(counted);
+            if (excess.IsZero)
+                return null;
+
+            _counted[key] = counted.MaxWith(copy);
+            return excess;
+        }
     }
 
     private (bool Read, long LinesParsed, long LinesSkipped) IndexCodexFile(
@@ -658,6 +735,88 @@ public sealed class StatsIndexer
             var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort);
             totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
         }
+    }
+
+    /// <summary>The one-time pass for Claude responses that earlier builds counted by their first copy
+    /// only. Every remembered Claude file is read again up to its stored offset and the part by which
+    /// the later copies of each response exceed the first is added to the usage rows and the session
+    /// totals, attributed exactly as the walk attributes it now. The counted tokens of each file's
+    /// last response are stored too, so the walk carries on from them. A file Claude Code has already
+    /// deleted cannot be corrected. Nothing is marked done when the pass is cancelled or cannot be
+    /// written, so the next walk repeats it.</summary>
+    private void BackfillClaudeCopiesOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    {
+        if (_store.IsClaudeCopyBackfillDone())
+            return;
+
+        if (known.Count == 0 && _store.HasUsageRows())
+            return;
+
+        var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
+        var sessions = new StatsSessionAccumulator();
+        var lastMessages = new List<(string Path, string MessageKey, ClaudeCopyTokens Counted)>();
+        foreach (var state in known.Values)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (state.Provider != ClaudeProviderId || state.Offset <= 0)
+                continue;
+
+            try
+            {
+                SumClaudeCopyExcess(state, totals, sessions, lastMessages, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A file that vanished or is locked has nothing to give.
+            }
+        }
+
+        if (_store.ApplyClaudeCopyBackfill([.. totals.Values], sessions.ToDeltas(), lastMessages) is { } added)
+            Log?.LogInfo($"Statistics: {added} output tokens of earlier Claude responses were added.");
+    }
+
+    private void SumClaudeCopyExcess(
+        StatsSourceFileState state,
+        Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord> totals,
+        StatsSessionAccumulator sessions,
+        List<(string Path, string MessageKey, ClaudeCopyTokens Counted)> lastMessages,
+        CancellationToken cancellationToken)
+    {
+        var path = state.Path;
+        var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
+        var fallbackSessionId = ClaudeUsageLogParser.FallbackSessionId(path);
+        var copies = new ClaudeCopyTracker(null);
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < state.Offset)
+            return;
+
+        var project = ProbeClaudeProject(path, ClaudeUsageLogParser.ExtractProjectFromFilePath(path), cancellationToken);
+        var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
+        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        {
+            if (!ClaudeUsageLogParser.TryParse(line, out var usageEvent))
+                return;
+
+            // The first copy is what the old walk counted; only what later copies add is missing.
+            if (copies.Observe(usageEvent, out var isFirstCopy) is not { } add || isFirstCopy)
+                return;
+
+            var subagent = fileIsSubagent || usageEvent.IsSidechain;
+            Accumulate(buckets, ClaudeProviderId, project, usageEvent.Timestamp, usageEvent.Model,
+                add.Input, add.Output, add.CacheCreation, add.CacheRead, usageEvent.Effort, subagent);
+            sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,
+                usageEvent.Timestamp, usageEvent.Model, subagent, add.Input, add.Output, add.CacheCreation, add.CacheRead);
+        }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
+
+        foreach (var record in buckets.Values)
+        {
+            var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort, record.Subagent);
+            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
+        }
+
+        if (state.LastMessageKey.Length > 0 && copies.CountedFor(state.LastMessageKey) is { } counted)
+            lastMessages.Add((path, state.LastMessageKey, counted));
     }
 
     private void BackfillClaudeFile(StatsSourceFileState state, StatsSessionAccumulator sessions, CancellationToken cancellationToken)

@@ -28,8 +28,11 @@ public sealed class StatsStore
     // Schema v7 adds the `machine` and `subagent` columns to the usage table's own primary key (a
     // table rebuild that keeps every row; Claude rows filed under the project "subagents" are marked
     // as subagent rows) and the session tables; the sessions of rows already stored are filled in
-    // once from the source files that still exist (see StatsIndexer).
-    internal const int SchemaVersion = 7;
+    // once from the source files that still exist (see StatsIndexer). Schema v8 adds the counted
+    // token columns to source_file (a Claude response written several times counts its fullest
+    // copy); every row stays, and the part earlier builds missed is added once from the source files
+    // that still exist.
+    internal const int SchemaVersion = 8;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved
     // data folder takes the index along without rebuilding any store that already exists.
@@ -666,7 +669,11 @@ public sealed class StatsStore
                 cumulative_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
                 cumulative_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
                 current_effort TEXT NOT NULL DEFAULT '',
-                last_message_key TEXT NOT NULL DEFAULT ''
+                last_message_key TEXT NOT NULL DEFAULT '',
+                counted_input INTEGER,
+                counted_output INTEGER,
+                counted_cache_creation INTEGER,
+                counted_cache_read INTEGER
             );
             CREATE TABLE IF NOT EXISTS session (
                 provider TEXT NOT NULL,
@@ -697,6 +704,13 @@ public sealed class StatsStore
             );
             """);
 
+        // Files from before v8 lack the counted token columns (new, unset: NULL).
+        foreach (var column in CountedColumns)
+        {
+            if (!ColumnExists(connection, "source_file", column))
+                Execute(connection, $"ALTER TABLE source_file ADD COLUMN {column} INTEGER");
+        }
+
         // A database that held no usage has nothing to backfill: the walk fills the sessions in
         // together with the usage. Only a migrated one needs the one-time pass.
         if (originalVersion is null or < 4)
@@ -704,6 +718,11 @@ public sealed class StatsStore
             Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{SessionsBackfilledKey}', '1')");
             Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{SubagentUsageBackfilledKey}', '1')");
         }
+
+        // A version 4 file has its Claude rows cleared above and rebuilt by the walk with the fullest
+        // copy of every response, so only rows kept from version 5 on can be short.
+        if (originalVersion is null or <= 4)
+            Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{ClaudeCopyBackfilledKey}', '1')");
 
         using (var writeVersion = connection.CreateCommand())
         {
@@ -717,6 +736,17 @@ public sealed class StatsStore
 
     private const string SessionsBackfilledKey = "sessions_backfilled";
     private const string SubagentUsageBackfilledKey = "subagent_usage_backfilled";
+    private const string ClaudeCopyBackfilledKey = "claude_copy_backfilled";
+
+    private static readonly string[] CountedColumns = ["counted_input", "counted_output", "counted_cache_creation", "counted_cache_read"];
+
+    private static bool ColumnExists(SqliteConnection connection, string table, string column)
+    {
+        using var info = connection.CreateCommand();
+        info.CommandText = $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = $name";
+        info.Parameters.AddWithValue("$name", column);
+        return info.ExecuteScalar() is not null;
+    }
 
     private static void Execute(SqliteConnection connection, string sql)
     {
@@ -1150,6 +1180,81 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>True once the Claude tokens that earlier builds missed (a response's later, fuller
+    /// copies) were added.</summary>
+    public bool IsClaudeCopyBackfillDone()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return true;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM meta WHERE key = $key";
+            command.Parameters.AddWithValue("$key", ClaudeCopyBackfilledKey);
+            return command.ExecuteScalar() as string == "1";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>Adds the tokens the one-time Claude pass found to the usage rows and the session
+    /// totals (additive, like <see cref="ApplyIndexResult"/>), records the counted tokens of each
+    /// file's last response, and marks the pass done - all in one transaction. Returns the added
+    /// output tokens, or null when nothing was written (the pass is then repeated).</summary>
+    public long? ApplyClaudeCopyBackfill(
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionDelta> sessions,
+        IReadOnlyList<(string Path, string MessageKey, ClaudeCopyTokens Counted)> lastMessages)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using var transaction = connection.BeginTransaction();
+            AddDeltaWithinTransaction(connection, transaction, records);
+            if (sessions.Count > 0)
+                AddSessionDeltasWithinTransaction(connection, transaction, sessions, replace: false);
+
+            using (var update = connection.CreateCommand())
+            {
+                update.Transaction = transaction;
+                update.CommandText = """
+                    UPDATE source_file
+                    SET counted_input = $input, counted_output = $output, counted_cache_creation = $cacheCreation, counted_cache_read = $cacheRead
+                    WHERE path = $path AND last_message_key = $key AND counted_output IS NULL
+                    """;
+                foreach (var (path, key, counted) in lastMessages)
+                {
+                    update.Parameters.Clear();
+                    update.Parameters.AddWithValue("$path", path);
+                    update.Parameters.AddWithValue("$key", key);
+                    update.Parameters.AddWithValue("$input", counted.Input);
+                    update.Parameters.AddWithValue("$output", counted.Output);
+                    update.Parameters.AddWithValue("$cacheCreation", counted.CacheCreation);
+                    update.Parameters.AddWithValue("$cacheRead", counted.CacheRead);
+                    update.ExecuteNonQuery();
+                }
+            }
+
+            using var mark = connection.CreateCommand();
+            mark.Transaction = transaction;
+            mark.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, '1')";
+            mark.Parameters.AddWithValue("$key", ClaudeCopyBackfilledKey);
+            mark.ExecuteNonQuery();
+            transaction.Commit();
+            return records.Sum(record => record.OutputTokens);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
     private static long MissingPart(long wanted, long already, long available) =>
         Math.Min(Math.Max(wanted - already, 0), available);
 
@@ -1334,7 +1439,7 @@ public sealed class StatsStore
             command.CommandText = """
                 SELECT path, provider, offset, size, write_time_utc, current_model,
                        cumulative_input_tokens, cumulative_output_tokens, cumulative_cache_creation_tokens, cumulative_cache_read_tokens,
-                       current_effort, last_message_key
+                       current_effort, last_message_key, counted_input, counted_output, counted_cache_creation, counted_cache_read
                 FROM source_file WHERE path = $path COLLATE NOCASE ORDER BY offset DESC LIMIT 1
                 """;
             command.Parameters.AddWithValue("$path", path);
@@ -1376,7 +1481,7 @@ public sealed class StatsStore
             command.CommandText = """
                 SELECT path, provider, offset, size, write_time_utc, current_model,
                        cumulative_input_tokens, cumulative_output_tokens, cumulative_cache_creation_tokens, cumulative_cache_read_tokens,
-                       current_effort, last_message_key
+                       current_effort, last_message_key, counted_input, counted_output, counted_cache_creation, counted_cache_read
                 FROM source_file
                 """;
             using var reader = command.ExecuteReader();
@@ -1410,7 +1515,11 @@ public sealed class StatsStore
         CumulativeCacheCreationTokens: reader.GetInt64(firstColumn + 7),
         CumulativeCacheReadTokens: reader.GetInt64(firstColumn + 8),
         CurrentEffort: reader.GetString(firstColumn + 9),
-        LastMessageKey: reader.GetString(firstColumn + 10));
+        LastMessageKey: reader.GetString(firstColumn + 10),
+        CountedInputTokens: reader.IsDBNull(firstColumn + 11) ? null : reader.GetInt64(firstColumn + 11),
+        CountedOutputTokens: reader.IsDBNull(firstColumn + 12) ? null : reader.GetInt64(firstColumn + 12),
+        CountedCacheCreationTokens: reader.IsDBNull(firstColumn + 13) ? null : reader.GetInt64(firstColumn + 13),
+        CountedCacheReadTokens: reader.IsDBNull(firstColumn + 14) ? null : reader.GetInt64(firstColumn + 14));
 
     /// <summary>Takes over the row of a file that was moved: when <paramref name="provider"/> has a
     /// row whose file name equals <paramref name="newPath"/>'s and whose path no longer exists on
@@ -1490,8 +1599,9 @@ public sealed class StatsStore
         command.CommandText = """
             INSERT INTO source_file (path, provider, offset, size, write_time_utc, current_model,
                 cumulative_input_tokens, cumulative_output_tokens, cumulative_cache_creation_tokens, cumulative_cache_read_tokens,
-                current_effort, last_message_key)
-            VALUES ($path, $provider, $offset, $size, $writeTime, $model, $cumInput, $cumOutput, $cumCacheCreation, $cumCacheRead, $effort, $lastKey)
+                current_effort, last_message_key, counted_input, counted_output, counted_cache_creation, counted_cache_read)
+            VALUES ($path, $provider, $offset, $size, $writeTime, $model, $cumInput, $cumOutput, $cumCacheCreation, $cumCacheRead, $effort, $lastKey,
+                $countedInput, $countedOutput, $countedCacheCreation, $countedCacheRead)
             ON CONFLICT (path) DO UPDATE SET
                 provider = excluded.provider,
                 offset = excluded.offset,
@@ -1503,7 +1613,11 @@ public sealed class StatsStore
                 cumulative_cache_creation_tokens = excluded.cumulative_cache_creation_tokens,
                 cumulative_cache_read_tokens = excluded.cumulative_cache_read_tokens,
                 current_effort = excluded.current_effort,
-                last_message_key = excluded.last_message_key
+                last_message_key = excluded.last_message_key,
+                counted_input = excluded.counted_input,
+                counted_output = excluded.counted_output,
+                counted_cache_creation = excluded.counted_cache_creation,
+                counted_cache_read = excluded.counted_cache_read
             """;
         command.Parameters.AddWithValue("$path", state.Path);
         command.Parameters.AddWithValue("$provider", state.Provider);
@@ -1517,6 +1631,10 @@ public sealed class StatsStore
         command.Parameters.AddWithValue("$cumCacheRead", state.CumulativeCacheReadTokens);
         command.Parameters.AddWithValue("$effort", state.CurrentEffort);
         command.Parameters.AddWithValue("$lastKey", state.LastMessageKey);
+        command.Parameters.AddWithValue("$countedInput", (object?)state.CountedInputTokens ?? DBNull.Value);
+        command.Parameters.AddWithValue("$countedOutput", (object?)state.CountedOutputTokens ?? DBNull.Value);
+        command.Parameters.AddWithValue("$countedCacheCreation", (object?)state.CountedCacheCreationTokens ?? DBNull.Value);
+        command.Parameters.AddWithValue("$countedCacheRead", (object?)state.CountedCacheReadTokens ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 }
