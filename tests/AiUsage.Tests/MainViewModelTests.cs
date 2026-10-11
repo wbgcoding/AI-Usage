@@ -2248,6 +2248,34 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RemovingTheAccountTheTrayFollowsPutsTheTrayBackOnAutomatic()
+    {
+        var (vm, settings) = BuildTwoAccounts();
+        settings.TrayProvider = "claude#2";
+        settings.TrayWindow = "Weekly";
+
+        Assert.Equal(RemoveAccountResult.Removed, await vm.RemoveAccountAsync("claude#2"));
+
+        Assert.Equal(MainViewModel.TrayProviderAuto, settings.TrayProvider);
+        Assert.Equal(MainViewModel.TrayProviderAuto, settings.TrayWindow);
+        Assert.Equal(MainViewModel.TrayProviderAuto, vm.TrayProvider);
+        Assert.False(vm.TrayWindowEnabled);
+    }
+
+    [Fact]
+    public async Task RemovingAnotherAccountLeavesTheTraySelectionAlone()
+    {
+        var (vm, settings) = BuildTwoAccounts();
+        settings.TrayProvider = "claude";
+        settings.TrayWindow = "Weekly";
+
+        Assert.Equal(RemoveAccountResult.Removed, await vm.RemoveAccountAsync("claude#2"));
+
+        Assert.Equal("claude", settings.TrayProvider);
+        Assert.Equal("Weekly", settings.TrayWindow);
+    }
+
+    [Fact]
     public async Task RemovingAnAccountDropsItsCachedUsagePath()
     {
         var (vm, settings) = BuildTwoAccounts();

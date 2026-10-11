@@ -242,6 +242,14 @@ public sealed partial class MainViewModel
             _settings.Providers.Remove(accountKey);
             _settings.CopilotAccountLogins.Remove(accountKey);
             _settings.WebUsagePaths.Remove(accountKey);
+            // A later account may reuse this key; the tray must not silently follow it.
+            if (_settings.TrayProvider == accountKey)
+            {
+                _settings.TrayProvider = TrayProviderAuto;
+                _settings.TrayWindow = TrayProviderAuto;
+                ReloadTraySelection();
+            }
+
             // Not the debounced save: a queued older one must not write the account back, and a
             // failure has to show up in the log.
             if (!_settingsStore.SaveImmediately(_settings))
