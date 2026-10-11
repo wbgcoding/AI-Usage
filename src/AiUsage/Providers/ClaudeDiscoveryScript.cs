@@ -51,13 +51,16 @@ internal static class ClaudeDiscoveryScript
                 return null;
             }
         }
+        function pickOrg(orgs) {
+            return orgs.find(o => o && Array.isArray(o.capabilities) && o.capabilities.includes('chat')) || orgs[0];
+        }
         async function readPlan() {
             try {
                 const res = await fetch('/api/organizations', {method: 'GET', credentials: 'include'});
                 if (!res.ok) return null;
                 if (!(res.headers.get('content-type') || '').includes('json')) return null;
                 const orgs = await res.json();
-                return Array.isArray(orgs) && orgs.length > 0 ? planOf(orgs[0]) : null;
+                return Array.isArray(orgs) && orgs.length > 0 ? planOf(pickOrg(orgs)) : null;
             } catch (e) {
                 return null;
             }
@@ -79,8 +82,10 @@ internal static class ClaudeDiscoveryScript
                     const orgCt = orgRes.headers.get('content-type') || '';
                     if (!orgCt.includes('json')) return {status: 'blocked'};
                     const orgs = await orgRes.json();
-                    if (!Array.isArray(orgs) || orgs.length === 0 || !orgs[0].uuid) return {status: 'failed'};
-                    const uuid = orgs[0].uuid;
+                    if (!Array.isArray(orgs) || orgs.length === 0) return {status: 'failed'};
+                    const org = pickOrg(orgs);
+                    if (!org || !org.uuid) return {status: 'failed'};
+                    const uuid = org.uuid;
                     if (typeof uuid !== 'string' || !/^[0-9a-fA-F-]{36}$/.test(uuid)) return {status: 'failed'};
                     const candidates = [{{candidates}}].map(p => p.replace('{0}', uuid));
                     for (const path of candidates) {
@@ -88,7 +93,7 @@ internal static class ClaudeDiscoveryScript
                         if (!res.ok) continue;
                         const ct = res.headers.get('content-type') || '';
                         const text = await res.text();
-                        if (ct.includes('json')) return {status: 'ok', path: path, body: text, plan: planOf(orgs[0])};
+                        if (ct.includes('json')) return {status: 'ok', path: path, body: text, plan: planOf(org)};
                     }
                     return {status: 'failed'};
                 } catch (e) {

@@ -69,4 +69,24 @@ public class ClaudeDiscoveryScriptTests
 
         Assert.Contains("res.ok", script);
     }
+
+    [Fact]
+    public void Discovery_reads_the_organisation_with_chat_access_and_falls_back_to_the_first()
+    {
+        var script = ClaudeDiscoveryScript.Discover();
+
+        Assert.Contains("includes('chat')", script, StringComparison.Ordinal);
+        // The first entry is only the fallback of the pick; everything else uses the picked one.
+        Assert.Equal(1, CountOf(script, "orgs[0]"));
+        Assert.Contains("pickOrg(orgs)", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("planOf(orgs[0])", script, StringComparison.Ordinal);
+    }
+
+    private static int CountOf(string text, string needle)
+    {
+        var count = 0;
+        for (var index = text.IndexOf(needle, StringComparison.Ordinal); index >= 0; index = text.IndexOf(needle, index + needle.Length, StringComparison.Ordinal))
+            count++;
+        return count;
+    }
 }
