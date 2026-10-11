@@ -15,7 +15,7 @@ public class FullscreenWatcherTests
     [Fact]
     public void A_foreground_window_that_fills_the_monitor_is_full_screen()
     {
-        Assert.True(FullscreenWatcher.IsFullscreen(false, "Chrome_WidgetWin_1", Monitor, Monitor, AcceptsNotifications));
+        Assert.True(FullscreenWatcher.IsFullscreen(false, "Chrome_WidgetWin_1", false, Monitor, Monitor, AcceptsNotifications));
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public class FullscreenWatcherTests
     {
         var oversized = new ScreenRect(-8, -8, 2568, 1448);
 
-        Assert.True(FullscreenWatcher.IsFullscreen(false, "Notepad", oversized, Monitor, AcceptsNotifications));
+        Assert.True(FullscreenWatcher.IsFullscreen(false, "Notepad", false, oversized, Monitor, AcceptsNotifications));
     }
 
     [Theory]
@@ -33,7 +33,7 @@ public class FullscreenWatcherTests
     [InlineData(0, 40, 2560, 1440)]
     public void A_window_that_leaves_any_edge_of_the_monitor_uncovered_is_not_full_screen(int left, int top, int right, int bottom)
     {
-        Assert.False(FullscreenWatcher.IsFullscreen(false, "Notepad", new ScreenRect(left, top, right, bottom), Monitor, AcceptsNotifications));
+        Assert.False(FullscreenWatcher.IsFullscreen(false, "Notepad", false, new ScreenRect(left, top, right, bottom), Monitor, AcceptsNotifications));
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class FullscreenWatcherTests
     {
         var maximized = new ScreenRect(-8, -8, 2568, 1392);
 
-        Assert.False(FullscreenWatcher.IsFullscreen(false, "Notepad", maximized, Monitor, AcceptsNotifications));
+        Assert.False(FullscreenWatcher.IsFullscreen(false, "Notepad", false, maximized, Monitor, AcceptsNotifications));
     }
 
     [Theory]
@@ -52,13 +52,13 @@ public class FullscreenWatcherTests
     public void The_desktop_and_the_taskbar_never_count(string className)
     {
         Assert.True(FullscreenWatcher.IsShellWindowClass(className));
-        Assert.False(FullscreenWatcher.IsFullscreen(false, className, Monitor, Monitor, AcceptsNotifications));
+        Assert.False(FullscreenWatcher.IsFullscreen(false, className, false, Monitor, Monitor, AcceptsNotifications));
     }
 
     [Fact]
     public void Our_own_window_never_counts()
     {
-        Assert.False(FullscreenWatcher.IsFullscreen(true, "HwndWrapper[AI-Usage]", Monitor, Monitor, AcceptsNotifications));
+        Assert.False(FullscreenWatcher.IsFullscreen(true, "HwndWrapper[AI-Usage]", false, Monitor, Monitor, AcceptsNotifications));
     }
 
     [Theory]
@@ -70,13 +70,35 @@ public class FullscreenWatcherTests
     {
         var small = new ScreenRect(100, 100, 400, 400);
 
-        Assert.Equal(expected, FullscreenWatcher.IsFullscreen(false, "SomeGame", small, Monitor, state));
+        Assert.Equal(expected, FullscreenWatcher.IsFullscreen(false, "SomeGame", false, small, Monitor, state));
+    }
+
+    [Fact]
+    public void A_captioned_window_covering_the_monitor_is_a_maximized_window_not_full_screen()
+    {
+        var maximized = new ScreenRect(-8, -8, 2568, 1448);
+
+        Assert.False(FullscreenWatcher.IsFullscreen(false, "Notepad", true, maximized, Monitor, AcceptsNotifications));
+    }
+
+    [Fact]
+    public void A_borderless_window_covering_the_monitor_is_full_screen()
+    {
+        Assert.True(FullscreenWatcher.IsFullscreen(false, "SomeGame", false, Monitor, Monitor, AcceptsNotifications));
+    }
+
+    [Fact]
+    public void The_shell_reporting_a_full_screen_game_counts_even_for_a_captioned_window()
+    {
+        var small = new ScreenRect(100, 100, 400, 400);
+
+        Assert.True(FullscreenWatcher.IsFullscreen(false, "SomeGame", true, small, Monitor, RunningD3dFullScreen));
     }
 
     [Fact]
     public void Without_a_foreground_window_nothing_is_full_screen()
     {
-        Assert.False(FullscreenWatcher.IsFullscreen(false, null, default, Monitor, AcceptsNotifications));
+        Assert.False(FullscreenWatcher.IsFullscreen(false, null, false, default, Monitor, AcceptsNotifications));
     }
 
     [Fact]

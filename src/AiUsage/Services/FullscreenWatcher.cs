@@ -24,6 +24,8 @@ internal sealed class FullscreenWatcher : IDisposable
     private const int MonitorDefaultToNearest = 2;
     private const int QunsRunningD3dFullScreen = 3;
     private const int QunsPresentationMode = 4;
+    private const int GwlStyle = -16;
+    private const long WsCaption = 0x00C00000;
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
     private readonly IntPtr _widgetHwnd;
@@ -74,8 +76,9 @@ internal sealed class FullscreenWatcher : IDisposable
 
     /// <summary>Whether the foreground state counts as a full-screen application: the shell reports a
     /// full-screen Direct3D application or presentation mode, or the foreground window is not ours, not
-    /// part of the shell and covers the whole monitor the widget is on.</summary>
-    internal static bool IsFullscreen(bool foregroundIsOwn, string? className, ScreenRect foreground, ScreenRect monitor, int notificationState)
+    /// part of the shell, has no title bar (a maximized window keeps one and overhangs the work area by its
+    /// frame) and covers the whole monitor the widget is on.</summary>
+    internal static bool IsFullscreen(bool foregroundIsOwn, string? className, bool hasCaption, ScreenRect foreground, ScreenRect monitor, int notificationState)
     {
         if (notificationState is QunsRunningD3dFullScreen or QunsPresentationMode)
             return true;
@@ -83,7 +86,7 @@ internal sealed class FullscreenWatcher : IDisposable
         if (foregroundIsOwn || IsShellWindowClass(className))
             return false;
 
-        return foreground.Covers(monitor);
+        return !hasCaption && foreground.Covers(monitor);
     }
 
     /// <summary>The desktop and the taskbar: they fill the screen without being a full-screen app.</summary>
@@ -114,14 +117,15 @@ internal sealed class FullscreenWatcher : IDisposable
         var foreground = GetForegroundWindow();
         _ = SHQueryUserNotificationState(out var state);
         if (foreground == IntPtr.Zero)
-            return IsFullscreen(false, null, default, default, state);
+            return IsFullscreen(false, null, false, default, default, state);
 
         _ = GetWindowThreadProcessId(foreground, out var processId);
         var monitor = MonitorBounds();
         var rect = GetWindowRect(foreground, out var window)
             ? new ScreenRect(window.Left, window.Top, window.Right, window.Bottom)
             : default;
-        return IsFullscreen(processId == (uint)Environment.ProcessId, ClassNameOf(foreground), rect, monitor, state);
+        var hasCaption = (GetWindowLongPtr(foreground, GwlStyle).ToInt64() & WsCaption) == WsCaption;
+        return IsFullscreen(processId == (uint)Environment.ProcessId, ClassNameOf(foreground), hasCaption, rect, monitor, state);
     }
 
     /// <summary>The whole monitor (taskbar included) the widget is on.</summary>
@@ -210,6 +214,9 @@ internal sealed class FullscreenWatcher : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
