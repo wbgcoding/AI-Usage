@@ -1739,6 +1739,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
         Main.SetHidden(AppSettings.DayGridTileId,
             hidden: !(_settings.Providers.TryGetValue(AppSettings.DayGridTileId, out var grid) && grid.Visible));
+        Main.ApplyStoredOrder();
         Main.SetDensityCommand.Execute(_settings.TileDensity);
 
         if (Enum.TryParse<AppTheme>(_settings.Theme, ignoreCase: true, out var theme))

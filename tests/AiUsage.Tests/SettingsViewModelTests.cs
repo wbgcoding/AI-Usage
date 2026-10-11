@@ -841,6 +841,40 @@ public class SettingsViewModelTests : IDisposable
         Assert.Empty(settings.StatsSectionsCollapsed);
     }
 
+    private static List<string> RowIds(MainViewModel main) =>
+        [.. main.DisplayRows.Select(row => row is ProviderTileViewModel tile ? tile.ProviderId : "daygrid")];
+
+    [Fact]
+    public void ResetToDefaultsPutsTheTilesBackInTheDefaultOrder()
+    {
+        var (vm, settings) = Build();
+        vm.Main.MoveProviderUpCommand.Execute("copilot");
+        vm.Main.MoveProviderUpCommand.Execute("copilot");
+        Assert.Equal(["codex", "copilot", "claude", "gemini", "daygrid"], RowIds(vm.Main));
+
+        vm.ResetToDefaults();
+
+        Assert.Equal(["claude", "codex", "gemini", "copilot", "daygrid"], RowIds(vm.Main));
+        Assert.DoesNotContain(settings.Providers.Values, provider => provider.Order < 0);
+    }
+
+    [Fact]
+    public void ImportingAnotherTileOrderReordersTheTilesAtOnce()
+    {
+        var sourceSettings = new AppSettings();
+        foreach (var (id, order) in new[] { ("copilot", 0), ("gemini", 1), ("codex", 2), ("claude", 3), ("cursor", 4) })
+            sourceSettings.Providers[id].Order = order;
+        var exportPath = Path.Combine(TempDirectory(), "export-tile-order.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, _) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(["copilot", "gemini", "codex", "claude", "daygrid"], RowIds(targetVm.Main));
+        Assert.Equal(["copilot", "gemini", "codex", "claude"], targetVm.Main.Tiles.Select(tile => tile.ProviderId));
+    }
+
     [Fact]
     public void ImportedStatsWindowArrangementIsApplied()
     {

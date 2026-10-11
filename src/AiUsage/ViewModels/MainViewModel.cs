@@ -678,6 +678,36 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>Takes the order stored in the settings as the live one, after a reset or an import
+    /// replaced it: entries without an order get their default position first, then the own order,
+    /// <see cref="Tiles"/> and <see cref="DisplayRows"/> (in the chosen mode) follow it.</summary>
+    internal void ApplyStoredOrder()
+    {
+        SettingsStore.AssignMissingOrders(_settings);
+        // The day-grid entry is not part of the known providers: a fresh one goes behind all of them.
+        if (_settings.Providers.TryGetValue(AppSettings.DayGridTileId, out var grid) && grid.Order < 0)
+        {
+            grid.Order = _settings.Providers.Where(entry => entry.Key != AppSettings.DayGridTileId)
+                .Select(entry => entry.Value.Order).DefaultIfEmpty(-1).Max() + 1;
+        }
+
+        var entries = Tiles.Select(tile => (Order: ResolveRowOrder(tile.ProviderId), Row: (object)tile)).ToList();
+        entries.Add((ResolveRowOrder(AppSettings.DayGridTileId), DayGridTile));
+        _ownRows.Clear();
+        _ownRows.AddRange(entries.OrderBy(entry => entry.Order).Select(entry => entry.Row));
+
+        var tilesInOrder = _ownRows.OfType<ProviderTileViewModel>().ToList();
+        for (var i = 0; i < tilesInOrder.Count; i++)
+        {
+            var at = Tiles.IndexOf(tilesInOrder[i]);
+            if (at != i)
+                Tiles.Move(at, i);
+        }
+
+        ApplyTileOrder();
+        RefreshMoveEligibility();
+    }
+
     /// <summary>The rows in the person's own order. <see cref="DisplayRows"/> equals this in "Custom"
     /// mode; in "ByUsage" mode it is this list re-arranged by color level. The arrows, the stored
     /// <see cref="ProviderSettings.Order"/> and the move eligibility always work on this list.</summary>

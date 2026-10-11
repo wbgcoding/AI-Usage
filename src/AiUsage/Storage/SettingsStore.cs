@@ -585,8 +585,19 @@ public sealed class SettingsStore : IDisposable
                 provider = new ProviderSettings();
                 settings.Providers[id] = provider;
             }
+        }
 
-            if (provider.Order < 0)
+        AssignMissingOrders(settings);
+    }
+
+    /// <summary>Gives every provider entry still carrying the -1 sentinel its position from the key's
+    /// own index in the known providers followed by the extra accounts; an explicit order is kept.</summary>
+    internal static void AssignMissingOrders(AppSettings settings)
+    {
+        var keys = AppSettings.KnownProviderIds.Concat(settings.Accounts.Keys).Distinct().ToList();
+        for (var i = 0; i < keys.Count; i++)
+        {
+            if (settings.Providers.TryGetValue(keys[i], out var provider) && provider is not null && provider.Order < 0)
                 provider.Order = i;
         }
     }
