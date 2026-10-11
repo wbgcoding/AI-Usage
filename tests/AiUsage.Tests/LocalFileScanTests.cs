@@ -167,13 +167,16 @@ public class LocalFileScanTests : IDisposable
         writer.Write("hello"u8);
         writer.Flush(true);
         Thread.Sleep(1500);
+        // Measured against the second write itself, not against "now": a slow scan on a loaded
+        // machine must not fail the check. The tolerance stays well below the 1.5 s gap.
+        var secondWriteAt = DateTime.UtcNow;
         writer.Write(new byte[5000]);
         writer.Flush(true);
 
         var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 1, maxFiles: 5);
 
         Assert.Equal(5005, result.Single().Length);
-        Assert.True(result.Single().LastWriteTimeUtc >= DateTime.UtcNow.AddSeconds(-1));
+        Assert.True(result.Single().LastWriteTimeUtc >= secondWriteAt.AddMilliseconds(-500));
     }
 
     private static void BuildDeepTree(string root, int levels, int filesPerLevel)
