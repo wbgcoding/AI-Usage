@@ -649,10 +649,11 @@ begin
 end;
 
 { The auto-relaunch Check in [Run] reads this - only relevant to the standard (non-portable),
-  silent path where no "launch now" checkbox was ever shown. }
+  silent path where no "launch now" checkbox was ever shown. The app updating itself exits before
+  Setup looks for its window, so it passes /RELAUNCH=1 instead. }
 function WasAppRunning: Boolean;
 begin
-  Result := AppWasRunning;
+  Result := AppWasRunning or (ExpandConstant('{param:RELAUNCH|0}') = '1');
 end;
 
 { Deletes every file in Folder matching "setup-*.log" beyond the newest KeepCount, sorted by name

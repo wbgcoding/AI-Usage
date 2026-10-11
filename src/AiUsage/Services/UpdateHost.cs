@@ -152,7 +152,9 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     /// <summary>The setup's command line. The setup does not reuse the previous install scope on its
     /// own, so the scope of the running copy is passed along. The uninstall entries the setup wrote
     /// say which scope owns this folder (it works for a folder the user picked); only when neither
-    /// names it does a copy under Program Files count as per-machine and any other as per-user.</summary>
+    /// names it does a copy under Program Files count as per-machine and any other as per-user. The
+    /// relaunch switch is always set: this app exits right after starting the setup, so the setup
+    /// cannot find a running window and must be told to bring the updated copy back.</summary>
     internal static string BuildSetupArguments(string? exePath) => BuildSetupArguments(exePath,
     [
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
@@ -165,17 +167,19 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
         if (directory is not null && readInstallLocation is not null)
         {
             if (SameFolder(readInstallLocation(true), directory))
-                return "/SILENT /ALLUSERS";
+                return "/SILENT /ALLUSERS" + RelaunchSwitch;
             if (SameFolder(readInstallLocation(false), directory))
-                return "/SILENT /CURRENTUSER";
+                return "/SILENT /CURRENTUSER" + RelaunchSwitch;
         }
 
         var perMachine = directory is not null && programFilesRoots
             .Where(root => !string.IsNullOrEmpty(root))
             .Any(root => (directory + Path.DirectorySeparatorChar).StartsWith(
                 root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-        return perMachine ? "/SILENT /ALLUSERS" : "/SILENT /CURRENTUSER";
+        return (perMachine ? "/SILENT /ALLUSERS" : "/SILENT /CURRENTUSER") + RelaunchSwitch;
     }
+
+    private const string RelaunchSwitch = " /RELAUNCH=1";
 
     private static bool SameFolder(string? recorded, string directory) =>
         !string.IsNullOrWhiteSpace(recorded)
