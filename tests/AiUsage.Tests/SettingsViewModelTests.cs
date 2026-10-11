@@ -239,6 +239,25 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ImportingAnotherCustomThresholdMovesTheBarMarkerAtOnce()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Providers["codex"].Thresholds.UseCustom = true;
+        sourceSettings.Providers["codex"].Thresholds.FiveHour = 55;
+        var exportPath = Path.Combine(TempDirectory(), "export-settings.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, _) = Build(askForSettingsImportPath: () => exportPath);
+        var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "codex");
+        tile.Apply(FiveHourSnapshot(), Now, new ThresholdSettings { FiveHour = 85, FiveHourEnabled = true });
+
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(55, tile.Rows.Single().ThresholdPercent);
+    }
+
+    [Fact]
     public void AnExtraAccountsNameArrivingWhileTheWindowIsOpenReachesItsRows()
     {
         var settings = new AppSettings();

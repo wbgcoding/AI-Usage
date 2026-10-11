@@ -1774,6 +1774,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedAttentionMaxAgeChoice));
 
         RebuildProviderRows();
+        // A provider's own threshold can differ even when the two defaults do not change.
+        Main.ApplyThresholdsToAllTiles();
 
         _store.SaveNow(_settings);
     }
