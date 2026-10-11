@@ -75,6 +75,36 @@ public class NotificationLimitReachedTests : IDisposable
     }
 
     [Fact]
+    public void A_reset_time_showing_up_later_in_the_same_period_does_not_fire_again()
+    {
+        var (service, limits, _) = Watch(TempDirectory());
+        var resetsAt = Start.AddHours(2);
+
+        Evaluate(service, 100, null, Start);
+        Evaluate(service, 100, resetsAt, Start.AddMinutes(1));
+        Assert.Single(limits);
+
+        Evaluate(service, 100, resetsAt, Start.AddMinutes(2));
+        Assert.Single(limits);
+
+        Evaluate(service, 100, resetsAt.AddHours(5), resetsAt.AddMinutes(1));
+        Assert.Equal(2, limits.Count);
+    }
+
+    [Fact]
+    public void A_reading_below_100_with_a_reset_time_ends_a_period_that_had_none()
+    {
+        var (service, limits, _) = Watch(TempDirectory());
+        var resetsAt = Start.AddHours(2);
+
+        Evaluate(service, 100, null, Start);
+        Evaluate(service, 40, resetsAt, Start.AddMinutes(1));
+        Evaluate(service, 100, resetsAt, Start.AddMinutes(2));
+
+        Assert.Equal(2, limits.Count);
+    }
+
+    [Fact]
     public void Fires_on_the_first_sight_of_a_full_window()
     {
         var (service, limits, _) = Watch(TempDirectory());

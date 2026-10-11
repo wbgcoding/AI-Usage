@@ -206,7 +206,21 @@ public sealed class NotificationService
             // the window reports a different reset time; without one, when usage falls below 100.
             if (limitReachedEnabled)
             {
-                if (state.LimitFired)
+                if (state.LimitFired && state.LimitFiredFor is null && window.ResetsAt is not null)
+                {
+                    // The alert fired on a reading without a reset time. The first reading that has one
+                    // belongs to the same period while it is still full; below 100 the period is over.
+                    if (window.UsedPercent >= 100)
+                    {
+                        state.LimitFiredFor = window.ResetsAt;
+                    }
+                    else
+                    {
+                        state.LimitFired = false;
+                        state.LimitFiredFor = null;
+                    }
+                }
+                else if (state.LimitFired)
                 {
                     var periodOver = window.ResetsAt is null ? window.UsedPercent < 100 : !SamePeriod(state.LimitFiredFor, window.ResetsAt);
                     if (periodOver)
