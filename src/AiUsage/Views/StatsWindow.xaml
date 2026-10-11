@@ -188,11 +188,11 @@
                                         <StackPanel MinWidth="180">
                                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"
                                                        Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
-                                            <DatePicker x:Name="CustomFromPicker" SelectedDate="{Binding CustomFromDate, Mode=TwoWay}"
+                                            <DatePicker x:Name="CustomFromPicker" DisplayDateStart="2000-01-01" SelectedDate="{Binding CustomFromDate, Mode=TwoWay}"
                                                         AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"/>
                                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.To]}"
                                                        Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,8,0,4"/>
-                                            <DatePicker x:Name="CustomToPicker" SelectedDate="{Binding CustomToDate, Mode=TwoWay}"
+                                            <DatePicker x:Name="CustomToPicker" DisplayDateStart="2000-01-01" SelectedDate="{Binding CustomToDate, Mode=TwoWay}"
                                                         AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.To]}"/>
                                             <Button x:Name="CustomRangeApplyButton" Style="{StaticResource AiUsageButton}" HorizontalAlignment="Right" Margin="0,12,0,0"
                                                     Command="{Binding ApplyCustomRangeCommand}"

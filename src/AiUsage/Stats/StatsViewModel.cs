@@ -114,8 +114,8 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         if (customFrom is { } first && customTo is { } last)
         {
-            _customFrom = first <= last ? first : last;
-            _customTo = first <= last ? last : first;
+            (_customFrom, _customTo) = ClampCustomRange(
+                first <= last ? first : last, first <= last ? last : first, DateOnly.FromDateTime(DateTime.Now), EarliestRecordDay());
         }
 
         if (RangeChoices.Any(choice => choice.Value == range) && (range != CustomRange || (customFrom is not null && customTo is not null)))
@@ -166,8 +166,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Applies a custom range of the two days, whichever way round they come.</summary>
     internal async Task SetCustomRange(DateOnly from, DateOnly to)
     {
-        _customFrom = from;
-        _customTo = to;
+        (_customFrom, _customTo) = ClampCustomRange(from, to, DateOnly.FromDateTime(DateTime.Now), EarliestRecordDay());
         SelectedDay = null;
         SelectedRange = CustomRange;
         UpdateCustomChoiceLabel();
@@ -1291,7 +1290,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var all = ApplyFilters(source);
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var period = ResolvePeriod(SelectedRange, today, _customFrom, _customTo);
+        var period = ResolvePeriod(SelectedRange, today, _customFrom, _customTo, EarliestRecordDay(source));
         var from = period.From;
         var to = period.To;
 
@@ -1844,7 +1843,8 @@ public sealed partial class StatsViewModel : ObservableObject
     /// month and last month are calendar months, compared with the calendar month before them. A
     /// custom range runs between its two days (never past today), compared with the same number of
     /// days right before it. "All" has no comparison.</summary>
-    internal static StatsPeriod ResolvePeriod(string range, DateOnly today, DateOnly customFrom, DateOnly customTo)
+    internal static StatsPeriod ResolvePeriod(
+        string range, DateOnly today, DateOnly customFrom, DateOnly customTo, DateOnly? earliestRecord = null)
     {
         switch (range)
         {
@@ -1860,8 +1860,7 @@ public sealed partial class StatsViewModel : ObservableObject
             }
             case CustomRange:
             {
-                var to = customTo > today ? today : customTo;
-                var from = customFrom > to ? to : customFrom;
+                var (from, to) = ClampCustomRange(customFrom, customTo, today, earliestRecord);
                 return SameLengthBefore(from, to);
             }
             case "All":
@@ -1870,6 +1869,27 @@ public sealed partial class StatsViewModel : ObservableObject
                 return SameLengthBefore(RangeStart(range, today), today);
         }
     }
+
+    /// <summary>The first day a custom range may start on when nothing is stored yet; also what the
+    /// date pickers offer as their earliest day.</summary>
+    internal static readonly DateOnly CustomRangeFloor = new(2000, 1, 1);
+
+    /// <summary>A custom range pulled into what can be drawn: no earlier than the earliest stored day
+    /// (the first of January 2000 when nothing is stored) and no later than today. A typed date near
+    /// the start of the calendar would otherwise reach the date and time conversions out of range or
+    /// build one gap-filled bar for every day since. Every custom range passes through here.</summary>
+    internal static (DateOnly From, DateOnly To) ClampCustomRange(DateOnly from, DateOnly to, DateOnly today, DateOnly? earliestRecord)
+    {
+        var floor = earliestRecord is { } earliest && earliest < today ? earliest : CustomRangeFloor < today ? CustomRangeFloor : today;
+        var start = from < floor ? floor : from > today ? today : from;
+        var end = to < floor ? floor : to > today ? today : to;
+        return (start > end ? end : start, end);
+    }
+
+    private DateOnly? EarliestRecordDay() => EarliestRecordDay(_sourceRecords);
+
+    private static DateOnly? EarliestRecordDay(IReadOnlyList<StatsRecord> records) =>
+        records.Count > 0 ? records.Min(record => record.Day) : null;
 
     private static StatsPeriod SameLengthBefore(DateOnly from, DateOnly to)
     {
@@ -1884,7 +1904,9 @@ public sealed partial class StatsViewModel : ObservableObject
     /// store.</summary>
     internal static DateOnly GapFillStart(DateOnly from, IReadOnlyList<StatsRecord> inRange, DateOnly today)
     {
-        if (from > DateOnly.MinValue)
+        // A range that starts at (or before) the custom-range floor has no real start of its own, just
+        // like the whole history: its first bar is the earliest stored day.
+        if (from > CustomRangeFloor)
             return from;
 
         return inRange.Count > 0 ? inRange.Min(record => record.Day) : today;

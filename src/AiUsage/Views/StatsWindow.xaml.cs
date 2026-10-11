@@ -76,8 +76,13 @@ public partial class StatsWindow : Window
 
         // The custom range is picked in a popup under the range list; it opens after the list has
         // closed, since a popup opened in the middle of the list's own click is closed again by it.
+        LimitCustomRangePickers();
         _viewModel.CustomRangeRequested += (_, _) =>
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => CustomRangePopup.IsOpen = true);
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
+            {
+                LimitCustomRangePickers();
+                CustomRangePopup.IsOpen = true;
+            });
         _viewModel.CustomRangeApplied += (_, _) => CustomRangePopup.IsOpen = false;
 
         _viewModel.TakeSnapshot = () => StatsIndexerService.Shared?.Latest;
@@ -250,6 +255,14 @@ public partial class StatsWindow : Window
 
     /// <summary>A popup that closed without an applied range puts the list back on the range that
     /// is really showing.</summary>
+    /// <summary>The pickers offer no day before the start of 2000 and none after today, the same
+    /// bounds the view model clamps a custom range to.</summary>
+    private void LimitCustomRangePickers()
+    {
+        CustomFromPicker.DisplayDateEnd = DateTime.Today;
+        CustomToPicker.DisplayDateEnd = DateTime.Today;
+    }
+
     private void CustomRangePopup_Closed(object? sender, EventArgs e) => _viewModel.ResyncRangeChoice();
 
     private void ResetLayoutButton_Click(object sender, RoutedEventArgs e) => CommitLayout(StatsLayout.Default());

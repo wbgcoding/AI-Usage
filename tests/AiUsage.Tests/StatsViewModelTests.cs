@@ -1188,6 +1188,66 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public void ACustomRangeStartsNoEarlierThanTheEarliestStoredDayAndNoLaterThanToday()
+    {
+        var today = new DateOnly(2026, 10, 10);
+        var earliest = new DateOnly(2026, 9, 1);
+
+        var tooEarly = StatsViewModel.ResolvePeriod("Custom", today, DateOnly.MinValue, today, earliest);
+        Assert.Equal((earliest, today), (tooEarly.From, tooEarly.To));
+        Assert.True(tooEarly.PreviousFrom > DateOnly.MinValue);
+
+        // Without any stored day the lower bound is the first of January 2000.
+        var noData = StatsViewModel.ResolvePeriod("Custom", today, DateOnly.MinValue, new DateOnly(9999, 12, 31));
+        Assert.Equal((new DateOnly(2000, 1, 1), today), (noData.From, noData.To));
+
+        var inside = StatsViewModel.ResolvePeriod("Custom", today, new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 20), earliest);
+        Assert.Equal((new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 20)), (inside.From, inside.To));
+    }
+
+    [Fact]
+    public async Task ACustomRangeFromTheYearOneIsClampedAndDrawsOnlyTheStoredDays()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-custom-clamp");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today.AddDays(-6), "modelA", "projA", 100, 0, 0, 0),
+            new StatsRecord("claude", today.AddDays(-2), "modelA", "projA", 200, 0, 0, 0),
+        ]);
+        var viewModel = StatsVm.Create(store);
+
+        await viewModel.SetCustomRange(DateOnly.MinValue, DateOnly.MaxValue);
+
+        Assert.Equal((today.AddDays(-6), today), viewModel.CustomPeriod);
+        Assert.Equal(300, viewModel.PeriodTotalRaw);
+        Assert.Equal(7, viewModel.PeriodDayCountRaw);
+    }
+
+    [Fact]
+    public void ARestoredCustomRangeIsClampedToo()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-restore-clamp");
+        var viewModel = StatsVm.Create(new StatsStore(dataDir));
+
+        viewModel.RestoreSelection("Custom", null, null, DateOnly.MinValue, DateOnly.MaxValue);
+
+        Assert.Equal((new DateOnly(2000, 1, 1), DateOnly.FromDateTime(DateTime.Now)), viewModel.CustomPeriod);
+    }
+
+    [Fact]
+    public void AGapFilledChartOfAFloorStartedRangeBeginsAtTheEarliestStoredDay()
+    {
+        var today = new DateOnly(2026, 9, 19);
+        var earliest = new DateOnly(2026, 9, 1);
+        var records = new List<StatsRecord> { new("claude", earliest, "model", "project", 1, 1, 0, 0) };
+
+        Assert.Equal(earliest, StatsViewModel.GapFillStart(new DateOnly(2000, 1, 1), records, today));
+        Assert.Equal(today, StatsViewModel.GapFillStart(new DateOnly(2000, 1, 1), [], today));
+        Assert.Equal(new DateOnly(2026, 9, 5), StatsViewModel.GapFillStart(new DateOnly(2026, 9, 5), records, today));
+    }
+
+    [Fact]
     public void TheRollingRangesAndAllKeepTheirPeriods()
     {
         var today = new DateOnly(2026, 10, 10);
