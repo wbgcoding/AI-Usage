@@ -44,6 +44,21 @@ public class UpdateCheckTests
     }
 
     [Fact]
+    public async Task CheckIfDueAsync_does_not_count_a_cancelled_check_as_done()
+    {
+        var settings = new AppSettings();
+        var saves = 0;
+        using var cts = new CancellationTokenSource();
+
+        var result = await UpdateCheck.CheckIfDueAsync(settings, _ => saves++,
+            _ => { cts.Cancel(); return Task.FromResult<UpdateCheck.Release?>(null); }, Now, cts.Token);
+
+        Assert.Null(result);
+        Assert.Null(settings.LastUpdateCheckUtc);
+        Assert.Equal(0, saves);
+    }
+
+    [Fact]
     public async Task CheckIfDueAsync_does_not_call_the_fetcher_a_second_time_inside_the_interval()
     {
         var settings = new AppSettings();

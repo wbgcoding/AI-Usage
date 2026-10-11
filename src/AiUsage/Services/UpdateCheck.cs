@@ -60,6 +60,10 @@ public static class UpdateCheck
             return null;
 
         var release = await fetchRelease(ct);
+        // A check cut short by closing the window or exiting says nothing about the release page.
+        if (ct.IsCancellationRequested)
+            return null;
+
         settings.LastUpdateCheckUtc = now;
         save(settings);
         return release;
