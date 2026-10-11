@@ -570,7 +570,11 @@ public class WebSessionScriptRunnerTests
         await first;
 
         var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
-        await Task.Delay(300);
+        // Wait for the second script to reach the host (past the 50 ms suspend wait) instead of a fixed
+        // delay: completing it earlier would answer the first call's spent completion source.
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (fake.ExecuteCalls < 2 && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
         fake.CompleteScript("second");
 
         Assert.Equal("second", await second);
