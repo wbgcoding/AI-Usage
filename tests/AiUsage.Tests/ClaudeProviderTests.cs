@@ -407,6 +407,26 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_failed_web_read_of_a_web_only_account_reads_as_failed()
+    {
+        var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult("""{"status":"failed"}"""));
+        var provider = new ClaudeProvider(projectsRoot: "", () => Now, webSource, new AppSettings(), _ => { });
+
+        AiUsage.Services.NetworkStatus.Probe = () => true;
+        try
+        {
+            var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+            Assert.Equal(ProviderStatus.Failed, snapshot.Status);
+            Assert.Empty(snapshot.Windows);
+        }
+        finally
+        {
+            AiUsage.Services.NetworkStatus.Probe = System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable;
+        }
+    }
+
+    [Fact]
     public async Task A_failed_web_source_reports_offline_instead_of_no_local_data_when_the_machine_has_no_network()
     {
         var directory = SeedDirectory("claude-no-limits.jsonl");

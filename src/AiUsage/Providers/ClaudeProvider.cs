@@ -474,6 +474,9 @@ public sealed class ClaudeProvider : IUsageProvider
         };
     }
 
+    // A further account: the transcripts and the Claude Code sign-in belong to the primary one.
+    private bool IsWebOnlyAccount => _projectsRoots.Count == 0 && _localLogin is null;
+
     /// <summary>Null only when the web call failed while online with nothing else to say - the
     /// caller's own "nothing found" fallback already covers that honestly, so this does not compete
     /// as a second, less informative candidate.</summary>
@@ -491,9 +494,13 @@ public sealed class ClaudeProvider : IUsageProvider
                 ProviderId: AccountKey, Windows: [], PlanType: null, SourceKind: SourceKind.None,
                 FetchedAt: fetchedAt, DataTimestamp: null, Status: ProviderStatus.Blocked, Error: null),
             // The request never got out the door - say so, rather than the "nothing found locally"
-            // text, which would point the user at the wrong place to look.
-            // Failed while online: no candidate at all, same as no web source being configured.
-            WebUsageOutcome.Failed => ProviderSnapshots.OfflineOrNull(AccountKey, fetchedAt),
+            // text, which would point the user at the wrong place to look. A further account has no
+            // local source to fall back to, so its failure reads as a failure (and backs the schedule
+            // off) instead of "nothing found locally". The primary account, failed while online, has
+            // no candidate at all, same as no web source being configured.
+            WebUsageOutcome.Failed => IsWebOnlyAccount
+                ? ProviderSnapshots.Unavailable(AccountKey, fetchedAt)
+                : ProviderSnapshots.OfflineOrNull(AccountKey, fetchedAt),
             _ => null,
         };
     }
