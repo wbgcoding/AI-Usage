@@ -1103,6 +1103,64 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ChooseDataFolderAsksBeforeUsingARiskyFolderAndDecliningKeepsTheOldOne()
+    {
+        var sourceDirectory = TempDirectory();
+        var fakePointerRoot = TempDirectory();
+        var settings = new AppSettings();
+        var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
+        var settingsStore = new SettingsStore(sourceDirectory);
+        var historyStore = new HistoryStore(sourceDirectory, () => Now);
+        var main = new MainViewModel(settingsStore, settings, providers, historyStore);
+        var messages = new List<string>();
+        var asked = new List<string>();
+        var copyCalls = 0;
+        var risky = @"\\nas.invalid\share\AI-Usage";
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false,
+            enableAutostart: _ => true,
+            disableAutostart: () => true,
+            applyLanguage: _ => { },
+            loadThemeDictionary: LoadThemeFixture,
+            historyStore: historyStore,
+            showMessage: messages.Add,
+            askForDataFolder: () => risky,
+            copyIndex: (_, _) => copyCalls++,
+            copySmallFiles: (_, _) => copyCalls++,
+            confirmRiskyFolder: folder => { asked.Add(folder); return false; });
+        var before = vm.DataFolderPath;
+
+        AppPaths.SetPointerRootOverride(fakePointerRoot);
+        try
+        {
+            await vm.ChooseDataFolderCommand.ExecuteAsync(null);
+
+            Assert.Equal([risky], asked);
+            Assert.Empty(messages);
+            Assert.Equal(0, copyCalls);
+            Assert.Equal(before, vm.DataFolderPath);
+            Assert.False(File.Exists(Path.Combine(fakePointerRoot, "AI-Usage", "location.txt")));
+        }
+        finally
+        {
+            AppPaths.ClearOverrideForTests();
+            AppPaths.ClearPointerRootOverrideForTests();
+        }
+    }
+
+    [Fact]
+    public void TheDataFolderRowNamesAChosenFolderThatIsNotAvailableInsteadOfTheKind()
+    {
+        var loc = LocalizationService.Instance;
+
+        Assert.Equal(loc.Format("Settings.DataFolder.Unreachable", @"E:\AI-Usage"),
+            SettingsViewModel.DescribeDataFolder(AppPaths.DataFolderKind.Default, @"E:\AI-Usage"));
+        Assert.Contains(@"E:\AI-Usage", SettingsViewModel.DescribeDataFolder(AppPaths.DataFolderKind.Default, @"E:\AI-Usage"));
+        Assert.Equal("", SettingsViewModel.DescribeDataFolder(AppPaths.DataFolderKind.Default, null));
+        Assert.Equal(loc["About.DataFolder.Chosen"], SettingsViewModel.DescribeDataFolder(AppPaths.DataFolderKind.Chosen, null));
+    }
+
+    [Fact]
     public async Task ChooseDataFolderReturnsBeforeASlowCopyFinishesAndIsBusyMeanwhile()
     {
         var sourceDirectory = TempDirectory();

@@ -43,6 +43,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string?> _askForBackupOpenPath;
     private readonly Func<string, bool> _confirmRestore;
     private readonly Func<bool> _restartApp;
+    private readonly Func<string, bool> _confirmRiskyFolder;
     private readonly Stats.StatsStore _statsStore;
     private readonly bool _readsMachineList;
     private readonly Func<Uri, ResourceDictionary> _loadThemeDictionary;
@@ -296,12 +297,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// default folder, which needs no explanation.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Bound from XAML against this instance; classifies the live AppPaths.DataDirectory, not per-instance state.")]
-    public string DataFolderKindText => AppPaths.ClassifyDataDirectory() switch
+    public string DataFolderKindText => DescribeDataFolder(AppPaths.ClassifyDataDirectory(), AppPaths.UnreachableDataFolder);
+
+    /// <summary>The note under the data folder path: the chosen folder that is not available wins over
+    /// the kind of the folder in use, since the default folder shown then is not what the user chose.</summary>
+    internal static string DescribeDataFolder(AppPaths.DataFolderKind kind, string? unreachableFolder)
     {
-        AppPaths.DataFolderKind.Chosen => LocalizationService.Instance["About.DataFolder.Chosen"],
-        AppPaths.DataFolderKind.Fallback => LocalizationService.Instance["About.DataFolder.Fallback"],
-        _ => "",
-    };
+        var loc = LocalizationService.Instance;
+        if (unreachableFolder is not null)
+            return loc.Format("Settings.DataFolder.Unreachable", unreachableFolder);
+
+        return kind switch
+        {
+            AppPaths.DataFolderKind.Chosen => loc["About.DataFolder.Chosen"],
+            AppPaths.DataFolderKind.Fallback => loc["About.DataFolder.Fallback"],
+            _ => "",
+        };
+    }
 
     [ObservableProperty]
     private bool autostart;
@@ -495,7 +507,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Action<string, string>? copySmallFiles = null,
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
         Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
-        Func<string, bool>? removeMachine = null)
+        Func<string, bool>? removeMachine = null, Func<string, bool>? confirmRiskyFolder = null)
     {
         Main = main;
         _settings = settings;
@@ -516,6 +528,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _askForBackupOpenPath = askForBackupOpenPath ?? ShowRealBackupOpenDialog;
         _confirmRestore = confirmRestore ?? ShowRealRestoreConfirm;
         _restartApp = restartApp ?? RestartForRestore;
+        _confirmRiskyFolder = confirmRiskyFolder ?? ShowRealRiskyFolderConfirm;
         _statsStore = statsStore ?? new Stats.StatsStore();
         _removeMachine = removeMachine ?? _statsStore.RemoveMachine;
         // The list of other PCs reads the index; a settings store of its own folder (a test) never touches the real one.
@@ -1289,6 +1302,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // A share, a drive that can go away or a sync folder: the index runs with write-ahead files
+        // there, so the user decides knowingly; declining keeps the folder in use.
+        if (AppPaths.ClassifyFolderRisk(destination) != AppPaths.FolderRisk.None && !_confirmRiskyFolder(destination))
+            return;
+
         _store.SaveNow(_settings); // drain a still-pending debounced save before anything else moves
 
         if (!AppPaths.TryEnsureWritableDirectory(destination))
@@ -1502,6 +1520,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             IsBackupBusy = false;
         }
+    }
+
+    private static bool ShowRealRiskyFolderConfirm(string folder)
+    {
+        var loc = LocalizationService.Instance;
+        var dialog = new Views.ConfirmWindow(loc["Settings.DataFolder.Risky.Title"], loc["Settings.DataFolder.Risky.Body"],
+            loc["Settings.DataFolder.Risky.UseAnyway"], loc["Action.Cancel"]);
+        Views.OwnerWindowResolver.ApplyOwner(dialog, null);
+        return dialog.ShowDialog() == true;
     }
 
     private static bool ShowRealRestoreConfirm(string setAsideFolder)

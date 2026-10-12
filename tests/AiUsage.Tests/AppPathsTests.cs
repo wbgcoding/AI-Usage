@@ -216,6 +216,83 @@ public class AppPathsTests : IDisposable
             AppPaths.ClassifyDataDirectory(chosenDirectory, appDataRoot, tempRoot));
     }
 
+    private static DriveType DriveOf(string root) => root.ToUpperInvariant() switch
+    {
+        @"N:\" => DriveType.Network,
+        @"R:\" => DriveType.Removable,
+        _ => DriveType.Fixed,
+    };
+
+    [Theory]
+    [InlineData(@"\\nas\share\AI-Usage", AppPaths.FolderRisk.Unc)]
+    [InlineData(@"\\?\UNC\nas\share\AI-Usage", AppPaths.FolderRisk.Unc)]
+    [InlineData(@"N:\data\AI-Usage", AppPaths.FolderRisk.NetworkDrive)]
+    [InlineData(@"R:\AI-Usage", AppPaths.FolderRisk.RemovableDrive)]
+    [InlineData(@"C:\Profiles\sample\OneDrive\AI-Usage", AppPaths.FolderRisk.CloudSync)]
+    [InlineData(@"C:\Work\Dropbox\AI-Usage", AppPaths.FolderRisk.CloudSync)]
+    [InlineData(@"D:\google drive\AI-Usage", AppPaths.FolderRisk.CloudSync)]
+    [InlineData(@"D:\My Drive\x", AppPaths.FolderRisk.CloudSync)]
+    [InlineData(@"C:\Profiles\sample\iCloudDrive\x", AppPaths.FolderRisk.CloudSync)]
+    [InlineData(@"C:\Data\AI-Usage", AppPaths.FolderRisk.None)]
+    [InlineData(@"D:\Dropbox-Backup\AI-Usage", AppPaths.FolderRisk.None)]
+    [InlineData(@"C:\Profiles\sample\OneDrive2\x", AppPaths.FolderRisk.None)]
+    public void ClassifyFolderRisk_tells_the_five_kinds_of_folder_apart(string path, AppPaths.FolderRisk expected) =>
+        Assert.Equal(expected, AppPaths.ClassifyFolderRisk(path, DriveOf, [@"C:\Profiles\sample\OneDrive"]));
+
+    [Fact]
+    public void ClassifyFolderRisk_follows_the_configured_cloud_roots()
+    {
+        Assert.Equal(AppPaths.FolderRisk.CloudSync,
+            AppPaths.ClassifyFolderRisk(@"E:\Company Sync\x", DriveOf, [@"E:\Company Sync"]));
+        Assert.Equal(AppPaths.FolderRisk.None,
+            AppPaths.ClassifyFolderRisk(@"E:\Company Sync\x", DriveOf, ["", "  "]));
+    }
+
+    [Fact]
+    public void ClassifyFolderRisk_of_an_ordinary_local_folder_is_none_with_the_real_drives()
+    {
+        Assert.Equal(AppPaths.FolderRisk.None, AppPaths.ClassifyFolderRisk(Path.Combine(AppContext.BaseDirectory, "data")));
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_reports_a_pointed_folder_that_is_not_available_and_logs_it()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        var pointedPath = TestPaths.GetPath("ai-usage-unplugged");
+        File.WriteAllText(pointedPath, "not a directory");
+        Directory.CreateDirectory(Path.Combine(appDataRoot, "AI-Usage"));
+        File.WriteAllText(Path.Combine(appDataRoot, "AI-Usage", "location.txt"), pointedPath);
+        try
+        {
+            var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot, out var unreachable);
+
+            Assert.Equal(Path.Combine(appDataRoot, "AI-Usage"), resolved);
+            Assert.Equal(pointedPath, unreachable);
+            var log = Directory.EnumerateFiles(Path.Combine(appDataRoot, "AI-Usage", "logs"), "*.log").Single();
+            Assert.Contains("is not available", File.ReadAllText(log));
+        }
+        finally
+        {
+            File.Delete(pointedPath);
+        }
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_reports_nothing_when_the_pointed_folder_works_or_no_pointer_exists()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        AppPaths.ResolveDataDirectory(appDataRoot, tempRoot, out var withoutPointer);
+        var pointed = TempDirectory();
+        Directory.CreateDirectory(Path.Combine(appDataRoot, "AI-Usage"));
+        File.WriteAllText(Path.Combine(appDataRoot, "AI-Usage", "location.txt"), pointed);
+        AppPaths.ResolveDataDirectory(appDataRoot, tempRoot, out var withWorkingPointer);
+
+        Assert.Null(withoutPointer);
+        Assert.Null(withWorkingPointer);
+    }
+
     private readonly List<DisposableTestDirectory> _tempDirectories = [];
 
     private string TempDirectory()

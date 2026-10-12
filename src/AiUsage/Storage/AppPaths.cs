@@ -16,9 +16,17 @@ public static class AppPaths
     /// see <see cref="LocationPointerFile"/>.</summary>
     private const string PointerFileName = "location.txt";
 
-    private static readonly Lazy<string> LazyDataDirectory = new(() => ResolveDataDirectory(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        Path.GetTempPath()));
+    private static readonly Lazy<string> LazyDataDirectory = new(() =>
+    {
+        var directory = ResolveDataDirectory(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Path.GetTempPath(), out var unreachable);
+        _unreachableAtStart = unreachable;
+        return directory;
+    });
+
+    /// <summary>The folder the pointer file named at start when it could not be used, else null.</summary>
+    private static string? _unreachableAtStart;
 
     /// <summary>Set once by a completed "move my data" operation - see
     /// <see cref="ViewModels.SettingsViewModel"/>. Checked before the lazily-resolved default so a
@@ -30,6 +38,96 @@ public static class AppPaths
     private static string? _overrideFloorForTests;
 
     public static string DataDirectory => _overrideDirectory ?? LazyDataDirectory.Value;
+
+    /// <summary>The folder the user chose for the data when the pointer file names one that was not
+    /// available at start (a drive that is not plugged in, a share that is asleep), so this session
+    /// runs in the default folder; null otherwise, and again once the data was moved in this session.</summary>
+    public static string? UnreachableDataFolder
+    {
+        get
+        {
+            _ = DataDirectory;
+            return _overrideDirectory is null ? _unreachableAtStart : null;
+        }
+    }
+
+    /// <summary>How a folder is a poor home for the token index, which runs with write-ahead files:
+    /// a network share or a drive that can go away, and a folder a sync client uploads half written.</summary>
+    public enum FolderRisk { None, Unc, NetworkDrive, RemovableDrive, CloudSync }
+
+    private static readonly string[] CloudSyncFolderNames = ["Dropbox", "Google Drive", "My Drive", "iCloudDrive"];
+
+    /// <summary>Classifies <paramref name="path"/> against the real drives and the OneDrive folders of
+    /// this account.</summary>
+    public static FolderRisk ClassifyFolderRisk(string path) => ClassifyFolderRisk(path, RealDriveType, RealCloudSyncRoots());
+
+    /// <summary>The pure decision: <paramref name="driveTypeOf"/> answers for a drive root such as
+    /// <c>D:\</c>, <paramref name="cloudRoots"/> are folders a sync client owns. A path that cannot be
+    /// read counts as no risk, since the writability check right after refuses it anyway.</summary>
+    internal static FolderRisk ClassifyFolderRisk(string path, Func<string, DriveType> driveTypeOf, IEnumerable<string> cloudRoots)
+    {
+        string full;
+        try
+        {
+            full = Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException)
+        {
+            return FolderRisk.None;
+        }
+
+        if (full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+            return FolderRisk.Unc;
+        if (full.StartsWith(@"\\?\", StringComparison.Ordinal) || full.StartsWith(@"\\.\", StringComparison.Ordinal))
+            full = full[4..];
+        else if (full.StartsWith(@"\\", StringComparison.Ordinal))
+            return FolderRisk.Unc;
+
+        switch (driveTypeOf(Path.GetPathRoot(full) ?? ""))
+        {
+            case DriveType.Network:
+                return FolderRisk.NetworkDrive;
+            case DriveType.Removable:
+                return FolderRisk.RemovableDrive;
+        }
+
+        foreach (var root in cloudRoots)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(root) && IsUnderRoot(full, root))
+                    return FolderRisk.CloudSync;
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException)
+            {
+                // A root that is no path says nothing about this folder.
+            }
+        }
+
+        var segments = full.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return segments.Any(segment => CloudSyncFolderNames.Contains(segment, StringComparer.OrdinalIgnoreCase))
+            ? FolderRisk.CloudSync
+            : FolderRisk.None;
+    }
+
+    private static DriveType RealDriveType(string root)
+    {
+        try
+        {
+            return root.Length == 0 ? DriveType.Unknown : new DriveInfo(root).DriveType;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return DriveType.Unknown;
+        }
+    }
+
+    private static readonly string[] CloudSyncEnvironmentVariables = ["OneDrive", "OneDriveConsumer", "OneDriveCommercial"];
+
+    private static IEnumerable<string> RealCloudSyncRoots() =>
+        CloudSyncEnvironmentVariables
+            .Select(Environment.GetEnvironmentVariable)
+            .Where(value => !string.IsNullOrWhiteSpace(value))!;
 
     /// <summary>Which of the three cases <see cref="DataDirectory"/> currently is, for
     /// <see cref="Views.SettingsWindow"/> to say alongside the path itself - see
@@ -154,8 +252,14 @@ public static class AppPaths
     /// even over the ordinary profile folder - it exists only because a user or this app deliberately
     /// chose to move the data there.
     /// </summary>
-    internal static string ResolveDataDirectory(string appDataRoot, string tempRoot)
+    internal static string ResolveDataDirectory(string appDataRoot, string tempRoot) =>
+        ResolveDataDirectory(appDataRoot, tempRoot, out _);
+
+    /// <summary><paramref name="unreachablePointerTarget"/> is the folder the pointer file named when
+    /// that folder could not be used (it is logged once, the path without the user's name), else null.</summary>
+    internal static string ResolveDataDirectory(string appDataRoot, string tempRoot, out string? unreachablePointerTarget)
     {
+        unreachablePointerTarget = null;
         var appDataCandidate = Path.Combine(appDataRoot, AppFolderName);
         if (TryReadPointer(Path.Combine(appDataCandidate, PointerFileName), out var pointedDirectory))
         {
@@ -164,6 +268,12 @@ public static class AppPaths
                     "Ignored a data-folder pointer into the temp directory.");
             else if (TryEnsureWritableDirectory(pointedDirectory))
                 return pointedDirectory;
+            else
+            {
+                unreachablePointerTarget = pointedDirectory;
+                LogService.AppendTo(Path.Combine(appDataCandidate, "logs"),
+                    $"The data folder {PathSanitizer.Sanitize(pointedDirectory)} is not available; this session uses the default folder.");
+            }
         }
 
         if (TryEnsureWritableDirectory(appDataCandidate))
