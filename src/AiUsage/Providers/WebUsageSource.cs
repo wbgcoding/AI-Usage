@@ -469,12 +469,6 @@ public sealed class WebUsageSource
         return _endpoint.IsAllowedUsagePath(entry[..separator]);
     }
 
-    private async Task<(WebUsageResult Result, string? Path)> RunWithPathAsync(string script, CancellationToken ct)
-    {
-        var (_, result) = await RunEnvelopeAsync(script, ct);
-        return result;
-    }
-
     /// <summary>Runs one script and hands back both the raw envelope (null when the call itself
     /// failed) and its interpretation, so a caller that wants more out of the envelope than the
     /// result does not have to run the script twice.</summary>

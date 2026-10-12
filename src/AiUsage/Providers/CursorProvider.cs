@@ -87,8 +87,9 @@ public sealed class CursorProvider : IUsageProvider
         }
         catch (Exception)
         {
-            // The read never throws in production (WebUsageSource.FetchAsync catches everything
-            // itself), but the test seam above can - this provider's own contract still never does.
+            // WebUsageSource.FetchAsync rethrows cancellation (handled above); any other failure,
+            // including a throwing settings save, becomes a failed read here so this provider's own
+            // contract never throws.
             web = WebUsageResult.Failed;
         }
 

@@ -7,10 +7,12 @@ using AiUsage.Services;
 namespace AiUsage.Providers;
 
 /// <summary>
-/// Reads Claude's local session transcripts first - there is no running percentage locally, only
-/// the last already-triggered rate limit's reset time, if it is still in the future, and that is
-/// certain, so it always wins. Only when nothing local was found does the web fallback get asked;
-/// the two are never mixed into one window list.
+/// One Claude account. The primary account reads the local session transcripts (there is no running
+/// percentage locally, only the last already-triggered rate limit's reset time while it is still in
+/// the future, and that is certain, so it wins) and the sign-in Claude Code already holds on this
+/// machine; the app's own web session is a further candidate, only asked when the cheaper ones leave
+/// it worth a round trip. A further account has no local files and reads through its own web session
+/// only. A chooser picks between the candidates; the sources are never mixed into one window list.
 /// </summary>
 public sealed class ClaudeProvider : IUsageProvider
 {

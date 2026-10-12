@@ -231,11 +231,10 @@ public sealed class WebViewHost : IAsyncDisposable
         StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// CoreWebView2Environment exposes no public Dispose/Close in this SDK version - its underlying
-    /// browser process lifetime is reference-counted internally by the WebView2 runtime and released
-    /// once nothing (including this field) still holds the wrapper, so clearing the field is the only
-    /// release available here. Confirmed against Microsoft.Web.WebView2 1.0.3179.45's public API
-    /// (a build against the actual package, not a guess) rather than added speculatively.
+    /// CoreWebView2Environment exposes no public Dispose/Close - its underlying browser process
+    /// lifetime is reference-counted internally by the WebView2 runtime and released once nothing
+    /// (including this field) still holds the wrapper, so clearing the field is the only release
+    /// available here.
     /// </summary>
     public ValueTask DisposeAsync()
     {
