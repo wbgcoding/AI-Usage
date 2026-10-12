@@ -236,6 +236,10 @@ public partial class MainWindow : Window, IDisposable
         // history file. Runs forever on the view model's own lifetime
         // token; Dispose() below is the only thing that ever stops it.
         _ = Task.Run(() => ViewModel.RunMaintenanceForeverAsync());
+
+        // The handle otherwise only exists at the first Show(), which a tray start never reaches: the
+        // hotkey, the full-screen watcher and the click-through style are set up when the handle appears.
+        new WindowInteropHelper(this).EnsureHandle();
     }
 
     /// <summary>Raised from the snapshot tail, which always runs on the UI thread, the one
@@ -966,8 +970,13 @@ public partial class MainWindow : Window, IDisposable
     /// (<see cref="AppTheme.System"/>), otherwise Windows switching its own theme changes nothing here.</summary>
     private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
-        if (e.Category == UserPreferenceCategory.General && ThemeService.ParseTheme(_settings.Theme) == AppTheme.System)
-            ThemeService.Apply(AppTheme.System);
+        // Raised on the system's event thread; the theme resources belong to the UI thread.
+        if (e.Category == UserPreferenceCategory.General)
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (ThemeService.ParseTheme(_settings.Theme) == AppTheme.System)
+                    ThemeService.Apply(AppTheme.System);
+            });
     }
 
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)

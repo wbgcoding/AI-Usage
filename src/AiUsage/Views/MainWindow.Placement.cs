@@ -14,7 +14,8 @@ public partial class MainWindow
 
     /// <summary>A monitor going away (a dock unplugged, a display turned off) must pull the window
     /// back onto whatever is left right away - not just fix it at the next start.</summary>
-    private void SystemEvents_DisplaySettingsChanged(object? sender, EventArgs e) => ReplaceOnScreen();
+    private void SystemEvents_DisplaySettingsChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(ReplaceOnScreen);
 
     /// <summary>Moving to a monitor with another scale factor changes the window's size in device
     /// independent units; the position is resolved again once layout has settled. A change that
