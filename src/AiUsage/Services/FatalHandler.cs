@@ -8,13 +8,6 @@ namespace AiUsage.Services;
 /// </summary>
 internal static class FatalHandler
 {
-    /// <summary>Runs <paramref name="showDialog"/> directly when already on the target thread,
-    /// otherwise marshals it through <paramref name="invoke"/> exactly once. When
-    /// <paramref name="isShuttingDown"/> answers true, neither happens at all: a crash reached while
-    /// the application is already tearing itself down (e.g. a second, unrelated exception during an
-    /// earlier crash's own Shutdown()) must never be the thing that throws a second time by building
-    /// a window the shutting-down dispatcher can no longer host - <paramref name="logShuttingDown"/>
-    /// runs instead, so the crash is still on record even though no dialog appears.</summary>
     /// <summary>Runs <paramref name="action"/> on <paramref name="dispatcher"/> and waits for it to
     /// finish, but only when the UI thread picks it up within <paramref name="startTimeout"/>. A hung
     /// UI thread would otherwise block the failing background thread forever; false means the action
@@ -46,6 +39,13 @@ internal static class FatalHandler
         return true;
     }
 
+    /// <summary>Runs <paramref name="showDialog"/> directly when already on the target thread,
+    /// otherwise marshals it through <paramref name="invoke"/> exactly once. When
+    /// <paramref name="isShuttingDown"/> answers true, neither happens at all: a crash reached while
+    /// the application is already tearing itself down (e.g. a second, unrelated exception during an
+    /// earlier crash's own Shutdown()) must never be the thing that throws a second time by building
+    /// a window the shutting-down dispatcher can no longer host - <paramref name="logShuttingDown"/>
+    /// runs instead, so the crash is still on record even though no dialog appears.</summary>
     internal static void Show(Action showDialog, Func<bool> checkAccess, Action<Action> invoke, Func<bool> isShuttingDown, Action logShuttingDown)
     {
         if (isShuttingDown())

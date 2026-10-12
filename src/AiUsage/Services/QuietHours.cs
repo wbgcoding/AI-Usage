@@ -17,9 +17,9 @@ public static class QuietHours
             ? now >= start || now < end // wraps over midnight, e.g. 22:00-08:00
             : now >= start && now < end;
 
-    /// <summary>Disabled, or a stored value that fails to parse, both resolve the same way a missing
-    /// setting always has in this app: the documented default (22:00-08:00) rather than a crash or a
-    /// silently-disabled feature.</summary>
+    /// <summary>Whether notifications are quiet at <paramref name="now"/>: always on a weekend day when
+    /// the weekend switch is on, otherwise inside the daily window when that is enabled. An unparseable
+    /// start or end falls back to 22:00 / 08:00; a disabled window is never quiet.</summary>
     public static bool IsQuiet(AppSettings settings, DateTimeOffset now)
     {
         // The weekend switch stands on its own: it works with the daily window switched off, and

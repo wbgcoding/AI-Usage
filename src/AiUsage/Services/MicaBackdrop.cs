@@ -146,10 +146,10 @@ internal static class MicaBackdrop
     private const byte CardAlpha = 0xE0; // 88 %
 
     private static readonly List<(MicaController Controller, bool FollowsOpacity)> Controllers = [];
-    private static bool _enabled = true;
+    private static bool _enabled;
     private static bool _subscribed;
 
-    /// <summary>Whether Mica is on in the settings (default on).</summary>
+    /// <summary>Whether Mica is on, as set in the settings.</summary>
     public static bool Enabled => _enabled;
 
     public static void SetEnabled(bool enabled)
