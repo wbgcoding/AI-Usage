@@ -19,6 +19,22 @@ public static class ProviderRegistry
     /// its network endpoint), however often the tile ticks.</summary>
     internal static readonly TimeSpan RemoteReadFloor = TimeSpan.FromMinutes(5);
 
+    /// <summary>How often one account may be read at most: its own value when it has one, else the
+    /// global one. A route that costs more than a plain request (a web session, a network endpoint)
+    /// never goes below <see cref="RemoteReadFloor"/>; <paramref name="belowFloorAllowed"/> lifts that
+    /// for the route that does.</summary>
+    internal static TimeSpan ReadInterval(AppSettings? settings, string accountKey, bool belowFloorAllowed = false)
+    {
+        if (settings is null)
+            return RemoteReadFloor;
+
+        var own = settings.Providers.TryGetValue(accountKey, out var providerSettings)
+            ? ProviderSettings.NormalizeRefreshMinutes(providerSettings.RefreshMinutes)
+            : null;
+        var configured = TimeSpan.FromMinutes(own ?? SettingsRanges.ClampRemoteRefreshMinutes(settings.RemoteRefreshMinutes));
+        return belowFloorAllowed || configured > RemoteReadFloor ? configured : RemoteReadFloor;
+    }
+
     /// <summary>Codex's own session: the account page the sign-in window opens, the hosts its login
     /// may pass through, and its own browser profile subfolder. The foreign hosts are there for the
     /// same reason accounts.google.com is on Claude's list - the provider's own login leaves its site
@@ -224,8 +240,8 @@ public static class ProviderRegistry
     /// cref="Providers.CopilotProvider"/>).</summary>
     internal static IUsageProvider CreateCopilotAccount(string accountKey, AppSettings settings) =>
         accountKey == "copilot"
-            ? new CopilotProvider()
-            : new CopilotProvider(accountKey, settings.CopilotAccountLogins.GetValueOrDefault(accountKey, accountKey));
+            ? new CopilotProvider(settings)
+            : new CopilotProvider(accountKey, settings.CopilotAccountLogins.GetValueOrDefault(accountKey, accountKey), settings);
 
     /// <summary>Every runner is handed back rather than only captured as a method group, so the
     /// caller can own and dispose it (sign-out needs to tear it down before it deletes the browser

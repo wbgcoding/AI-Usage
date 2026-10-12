@@ -829,6 +829,48 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheOwnReadIntervalOfAProviderTravelsThroughExportAndImportAndResetClearsIt()
+    {
+        var sourceSettings = new AppSettings { RemoteRefreshMinutes = 20 };
+        sourceSettings.Providers["gemini"].RefreshMinutes = 30;
+        var exportPath = Path.Combine(TempDirectory(), "export-read-interval.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(30, targetSettings.Providers["gemini"].RefreshMinutes);
+        var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "gemini");
+        Assert.Equal(30, tile.RefreshMinutes);
+        Assert.Equal(30, tile.SelectedRefreshChoice!.Value);
+        Assert.Contains("20", tile.RefreshChoices[0].Label);
+
+        targetVm.ResetToDefaults();
+
+        Assert.Null(targetSettings.Providers["gemini"].RefreshMinutes);
+        Assert.Null(tile.RefreshMinutes);
+        Assert.Equal(0, tile.SelectedRefreshChoice!.Value);
+    }
+
+    [Fact]
+    public void PickingAReadIntervalOnATileStoresItAndTheDefaultRowNamesTheGlobalValue()
+    {
+        var (vm, settings) = Build();
+        var tile = vm.Main.Tiles.Single(t => t.ProviderId == "claude");
+
+        tile.SelectedRefreshChoice = tile.RefreshChoices.Single(c => c.Value == 15);
+        Assert.Equal(15, settings.Providers["claude"].RefreshMinutes);
+
+        tile.SelectedRefreshChoice = tile.RefreshChoices[0];
+        Assert.Null(settings.Providers["claude"].RefreshMinutes);
+
+        vm.RemoteRefreshMinutes = 40;
+        Assert.Contains("40", tile.RefreshChoices[0].Label);
+        Assert.Equal([0, 5, 10, 15, 30, 60], tile.RefreshChoices.Select(c => c.Value));
+    }
+
+    [Fact]
     public void ResetToDefaultsClearsTheStatsWindowArrangement()
     {
         var settings = new AppSettings { StatsSectionLayout = [new Stats.StatsLayoutRow { Left = ["projects"] }] };

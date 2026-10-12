@@ -20,6 +20,7 @@ public sealed class GeminiProvider : IUsageProvider
     private readonly Func<DateTimeOffset> _now;
     private readonly WebUsageSource? _webSource;
     private readonly ThrottledWebReader? _webReader;
+    private readonly AppSettings? _settings;
     private readonly string _accountKey;
     private readonly Func<string?> _readAccountLabel;
 
@@ -58,6 +59,7 @@ public sealed class GeminiProvider : IUsageProvider
         _read = fetch;
         _now = now ?? (() => DateTimeOffset.Now);
         _webSource = webSource;
+        _settings = settings;
         _accountKey = accountKey ?? Id;
         if (webSource is not null && settings is not null && saveSettings is not null)
             _webReader = new ThrottledWebReader(_accountKey, webSource, settings, saveSettings, showsReportedPlan: false, pausesAfterFailedDiscovery: true);
@@ -91,8 +93,9 @@ public sealed class GeminiProvider : IUsageProvider
     public bool RunsOnUiThread => _webSource is not null;
 
     // Two lightweight reads against a remote endpoint - hold to the same web-session floor Claude
-    // uses rather than the local-file default, so it is not polled every tick.
-    public TimeSpan? MinRefreshInterval => ProviderRegistry.RemoteReadFloor;
+    // uses rather than the local-file default, so it is not polled every tick; the user's own
+    // interval for this account can only make it longer.
+    public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     // Only the primary account (the one with the Antigravity CLI's own local sign-in) can hold a
     // further, web-only account - that further account can never itself sprout a third layer.

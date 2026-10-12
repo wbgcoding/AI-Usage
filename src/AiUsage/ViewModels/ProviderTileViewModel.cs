@@ -156,6 +156,79 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// split as <see cref="ChartHiddenChanged"/>).</summary>
     public event EventHandler<string>? AccountNameChanged;
 
+    /// <summary>Value of the "follow the global interval" row in <see cref="RefreshChoices"/>.</summary>
+    private const int DefaultRefreshChoice = 0;
+
+    private int? _refreshMinutes;
+
+    /// <summary>The settings window's read-interval picker for this account: the default row first
+    /// (value 0), then one row per <see cref="ProviderSettings.AllowedRefreshMinutes"/> value.</summary>
+    public ObservableCollection<Choice<int>> RefreshChoices { get; } = [];
+
+    /// <summary>Same shape as the layout picker's selection: a set forwards to <see cref="RefreshMinutes"/>.</summary>
+    public Choice<int>? SelectedRefreshChoice
+    {
+        get => RefreshChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null)
+                RefreshMinutes = value.Value == DefaultRefreshChoice ? null : value.Value;
+        }
+    }
+
+    /// <summary>This account's own read interval in minutes (see <see cref="ProviderSettings.RefreshMinutes"/>),
+    /// or null to follow the global one. A value that is not an allowed one counts as null.</summary>
+    public int? RefreshMinutes
+    {
+        get => _refreshMinutes;
+        set
+        {
+            var normalized = ProviderSettings.NormalizeRefreshMinutes(value);
+            EnsureRefreshChoices(null);
+            Choice.Select(RefreshChoices, normalized ?? DefaultRefreshChoice);
+            OnPropertyChanged(nameof(SelectedRefreshChoice));
+            if (normalized == _refreshMinutes)
+                return;
+            _refreshMinutes = normalized;
+            OnPropertyChanged();
+            RefreshMinutesChanged?.Invoke(this, normalized);
+        }
+    }
+
+    /// <summary>Raised when the own read interval changed, so MainViewModel can persist it.</summary>
+    public event EventHandler<int?>? RefreshMinutesChanged;
+
+    /// <summary>Writes the picker's labels in the current language; the default row names the global
+    /// interval <paramref name="globalMinutes"/> it follows.</summary>
+    public void RefreshChoiceLabels(int globalMinutes) => EnsureRefreshChoices(globalMinutes);
+
+    private int _labelledGlobalMinutes = SettingsRanges.MinRemoteRefreshMinutes;
+
+    private void EnsureRefreshChoices(int? globalMinutes)
+    {
+        if (globalMinutes is { } global)
+            _labelledGlobalMinutes = global;
+        var localization = LocalizationService.Instance;
+        var labels = new List<(int Value, string Text)>
+        {
+            (DefaultRefreshChoice, localization.Format("Settings.ProviderRefresh.Default", _labelledGlobalMinutes)),
+        };
+        labels.AddRange(ProviderSettings.AllowedRefreshMinutes.Select(
+            minutes => (minutes, localization.Format("Settings.ProviderRefresh.Minutes", minutes))));
+
+        if (RefreshChoices.Count != labels.Count)
+        {
+            RefreshChoices.Clear();
+            foreach (var (value, text) in labels)
+                RefreshChoices.Add(Choice.WithFixedLabel(text, value));
+            Choice.Select(RefreshChoices, _refreshMinutes ?? DefaultRefreshChoice);
+            return;
+        }
+
+        for (var i = 0; i < labels.Count; i++)
+            RefreshChoices[i].Label = labels[i].Text;
+    }
+
     public bool HasOwnAccountName => _accountName.Length > 0;
 
     /// <summary>The first part of the tile's title: the provider name when an own account name follows

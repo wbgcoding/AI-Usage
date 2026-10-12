@@ -27,9 +27,10 @@ public sealed class AppSettings
 
     public int RefreshSeconds { get; set; } = 60;
 
-    /// <summary>Floor for a web-backed provider's own refresh interval (the Claude web session), in
-    /// minutes - never polled more often than this, whatever <see cref="RefreshSeconds"/> says. Settings
-    /// UI for this value lands in a later step; today it is the fetch-side clamp only.</summary>
+    /// <summary>How often, in minutes, a provider read over the internet is asked at most, unless the
+    /// provider has its own value (<see cref="ProviderSettings.RefreshMinutes"/>). Set in Settings under
+    /// Refresh. A browser session is never read more often than every five minutes, whatever this says;
+    /// only Claude's local login route goes down to the value itself.</summary>
     public int RemoteRefreshMinutes { get; set; } = 5;
 
     /// <summary>One of <see cref="WindowLayers"/>; null means the file does not say yet (a file from an
@@ -351,6 +352,18 @@ public sealed class ProviderSettings
         var trimmed = (name ?? "").Trim();
         return trimmed.Length > MaxAccountNameLength ? trimmed[..MaxAccountNameLength].TrimEnd() : trimmed;
     }
+
+    /// <summary>The minutes this account may be read at most every, or null to follow <see
+    /// cref="AppSettings.RemoteRefreshMinutes"/>. Only a value of <see cref="AllowedRefreshMinutes"/>
+    /// counts; <see cref="Storage.SettingsStore"/> turns anything else into null on load.</summary>
+    public int? RefreshMinutes { get; set; }
+
+    /// <summary>The values the per-provider read interval can take.</summary>
+    public static readonly IReadOnlyList<int> AllowedRefreshMinutes = [5, 10, 15, 30, 60];
+
+    /// <summary>The value itself when it is one of <see cref="AllowedRefreshMinutes"/>, else null.</summary>
+    public static int? NormalizeRefreshMinutes(int? minutes) =>
+        minutes is { } value && AllowedRefreshMinutes.Contains(value) ? value : null;
 
     public ThresholdSettings Thresholds { get; set; } = new();
 

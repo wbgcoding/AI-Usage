@@ -14,12 +14,13 @@ public sealed class CursorProvider : IUsageProvider
     private readonly Func<CancellationToken, Task<WebUsageResult>> _read;
     private readonly Func<DateTimeOffset> _now;
     private readonly string _accountKey;
+    private readonly AppSettings? _settings;
 
     /// <summary><paramref name="accountKey"/> is this instance's own account (see
     /// <see cref="AccountKey"/>) - a further account of this provider gets its own instance, built
     /// the same way, from <see cref="Services.ProviderRegistry"/>.</summary>
     public CursorProvider(string accountKey, WebUsageSource webSource, AppSettings settings, Action<AppSettings> saveSettings)
-        : this(ct => webSource.FetchAsync(settings, saveSettings, ct), now: null, accountKey)
+        : this(ct => webSource.FetchAsync(settings, saveSettings, ct), now: null, accountKey, settings)
     {
     }
 
@@ -34,9 +35,10 @@ public sealed class CursorProvider : IUsageProvider
 
     /// <summary>Test seam: a canned <see cref="WebUsageResult"/> read and a fixed clock instead of a
     /// live <see cref="WebUsageSource"/>.</summary>
-    internal CursorProvider(Func<CancellationToken, Task<WebUsageResult>> read, Func<DateTimeOffset>? now, string? accountKey = null)
+    internal CursorProvider(Func<CancellationToken, Task<WebUsageResult>> read, Func<DateTimeOffset>? now, string? accountKey = null, AppSettings? settings = null)
     {
         _read = read;
+        _settings = settings;
         _now = now ?? (() => DateTimeOffset.Now);
         _accountKey = accountKey ?? Id;
     }
@@ -63,7 +65,7 @@ public sealed class CursorProvider : IUsageProvider
     // not front-run that by starting this provider on the thread pool instead.
     public bool RunsOnUiThread => true;
 
-    public TimeSpan? MinRefreshInterval => ProviderRegistry.RemoteReadFloor;
+    public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     public IReadOnlyList<string> ReadLocations => [LocalizationService.Instance["About.ReadLocationWebSession"]];
 

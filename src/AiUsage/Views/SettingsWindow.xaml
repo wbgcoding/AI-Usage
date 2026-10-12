@@ -470,6 +470,7 @@
                     </Grid>
                     <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel.Top8}"/>
                     <Slider Minimum="1" Maximum="60" Value="{Binding RemoteRefreshMinutes, Mode=TwoWay}"
+                            ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.RemoteInterval]}"
                             AutomationProperties.Name="{Binding RemoteIntervalLabelText}"/>
 
                     <CheckBox IsChecked="{Binding SaveEnergyOnBattery}" Style="{StaticResource CheckBox.GapM}"
@@ -776,6 +777,18 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
+                                    </Grid>
+                                    <Grid Style="{StaticResource Gap.Top4}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0" TextWrapping="Wrap"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding RefreshChoices}"
+                                                  SelectedItem="{Binding SelectedRefreshChoice, Mode=TwoWay}"
+                                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ProviderRefresh]}"
+                                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}"/>
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding WindowToggles}" Style="{StaticResource Gap.Top4}">
                                         <ItemsControl.ItemsPanel>

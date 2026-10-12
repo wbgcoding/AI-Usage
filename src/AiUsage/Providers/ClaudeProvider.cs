@@ -143,8 +143,8 @@ public sealed class ClaudeProvider : IUsageProvider
     // that part still moves off the caller's thread even though the provider as a whole opts out.
     public bool RunsOnUiThread => true;
 
-    /// <summary>Settings-driven (<see cref="AppSettings.RemoteRefreshMinutes"/>, default 5 min) rather
-    /// than hardcoded, so <see cref="RefreshScheduler"/> picks up a change without ever knowing this
+    /// <summary>Settings-driven (this account's own value, else <see cref="AppSettings.RemoteRefreshMinutes"/>,
+    /// default 5 min) rather than hardcoded, so <see cref="RefreshScheduler"/> picks up a change without ever knowing this
     /// provider has a web path at all. The web session still holds a five-minute floor underneath the
     /// settings value: one browser page load costs more than the local-login path's plain request, so
     /// it never goes below what the other remote providers use. The local-login path pays only that
@@ -159,12 +159,7 @@ public sealed class ClaudeProvider : IUsageProvider
             if (_settings is null)
                 return _localLogin is not null ? ProviderRegistry.RemoteReadFloor : null;
 
-            var settingsFloor = TimeSpan.FromMinutes(SettingsRanges.ClampRemoteRefreshMinutes(_settings.RemoteRefreshMinutes));
-            if (_webSource is null)
-                return settingsFloor;
-
-            var webFloor = ProviderRegistry.RemoteReadFloor;
-            return settingsFloor > webFloor ? settingsFloor : webFloor;
+            return ProviderRegistry.ReadInterval(_settings, _accountKey, belowFloorAllowed: _webSource is null);
         }
     }
 

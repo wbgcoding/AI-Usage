@@ -590,13 +590,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             AttentionDisabled = providerSettings?.AttentionDisabled ?? false,
             HiddenWindows = [.. providerSettings?.HiddenWindows ?? []],
             AccountName = providerSettings?.AccountName ?? "",
+            RefreshMinutes = providerSettings?.RefreshMinutes,
         };
+        tile.RefreshChoiceLabels(_settings.RemoteRefreshMinutes);
         tile.HideRequested += (_, _) => ToggleHidden(tile.ProviderId);
         tile.RefreshRequested += (_, _) => RefreshProvider(tile.ProviderId);
         tile.ShowFiveHourChanged += (_, value) => SetShowFiveHour(tile.ProviderId, value);
         tile.ShowWeeklyChanged += (_, value) => SetShowWeekly(tile.ProviderId, value);
         tile.ChartHiddenChanged += (_, value) => SetChartHidden(tile.ProviderId, value);
         tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
+        tile.RefreshMinutesChanged += (_, value) => SetRefreshMinutes(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
         tile.WindowToggles.CollectionChanged += (_, _) =>
@@ -1171,6 +1174,20 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         GetOrCreateProviderSettings(providerId).AccountName = value;
         _settingsStore.RequestSave(_settings);
+    }
+
+    private void SetRefreshMinutes(string providerId, int? value)
+    {
+        GetOrCreateProviderSettings(providerId).RefreshMinutes = value;
+        _settingsStore.RequestSave(_settings);
+    }
+
+    /// <summary>Writes every tile's read-interval picker labels again: the global interval its default
+    /// row names changed, or the language did.</summary>
+    public void RefreshProviderIntervalLabels()
+    {
+        foreach (var tile in Tiles)
+            tile.RefreshChoiceLabels(_settings.RemoteRefreshMinutes);
     }
 
     private void SetChartHidden(string providerId, bool value)

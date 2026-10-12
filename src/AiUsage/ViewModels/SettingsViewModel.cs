@@ -723,6 +723,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             choice.RefreshLabel();
         foreach (var choice in AttentionMaxAgeChoices)
             choice.RefreshLabel();
+        Main.RefreshProviderIntervalLabels();
         foreach (var row in ThresholdRows)
             row.RefreshLabels();
         foreach (var row in NotificationRows)
@@ -860,6 +861,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
         _settings.RemoteRefreshMinutes = clamped;
         _store.RequestSave(_settings);
+        Main.RefreshProviderIntervalLabels();
     }
 
     partial void OnHistoryRetentionDaysChanged(int value)
@@ -1764,6 +1766,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             tile.ChartHidden = providerSettings.ChartHidden;
             tile.AccountName = providerSettings.AccountName;
             tile.AttentionDisabled = providerSettings.AttentionDisabled;
+            tile.RefreshMinutes = providerSettings.RefreshMinutes;
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();
         }
@@ -1777,6 +1780,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         RefreshSeconds = _settings.RefreshSeconds;
         RemoteRefreshMinutes = _settings.RemoteRefreshMinutes;
+        Main.RefreshProviderIntervalLabels();
         HistoryRetentionDays = _settings.HistoryRetentionDays;
         WindowOpacityPercent = _settings.WindowOpacityPercent;
         MicaEnabled = _settings.MicaEnabled;

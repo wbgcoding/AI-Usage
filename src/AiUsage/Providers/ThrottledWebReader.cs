@@ -6,7 +6,7 @@ namespace AiUsage.Providers;
 
 /// <summary>
 /// The web half of a provider that also has a cheap local source: at most one browser read per
-/// <see cref="ProviderRegistry.RemoteReadFloor"/> however often the tile ticks (in between, the last
+/// <see cref="ProviderRegistry.ReadInterval"/> however often the tile ticks (in between, the last
 /// snapshot is offered again), no browser at all while nothing was ever signed in, and a sign-in that
 /// finishes mid-read still counts for the next one. Codex and Gemini read the web the same way and
 /// differ only in the two switches of the constructor.
@@ -76,7 +76,7 @@ internal sealed class ThrottledWebReader
             _discoveryPausedUntil = null;
         if (_discoveryPausedUntil is { } pausedUntil && fetchedAt < pausedUntil)
             return null;
-        if (!signInJustCompleted && _lastReadAt is { } lastReadAt && fetchedAt - lastReadAt < ProviderRegistry.RemoteReadFloor)
+        if (!signInJustCompleted && _lastReadAt is { } lastReadAt && fetchedAt - lastReadAt < ProviderRegistry.ReadInterval(_settings, _accountKey))
             // A window that reset since that read is over, the same as for a session file.
             return _lastSnapshot is { } cached
                 ? ProviderSnapshots.ExpirePastWindows(cached, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }

@@ -16,8 +16,9 @@ public sealed class CopilotProvider : IUsageProvider
     private readonly Func<CancellationToken, Task<CopilotFetch>> _read;
     private readonly Func<DateTimeOffset> _now;
     private readonly string _accountKey;
+    private readonly AppSettings? _settings;
 
-    public CopilotProvider() : this(GitHubCliUsage.FetchAsync, now: null)
+    public CopilotProvider(AppSettings? settings = null) : this(GitHubCliUsage.FetchAsync, now: null, settings: settings)
     {
     }
 
@@ -26,15 +27,16 @@ public sealed class CopilotProvider : IUsageProvider
     /// specific user's own token rather than the CLI's currently active one. <paramref
     /// name="accountKey"/> is this instance's own account (see <see cref="AccountKey"/>) -
     /// <see cref="Services.ProviderRegistry"/> is the one caller that ever builds one of these.</summary>
-    public CopilotProvider(string accountKey, string githubLogin)
-        : this(ct => GitHubCliUsage.FetchAsync(githubLogin, ct), now: null, accountKey)
+    public CopilotProvider(string accountKey, string githubLogin, AppSettings? settings = null)
+        : this(ct => GitHubCliUsage.FetchAsync(githubLogin, ct), now: null, accountKey, settings)
     {
     }
 
     /// <summary>Test seam: a canned CLI result and a fixed clock instead of running gh.</summary>
-    internal CopilotProvider(Func<CancellationToken, Task<CopilotFetch>> fetch, Func<DateTimeOffset>? now, string? accountKey = null)
+    internal CopilotProvider(Func<CancellationToken, Task<CopilotFetch>> fetch, Func<DateTimeOffset>? now, string? accountKey = null, AppSettings? settings = null)
     {
         _read = fetch;
+        _settings = settings;
         _now = now ?? (() => DateTimeOffset.Now);
         _accountKey = accountKey ?? Id;
     }
@@ -64,7 +66,7 @@ public sealed class CopilotProvider : IUsageProvider
     // sessions, a further Copilot account costs no new sign-in at all.
     public bool SupportsMultipleAccounts => true;
 
-    public TimeSpan? MinRefreshInterval => ProviderRegistry.RemoteReadFloor;
+    public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     public IReadOnlyList<string> ReadLocations => [LocalizationService.Instance["About.ReadLocationGitHubCli"]];
 

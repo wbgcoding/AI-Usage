@@ -19,7 +19,7 @@ public sealed class ThrottledWebReaderTests : IDisposable
 
     private readonly List<IDisposable> _directories = [];
 
-    private ThrottledWebReader NewReader(Func<string> answer, out List<string> scriptRuns, bool profileFolderExists = true)
+    private ThrottledWebReader NewReader(Func<string> answer, out List<string> scriptRuns, bool profileFolderExists = true, AppSettings? settings = null)
     {
         var profileRoot = TestPaths.CreateDisposableDirectory("ai-usage-throttled-webview");
         _directories.Add(profileRoot);
@@ -37,7 +37,7 @@ public sealed class ThrottledWebReaderTests : IDisposable
             runs.Add(script);
             return Task.FromResult(answer());
         });
-        return new ThrottledWebReader("codex", source, new AppSettings(), _ => { }, showsReportedPlan: true, pausesAfterFailedDiscovery: false);
+        return new ThrottledWebReader("codex", source, settings ?? new AppSettings(), _ => { }, showsReportedPlan: true, pausesAfterFailedDiscovery: false);
     }
 
     [Fact]
@@ -68,6 +68,24 @@ public sealed class ThrottledWebReaderTests : IDisposable
 
         Assert.Equal(afterFirst, runs.Count);
         Assert.NotNull(second);
+    }
+
+    [Theory]
+    [InlineData(null, 6, true)]
+    [InlineData(null, 4, false)]
+    [InlineData(10, 6, false)]
+    [InlineData(10, 11, true)]
+    public async Task The_accounts_own_interval_decides_how_long_a_good_read_is_held_back(int? ownMinutes, int minutesLater, bool readsAgain)
+    {
+        var settings = new AppSettings();
+        settings.Providers["codex"].RefreshMinutes = ownMinutes;
+        var reader = NewReader(() => OkEnvelope, out var runs, settings: settings);
+
+        await reader.ReadAsync(Start, CancellationToken.None);
+        var afterFirst = runs.Count;
+        await reader.ReadAsync(Start.AddMinutes(minutesLater), CancellationToken.None);
+
+        Assert.Equal(readsAgain, runs.Count > afterFirst);
     }
 
     [Fact]
