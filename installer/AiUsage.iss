@@ -149,7 +149,7 @@ en.RuntimeNeeded=AI-Usage needs the .NET 10 Desktop Runtime from Microsoft. Setu
 en.RuntimeInstalling=Downloading and installing the .NET 10 Desktop Runtime. Windows asks for permission once the download is done.
 en.RuntimeFailed=The .NET Desktop Runtime could not be installed. Install it from https://dotnet.microsoft.com/download/dotnet/10.0 and start setup again.
 en.UpdateDirDescription={#AppName} is already installed on this PC and will be updated in the folder shown below. Click Next to continue, or Browse to choose a different folder.
-en.RemoveDataQuestion=Also remove {#AppName}'s saved settings, history and sign-ins for the current user? This deletes %APPDATA%\{#AppName}\ and %LOCALAPPDATA%\{#AppName}\.
+en.RemoveDataQuestion=Also remove {#AppName}'s saved settings, history and browser sign-ins for the current user (%APPDATA%\{#AppName}\ and %LOCALAPPDATA%\{#AppName}\)?
 en.DowngradeQuestion=Version {0} is already installed, and this installer carries the older version {1}. Continue anyway?
 de.AutostartTask={#AppName} automatisch bei der Windows-Anmeldung starten
 de.DesktopShortcutTask=Verknüpfung auf dem Desktop erstellen
@@ -162,7 +162,7 @@ de.RuntimeNeeded=AI-Usage braucht die .NET 10 Desktop Runtime von Microsoft. Das
 de.RuntimeInstalling=Die .NET 10 Desktop Runtime wird heruntergeladen und installiert. Windows fragt nach der Erlaubnis, sobald der Download fertig ist.
 de.RuntimeFailed=Die .NET Desktop Runtime ließ sich nicht installieren. Installiere sie von https://dotnet.microsoft.com/download/dotnet/10.0 und starte das Setup erneut.
 de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wird im unten angezeigten Ordner aktualisiert. Klicke auf Weiter, oder auf Durchsuchen, um einen anderen Ordner zu wählen.
-de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen, der Verlauf und die Anmeldungen von {#AppName} für den aktuellen Benutzer entfernt werden? Das löscht %APPDATA%\{#AppName}\ und %LOCALAPPDATA%\{#AppName}\.
+de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen, der Verlauf und die Browser-Anmeldungen von {#AppName} für den aktuellen Benutzer (%APPDATA%\{#AppName}\ und %LOCALAPPDATA%\{#AppName}\) entfernt werden?
 de.DowngradeQuestion=Version {0} ist bereits installiert, dieses Installationsprogramm enthält die ältere Version {1}. Trotzdem fortfahren?
 
 [Files]

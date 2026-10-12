@@ -48,6 +48,9 @@ public class InstallerSafetyTests
             Assert.Contains("%APPDATA%", line);
             Assert.Contains("%LOCALAPPDATA%", line);
         }
+
+        Assert.Contains(@"en.RemoveDataQuestion=Also remove {#AppName}'s saved settings, history and browser sign-ins for the current user (%APPDATA%\{#AppName}\ and %LOCALAPPDATA%\{#AppName}\)?", iss);
+        Assert.Contains(@"de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen, der Verlauf und die Browser-Anmeldungen von {#AppName} für den aktuellen Benutzer (%APPDATA%\{#AppName}\ und %LOCALAPPDATA%\{#AppName}\) entfernt werden?", iss);
     }
 
     [Fact]
