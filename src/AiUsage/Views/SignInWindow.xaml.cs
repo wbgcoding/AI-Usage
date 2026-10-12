@@ -27,8 +27,9 @@ public partial class SignInWindow : Window
     private readonly List<string> _hostsAllowedByUser = [];
     private string? _blockedUri;
     private bool _sawLoginPage;
-    // True after the user clicked a link on the provider's own login page; cleared when the flow is
-    // back on a login page. A landing reached this way only ends the sign-in when it is the app's start.
+    // True after the user started a navigation (a link click or the form's own submit) on the
+    // provider's own login page; cleared when the flow is back on a login page. A landing reached this
+    // way keeps the window open only when it is a public information page.
     private bool _leftByLinkClick;
     private readonly string _startPath;
     private bool _firstNavigationCompleted;
@@ -375,12 +376,29 @@ public partial class SignInWindow : Window
             || start.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Whether a landing off the login path ends the sign-in. A page the user clicked through
-    /// to from the login form (terms, privacy, pricing) is not a finished sign-in: only the app's
-    /// start page counts then. Any other way off the login path (a redirect chain after the
-    /// credentials) counts as finished.</summary>
+    private static readonly string[] PublicInfoSegments =
+    [
+        "legal", "terms", "privacy", "policies", "policy", "pricing", "plans", "docs", "help", "support", "blog",
+        "news", "about", "careers", "jobs", "download", "downloads", "security", "enterprise", "features",
+        "contact", "cookies", "status",
+    ];
+
+    /// <summary>True when the landing is a public information page of the provider's site (terms,
+    /// privacy, pricing, help and the like) judged by the first path segment: a page a visitor can
+    /// read without an account, so reaching it says nothing about a finished sign-in.</summary>
+    internal static bool IsPublicInfoPage(Uri landing)
+    {
+        var first = landing.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return first is not null && PublicInfoSegments.Contains(first, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Whether a landing off the login path ends the sign-in. After a navigation the user
+    /// started (a link click, but also the login form's own submit) the window stays open only when
+    /// the landing is a public information page that is not the app's start page: the user read the
+    /// terms, nothing finished. Every other landing counts as signed in, as does any way off the
+    /// login path that was not user-initiated (a redirect chain after the credentials).</summary>
     internal static bool ShouldCloseAfterSignIn(Uri landing, string startPath, bool leftByLinkClick) =>
-        !leftByLinkClick || IsAppStartPage(landing, startPath);
+        !leftByLinkClick || IsAppStartPage(landing, startPath) || !IsPublicInfoPage(landing);
 
     /// <summary>Sign-in has nothing left to click through once the browser leaves the login/OAuth
     /// path and lands back on the real app - closing automatically here is what makes the window

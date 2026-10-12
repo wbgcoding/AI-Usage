@@ -79,7 +79,7 @@ public class SignInWindowTests
         Assert.Equal(expected, SignInWindow.IsAlreadySignedIn(sawLoginPage, sawForeignHost, TimeSpan.FromSeconds(secondsSinceOpened)));
 
     [Theory]
-    // From the login form to the provider's terms/privacy pages: not a finished sign-in.
+    // From the login form to a public information page of the provider: not a finished sign-in.
     [InlineData("https://claude.ai/legal/terms", "/", true, false)]
     [InlineData("https://chatgpt.com/policies/terms-of-use", "/codex/settings/usage", true, false)]
     // From the login form to the app's start page: finished.
@@ -87,9 +87,18 @@ public class SignInWindowTests
     [InlineData("https://chatgpt.com/", "/codex/settings/usage", true, true)]
     [InlineData("https://chatgpt.com/codex/settings/usage", "/codex/settings/usage", true, true)]
     [InlineData("https://cursor.com/dashboard", "/dashboard/usage", true, true)]
-    // Off the login path without a link click (redirect chain after the credentials): finished.
+    [InlineData("https://claude.ai/legal/privacy", "/", true, false)]
+    [InlineData("https://claude.ai/pricing", "/", true, false)]
+    [InlineData("https://claude.ai/HELP/article", "/", true, false)]
+    // The login form's own submit is user-initiated too: a landing that is no information page is a
+    // finished sign-in (Claude's email-code flow ends on /new or /onboarding).
+    [InlineData("https://claude.ai/new", "/", true, true)]
+    [InlineData("https://claude.ai/onboarding", "/", true, true)]
+    [InlineData("https://claude.ai/chat/abc", "/", true, true)]
+    // Off the login path without a user-initiated navigation (redirect chain after the credentials): finished.
     [InlineData("https://claude.ai/new", "/", false, true)]
-    public void OnlyTheAppStartEndsASignInThatLeftTheLoginFormByLink(string landing, string startPath, bool byLink, bool expected) =>
+    [InlineData("https://claude.ai/legal/terms", "/", false, true)]
+    public void AUserInitiatedLandingOnAPublicInfoPageKeepsTheWindowOpenAndAnythingElseCloses(string landing, string startPath, bool byLink, bool expected) =>
         Assert.Equal(expected, SignInWindow.ShouldCloseAfterSignIn(new Uri(landing), startPath, byLink));
 
     [Theory]
