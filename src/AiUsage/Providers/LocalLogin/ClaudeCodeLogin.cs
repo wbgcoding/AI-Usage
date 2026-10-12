@@ -6,8 +6,8 @@ using AiUsage.Providers.Parsing;
 namespace AiUsage.Providers.LocalLogin;
 
 /// <summary>Exactly why a Claude Code local-login read did not come back with usable windows, set at
-/// one of <see cref="ClaudeCodeLogin.FetchAsync(CancellationToken)"/>'s four failure exits - never
-/// guessed, never carrying a token or a path. <see cref="Ok"/> is the fifth, successful case.</summary>
+/// one of <see cref="ClaudeCodeLogin.FetchAsync(CancellationToken)"/>'s failure exits - never
+/// guessed, never carrying a token or a path. <see cref="Ok"/> is the successful case.</summary>
 internal enum ClaudeCodeLoginReason
 {
     Ok,
@@ -15,6 +15,10 @@ internal enum ClaudeCodeLoginReason
     NoToken,
     TokenExpired,
     NonOkResponse,
+
+    /// <summary>The credentials file exists but could not be read or parsed (caught mid-rewrite, a
+    /// sharing violation): not a signed-out state, so the last numbers stay.</summary>
+    Unreadable,
 }
 
 /// <summary>The result of a Claude Code usage read: the windows to show when signed in, otherwise
@@ -62,7 +66,11 @@ internal static class ClaudeCodeLogin
     {
         var (token, tokenReason, plan) = ReadAccessToken(credentialsPath);
         if (token is null)
-            return new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], tokenReason);
+        {
+            return tokenReason == ClaudeCodeLoginReason.Unreadable
+                ? new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], tokenReason)
+                : new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], tokenReason);
+        }
 
         var response = await LocalLoginHttp.SendAsync(
             HttpMethod.Get, UsageUrl, token, jsonBody: null, UserAgent, ct,
@@ -94,8 +102,8 @@ internal static class ClaudeCodeLogin
     /// <summary>A token this close to its expiry counts as expired: the request would arrive after it.</summary>
     internal static readonly TimeSpan ExpiryMargin = TimeSpan.FromSeconds(30);
 
-    /// <summary>The current OAuth access token, or null (with the reason why) when there is none or
-    /// it has already expired (the widget will not refresh it - that is Claude Code's own job).</summary>
+    /// <summary>The current OAuth access token, or null (with the reason why) when there is none, the
+    /// file could not be read, or it has already expired (the widget will not refresh it - that is Claude Code's own job).</summary>
     internal static (string? Token, ClaudeCodeLoginReason Reason, string? Plan) ReadAccessToken(string path)
     {
         if (!File.Exists(path))
@@ -128,7 +136,9 @@ internal static class ClaudeCodeLogin
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentOutOfRangeException)
         {
-            return (null, ClaudeCodeLoginReason.NoToken, null);
+            // Claude Code rewrites this file in place on a token renewal, so a read can catch it
+            // half-written: that is a failed read, never "signed out".
+            return (null, ClaudeCodeLoginReason.Unreadable, null);
         }
     }
 

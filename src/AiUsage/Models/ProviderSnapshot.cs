@@ -24,9 +24,9 @@ public sealed record ProviderSnapshot(
     string? AccountLabel = null,
     // A provider with more than one read route (Claude: the local Claude Code sign-in, then the
     // app's own browser session) fills this with a plain, stable word naming why the primary route
-    // was skipped instead of answering - "missing_file", "no_token", "token_expired" or
-    // "non_ok_response" - null once it did answer, and always null for a provider with only one
-    // route. Never a token, never a path: safe for the About window and for a log line alike.
+    // was skipped instead of answering - "missing_file", "no_token", "token_expired",
+    // "unreadable_file" or "non_ok_response" - null once it did answer, and always null for a
+    // provider with only one route. Never a token, never a path: safe for the About window and for a log line alike.
     string? SkipReasonWord = null,
     // True when the newest record in this provider's own session file is a finished assistant turn
     // old enough, and not too old, to read as "waiting for the user" (see

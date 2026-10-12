@@ -424,7 +424,12 @@ public sealed class ClaudeProvider : IUsageProvider
         var accountLabel = usage.Outcome == LocalLoginOutcome.Ok ? await Task.Run(_readAccountLabel, ct) : null;
         if (usage.Outcome == LocalLoginOutcome.NotSignedIn && usage.Reason == ClaudeCodeLoginReason.TokenExpired
             && _lastLocalLogin is { } last)
-            return HoldOverExpiredToken(last, fetchedAt);
+            return HoldOverLastLogin(last, fetchedAt, ClaudeCodeLoginReason.TokenExpired);
+
+        // A credentials file caught mid-rewrite is no sign-out either: the numbers stay for this tick.
+        if (usage.Outcome == LocalLoginOutcome.Failed && usage.Reason == ClaudeCodeLoginReason.Unreadable
+            && _lastLocalLogin is { } lastGood)
+            return HoldOverLastLogin(lastGood, fetchedAt, ClaudeCodeLoginReason.Unreadable);
 
         var snapshot = usage.Outcome switch
         {
@@ -458,10 +463,11 @@ public sealed class ClaudeProvider : IUsageProvider
         return snapshot;
     }
 
-    /// <summary>The last good local read standing in while Claude Code's token is expired: windows
+    /// <summary>The last good local read standing in while Claude Code's token is expired or its
+    /// credentials file cannot be read right now: windows
     /// that reset since then start over at 0 %, and the data keeps its own timestamp, so the tile
     /// shows how old the numbers are and turns stale after <see cref="ProviderFreshness.StaleAfter"/>.</summary>
-    private static ProviderSnapshot HoldOverExpiredToken(ProviderSnapshot last, DateTimeOffset fetchedAt)
+    private static ProviderSnapshot HoldOverLastLogin(ProviderSnapshot last, DateTimeOffset fetchedAt, ClaudeCodeLoginReason reason)
     {
         var dataTimestamp = last.DataTimestamp ?? last.FetchedAt;
         return ProviderSnapshots.ExpirePastWindows(last, fetchedAt) with
@@ -469,7 +475,7 @@ public sealed class ClaudeProvider : IUsageProvider
             FetchedAt = fetchedAt,
             DataTimestamp = dataTimestamp,
             Status = ProviderFreshness.IsStale(dataTimestamp, [], fetchedAt) ? ProviderStatus.Stale : ProviderStatus.Ok,
-            SkipReasonWord = ReasonWord(ClaudeCodeLoginReason.TokenExpired),
+            SkipReasonWord = ReasonWord(reason),
             HeldOver = true,
         };
     }
@@ -513,6 +519,7 @@ public sealed class ClaudeProvider : IUsageProvider
         ClaudeCodeLoginReason.NoToken => "no_token",
         ClaudeCodeLoginReason.TokenExpired => "token_expired",
         ClaudeCodeLoginReason.NonOkResponse => "non_ok_response",
+        ClaudeCodeLoginReason.Unreadable => "unreadable_file",
         _ => null,
     };
 

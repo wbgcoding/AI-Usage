@@ -39,6 +39,19 @@ public class ClaudeCodeLoginTests
     }
 
     [Fact]
+    public async Task A_credentials_file_caught_half_written_reads_as_a_failed_read_not_a_sign_out()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("claude-code-login-halfwritten");
+        var path = Path.Combine(directory, "credentials.json");
+        File.WriteAllText(path, """{"claudeAiOauth":{"accessToken":"tru""", new UTF8Encoding(false));
+
+        var usage = await ClaudeCodeLogin.FetchAsync(path, CancellationToken.None);
+
+        Assert.Equal(LocalLoginOutcome.Failed, usage.Outcome);
+        Assert.Equal(ClaudeCodeLoginReason.Unreadable, usage.Reason);
+    }
+
+    [Fact]
     public async Task An_expired_token_reports_the_token_expired_reason_without_calling_the_endpoint()
     {
         using var directory = TestPaths.CreateDisposableDirectory("claude-code-login-expired");

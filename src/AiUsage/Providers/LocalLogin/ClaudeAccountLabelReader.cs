@@ -11,8 +11,6 @@ namespace AiUsage.Providers.LocalLogin;
 /// </summary>
 internal static class ClaudeAccountLabelReader
 {
-    private const int MaxLength = 254;
-
     // Claude Code keeps this file inside a custom config folder (CLAUDE_CONFIG_DIR), else directly in
     // the profile folder; the default config folders are never searched for it.
     private static string DefaultPath() => PathFor(
@@ -51,9 +49,7 @@ internal static class ClaudeAccountLabelReader
                 return null;
 
             var email = emailEl.GetString();
-            return email is { Length: > 0 and <= MaxLength } && email.Contains('@', StringComparison.Ordinal)
-                ? email
-                : null;
+            return AccountLabels.LooksLikeEmail(email) ? email : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentOutOfRangeException)
         {

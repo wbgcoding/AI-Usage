@@ -292,6 +292,25 @@ public class ClaudeProviderTests : IDisposable
         settings: null, saveSettings: null, localLogin: login.Read);
 
     [Fact]
+    public async Task An_unreadable_credentials_file_after_a_good_read_keeps_the_last_numbers()
+    {
+        var login = new ExpiringLogin();
+        var provider = LocalLoginProviderAt(() => Now, login);
+        var good = await provider.FetchAsync(CancellationToken.None);
+
+        login.Next = new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.Unreadable);
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal(good.Windows.Select(w => w.UsedPercent), snapshot.Windows.Select(w => w.UsedPercent));
+        Assert.True(snapshot.HeldOver);
+
+        // The next good read carries on from there: nothing was forgotten.
+        login.Next = new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.TokenExpired);
+        Assert.Equal(ProviderStatus.Ok, (await provider.FetchAsync(CancellationToken.None)).Status);
+    }
+
+    [Fact]
     public async Task An_expired_token_after_a_good_read_keeps_the_last_numbers_with_their_age()
     {
         var clock = Now;

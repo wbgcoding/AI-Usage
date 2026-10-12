@@ -11,8 +11,6 @@ namespace AiUsage.Providers.LocalLogin;
 /// </summary>
 internal static class GeminiAccountLabelReader
 {
-    private const int MaxLength = 254;
-
     private static string DefaultPath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "google_accounts.json");
 
@@ -34,9 +32,7 @@ internal static class GeminiAccountLabelReader
                 return null;
 
             var email = activeEl.GetString();
-            return email is { Length: > 0 and <= MaxLength } && email.Contains('@', StringComparison.Ordinal)
-                ? email
-                : null;
+            return AccountLabels.LooksLikeEmail(email) ? email : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentOutOfRangeException)
         {

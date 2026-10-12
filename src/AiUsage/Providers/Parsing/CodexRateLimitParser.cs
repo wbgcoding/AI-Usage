@@ -102,6 +102,7 @@ public static class CodexRateLimitParser
         payload.TryGetProperty("info", out var info)
         && info.ValueKind == JsonValueKind.Object
         && info.TryGetProperty("total_token_usage", out var totalTokenUsage)
+        && totalTokenUsage.ValueKind == JsonValueKind.Object
         && totalTokenUsage.TryGetProperty("total_tokens", out var totalTokens)
         && totalTokens.ValueKind == JsonValueKind.Number
         && totalTokens.TryGetInt64(out var tokens)

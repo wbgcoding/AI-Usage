@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using AiUsage.Models;
 using AiUsage.Web;
@@ -201,11 +200,6 @@ public sealed class WebUsageSource
 
     private const int MaxLoggedNameLength = 40;
 
-    private static bool IsPrintable(char c) => char.GetUnicodeCategory(c) is not (
-        UnicodeCategory.Control or UnicodeCategory.Format or UnicodeCategory.Surrogate
-        or UnicodeCategory.PrivateUse or UnicodeCategory.OtherNotAssigned
-        or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator);
-
     /// <summary>A property name from an external response, safe for the log: <c>{id}</c> for a GUID,
     /// an email address or a long unbroken token with digits (an account or organisation id keying
     /// the body), otherwise cut to a short length with every non-printable character replaced. A long
@@ -220,7 +214,7 @@ public sealed class WebUsageSource
         return string.Create(shortened.Length, shortened, static (span, source) =>
         {
             for (var i = 0; i < span.Length; i++)
-                span[i] = IsPrintable(source[i]) ? source[i] : '?';
+                span[i] = AccountLabels.IsPrintable(source[i]) ? source[i] : '?';
         });
     }
 
@@ -413,26 +407,19 @@ public sealed class WebUsageSource
 
     // A label loose enough to have come from a page script must look at least roughly like an email
     // address before it is trusted as one - never guessed, never reconstructed from a partial value.
-    private const int MaxAccountLabelLength = 254;
-
     /// <summary>An optional "email" field a discovery/fetch script may carry at the envelope's own
     /// root level, alongside "status" - never required, and never anything but a plain string the
     /// page itself read from the signed-in account (see <see cref="CursorDiscoveryScript.Discover"/>
-    /// and <see cref="CodexDiscoveryScript.Discover"/>). Accepted only when it is a string containing
-    /// '@' and no longer than <see cref="MaxAccountLabelLength"/> - anything else is dropped rather
-    /// than shown as a guessed account name.</summary>
+    /// and <see cref="CodexDiscoveryScript.Discover"/>). Accepted only when it is a string
+    /// passing <see cref="AccountLabels.LooksLikeEmail"/> - anything else is dropped rather than
+    /// shown as a guessed account name.</summary>
     internal static string? ReadAccountLabel(JsonElement root)
     {
         if (!root.TryGetProperty("email", out var emailEl) || emailEl.ValueKind != JsonValueKind.String)
             return null;
 
-        // Printable characters only: the label reaches the screen, and a control or bidirectional
-        // character in it could reorder or hide what stands around it.
         var email = emailEl.GetString();
-        return email is { Length: > 0 and <= MaxAccountLabelLength } && email.Contains('@', StringComparison.Ordinal)
-            && email.All(IsPrintable)
-            ? email
-            : null;
+        return AccountLabels.LooksLikeEmail(email) ? email : null;
     }
 
     // The tier wording a page script reads out of the signed-in account; a plain string, bounded so a

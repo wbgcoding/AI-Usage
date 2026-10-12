@@ -70,6 +70,20 @@ public class CodexRateLimitParserTests
         Assert.Null(result.SecondaryResetsAt);
     }
 
+    [Fact]
+    public void TryParse_keeps_the_percentages_when_total_token_usage_is_null()
+    {
+        const string line =
+            """{"timestamp":"2026-09-01T10:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":null},"rate_limits":{"primary":{"used_percent":2.0,"window_minutes":300},"secondary":{"used_percent":88.0,"window_minutes":10080}}}}""";
+
+        var ok = CodexRateLimitParser.TryParse(line, out var result);
+
+        Assert.True(ok);
+        Assert.Equal(2.0, result!.PrimaryUsedPercent);
+        Assert.Equal(88.0, result.SecondaryUsedPercent);
+        Assert.Null(result.TotalTokens);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
