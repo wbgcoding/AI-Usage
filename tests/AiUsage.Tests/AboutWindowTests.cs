@@ -60,13 +60,9 @@ public class AboutWindowTests
 
         Assert.NotNull(results);
 
-        // Same order ProviderRegistry.CreateAll always builds them in with default settings: the
-        // primary Claude account, then Codex, Cursor, Gemini and Copilot (the tile order).
-        IReadOnlyList<IUsageProvider> providers =
-        [
-            ProviderRegistry.CreatePrimaryClaudeAccount(), new CodexProvider(), new CursorProvider(),
-            new GeminiProvider(), new CopilotProvider(),
-        ];
+        // One group per provider kind of the registry, in tile order.
+        var providers = ProviderRegistry.Kinds;
+        Assert.Equal(AppSettings.KnownProviderIds, providers.Select(kind => kind.Id));
 
         Assert.Equal(providers.Count, results!.Count);
         for (var i = 0; i < providers.Count; i++)
@@ -261,12 +257,9 @@ public class AboutWindowTests
             var window = new SettingsWindow(settingsViewModel);
             var panel = window.AboutReadLocationsPanel;
 
-            IReadOnlyList<IUsageProvider> providers =
-            [
-                ProviderRegistry.CreatePrimaryClaudeAccount(), new CodexProvider(), new CursorProvider(),
-                new GeminiProvider(), new CopilotProvider(),
-            ];
+            var providers = ProviderRegistry.Kinds;
 
+            Assert.Equal(providers.Count, panel.Children.Count);
             var results = new List<GroupResult>();
             for (var i = 0; i < providers.Count; i++)
             {

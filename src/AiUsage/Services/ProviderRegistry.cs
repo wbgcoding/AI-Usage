@@ -19,6 +19,23 @@ public static class ProviderRegistry
     /// its network endpoint), however often the tile ticks.</summary>
     internal static readonly TimeSpan RemoteReadFloor = TimeSpan.FromMinutes(5);
 
+    private static readonly Lazy<IReadOnlyList<ProviderKind>> LazyKinds = new(() =>
+    [
+        .. AppSettings.KnownProviderIds.Select(id => new ProviderKind(id switch
+        {
+            "codex" => new CodexProvider(),
+            "cursor" => new CursorProvider(),
+            "gemini" => new GeminiProvider(),
+            "copilot" => new CopilotProvider(),
+            "claude" => CreatePrimaryClaudeAccount(),
+            _ => throw new InvalidOperationException($"No display provider for the known id '{id}'."),
+        })),
+    ]);
+
+    /// <summary>Every provider kind the app knows, in tile order: the one list the About page and the
+    /// statistics read, so a provider added to <see cref="AppSettings.KnownProviderIds"/> shows up in both.</summary>
+    public static IReadOnlyList<ProviderKind> Kinds => LazyKinds.Value;
+
     /// <summary>How often one account may be read at most: its own value when it has one, else the
     /// global one. A route that costs more than a plain request (a web session, a network endpoint)
     /// never goes below <see cref="RemoteReadFloor"/>; <paramref name="belowFloorAllowed"/> lifts that

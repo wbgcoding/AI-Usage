@@ -472,19 +472,13 @@ public partial class SettingsWindow : Window
 
     /// <summary>
     /// One collapsible group per known provider instead of one flat wall-of-text line, generated from
-    /// <see cref="IUsageProvider.ReadLocations"/> rather than typed out here - a provider added later
-    /// without filling that property in shows up as an empty group, which is visible and therefore
-    /// gets fixed, instead of silently doing nothing.
+    /// <see cref="ProviderRegistry.Kinds"/> rather than typed out here - a provider added to the
+    /// registry shows up as a group, and one without read locations as an empty group, which is
+    /// visible and therefore gets fixed, instead of silently doing nothing.
     /// </summary>
     private void BuildAboutReadLocationsList()
     {
-        IReadOnlyList<IUsageProvider> providers =
-        [
-            ProviderRegistry.CreatePrimaryClaudeAccount(), new CodexProvider(), new CursorProvider(),
-            new GeminiProvider(), new CopilotProvider(),
-        ];
-
-        foreach (var provider in providers)
+        foreach (var provider in ProviderRegistry.Kinds)
             AboutReadLocationsPanel.Children.Add(BuildAboutProviderGroup(provider));
     }
 
@@ -492,7 +486,7 @@ public partial class SettingsWindow : Window
     /// words, where its numbers come from, opening into one row per read location plus the usage page
     /// link. Starts collapsed - four providers' worth of paths at once was exactly the wall of text
     /// this replaces, so nothing shows until asked for.</summary>
-    private System.Windows.Controls.StackPanel BuildAboutProviderGroup(IUsageProvider provider)
+    private System.Windows.Controls.StackPanel BuildAboutProviderGroup(ProviderKind provider)
     {
         var loc = LocalizationService.Instance;
 

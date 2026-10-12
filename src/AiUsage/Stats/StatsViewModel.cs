@@ -608,19 +608,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public bool HasImportedFrom => ImportedFromText.Length > 0;
 
-    /// <summary>Throwaway instances built only to read <see cref="Services.IUsageProvider.DisplayName"/> -
-    /// the same reasoning <see cref="Views.SettingsWindow.BuildAboutReadLocationsList"/> already uses for its
-    /// own "every known provider" list, never a second, hand-typed copy of the same five names.
+    /// <summary>The display name of every known provider, from the same list the About page uses
+    /// (<see cref="ProviderRegistry.Kinds"/>), never a second, hand-typed copy of the names.
     /// Public rather than internal: StatsWindow.xaml reaches it through <c>x:Static</c>, which only
     /// ever resolves a public static member, even from inside the same assembly.</summary>
-    public static readonly IReadOnlyDictionary<string, string> ProviderDisplayNames = new Dictionary<string, string>
-    {
-        ["claude"] = new ClaudeProvider().DisplayName,
-        ["codex"] = new CodexProvider().DisplayName,
-        ["cursor"] = new CursorProvider().DisplayName,
-        ["gemini"] = new GeminiProvider().DisplayName,
-        ["copilot"] = new CopilotProvider().DisplayName,
-    };
+    public static readonly IReadOnlyDictionary<string, string> ProviderDisplayNames =
+        ProviderRegistry.Kinds.ToDictionary(kind => kind.Id, kind => kind.DisplayName);
 
     /// <summary>True only for Day/Week grouping - the chart needs two stacked series brushes then,
     /// one per provider, instead of the single series Model/Project grouping draws.</summary>
