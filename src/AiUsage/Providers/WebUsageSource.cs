@@ -39,6 +39,13 @@ public sealed class WebUsageSource
     private readonly Action<string>? _log;
     private readonly AccountExtrasCache _extras;
 
+    // The account ids a discovered usage path carries (the Claude organisation, Cursor's account).
+    // Kept in memory only: settings.json stores the path with {org}/{sub} placeholders, so a copy of
+    // that file or a backup never carries an account id. Filled by a discovery or by an older file's
+    // raw path; a stored placeholder with no id here is rediscovered.
+    private string? _organizationId;
+    private string? _accountId;
+
     /// <summary>Which provider this instance reads for - carried mainly so callers and future
     /// providers have one place to confirm which session a given instance belongs to.</summary>
     public WebSessionDescriptor Descriptor { get; }
@@ -69,9 +76,24 @@ public sealed class WebUsageSource
     public async Task<WebUsageResult> FetchAsync(AppSettings settings, Action<AppSettings> save, CancellationToken ct)
     {
         var accountKey = Descriptor.ProviderId;
-        if (settings.WebUsagePaths.TryGetValue(accountKey, out var cachedPath) && cachedPath is { Length: > 0 })
+        if (settings.WebUsagePaths.TryGetValue(accountKey, out var storedPath) && storedPath is { Length: > 0 })
         {
-            if (!_endpoint.IsAllowedUsagePath(cachedPath))
+            // An older file holds the raw id: take it into memory and store the placeholder form.
+            var (placeholderPath, pathOrg, pathAccount) = ToPlaceholderPath(storedPath);
+            _organizationId = pathOrg ?? _organizationId;
+            _accountId = pathAccount ?? _accountId;
+            if (placeholderPath != storedPath)
+            {
+                settings.WebUsagePaths[accountKey] = placeholderPath;
+                save(settings);
+            }
+
+            var cachedPath = FillPlaceholders(placeholderPath, _organizationId, _accountId);
+            if (cachedPath is null)
+            {
+                // The id is not known in this session yet: the discovery below finds it again.
+            }
+            else if (!_endpoint.IsAllowedUsagePath(cachedPath))
             {
                 // A stored path outside the allow-list is treated as poisoned, never handed to
                 // Fetch: drop it and fall through to a fresh discovery.
@@ -108,10 +130,77 @@ public sealed class WebUsageSource
         var (result, discoveredPath) = await RunDiscoveryAsync(ct);
         if (result.Outcome == WebUsageOutcome.Ok && discoveredPath is not null)
         {
-            settings.WebUsagePaths[accountKey] = discoveredPath;
+            var (placeholderPath, discoveredOrg, discoveredAccount) = ToPlaceholderPath(discoveredPath);
+            _organizationId = discoveredOrg ?? _organizationId;
+            _accountId = discoveredAccount ?? _accountId;
+            settings.WebUsagePaths[accountKey] = placeholderPath;
             save(settings);
         }
         return result;
+    }
+
+    private const string OrganizationPlaceholder = "{org}";
+    private const string AccountPlaceholder = "{sub}";
+
+    /// <summary>The path with its account ids swapped for <c>{org}</c> (a 36-character id as a path
+    /// segment) and <c>{sub}</c> (the value of a <c>user</c> query parameter), plus the ids found.
+    /// A path without ids comes back unchanged.</summary>
+    internal static (string Path, string? OrganizationId, string? AccountId) ToPlaceholderPath(string path)
+    {
+        string? organizationId = null;
+        string? accountId = null;
+
+        var queryStart = path.IndexOf('?');
+        var pathPart = queryStart < 0 ? path : path[..queryStart];
+        var segments = pathPart.Split('/');
+        for (var i = 0; i < segments.Length; i++)
+        {
+            if (segments[i].Length == 36 && segments[i].All(c => char.IsAsciiHexDigit(c) || c == '-'))
+            {
+                organizationId = segments[i];
+                segments[i] = OrganizationPlaceholder;
+            }
+        }
+
+        var result = string.Join('/', segments);
+        if (queryStart >= 0)
+        {
+            var pairs = path[(queryStart + 1)..].Split('&');
+            for (var i = 0; i < pairs.Length; i++)
+            {
+                if (pairs[i].StartsWith("user=", StringComparison.Ordinal) && pairs[i].Length > "user=".Length
+                    && pairs[i] != "user=" + AccountPlaceholder)
+                {
+                    accountId = pairs[i]["user=".Length..];
+                    pairs[i] = "user=" + AccountPlaceholder;
+                }
+            }
+
+            result += "?" + string.Join('&', pairs);
+        }
+
+        return (result, organizationId, accountId);
+    }
+
+    /// <summary>The path with the held ids put back; null when it names a placeholder whose id is not
+    /// known.</summary>
+    internal static string? FillPlaceholders(string path, string? organizationId, string? accountId)
+    {
+        if (path.Contains(OrganizationPlaceholder, StringComparison.Ordinal))
+        {
+            if (organizationId is null)
+                return null;
+            path = path.Replace(OrganizationPlaceholder, organizationId, StringComparison.Ordinal);
+        }
+
+        if (path.Contains(AccountPlaceholder, StringComparison.Ordinal))
+        {
+            if (accountId is null)
+                return null;
+            path = path.Replace(AccountPlaceholder, accountId, StringComparison.Ordinal);
+        }
+
+        return path;
     }
 
     private void RememberExtras(string envelopeJson)

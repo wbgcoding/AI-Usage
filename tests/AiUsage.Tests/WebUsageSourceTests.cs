@@ -13,6 +13,10 @@ public class WebUsageSourceTests
     private const string UsagePath = $"/api/organizations/{OrgId}/usage";
     private const string UsageLimitsPath = $"/api/organizations/{OrgId}/usage_limits";
 
+    // What settings.json holds instead of the organisation id.
+    private const string StoredUsagePath = "/api/organizations/{org}/usage";
+    private const string StoredUsageLimitsPath = "/api/organizations/{org}/usage_limits";
+
     private static readonly WebSessionDescriptor Descriptor = new(
         ProviderId: "claude", BaseUrl: "https://claude.ai/",
         SignInUrl: "https://claude.ai/login", AllowedHosts: ["claude.ai"], ProfileFolderName: "claude");
@@ -37,8 +41,96 @@ public class WebUsageSourceTests
 
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Single(result.Windows);
-        Assert.Equal(UsagePath, settings.WebUsagePaths.GetValueOrDefault("claude"));
+        Assert.Equal(StoredUsagePath, settings.WebUsagePaths.GetValueOrDefault("claude"));
         Assert.Single(saved);
+    }
+
+    [Fact]
+    public async Task The_saved_settings_text_holds_no_account_id_and_the_next_read_uses_the_one_in_memory()
+    {
+        var settings = new AppSettings();
+        var scripts = new List<string>();
+        var body = """{"status":"ok","path":"__PATH__","body":"{\"five_hour\":{\"utilization\":42,\"resets_at\":1788624000}}"}"""
+            .Replace("__PATH__", UsagePath);
+        var source = Source((script, _) =>
+        {
+            scripts.Add(script);
+            return Task.FromResult(body);
+        });
+
+        await source.FetchAsync(settings, _ => { }, CancellationToken.None);
+        var saved = System.Text.Json.JsonSerializer.Serialize(settings);
+        Assert.DoesNotContain(OrgId, saved, StringComparison.Ordinal);
+        Assert.Contains("{org}", saved, StringComparison.Ordinal);
+
+        await source.FetchAsync(settings, _ => { }, CancellationToken.None);
+        Assert.Equal(2, scripts.Count);
+        Assert.Contains(UsagePath, scripts[1], StringComparison.Ordinal); // the direct read, with the id filled in
+        Assert.DoesNotContain("{org}", scripts[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_stored_placeholder_without_an_id_in_this_session_is_rediscovered()
+    {
+        var settings = new AppSettings { WebUsagePaths = { ["claude"] = StoredUsagePath } };
+        var scripts = new List<string>();
+        var body = """{"status":"ok","path":"__PATH__","body":"{\"five_hour\":{\"utilization\":42,\"resets_at\":1788624000}}"}"""
+            .Replace("__PATH__", UsagePath);
+        var source = Source((script, _) =>
+        {
+            scripts.Add(script);
+            return Task.FromResult(body);
+        });
+
+        var first = await source.FetchAsync(settings, _ => { }, CancellationToken.None);
+        var second = await source.FetchAsync(settings, _ => { }, CancellationToken.None);
+
+        Assert.Equal(WebUsageOutcome.Ok, first.Outcome);
+        Assert.Equal(WebUsageOutcome.Ok, second.Outcome);
+        Assert.Contains("/api/organizations", scripts[0], StringComparison.Ordinal); // the walk found the id
+        Assert.Contains(UsagePath, scripts[1], StringComparison.Ordinal);            // the next read is direct
+        Assert.Equal(StoredUsagePath, settings.WebUsagePaths["claude"]);
+    }
+
+    [Fact]
+    public async Task A_path_with_a_raw_id_from_an_older_file_is_replaced_by_its_placeholder_form()
+    {
+        var settings = new AppSettings { WebUsagePaths = { ["claude"] = UsagePath } };
+        var saved = new List<AppSettings>();
+        var scripts = new List<string>();
+        var body = """{"status":"ok","path":"__PATH__","body":"{\"five_hour\":{\"utilization\":42,\"resets_at\":1788624000}}"}"""
+            .Replace("__PATH__", UsagePath);
+        var source = Source((script, _) =>
+        {
+            scripts.Add(script);
+            return Task.FromResult(body);
+        });
+
+        var result = await source.FetchAsync(settings, s => saved.Add(s), CancellationToken.None);
+
+        Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
+        Assert.Equal(StoredUsagePath, settings.WebUsagePaths["claude"]);
+        Assert.NotEmpty(saved);
+        Assert.Single(scripts); // the id from the old file still serves this session's read
+        Assert.Contains(UsagePath, scripts[0], StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/api/usage?user=user_01ABC", "/api/usage?user={sub}", null, "user_01ABC")]
+    [InlineData("/api/usage?user={sub}", "/api/usage?user={sub}", null, null)]
+    [InlineData("/api/usage-summary", "/api/usage-summary", null, null)]
+    [InlineData("/backend-api/codex/usage", "/backend-api/codex/usage", null, null)]
+    [InlineData("/api/organizations/" + OrgId + "/usage", "/api/organizations/{org}/usage", OrgId, null)]
+    public void Account_ids_in_a_path_are_swapped_for_placeholders_and_put_back(string path, string stored, string? org, string? sub)
+    {
+        var (placeholder, foundOrg, foundSub) = WebUsageSource.ToPlaceholderPath(path);
+
+        Assert.Equal(stored, placeholder);
+        Assert.Equal(org, foundOrg);
+        Assert.Equal(sub, foundSub);
+        if (org is not null || sub is not null)
+            Assert.Equal(path, WebUsageSource.FillPlaceholders(placeholder, org, sub));
+        Assert.Null(WebUsageSource.FillPlaceholders("/x/{org}/{sub}", null, null));
     }
 
     [Fact]
@@ -81,7 +173,7 @@ public class WebUsageSourceTests
 
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Equal(2, calls);
-        Assert.Equal(UsageLimitsPath, settings.WebUsagePaths.GetValueOrDefault("claude"));
+        Assert.Equal(StoredUsageLimitsPath, settings.WebUsagePaths.GetValueOrDefault("claude"));
     }
 
     [Fact]
@@ -104,7 +196,7 @@ public class WebUsageSourceTests
 
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Single(scripts); // only the rediscovery walk ran, never a Fetch of the poisoned path
-        Assert.Equal(UsagePath, settings.WebUsagePaths.GetValueOrDefault("claude")); // rediscovery's own result, not the poisoned value
+        Assert.Equal(StoredUsagePath, settings.WebUsagePaths.GetValueOrDefault("claude")); // rediscovery's own result, not the poisoned value
     }
 
     [Fact]
@@ -137,7 +229,7 @@ public class WebUsageSourceTests
 
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Single(result.Windows);
-        Assert.Equal(UsagePath, settings.WebUsagePaths.GetValueOrDefault("claude"));
+        Assert.Equal(StoredUsagePath, settings.WebUsagePaths.GetValueOrDefault("claude"));
         Assert.Single(saved);
     }
 
