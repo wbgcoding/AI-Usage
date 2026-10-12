@@ -200,7 +200,18 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         if (_disposed || !ReferenceEquals(_host, host))
             throw new OperationCanceledException("The hidden session was closed.");
 
-        var scriptTask = host.ExecuteScriptAsync(script, ct);
+        Task<string> scriptTask;
+        try
+        {
+            scriptTask = host.ExecuteScriptAsync(script, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A host that cannot even start the call is broken: replace it for the next call.
+            await DropHostAsync(host);
+            throw;
+        }
+
         if (!await WinsAgainstTimeoutAsync(scriptTask, _scriptTimeout, ct))
         {
             // The script call itself is abandoned here - the whole session is torn down so the
@@ -208,9 +219,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
             // busy with (or stuck on) this call, and the abandoned task's eventual fault is
             // observed so it never surfaces as an unobserved task exception.
             _ = scriptTask.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
-            _host = null;
-            _ready = null;
-            await host.DisposeAsync();
+            await DropHostAsync(host);
 
             ct.ThrowIfCancellationRequested();
             throw new TimeoutException("Script execution timed out.");
@@ -219,10 +228,37 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         {
             return await scriptTask;
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A dead browser process faults here instead of timing out: drop it like a timeout does,
+            // so the next call builds a new session instead of failing on this one until restart.
+            await DropHostAsync(host);
+            throw;
+        }
         finally
         {
             _lastActivityAt = _timeProvider.GetUtcNow();
-            _suspendTask = SuspendQuietlyAsync(host);
+            if (ReferenceEquals(_host, host))
+                _suspendTask = SuspendQuietlyAsync(host);
+        }
+    }
+
+    /// <summary>Forgets <paramref name="host"/> and closes it, unless it was already replaced or closed
+    /// (a browser-process failure and a failing call can both ask for the same teardown).</summary>
+    private async Task DropHostAsync(IHiddenBrowserHost host)
+    {
+        if (!ReferenceEquals(_host, host))
+            return;
+
+        _host = null;
+        _ready = null;
+        try
+        {
+            await host.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Disposing the failed hidden browser failed ({ex.GetType().Name}).");
         }
     }
 
@@ -363,6 +399,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
             _host = host;
             _hostContext = context;
             _lastActivityAt = _timeProvider.GetUtcNow();
+            host.ProcessFailed += () => _ = DropHostAsync(host);
         }
         catch
         {
@@ -434,6 +471,14 @@ internal interface IHiddenBrowserHost : IAsyncDisposable
 
     /// <summary>The id of the browser process behind this session; null when unknown.</summary>
     int? BrowserProcessId => null;
+
+    /// <summary>Raised when the browser process or the page's renderer died; the session cannot be
+    /// used any more and the owner replaces it.</summary>
+    event Action? ProcessFailed
+    {
+        add { }
+        remove { }
+    }
 }
 
 /// <summary>
@@ -475,6 +520,8 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     private int? _browserProcessId;
 
     public int? BrowserProcessId => _browserProcessId;
+
+    public event Action? ProcessFailed;
 
     public WebView2HiddenBrowserHost(WebViewHost host, WebSessionDescriptor descriptor)
     {
@@ -525,6 +572,14 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         }
 
         _browserProcessId = (int)webView.CoreWebView2.BrowserProcessId;
+        webView.CoreWebView2.ProcessFailed += (_, e) =>
+        {
+            if (e.ProcessFailedKind is Microsoft.Web.WebView2.Core.CoreWebView2ProcessFailedKind.BrowserProcessExited
+                or Microsoft.Web.WebView2.Core.CoreWebView2ProcessFailedKind.RenderProcessExited)
+            {
+                ProcessFailed?.Invoke();
+            }
+        };
 
         // Never shown, never interacted with by a person - so nothing here needs F12, a right-click
         // menu, or the browser's own accelerator keys, and every one of those is a way this hidden

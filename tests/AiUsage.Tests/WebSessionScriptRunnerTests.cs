@@ -353,40 +353,89 @@ public class WebSessionScriptRunnerTests
         Assert.Equal("second", result);
     }
 
-    // A script that keeps failing is still use of the session: it must not make a healthy host look
-    // idle and get rebuilt on every attempt.
+    // A call that faults is the sign of a dead browser (a crashed process throws instead of timing
+    // out): the host is replaced, not kept for the next tick.
     [Fact]
-    public async Task A_failing_script_keeps_the_host_alive_for_the_next_call_within_the_idle_span()
+    public async Task A_script_call_that_faults_replaces_the_host_for_the_next_call()
     {
         var starts = 0;
         FakeHiddenBrowserHost? current = null;
-        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var runner = new WebSessionScriptRunner(() =>
         {
             starts++;
             current = new FakeHiddenBrowserHost();
             current.CompleteNavigate(true);
             return current;
-        }, timeProvider: clock);
+        });
 
         var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
         current!.CompleteScript("first");
         await firstCall;
         var firstHost = current!;
 
-        clock.Advance(TimeSpan.FromMinutes(10));
         var failingCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
-        firstHost.FailScript(new InvalidOperationException("script failed"));
+        firstHost.FailScript(new InvalidOperationException("browser gone"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => failingCall);
+        Assert.True(firstHost.Disposed);
 
-        clock.Advance(TimeSpan.FromMinutes(10));
         var thirdCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
         current!.CompleteScript("third");
         var result = await thirdCall;
 
-        Assert.Equal(1, starts);
-        Assert.False(firstHost.Disposed);
+        Assert.Equal(2, starts);
+        Assert.NotSame(firstHost, current);
         Assert.Equal("third", result);
+    }
+
+    [Fact]
+    public async Task A_host_that_throws_while_starting_the_call_is_replaced()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost { ThrowOnExecute = new InvalidOperationException("no core") };
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        var broken = current;
+        Assert.True(broken!.Disposed);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.Equal(2, starts);
+        Assert.NotSame(broken, current);
+    }
+
+    [Fact]
+    public async Task A_browser_process_failure_drops_the_host_before_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        var firstHost = current!;
+
+        firstHost.RaiseProcessFailed();
+        await Task.Delay(20);
+        Assert.True(firstHost.Disposed);
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("second");
+        Assert.Equal("second", await secondCall);
+        Assert.Equal(2, starts);
+        Assert.NotSame(firstHost, current);
     }
 
     [Fact]
@@ -986,6 +1035,12 @@ public class WebSessionScriptRunnerTests
 
         public bool Disposed { get; private set; }
 
+        public Exception? ThrowOnExecute { get; init; }
+
+        public event Action? ProcessFailed;
+
+        public void RaiseProcessFailed() => ProcessFailed?.Invoke();
+
         public int? ProcessId { get; init; }
 
         public int? BrowserProcessId => ProcessId;
@@ -1024,6 +1079,8 @@ public class WebSessionScriptRunnerTests
         public Task<string> ExecuteScriptAsync(string script, CancellationToken ct)
         {
             ExecuteCalls++;
+            if (ThrowOnExecute is not null)
+                throw ThrowOnExecute;
             // The real host reads a field that disposal has already cleared.
             if (Disposed)
                 throw new NullReferenceException();
