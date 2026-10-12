@@ -1318,12 +1318,13 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     }
 
     /// <summary>Null (no marker) unless <paramref name="thresholds"/> is supplied and that window's
-    /// own notification is switched on - matches exactly the two windows <see
-    /// cref="NotificationService.Evaluate"/> already watches.</summary>
+    /// own notification is switched on - the same three windows <see
+    /// cref="NotificationService.Evaluate"/> watches.</summary>
     private static double? ThresholdPercentFor(WindowKind kind, ThresholdSettings? thresholds) => (kind, thresholds) switch
     {
         (WindowKind.FiveHour, { FiveHourEnabled: true } t) => t.FiveHour,
         (WindowKind.Weekly, { WeeklyEnabled: true } t) => t.Weekly,
+        (WindowKind.Other, { OtherEnabled: true } t) => t.Other,
         _ => null,
     };
 

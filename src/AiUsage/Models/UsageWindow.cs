@@ -34,7 +34,8 @@ public sealed record UsageWindow
     {
         Label = label;
         Kind = kind;
-        UsedPercent = Math.Clamp(usedPercent, 0, 100);
+        // Clamp lets NaN through, and a NaN percent cannot be written to the history file.
+        UsedPercent = double.IsNaN(usedPercent) ? 0 : Math.Clamp(usedPercent, 0, 100);
         ResetsAt = resetsAt;
         WindowMinutes = windowMinutes;
         Tokens = tokens;

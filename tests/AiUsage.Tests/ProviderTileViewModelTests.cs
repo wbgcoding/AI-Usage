@@ -56,6 +56,33 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
+    public void AnOtherWindowShowsItsOwnThresholdMarker()
+    {
+        var tile = new ProviderTileViewModel("cursor", "Cursor");
+        var snapshot = new ProviderSnapshot(
+            "cursor", [new UsageWindow("Model", WindowKind.Other, 40, Now.AddDays(3), null)], null, SourceKind.WebSession,
+            Now, Now, ProviderStatus.Ok, null);
+
+        tile.Apply(snapshot, Now, new ThresholdSettings { Other = 65, OtherEnabled = true });
+        Assert.Equal(65, tile.Rows.Single().ThresholdPercent);
+        Assert.True(tile.Rows.Single().ShowThresholdMarker);
+
+        tile.Apply(snapshot, Now, new ThresholdSettings { Other = 65, OtherEnabled = false });
+        Assert.False(tile.Rows.Single().ShowThresholdMarker);
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 0)]
+    [InlineData(-5, 0)]
+    [InlineData(140, 100)]
+    public void AUsageWindowKeepsItsPercentBetweenZeroAndHundred(double input, double expected)
+    {
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, input, null, 300);
+
+        Assert.Equal(expected, window.UsedPercent);
+    }
+
+    [Fact]
     public void TheNameTooltipSaysClickForDetailsOnlyWhileThereAreDetails()
     {
         var loc = LocalizationService.Instance;
