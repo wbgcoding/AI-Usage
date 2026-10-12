@@ -1863,7 +1863,8 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The days of <paramref name="range"/> as of <paramref name="today"/>. The rolling
     /// ranges end today and are compared with the period of the same length right before them. This
-    /// month and last month are calendar months, compared with the calendar month before them. A
+    /// month is compared with the same number of days from the start of the month before (capped at
+    /// that month's end); last month is a full calendar month, compared with the full month before. A
     /// custom range runs between its two days (never past today), compared with the same number of
     /// days right before it. "All" has no comparison.</summary>
     internal static StatsPeriod ResolvePeriod(
@@ -1879,7 +1880,15 @@ public sealed partial class StatsViewModel : ObservableObject
                     first = first.AddMonths(-1);
                 var last = range == "LastMonth" ? first.AddMonths(1).AddDays(-1) : today;
                 var previousFirst = first.AddMonths(-1);
-                return new StatsPeriod(first, last, previousFirst, first.AddDays(-1), true);
+                var previousLast = first.AddDays(-1);
+                if (range == "ThisMonth")
+                {
+                    var sameLength = previousFirst.AddDays(today.DayNumber - first.DayNumber);
+                    if (sameLength < previousLast)
+                        previousLast = sameLength;
+                }
+
+                return new StatsPeriod(first, last, previousFirst, previousLast, true);
             }
             case CustomRange:
             {

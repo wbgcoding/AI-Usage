@@ -1192,13 +1192,20 @@ public class StatsViewModelTests
     }
 
     [Fact]
-    public void ThisMonthAndLastMonthAreCalendarMonthsComparedWithTheMonthBefore()
+    public void ThisMonthIsComparedWithTheSameDaysOfTheMonthBeforeAndLastMonthWithTheFullMonthBefore()
     {
         var today = new DateOnly(2026, 10, 10);
 
         var thisMonth = StatsViewModel.ResolvePeriod("ThisMonth", today, default, default);
         Assert.Equal((new DateOnly(2026, 10, 1), today), (thisMonth.From, thisMonth.To));
-        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)), (thisMonth.PreviousFrom, thisMonth.PreviousTo));
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 10)), (thisMonth.PreviousFrom, thisMonth.PreviousTo));
+
+        var third = StatsViewModel.ResolvePeriod("ThisMonth", new DateOnly(2026, 10, 3), default, default);
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 3)), (third.PreviousFrom, third.PreviousTo));
+
+        // The 31st against a shorter month before: capped at that month's last day.
+        var thirtyFirst = StatsViewModel.ResolvePeriod("ThisMonth", new DateOnly(2026, 3, 31), default, default);
+        Assert.Equal((new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)), (thirtyFirst.PreviousFrom, thirtyFirst.PreviousTo));
 
         var lastMonth = StatsViewModel.ResolvePeriod("LastMonth", today, default, default);
         Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)), (lastMonth.From, lastMonth.To));
@@ -1214,7 +1221,7 @@ public class StatsViewModelTests
 
         var thisJanuary = StatsViewModel.ResolvePeriod("ThisMonth", new DateOnly(2027, 1, 15), default, default);
         Assert.Equal(new DateOnly(2027, 1, 1), thisJanuary.From);
-        Assert.Equal((new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 31)), (thisJanuary.PreviousFrom, thisJanuary.PreviousTo));
+        Assert.Equal((new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 15)), (thisJanuary.PreviousFrom, thisJanuary.PreviousTo));
 
         var leap = StatsViewModel.ResolvePeriod("LastMonth", new DateOnly(2028, 3, 5), default, default);
         Assert.Equal((new DateOnly(2028, 2, 1), new DateOnly(2028, 2, 29)), (leap.From, leap.To));
