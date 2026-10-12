@@ -258,7 +258,7 @@
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Deckkraft des Fensters</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0} %</value></data>
   <data name="Settings.RefreshInterval" xml:space="preserve"><value>Aktualisierungsintervall</value></data>
-  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Websitzungen höchstens alle {0} min</value></data>
+  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Abrufe übers Netz höchstens alle {0} min</value></data>
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Letzte erfolgreiche Aktualisierung</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>noch nie</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Ein</value></data>
@@ -556,4 +556,19 @@
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>{0} Tage Token-Verlauf von {1} importiert.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Entfernen</value></data>
   <data name="Stats.ImportedFrom" xml:space="preserve"><value>Enthält Verlauf von: {0}</value></data>
+  <data name="State.Failed.RateLimited.Head" xml:space="preserve"><value>{0} bremst die Abfragen</value></data>
+  <data name="State.Failed.RateLimited.Reason" xml:space="preserve"><value>Gerade zu viele Abfragen (HTTP {1}). Der nächste Versuch wartet etwas länger.</value></data>
+  <data name="Update.Downloading" xml:space="preserve"><value>Das Update wird heruntergeladen …</value></data>
+  <data name="Update.NoMatchingFile" xml:space="preserve"><value>Dieses Release enthält keine Datei für deine Fassung von AI-Usage. Details stehen auf der Release-Seite.</value></data>
+  <data name="Settings.QuietHours.From" xml:space="preserve"><value>Keine Meldungen ab</value></data>
+  <data name="Settings.QuietHours.Until" xml:space="preserve"><value>Keine Meldungen bis</value></data>
+  <data name="Settings.DataFolder.Unreachable" xml:space="preserve"><value>Dein gewählter Ordner {0} ist gerade nicht erreichbar, deshalb nutzt diese Sitzung den Standardordner.</value></data>
+  <data name="Settings.DataFolder.Risky.Title" xml:space="preserve"><value>Diesen Ordner verwenden?</value></data>
+  <data name="Settings.DataFolder.Risky.Body" xml:space="preserve"><value>Dieser Ordner liegt auf einem Netzlaufwerk, einem Wechseldatenträger oder in einem Cloud-Sync-Ordner. Dort kann der Token-Index beschädigt werden, wenn die Verbindung abbricht oder während des Schreibens synchronisiert wird, und er ist die einzige Kopie deiner bisherigen Nutzung. Trotzdem verwenden?</value></data>
+  <data name="Settings.DataFolder.Risky.UseAnyway" xml:space="preserve"><value>Trotzdem verwenden</value></data>
+  <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Höchstens abrufen alle</value></data>
+  <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Standard ({0} min)</value></data>
+  <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>Wie oft AI-Usage diesen Anbieter höchstens abfragt. Standard folgt dem Regler unter Abruf.</value></data>
+  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Gilt für jeden Abruf übers Internet; unter Anbieter lässt sich das je Anbieter ändern. Eine Browsersitzung wird höchstens alle 5 Minuten gelesen.</value></data>
 </root>

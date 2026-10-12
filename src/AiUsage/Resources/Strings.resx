@@ -259,7 +259,7 @@
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Window opacity</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0}%</value></data>
   <data name="Settings.RefreshInterval" xml:space="preserve"><value>Refresh interval</value></data>
-  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Web sources at most every {0} min</value></data>
+  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Online reads at most every {0} min</value></data>
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Last successful update</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>never</value></data>
   <data name="Settings.On" xml:space="preserve"><value>On</value></data>
@@ -482,7 +482,7 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>The update could not finish. Your program file is now at {0}. Rename it back to AI-Usage.exe to start the app again.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>The installer did not start. If you closed the administrator prompt, try again.</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warn when a limit will likely be reached within 30 minutes</value></data>
-  <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} will likely be full in about {2} (now {3} %)</value></data>
+  <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} will likely be full in about {2} (now {3}%)</value></data>
   <data name="Settings.QuietWeekend" xml:space="preserve"><value>Also quiet all weekend (Saturday and Sunday)</value></data>
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, running low</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, limit almost reached</value></data>
@@ -557,4 +557,19 @@
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>
   <data name="Stats.ImportedFrom" xml:space="preserve"><value>Includes history from: {0}</value></data>
+  <data name="State.Failed.RateLimited.Head" xml:space="preserve"><value>{0} asks for fewer requests</value></data>
+  <data name="State.Failed.RateLimited.Reason" xml:space="preserve"><value>Too many requests right now (HTTP {1}). The next attempt waits a little longer.</value></data>
+  <data name="Update.Downloading" xml:space="preserve"><value>Downloading the update…</value></data>
+  <data name="Update.NoMatchingFile" xml:space="preserve"><value>This release has no file for your copy of AI-Usage. The release page has the details.</value></data>
+  <data name="Settings.QuietHours.From" xml:space="preserve"><value>No notifications from</value></data>
+  <data name="Settings.QuietHours.Until" xml:space="preserve"><value>No notifications until</value></data>
+  <data name="Settings.DataFolder.Unreachable" xml:space="preserve"><value>Your chosen folder {0} is not available right now, so this session uses the default folder.</value></data>
+  <data name="Settings.DataFolder.Risky.Title" xml:space="preserve"><value>Use this folder?</value></data>
+  <data name="Settings.DataFolder.Risky.Body" xml:space="preserve"><value>This folder is on a network drive, a removable drive or in a cloud sync folder. The token index can be damaged there when the connection drops or a sync runs while it is written, and it is the only copy of your past usage. Use it anyway?</value></data>
+  <data name="Settings.DataFolder.Risky.UseAnyway" xml:space="preserve"><value>Use anyway</value></data>
+  <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Read at most every</value></data>
+  <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Default ({0} min)</value></data>
+  <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>How often AI-Usage asks this provider at most. Default follows the slider under Refresh.</value></data>
+  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Applies to every provider read over the internet; each provider can override it under Providers. A browser session is never read more often than every 5 minutes.</value></data>
 </root>
