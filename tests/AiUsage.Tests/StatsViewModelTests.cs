@@ -1524,6 +1524,32 @@ public class StatsViewModelTests
         Assert.Contains("TryShowSnapshot()", source[start..end], StringComparison.Ordinal);
         Assert.Contains("await _viewModel.RecomputeAsync(showLoading)", source, StringComparison.Ordinal);
     }
+
+    // An index update reuses the data the indexer prepared (one load per event) and never shows the
+    // loading pill; the collapsed year-grid header carries no summary of the selected range.
+    [Fact]
+    public void AnIndexUpdateTakesThePreparedDataAndTheYearGridHeaderHasNoSummary()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, ".git")) && !File.Exists(Path.Combine(dir.FullName, ".git")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+
+        var source = File.ReadAllText(Path.Combine(dir.FullName, "src", "AiUsage", "Views", "StatsWindow.xaml.cs"));
+        var start = source.IndexOf("private void OnIndexCompleted", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var end = source.IndexOf("private ", start + 10, StringComparison.Ordinal);
+        var body = source[start..end];
+        Assert.Contains("TryShowSnapshot()", body, StringComparison.Ordinal);
+        Assert.Contains("RecomputeLoggedAsync(showLoading: false)", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("RecomputeLoggedAsync()", body, StringComparison.Ordinal);
+
+        var xaml = File.ReadAllText(Path.Combine(dir.FullName, "src", "AiUsage", "Views", "StatsWindow.xaml"));
+        var section = xaml.IndexOf("x:Name=\"MonthGridSection\"", StringComparison.Ordinal);
+        Assert.True(section >= 0);
+        var tagEnd = xaml.IndexOf('>', section);
+        Assert.DoesNotContain("Summary=", xaml[section..tagEnd], StringComparison.Ordinal);
+    }
 }
 
 

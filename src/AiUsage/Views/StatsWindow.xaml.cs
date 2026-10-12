@@ -490,9 +490,15 @@ public partial class StatsWindow : Window
     /// <summary>Runs on <see cref="StatsIndexerService"/>'s own background thread - <see
     /// cref="Dispatcher.BeginInvoke(Delegate)"/> is the marshal back to this window's thread, the
     /// only one <see cref="_viewModel"/>'s bound properties are safe to change from. The async form
-    /// keeps the window responsive while the records are read.</summary>
+    /// keeps the window responsive while the records are read. The indexer has just prepared the
+    /// data, so it is taken from there; only without it does the window read the store itself, and
+    /// then without the loading pill.</summary>
     private void OnIndexCompleted(object? sender, EventArgs e) =>
-        Dispatcher.BeginInvoke(() => _ = RecomputeLoggedAsync());
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (!_viewModel.TryShowSnapshot())
+                _ = RecomputeLoggedAsync(showLoading: false);
+        });
 
     /// <summary>One brush per stacked segment: two (one per provider) for day/week grouping, one for
     /// model/project grouping. The provider pair always names Claude and Codex through <see

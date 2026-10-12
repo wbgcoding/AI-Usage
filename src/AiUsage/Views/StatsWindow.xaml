@@ -254,8 +254,7 @@
                                  calendar day of the current year, colored by whichever provider led
                                  that day, an at-a-glance overview of the whole year. -->
                             <controls:CollapsibleSection x:Name="MonthGridSection" SectionKey="monthgrid"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.Head]}"
-                                    Summary="{Binding BusiestDayFigureText}">
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.Head]}">
                                 <StackPanel>
                                 <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="8">
