@@ -163,6 +163,9 @@ public partial class MainWindow : Window, IDisposable
         ApplyContentSize();
 
         SourceInitialized += MainWindow_SourceInitialized;
+        Activated += (_, _) => SyncSnapHotkeys();
+        Deactivated += (_, _) => SyncSnapHotkeys();
+        IsVisibleChanged += (_, _) => SyncSnapHotkeys();
         Closing += MainWindow_Closing;
         // Windows asking the app to close - an update installing over the running copy asks through
         // the system's own restart manager, and a shutdown or sign-out asks the same way. The title
@@ -998,9 +1001,9 @@ public partial class MainWindow : Window, IDisposable
         ApplyHotkeySettings();
         ViewModel.HotkeySettingsChanged += (_, _) => ApplyHotkeySettings();
 
-        // Fixed, never user-configurable, and never colliding with the one hotkey above - registered
-        // once and for the lifetime of the window rather than re-applied like ApplyHotkeySettings.
-        _globalHotkey.RegisterSnapHotkeys();
+        // Fixed, never user-configurable, and never colliding with the one hotkey above. They are
+        // system-wide while registered, so they only exist while the widget is the window in front.
+        SyncSnapHotkeys();
 
         // The extended window style itself only exists on the real HWND SourceInitialized just
         // handed over - a fresh window otherwise starts fully clickable even when the setting says
@@ -1008,6 +1011,12 @@ public partial class MainWindow : Window, IDisposable
         // previous session already resolved never changes anything.
         ApplyClickThrough(_settings.ClickThrough);
     }
+
+    /// <summary>The snap shortcuts are wanted only while the widget is both visible and the active
+    /// window; in any other state another program gets those keys.</summary>
+    internal static bool SnapHotkeysWanted(bool isActive, bool isVisible) => isActive && isVisible;
+
+    private void SyncSnapHotkeys() => _globalHotkey?.SetSnapHotkeysActive(SnapHotkeysWanted(IsActive, IsVisible));
 
     /// <summary>(Re-)applies the hotkey to the live OS registration from whatever
     /// <see cref="MainViewModel.HotkeyEnabled"/>/<see cref="MainViewModel.HotkeyText"/> say right now
@@ -1589,7 +1598,7 @@ public partial class MainWindow : Window, IDisposable
     /// until the user switches it back on.</summary>
     private void SnapToHalf(SnapDirection direction)
     {
-        if (_settings.Window.Collapsed)
+        if (_settings.Window.Collapsed || !IsVisible)
             return;
 
         var area = CurrentArea();

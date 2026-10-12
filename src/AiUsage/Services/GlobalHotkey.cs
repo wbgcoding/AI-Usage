@@ -41,10 +41,39 @@ public sealed class GlobalHotkey : IDisposable
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     private readonly IntPtr _hwnd;
+    private readonly Func<IntPtr, int, uint, uint, bool> _register;
+    private readonly Action<IntPtr, int> _unregister;
     private bool _registered;
     private readonly HashSet<int> _registeredSnapIds = [];
 
-    public GlobalHotkey(IntPtr hwnd) => _hwnd = hwnd;
+    public GlobalHotkey(IntPtr hwnd) : this(hwnd, RegisterHotKey, (h, id) => UnregisterHotKey(h, id)) { }
+
+    // The native calls are injectable only so the registration state can be tested without a window.
+    internal GlobalHotkey(IntPtr hwnd, Func<IntPtr, int, uint, uint, bool> register, Action<IntPtr, int> unregister)
+    {
+        _hwnd = hwnd;
+        _register = register;
+        _unregister = unregister;
+    }
+
+    /// <summary>True while the four snap shortcuts are registered with the system.</summary>
+    internal bool SnapHotkeysRegistered => _registeredSnapIds.Count > 0;
+
+    /// <summary>The snap shortcuts belong to the widget while it is the window in front and nowhere
+    /// else: registered when it becomes active and visible, released the moment it is not. Safe to
+    /// call with the same value repeatedly.</summary>
+    public void SetSnapHotkeysActive(bool active)
+    {
+        if (active)
+        {
+            if (!SnapHotkeysRegistered)
+                RegisterSnapHotkeys();
+        }
+        else
+        {
+            UnregisterSnapHotkeys();
+        }
+    }
 
     /// <summary>True once registered; false, without throwing, when another program already owns
     /// this exact combination.</summary>
@@ -53,7 +82,7 @@ public sealed class GlobalHotkey : IDisposable
         Unregister();
 
         var vk = (uint)KeyInterop.VirtualKeyFromKey(key);
-        _registered = RegisterHotKey(_hwnd, HotkeyId, ToNative(modifiers), vk);
+        _registered = _register(_hwnd, HotkeyId, ToNative(modifiers), vk);
         return _registered;
     }
 
@@ -61,7 +90,7 @@ public sealed class GlobalHotkey : IDisposable
     {
         if (!_registered)
             return;
-        UnregisterHotKey(_hwnd, HotkeyId);
+        _unregister(_hwnd, HotkeyId);
         _registered = false;
     }
 
@@ -82,14 +111,14 @@ public sealed class GlobalHotkey : IDisposable
     public void UnregisterSnapHotkeys()
     {
         foreach (var id in _registeredSnapIds)
-            UnregisterHotKey(_hwnd, id);
+            _unregister(_hwnd, id);
         _registeredSnapIds.Clear();
     }
 
     private void TryRegisterSnap(int id, Key key)
     {
         var vk = (uint)KeyInterop.VirtualKeyFromKey(key);
-        if (RegisterHotKey(_hwnd, id, ToNative(SnapModifiers), vk))
+        if (_register(_hwnd, id, ToNative(SnapModifiers), vk))
             _registeredSnapIds.Add(id);
     }
 
