@@ -105,6 +105,22 @@ public sealed class ThrottledWebReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_failure_that_outlasts_the_freshness_window_is_no_longer_held_over()
+    {
+        var answer = OkEnvelope;
+        var reader = NewReader(() => answer, out _);
+        Assert.NotNull(await reader.ReadAsync(Start, CancellationToken.None));
+
+        answer = FailedEnvelope;
+        var justInside = await reader.ReadAsync(Start + ProviderFreshness.StaleAfter - TimeSpan.FromMinutes(1), CancellationToken.None);
+        var past = await reader.ReadAsync(Start + ProviderFreshness.StaleAfter + TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.NotNull(justInside);
+        Assert.True(justInside!.HeldOver);
+        Assert.Null(past);
+    }
+
+    [Fact]
     public async Task A_signed_out_answer_drops_the_cached_snapshot()
     {
         var answer = OkEnvelope;

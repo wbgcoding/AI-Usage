@@ -121,8 +121,10 @@ internal sealed class ThrottledWebReader
         if (readFailed)
         {
             // The last good numbers stay: a network blip must not send the tile back to older local
-            // numbers for a while. Only a signed-out answer drops them.
+            // numbers for a while. Only a signed-out answer drops them, and so does a failure that
+            // outlasts the freshness window: from then on the provider's own failure path shows.
             return _lastSnapshot is { } held
+                && !ProviderFreshness.IsStale(held.DataTimestamp ?? held.FetchedAt, [], fetchedAt)
                 ? ProviderSnapshots.ExpirePastWindows(held, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
                 : null;
         }
