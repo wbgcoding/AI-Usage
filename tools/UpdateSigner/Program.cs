@@ -1,11 +1,13 @@
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace UpdateSigner;
 
 /// <summary>
 /// Build-time helper for the in-app update check. <c>keygen</c> makes the signing key pair once and
-/// <c>sign</c> writes a detached signature next to a release file. Only the BCL is used. The private
-/// key is read here and nowhere else, and it is never printed.
+/// <c>sign</c> writes a detached signature next to a release file, <c>verify</c> checks that signature
+/// against the public key compiled into the app. Only the BCL is used. The private key is read here
+/// and nowhere else, and it is never printed.
 /// </summary>
 internal static class Program
 {
@@ -17,7 +19,7 @@ internal static class Program
         {
             return Run(args);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or ArgumentException or FormatException)
         {
             Console.Error.WriteLine($"UpdateSigner: {ex.Message}");
             return 1;
@@ -28,6 +30,12 @@ internal static class Program
     {
         if (args.Length == 0)
             return Usage();
+
+        if (args[0] == "verify")
+        {
+            var publicKeyPath = TakeOption(ref args, "--pubkey");
+            return args.Length == 2 && publicKeyPath is not null ? Verify(publicKeyPath, args[1]) : Usage();
+        }
 
         var keyPath = TakeOption(ref args, "--key") ?? Environment.GetEnvironmentVariable(KeyEnvironmentVariable);
         if (string.IsNullOrWhiteSpace(keyPath))
@@ -52,6 +60,7 @@ internal static class Program
     {
         Console.Error.WriteLine("usage: UpdateSigner keygen [--key <pem>] [--out-cs <UpdatePublicKey.cs>]");
         Console.Error.WriteLine("       UpdateSigner sign [--key <pem>] <file>");
+        Console.Error.WriteLine("       UpdateSigner verify --pubkey <UpdatePublicKey.cs> <file>");
         Console.Error.WriteLine($"The key path may also come from {KeyEnvironmentVariable}.");
         return 2;
     }
@@ -125,6 +134,38 @@ internal static class Program
         + "/// installed only when its detached signature verifies against this key.</summary>\r\n"
         + "internal static class UpdatePublicKey\r\n{\r\n"
         + $"    public const string Value = \"{publicKey}\";\r\n}}\r\n";
+
+    /// <summary>Checks <c>&lt;file&gt;.sig</c> against the Base64 public key written in the app's
+    /// <c>UpdatePublicKey.cs</c>. Exit 0 only for a signature that verifies; a missing signature, an
+    /// unreadable key and a mismatch all fail, so a release signed with the wrong key stops the build.</summary>
+    private static int Verify(string publicKeySourcePath, string file)
+    {
+        var match = Regex.Match(File.ReadAllText(publicKeySourcePath), @"Value\s*=\s*""([A-Za-z0-9+/=]+)""");
+        if (!match.Success)
+        {
+            Console.Error.WriteLine("UpdateSigner: no public key found in the given source file.");
+            return 1;
+        }
+
+        if (!File.Exists(file + ".sig"))
+        {
+            Console.Error.WriteLine($"UpdateSigner: no signature next to {Path.GetFileName(file)}.");
+            return 1;
+        }
+
+        using var key = ECDsa.Create();
+        key.ImportSubjectPublicKeyInfo(Convert.FromBase64String(match.Groups[1].Value), out _);
+        var signature = Convert.FromBase64String(File.ReadAllText(file + ".sig").Trim());
+        var valid = key.VerifyData(File.ReadAllBytes(file), signature, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
+        if (!valid)
+        {
+            Console.Error.WriteLine($"UpdateSigner: the signature of {Path.GetFileName(file)} does not match the public key in the app. Wrong signing key?");
+            return 1;
+        }
+
+        Console.WriteLine($"Verified {Path.GetFileName(file)}");
+        return 0;
+    }
 
     private static int Sign(string keyPath, string file)
     {

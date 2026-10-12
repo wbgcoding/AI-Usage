@@ -204,6 +204,12 @@ if not exist "%SIGNKEY%" (
             echo ERROR: no signature was produced for %%~nxf.
             goto :error
         )
+        rem A key that is not the one compiled into the app would sign a release every install refuses.
+        dotnet "%ROOT%tools\UpdateSigner\bin\%CONFIG%\net10.0\UpdateSigner.dll" verify --pubkey "%ROOT%src\AiUsage\Services\UpdatePublicKey.cs" "%%f"
+        if errorlevel 1 (
+            echo ERROR: the signature of %%~nxf does not match the public key in the app.
+            goto :error
+        )
     )
 )
 

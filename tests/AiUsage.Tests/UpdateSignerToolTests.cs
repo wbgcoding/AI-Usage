@@ -17,7 +17,7 @@ public class UpdateSignerToolTests
         return Path.Combine(dir?.FullName ?? throw new InvalidOperationException("tools/UpdateSigner not found"), "tools", "UpdateSigner");
     }
 
-    private static (int ExitCode, string Output) Run(string arguments, string? keyFromEnvironment = null)
+    internal static (int ExitCode, string Output) Run(string arguments, string? keyFromEnvironment = null)
     {
         var start = new ProcessStartInfo("dotnet", $"run --project \"{ToolProject()}\" -c Release -- {arguments}")
         {
