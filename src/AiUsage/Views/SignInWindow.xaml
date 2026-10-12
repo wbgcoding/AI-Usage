@@ -60,12 +60,18 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsIndeterminate" Value="True">
                                 <Trigger.EnterActions>
-                                    <BeginStoryboard>
+                                    <BeginStoryboard x:Name="LoadingAnimation">
                                         <Storyboard Timeline.DesiredFrameRate="60">
                                             <DoubleAnimation Storyboard.TargetName="IndicatorTransform" Storyboard.TargetProperty="X"
                                                              From="-70" To="200" Duration="0:0:1.2" RepeatBehavior="Forever"/>
                                         </Storyboard>
                                     </BeginStoryboard>
+                                </Trigger.EnterActions>
+                            </Trigger>
+                            <!-- A collapsed element's clock keeps ticking: stop it once the panel is hidden. -->
+                            <Trigger Property="IsVisible" Value="False">
+                                <Trigger.EnterActions>
+                                    <StopStoryboard BeginStoryboardName="LoadingAnimation"/>
                                 </Trigger.EnterActions>
                             </Trigger>
                         </ControlTemplate.Triggers>

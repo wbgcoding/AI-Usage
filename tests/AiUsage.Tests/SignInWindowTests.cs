@@ -75,8 +75,40 @@ public class SignInWindowTests
     // Never reached a login page at all - nothing here to call already signed in.
     [InlineData(false, false, 0.2, false)]
     public void AlreadySignedInIsDetectedOnlyForAFastReturnWithNoForeignHost(
-        bool leftLoginPage, bool sawForeignHost, double secondsSinceOpened, bool expected) =>
-        Assert.Equal(expected, SignInWindow.IsAlreadySignedIn(leftLoginPage, sawForeignHost, TimeSpan.FromSeconds(secondsSinceOpened)));
+        bool sawLoginPage, bool sawForeignHost, double secondsSinceOpened, bool expected) =>
+        Assert.Equal(expected, SignInWindow.IsAlreadySignedIn(sawLoginPage, sawForeignHost, TimeSpan.FromSeconds(secondsSinceOpened)));
+
+    [Theory]
+    // From the login form to the provider's terms/privacy pages: not a finished sign-in.
+    [InlineData("https://claude.ai/legal/terms", "/", true, false)]
+    [InlineData("https://chatgpt.com/policies/terms-of-use", "/codex/settings/usage", true, false)]
+    // From the login form to the app's start page: finished.
+    [InlineData("https://claude.ai/", "/", true, true)]
+    [InlineData("https://chatgpt.com/", "/codex/settings/usage", true, true)]
+    [InlineData("https://chatgpt.com/codex/settings/usage", "/codex/settings/usage", true, true)]
+    [InlineData("https://cursor.com/dashboard", "/dashboard/usage", true, true)]
+    // Off the login path without a link click (redirect chain after the credentials): finished.
+    [InlineData("https://claude.ai/new", "/", false, true)]
+    public void OnlyTheAppStartEndsASignInThatLeftTheLoginFormByLink(string landing, string startPath, bool byLink, bool expected) =>
+        Assert.Equal(expected, SignInWindow.ShouldCloseAfterSignIn(new Uri(landing), startPath, byLink));
+
+    [Theory]
+    [InlineData("https://claude.ai/login", "claude.ai", true)]
+    [InlineData("https://auth.openai.com/log-in", "chatgpt.com", false)]
+    [InlineData("https://accounts.google.com/signin", "claude.ai", false)]
+    [InlineData("https://claude.ai/new", "claude.ai", false)]
+    public void OnlyTheProvidersOwnLoginPathCountsForALinkClick(string url, string providerHost, bool expected) =>
+        Assert.Equal(expected, SignInWindow.IsOnProviderLoginPage(new Uri(url), providerHost));
+
+    /// <summary>The loading bar's animation must stop when its panel collapses (a collapsed element's
+    /// clock keeps ticking); read from the source since the window cannot be built in a unit test.</summary>
+    [Fact]
+    public void TheLoadingBarStopsItsAnimationWhenHidden()
+    {
+        var xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Views", "SignInWindow.xaml"));
+        Assert.Contains("<StopStoryboard BeginStoryboardName=\"LoadingAnimation\"/>", xaml, StringComparison.Ordinal);
+        Assert.Contains("Property=\"IsVisible\" Value=\"False\"", xaml, StringComparison.Ordinal);
+    }
 
     /// <summary>A subdomain of the provider's own site is still the provider's own site - otherwise
     /// every such page would count as an identity provider's and close the window early.</summary>

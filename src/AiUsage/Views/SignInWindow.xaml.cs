@@ -26,7 +26,11 @@ public partial class SignInWindow : Window
     // provider's own list again.
     private readonly List<string> _hostsAllowedByUser = [];
     private string? _blockedUri;
-    private bool _leftLoginPage;
+    private bool _sawLoginPage;
+    // True after the user clicked a link on the provider's own login page; cleared when the flow is
+    // back on a login page. A landing reached this way only ends the sign-in when it is the app's start.
+    private bool _leftByLinkClick;
+    private readonly string _startPath;
     private bool _firstNavigationCompleted;
     private bool _closed;
     // Both feed IsAlreadySignedIn below: the moment this window opened, and whether the flow ever
@@ -49,6 +53,7 @@ public partial class SignInWindow : Window
         _host = host;
         _signInUrl = descriptor.SignInUrl;
         _providerHost = new Uri(descriptor.BaseUrl).Host;
+        _startPath = new Uri(descriptor.BaseUrl).AbsolutePath;
         _allowedHosts = descriptor.AllowedHosts;
         InitializeComponent();
         TitleBarControl.SetBinding(Controls.TitleBar.TitleTextProperty, NewTitleBinding());
@@ -161,7 +166,13 @@ public partial class SignInWindow : Window
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
         if (IsAllowed(e.Uri, _allowedHosts, _hostsAllowedByUser))
+        {
+            if (e.IsUserInitiated && Browser.CoreWebView2?.Source is { } current
+                && Uri.TryCreate(current, UriKind.Absolute, out var from)
+                && IsOnProviderLoginPage(from, _providerHost))
+                _leftByLinkClick = true;
             return;
+        }
 
         e.Cancel = true;
         if (!IsWorthExplaining(e.Uri))
@@ -348,6 +359,29 @@ public partial class SignInWindow : Window
             || path.StartsWith("/auth", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>True on a login path of the provider's own site (not on an identity provider's host).</summary>
+    internal static bool IsOnProviderLoginPage(Uri uri, string providerHost) =>
+        SignInNavigationPolicy.IsUsageOrigin(uri.GetLeftPart(UriPartial.Path), providerHost)
+        && IsOnLoginOrOAuthPage(uri, providerHost);
+
+    /// <summary>True when the landing page is the provider's start page: the site root, the page the
+    /// descriptor's address names, or one of its parent paths.</summary>
+    internal static bool IsAppStartPage(Uri landing, string startPath)
+    {
+        var path = landing.AbsolutePath.TrimEnd('/');
+        var start = startPath.TrimEnd('/');
+        return path.Length == 0
+            || string.Equals(path, start, StringComparison.OrdinalIgnoreCase)
+            || start.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Whether a landing off the login path ends the sign-in. A page the user clicked through
+    /// to from the login form (terms, privacy, pricing) is not a finished sign-in: only the app's
+    /// start page counts then. Any other way off the login path (a redirect chain after the
+    /// credentials) counts as finished.</summary>
+    internal static bool ShouldCloseAfterSignIn(Uri landing, string startPath, bool leftByLinkClick) =>
+        !leftByLinkClick || IsAppStartPage(landing, startPath);
+
     /// <summary>Sign-in has nothing left to click through once the browser leaves the login/OAuth
     /// path and lands back on the real app - closing automatically here is what makes the window
     /// feel like it finished, instead of leaving the user staring at the chat page wondering whether
@@ -374,17 +408,18 @@ public partial class SignInWindow : Window
 
         if (IsOnLoginOrOAuthPage(uri, _providerHost))
         {
-            _leftLoginPage = true;
+            _sawLoginPage = true;
+            _leftByLinkClick = false;
             return;
         }
 
         // Only closes once the flow has actually been ON the login/OAuth path at least once -
         // otherwise the very first navigation to the provider's own start page (before the user has
         // done anything) would close the window instantly.
-        if (_leftLoginPage && e.IsSuccess)
+        if (_sawLoginPage && e.IsSuccess && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
         {
             SignedIn = true;
-            if (IsAlreadySignedIn(_leftLoginPage, _sawForeignHost, DateTimeOffset.UtcNow - _openedAt))
+            if (IsAlreadySignedIn(_sawLoginPage, _sawForeignHost, DateTimeOffset.UtcNow - _openedAt))
                 ShowAlreadySignedIn();
             else
                 Close();
@@ -399,8 +434,8 @@ public partial class SignInWindow : Window
     /// (typing credentials, a 2FA step) or passes through an identity provider's own host on the way,
     /// so <paramref name="sawForeignHost"/> alone already rules it out. Pure so the rule is testable
     /// without a WebView2 instance (same pattern as <see cref="IsOnLoginOrOAuthPage"/>).</summary>
-    internal static bool IsAlreadySignedIn(bool leftLoginPage, bool sawForeignHost, TimeSpan sinceOpened) =>
-        leftLoginPage && !sawForeignHost && sinceOpened < TimeSpan.FromSeconds(2);
+    internal static bool IsAlreadySignedIn(bool sawLoginPage, bool sawForeignHost, TimeSpan sinceOpened) =>
+        sawLoginPage && !sawForeignHost && sinceOpened < TimeSpan.FromSeconds(2);
 
     /// <summary>Takes the window the same way <see cref="ShowBlockedNotice"/> does, and for the same
     /// reason: the page is a native child window WPF content is never drawn over, so the code-behind
