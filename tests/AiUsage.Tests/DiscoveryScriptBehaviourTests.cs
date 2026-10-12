@@ -44,21 +44,9 @@ public class DiscoveryScriptBehaviourTests
 
     private sealed record Route(int Status, string Body, string? Ct = null);
 
-    private static string? RunInNode(string script, Dictionary<string, Route> routes)
+    private static string RunInNode(string script, Dictionary<string, Route> routes)
     {
-        string? node = null;
-        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
-        {
-            var candidate = Path.Combine(dir, OperatingSystem.IsWindows() ? "node.exe" : "node");
-            if (dir.Length > 0 && File.Exists(candidate))
-            {
-                node = candidate;
-                break;
-            }
-        }
-
-        if (node is null)
-            return null;
+        var node = NodeLocator.Find() ?? throw new InvalidOperationException("node.exe not on PATH");
 
         using var directory = TestPaths.CreateDisposableDirectory("ai-usage-discovery-script");
         var runnerPath = Path.Combine(directory.Path, "runner.js");
@@ -93,47 +81,35 @@ public class DiscoveryScriptBehaviourTests
         return document.RootElement.GetProperty("status").GetString()!;
     }
 
-    [Fact]
+    [NodeFact]
     public void Codex_session_route_answering_500_reads_as_failed_not_signed_out()
     {
         var envelope = RunInNode(CodexDiscoveryScript.Discover(), new() { ["/api/auth/session"] = Status(500) });
-        if (envelope is null)
-            return;
-
         Assert.Equal("failed", Status_(envelope));
     }
 
-    [Fact]
+    [NodeFact]
     public void Codex_session_route_answering_429_reads_as_blocked()
     {
         var envelope = RunInNode(CodexDiscoveryScript.Discover(), new() { ["/api/auth/session"] = Status(429) });
-        if (envelope is null)
-            return;
-
         Assert.Equal("blocked", Status_(envelope));
     }
 
-    [Fact]
+    [NodeFact]
     public void Codex_session_route_answering_401_still_reads_as_signed_out()
     {
         var envelope = RunInNode(CodexDiscoveryScript.Discover(), new() { ["/api/auth/session"] = Status(401) });
-        if (envelope is null)
-            return;
-
         Assert.Equal("not_signed_in", Status_(envelope));
     }
 
-    [Fact]
+    [NodeFact]
     public void Codex_session_route_answering_500_fails_the_direct_read_too()
     {
         var envelope = RunInNode(CodexDiscoveryScript.Fetch("/backend-api/codex/usage"), new() { ["/api/auth/session"] = Status(500) });
-        if (envelope is null)
-            return;
-
         Assert.Equal("failed", Status_(envelope));
     }
 
-    [Fact]
+    [NodeFact]
     public void Codex_discovery_returns_every_json_candidate_and_the_reader_takes_the_first_that_parses()
     {
         var routes = new Dictionary<string, Route>
@@ -143,9 +119,6 @@ public class DiscoveryScriptBehaviourTests
             ["/backend-api/codex/rate_limits"] = Json(CodexOk),
         };
         var envelope = RunInNode(CodexDiscoveryScript.Discover(), routes);
-        if (envelope is null)
-            return;
-
         using (var document = JsonDocument.Parse(envelope))
             Assert.Equal(2, document.RootElement.GetProperty("results").GetArrayLength());
 
@@ -155,7 +128,7 @@ public class DiscoveryScriptBehaviourTests
         Assert.Equal("/backend-api/codex/rate_limits", path);
     }
 
-    [Fact]
+    [NodeFact]
     public void Claude_discovery_returns_every_json_candidate_and_the_reader_takes_the_first_that_parses()
     {
         var routes = new Dictionary<string, Route>
@@ -165,16 +138,13 @@ public class DiscoveryScriptBehaviourTests
             [$"/api/organizations/{Uuid}/usage_limits"] = Json(ClaudeOk),
         };
         var envelope = RunInNode(ClaudeDiscoveryScript.Discover(), routes);
-        if (envelope is null)
-            return;
-
         var source = NewSource(new ClaudeUsageEndpoint(), "claude", "claude.ai");
         var (result, path) = source.Interpret(envelope);
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Equal($"/api/organizations/{Uuid}/usage_limits", path);
     }
 
-    [Fact]
+    [NodeFact]
     public void Gemini_discovery_returns_every_json_candidate_and_the_reader_takes_the_first_that_parses()
     {
         const string quota = """
@@ -188,9 +158,6 @@ public class DiscoveryScriptBehaviourTests
             [GeminiDiscoveryScript.CandidatePaths[1]] = Json(quota),
         };
         var envelope = RunInNode(GeminiDiscoveryScript.Discover(), routes);
-        if (envelope is null)
-            return;
-
         var source = NewSource(new GeminiUsageEndpoint(), "gemini", "aistudio.google.com");
         var (result, path) = source.Interpret(envelope);
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
