@@ -23,27 +23,11 @@ internal static class NativeWindowStyle
     // making a call nobody there will ever honour.
     private const int Windows11Build = 22000;
 
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
-    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
-    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
-
     [DllImport("user32.dll")]
     private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, [MarshalAs(UnmanagedType.Bool)] bool bRedraw);
 
     [DllImport("gdi32.dll")]
     private static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Rect
-    {
-        public int Left, Top, Right, Bottom;
-    }
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
@@ -64,29 +48,26 @@ internal static class NativeWindowStyle
     /// the final opacity from the start.</summary>
     public static void SetClickThrough(IntPtr hwnd, bool clickThrough)
     {
-        var current = GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+        var current = Win32.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
         var updated = ClickThroughExStyle(current, clickThrough, WindowOpacity.CurrentPercent);
         if (updated != current)
-            SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
+            Win32.SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
 
         WindowOpacity.Apply(hwnd, WindowOpacity.CurrentPercent);
         if (updated != current)
             WindowOpacity.Redraw(hwnd);
     }
 
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool ShowWindow(IntPtr hwnd, int command);
 
     private const int SwHide = 0;
     private const int SwShowNoActivate = 4;
 
     /// <summary>Hides the native window without touching what WPF knows about it, so the shown or
     /// hidden state the person chose, the tray and the saved placement stay as they were.</summary>
-    public static void HideNative(IntPtr hwnd) => ShowWindow(hwnd, SwHide);
+    public static void HideNative(IntPtr hwnd) => Win32.ShowWindow(hwnd, SwHide);
 
     /// <summary>Shows the native window again without taking the focus from whatever is in front.</summary>
-    public static void ShowNativeNoActivate(IntPtr hwnd) => ShowWindow(hwnd, SwShowNoActivate);
+    public static void ShowNativeNoActivate(IntPtr hwnd) => Win32.ShowWindow(hwnd, SwShowNoActivate);
 
     /// <summary>Asks the window manager to round a window's corners; the window itself is opaque, so
     /// no painted card has to fake them. No-op (square window) on Windows 10, which has no such attribute; the build
@@ -206,7 +187,7 @@ internal static class NativeWindowStyle
     /// owns the region handle once it is set.</summary>
     public static void ApplyRoundedRegion(IntPtr hwnd, int radiusPixels)
     {
-        if (radiusPixels <= 0 || !GetWindowRect(hwnd, out var rect))
+        if (radiusPixels <= 0 || !Win32.GetWindowRect(hwnd, out var rect))
             return;
 
         var width = rect.Right - rect.Left;

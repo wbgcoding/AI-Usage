@@ -1,7 +1,9 @@
 ﻿using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using AiUsage.Models;
 
 namespace AiUsage.Services;
@@ -29,6 +31,18 @@ public static class TrayIconRenderer
         _ => OkColor,
     };
 
+    // Drawing the digits means measuring several candidate sizes, so a finished icon is kept per
+    // (level, percent, size) and handed out as a copy, and the font size that fit a text is kept per
+    // (text, size). GDI+ objects are not safe to share between threads, so all of it runs under one lock.
+    private const int MaxCachedIcons = 128;
+    private static readonly object Gate = new();
+    private static readonly Dictionary<(UsageLevel Level, int Percent, int Size), Bitmap> Rendered = [];
+    private static readonly Dictionary<(string Text, int Size), int> ChosenPixels = [];
+    private static readonly Dictionary<bool, (FontFamily Family, System.Drawing.FontStyle Style)> Faces = [];
+
+    /// <summary>How many icons were drawn from scratch (a cache hit does not count); for tests.</summary>
+    internal static int ComposeCount { get; private set; }
+
     /// <summary>Renders one square tray-icon bitmap for the given level and percent, at
     /// <paramref name="size"/> pixels - the small-icon size Windows asks for at the current scaling
     /// (16, 20, 24 or 32), see <see cref="IconSizeFor"/>. The digits are hinted text (crisp on the
@@ -36,6 +50,29 @@ public static class TrayIconRenderer
     /// both axes. The caller owns the returned bitmap and must dispose it.</summary>
     public static Bitmap Render(UsageLevel level, int percent, int size)
     {
+        var key = (level, Math.Clamp(percent, 0, 100), size);
+        lock (Gate)
+        {
+            if (!Rendered.TryGetValue(key, out var master))
+            {
+                if (Rendered.Count >= MaxCachedIcons)
+                {
+                    foreach (var cached in Rendered.Values)
+                        cached.Dispose();
+                    Rendered.Clear();
+                }
+
+                master = Compose(level, percent, size);
+                Rendered[key] = master;
+            }
+
+            return new Bitmap(master);
+        }
+    }
+
+    private static Bitmap Compose(UsageLevel level, int percent, int size)
+    {
+        ComposeCount++;
         var background = BackgroundColor(level);
         var textColor = ContrastingTextColor(background);
 
@@ -66,15 +103,28 @@ public static class TrayIconRenderer
     /// <summary>Clear of the rounded corners (radius size / 5), more room the larger the tile.</summary>
     internal static int Margin(int size) => size >= 32 ? 4 : size >= 24 ? 3 : 2;
 
+    // The face is looked up once per kind of text and kept for the process.
+    private static (FontFamily Family, System.Drawing.FontStyle Style) DigitFace(int digitCount)
+    {
+        var condensed = digitCount >= 3;
+        if (!Faces.TryGetValue(condensed, out var face))
+        {
+            face = FindDigitFace(condensed);
+            Faces[condensed] = face;
+        }
+
+        return face;
+    }
+
     // Bahnschrift semibold, semi-condensed for one or two digits and condensed for "100", so the
     // three digits keep almost the same height without being squeezed. GDI+ knows the semi-condensed
     // face by its name cut to 31 characters; older images lack Bahnschrift, so Segoe UI Semibold
     // follows.
-    private static (FontFamily Family, System.Drawing.FontStyle Style) DigitFace(int digitCount)
+    private static (FontFamily Family, System.Drawing.FontStyle Style) FindDigitFace(bool condensed)
     {
         foreach (var (name, style) in new[]
                  {
-                     (digitCount >= 3 ? "Bahnschrift SemiBold Condensed" : "Bahnschrift SemiBold SemiConden", System.Drawing.FontStyle.Regular),
+                     (condensed ? "Bahnschrift SemiBold Condensed" : "Bahnschrift SemiBold SemiConden", System.Drawing.FontStyle.Regular),
                      ("Bahnschrift SemiBold SemiCondensed", System.Drawing.FontStyle.Regular),
                      ("Bahnschrift", System.Drawing.FontStyle.Bold),
                      ("Segoe UI Semibold", System.Drawing.FontStyle.Regular),
@@ -101,12 +151,22 @@ public static class TrayIconRenderer
     /// the number one pixel high.</summary>
     internal static Bitmap DigitsBitmap(string text, int size, Color color, out Rectangle ink)
     {
-        var box = size - 2 * Margin(size);
-        var (family, style) = DigitFace(text.Length);
-        using (family)
+        lock (Gate)
         {
+            var box = size - 2 * Margin(size);
+            var (family, style) = DigitFace(text.Length);
+
+            // The size that fit this text before is drawn straight away.
+            if (ChosenPixels.TryGetValue((text, size), out var known))
+            {
+                var remembered = DrawDigits(text, family, style, known, size, color);
+                ink = InkBounds(remembered);
+                return remembered;
+            }
+
             Bitmap? best = null;
             var bestInk = Rectangle.Empty;
+            var bestPixels = 4;
             for (var pixels = (int)Math.Floor(size * 0.8); pixels >= 4; pixels--)
             {
                 var scratch = DrawDigits(text, family, style, pixels, size, color);
@@ -119,7 +179,7 @@ public static class TrayIconRenderer
 
                 if (best is null)
                 {
-                    (best, bestInk) = (scratch, candidate);
+                    (best, bestInk, bestPixels) = (scratch, candidate, pixels);
                     if ((size - candidate.Height) % 2 == 0)
                         break;
                     continue;
@@ -134,7 +194,7 @@ public static class TrayIconRenderer
                 if ((size - candidate.Height) % 2 == 0)
                 {
                     best.Dispose();
-                    (best, bestInk) = (scratch, candidate);
+                    (best, bestInk, bestPixels) = (scratch, candidate, pixels);
                     break;
                 }
 
@@ -147,6 +207,7 @@ public static class TrayIconRenderer
                 bestInk = InkBounds(best);
             }
 
+            ChosenPixels[(text, size)] = bestPixels;
             ink = bestInk;
             return best;
         }
@@ -173,14 +234,16 @@ public static class TrayIconRenderer
         if (ink.IsEmpty)
             return (0, 0);
 
+        var alpha = ReadAlpha(digits, out var width);
+
         double Coverage(bool column, int index)
         {
             var max = 0;
             var length = column ? ink.Height : ink.Width;
             for (var i = 0; i < length; i++)
             {
-                var pixel = column ? digits.GetPixel(index, ink.Top + i) : digits.GetPixel(ink.Left + i, index);
-                max = Math.Max(max, pixel.A);
+                var value = column ? alpha[(ink.Top + i) * width + index] : alpha[index * width + ink.Left + i];
+                max = Math.Max(max, value);
             }
             return max / 255.0;
         }
@@ -203,11 +266,12 @@ public static class TrayIconRenderer
     /// <summary>The smallest rectangle holding every pixel with any coverage at all.</summary>
     internal static Rectangle InkBounds(Bitmap bitmap)
     {
+        var alpha = ReadAlpha(bitmap, out var width);
         int minX = bitmap.Width, minY = bitmap.Height, maxX = -1, maxY = -1;
         for (var y = 0; y < bitmap.Height; y++)
         for (var x = 0; x < bitmap.Width; x++)
         {
-            if (bitmap.GetPixel(x, y).A == 0)
+            if (alpha[y * width + x] == 0)
                 continue;
             minX = Math.Min(minX, x);
             maxX = Math.Max(maxX, x);
@@ -218,36 +282,49 @@ public static class TrayIconRenderer
         return maxX < 0 ? Rectangle.Empty : Rectangle.FromLTRB(minX, minY, maxX + 1, maxY + 1);
     }
 
+    /// <summary>The alpha channel of every pixel, row by row, read in one pass with LockBits instead of
+    /// a GetPixel call per pixel.</summary>
+    private static byte[] ReadAlpha(Bitmap bitmap, out int width)
+    {
+        width = bitmap.Width;
+        var rect = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+        var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        try
+        {
+            var row = new byte[Math.Abs(data.Stride)];
+            var alpha = new byte[bitmap.Width * bitmap.Height];
+            for (var y = 0; y < bitmap.Height; y++)
+            {
+                Marshal.Copy(data.Scan0 + y * data.Stride, row, 0, row.Length);
+                for (var x = 0; x < bitmap.Width; x++)
+                    alpha[y * bitmap.Width + x] = row[x * 4 + 3];
+            }
+
+            return alpha;
+        }
+        finally
+        {
+            bitmap.UnlockBits(data);
+        }
+    }
+
     /// <summary>The number on the icon: the rounded percent clamped to 0 to 100, so a value past a
     /// full gauge (which should never happen) still reads "100" instead of a longer number.</summary>
     internal static string FormatPercent(int percent) =>
         Math.Clamp(percent, 0, 100).ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>White or black, whichever gives the higher contrast ratio against <paramref
-    /// name="background"/> - the same WCAG relative-luminance formula <c>ThemeContrastTests</c>
-    /// already uses, not a second one.</summary>
-    internal static Color ContrastingTextColor(Color background) =>
-        ContrastRatio(background, Color.White) >= ContrastRatio(background, Color.Black)
+    /// <summary>White or black, whichever gives the higher WCAG contrast ratio against <paramref
+    /// name="background"/>, measured by <see cref="AccentColors.Contrast"/>.</summary>
+    internal static Color ContrastingTextColor(Color background)
+    {
+        var measured = ToMedia(background);
+        return AccentColors.Contrast(measured, ToMedia(Color.White)) >= AccentColors.Contrast(measured, ToMedia(Color.Black))
             ? Color.White
             : Color.Black;
-
-    private static double ContrastRatio(Color a, Color b)
-    {
-        var (l1, l2) = (RelativeLuminance(a), RelativeLuminance(b));
-        var (lighter, darker) = l1 >= l2 ? (l1, l2) : (l2, l1);
-        return (lighter + 0.05) / (darker + 0.05);
     }
 
-    private static double RelativeLuminance(Color c)
-    {
-        double Channel(byte v)
-        {
-            var s = v / 255.0;
-            return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
-        }
-
-        return 0.2126 * Channel(c.R) + 0.7152 * Channel(c.G) + 0.0722 * Channel(c.B);
-    }
+    private static System.Windows.Media.Color ToMedia(Color color) =>
+        System.Windows.Media.Color.FromRgb(color.R, color.G, color.B);
 
     private static GraphicsPath RoundedSquare(float size, float radius)
     {

@@ -118,10 +118,10 @@ public static class WindowOpacity
     /// change is followed by a full redraw.</summary>
     public static void Apply(IntPtr hwnd, int percent)
     {
-        var current = NativeMethods.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+        var current = Win32.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
         var updated = RequiredExStyle(current, percent);
         if (updated != current)
-            NativeMethods.SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
+            Win32.SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
 
         if ((updated & WsExLayered) != 0)
             NativeMethods.SetLayeredWindowAttributes(hwnd, 0, AlphaFromPercent(percent), LwaAlpha);
@@ -157,12 +157,6 @@ public static class WindowOpacity
     /// <see cref="AlphaFromPercent"/> and <see cref="RequiredExStyle"/> stay testable with no real window.</summary>
     private static class NativeMethods
     {
-        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
-        public static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
-        public static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 

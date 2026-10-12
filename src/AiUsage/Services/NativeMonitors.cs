@@ -11,30 +11,10 @@ namespace AiUsage.Services;
 /// </summary>
 internal static class NativeMonitors
 {
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Rect
-    {
-        public int Left, Top, Right, Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct MonitorInfoEx
-    {
-        public int Size;
-        public Rect Monitor;
-        public Rect WorkArea;
-        public uint Flags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string DeviceName;
-    }
-
-    private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, ref Rect clip, IntPtr data);
+    private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, ref Win32.NativeRect clip, IntPtr data);
 
     [DllImport("user32.dll")]
     private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clipRect, MonitorEnumProc callback, IntPtr data);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfoEx info);
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
@@ -59,9 +39,6 @@ internal static class NativeMonitors
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(Point point, uint flags);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
-
     /// <summary>The device name of the monitor Windows itself places <paramref name="window"/> on, or
     /// null when that cannot be told. With mixed scaling the per-monitor areas from <see
     /// cref="WorkAreas"/> can overlap, so a position alone does not always name one monitor.</summary>
@@ -69,9 +46,9 @@ internal static class NativeMonitors
     {
         if (window == IntPtr.Zero)
             return null;
-        var monitor = MonitorFromWindow(window, MonitorDefaultToNearest);
-        var info = new MonitorInfoEx { Size = Marshal.SizeOf<MonitorInfoEx>() };
-        return monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info) ? info.DeviceName : null;
+        var monitor = Win32.MonitorFromWindow(window, MonitorDefaultToNearest);
+        var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
+        return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info) ? info.DeviceName : null;
     }
 
     private const uint MonitorDefaultToNearest = 2;
@@ -91,8 +68,8 @@ internal static class NativeMonitors
     public static double? WorkAreaTopAt(double screenX, double screenY)
     {
         var monitor = MonitorFromPoint(new Point { X = (int)screenX, Y = (int)screenY }, MonitorDefaultToNearest);
-        var info = new MonitorInfoEx { Size = Marshal.SizeOf<MonitorInfoEx>() };
-        return monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info) ? info.WorkArea.Top : null;
+        var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
+        return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info) ? info.WorkArea.Top : null;
     }
 
     private static double ScaleOf(IntPtr monitor) =>
@@ -104,10 +81,10 @@ internal static class NativeMonitors
     {
         var results = new List<MonitorArea>();
 
-        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr monitor, IntPtr hdc, ref Rect clip, IntPtr data) =>
+        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr monitor, IntPtr hdc, ref Win32.NativeRect clip, IntPtr data) =>
         {
-            var info = new MonitorInfoEx { Size = Marshal.SizeOf<MonitorInfoEx>() };
-            if (GetMonitorInfo(monitor, ref info))
+            var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
+            if (Win32.GetMonitorInfo(monitor, ref info))
             {
                 // The process is per-monitor DPI aware, so these are physical pixels, while every
                 // caller compares them with WPF's device-independent Left/Top/Width/Height. A window on
