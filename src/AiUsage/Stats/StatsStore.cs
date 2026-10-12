@@ -1082,7 +1082,6 @@ public sealed class StatsStore
         }
     }
 
-    /// <summary>True once the sessions of the usage rows an older version left behind were filled in.</summary>
     /// <summary>True when the index holds at least one usage row. False too when it cannot be read.</summary>
     public bool HasUsageRows()
     {
@@ -1102,6 +1101,7 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>True once the sessions of the usage rows an older version left behind were filled in.</summary>
     public bool IsSessionBackfillDone()
     {
         try

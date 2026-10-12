@@ -114,7 +114,7 @@ public class StatsViewModelLimitsTests
 
         var group = Assert.Single(viewModel.LimitGroups);
         Assert.Equal("Claude", group.ProviderName);
-        var row = Assert.Single(viewModel.LimitRows);
+        var row = Assert.Single(viewModel.LimitGroups.SelectMany(group => group.Rows));
         Assert.DoesNotContain("Claude", row.Label, StringComparison.Ordinal);
         Assert.Equal(1, row.ReachedCount);
         Assert.Equal("Crit", row.Level);
@@ -130,7 +130,7 @@ public class StatsViewModelLimitsTests
     {
         var viewModel = Create((_, _, _) => []);
 
-        Assert.Empty(viewModel.LimitRows);
+        Assert.Empty(viewModel.LimitGroups.SelectMany(group => group.Rows));
         Assert.True(viewModel.HasNoLimitRows);
     }
 
@@ -139,11 +139,11 @@ public class StatsViewModelLimitsTests
     {
         var reset = DateTimeOffset.Now.AddDays(2);
         var viewModel = Create((id, _, _) => id is "claude" or "codex" ? [Weekly(50, reset)] : []);
-        Assert.Equal(2, viewModel.LimitRows.Count);
+        Assert.Equal(2, viewModel.LimitGroups.SelectMany(group => group.Rows).Count());
 
         viewModel.SetProviderCommand.Execute("codex");
 
-        Assert.Single(viewModel.LimitRows);
+        Assert.Single(viewModel.LimitGroups.SelectMany(group => group.Rows));
         Assert.Equal(StatsViewModel.ProviderDisplayNames["codex"], Assert.Single(viewModel.LimitGroups).ProviderName);
     }
 

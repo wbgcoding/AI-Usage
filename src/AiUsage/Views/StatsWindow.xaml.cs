@@ -253,8 +253,6 @@ public partial class StatsWindow : Window
     private List<string> VisibleSectionKeys() =>
         Sections.Where(section => section.Visibility == Visibility.Visible).Select(section => section.SectionKey).ToList();
 
-    /// <summary>A popup that closed without an applied range puts the list back on the range that
-    /// is really showing.</summary>
     /// <summary>The pickers offer no day before the start of 2000 and none after today, the same
     /// bounds the view model clamps a custom range to.</summary>
     private void LimitCustomRangePickers()
@@ -263,6 +261,8 @@ public partial class StatsWindow : Window
         CustomToPicker.DisplayDateEnd = DateTime.Today;
     }
 
+    /// <summary>A popup that closed without an applied range puts the list back on the range that
+    /// is really showing.</summary>
     private void CustomRangePopup_Closed(object? sender, EventArgs e) => _viewModel.ResyncRangeChoice();
 
     private void ResetLayoutButton_Click(object sender, RoutedEventArgs e) => CommitLayout(StatsLayout.Default());

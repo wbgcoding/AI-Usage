@@ -1897,7 +1897,11 @@ public class StatsViewModelCaptionTests
         Assert.Equal(1700, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
         Assert.True(viewModel.BarsFilterable);
         Assert.Equal(3, viewModel.Rows.Count);
-        Assert.All(viewModel.Rows, row => Assert.True(row.CanFilter));
+        Assert.All(viewModel.Rows, row =>
+        {
+            Assert.Equal(StatsFilterKind.Model, row.FilterKind);
+            Assert.NotEmpty(row.FilterKey);
+        });
 
         var opus = viewModel.Rows[0];
         viewModel.ToggleFilter(opus.FilterKind, opus.FilterKey);

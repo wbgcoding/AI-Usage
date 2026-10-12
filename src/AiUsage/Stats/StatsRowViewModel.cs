@@ -7,11 +7,7 @@ namespace AiUsage.Stats;
 /// path back here instead, so a hover can still name it exactly.</summary>
 public sealed record StatsRowViewModel(
     string Label, long TotalTokens, string TotalText, string ToolTip = "",
-    StatsFilterKind FilterKind = StatsFilterKind.None, string FilterKey = "")
-{
-    /// <summary>True when a click on this row narrows the whole window to what the row names.</summary>
-    public bool CanFilter => FilterKind != StatsFilterKind.None && FilterKey.Length > 0;
-}
+    StatsFilterKind FilterKind = StatsFilterKind.None, string FilterKey = "");
 
 /// <summary>What a click on a model or a project narrows every figure to.</summary>
 public enum StatsFilterKind

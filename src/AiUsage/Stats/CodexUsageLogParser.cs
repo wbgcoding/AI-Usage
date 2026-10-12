@@ -47,12 +47,6 @@ public sealed class CodexUsageLogParser
     public (string Model, long CumulativeInput, long CumulativeOutput, long CumulativeCacheCreation, long CumulativeCacheRead, string Effort) State =>
         (_model, _cumulativeInput, _cumulativeOutput, _cumulativeCacheCreation, _cumulativeCacheRead, _effort);
 
-    /// <summary>True only for a "token_count" line that reports at least one genuinely new token
-    /// against what this instance has already seen. A repeated line changes nothing and yields no
-    /// event; a counter that drops below its own previous value has reset (a context compaction, or a
-    /// fresh file) rather than gone backwards, so its new value becomes this event's delta for that
-    /// counter instead of a clamped, lost zero. A "turn_context" line updates the tracked model and
-    /// returns false: it is state to remember, not a usage event of its own.</summary>
     /// <summary>Cheap raw-byte test run before a line is decoded. <see cref="TryParseLine"/> only reads
     /// or changes state on a "turn_context" line (model, effort) and on an event_msg "token_count"
     /// line; every other type returns before touching anything, so a line carrying neither quoted
@@ -60,6 +54,12 @@ public sealed class CodexUsageLogParser
     internal static bool MayAffectState(ReadOnlySpan<byte> line) =>
         line.IndexOf("\"turn_context\""u8) >= 0 || line.IndexOf("\"token_count\""u8) >= 0;
 
+    /// <summary>True only for a "token_count" line that reports at least one genuinely new token
+    /// against what this instance has already seen. A repeated line changes nothing and yields no
+    /// event; a counter that drops below its own previous value has reset (a context compaction, or a
+    /// fresh file) rather than gone backwards, so its new value becomes this event's delta for that
+    /// counter instead of a clamped, lost zero. A "turn_context" line updates the tracked model and
+    /// returns false: it is state to remember, not a usage event of its own.</summary>
     public bool TryParseLine(string line, out UsageEvent result)
     {
         result = default;

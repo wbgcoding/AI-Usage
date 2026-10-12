@@ -525,11 +525,8 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The limits section: the quota windows of each shown provider, with the tokens-per-percent
     /// line under the provider's rows where there is one.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LimitRows), nameof(HasLimitRows), nameof(HasNoLimitRows))]
+    [NotifyPropertyChangedFor(nameof(HasLimitRows), nameof(HasNoLimitRows))]
     private IReadOnlyList<StatsLimitGroupViewModel> limitGroups = [];
-
-    /// <summary>Every row of <see cref="LimitGroups"/> in order.</summary>
-    public IReadOnlyList<StatsLimitRowViewModel> LimitRows => LimitGroups.SelectMany(group => group.Rows).ToList();
 
     public bool HasLimitRows => LimitGroups.Count > 0;
 
@@ -924,11 +921,6 @@ public sealed partial class StatsViewModel : ObservableObject
             .OrderBy(slice => slice.Hour)
             .Select(slice => new Views.Controls.StatsBarChart.Bar(slice.Label, [slice.Total]))
             .ToList();
-
-    /// <summary>Display names in the exact order <see cref="StatsAggregator.StackedProviderOrder"/>
-    /// stacks segments in - what a stacked chart's hover tooltip names each segment with.</summary>
-    public static IReadOnlyList<string> StackedProviderDisplayNames { get; } =
-        StatsAggregator.StackedProviderOrder.Select(id => ProviderDisplayNames.GetValueOrDefault(id, id)).ToList();
 
     public StatsViewModel(
         StatsStore store, Func<string, string?>? askForSavePath = null, Action<string>? showMessage = null, HistoryStore? history = null)
