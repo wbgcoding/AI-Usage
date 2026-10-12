@@ -105,6 +105,7 @@ public sealed class StatsStore
             var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
+            Execute(connection, "PRAGMA trusted_schema = OFF");
             using (var check = connection.CreateCommand())
             {
                 check.CommandText = "PRAGMA quick_check(1)";
@@ -115,7 +116,12 @@ public sealed class StatsStore
             using var version = connection.CreateCommand();
             version.CommandText = "SELECT MAX(version) FROM schema_version";
             var value = version.ExecuteScalar();
-            return value is null or DBNull ? null : (int)Math.Min(int.MaxValue, Convert.ToInt64(value, CultureInfo.InvariantCulture));
+            // SQLite keeps whatever type was stored in an INTEGER column (text, a blob, a real): only a
+            // whole number counts as a version.
+            return value is null or DBNull
+                || !long.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+                ? null
+                : (int)Math.Clamp(number, int.MinValue, int.MaxValue);
         }
         catch (SqliteException)
         {
@@ -144,6 +150,7 @@ public sealed class StatsStore
             var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
+            Execute(connection, "PRAGMA trusted_schema = OFF");
             return TableHasColumns(connection, "usage", UsageColumns)
                 && TableHasColumns(connection, "session", SessionColumns)
                 && TableHasColumns(connection, "session_model", SessionModelColumns);
@@ -375,6 +382,8 @@ public sealed class StatsStore
         Execute(connection, "BEGIN IMMEDIATE");
         try
         {
+            // First, so nothing a backup declares can react to the statements below or to later writes.
+            DropForeignSchemaObjects(connection);
             using var command = connection.CreateCommand();
             var names = ids.Count == 0 ? "NULL" : string.Join(", ", ids.Select((_, i) => "$m" + i));
             for (var i = 0; i < ids.Count; i++)
@@ -420,6 +429,38 @@ public sealed class StatsStore
         TryExecute(connection, "PRAGMA journal_mode = DELETE");
     }
 
+    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta"];
+
+    /// <summary>Drops everything in the file's schema that this app did not create: triggers and views,
+    /// tables other than its own, and every explicit index (the app declares none; the indexes that
+    /// belong to its primary keys are internal and stay).</summary>
+    private static void DropForeignSchemaObjects(SqliteConnection connection)
+    {
+        var objects = new List<(string Type, string Name)>();
+        using (var list = connection.CreateCommand())
+        {
+            list.CommandText = "SELECT type, name FROM sqlite_master";
+            using var reader = list.ExecuteReader();
+            while (reader.Read())
+            {
+                var name = reader.GetString(1);
+                if (!name.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase))
+                    objects.Add((reader.GetString(0), name));
+            }
+        }
+
+        foreach (var kind in new[] { "trigger", "view", "index", "table" })
+        {
+            foreach (var (type, name) in objects)
+            {
+                if (type != kind || (kind == "table" && OwnTables.Contains(name, StringComparer.OrdinalIgnoreCase)))
+                    continue;
+
+                Execute(connection, $"DROP {kind.ToUpperInvariant()} IF EXISTS \"{name.Replace("\"", "\"\"")}\"");
+            }
+        }
+    }
+
     /// <summary>Folds the write-ahead log of the index at <paramref name="databasePath"/> into the
     /// database file and closes it again, so the file is complete by itself and can be moved alone.
     /// Failing (no such file, not a database) is not an error here.</summary>
@@ -430,6 +471,7 @@ public sealed class StatsStore
             var connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString();
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
+            TryExecute(connection, "PRAGMA trusted_schema = OFF");
             TryExecute(connection, "PRAGMA wal_checkpoint(TRUNCATE)");
         }
         catch (SqliteException)
@@ -490,6 +532,8 @@ public sealed class StatsStore
         try
         {
             connection.Open();
+            // Nothing a database file declares (views, triggers, functions) may run with the app's rights.
+            Execute(connection, "PRAGMA trusted_schema = OFF");
             if (schemaKnown)
             {
                 SetBusyTimeout(connection);

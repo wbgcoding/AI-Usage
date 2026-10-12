@@ -581,6 +581,22 @@ public sealed class BackupServiceTests : IDisposable
         Assert.Equal(BackupRefusal.NotABackup, BackupService.Inspect(ZipWithStats(folder, garbage), Temp()).Refusal);
     }
 
+    [Fact]
+    public void A_token_index_with_a_text_version_is_refused_without_throwing()
+    {
+        var folder = Temp();
+        var path = MakeIndexWithVersion(folder, 8);
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString()))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE schema_version SET version = 'x'";
+            command.ExecuteNonQuery();
+        }
+
+        Assert.Equal(BackupRefusal.NotABackup, BackupService.Inspect(ZipWithStats(folder, path), Temp()).Refusal);
+    }
+
     private static string ZipWithStats(string folder, string databasePath) =>
         MakeZip(folder, z =>
         {

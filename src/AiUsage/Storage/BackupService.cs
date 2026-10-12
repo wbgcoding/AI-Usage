@@ -530,7 +530,8 @@ public static class BackupService
         {
             return new BackupInspection(ex.Refusal, null);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException
+            or FormatException or InvalidCastException or OverflowException)
         {
             return new BackupInspection(BackupRefusal.NotABackup, null);
         }
@@ -626,7 +627,8 @@ public static class BackupService
         {
             refusal = ex.Refusal;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException
+            or FormatException or InvalidCastException or OverflowException)
         {
             refusal = BackupRefusal.NotABackup;
         }
@@ -753,7 +755,8 @@ public static class BackupService
             log($"Restore: the backup was refused ({ex.Refusal}); nothing was changed.");
             return RestoreOutcome.Unchanged;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or SqliteException
+            or FormatException or InvalidCastException or OverflowException)
         {
             log($"Restore: the backup could not be read ({ex.GetType().Name}); nothing was changed.");
             return RestoreOutcome.Unchanged;
