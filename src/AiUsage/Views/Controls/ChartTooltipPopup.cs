@@ -127,18 +127,21 @@ public sealed class ChartTooltipPopup
     private FrameworkElement? _hookedOwner;
     private Window? _hookedWindow;
 
-    private void HookOwner(FrameworkElement owner)
+    /// <summary>True while any owner or window event is still subscribed.</summary>
+    internal bool IsHooked => _hookedOwner is not null || _hookedWindow is not null;
+
+    internal void HookOwner(FrameworkElement owner)
     {
         if (!ReferenceEquals(_hookedOwner, owner))
         {
             if (_hookedOwner is not null)
             {
-                _hookedOwner.Unloaded -= OnOwnerGone;
+                _hookedOwner.Unloaded -= OnOwnerUnloaded;
                 _hookedOwner.IsVisibleChanged -= OnOwnerVisibleChanged;
             }
 
             _hookedOwner = owner;
-            owner.Unloaded += OnOwnerGone;
+            owner.Unloaded += OnOwnerUnloaded;
             owner.IsVisibleChanged += OnOwnerVisibleChanged;
         }
 
@@ -163,6 +166,30 @@ public sealed class ChartTooltipPopup
     }
 
     private void OnOwnerGone(object? sender, EventArgs e) => Hide();
+
+    /// <summary>The owner left the tree: close the tooltip and let go of the owner and its window, so
+    /// a long-lived window does not keep every chart that was ever hovered reachable. The next
+    /// <see cref="Show"/> hooks again.</summary>
+    private void OnOwnerUnloaded(object sender, RoutedEventArgs e)
+    {
+        Hide();
+        if (_hookedOwner is not null)
+        {
+            _hookedOwner.Unloaded -= OnOwnerUnloaded;
+            _hookedOwner.IsVisibleChanged -= OnOwnerVisibleChanged;
+            _hookedOwner = null;
+        }
+
+        if (_hookedWindow is not null)
+        {
+            _hookedWindow.Deactivated -= OnOwnerGone;
+            _hookedWindow.StateChanged -= OnOwnerGone;
+            _hookedWindow.Closed -= OnOwnerGone;
+            _hookedWindow = null;
+        }
+
+        _popup.PlacementTarget = null;
+    }
 
     private void OnOwnerVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {

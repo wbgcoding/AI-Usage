@@ -64,4 +64,40 @@ public class ChartTooltipPopupTests
         Assert.Equal(70, location.X);
         Assert.Equal(25, location.Y);
     }
+
+    [Fact]
+    public void Unloading_the_owner_lets_go_of_it_and_its_window_and_the_next_show_hooks_again()
+    {
+        Exception? failure = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                var owner = new System.Windows.Controls.Border();
+                var window = new System.Windows.Window { Content = owner };
+                var popup = new ChartTooltipPopup();
+
+                popup.HookOwner(owner);
+                Assert.True(popup.IsHooked);
+
+                owner.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.FrameworkElement.UnloadedEvent));
+                Assert.False(popup.IsHooked);
+
+                popup.HookOwner(owner);
+                Assert.True(popup.IsHooked);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        })
+        {
+            IsBackground = true,
+        };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        Assert.True(worker.Join(TimeSpan.FromSeconds(30)));
+        if (failure is not null)
+            throw new InvalidOperationException("Hook test failed.", failure);
+    }
 }
