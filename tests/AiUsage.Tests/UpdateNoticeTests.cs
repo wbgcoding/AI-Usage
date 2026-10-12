@@ -169,8 +169,34 @@ public class UpdateNoticeTests
         };
 
         Assert.Equal(UpdateOutcome.DownloadFailed, (await unreachable.InstallAsync(CancellationToken.None)).Outcome);
-        Assert.Equal(UpdateOutcome.DownloadFailed, (await notNewer.InstallAsync(CancellationToken.None)).Outcome);
+        Assert.Equal(UpdateOutcome.AlreadyCurrent, (await notNewer.InstallAsync(CancellationToken.None)).Outcome);
         Assert.Empty(host.Ran);
+    }
+
+    [Fact]
+    public async Task AnInstallThatFindsNothingNewerClearsTheStaleNotice()
+    {
+        var settings = new AppSettings { KnownLatestTag = "v9.0.0", KnownLatestUrl = Page };
+        var update = new UpdateNoticeViewModel(settings, _ => { }, () => new RecordingHost("", [], ""))
+        {
+            FetchLatestRelease = _ => Task.FromResult<UpdateCheck.Release?>(new("v0.0.1", Page)),
+        };
+        Assert.True(update.ShowNotice);
+
+        var result = await update.InstallAsync(CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.AlreadyCurrent, result.Outcome);
+        Assert.False(update.ShowNotice);
+        Assert.False(update.IsInstalling);
+    }
+
+    [Fact]
+    public void The_notice_bar_shows_the_download_text_beside_the_install_button_while_installing()
+    {
+        var xaml = SourceScan.Read("src", "AiUsage", "Views", "MainWindow.xaml");
+
+        Assert.Contains("Path=[Update.Downloading]", xaml, StringComparison.Ordinal);
+        Assert.Contains("Binding Update.IsInstalling, Converter={StaticResource BoolToVis}", xaml, StringComparison.Ordinal);
     }
 }
 

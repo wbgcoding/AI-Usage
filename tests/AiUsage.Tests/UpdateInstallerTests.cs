@@ -166,6 +166,69 @@ public class UpdateInstallerTests
         Assert.Empty(Directory.GetFiles(host.WorkFolder, "*", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public async Task AFourPartVersionWithARevisionOfZeroIsTheSameAsTheThreePartRunningVersion()
+    {
+        var (publicKey, key) = NewKey();
+        var host = new FakeHost
+        {
+            IsInstalled = false, PublicKey = publicKey, RunningVersion = new Version(1, 2, 3), FileVersion = new Version(1, 2, 3, 0),
+        };
+        host.Files[ExeUrl] = Payload;
+        host.Files[SigUrl] = [.. System.Text.Encoding.ASCII.GetBytes(Sign(key, Payload))];
+
+        var outcome = await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        Assert.Equal(UpdateOutcome.NotNewer, outcome);
+        Assert.Empty(host.Ran);
+    }
+
+    [Fact]
+    public void TheHeldFileIsRecognisedAsTheFileAtThePath()
+    {
+        var folder = TestPaths.CreateDirectory("lease-plain");
+        var path = Path.Combine(folder, "file.exe");
+        File.WriteAllBytes(path, Payload);
+        using var lease = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        Assert.True(UpdateInstaller.LeaseIsTheFile(lease, folder, path));
+    }
+
+    [Fact]
+    public void AHeldFileThatIsNotTheOneAtThePathIsRefused()
+    {
+        var folder = TestPaths.CreateDirectory("lease-other");
+        var held = Path.Combine(folder, "held.exe");
+        var named = Path.Combine(folder, "named.exe");
+        File.WriteAllBytes(held, Payload);
+        File.WriteAllBytes(named, Payload);
+        using var lease = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        Assert.False(UpdateInstaller.LeaseIsTheFile(lease, folder, named));
+    }
+
+    [Fact]
+    public void AFileSwappedForALinkAfterTheFirstCheckIsRefused()
+    {
+        var elsewhere = TestPaths.CreateDirectory("lease-target");
+        var real = Path.Combine(elsewhere, SetupName);
+        File.WriteAllBytes(real, Payload);
+        var folder = TestPaths.CreateDirectory("lease-link");
+        var link = Path.Combine(folder, SetupName);
+        try
+        {
+            File.CreateSymbolicLink(link, real);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return; // this account may not create file links, so the case cannot be set up here
+        }
+
+        using var lease = new FileStream(link, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        Assert.False(UpdateInstaller.LeaseIsTheFile(lease, folder, link));
+    }
+
     [Theory]
     [InlineData(1, 0, 0, 0)]
     [InlineData(0, 9, 0, 0)]
@@ -248,7 +311,8 @@ public class UpdateInstallerTests
     [InlineData(UpdateOutcome.SwapFailedRestoreNeeded, "Update.RestoreNeeded")]
     [InlineData(UpdateOutcome.NotStarted, "Update.NotStarted")]
     [InlineData(UpdateOutcome.DownloadFailed, "Update.NotLoaded")]
-    [InlineData(UpdateOutcome.NoMatchingFile, "Update.NotLoaded")]
+    [InlineData(UpdateOutcome.NoMatchingFile, "Update.NoMatchingFile")]
+    [InlineData(UpdateOutcome.AlreadyCurrent, "About.UpToDate")]
     public void EachRefusedOutcomeHasItsOwnMessage(UpdateOutcome outcome, string key)
     {
         Assert.Equal(key, AiUsage.Views.UpdateDialogs.MessageKey(outcome));

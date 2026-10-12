@@ -39,8 +39,17 @@ public static class UpdateCheck
     {
         return Version.TryParse(runningVersion, out var running) &&
                Version.TryParse(DisplayVersion(tagName), out var tag) &&
-               tag > running;
+               IsNewerVersion(tag, running);
     }
+
+    /// <summary>True when <paramref name="offered"/> is strictly newer than <paramref name="running"/>.
+    /// Missing build and revision parts count as 0, so "1.2.3.0" and "1.2.3" are the same version
+    /// (a plain comparison orders a missing part below 0). The one rule behind both the notice and
+    /// the installer's own check.</summary>
+    internal static bool IsNewerVersion(Version offered, Version running) =>
+        Normalize(offered) > Normalize(running);
+
+    private static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0), Math.Max(v.Revision, 0));
 
     /// <summary>
     /// Runs <paramref name="fetch"/> only once <see cref="MinCheckInterval"/> has actually passed

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace AiUsage.Services;
 
@@ -30,6 +31,10 @@ public enum UpdateOutcome
     /// <summary>The setup was verified but did not start (for example the administrator prompt was
     /// declined); nothing was installed and the running copy stays up.</summary>
     NotStarted,
+
+    /// <summary>The newest release turned out not to be newer than the running version when it was
+    /// read again for the install; nothing was loaded.</summary>
+    AlreadyCurrent,
 }
 
 /// <summary>Everything the installer needs from the machine, so the whole flow runs in a test
@@ -181,6 +186,16 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             // The handle denies writing and deleting from here on, and the bytes are read once from it:
             // only those bytes are verified and only they (or this locked file) are ever run.
             lease = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Opening follows a link: a file swapped for one between the check above and here would be
+            // read, verified and locked at its target while the path still names the link.
+            if (!LeaseIsTheFile(lease, runFolder, filePath))
+            {
+                log?.Invoke("Update refused: the downloaded file is not the file that was opened.");
+                lease.Dispose();
+                CleanUpRun(runFolder, filePath, signaturePath);
+                return UpdateOutcome.DownloadFailed;
+            }
+
             verifiedBytes = new byte[lease.Length];
             await lease.ReadExactlyAsync(verifiedBytes, ct);
             // The signature covers the file bytes only, so the version is read from the verified file
@@ -340,6 +355,57 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     private static bool IsLink(string path) =>
         (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
+    private const uint FileFlagBackupSemantics = 0x02000000;
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(
+        string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition,
+        uint flagsAndAttributes, IntPtr templateFile);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint pathLength, uint flags);
+
+    /// <summary>True when the held <paramref name="lease"/> really is the file at <paramref name="filePath"/>
+    /// in the run folder: the handle's final path (every link resolved) equals the resolved run folder
+    /// plus the file name, and the path is not a link now either.</summary>
+    internal static bool LeaseIsTheFile(FileStream lease, string runFolder, string filePath)
+    {
+        try
+        {
+            using var folder = CreateFileW(runFolder, 0, 7, IntPtr.Zero, 3, FileFlagBackupSemantics, IntPtr.Zero);
+            if (folder.IsInvalid)
+                return false;
+
+            var expectedFolder = FinalPath(folder);
+            var actual = FinalPath(lease.SafeFileHandle);
+            return expectedFolder is not null && actual is not null
+                && string.Equals(actual, Path.Combine(expectedFolder, Path.GetFileName(filePath)), StringComparison.OrdinalIgnoreCase)
+                && !IsLink(filePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static string? FinalPath(SafeFileHandle handle)
+    {
+        var buffer = new char[512];
+        var length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+        if (length > buffer.Length)
+        {
+            buffer = new char[length + 1];
+            length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+        }
+        if (length == 0 || length > buffer.Length)
+            return null;
+
+        var path = new string(buffer, 0, (int)length);
+        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
+            return @"\\" + path[8..];
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
+    }
+
     /// <summary>True when <paramref name="folder"/> contains exactly <paramref name="file"/>: no other
     /// file, no subfolder.</summary>
     private static bool HoldsOnly(string folder, string file)
@@ -370,10 +436,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     }
 
     private static bool IsNewerThanRunning(Version? offered, Version running) =>
-        offered is not null && Normalize(offered) > Normalize(running);
-
-    // A three-part version has no revision; .NET orders that below revision 0.
-    private static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0), Math.Max(v.Revision, 0));
+        offered is not null && UpdateCheck.IsNewerVersion(offered, running);
 
     private static void DeleteQuietly(params string[] paths)
     {

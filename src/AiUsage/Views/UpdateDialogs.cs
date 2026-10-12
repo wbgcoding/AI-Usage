@@ -34,10 +34,11 @@ internal static class UpdateDialogs
         if (result.Outcome == UpdateOutcome.SwapFailedRestoreNeeded)
             message = RestoreMessage(message, result.RestoreNeededPath);
 
-        if (result.Outcome is UpdateOutcome.InstalledRestartNeeded or UpdateOutcome.SwapFailedRestoreNeeded or UpdateOutcome.NotStarted)
+        if (result.Outcome is UpdateOutcome.InstalledRestartNeeded or UpdateOutcome.SwapFailedRestoreNeeded
+            or UpdateOutcome.NotStarted or UpdateOutcome.AlreadyCurrent)
         {
             // Nothing a download would fix (the new version is in place, the program file needs renaming,
-            // or the setup only has to be started again): only a close button.
+            // the setup only has to be started again, or there is nothing newer): only a close button.
             ConfirmWindow.Show(owner, AppInfo.ProductName, message, loc["TitleBar.Close"], "");
             return;
         }
@@ -55,6 +56,8 @@ internal static class UpdateDialogs
     {
         UpdateOutcome.NotVerified => "Update.NotVerified",
         UpdateOutcome.NotNewer => "Update.NotNewer",
+        UpdateOutcome.NoMatchingFile => "Update.NoMatchingFile",
+        UpdateOutcome.AlreadyCurrent => "About.UpToDate",
         UpdateOutcome.InstalledRestartNeeded => "Update.InstalledRestart",
         UpdateOutcome.SwapFailedRestoreNeeded => "Update.RestoreNeeded",
         UpdateOutcome.NotStarted => "Update.NotStarted",

@@ -99,10 +99,17 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
         try
         {
             var release = await FetchLatestRelease(ct);
-            if (release is null || !UpdateCheck.IsNewer(AppInfo.Version, release.TagName))
+            if (release is null)
                 return new UpdateInstallResult(UpdateOutcome.DownloadFailed, ReleaseUrl);
 
             Record(release);
+            if (!UpdateCheck.IsNewer(AppInfo.Version, release.TagName))
+            {
+                // The notice was stale: nothing newer exists, so the bar goes away too.
+                Refresh();
+                return new UpdateInstallResult(UpdateOutcome.AlreadyCurrent, release.HtmlUrl);
+            }
+
             var installer = new UpdateInstaller(_createHost(), LogService.Shared.LogInfo);
             var outcome = await installer.InstallAsync(release, ct);
             return new UpdateInstallResult(outcome, release.HtmlUrl, installer.RestoreNeededPath);
