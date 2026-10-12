@@ -62,7 +62,7 @@
   <data name="State.Blocked.Reason" xml:space="preserve"><value>Der Anbieter hat die Abfrage abgewiesen, meist weil die Anmeldung abgelaufen ist oder eine Bot-Prüfung erschien. Erneutes Anmelden behebt das meist.</value></data>
   <data name="State.Offline.Reason" xml:space="preserve"><value>Dieser PC hat gerade keine Internetverbindung. Die Kachel füllt sich von selbst, sobald die Verbindung wieder steht.</value></data>
   <data name="State.Silent.Reason" xml:space="preserve"><value>Seit {0} kam keine brauchbare Antwort. Die Kachel versucht es weiter.</value></data>
-  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>Einige Dateien der Browsersitzung sind noch in Benutzung. Schließe das Anmeldefenster und versuche es erneut.</value></data>
+  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>Die Browsersitzung wird noch beendet. Versuche es in ein paar Sekunden erneut.</value></data>
   <data name="State.RuntimeMissing.Head" xml:space="preserve"><value>Browser-Laufzeit fehlt</value></data>
   <data name="State.RuntimeMissing.Reason" xml:space="preserve"><value>Für diesen Anbieter wird die WebView2-Laufzeit gebraucht. Installiere sie und aktualisiere danach.</value></data>
   <data name="State.RuntimeMissing.Action" xml:space="preserve"><value>Downloadseite öffnen</value></data>
@@ -70,7 +70,7 @@
   <data name="WebView2.Install.Confirm" xml:space="preserve"><value>Installieren</value></data>
   <data name="WebView2.Install.Downloading" xml:space="preserve"><value>Die WebView2-Laufzeit wird heruntergeladen …</value></data>
   <data name="WebView2.Install.Installing" xml:space="preserve"><value>Die WebView2-Laufzeit wird installiert …</value></data>
-  <data name="WebView2.Install.Failed" xml:space="preserve"><value>Die WebView2-Laufzeit ließ sich nicht installieren. Du kannst sie bei Microsoft herunterladen und danach erneut anmelden.</value></data>
+  <data name="WebView2.Install.Failed" xml:space="preserve"><value>Die WebView2-Laufzeit ließ sich nicht installieren. Du kannst sie bei Microsoft herunterladen und dich danach erneut anmelden.</value></data>
   <data name="WebView2.Install.OpenDownloadPage" xml:space="preserve"><value>Downloadseite öffnen</value></data>
   <data name="State.Stale.Head" xml:space="preserve"><value>Veraltete Daten</value></data>
   <data name="State.Stale.Reason" xml:space="preserve"><value>Letzte Aktualisierung vor {0}</value></data>
@@ -138,6 +138,7 @@
   <data name="Diag.NothingFound" xml:space="preserve"><value>In diesen Dateien wurde kein verwertbarer Eintrag gefunden.</value></data>
   <data name="Diag.DirectoryMissing" xml:space="preserve"><value>Diesen Ordner gibt es auf diesem PC nicht.</value></data>
   <data name="Dialog.Filter.Json" xml:space="preserve"><value>JSON-Dateien (*.json)|*.json</value></data>
+  <data name="Dialog.Filter.Csv" xml:space="preserve"><value>CSV-Dateien (*.csv)|*.csv</value></data>
   <data name="Error.StatusSuffix" xml:space="preserve"><value>Status {0}</value></data>
   <data name="Duration.Day" xml:space="preserve"><value>1 Tag</value></data>
   <data name="Duration.Days" xml:space="preserve"><value>{0} Tage</value></data>
@@ -433,7 +434,7 @@
   <data name="About.ReadsOnly" xml:space="preserve"><value>AI-Usage greift auf diese Dateien und Seiten nur lesend zu.</value></data>
   <data name="Settings.SizeKilobytes" xml:space="preserve"><value>{0:0} kB</value></data>
   <data name="Settings.SizeMegabytes" xml:space="preserve"><value>{0:0.#} MB</value></data>
-  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>Der Anbieter hat seine Seite geändert, ein App-Update behebt das.</value></data>
+  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>Der Anbieter hat seine Seite geändert. Sobald eine angepasste Version erscheint, bietet das Widget sie als Update an.</value></data>
   <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>Du bist schon angemeldet.</value></data>
   <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>Diese Sitzung hat bereits einen gültigen Zugang. Die Kachel holt ihre Zahlen ab der nächsten Aktualisierung darüber.</value></data>
   <data name="Stats.TokenUnit" xml:space="preserve"><value>Token</value></data>
@@ -477,7 +478,7 @@
   <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>Nach Auslastung</value></data>
   <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>z. B. Arbeit</value></data>
-  <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update konnte nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
+  <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update ließ sich nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuch es noch einmal.</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, wenn ein Limit voraussichtlich in weniger als 30 Minuten erreicht ist</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>

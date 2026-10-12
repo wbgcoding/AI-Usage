@@ -62,7 +62,7 @@
   <data name="State.Blocked.Reason" xml:space="preserve"><value>The provider turned the request away, usually because the sign-in expired or a bot check appeared. Signing in again usually fixes it.</value></data>
   <data name="State.Offline.Reason" xml:space="preserve"><value>This PC has no internet connection right now. The tile fills itself in as soon as the connection is back.</value></data>
   <data name="State.Silent.Reason" xml:space="preserve"><value>No usable answer since {0}. The tile keeps trying.</value></data>
-  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>Some files of the browser session are still in use. Close the sign-in window and try again.</value></data>
+  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>The browser session is still closing. Try again in a few seconds.</value></data>
   <data name="State.RuntimeMissing.Head" xml:space="preserve"><value>Browser runtime missing</value></data>
   <data name="State.RuntimeMissing.Reason" xml:space="preserve"><value>Reading this provider needs the WebView2 runtime. Install it, then use Refresh.</value></data>
   <data name="State.RuntimeMissing.Action" xml:space="preserve"><value>Open download page</value></data>
@@ -138,6 +138,7 @@
   <data name="Diag.NothingFound" xml:space="preserve"><value>No usable entry found in those files.</value></data>
   <data name="Diag.DirectoryMissing" xml:space="preserve"><value>That folder does not exist on this PC.</value></data>
   <data name="Dialog.Filter.Json" xml:space="preserve"><value>JSON files (*.json)|*.json</value></data>
+  <data name="Dialog.Filter.Csv" xml:space="preserve"><value>CSV files (*.csv)|*.csv</value></data>
   <data name="Error.StatusSuffix" xml:space="preserve"><value>status {0}</value></data>
   <data name="Duration.Day" xml:space="preserve"><value>1 day</value></data>
   <data name="Duration.Days" xml:space="preserve"><value>{0} days</value></data>
@@ -434,7 +435,7 @@
   <data name="About.ReadsOnly" xml:space="preserve"><value>AI-Usage only reads these files and pages.</value></data>
   <data name="Settings.SizeKilobytes" xml:space="preserve"><value>{0:0} kB</value></data>
   <data name="Settings.SizeMegabytes" xml:space="preserve"><value>{0:0.#} MB</value></data>
-  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>The provider has changed its page. An app update will fix this.</value></data>
+  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>The provider has changed its page. As soon as a fixed version is out, the widget offers it as an update.</value></data>
   <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>You are already signed in.</value></data>
   <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>This session already holds a valid sign-in. The tile reads its numbers through it from the next refresh on.</value></data>
   <data name="Stats.TokenUnit" xml:space="preserve"><value>tokens</value></data>

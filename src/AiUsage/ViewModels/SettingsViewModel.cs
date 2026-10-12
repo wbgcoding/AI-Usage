@@ -1151,7 +1151,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             FileName = suggestedFileName,
-            Filter = "CSV (*.csv)|*.csv",
+            Filter = LocalizationService.Instance["Dialog.Filter.Csv"],
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
