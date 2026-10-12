@@ -16,6 +16,9 @@ public sealed class FitOrHidePanel : Panel
     // Each child's untrimmed width from the last measure pass, reused by arrange.
     private double[] _natural = [];
 
+    /// <summary>The first child's width with no trimming, from the last measure pass; 0 before one.</summary>
+    internal double FirstChildWidth => _natural.Length > 0 ? _natural[0] : 0;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var children = InternalChildren;

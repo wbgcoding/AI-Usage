@@ -92,6 +92,15 @@
              number coloured by level, an alert glyph at Warn and a warning glyph at Crit, and a thin divider between windows. -->
         <DataTemplate x:Key="MiniRowTemplate">
             <StackPanel Orientation="Horizontal" ToolTip="{Binding CountdownText}">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CountdownText}" Value="">
+                                <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
                 <!-- Hidden before the first window in the list (AlternationIndex 0) - shown before
                      every one after that, so N windows get exactly N-1 dividers between them. -->
                 <Border Width="1" Margin="4,4,4,4" Background="{DynamicResource Border}">

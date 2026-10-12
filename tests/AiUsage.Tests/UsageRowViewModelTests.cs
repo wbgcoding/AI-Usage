@@ -522,4 +522,33 @@ public class UsageRowViewModelTests
     {
         Assert.Equal("", RowAtPace(40, null, null).BarTooltipText);
     }
+
+    [Fact]
+    public void BarTooltipText_names_the_notification_threshold_only_while_its_marker_is_drawn()
+    {
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300);
+        var row = new UsageRowViewModel(window, Now, TileDensity.Full, thresholdPercent: 85);
+        var raised = new List<string?>();
+        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        Assert.Equal(row.ThresholdMarkerTooltip, row.BarTooltipText);
+
+        row.RefreshCountdown(Now, TileDensity.Mini);
+
+        Assert.Equal("", row.BarTooltipText);
+        Assert.Contains(nameof(UsageRowViewModel.BarTooltipText), raised);
+    }
+
+    [Fact]
+    public void The_thin_threshold_marker_carries_no_tooltip_and_an_empty_mini_countdown_shows_none()
+    {
+        var controls = Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views", "Controls");
+        var bar = File.ReadAllText(Path.Combine(controls, "UsageBar.xaml"));
+        var tile = File.ReadAllText(Path.Combine(controls, "ProviderTile.xaml"));
+
+        Assert.DoesNotContain("ToolTip=\"{Binding ThresholdMarkerTooltip}\"", bar);
+        var mini = tile[tile.IndexOf("x:Key=\"MiniRowTemplate\"", StringComparison.Ordinal)..];
+        mini = mini[..mini.IndexOf("</DataTemplate>", StringComparison.Ordinal)];
+        Assert.Contains("<DataTrigger Binding=\"{Binding CountdownText}\" Value=\"\">", mini);
+    }
 }
