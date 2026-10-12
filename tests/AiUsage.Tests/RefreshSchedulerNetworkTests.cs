@@ -144,4 +144,20 @@ public class RefreshSchedulerNetworkTests
         Assert.Contains("ViewModel.RefreshNetworkFailed()", body, StringComparison.Ordinal);
         Assert.Contains("NetworkChange.NetworkAvailabilityChanged -= NetworkChange_NetworkAvailabilityChanged", source, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void An_address_change_restarts_one_debounce_timer_that_checks_the_network_and_refreshes_the_failed_ones()
+    {
+        var source = SourceScan.Read("src", "AiUsage", "Views", "MainWindow.xaml.cs");
+        var changed = SourceScan.Member(source, "private void NetworkChange_NetworkAddressChanged");
+        var tick = SourceScan.Member(source, "private void AddressChangeTimer_Tick");
+
+        Assert.Contains("NetworkChange.NetworkAddressChanged += NetworkChange_NetworkAddressChanged", source, StringComparison.Ordinal);
+        Assert.Contains("NetworkChange.NetworkAddressChanged -= NetworkChange_NetworkAddressChanged", source, StringComparison.Ordinal);
+        Assert.Contains("_addressChangeTimer.Stop();", changed, StringComparison.Ordinal);
+        Assert.Contains("_addressChangeTimer.Start();", changed, StringComparison.Ordinal);
+        Assert.Contains("NetworkStatus.HasInternet()", tick, StringComparison.Ordinal);
+        Assert.Contains("ViewModel.RefreshNetworkFailed()", tick, StringComparison.Ordinal);
+        Assert.Contains("Interval = NetworkSettleTime", source, StringComparison.Ordinal);
+    }
 }

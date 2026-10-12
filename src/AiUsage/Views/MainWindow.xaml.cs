@@ -160,6 +160,8 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.SessionSwitch += SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
         NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
+        NetworkChange.NetworkAddressChanged += NetworkChange_NetworkAddressChanged;
+        _addressChangeTimer.Tick += AddressChangeTimer_Tick;
 
         ApplyRememberedPlacement();
         ApplyContentSize();
@@ -610,6 +612,28 @@ public partial class MainWindow : Window, IDisposable
     }
 
     private static readonly TimeSpan NetworkSettleTime = TimeSpan.FromSeconds(3);
+
+    // One timer, restarted by every address event: a wake from sleep reports several in a row.
+    private readonly DispatcherTimer _addressChangeTimer = new(DispatcherPriority.Background) { Interval = NetworkSettleTime };
+
+    /// <summary>Raised on a pool thread. An adapter that stays up across sleep (a virtual switch, a VPN
+    /// adapter) never flips availability, but its addresses still change when the real connection
+    /// returns: after the burst of events settles, the failed providers are read again the same way.</summary>
+    private void NetworkChange_NetworkAddressChanged(object? sender, EventArgs e) =>
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (_reallyClosing)
+                return;
+            _addressChangeTimer.Stop();
+            _addressChangeTimer.Start();
+        });
+
+    private void AddressChangeTimer_Tick(object? sender, EventArgs e)
+    {
+        _addressChangeTimer.Stop();
+        if (!_reallyClosing && NetworkStatus.HasInternet())
+            ViewModel.RefreshNetworkFailed();
+    }
 
     /// <summary>Records the lock state. When the widget becomes watchable again it gets the normal
     /// cadence back and a due-check right away.</summary>
@@ -1745,6 +1769,9 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.SessionSwitch -= SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
         NetworkChange.NetworkAvailabilityChanged -= NetworkChange_NetworkAvailabilityChanged;
+        NetworkChange.NetworkAddressChanged -= NetworkChange_NetworkAddressChanged;
+        _addressChangeTimer.Stop();
+        _addressChangeTimer.Tick -= AddressChangeTimer_Tick;
         ThemeService.Applied -= ThemeService_Applied;
         ViewModel.Tiles.CollectionChanged -= ViewModel_Tiles_CollectionChanged;
         _updateTimer?.Stop();
