@@ -5,6 +5,14 @@ namespace AiUsage.Tests;
 
 public class ModelDisplayNamesTests
 {
+    [Fact]
+    public void A_name_is_resolved_once_and_the_same_text_comes_back()
+    {
+        var first = ModelDisplayNames.Resolve("some-unlisted-model_x1");
+        Assert.Equal("Some Unlisted Model X1", first);
+        Assert.Same(first, ModelDisplayNames.Resolve("some-unlisted-model_x1"));
+    }
+
     [Theory]
     [InlineData("claude-opus-5", "Opus 5")]
     [InlineData("claude-opus-4-8", "Opus 4.8")]

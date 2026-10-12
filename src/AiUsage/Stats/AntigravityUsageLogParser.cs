@@ -30,6 +30,7 @@ public static class AntigravityUsageLogParser
     /// walk, so a huge or hostile file never holds the indexer.</summary>
     internal const int MaxRowsPerRead = 5000;
     private const int MaxStepRows = 100_000;
+    private const int StepChunkSize = 500;
     private static readonly TimeSpan ReadBudget = TimeSpan.FromSeconds(10);
 
     /// <summary>A real count is far below this; anything above is a corrupt row, not usage.</summary>
@@ -341,26 +342,35 @@ public static class AntigravityUsageLogParser
         if (needed.Count == 0)
             return times;
 
-        using var command = connection.CreateCommand();
-        command.CommandText =
-            "SELECT idx, CASE WHEN typeof(metadata) = 'blob' AND length(metadata) <= $max THEN metadata END " +
-            "FROM steps WHERE idx >= $low AND idx <= $high LIMIT $cap";
-        command.Parameters.AddWithValue("$max", MaxMetadataBlobBytes);
-        command.Parameters.AddWithValue("$low", needed.Min());
-        command.Parameters.AddWithValue("$high", needed.Max());
-        command.Parameters.AddWithValue("$cap", MaxStepRows);
-        using var rows = command.ExecuteReader();
-        while (rows.Read())
+        // Only the needed steps are read, in chunks: a range query would load every step between the
+        // lowest and the highest one just to throw most of them away.
+        var ordered = needed.Order().ToList();
+        var budgetLeft = MaxStepRows;
+        for (var offset = 0; offset < ordered.Count && budgetLeft > 0; offset += StepChunkSize)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (clock.Elapsed > ReadBudget)
-                break;
-            if (rows.IsDBNull(0) || rows.IsDBNull(1))
-                continue;
+            var chunk = ordered.Skip(offset).Take(StepChunkSize).ToList();
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT idx, CASE WHEN typeof(metadata) = 'blob' AND length(metadata) <= $max THEN metadata END " +
+                $"FROM steps WHERE idx IN ({string.Join(", ", chunk.Select((_, i) => "$i" + i))}) LIMIT $cap";
+            command.Parameters.AddWithValue("$max", MaxMetadataBlobBytes);
+            command.Parameters.AddWithValue("$cap", budgetLeft);
+            for (var i = 0; i < chunk.Count; i++)
+                command.Parameters.AddWithValue("$i" + i, chunk[i]);
+            using var rows = command.ExecuteReader();
+            while (rows.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (clock.Elapsed > ReadBudget)
+                    return times;
+                budgetLeft--;
+                if (rows.IsDBNull(0) || rows.IsDBNull(1))
+                    continue;
 
-            var index = rows.GetInt64(0);
-            if (needed.Contains(index) && TryParseStepTime((byte[])rows.GetValue(1)) is { } time)
-                times[index] = time;
+                var index = rows.GetInt64(0);
+                if (needed.Contains(index) && TryParseStepTime((byte[])rows.GetValue(1)) is { } time)
+                    times[index] = time;
+            }
         }
 
         return times;

@@ -44,6 +44,22 @@ public static class ModelDisplayNames
         if (string.IsNullOrEmpty(model))
             return model;
 
+        if (Resolved.TryGetValue(model, out var known))
+            return known;
+
+        var name = ResolveUncached(model);
+        // Raw ids come from session logs; the cache stops growing past a bound.
+        if (Resolved.Count < MaxResolvedNames)
+            Resolved[model] = name;
+        return name;
+    }
+
+    private const int MaxResolvedNames = 4096;
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> Resolved = new(StringComparer.Ordinal);
+
+    private static string ResolveUncached(string model)
+    {
         var normalized = Normalize(model);
         if (Table.TryGetValue(normalized, out var displayName))
             return displayName;

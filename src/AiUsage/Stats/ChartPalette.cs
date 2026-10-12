@@ -59,8 +59,10 @@ public static class ChartPalette
 
     /// <summary>The color that names one model within <paramref name="providerId"/>'s own share: the
     /// provider's exact color for the largest model (<paramref name="rankWithinProvider"/> 0), each
-    /// further model 12% lighter in HSL space than the one before it, saturation untouched and
-    /// lightness never pushed past 80%. A provider id this palette does not recognize falls back to
+    /// further model one lightness step (8 points in HSL space) away from the ones before it, lighter
+    /// and darker in turn, saturation untouched and lightness kept between 30% and 80% - so the first
+    /// six models of every known provider come out as six different colors. A provider id this
+    /// palette does not recognize falls back to
     /// <see cref="ForProvider"/> outright - there is no per-provider hue to ramp lightness against,
     /// so every model under it shares that one deterministic swatch instead.</summary>
     public static Color ForModel(string providerId, int rankWithinProvider)
@@ -72,8 +74,34 @@ public static class ChartPalette
             return baseColor;
 
         var hsl = ToHsl(baseColor);
-        var lightness = Math.Min(0.8, hsl.L + 0.12 * rankWithinProvider);
-        return FromHsl(hsl.H, hsl.S, lightness);
+        return FromHsl(hsl.H, hsl.S, ModelLightness(hsl.L, rankWithinProvider));
+    }
+
+    private const double ModelLightnessStep = 0.08;
+    private const double MaxModelLightness = 0.8;
+    private const double MinModelLightness = 0.3;
+
+    /// <summary>The lightness of the model at <paramref name="rank"/> (1 and up): the ranks take the
+    /// free steps above and below the provider's own lightness alternately, lighter first; once one
+    /// side has no step left the other side continues, and past the last step the lightness stays.</summary>
+    internal static double ModelLightness(double baseLightness, int rank)
+    {
+        var lighterSteps = Math.Max(0, (int)Math.Floor((MaxModelLightness - baseLightness) / ModelLightnessStep + 1e-9));
+        var darkerSteps = Math.Max(0, (int)Math.Floor((baseLightness - MinModelLightness) / ModelLightnessStep + 1e-9));
+        int lighter = 0, darker = 0;
+        var lightness = baseLightness;
+        for (var n = 1; n <= rank; n++)
+        {
+            var lighterTurn = n % 2 == 1;
+            if (lighter < lighterSteps && (lighterTurn || darker >= darkerSteps))
+                lightness = baseLightness + ++lighter * ModelLightnessStep;
+            else if (darker < darkerSteps)
+                lightness = baseLightness - ++darker * ModelLightnessStep;
+            else
+                break;
+        }
+
+        return lightness;
     }
 
     // A provider-less swatch: a fixed hue sequence stepped by the golden angle (never repeats, and

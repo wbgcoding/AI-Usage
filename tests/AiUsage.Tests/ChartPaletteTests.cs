@@ -51,6 +51,21 @@ public class ChartPaletteTests
         Assert.True(HueDistance(Hue(largest), Hue(second)) < 1.0);
     }
 
+    [Theory]
+    [InlineData("claude")]
+    [InlineData("codex")]
+    [InlineData("cursor")]
+    [InlineData("gemini")]
+    [InlineData("copilot")]
+    public void ForModel_gives_the_first_six_models_of_a_provider_six_different_colors(string providerId)
+    {
+        var colors = Enumerable.Range(0, 6).Select(rank => ChartPalette.ForModel(providerId, rank)).ToList();
+
+        Assert.Equal(6, colors.Distinct().Count());
+        Assert.Equal(ChartPalette.ForProvider(providerId), colors[0]); // the largest model keeps the provider color
+        Assert.All(colors.Skip(1), color => Assert.True(HueDistance(Hue(colors[0]), Hue(color)) < 4.0));
+    }
+
     private static double Hue(Color color)
     {
         double r = color.R / 255.0, g = color.G / 255.0, b = color.B / 255.0;

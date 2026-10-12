@@ -266,6 +266,26 @@ public class AntigravityUsageLogParserTests
     }
 
     [Fact]
+    public void Step_times_are_found_for_a_sparse_set_of_steps_across_several_lookup_chunks()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("antigravity-sparse");
+        var path = Path.Combine(directory, "conversation.db");
+        AntigravityFixtures.CreateDatabase(path, Start);
+        const int calls = 620;
+        for (var i = 0; i < calls; i++)
+        {
+            // Every call names a step far apart from the next; the steps in between hold junk.
+            AntigravityFixtures.AddCall(path, i, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: i * 7), i * 7, Start + i);
+            AntigravityFixtures.AddCall(path, 10_000 + i, AntigravityFixtures.Generation(null, 0, 0, 0, 0, step: null), i * 7 + 3, Start + 99_999);
+        }
+
+        var result = AntigravityUsageLogParser.ReadConversation(path, 0, DateTime.UtcNow.AddHours(-1));
+
+        Assert.Equal(calls, result.Events.Count);
+        Assert.All(result.Events, call => Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(Start + call.Index), call.Timestamp));
+    }
+
+    [Fact]
     public void A_call_whose_step_has_no_time_falls_back_to_the_conversation_start()
     {
         using var directory = TestPaths.CreateDisposableDirectory("antigravity-fallback");
