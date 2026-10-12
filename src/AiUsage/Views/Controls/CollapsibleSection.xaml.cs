@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Data;
 
 namespace AiUsage.Views.Controls;
@@ -117,8 +119,39 @@ public class CollapsibleSection : ContentControl
 
     private void HeaderButton_Click(object sender, RoutedEventArgs e) => IsExpanded = !IsExpanded;
 
-    private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
+    private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (UIElementAutomationPeer.FromElement((CollapsibleSection)d) is CollapsibleSectionPeer peer)
+            peer.RaiseStateChanged((bool)e.OldValue, (bool)e.NewValue);
+
         ((CollapsibleSection)d).IsExpandedChanged?.Invoke(d, EventArgs.Empty);
+    }
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new CollapsibleSectionPeer(this);
+
+    /// <summary>Tells UI Automation that the section opens and closes: the expand/collapse pattern
+    /// with the current state, so a screen reader announces "expanded" or "collapsed".</summary>
+    internal sealed class CollapsibleSectionPeer(CollapsibleSection owner) : FrameworkElementAutomationPeer(owner), IExpandCollapseProvider
+    {
+        protected override string GetClassNameCore() => nameof(CollapsibleSection);
+
+        protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Group;
+
+        public override object? GetPattern(PatternInterface patternInterface) =>
+            patternInterface == PatternInterface.ExpandCollapse ? this : base.GetPattern(patternInterface);
+
+        public ExpandCollapseState ExpandCollapseState => StateOf(owner.IsExpanded);
+
+        public void Expand() => owner.IsExpanded = true;
+
+        public void Collapse() => owner.IsExpanded = false;
+
+        internal void RaiseStateChanged(bool wasExpanded, bool isExpanded) =>
+            RaisePropertyChangedEvent(ExpandCollapsePatternIdentifiers.ExpandCollapseStateProperty, StateOf(wasExpanded), StateOf(isExpanded));
+
+        private static ExpandCollapseState StateOf(bool expanded) =>
+            expanded ? System.Windows.Automation.ExpandCollapseState.Expanded : System.Windows.Automation.ExpandCollapseState.Collapsed;
+    }
 }
 
 /// <summary>An empty <see cref="HeaderToolTip"/> must show no tooltip at all rather than an empty

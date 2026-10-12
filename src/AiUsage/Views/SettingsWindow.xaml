@@ -581,7 +581,7 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBox Width="56" Margin="8,0,0,0" VerticalAlignment="Center"
                                      Text="{Binding QuietHoursStartText, UpdateSourceTrigger=PropertyChanged}"
-                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
+                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours.From]}">
                                 <TextBox.Style>
                                     <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                                         <Style.Triggers>
@@ -597,7 +597,7 @@
                                        VerticalAlignment="Center" Margin="8,0,8,0"/>
                             <TextBox Width="56" VerticalAlignment="Center"
                                      Text="{Binding QuietHoursEndText, UpdateSourceTrigger=PropertyChanged}"
-                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}">
+                                     AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours.Until]}">
                                 <TextBox.Style>
                                     <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                                         <Style.Triggers>

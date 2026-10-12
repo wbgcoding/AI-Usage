@@ -80,6 +80,9 @@ public class AccessibilityTests
                 // (it requires "<Slider", never "<Style"), so no extra guard is needed there.
                 if (attrs.Contains("AutomationProperties.Name="))
                     continue;
+                // The scroll bar's page areas are unfocusable track areas; the scroll bar itself is the named control.
+                if (attrs.Contains("ScrollBarPageButton"))
+                    continue;
                 if (elementType != "Slider" && attrs.Contains("Content="))
                     continue;
 

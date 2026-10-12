@@ -12,6 +12,7 @@
          target rather than just the chevron or the title. The hover background is drawn by the
          header bar around the button and the optional header content, see HeaderBarStyle. -->
     <Style x:Key="SectionHeaderButtonStyle" TargetType="Button">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -20,10 +21,19 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="HeaderRoot" Background="{TemplateBinding Background}"
-                            CornerRadius="{StaticResource Radius.Control}" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter/>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="HeaderRoot" Background="{TemplateBinding Background}"
+                                CornerRadius="{StaticResource Radius.Control}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -91,7 +101,7 @@
                                      heading - Placement=Bottom opens it directly under this element rather
                                      than wherever the header button's own bounds happen to end. -->
                                 <TextBlock Grid.Column="1" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}"
-                                           FontWeight="SemiBold" VerticalAlignment="Center"
+                                           FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                            Foreground="{DynamicResource Text.Primary}" FontFamily="{DynamicResource Font.Ui}"
                                            ToolTipService.Placement="Bottom"
                                            ToolTip="{Binding HeaderToolTip, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource NullIfEmpty}}"/>

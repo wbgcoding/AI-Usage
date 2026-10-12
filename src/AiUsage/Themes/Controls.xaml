@@ -10,8 +10,11 @@
     <!-- Implicit styles (TargetType only, no key): every standard control the app uses is drawn from
          theme tokens, because the native chrome is light and sat in the middle of a dark window as
          white circles, white boxes and a white scroll bar. Each keeps a one pixel Accent focus ring
-         so keyboard users still see where they are. -->
+         so keyboard users still see where they are; the check box and the radio button draw it
+         outside the glyph with a gap, because a checked glyph is Accent-filled and a ring on it
+         would vanish. -->
     <Style TargetType="RadioButton">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -38,7 +41,7 @@
                             <Ellipse x:Name="Ring" Stroke="{DynamicResource Border.Control}" StrokeThickness="1"
                                      Fill="{DynamicResource Bg.Raised}"/>
                             <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{DynamicResource Accent}" Visibility="Collapsed"/>
-                            <Ellipse x:Name="Focus" Stroke="{DynamicResource Accent}" StrokeThickness="1" Visibility="Collapsed"/>
+                            <Ellipse x:Name="Focus" Stroke="{DynamicResource Accent}" StrokeThickness="1" Margin="-3" Visibility="Collapsed"/>
                         </Grid>
                         <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                     </DockPanel>
@@ -63,6 +66,7 @@
     </Style>
 
     <Style TargetType="CheckBox">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -89,7 +93,7 @@
                                   Stroke="{DynamicResource Bg.Base}" StrokeThickness="2"
                                   StrokeEndLineCap="Round" StrokeStartLineCap="Round"
                                   Data="M 0,5 L 4,9 L 11,1"/>
-                            <Border x:Name="Focus" CornerRadius="{StaticResource Radius.S}" BorderThickness="1"
+                            <Border x:Name="Focus" CornerRadius="{StaticResource Radius.S}" BorderThickness="1" Margin="-3"
                                     BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                         </Grid>
                         <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" RecognizesAccessKey="True"/>
@@ -216,6 +220,19 @@
         </Setter>
     </Style>
 
+    <!-- The empty track on either side of the thumb: invisible, but a click on it pages the view. -->
+    <Style x:Key="ScrollBarPageButton" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Rectangle Fill="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Eight pixels, no arrow buttons, transparent track: the bar is a hint, not a control panel. -->
     <Style TargetType="ScrollBar">
         <Setter Property="Background" Value="Transparent"/>
@@ -225,9 +242,15 @@
                 <ControlTemplate TargetType="ScrollBar">
                     <Grid Background="{TemplateBinding Background}">
                         <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="{x:Static ScrollBar.PageUpCommand}"/>
+                            </Track.DecreaseRepeatButton>
                             <Track.Thumb>
                                 <Thumb Style="{StaticResource ScrollBarThumb}"/>
                             </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="{x:Static ScrollBar.PageDownCommand}"/>
+                            </Track.IncreaseRepeatButton>
                         </Track>
                     </Grid>
                 </ControlTemplate>
@@ -242,9 +265,15 @@
                         <ControlTemplate TargetType="ScrollBar">
                             <Grid Background="{TemplateBinding Background}">
                                 <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="{x:Static ScrollBar.PageLeftCommand}"/>
+                                    </Track.DecreaseRepeatButton>
                                     <Track.Thumb>
                                         <Thumb Style="{StaticResource ScrollBarThumb}"/>
                                     </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="{x:Static ScrollBar.PageRightCommand}"/>
+                                    </Track.IncreaseRepeatButton>
                                 </Track>
                             </Grid>
                         </ControlTemplate>
@@ -535,6 +564,7 @@
     </Style>
 
     <Style x:Key="AiUsageButton" TargetType="Button">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Background" Value="{DynamicResource Bg.Raised}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}"/>
@@ -545,18 +575,25 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Root"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource Radius.Control}"
-                            Padding="{TemplateBinding Padding}"
-                            TextElement.Foreground="{TemplateBinding Foreground}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource Radius.Control}"
+                                Padding="{TemplateBinding Padding}"
+                                TextElement.Foreground="{TemplateBinding Foreground}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
@@ -568,6 +605,7 @@
     </Style>
 
     <Style x:Key="AiUsageQuietButton" TargetType="Button">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -611,6 +649,7 @@
          Opacity override in a Setter, and this keeps the border/text at full opacity on hover since
          only the overlay Border itself is faded. -->
     <Style x:Key="AiUsageDangerButton" TargetType="Button">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Background" Value="{DynamicResource Bg.Raised}"/>
         <Setter Property="Foreground" Value="{DynamicResource Level.Crit}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
@@ -621,22 +660,29 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Root"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource Radius.Control}"
-                            Padding="{TemplateBinding Padding}"
-                            TextElement.Foreground="{TemplateBinding Foreground}">
-                        <Grid>
-                            <Border x:Name="HoverFill" Background="{DynamicResource Level.Crit}" Opacity="0.12"
-                                    CornerRadius="{StaticResource Radius.Control}" Margin="-1" Visibility="Collapsed"/>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource Radius.Control}"
+                                Padding="{TemplateBinding Padding}"
+                                TextElement.Foreground="{TemplateBinding Foreground}">
+                            <Grid>
+                                <Border x:Name="HoverFill" Background="{DynamicResource Level.Crit}" Opacity="0.12"
+                                        CornerRadius="{StaticResource Radius.Control}" Margin="-1" Visibility="Collapsed"/>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="HoverFill" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.5"/>

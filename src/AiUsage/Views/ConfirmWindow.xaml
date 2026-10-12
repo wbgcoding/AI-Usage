@@ -29,23 +29,35 @@
                                 <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{DynamicResource Accent}"
                                         CornerRadius="{StaticResource WorkBarRadius}"/>
                             </Border>
+                            <!-- The moving block is the middle quarter of an opacity mask that slides by
+                                 fractions of the bar's own width, so it crosses a widened dialog end to end. -->
                             <Border x:Name="MovingBlock" Visibility="Collapsed" ClipToBounds="True" CornerRadius="{StaticResource WorkBarRadius}">
-                                <Rectangle Width="70" RadiusX="4" RadiusY="4" HorizontalAlignment="Left" Fill="{DynamicResource Accent}">
-                                    <Rectangle.RenderTransform>
-                                        <TranslateTransform x:Name="MovingTransform" X="-70"/>
-                                    </Rectangle.RenderTransform>
+                                <Rectangle RadiusX="4" RadiusY="4" Fill="{DynamicResource Accent}">
+                                    <Rectangle.OpacityMask>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <LinearGradientBrush.RelativeTransform>
+                                                <TranslateTransform x:Name="MovingTransform" X="-0.5"/>
+                                            </LinearGradientBrush.RelativeTransform>
+                                            <GradientStop Color="Transparent" Offset="0"/>
+                                            <GradientStop Color="Transparent" Offset="0.25"/>
+                                            <GradientStop Color="Black" Offset="0.25"/>
+                                            <GradientStop Color="Black" Offset="0.5"/>
+                                            <GradientStop Color="Transparent" Offset="0.5"/>
+                                            <GradientStop Color="Transparent" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Rectangle.OpacityMask>
                                 </Rectangle>
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsIndeterminate" Value="True">
-                                <Setter TargetName="PART_Track" Property="Visibility" Value="Hidden"/>
+                                <Setter TargetName="PART_Indicator" Property="Visibility" Value="Hidden"/>
                                 <Setter TargetName="MovingBlock" Property="Visibility" Value="Visible"/>
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard Timeline.DesiredFrameRate="60">
                                             <DoubleAnimation Storyboard.TargetName="MovingTransform" Storyboard.TargetProperty="X"
-                                                             From="-70" To="320" Duration="0:0:1.2" RepeatBehavior="Forever"/>
+                                                             From="-0.5" To="0.75" Duration="0:0:1.2" RepeatBehavior="Forever"/>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </Trigger.EnterActions>
