@@ -210,6 +210,8 @@ public class GeminiProviderTests : IDisposable
 
     // A discovered path plus a quota body in the shape the local sign-in uses too, as the hidden
     // session's script hands it back. Invented numbers, no account data.
+    private const string NotSignedInEnvelope = """{"status":"not_signed_in"}""";
+
     private const string OkEnvelope = """
         {"status":"ok","path":"/api/usage","body":"{\"groups\":[{\"displayName\":\"Gemini Models\",\"buckets\":[{\"window\":\"5h\",\"resetTime\":\"2026-09-13T20:40:15Z\",\"remainingFraction\":0.75}]}]}"}
         """;
@@ -337,6 +339,8 @@ public class GeminiProviderTests : IDisposable
             SignInUrl: "https://aistudio.google.com/", AllowedHosts: ["google.com"], ProfileFolderName: "gemini");
         var source = new WebUsageSource(descriptor, new GeminiUsageEndpoint(), (script, _) =>
         {
+            if (!WebViewHost.ProfileExists("gemini"))
+                return Task.FromResult(NotSignedInEnvelope);
             runs.Add(script);
             return Task.FromResult(answerScript(script));
         });

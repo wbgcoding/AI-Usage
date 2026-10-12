@@ -58,17 +58,9 @@ internal sealed class ThrottledWebReader
 
     public async Task<ProviderSnapshot?> ReadAsync(DateTimeOffset fetchedAt, CancellationToken ct)
     {
-        // Nothing was ever signed in here: starting a browser session would cost a whole WebView2
-        // process and a request to the provider's site for a user who may never want that route at
-        // all. Reporting "signed out" without asking is both honest and free - it is exactly what the
-        // tile needs to offer the sign-in, and the moment that sign-in happens the profile folder
-        // exists and the read below starts.
-        if (!Directory.Exists(WebViewHost.ProfileFolderPath(_source.Descriptor.ProfileFolderName)))
-        {
-            SessionSignedIn = false;
-            return null;
-        }
-
+        // Nothing was ever signed in here: the session runner answers "signed out" without starting a
+        // browser, which is exactly what the tile needs to offer the sign-in; the moment that sign-in
+        // creates the profile folder, the read below goes through.
         // Taken here, before the read, so a sign-in finishing while a read is already running still
         // counts for the next one.
         var signInJustCompleted = Interlocked.Exchange(ref _signInCompleted, 0) == 1;

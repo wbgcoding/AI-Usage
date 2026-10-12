@@ -581,6 +581,8 @@ public class CodexProviderTests : IDisposable
 
     // One discovered path plus a rate-limit body in the shape the session files use, as the hidden
     // session's script hands it back. Invented numbers, no account data.
+    private const string NotSignedInEnvelope = """{"status":"not_signed_in"}""";
+
     private const string OkEnvelope = """
         {"status":"ok","path":"/backend-api/codex/usage","body":"{\"rate_limits\":{\"primary\":{\"used_percent\":12.5,\"window_minutes\":300},\"secondary\":{\"used_percent\":64,\"window_minutes\":10080}}}"}
         """;
@@ -605,6 +607,8 @@ public class CodexProviderTests : IDisposable
             SignInUrl: "https://chatgpt.com/", AllowedHosts: ["chatgpt.com"], ProfileFolderName: "codex");
         var source = new WebUsageSource(descriptor, new CodexUsageEndpoint(clock), (script, _) =>
         {
+            if (!WebViewHost.ProfileExists("codex"))
+                return Task.FromResult(NotSignedInEnvelope);
             runs.Add(script);
             return Task.FromResult(answerScript(script));
         });

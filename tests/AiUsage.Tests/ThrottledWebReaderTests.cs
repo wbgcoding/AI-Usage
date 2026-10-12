@@ -34,6 +34,8 @@ public sealed class ThrottledWebReaderTests : IDisposable
             SignInUrl: "https://chatgpt.com/", AllowedHosts: ["chatgpt.com"], ProfileFolderName: "codex");
         var source = new WebUsageSource(descriptor, new CodexUsageEndpoint(() => Start), (script, _) =>
         {
+            if (!WebViewHost.ProfileExists("codex"))
+                return Task.FromResult(NotSignedInEnvelope);
             runs.Add(script);
             return Task.FromResult(answer());
         });
