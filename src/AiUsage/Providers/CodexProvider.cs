@@ -157,7 +157,7 @@ public sealed partial class CodexProvider : IUsageProvider
         // read keeps starting on the calling thread it needs - which would otherwise leave the
         // synchronous directory walk running there too.
         var local = await Task.Run(() => FetchCore(fetchedAt, ct), ct);
-        var web = await ReadWebUnlessHeldAsync(fetchedAt, ct);
+        var web = _webReader is null ? null : await _webReader.ReadUnlessHeldAsync(fetchedAt, ct);
 
         // A local read that found no rate-limit line at all still reports 0% rather than an empty
         // tile. That placeholder must not outrank real numbers from the web session: it carries the
@@ -202,11 +202,6 @@ public sealed partial class CodexProvider : IUsageProvider
     /// scheduler's own pace without paying for a page load every time.</summary>
     private Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
         _webReader is null ? Task.FromResult<ProviderSnapshot?>(null) : _webReader.ReadAsync(fetchedAt, ct);
-
-    /// <summary>The web read of a fetch that has a local source beside it: skipped while the scheduler
-    /// holds network reads back, so a pause or the energy saver never loads a page.</summary>
-    private Task<ProviderSnapshot?> ReadWebUnlessHeldAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
-        FetchContext.NetworkHeld ? Task.FromResult<ProviderSnapshot?>(null) : ReadWebAsync(fetchedAt, ct);
 
     /// <summary>One local read: the snapshot, plus whether it actually came off a rate-limit line in
     /// a session file. False for both honest stand-ins - the empty "no local data" placeholder and

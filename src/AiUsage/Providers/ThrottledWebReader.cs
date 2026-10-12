@@ -97,7 +97,11 @@ internal sealed class ThrottledWebReader
             return null;
         }
 
-        _lastReadAt = fetchedAt;
+        // A failed or blocked read does not start the throttle: a retry (or the next tick) goes out
+        // again, paced by the scheduler's own failure backoff.
+        var readFailed = result.Outcome is WebUsageOutcome.Failed or WebUsageOutcome.Blocked;
+        if (!readFailed)
+            _lastReadAt = fetchedAt;
 
         if (_pausesAfterFailedDiscovery)
         {
@@ -114,10 +118,24 @@ internal sealed class ThrottledWebReader
 
         SessionSignedIn = ProviderSnapshots.SessionSignedIn(result, SessionSignedIn);
 
+        if (readFailed)
+        {
+            // The last good numbers stay: a network blip must not send the tile back to older local
+            // numbers for a while. Only a signed-out answer drops them.
+            return _lastSnapshot is { } held
+                ? ProviderSnapshots.ExpirePastWindows(held, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
+                : null;
+        }
+
         _lastSnapshot = result.Outcome == WebUsageOutcome.Ok && result.Windows.Count > 0
             ? ProviderSnapshots.FromWeb(_accountKey, result, fetchedAt, _showsReportedPlan ? result.PlanType : null)
             : null;
 
         return _lastSnapshot;
     }
+
+    /// <summary>The read of a fetch that has a local source beside it: skipped while the scheduler
+    /// holds network reads back, so a pause or the energy saver never loads a page.</summary>
+    public Task<ProviderSnapshot?> ReadUnlessHeldAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
+        FetchContext.NetworkHeld ? Task.FromResult<ProviderSnapshot?>(null) : ReadAsync(fetchedAt, ct);
 }
