@@ -1,6 +1,7 @@
 ﻿using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -158,6 +159,7 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         SystemEvents.SessionSwitch += SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
+        NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
 
         ApplyRememberedPlacement();
         ApplyContentSize();
@@ -590,6 +592,24 @@ public partial class MainWindow : Window, IDisposable
         else if (e.Mode == PowerModes.StatusChange)
             Dispatcher.BeginInvoke(() => ViewModel.SetPower(PowerStatus.Read()));
     }
+
+    /// <summary>Raised on a pool thread. A wake from sleep triggers one due-check before the network is
+    /// up, which leaves every web tile failed and backed off; once a connection is reported, those
+    /// providers are read again after a short settle time (the adapter reports before DNS answers).</summary>
+    private async void NetworkChange_NetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
+    {
+        if (!e.IsAvailable)
+            return;
+
+        await Task.Delay(NetworkSettleTime);
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (!_reallyClosing)
+                ViewModel.RefreshNetworkFailed();
+        });
+    }
+
+    private static readonly TimeSpan NetworkSettleTime = TimeSpan.FromSeconds(3);
 
     /// <summary>Records the lock state. When the widget becomes watchable again it gets the normal
     /// cadence back and a due-check right away.</summary>
@@ -1726,6 +1746,7 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SystemEvents.SessionSwitch -= SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
+        NetworkChange.NetworkAvailabilityChanged -= NetworkChange_NetworkAvailabilityChanged;
         ThemeService.Applied -= ThemeService_Applied;
         ViewModel.Tiles.CollectionChanged -= ViewModel_Tiles_CollectionChanged;
         _updateTimer?.Stop();
