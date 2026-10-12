@@ -124,6 +124,47 @@ public class WebViewRuntimeInstallerTests
     }
 
     [Fact]
+    public async Task A_download_that_is_a_link_is_refused_and_never_run()
+    {
+        var target = Path.Combine(TestPaths.CreateDirectory("webview-link-target"), "real.exe");
+        File.WriteAllText(target, "fake installer");
+        var rig = new Rig { Installed = true };
+        var verified = false;
+        var ran = false;
+        var linkMade = false;
+        var installer = new WebViewRuntimeInstaller(
+            (_, destination, _, _) =>
+            {
+                try
+                {
+                    File.CreateSymbolicLink(destination, target);
+                    linkMade = true;
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    // this account may not create file links, so the case cannot be set up here
+                }
+
+                return Task.CompletedTask;
+            },
+            _ => { verified = true; return new SignatureCheckResult(true, ""); },
+            (_, _, _) => { ran = true; return Task.FromResult(0); },
+            () => true,
+            () => rig.Folder);
+
+        var result = await installer.InstallAsync(null, null, CancellationToken.None);
+
+        if (!linkMade)
+            return;
+
+        Assert.Equal(WebViewInstallOutcome.DownloadFailed, result.Outcome);
+        Assert.Equal("prepare: the downloaded file is a link", result.Cause);
+        Assert.False(verified);
+        Assert.False(ran);
+        Assert.True(File.Exists(target), "the link's target is not touched");
+    }
+
+    [Fact]
     public async Task A_file_whose_signature_is_not_valid_is_never_run()
     {
         var rig = new Rig { Signature = new SignatureCheckResult(false, "signature: WinVerifyTrust 0x800B0100") };

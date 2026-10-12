@@ -183,52 +183,6 @@ public class UpdateInstallerTests
         Assert.Empty(host.Ran);
     }
 
-    [Fact]
-    public void TheHeldFileIsRecognisedAsTheFileAtThePath()
-    {
-        var folder = TestPaths.CreateDirectory("lease-plain");
-        var path = Path.Combine(folder, "file.exe");
-        File.WriteAllBytes(path, Payload);
-        using var lease = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        Assert.True(UpdateInstaller.LeaseIsTheFile(lease, folder, path));
-    }
-
-    [Fact]
-    public void AHeldFileThatIsNotTheOneAtThePathIsRefused()
-    {
-        var folder = TestPaths.CreateDirectory("lease-other");
-        var held = Path.Combine(folder, "held.exe");
-        var named = Path.Combine(folder, "named.exe");
-        File.WriteAllBytes(held, Payload);
-        File.WriteAllBytes(named, Payload);
-        using var lease = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        Assert.False(UpdateInstaller.LeaseIsTheFile(lease, folder, named));
-    }
-
-    [Fact]
-    public void AFileSwappedForALinkAfterTheFirstCheckIsRefused()
-    {
-        var elsewhere = TestPaths.CreateDirectory("lease-target");
-        var real = Path.Combine(elsewhere, SetupName);
-        File.WriteAllBytes(real, Payload);
-        var folder = TestPaths.CreateDirectory("lease-link");
-        var link = Path.Combine(folder, SetupName);
-        try
-        {
-            File.CreateSymbolicLink(link, real);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            return; // this account may not create file links, so the case cannot be set up here
-        }
-
-        using var lease = new FileStream(link, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        Assert.False(UpdateInstaller.LeaseIsTheFile(lease, folder, link));
-    }
-
     [Theory]
     [InlineData(1, 0, 0, 0)]
     [InlineData(0, 9, 0, 0)]

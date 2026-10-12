@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using AiUsage.Io;
 
 namespace AiUsage.Web;
 
@@ -109,6 +110,9 @@ public sealed class WebViewRuntimeInstaller
             // file between the signature check and the start of the installer, which asks for
             // elevation - the checked file is the file that runs.
             guard = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Opening follows a link: the held file must be the one the path names.
+            if (!FreshRunFolder.LeaseIsAt(guard, file))
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, "prepare: the downloaded file is a link");
 
             SignatureCheckResult signature;
             try

@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
+using AiUsage.Io;
 
 namespace AiUsage.Services;
 
@@ -159,9 +159,12 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             return UpdateOutcome.NotVerified;
 
         // Every run downloads into a folder nobody else can have prepared: new name, still empty.
-        var runFolder = TryCreateRunFolder();
+        var runFolder = FreshRunFolder.TryCreate(host.WorkFolder);
         if (runFolder is null)
+        {
+            log?.Invoke("Update refused: the download folder cannot be trusted.");
             return UpdateOutcome.DownloadFailed;
+        }
 
         var filePath = Path.Combine(runFolder, Path.GetFileName(asset.Name));
         var signaturePath = filePath + ".sig";
@@ -176,7 +179,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
                 return UpdateOutcome.DownloadFailed;
             }
 
-            if (IsLink(filePath))
+            if (FreshRunFolder.IsLink(filePath))
             {
                 log?.Invoke("Update refused: the downloaded file is a link.");
                 CleanUpRun(runFolder, filePath, signaturePath);
@@ -188,7 +191,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             lease = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             // Opening follows a link: a file swapped for one between the check above and here would be
             // read, verified and locked at its target while the path still names the link.
-            if (!LeaseIsTheFile(lease, runFolder, filePath))
+            if (!FreshRunFolder.LeaseIsAt(lease, filePath))
             {
                 log?.Invoke("Update refused: the downloaded file is not the file that was opened.");
                 lease.Dispose();
@@ -251,7 +254,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             {
                 // The setup runs with elevated rights from this folder, and a program loads libraries
                 // from its own folder: anything beside the verified file means the folder was tampered with.
-                if (!HoldsOnly(runFolder, filePath))
+                if (!FreshRunFolder.HoldsOnly(runFolder, filePath))
                 {
                     log?.Invoke("Update refused: the download folder holds more than the downloaded file.");
                     held.Dispose();
@@ -315,124 +318,12 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             && host.ReadPeMachine(path) == expectedMachine;
     }
 
-    /// <summary>A new, empty folder under the work folder for this run, or null (with one log line)
-    /// when the work folder cannot be trusted: a link in its place, a name that already exists, or
-    /// something already inside the new folder.</summary>
-    private string? TryCreateRunFolder()
-    {
-        try
-        {
-            var root = host.WorkFolder;
-            Directory.CreateDirectory(root);
-            if (IsLink(root) || (Path.GetDirectoryName(root) is { Length: > 0 } parent && IsLink(parent)))
-            {
-                log?.Invoke("Update refused: the download folder is a link.");
-                return null;
-            }
-
-            var folder = Path.Combine(root, Guid.NewGuid().ToString("N"));
-            if (Directory.Exists(folder) || File.Exists(folder))
-            {
-                log?.Invoke("Update refused: the download folder already exists.");
-                return null;
-            }
-
-            Directory.CreateDirectory(folder);
-            if (IsLink(folder) || Directory.EnumerateFileSystemEntries(folder).Any())
-            {
-                log?.Invoke("Update refused: the download folder was not empty.");
-                return null;
-            }
-
-            return folder;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    private static bool IsLink(string path) =>
-        (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
-
-    private const uint FileFlagBackupSemantics = 0x02000000;
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFileW(
-        string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition,
-        uint flagsAndAttributes, IntPtr templateFile);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint pathLength, uint flags);
-
-    /// <summary>True when the held <paramref name="lease"/> really is the file at <paramref name="filePath"/>
-    /// in the run folder: the handle's final path (every link resolved) equals the resolved run folder
-    /// plus the file name, and the path is not a link now either.</summary>
-    internal static bool LeaseIsTheFile(FileStream lease, string runFolder, string filePath)
-    {
-        try
-        {
-            using var folder = CreateFileW(runFolder, 0, 7, IntPtr.Zero, 3, FileFlagBackupSemantics, IntPtr.Zero);
-            if (folder.IsInvalid)
-                return false;
-
-            var expectedFolder = FinalPath(folder);
-            var actual = FinalPath(lease.SafeFileHandle);
-            return expectedFolder is not null && actual is not null
-                && string.Equals(actual, Path.Combine(expectedFolder, Path.GetFileName(filePath)), StringComparison.OrdinalIgnoreCase)
-                && !IsLink(filePath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
-    private static string? FinalPath(SafeFileHandle handle)
-    {
-        var buffer = new char[512];
-        var length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
-        if (length > buffer.Length)
-        {
-            buffer = new char[length + 1];
-            length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
-        }
-        if (length == 0 || length > buffer.Length)
-            return null;
-
-        var path = new string(buffer, 0, (int)length);
-        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
-            return @"\\" + path[8..];
-        return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
-    }
-
-    /// <summary>True when <paramref name="folder"/> contains exactly <paramref name="file"/>: no other
-    /// file, no subfolder.</summary>
-    private static bool HoldsOnly(string folder, string file)
-    {
-        try
-        {
-            var entries = Directory.EnumerateFileSystemEntries(folder).Take(2).ToList();
-            return entries.Count == 1 && string.Equals(entries[0], file, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
     /// <summary>Removes the run's files and, when nothing else is left, its folder.</summary>
     private static void CleanUpRun(string runFolder, params string[] files)
     {
         DeleteQuietly(files);
-        try
-        {
-            Directory.Delete(runFolder, recursive: false);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Not empty or still in use: the next start's cleanup of the work folder removes it.
-        }
+        // Not empty or still in use: the next start's cleanup of the work folder removes it.
+        FreshRunFolder.TryRemoveEmpty(runFolder);
     }
 
     private static bool IsNewerThanRunning(Version? offered, Version running) =>
