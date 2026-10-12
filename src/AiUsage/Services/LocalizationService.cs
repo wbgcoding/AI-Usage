@@ -65,7 +65,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
     }
 
     /// <summary>Empty for an unknown key rather than throwing - a placeholder tile must never crash
-    /// the window over a typo'd resource key (same contract the old StatusTextMap.Resolve had).</summary>
+    /// the window over a typo'd resource key.</summary>
     public string this[string key] => _active.GetString(key, CultureInfo.InvariantCulture) ?? "";
 
     /// <summary>The active UI language's own display name ("English"/"Deutsch") - "System" resolved

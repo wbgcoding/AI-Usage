@@ -38,6 +38,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string?> _askForDataFolder;
     private readonly Action<string, string> _copyIndex;
     private readonly Action<string, string> _copySmallFiles;
+    private readonly Func<string, bool> _removeMachine;
     private readonly Func<string, string?> _askForBackupSavePath;
     private readonly Func<string?> _askForBackupOpenPath;
     private readonly Func<string, bool> _confirmRestore;
@@ -493,7 +494,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Action<string, string>? copyIndex = null,
         Action<string, string>? copySmallFiles = null,
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
-        Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
+        Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
+        Func<string, bool>? removeMachine = null)
     {
         Main = main;
         _settings = settings;
@@ -515,6 +517,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _confirmRestore = confirmRestore ?? ShowRealRestoreConfirm;
         _restartApp = restartApp ?? RestartForRestore;
         _statsStore = statsStore ?? new Stats.StatsStore();
+        _removeMachine = removeMachine ?? _statsStore.RemoveMachine;
         // The list of other PCs reads the index; a settings store of its own folder (a test) never touches the real one.
         _readsMachineList = statsStore is not null
             || string.Equals(Path.GetFullPath(store.DataDirectory), Path.GetFullPath(AppPaths.DataDirectory), StringComparison.OrdinalIgnoreCase);
@@ -1123,28 +1126,44 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// Every provider's complete recorded history (no range limit - an export is a deliberate,
     /// occasional action, not something read on every tick) as one CSV file. Cancelling the save
     /// dialog does nothing; a write failure shows the app's own error text, never a raw exception
-    /// message.
+    /// message. Loading, building the CSV and writing it run on a worker; the command is disabled meanwhile.
     /// </summary>
-    [RelayCommand]
-    private void ExportHistory()
+    [RelayCommand(CanExecute = nameof(CanRunDataWork))]
+    private async Task ExportHistoryAsync()
     {
         var path = _askForSavePath($"ai-usage-history-{DateTime.Now:yyyy-MM-dd}.csv");
         if (path is null)
             return;
 
-        var byProvider = Main.Tiles.ToDictionary(
-            tile => tile.ProviderId,
-            IReadOnlyList<HistoryPoint> (tile) => _historyStore.Load(tile.ProviderId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue));
-
+        var providerIds = Main.Tiles.Select(tile => tile.ProviderId).ToList();
+        IsDataWorkBusy = true;
         try
         {
-            File.WriteAllText(path, HistoryExport.ToCsv(byProvider), AppEncoding.Utf8NoBom);
+            await Task.Run(() =>
+            {
+                var byProvider = providerIds.ToDictionary(
+                    id => id,
+                    IReadOnlyList<HistoryPoint> (id) => _historyStore.Load(id, DateTimeOffset.MinValue, DateTimeOffset.MaxValue));
+                File.WriteAllText(path, HistoryExport.ToCsv(byProvider), AppEncoding.Utf8NoBom);
+            });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
         }
+        finally
+        {
+            IsDataWorkBusy = false;
+        }
     }
+
+    /// <summary>True while the history export or the removal of another PC runs on a worker.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ExportHistoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveImportedPcCommand))]
+    private bool isDataWorkBusy;
+
+    private bool CanRunDataWork() => !IsDataWorkBusy;
 
     private static string? ShowRealSaveDialog(string suggestedFileName)
     {
@@ -1598,13 +1617,24 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Deletes the rows of one other PC and forgets it. Only labels in the list are accepted.</summary>
-    [RelayCommand]
-    private void RemoveImportedPc(string? machineId)
+    [RelayCommand(CanExecute = nameof(CanRunDataWork))]
+    private async Task RemoveImportedPcAsync(string? machineId)
     {
         if (machineId is null || !ImportedPcs.Any(row => row.Id == machineId))
             return;
 
-        if (!_statsStore.RemoveMachine(machineId))
+        bool removed;
+        IsDataWorkBusy = true;
+        try
+        {
+            removed = await Task.Run(() => _removeMachine(machineId));
+        }
+        finally
+        {
+            IsDataWorkBusy = false;
+        }
+
+        if (!removed)
         {
             _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
             return;

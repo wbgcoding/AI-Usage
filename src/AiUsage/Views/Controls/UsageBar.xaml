@@ -11,6 +11,50 @@
          level change both stay live without any converter. -->
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- The right side of the header: alert icons, the percent, and the detail text carried in the
+             ContentControl's Tag (the full text or the short one, see HeaderRowPanel). -->
+        <DataTemplate x:Key="HeaderRightSide">
+            <StackPanel Orientation="Horizontal">
+                <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                      Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
+                      Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
+                <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                      Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+                <!-- Never trimmed: this is the row's actual answer (percentage, state, time left and
+                     the clock), and an ellipsis here hides exactly the part that matters at the limit.
+                     The window label on the left gives way instead. The percentage leads; the
+                     countdown and clock follow smaller and greyer. -->
+                <TextBlock Text="{Binding PercentText}"
+                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Strong}" FontWeight="SemiBold"
+                           Typography.NumeralAlignment="Tabular"
+                           Foreground="{DynamicResource Text.Primary}"/>
+                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=ContentControl}}" Margin="8,0,0,0" VerticalAlignment="Bottom"
+                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Small}"
+                           Typography.NumeralAlignment="Tabular"
+                           Foreground="{DynamicResource Text.Muted}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
         <vm:MarkerPositionConverter x:Key="MarkerPositionConverter"/>
         <Style x:Key="LevelFillStyle" TargetType="Rectangle">
             <Setter Property="Fill" Value="{DynamicResource Level.Ok.Fill}"/>
@@ -52,8 +96,7 @@
                                          only ever shown at Full density (ShowThresholdMarker). -->
                                     <Rectangle x:Name="PART_ThresholdMarker" Width="1" HorizontalAlignment="Left"
                                                Fill="{DynamicResource Text.Primary}" Opacity="0.55"
-                                               Visibility="{Binding ShowThresholdMarker, Converter={StaticResource BoolToVis}}"
-                                               ToolTip="{Binding ThresholdMarkerTooltip}">
+                                               Visibility="{Binding ShowThresholdMarker, Converter={StaticResource BoolToVis}}">
                                         <Rectangle.Margin>
                                             <MultiBinding Converter="{StaticResource MarkerPositionConverter}">
                                                 <Binding Path="ThresholdPercent"/>
@@ -111,15 +154,11 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Margin="0,0,0,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <controls:HeaderRowPanel Grid.Row="0" Margin="0,0,0,4">
             <!-- The window label always stays (and trims itself); the token figure and the forecast
                  sit beside it only when they fit entirely, so the percent and countdown on the right
-                 never have to give way to them. -->
-            <controls:FitOrHidePanel Grid.Column="0" Margin="0,0,8,0">
+                 never have to give way to them. The reset clock goes before the label is trimmed. -->
+            <controls:FitOrHidePanel Margin="0,0,8,0">
                 <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding LabelText}"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"
                            Foreground="{DynamicResource Text.Primary}"/>
@@ -153,47 +192,9 @@
                     </TextBlock.Style>
                 </TextBlock>
             </controls:FitOrHidePanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
-                      Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
-                      Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
-                <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
-                      Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Level}" Value="Crit">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
-                <!-- Never trimmed: this is the row's actual answer (percentage, state, time left and
-                     the clock), and an ellipsis here hides exactly the part that matters at the limit.
-                     The window label on the left holds the flexible column and gives way instead. The
-                     percentage leads; the countdown and clock follow smaller and greyer. -->
-                <TextBlock Text="{Binding PercentText}"
-                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Strong}" FontWeight="SemiBold"
-                           Typography.NumeralAlignment="Tabular"
-                           Foreground="{DynamicResource Text.Primary}"/>
-                <TextBlock Text="{Binding DetailText}" Margin="8,0,0,0" VerticalAlignment="Bottom"
-                           FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Small}"
-                           Typography.NumeralAlignment="Tabular"
-                           Foreground="{DynamicResource Text.Muted}">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding DetailText}" Value="">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </StackPanel>
-        </Grid>
+            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource HeaderRightSide}" Tag="{Binding DetailText}" IsTabStop="False"/>
+            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource HeaderRightSide}" Tag="{Binding CountdownText}" IsTabStop="False"/>
+        </controls:HeaderRowPanel>
         <ProgressBar Grid.Row="1" Style="{StaticResource UsageProgressBarStyle}"
                      AutomationProperties.Name="{Binding BarAccessibleName}"/>
     </Grid>

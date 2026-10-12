@@ -23,7 +23,10 @@ public partial class WelcomeWindow : Window
         InitializeComponent();
         WindowChromeNative.Bootstrap(this);
         TitleBarControl.TitleText = LocalizationService.Instance["Welcome.Title"];
-        ProviderList.ItemsSource = tiles.Select(tile => new WelcomeRow(tile)).ToList();
+        var rows = tiles.Select(tile => new WelcomeRow(tile)).ToList();
+        ProviderList.ItemsSource = rows;
+        // The tiles belong to the main window and outlive this one: the rows let go of them on close.
+        Closed += (_, _) => rows.ForEach(row => row.Dispose());
 
         // Esc closes dialogs, keyboard-only throughout - same contract as every other window built
         // on this chrome (ConfirmWindow, CrashWindow).
@@ -39,7 +42,7 @@ public partial class WelcomeWindow : Window
     {
         var (cursorX, cursorY) = NativeMonitors.CursorPositionInWorkAreaUnits();
         var monitors = NativeMonitors.WorkAreas();
-        var primary = monitors.Count > 0 ? monitors[0] : default;
+        var primary = WindowPlacementService.PrimaryOf(monitors);
 
         var resolved = WindowPlacementService.CenterOnCursorMonitor(cursorX, cursorY, ActualWidth, ActualHeight, monitors, primary);
         Left = resolved.Left;
@@ -55,22 +58,27 @@ public partial class WelcomeWindow : Window
 /// the "found" mark for a provider that already reads and a muted hint for the two that depend on
 /// another tool. Re-raises its own flags whenever the tile's status or sign-in state moves, so the
 /// row flips to "Found" the moment a sign-in started from here succeeds.</summary>
-public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged
+public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged, IDisposable
 {
     public WelcomeRow(ProviderTileViewModel tile)
     {
         Tile = tile;
         Hint = HintFor(tile.RealProviderId);
-        tile.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(ProviderTileViewModel.Status) or nameof(ProviderTileViewModel.ShowSignIn)
-                or nameof(ProviderTileViewModel.ActionLabelText) or nameof(ProviderTileViewModel.HasAction))
-            {
-                PropertyChanged?.Invoke(this, new(nameof(IsFound)));
-                PropertyChanged?.Invoke(this, new(nameof(ShowSignIn)));
-            }
-        };
+        tile.PropertyChanged += OnTileChanged;
     }
+
+    private void OnTileChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ProviderTileViewModel.Status) or nameof(ProviderTileViewModel.ShowSignIn)
+            or nameof(ProviderTileViewModel.ActionLabelText) or nameof(ProviderTileViewModel.HasAction))
+        {
+            PropertyChanged?.Invoke(this, new(nameof(IsFound)));
+            PropertyChanged?.Invoke(this, new(nameof(ShowSignIn)));
+        }
+    }
+
+    /// <summary>Stops listening to the tile, which lives on after the welcome window is closed.</summary>
+    public void Dispose() => Tile.PropertyChanged -= OnTileChanged;
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 

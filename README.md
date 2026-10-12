@@ -263,7 +263,7 @@ When a newer release exists, a notice bar offers to install it. The installed co
 setup, the portable copy swaps its own exe and restarts. Updating is optional: switch the check
 off under **Settings > System** and the app never asks.
 
-Uninstalling keeps your data. Delete the two folders named above to remove it.
+Uninstalling asks whether to remove your data too (settings, history and saved sign-ins); answer no and it stays. To remove it by hand, delete the two folders named above.
 
 ### Coming from version 1.1.0
 

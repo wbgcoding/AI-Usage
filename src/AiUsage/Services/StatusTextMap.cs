@@ -3,12 +3,8 @@ using System.Text.RegularExpressions;
 namespace AiUsage.Services;
 
 /// <summary>
-/// Redirects <see cref="ErrorPresenter"/>'s internal status keys and <see cref="Models.SourceKind"/>
-/// to <see cref="LocalizationService"/> (delivering on the promise this file's own comment made
-/// earlier: one central place, so no other call site ever had to change). The internal
-/// keys stay their own small vocabulary rather than being renamed to the resx keys directly, because
-/// <see cref="ErrorPresenter"/> and <see cref="Models.ProviderError"/> already ship those names as a
-/// public contract independent of how the resource file happens to be keyed.
+/// Maps the internal status keys that <see cref="ErrorPresenter"/> and <see cref="Models.ProviderError"/>
+/// hand out to the keys of the resource file and resolves them through <see cref="LocalizationService"/>.
 /// </summary>
 public static class StatusTextMap
 {
@@ -40,6 +36,8 @@ public static class StatusTextMap
         ["Status_Failed_Server_Reason"] = "State.Failed.Server.Reason",
         ["Status_Failed_Refused_Headline"] = "State.Failed.Refused.Head",
         ["Status_Failed_Refused_Reason"] = "State.Failed.Refused.Reason",
+        ["Status_Failed_RateLimited_Headline"] = "State.Failed.RateLimited.Head",
+        ["Status_Failed_RateLimited_Reason"] = "State.Failed.RateLimited.Reason",
         ["Status_Failed_Timeout_Headline"] = "State.Failed.Timeout.Head",
         ["Status_Failed_Timeout_Reason"] = "State.Failed.Timeout.Reason",
         ["Status_Failed_Network_Headline"] = "State.Failed.Network.Head",

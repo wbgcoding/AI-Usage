@@ -30,7 +30,7 @@ internal sealed class DesktopLayer : IDisposable
     private readonly IntPtr _hwnd;
     private readonly Func<bool> _leaveAlone;
     private readonly bool _native;
-    private readonly WinEventProc _foregroundCallback;
+    private readonly Win32.WinEventProc _foregroundCallback;
     private IntPtr _hook;
     private DispatcherTimer? _settleTimer;
 
@@ -61,7 +61,7 @@ internal sealed class DesktopLayer : IDisposable
         {
             if (_native)
             {
-                _hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _foregroundCallback,
+                _hook = Win32.SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _foregroundCallback,
                     0, 0, WineventOutOfContext | WineventSkipOwnProcess);
                 PlaceOnDesktop();
             }
@@ -82,10 +82,17 @@ internal sealed class DesktopLayer : IDisposable
             return;
 
         var position = Marshal.PtrToStructure<WindowPos>(lParam);
+        if (!NeedsSlotCheck(position.Flags))
+            return;
         if (!ApplySlot(ref position, CurrentSlot()))
             return;
         Marshal.StructureToPtr(position, lParam, fDeleteOld: false);
     }
+
+    /// <summary>Whether a pending position change can move the window in the stack: only one that
+    /// keeps the order (SWP_NOZORDER) and the size (SWP_NOSIZE), a plain drag, never can, so the
+    /// stack is not listed for it.</summary>
+    internal static bool NeedsSlotCheck(uint flags) => (flags & SwpNoZOrder) == 0 || (flags & SwpNoSize) == 0;
 
     /// <summary>Where the window belongs in the stack: <c>InPlace</c> when it already sits
     /// directly above the desktop, otherwise the window to insert it after.</summary>
@@ -140,14 +147,15 @@ internal sealed class DesktopLayer : IDisposable
         if (!_native)
             return new Slot(false, HwndBottom);
 
+        // Top to bottom; the slot is decided by the first desktop window, so the walk ends there.
         var stack = new List<StackEntry>();
         EnumWindows((hwnd, _) =>
         {
             var visible = IsWindowVisible(hwnd);
-            var desktop = visible && IsDesktopWindowClass(ClassNameOf(hwnd));
-            var topmost = (GetWindowLongPtr(hwnd, GwlExStyle).ToInt64() & WsExTopmost) != 0;
+            var desktop = visible && IsDesktopWindowClass(Win32.ClassNameOf(hwnd));
+            var topmost = (Win32.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64() & WsExTopmost) != 0;
             stack.Add(new StackEntry(hwnd, desktop, topmost));
-            return true;
+            return !(desktop && hwnd != _hwnd);
         }, IntPtr.Zero);
         return ResolveSlot(stack, _hwnd);
     }
@@ -171,7 +179,7 @@ internal sealed class DesktopLayer : IDisposable
 
     private void OnForegroundChanged(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
-        if (!Active || !IsDesktopWindowClass(ClassNameOf(hwnd)))
+        if (!Active || !IsDesktopWindowClass(Win32.ClassNameOf(hwnd)))
             return;
 
         TryReshow();
@@ -190,15 +198,8 @@ internal sealed class DesktopLayer : IDisposable
         if (!ShouldReshow(Active, _leaveAlone(), IsIconic(_hwnd), IsWindowVisible(_hwnd)))
             return;
 
-        ShowWindow(_hwnd, SwShowNoActivate);
+        Win32.ShowWindow(_hwnd, SwShowNoActivate);
         PlaceOnDesktop();
-    }
-
-    private static string ClassNameOf(IntPtr hwnd)
-    {
-        var buffer = new char[64];
-        var length = GetClassName(hwnd, buffer, buffer.Length);
-        return length > 0 ? new string(buffer, 0, length) : "";
     }
 
     private void Unhook()
@@ -206,7 +207,7 @@ internal sealed class DesktopLayer : IDisposable
         _settleTimer?.Stop();
         if (_hook == IntPtr.Zero)
             return;
-        UnhookWinEvent(_hook);
+        Win32.UnhookWinEvent(_hook);
         _hook = IntPtr.Zero;
     }
 
@@ -226,26 +227,11 @@ internal sealed class DesktopLayer : IDisposable
         public uint Flags;
     }
 
-    private delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProc callback, uint processId, uint threadId, uint flags);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWinEvent(IntPtr hook);
-
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
-
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
-    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(IntPtr hwnd, [Out] char[] className, int maxCount);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -254,10 +240,6 @@ internal sealed class DesktopLayer : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr hwnd);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool ShowWindow(IntPtr hwnd, int command);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

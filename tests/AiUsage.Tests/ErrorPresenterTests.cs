@@ -100,6 +100,7 @@ public class ErrorPresenterTests
     [Theory]
     [InlineData(FailureKind.ServerError, "Status_Failed_Server_Headline", "Status_Failed_Server_Reason")]
     [InlineData(FailureKind.Refused, "Status_Failed_Refused_Headline", "Status_Failed_Refused_Reason")]
+    [InlineData(FailureKind.RateLimited, "Status_Failed_RateLimited_Headline", "Status_Failed_RateLimited_Reason")]
     [InlineData(FailureKind.Timeout, "Status_Failed_Timeout_Headline", "Status_Failed_Timeout_Reason")]
     [InlineData(FailureKind.Network, "Status_Failed_Network_Headline", "Status_Failed_Network_Reason")]
     [InlineData(FailureKind.Other, "Status_Failed_Headline", "Status_Failed_Reason")]
@@ -117,8 +118,48 @@ public class ErrorPresenterTests
     [InlineData(502, FailureKind.ServerError)]
     [InlineData(500, FailureKind.ServerError)]
     [InlineData(404, FailureKind.Refused)]
-    [InlineData(429, FailureKind.Refused)]
+    [InlineData(429, FailureKind.RateLimited)]
+    [InlineData(401, FailureKind.Refused)]
     [InlineData(0, FailureKind.Other)]
     public void KindForStatus_splits_server_errors_from_refusals(int status, FailureKind expected) =>
         Assert.Equal(expected, ProviderError.KindForStatus(status));
+
+    [Fact]
+    public void A_404_reads_as_an_unreadable_answer_not_as_a_refusal()
+    {
+        var error = new ProviderError("Status_Failed_Reason", Kind: FailureKind.Refused, HttpStatus: 404);
+
+        var (headline, reason, action) = ErrorPresenter.Describe(ProviderStatus.Failed, error);
+
+        Assert.Equal("Status_Failed_Headline", headline);
+        Assert.Equal("Status_UnreadableAnswer_Reason", reason);
+        Assert.Null(action);
+        Assert.Equal(
+            LocalizationService.Instance["State.UnreadableAnswer.Reason"],
+            StatusTextMap.ResolveFailure(reason, "Claude", 404));
+    }
+
+    [Fact]
+    public void A_429_names_the_request_limit_and_the_status()
+    {
+        var error = new ProviderError("Status_Failed_Reason", Kind: FailureKind.RateLimited, HttpStatus: 429);
+
+        var (headline, reason, action) = ErrorPresenter.Describe(ProviderStatus.Failed, error);
+
+        Assert.Null(action);
+        Assert.Equal(
+            string.Format(LocalizationService.Instance["State.Failed.RateLimited.Head"], "Claude", 429),
+            StatusTextMap.ResolveFailure(headline, "Claude", 429));
+        Assert.Contains("429", StatusTextMap.ResolveFailure(reason, "Claude", 429), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(FailureKind.RateLimited, true)]
+    [InlineData(FailureKind.ServerError, true)]
+    [InlineData(FailureKind.Timeout, true)]
+    [InlineData(FailureKind.Network, true)]
+    [InlineData(FailureKind.Refused, false)]
+    [InlineData(FailureKind.Other, false)]
+    public void Only_the_kinds_that_sign_in_cannot_fix_hide_the_sign_in_button(FailureKind kind, bool notASignInProblem) =>
+        Assert.Equal(notASignInProblem, ErrorPresenter.IsNotASignInProblem(kind));
 }

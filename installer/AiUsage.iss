@@ -149,7 +149,7 @@ en.RuntimeNeeded=AI-Usage needs the .NET 10 Desktop Runtime from Microsoft. Setu
 en.RuntimeInstalling=Downloading and installing the .NET 10 Desktop Runtime. Windows asks for permission once the download is done.
 en.RuntimeFailed=The .NET Desktop Runtime could not be installed. Install it from https://dotnet.microsoft.com/download/dotnet/10.0 and start setup again.
 en.UpdateDirDescription={#AppName} is already installed on this PC and will be updated in the folder shown below. Click Next to continue, or Browse to choose a different folder.
-en.RemoveDataQuestion=Also remove {#AppName}'s saved settings and history for the current user in %APPDATA%\{#AppName}\?
+en.RemoveDataQuestion=Also remove {#AppName}'s saved settings, history and sign-ins for the current user? This deletes %APPDATA%\{#AppName}\ and %LOCALAPPDATA%\{#AppName}\.
 en.DowngradeQuestion=Version {0} is already installed, and this installer carries the older version {1}. Continue anyway?
 de.AutostartTask={#AppName} automatisch bei der Windows-Anmeldung starten
 de.DesktopShortcutTask=Verknüpfung auf dem Desktop erstellen
@@ -162,7 +162,7 @@ de.RuntimeNeeded=AI-Usage braucht die .NET 10 Desktop Runtime von Microsoft. Das
 de.RuntimeInstalling=Die .NET 10 Desktop Runtime wird heruntergeladen und installiert. Windows fragt nach der Erlaubnis, sobald der Download fertig ist.
 de.RuntimeFailed=Die .NET Desktop Runtime ließ sich nicht installieren. Installiere sie von https://dotnet.microsoft.com/download/dotnet/10.0 und starte das Setup erneut.
 de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wird im unten angezeigten Ordner aktualisiert. Klicke auf Weiter, oder auf Durchsuchen, um einen anderen Ordner zu wählen.
-de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen und der Verlauf von {#AppName} für den aktuellen Benutzer in %APPDATA%\{#AppName}\ entfernt werden?
+de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen, der Verlauf und die Anmeldungen von {#AppName} für den aktuellen Benutzer entfernt werden? Das löscht %APPDATA%\{#AppName}\ und %LOCALAPPDATA%\{#AppName}\.
 de.DowngradeQuestion=Version {0} ist bereits installiert, dieses Installationsprogramm enthält die ältere Version {1}. Trotzdem fortfahren?
 
 [Files]
@@ -266,8 +266,11 @@ var
   RuntimePage: TOutputMsgWizardPage;
   RuntimeProgress: TOutputMarqueeProgressWizardPage;
 
-function FindWindowA(lpClassName: LongInt; lpWindowName: String): HWND;
-  external 'FindWindowA@user32.dll stdcall';
+function FindWindowExA(hParent: LongInt; hChildAfter: HWND; lpClassName: LongInt; lpWindowName: String): HWND;
+  external 'FindWindowExA@user32.dll stdcall';
+
+function GetClassNameW(Wnd: HWND; ClassName: String; MaxCount: Integer): Integer;
+  external 'GetClassNameW@user32.dll stdcall';
 
 function SetForegroundWindow(Wnd: HWND): BOOL;
   external 'SetForegroundWindow@user32.dll stdcall';
@@ -518,6 +521,26 @@ begin
   ApplyPortableSuggestion(PortableCheck.Checked);
 end;
 
+{ True when a window titled like the app AND created by the app's own WPF host is open. The title
+  alone also matches an Explorer window on a folder of that name. A WPF window's class name starts
+  with "HwndWrapper[" followed by the process name. }
+function IsAppWindowOpen: Boolean;
+var
+  Wnd: HWND;
+  ClassName: String;
+  Len: Integer;
+begin
+  Result := False;
+  Wnd := FindWindowExA(0, 0, 0, '{#AppName}');
+  while (Wnd <> 0) and not Result do
+  begin
+    SetLength(ClassName, 256);
+    Len := GetClassNameW(Wnd, ClassName, 256);
+    Result := (Len > 0) and (Pos('HwndWrapper[{#AppName}', Copy(ClassName, 1, Len)) = 1);
+    Wnd := FindWindowExA(0, Wnd, 0, '{#AppName}');
+  end;
+end;
+
 function InitializeSetup: Boolean;
 var
   InstalledVersion: String;
@@ -534,7 +557,7 @@ begin
     between here and CurStepChanged. A plain window-title lookup (the app's own title, matching
     SingleInstanceService's lookup) rather than a process check, so a portable copy running from
     an unrelated folder does not falsely arm the relaunch. }
-  AppWasRunning := FindWindowA(0, '{#AppName}') <> 0;
+  AppWasRunning := IsAppWindowOpen;
 
   { An equal version continues as a repair, an offered version that is newer is the ordinary
     upgrade case - only an older offered version needs a question, defaulting to "no" so an
@@ -738,13 +761,18 @@ end;
   the exact failure mode /SUPPRESSMSGBOXES does not prevent. }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  DataDir: String;
+  DataDir, LocalDir: String;
 begin
   if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
   begin
     DataDir := ExpandConstant('{userappdata}\{#AppName}');
-    if DirExists(DataDir) then
+    LocalDir := ExpandConstant('{localappdata}\{#AppName}');
+    if DirExists(DataDir) or DirExists(LocalDir) then
       if SuppressibleMsgBox(CustomMessage('RemoveDataQuestion'), mbConfirmation, MB_YESNO, IDNO) = IDYES then
+      begin
         DelTree(DataDir, True, True, True);
+        { The browser profiles of the web providers (cookies, tokens) and the setup logs. }
+        DelTree(LocalDir, True, True, True);
+      end;
   end;
 end;

@@ -35,10 +35,13 @@ public sealed class RefreshScheduler
     // resolve the interval a just-finished fetch schedules its next one at. The one-second timer
     // keeps these within a second of the real window/tile state, so a manual single-provider refresh
     // in between two ticks still resolves against an answer that is practically current.
-    private Func<string, bool>? _isHidden;
+    // Which tiles are hidden, resolved by TickCore on the caller's (UI) thread: the delegate behind it
+    // reads view-model state that only that thread may touch, and a finished fetch resolves its next
+    // interval on a pool thread.
+    private Dictionary<string, bool> _hiddenByAccount = [];
     private bool _windowVisible = true;
 
-    /// <summary>Same remembered-per-tick pattern as <see cref="_isHidden"/>: which accounts
+    /// <summary>Same remembered-per-tick pattern as <see cref="_hiddenByAccount"/>: which accounts
     /// the Settings.SignOut action has disconnected, read by <see cref="RunOneCoreAsync"/> to skip a fetch entirely
     /// rather than only lengthen its interval.</summary>
     private Func<string, bool>? _isDisconnected;
@@ -202,7 +205,9 @@ public sealed class RefreshScheduler
         {
             // Remembered for RunOneAsync (including a later single-provider RefreshNow, which has no
             // fresher answer of its own) - see the fields' own doc comment.
-            _isHidden = isHidden;
+            _hiddenByAccount = isHidden is null
+                ? []
+                : _providers.ToDictionary(p => p.AccountKey, p => isHidden(p.AccountKey));
             _windowVisible = windowVisible;
             _isDisconnected = isDisconnected;
 
@@ -239,6 +244,30 @@ public sealed class RefreshScheduler
         // A manual refresh is a fetch the person asked for: it reads every source once, even
         // while paused or on the energy saver, and leaves both in place.
         return TickCore(isHidden, windowVisible, isDisconnected, ignoreNetworkSkip: true, ct);
+    }
+
+    /// <summary>
+    /// The network came back: every provider whose last attempt failed for lack of a connection is
+    /// read again right away with its backoff cleared, instead of waiting out a wait that was
+    /// stretched while the machine was offline. Providers that failed for another reason, or read
+    /// fine, keep their schedule. A pause or the energy saver still holds the fetch back.
+    /// </summary>
+    public IReadOnlyList<Task> RefreshNetworkFailed(Func<string, bool>? isHidden = null, bool windowVisible = true,
+        Func<string, bool>? isDisconnected = null, CancellationToken ct = default)
+    {
+        lock (_gate)
+        {
+            var now = _timeProvider.GetUtcNow();
+            foreach (var provider in _providers)
+            {
+                var state = _state[provider.AccountKey];
+                if (state.InFlight || state.LastFailureKind != FailureKind.Network)
+                    continue;
+                state.NextDueAt = now;
+                state.CurrentInterval = ResolveIntervalLocked(provider);
+            }
+        }
+        return TickCore(isHidden, windowVisible, isDisconnected, ignoreNetworkSkip: false, ct);
     }
 
     /// <summary>
@@ -488,6 +517,7 @@ public sealed class RefreshScheduler
                 // A failure carries no source; the last real one stays the answer.
                 if (snapshot.SourceKind != SourceKind.None)
                     state.LastSource = snapshot.SourceKind;
+                state.LastFailureKind = snapshot.Status == ProviderStatus.Failed ? snapshot.Error?.Kind : null;
             }
 
             RaiseSnapshotReady(snapshot);
@@ -535,7 +565,7 @@ public sealed class RefreshScheduler
 
     /// <summary>Caller must already hold <see cref="_gate"/>.</summary>
     private TimeSpan ResolveIntervalLocked(IUsageProvider provider) =>
-        ResolveInterval(_baseInterval, provider.MinRefreshInterval, _isHidden?.Invoke(provider.AccountKey) ?? false, _windowVisible,
+        ResolveInterval(_baseInterval, provider.MinRefreshInterval, _hiddenByAccount.GetValueOrDefault(provider.AccountKey), _windowVisible,
             onBattery: _saveEnergyOnBattery && _power.OnBattery);
 
     /// <summary>
@@ -579,6 +609,9 @@ public sealed class RefreshScheduler
 
         // The source of the last reading that had one; null until the first.
         public SourceKind? LastSource;
+
+        // Why the last attempt failed; null when it did not fail.
+        public FailureKind? LastFailureKind;
 
         // Both set at the start of RunOneAsync/RunOneCoreAsync and cleared once that same attempt
         // finishes - CancelProvider reads them to cancel and wait for whichever attempt is currently

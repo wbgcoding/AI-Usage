@@ -120,6 +120,7 @@ public partial class UsageRowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowThresholdMarker))]
     [NotifyPropertyChangedFor(nameof(ThresholdMarkerTooltip))]
+    [NotifyPropertyChangedFor(nameof(BarTooltipText))]
     private double? thresholdPercent;
 
     /// <summary>The marker only ever shows at Full density: Mini has no bar left to put a
@@ -141,6 +142,7 @@ public partial class UsageRowViewModel : ObservableObject
         _density = density;
         OnPropertyChanged(nameof(ShowThresholdMarker));
         OnPropertyChanged(nameof(ThresholdMarkerTooltip));
+        OnPropertyChanged(nameof(BarTooltipText));
     }
 
     /// <summary>Mirrors <see cref="UsageWindow.Allowance"/> for <see cref="AllowanceText"/> - null
@@ -182,11 +184,12 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>Percentage points the usage may sit away from the pace before it counts as ahead or below.</summary>
     private const double PaceTolerance = 3;
 
-    /// <summary>The bar's tooltip: the allowance line, then the pace line; empty (no tooltip) only when
-    /// both are.</summary>
-    public string BarTooltipText => AllowanceText.Length > 0 && PaceText.Length > 0
-        ? AllowanceText + Environment.NewLine + PaceText
-        : AllowanceText.Length > 0 ? AllowanceText : PaceText;
+    /// <summary>The bar's tooltip: the allowance line, the pace line, then the notification threshold
+    /// while its marker is drawn (the 1 px marker itself is too thin to hover); empty (no tooltip)
+    /// only when all of them are.</summary>
+    public string BarTooltipText => string.Join(
+        Environment.NewLine,
+        new[] { AllowanceText, PaceText, ShowThresholdMarker ? ThresholdMarkerTooltip : "" }.Where(line => line.Length > 0));
 
     private double? ComputePacePercent(DateTimeOffset now)
     {

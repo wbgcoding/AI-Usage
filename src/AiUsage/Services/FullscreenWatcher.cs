@@ -12,16 +12,15 @@ internal readonly record struct ScreenRect(int Left, int Top, int Right, int Bot
 }
 
 /// <summary>Tells when a full-screen application is in front, so the widget can step aside while a game,
-/// a video or a presentation owns the screen. Event driven: a change of the foreground window, or a
-/// resize of the foreground window (a browser going full screen with F11 keeps the foreground), plus a
-/// slow poll only while a full-screen app is in front, as a safety net for the way back.</summary>
+/// a video or a presentation owns the screen. A change of the foreground window is an event; a browser
+/// going full screen with F11 keeps the foreground, so a slow poll runs for as long as the watcher is on
+/// and catches that within a couple of seconds. No hook on window movement: Windows raises those for
+/// every mouse move on the system.</summary>
 internal sealed class FullscreenWatcher : IDisposable
 {
     private const uint EventSystemForeground = 0x0003;
-    private const uint EventObjectLocationChange = 0x800B;
     private const uint WineventOutOfContext = 0x0000;
-    private const int ObjidWindow = 0;
-    private const int MonitorDefaultToNearest = 2;
+    private const uint MonitorDefaultToNearest = 2;
     private const int QunsRunningD3dFullScreen = 3;
     private const int QunsPresentationMode = 4;
     private const int GwlStyle = -16;
@@ -29,10 +28,9 @@ internal sealed class FullscreenWatcher : IDisposable
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
     private readonly IntPtr _widgetHwnd;
-    private readonly WinEventProc _callback;
+    private readonly Win32.WinEventProc _callback;
     private readonly DispatcherTimer _poll;
     private IntPtr _foregroundHook;
-    private IntPtr _locationHook;
     private bool _enabled;
 
     public FullscreenWatcher(IntPtr widgetHwnd)
@@ -63,12 +61,13 @@ internal sealed class FullscreenWatcher : IDisposable
             _enabled = value;
             if (value)
             {
-                _foregroundHook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _callback, 0, 0, WineventOutOfContext);
-                _locationHook = SetWinEventHook(EventObjectLocationChange, EventObjectLocationChange, IntPtr.Zero, _callback, 0, 0, WineventOutOfContext);
+                _foregroundHook = Win32.SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _callback, 0, 0, WineventOutOfContext);
+                _poll.Start();
                 Evaluate();
                 return;
             }
 
+            _poll.Stop();
             Unhook();
             Set(false);
         }
@@ -93,13 +92,8 @@ internal sealed class FullscreenWatcher : IDisposable
     internal static bool IsShellWindowClass(string? className) =>
         className is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
 
-    private void OnWinEvent(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
-    {
-        if (eventType == EventObjectLocationChange && (idObject != ObjidWindow || hwnd != GetForegroundWindow()))
-            return;
-
+    private void OnWinEvent(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time) =>
         Evaluate();
-    }
 
     private void Evaluate()
     {
@@ -121,30 +115,25 @@ internal sealed class FullscreenWatcher : IDisposable
 
         _ = GetWindowThreadProcessId(foreground, out var processId);
         var monitor = MonitorBounds();
-        var rect = GetWindowRect(foreground, out var window)
+        var rect = Win32.GetWindowRect(foreground, out var window)
             ? new ScreenRect(window.Left, window.Top, window.Right, window.Bottom)
             : default;
-        var hasCaption = (GetWindowLongPtr(foreground, GwlStyle).ToInt64() & WsCaption) == WsCaption;
-        return IsFullscreen(processId == (uint)Environment.ProcessId, ClassNameOf(foreground), hasCaption, rect, monitor, state);
+        var hasCaption = (Win32.GetWindowLongPtr(foreground, GwlStyle).ToInt64() & WsCaption) == WsCaption;
+        return IsFullscreen(processId == (uint)Environment.ProcessId, Win32.ClassNameOf(foreground), hasCaption, rect, monitor, state);
     }
 
     /// <summary>The whole monitor (taskbar included) the widget is on.</summary>
     private ScreenRect MonitorBounds()
     {
-        var monitor = MonitorFromWindow(_widgetHwnd, MonitorDefaultToNearest);
-        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
-        return monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info)
+        var monitor = Win32.MonitorFromWindow(_widgetHwnd, MonitorDefaultToNearest);
+        var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
+        return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info)
             ? new ScreenRect(info.Monitor.Left, info.Monitor.Top, info.Monitor.Right, info.Monitor.Bottom)
             : default;
     }
 
     private void Set(bool fullscreen)
     {
-        if (fullscreen)
-            _poll.Start();
-        else
-            _poll.Stop();
-
         if (fullscreen == IsFullscreenActive)
             return;
 
@@ -152,23 +141,12 @@ internal sealed class FullscreenWatcher : IDisposable
         FullscreenChanged?.Invoke(this, fullscreen);
     }
 
-    private static string ClassNameOf(IntPtr hwnd)
-    {
-        var buffer = new char[64];
-        var length = GetClassName(hwnd, buffer, buffer.Length);
-        return length > 0 ? new string(buffer, 0, length) : "";
-    }
-
     private void Unhook()
     {
-        foreach (var hook in new[] { _foregroundHook, _locationHook })
-        {
-            if (hook != IntPtr.Zero)
-                UnhookWinEvent(hook);
-        }
+        if (_foregroundHook != IntPtr.Zero)
+            Win32.UnhookWinEvent(_foregroundHook);
 
         _foregroundHook = IntPtr.Zero;
-        _locationHook = IntPtr.Zero;
     }
 
     public void Dispose()
@@ -178,52 +156,11 @@ internal sealed class FullscreenWatcher : IDisposable
         Unhook();
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeRect
-    {
-        public int Left, Top, Right, Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MonitorInfo
-    {
-        public int Size;
-        public NativeRect Monitor;
-        public NativeRect Work;
-        public uint Flags;
-    }
-
-    private delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProc callback, uint processId, uint threadId, uint flags);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWinEvent(IntPtr hook);
-
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(IntPtr hwnd, [Out] char[] className, int maxCount);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
-
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
-    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
 
     [DllImport("shell32.dll")]
     private static extern int SHQueryUserNotificationState(out int state);

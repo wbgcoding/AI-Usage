@@ -72,6 +72,12 @@
                                             AutomationProperties.AutomationId="UpdateLaterButton"
                                             Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.Later]}"
                                             Click="UpdateLater_Click"/>
+                                    <TextBlock x:Name="UpdateDownloadingText" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               AutomationProperties.AutomationId="UpdateDownloadingText"
+                                               Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.Downloading]}"
+                                               Visibility="{Binding Update.IsInstalling, Converter={StaticResource BoolToVis}}"
+                                               Foreground="{DynamicResource Text.Secondary}"
+                                               FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

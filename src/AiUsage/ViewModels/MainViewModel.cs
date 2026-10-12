@@ -860,6 +860,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>The network came back: reads again, at once, the providers whose last attempt failed
+    /// for lack of a connection (see <see cref="RefreshScheduler.RefreshNetworkFailed"/>).</summary>
+    public void RefreshNetworkFailed() =>
+        _scheduler.RefreshNetworkFailed(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+
     /// <summary>Queries <see cref="_statsStore"/> for every tile whose real provider <see
     /// cref="ProviderCoverage.HasLocalTokenData"/> says has a local token index, at most once per
     /// <see cref="WeekTokensQueryInterval"/> per real provider - a no-op entirely when no store was
@@ -1605,8 +1610,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
                 foreach (var providerId in providerIds)
                 {
-                    _historyStore.Compact(providerId);
-                    _historyStore.Prune(providerId, _settings.HistoryRetentionDays);
+                    _historyStore.Maintain(providerId, _settings.HistoryRetentionDays);
                 }
 
                 if (dispatcher is not null && !dispatcher.CheckAccess())

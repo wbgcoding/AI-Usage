@@ -10,10 +10,8 @@ global using System.IO;
 global using System.Windows;
 global using System.Windows.Controls;
 
-// System.Drawing.Common still rides in automatically on this Windows-targeted WPF TFM (confirmed by
-// NuGet refusing an explicit PackageReference for it as redundant), colliding with WPF's media
-// primitives by name - HistoryChart is the first user of System.Windows.Media, so the WPF ones win
-// project-wide; the few System.Drawing types actually used are fully qualified at their use site.
+// System.Drawing shares these type names with WPF's media types; the WPF ones win project-wide, and
+// the few System.Drawing types in use are qualified where they appear.
 global using Point = System.Windows.Point;
 global using Brush = System.Windows.Media.Brush;
 global using Brushes = System.Windows.Media.Brushes;

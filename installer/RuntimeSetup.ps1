@@ -53,6 +53,10 @@ $MinBytes = 5MB
 $MaxBytes = 250MB
 $MaxRedirects = 5
 $InstallLimitMinutes = 20
+# The body of the download: no single read may wait longer than the stall limit, and the whole copy
+# has a deadline, so a link that goes dead half way ends the run instead of hanging Setup.
+$StallSeconds = 60
+$DownloadLimitMinutes = 10
 
 function Write-Log([string]$Message) {
     if ($script:LogFile) {
@@ -165,6 +169,24 @@ function Get-SignatureProblem([string]$Path) {
     return $null
 }
 
+# One read from the response body that gives up after the stall limit. A plain Stream.Read blocks as
+# long as the connection stays open, however little arrives.
+function Read-WithTimeout($Stream, [byte[]]$Buffer) {
+    $cancel = New-Object System.Threading.CancellationTokenSource
+    try {
+        $cancel.CancelAfter([TimeSpan]::FromSeconds($StallSeconds))
+        try {
+            return $Stream.ReadAsync($Buffer, 0, $Buffer.Length, $cancel.Token).GetAwaiter().GetResult()
+        }
+        catch [System.OperationCanceledException] {
+            throw 'download stalled'
+        }
+    }
+    finally {
+        $cancel.Dispose()
+    }
+}
+
 function Save-Download([string]$Address, [string]$Destination) {
     Add-Type -AssemblyName System.Net.Http
     $protocols = [Net.SecurityProtocolType]::Tls12
@@ -201,7 +223,11 @@ function Save-Download([string]$Address, [string]$Destination) {
                 try {
                     $buffer = New-Object byte[] 81920
                     $received = 0L
-                    while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                    $deadline = [DateTime]::UtcNow.AddMinutes($DownloadLimitMinutes)
+                    while ($true) {
+                        if ([DateTime]::UtcNow -gt $deadline) { throw 'download took too long' }
+                        $read = Read-WithTimeout $source $buffer
+                        if ($read -le 0) { break }
                         $received += $read
                         if ($received -gt $MaxBytes) { throw 'download is larger than the installer can be' }
                         $target.Write($buffer, 0, $read)

@@ -24,6 +24,9 @@ public class UpdateCheckTests
     [InlineData("1.2.0", "1.2.0", false)] // equal
     [InlineData("1.2.0", "v1.3.0", true)] // v-prefixed
     [InlineData("1.2.0", "not-a-version", false)] // unparseable
+    [InlineData("1.2.3", "v1.2.3.0", false)] // a missing revision is 0
+    [InlineData("1.2.3.0", "v1.2.3", false)]
+    [InlineData("1.2.3", "v1.2.3.1", true)]
     public void IsNewer_compares_running_against_the_tag(string runningVersion, string tagName, bool expected)
     {
         Assert.Equal(expected, UpdateCheck.IsNewer(runningVersion, tagName));

@@ -35,6 +35,10 @@ public class HistoryStore
 
         // The points of the file as last parsed; only touched under Gate.
         public LoadCache? Points;
+
+        // True while a rewrite holds Gate. The file on disk stays complete and readable until the
+        // rewrite's final move, so a read in that time uses the file instead of waiting for Gate.
+        public volatile bool Rewriting;
     }
 
     /// <summary>The parsed points of one provider file from <see cref="CoveredFrom"/> on, and the file
@@ -250,13 +254,17 @@ public class HistoryStore
 
     /// <summary>Reads backward and stops as soon as a point falls before <paramref name="from"/> - a
     /// multi-year file never has to be read whole for a narrow slice. A point newer than <paramref
-    /// name="to"/> is skipped without stopping the scan, so a slice that ends in the past (the
+    /// name="until"/> is skipped without stopping the scan, so a slice that ends in the past (the
     /// previous-week comparison line) still finds its data behind whatever was appended since.</summary>
-    public IReadOnlyList<HistoryPoint> Load(string providerId, DateTimeOffset from, DateTimeOffset to)
+    public virtual IReadOnlyList<HistoryPoint> Load(string providerId, DateTimeOffset from, DateTimeOffset until)
     {
         var path = FilePath(providerId);
         if (!File.Exists(path))
             return [];
+
+        // A rewrite of a multi-year file can take a while; the chart reads the file as it is.
+        if (StateOf(providerId).Rewriting)
+            return ReadRangeUnlocked(providerId, path, from, until);
 
         return Locked<IReadOnlyList<HistoryPoint>>(providerId, () =>
         {
@@ -265,7 +273,7 @@ public class HistoryStore
             {
                 var all = LoadPoints(state, providerId, path, from);
                 // A new list every time: callers get to keep and change theirs.
-                return all.Where(point => point.Timestamp >= from && point.Timestamp <= to).ToList();
+                return all.Where(point => point.Timestamp >= from && point.Timestamp <= until).ToList();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -275,6 +283,38 @@ public class HistoryStore
                 return [];
             }
         });
+    }
+
+    /// <summary>The points between <paramref name="from"/> and <paramref name="to"/> read straight off
+    /// the file, without the cache or the provider's lock. The file is only ever replaced whole, so it
+    /// is complete at any moment; one that is being swapped right now reads as empty for this call.</summary>
+    private static List<HistoryPoint> ReadRangeUnlocked(string providerId, string path, DateTimeOffset from, DateTimeOffset to)
+    {
+        try
+        {
+            long length;
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                length = stream.Length;
+
+            var points = new List<HistoryPoint>();
+            foreach (var line in ReverseLineReader.ReadLinesReversed(path, upToLength: length))
+            {
+                var point = ParseLineOrNull(line, providerId);
+                if (point is null)
+                    continue;
+                if (point.Timestamp < from)
+                    break;
+                if (point.Timestamp <= to)
+                    points.Add(point);
+            }
+
+            points.Reverse();
+            return points;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     /// <summary>The valid points of the file from <paramref name="from"/> on, in file order, kept in
@@ -459,27 +499,8 @@ public class HistoryStore
     }
 
     /// <summary>Rewrites the file without points older than <paramref name="retentionDays"/> (atomic, like SettingsStore).</summary>
-    public virtual void Prune(string providerId, int retentionDays)
-    {
-        var path = FilePath(providerId);
-        if (!File.Exists(path))
-            return;
-
-        Locked(providerId, () =>
-        {
-            InsideRewriteLockForTest?.Invoke(providerId);
-            var cutoff = _now() - TimeSpan.FromDays(retentionDays);
-            var (ok, points, hasFutureVersionLine) = ReadAllValid(path, providerId);
-            // The file could not be read right now - never overwrite it with an empty history. A
-            // line from a schema version newer than this build understands is refused the same way:
-            // rewriting the file would silently drop whatever fields that newer version added.
-            if (!ok || hasFutureVersionLine)
-                return;
-
-            var kept = points.Where(point => point.Timestamp >= cutoff).ToList();
-            WriteAllAtomic(providerId, kept);
-        });
-    }
+    public virtual void Prune(string providerId, int retentionDays) =>
+        Rewrite(providerId, compact: false, retentionDays);
 
     /// <summary>
     /// Reduces raw points older than 30 days to one per hour and window, and points older than a
@@ -488,7 +509,15 @@ public class HistoryStore
     /// one-year mark is rolled up to a daily one, otherwise the second stage would never reach
     /// anything and the file would grow without limit after the first year.
     /// </summary>
-    public virtual void Compact(string providerId)
+    public virtual void Compact(string providerId) =>
+        Rewrite(providerId, compact: true, retentionDays: null);
+
+    /// <summary>Compacts and prunes in one read and one rewrite of the file, in that order: the
+    /// routine daily maintenance, which would otherwise read and write a multi-year file twice.</summary>
+    public virtual void Maintain(string providerId, int retentionDays) =>
+        Rewrite(providerId, compact: true, retentionDays);
+
+    private void Rewrite(string providerId, bool compact, int? retentionDays)
     {
         var path = FilePath(providerId);
         if (!File.Exists(path))
@@ -496,43 +525,64 @@ public class HistoryStore
 
         Locked(providerId, () =>
         {
-            InsideRewriteLockForTest?.Invoke(providerId);
-            var now = _now();
-            // Floored to whole UTC hours/days: an exact instant would split one bucket across two
-            // runs and leave two rolled-up points for the same hour or day.
-            var hourThreshold = FloorToUtcHour(now - HourCompactionAge);
-            var dayThreshold = FloorToUtcDay(now - DayCompactionAge);
-
-            var (ok, points, hasFutureVersionLine) = ReadAllValid(path, providerId);
-            // The file could not be read right now - never overwrite it with an empty history. A
-            // line from a schema version newer than this build understands is refused the same way:
-            // rewriting the file would silently drop whatever fields that newer version added.
-            if (!ok || hasFutureVersionLine)
-                return;
-
-            var kept = new List<HistoryPoint>();
-            var toHourCompact = new List<HistoryPoint>();
-            var toDayCompact = new List<HistoryPoint>();
-
-            foreach (var point in points)
+            var state = StateOf(providerId);
+            state.Rewriting = true;
+            try
             {
-                if (point.CompactionLevel == 2)
-                    kept.Add(point); // already one point per day, there is nothing coarser
-                else if (point.Timestamp < dayThreshold)
-                    toDayCompact.Add(point); // raw or hourly, and past the one-year mark
-                else if (point.CompactionLevel is not null)
-                    kept.Add(point); // hourly and not old enough for the daily stage yet
-                else if (point.Timestamp < hourThreshold)
-                    toHourCompact.Add(point);
-                else
-                    kept.Add(point);
+                InsideRewriteLockForTest?.Invoke(providerId);
+                var now = _now();
+
+                var (ok, points, hasFutureVersionLine) = ReadAllValid(path, providerId);
+                // The file could not be read right now - never overwrite it with an empty history. A
+                // line from a schema version newer than this build understands is refused the same way:
+                // rewriting the file would silently drop whatever fields that newer version added.
+                if (!ok || hasFutureVersionLine)
+                    return;
+
+                var kept = compact ? CompactPoints(points, now) : points;
+                if (retentionDays is { } days)
+                {
+                    var cutoff = now - TimeSpan.FromDays(days);
+                    kept = kept.Where(point => point.Timestamp >= cutoff).ToList();
+                }
+
+                WriteAllAtomic(providerId, compact ? kept.OrderBy(point => point.Timestamp).ToList() : kept);
             }
-
-            kept.AddRange(ReduceToPeak(toDayCompact, point => point.Timestamp.UtcDateTime.Date, compactionLevel: 2));
-            kept.AddRange(ReduceToPeak(toHourCompact, UtcHourBucket, compactionLevel: 1));
-
-            WriteAllAtomic(providerId, kept.OrderBy(point => point.Timestamp).ToList());
+            finally
+            {
+                state.Rewriting = false;
+            }
         });
+    }
+
+    private static List<HistoryPoint> CompactPoints(List<HistoryPoint> points, DateTimeOffset now)
+    {
+        // Floored to whole UTC hours/days: an exact instant would split one bucket across two
+        // runs and leave two rolled-up points for the same hour or day.
+        var hourThreshold = FloorToUtcHour(now - HourCompactionAge);
+        var dayThreshold = FloorToUtcDay(now - DayCompactionAge);
+
+        var kept = new List<HistoryPoint>();
+        var toHourCompact = new List<HistoryPoint>();
+        var toDayCompact = new List<HistoryPoint>();
+
+        foreach (var point in points)
+        {
+            if (point.CompactionLevel == 2)
+                kept.Add(point); // already one point per day, there is nothing coarser
+            else if (point.Timestamp < dayThreshold)
+                toDayCompact.Add(point); // raw or hourly, and past the one-year mark
+            else if (point.CompactionLevel is not null)
+                kept.Add(point); // hourly and not old enough for the daily stage yet
+            else if (point.Timestamp < hourThreshold)
+                toHourCompact.Add(point);
+            else
+                kept.Add(point);
+        }
+
+        kept.AddRange(ReduceToPeak(toDayCompact, point => point.Timestamp.UtcDateTime.Date, compactionLevel: 2));
+        kept.AddRange(ReduceToPeak(toHourCompact, UtcHourBucket, compactionLevel: 1));
+        return kept;
     }
 
     /// <summary>

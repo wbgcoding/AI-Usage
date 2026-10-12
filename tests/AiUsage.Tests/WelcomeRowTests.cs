@@ -45,6 +45,29 @@ public class WelcomeRowTests
     }
 
     [Fact]
+    public void A_disposed_row_no_longer_follows_its_tile()
+    {
+        var tile = TileWith("claude", ProviderStatus.NotSignedIn);
+        var row = new WelcomeRow(tile);
+        var raised = new List<string?>();
+        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        row.Dispose();
+        var now = DateTimeOffset.UtcNow;
+        tile.Apply(new ProviderSnapshot("claude", [], null, SourceKind.None, now, null, ProviderStatus.Ok, null), now);
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void Closing_the_welcome_window_disposes_every_row()
+    {
+        var source = File.ReadAllText(Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views", "WelcomeWindow.xaml.cs"));
+
+        Assert.Contains("Closed += (_, _) => rows.ForEach(row => row.Dispose());", source);
+    }
+
+    [Fact]
     public void A_copilot_row_without_numbers_shows_no_empty_button()
     {
         var now = DateTimeOffset.UtcNow;

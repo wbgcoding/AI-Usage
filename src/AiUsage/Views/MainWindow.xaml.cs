@@ -1,6 +1,7 @@
 ﻿using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -158,11 +159,15 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         SystemEvents.SessionSwitch += SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
+        NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
 
         ApplyRememberedPlacement();
         ApplyContentSize();
 
         SourceInitialized += MainWindow_SourceInitialized;
+        Activated += (_, _) => SyncSnapHotkeys();
+        Deactivated += (_, _) => SyncSnapHotkeys();
+        IsVisibleChanged += (_, _) => SyncSnapHotkeys();
         Closing += MainWindow_Closing;
         // Windows asking the app to close - an update installing over the running copy asks through
         // the system's own restart manager, and a shutdown or sign-out asks the same way. The title
@@ -236,6 +241,10 @@ public partial class MainWindow : Window, IDisposable
         // history file. Runs forever on the view model's own lifetime
         // token; Dispose() below is the only thing that ever stops it.
         _ = Task.Run(() => ViewModel.RunMaintenanceForeverAsync());
+
+        // The handle otherwise only exists at the first Show(), which a tray start never reaches: the
+        // hotkey, the full-screen watcher and the click-through style are set up when the handle appears.
+        new WindowInteropHelper(this).EnsureHandle();
     }
 
     /// <summary>Raised from the snapshot tail, which always runs on the UI thread, the one
@@ -339,7 +348,7 @@ public partial class MainWindow : Window, IDisposable
     {
         var (cursorX, cursorY) = NativeMonitors.CursorPositionInWorkAreaUnits();
         var monitors = _monitorAreas.Areas;
-        var primary = FirstOrDefault(monitors);
+        var primary = WindowPlacementService.PrimaryOf(monitors);
 
         var resolved = WindowPlacementService.CenterOnCursorMonitor(
             cursorX, cursorY, Width, Math.Max(ActualHeight, MinHeight), monitors, primary);
@@ -583,6 +592,24 @@ public partial class MainWindow : Window, IDisposable
         else if (e.Mode == PowerModes.StatusChange)
             Dispatcher.BeginInvoke(() => ViewModel.SetPower(PowerStatus.Read()));
     }
+
+    /// <summary>Raised on a pool thread. A wake from sleep triggers one due-check before the network is
+    /// up, which leaves every web tile failed and backed off; once a connection is reported, those
+    /// providers are read again after a short settle time (the adapter reports before DNS answers).</summary>
+    private async void NetworkChange_NetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
+    {
+        if (!e.IsAvailable)
+            return;
+
+        await Task.Delay(NetworkSettleTime);
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (!_reallyClosing)
+                ViewModel.RefreshNetworkFailed();
+        });
+    }
+
+    private static readonly TimeSpan NetworkSettleTime = TimeSpan.FromSeconds(3);
 
     /// <summary>Records the lock state. When the widget becomes watchable again it gets the normal
     /// cadence back and a due-check right away.</summary>
@@ -892,7 +919,7 @@ public partial class MainWindow : Window, IDisposable
     private void ApplyRememberedPlacement()
     {
         var monitors = _monitorAreas.Areas;
-        var primary = monitors.FirstOrDefault(m => m.DeviceName == _settings.Window.MonitorDeviceName, FirstOrDefault(monitors));
+        var primary = monitors.FirstOrDefault(m => m.DeviceName == _settings.Window.MonitorDeviceName, WindowPlacementService.PrimaryOf(monitors));
         var desired = new WindowRect(_settings.Window.Left, _settings.Window.Top, Current.Width, Current.Height ?? MinHeight);
 
         var resolved = WindowPlacementService.ResolvePosition(desired, monitors, primary);
@@ -920,8 +947,6 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
-    private static MonitorArea FirstOrDefault(IReadOnlyList<MonitorArea> monitors) => monitors.Count > 0 ? monitors[0] : default;
-
     private static bool Contains(MonitorArea monitor, WindowRect rect) =>
         rect.Left >= monitor.Left && rect.Left < monitor.Right && rect.Top >= monitor.Top && rect.Top < monitor.Bottom;
 
@@ -947,7 +972,7 @@ public partial class MainWindow : Window, IDisposable
             }
         }
 
-        return monitors.FirstOrDefault(m => Contains(m, rect), FirstOrDefault(monitors));
+        return monitors.FirstOrDefault(m => Contains(m, rect), WindowPlacementService.PrimaryOf(monitors));
     }
 
     private void SystemParameters_HighContrastChanged(object? sender, PropertyChangedEventArgs e)
@@ -966,8 +991,13 @@ public partial class MainWindow : Window, IDisposable
     /// (<see cref="AppTheme.System"/>), otherwise Windows switching its own theme changes nothing here.</summary>
     private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
-        if (e.Category == UserPreferenceCategory.General && ThemeService.ParseTheme(_settings.Theme) == AppTheme.System)
-            ThemeService.Apply(AppTheme.System);
+        // Raised on the system's event thread; the theme resources belong to the UI thread.
+        if (e.Category == UserPreferenceCategory.General)
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (ThemeService.ParseTheme(_settings.Theme) == AppTheme.System)
+                    ThemeService.Apply(AppTheme.System);
+            });
     }
 
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
@@ -989,9 +1019,9 @@ public partial class MainWindow : Window, IDisposable
         ApplyHotkeySettings();
         ViewModel.HotkeySettingsChanged += (_, _) => ApplyHotkeySettings();
 
-        // Fixed, never user-configurable, and never colliding with the one hotkey above - registered
-        // once and for the lifetime of the window rather than re-applied like ApplyHotkeySettings.
-        _globalHotkey.RegisterSnapHotkeys();
+        // Fixed, never user-configurable, and never colliding with the one hotkey above. They are
+        // system-wide while registered, so they only exist while the widget is the window in front.
+        SyncSnapHotkeys();
 
         // The extended window style itself only exists on the real HWND SourceInitialized just
         // handed over - a fresh window otherwise starts fully clickable even when the setting says
@@ -999,6 +1029,12 @@ public partial class MainWindow : Window, IDisposable
         // previous session already resolved never changes anything.
         ApplyClickThrough(_settings.ClickThrough);
     }
+
+    /// <summary>The snap shortcuts are wanted only while the widget is both visible and the active
+    /// window; in any other state another program gets those keys.</summary>
+    internal static bool SnapHotkeysWanted(bool isActive, bool isVisible) => isActive && isVisible;
+
+    private void SyncSnapHotkeys() => _globalHotkey?.SetSnapHotkeysActive(SnapHotkeysWanted(IsActive, IsVisible));
 
     /// <summary>(Re-)applies the hotkey to the live OS registration from whatever
     /// <see cref="MainViewModel.HotkeyEnabled"/>/<see cref="MainViewModel.HotkeyText"/> say right now
@@ -1580,7 +1616,7 @@ public partial class MainWindow : Window, IDisposable
     /// until the user switches it back on.</summary>
     private void SnapToHalf(SnapDirection direction)
     {
-        if (_settings.Window.Collapsed)
+        if (_settings.Window.Collapsed || !IsVisible)
             return;
 
         var area = CurrentArea();
@@ -1708,6 +1744,7 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SystemEvents.SessionSwitch -= SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
+        NetworkChange.NetworkAvailabilityChanged -= NetworkChange_NetworkAvailabilityChanged;
         ThemeService.Applied -= ThemeService_Applied;
         ViewModel.Tiles.CollectionChanged -= ViewModel_Tiles_CollectionChanged;
         _updateTimer?.Stop();

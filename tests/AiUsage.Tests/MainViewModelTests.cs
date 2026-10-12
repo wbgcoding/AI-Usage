@@ -1962,6 +1962,19 @@ public class MainViewModelTests : IDisposable
             Interlocked.Decrement(ref _inFlight);
         }
 
+        // The routine maintenance is one pass that compacts and prunes together.
+        public override void Maintain(string providerId, int retentionDays)
+        {
+            var concurrent = Interlocked.Increment(ref _inFlight);
+            MaxObservedConcurrentCompacts = Math.Max(MaxObservedConcurrentCompacts, concurrent);
+            Interlocked.Increment(ref CompactCalls);
+            Interlocked.Increment(ref PruneCalls);
+            if (CompactDelay > TimeSpan.Zero)
+                Thread.Sleep(CompactDelay);
+            base.Maintain(providerId, retentionDays);
+            Interlocked.Decrement(ref _inFlight);
+        }
+
         public override void Prune(string providerId, int retentionDays)
         {
             Interlocked.Increment(ref PruneCalls);

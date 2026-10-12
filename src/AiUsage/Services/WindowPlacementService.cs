@@ -3,8 +3,11 @@ using AiUsage.Storage;
 
 namespace AiUsage.Services;
 
-/// <summary>A monitor's usable area (excludes the taskbar), device-independent units.</summary>
-public readonly record struct MonitorArea(string DeviceName, double Left, double Top, double Width, double Height)
+/// <summary>A monitor's usable area (excludes the taskbar), device-independent units.
+/// <paramref name="IsPrimary"/> is Windows' own answer for the main display; the enumeration order
+/// says nothing about it.</summary>
+public readonly record struct MonitorArea(
+    string DeviceName, double Left, double Top, double Width, double Height, bool IsPrimary = false)
 {
     public double Right => Left + Width;
     public double Bottom => Top + Height;
@@ -114,13 +117,33 @@ public class WindowPlacementService
                 return desired;
         }
 
+        // Partly on two monitors (left across the seam): the one holding most of the window wins.
+        MonitorArea? best = null;
+        var bestOverlap = 0.0;
         foreach (var monitor in monitors)
         {
-            if (Overlaps(monitor, desired))
-                return ClampIntoArea(desired, monitor);
+            var overlap = OverlapArea(monitor, desired);
+            if (overlap > bestOverlap)
+            {
+                best = monitor;
+                bestOverlap = overlap;
+            }
         }
 
-        return CenterOn(primary, desired.Width, desired.Height);
+        return best is { } nearest ? ClampIntoArea(desired, nearest) : CenterOn(primary, desired.Width, desired.Height);
+    }
+
+    /// <summary>The main display among <paramref name="monitors"/>: the one Windows marks as primary,
+    /// else the first listed (a list built without that information), else an empty area.</summary>
+    public static MonitorArea PrimaryOf(IReadOnlyList<MonitorArea> monitors)
+    {
+        foreach (var monitor in monitors)
+        {
+            if (monitor.IsPrimary)
+                return monitor;
+        }
+
+        return monitors.Count > 0 ? monitors[0] : default;
     }
 
     /// <summary>
@@ -332,9 +355,14 @@ public class WindowPlacementService
         rect.Left >= monitor.Left && rect.Top >= monitor.Top &&
         rect.Left + rect.Width <= monitor.Right && rect.Top + rect.Height <= monitor.Bottom;
 
-    private static bool Overlaps(MonitorArea monitor, WindowRect rect) =>
-        rect.Left < monitor.Right && rect.Left + rect.Width > monitor.Left &&
-        rect.Top < monitor.Bottom && rect.Top + rect.Height > monitor.Top;
+    /// <summary>The size of the shared region of the monitor's work area and the rectangle; 0 when they
+    /// do not touch.</summary>
+    private static double OverlapArea(MonitorArea monitor, WindowRect rect)
+    {
+        var width = Math.Min(monitor.Right, rect.Left + rect.Width) - Math.Max(monitor.Left, rect.Left);
+        var height = Math.Min(monitor.Bottom, rect.Top + rect.Height) - Math.Max(monitor.Top, rect.Top);
+        return width > 0 && height > 0 ? width * height : 0;
+    }
 
     /// <summary>Moves (and, when it is larger than the area, shrinks) <paramref name="rect"/> so the
     /// whole rectangle lies inside <paramref name="monitor"/>.</summary>
