@@ -419,9 +419,10 @@ public class ProviderTileViewModelTests
         var loc = LocalizationService.Instance;
         var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
 
-        tile.Apply(FailedSnapshot(FailureKind.Refused, 404), Now);
+        tile.Apply(FailedSnapshot(FailureKind.EndpointMoved, 404), Now);
 
         Assert.Equal(loc["State.UnreadableAnswer.Reason"], tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
     }
 
     [Fact]

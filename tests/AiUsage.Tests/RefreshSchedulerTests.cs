@@ -713,7 +713,7 @@ public class RefreshSchedulerTests
         Assert.Equal(FailureKind.Network, noStatus.Error?.Kind);
 
         var refused = await TickOnceWith(_ => throw new System.Net.Http.HttpRequestException("x", null, System.Net.HttpStatusCode.NotFound));
-        Assert.Equal(FailureKind.Refused, refused.Error?.Kind);
+        Assert.Equal(FailureKind.EndpointMoved, refused.Error?.Kind);
     }
 
     [Fact]

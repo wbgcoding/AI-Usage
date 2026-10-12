@@ -117,7 +117,7 @@ public class ErrorPresenterTests
     [Theory]
     [InlineData(502, FailureKind.ServerError)]
     [InlineData(500, FailureKind.ServerError)]
-    [InlineData(404, FailureKind.Refused)]
+    [InlineData(404, FailureKind.EndpointMoved)]
     [InlineData(429, FailureKind.RateLimited)]
     [InlineData(401, FailureKind.Refused)]
     [InlineData(0, FailureKind.Other)]
@@ -127,7 +127,7 @@ public class ErrorPresenterTests
     [Fact]
     public void A_404_reads_as_an_unreadable_answer_not_as_a_refusal()
     {
-        var error = new ProviderError("Status_Failed_Reason", Kind: FailureKind.Refused, HttpStatus: 404);
+        var error = new ProviderError("Status_Failed_Reason", Kind: FailureKind.EndpointMoved, HttpStatus: 404);
 
         var (headline, reason, action) = ErrorPresenter.Describe(ProviderStatus.Failed, error);
 
@@ -158,6 +158,7 @@ public class ErrorPresenterTests
     [InlineData(FailureKind.ServerError, true)]
     [InlineData(FailureKind.Timeout, true)]
     [InlineData(FailureKind.Network, true)]
+    [InlineData(FailureKind.EndpointMoved, true)]
     [InlineData(FailureKind.Refused, false)]
     [InlineData(FailureKind.Other, false)]
     public void Only_the_kinds_that_sign_in_cannot_fix_hide_the_sign_in_button(FailureKind kind, bool notASignInProblem) =>
