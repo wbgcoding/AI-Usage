@@ -170,21 +170,15 @@ function Get-SignatureProblem([string]$Path) {
 }
 
 # One read from the response body that gives up after the stall limit. A plain Stream.Read blocks as
-# long as the connection stays open, however little arrives.
+# long as the connection stays open, however little arrives, and the response stream of Windows
+# PowerShell 5.1 does not honour a cancellation token mid-read, so the wait itself is bounded.
 function Read-WithTimeout($Stream, [byte[]]$Buffer) {
-    $cancel = New-Object System.Threading.CancellationTokenSource
-    try {
-        $cancel.CancelAfter([TimeSpan]::FromSeconds($StallSeconds))
-        try {
-            return $Stream.ReadAsync($Buffer, 0, $Buffer.Length, $cancel.Token).GetAwaiter().GetResult()
-        }
-        catch [System.OperationCanceledException] {
-            throw 'download stalled'
-        }
+    $task = $Stream.ReadAsync($Buffer, 0, $Buffer.Length)
+    if (-not $task.Wait($StallSeconds * 1000)) {
+        $Stream.Dispose()
+        throw 'download stalled'
     }
-    finally {
-        $cancel.Dispose()
-    }
+    return $task.Result
 }
 
 function Save-Download([string]$Address, [string]$Destination) {

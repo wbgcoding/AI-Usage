@@ -17,8 +17,10 @@ public class InstallerSafetyTests
 
         Assert.Contains("$StallSeconds = 60", script);
         Assert.Contains("$DownloadLimitMinutes = 10", script);
-        Assert.Contains("ReadAsync($Buffer, 0, $Buffer.Length, $cancel.Token)", script);
-        Assert.Contains("CancelAfter([TimeSpan]::FromSeconds($StallSeconds))", script);
+        // The wait on the read is bounded; the cancellation token of the read is not trusted.
+        Assert.Contains("$task = $Stream.ReadAsync($Buffer, 0, $Buffer.Length)", script);
+        Assert.Contains("$task.Wait($StallSeconds * 1000)", script);
+        Assert.DoesNotContain("CancellationTokenSource", script);
         Assert.Contains("[DateTime]::UtcNow -gt $deadline", script);
         // The blocking read that had no limit is gone.
         Assert.DoesNotContain("$source.Read($buffer", script);

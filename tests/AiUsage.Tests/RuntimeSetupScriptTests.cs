@@ -59,6 +59,24 @@ public class RuntimeSetupScriptTests
     }
 
     [Fact]
+    public void A_read_that_never_delivers_ends_as_a_stalled_download_and_a_delivered_one_returns_its_bytes()
+    {
+        // A pipe nobody writes to stands in for a connection that stalls mid-download.
+        var (code, output) = RunPowerShell("-Command",
+            $". '{Script}'; $StallSeconds = 2; " +
+            "$server = New-Object System.IO.Pipes.AnonymousPipeServerStream([System.IO.Pipes.PipeDirection]::Out); " +
+            "$client = New-Object System.IO.Pipes.AnonymousPipeClientStream([System.IO.Pipes.PipeDirection]::In, $server.ClientSafePipeHandle); " +
+            "$buffer = New-Object byte[] 16; " +
+            "$bytes = [byte[]](1,2,3); $server.Write($bytes, 0, 3); $server.Flush(); " +
+            "'read=' + (Read-WithTimeout $client $buffer); " +
+            "try { Read-WithTimeout $client $buffer | Out-Null; 'no-stall' } catch { 'error=' + $_.Exception.Message }");
+
+        Assert.Equal(0, code);
+        Assert.Contains("read=3", output);
+        Assert.Contains("error=download stalled", output);
+    }
+
+    [Fact]
     public void Download_addresses_must_be_https_on_a_microsoft_host_without_extras()
     {
         string[] allowed =
