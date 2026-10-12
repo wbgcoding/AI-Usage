@@ -343,7 +343,7 @@ public sealed class RefreshScheduler
             return false;
         // A skipped provider keeps its past due time, so it is fetched on the first tick after the
         // pause or the energy saver ends.
-        return ignoreNetworkSkip || !NetworkIsOffLocked(now) || IsLocalSource(state);
+        return ignoreNetworkSkip || !NetworkIsOffLocked(now) || (provider.HasLocalSource && IsLocalSource(state));
     }
 
     /// <summary>Whether fetches that use the network are held back right now: a pause is running, or

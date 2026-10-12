@@ -66,6 +66,8 @@ public sealed class CopilotProvider : IUsageProvider
     // sessions, a further Copilot account costs no new sign-in at all.
     public bool SupportsMultipleAccounts => true;
 
+    public bool HasLocalSource => false;
+
     public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     public IReadOnlyList<string> ReadLocations => [LocalizationService.Instance["About.ReadLocationGitHubCli"]];

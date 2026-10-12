@@ -191,6 +191,7 @@ public class RefreshSchedulerPowerTests
         public string DisplayName => Id;
         public TimeSpan? MinRefreshInterval => null;
         public bool RunsOnUiThread => false;
+        public bool HasLocalSource { get; init; } = true;
         public bool Fail { get; set; }
         public int FetchCount { get; private set; }
 

@@ -110,6 +110,8 @@ public sealed partial class CodexProvider : IUsageProvider
     /// cref="Services.IUsageProvider.AccountKey"/>.</summary>
     public string AccountKey => _accountKey;
 
+    public bool HasLocalSource => _sessionsRoot.Length > 0;
+
     public string DisplayName => "Codex";
 
     public IReadOnlyList<string> ReadLocations => (_sessionsRoot.Length > 0, _webSource is not null) switch

@@ -477,6 +477,8 @@ public sealed class ClaudeProvider : IUsageProvider
         };
     }
 
+    public bool HasLocalSource => !IsWebOnlyAccount;
+
     // A further account: the transcripts and the Claude Code sign-in belong to the primary one.
     private bool IsWebOnlyAccount => _projectsRoots.Count == 0 && _localLogin is null;
 

@@ -65,6 +65,8 @@ public sealed class CursorProvider : IUsageProvider
     // not front-run that by starting this provider on the thread pool instead.
     public bool RunsOnUiThread => true;
 
+    public bool HasLocalSource => false;
+
     public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     public IReadOnlyList<string> ReadLocations => [LocalizationService.Instance["About.ReadLocationWebSession"]];

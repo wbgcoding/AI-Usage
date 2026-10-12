@@ -95,6 +95,8 @@ public sealed class GeminiProvider : IUsageProvider
     // Two lightweight reads against a remote endpoint - hold to the same web-session floor Claude
     // uses rather than the local-file default, so it is not polled every tick; the user's own
     // interval for this account can only make it longer.
+    public bool HasLocalSource => _read is not null;
+
     public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     // Only the primary account (the one with the Antigravity CLI's own local sign-in) can hold a

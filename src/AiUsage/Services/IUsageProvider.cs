@@ -33,6 +33,14 @@ public interface IUsageProvider
     TimeSpan? MinRefreshInterval => null;
 
     /// <summary>
+    /// False when every route of this account reaches the network (a web session, an online
+    /// endpoint, a CLI call that asks a server). While a pause or the energy saver holds network
+    /// reads back, the scheduler leaves such an account alone, so its tile keeps what it showed
+    /// instead of switching to a "nothing to read" answer.
+    /// </summary>
+    bool HasLocalSource => true;
+
+    /// <summary>
     /// True once a provider reads its numbers through a web session this app owns, so the app can
     /// offer sign-in/sign-out for it directly. Defaults to false: a provider only speaks up once its
     /// own web route actually exists.

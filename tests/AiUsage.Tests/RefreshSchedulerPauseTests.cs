@@ -1,4 +1,5 @@
 using AiUsage.Models;
+using AiUsage.Providers;
 using AiUsage.Services;
 using Xunit;
 using static AiUsage.Tests.RefreshSchedulerPowerTests;
@@ -77,6 +78,54 @@ public class RefreshSchedulerPauseTests
             var now = DateTimeOffset.UtcNow;
             return Task.FromResult(new ProviderSnapshot(Id, [], "plus", source, now, now, ProviderStatus.Ok, null));
         }
+    }
+
+    [Fact]
+    public async Task A_network_only_provider_is_never_fetched_during_a_pause_even_without_a_reading()
+    {
+        var clock = new FakeClock();
+        var onlineOnly = new Provider("online", SourceKind.WebSession) { HasLocalSource = false };
+        var scheduler = new RefreshScheduler([onlineOnly], BaseInterval, clock);
+        scheduler.PauseFor(Hour);
+
+        await Task.WhenAll(scheduler.Tick());
+        clock.Advance(TimeSpan.FromMinutes(10));
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(0, onlineOnly.FetchCount);
+
+        // A refresh the person asked for still reads it.
+        await Task.WhenAll(scheduler.RefreshNow());
+        Assert.Equal(1, onlineOnly.FetchCount);
+    }
+
+    [Fact]
+    public async Task A_signed_out_cursor_tile_keeps_its_answer_while_the_network_is_held()
+    {
+        var reads = 0;
+        var clock = new FakeClock();
+        var cursor = new CursorProvider(_ => { reads++; return Task.FromResult(WebUsageResult.NotSignedIn); }, now: null);
+        var scheduler = new RefreshScheduler([cursor], BaseInterval, clock);
+        var snapshots = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += snapshots.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+        scheduler.PauseFor(Hour);
+        clock.Advance(TimeSpan.FromMinutes(10));
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(1, reads);
+        Assert.Equal(ProviderStatus.NotSignedIn, Assert.Single(snapshots).Status);
+    }
+
+    [Fact]
+    public void Only_the_providers_with_a_file_or_a_login_on_this_PC_report_a_local_source()
+    {
+        Assert.False(new CursorProvider().HasLocalSource);
+        Assert.False(new CopilotProvider().HasLocalSource);
+        Assert.True(new GeminiProvider().HasLocalSource);
+        Assert.True(new CodexProvider().HasLocalSource);
+        Assert.True(new ClaudeProvider().HasLocalSource);
     }
 
     [Fact]
