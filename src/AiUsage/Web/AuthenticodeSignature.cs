@@ -7,11 +7,22 @@ namespace AiUsage.Web;
 /// Whether a file carries a valid Authenticode signature of a named signer. Two separate facts, both
 /// required: Windows' own trust check (<c>WinVerifyTrust</c>) says the signature is intact and
 /// chains to a trusted root, no certificate of the chain is revoked and the file has not been changed
-/// since signing, and the signer's name is the one expected - a valid signature of somebody else does
-/// not count. An unreachable revocation server only passes while the machine has no internet.
+/// since signing, the signer's name is the one expected - a valid signature of somebody else does
+/// not count - and the signer's chain ends in one of Microsoft's own root certificates, so a root added
+/// to this machine's store cannot vouch for a leaf that merely names Microsoft. An unreachable
+/// revocation server only passes while the machine has no internet.
 /// </summary>
 internal static class AuthenticodeSignature
 {
+    // Microsoft's Root Certificate Authority 2010 and 2011 (SHA-1 thumbprints): the roots the bootstrapper
+    // chains to. The same two roots installer/RuntimeSetup.ps1 pins for the .NET runtime download
+    // ($MicrosoftRoots); a change to one list is a change to the other.
+    internal static readonly string[] PinnedRootThumbprints =
+    [
+        "3B1EFD3A66EA28B16697394703A72CA340A05BD5",
+        "8F43288AD272F3103B6FB1428485EA3014C0BCFE",
+    ];
+
     internal static SignatureCheckResult Check(string path) => Check(path, WebViewRuntimeInstaller.RequiredSigner);
 
     internal static SignatureCheckResult Check(string path, string requiredSigner)
@@ -20,9 +31,54 @@ internal static class AuthenticodeSignature
         if (!IsTrustResultAcceptable(trust, Services.NetworkStatus.HasInternet()))
             return new SignatureCheckResult(false, $"signature: WinVerifyTrust 0x{trust:X8}");
 
-        return ReadSignerNames(path).Any(name => string.Equals(name, requiredSigner, StringComparison.OrdinalIgnoreCase))
+        if (!ReadSignerNames(path).Any(name => string.Equals(name, requiredSigner, StringComparison.OrdinalIgnoreCase)))
+            return new SignatureCheckResult(false, "signature: signer is not the expected publisher");
+
+        return IsPinnedRoot(ReadChainRootThumbprint(path))
             ? new SignatureCheckResult(true, "")
-            : new SignatureCheckResult(false, "signature: signer is not the expected publisher");
+            : new SignatureCheckResult(false, "signature: the signer's chain does not end in a Microsoft root");
+    }
+
+    /// <summary>True when <paramref name="thumbprint"/> is one of <see cref="PinnedRootThumbprints"/>.</summary>
+    internal static bool IsPinnedRoot(string? thumbprint) =>
+        thumbprint is not null && PinnedRootThumbprints.Contains(thumbprint, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The thumbprint of the topmost certificate in the chain built for the file's signer; null
+    /// when the signer cannot be read or no chain can be built. Revocation was asked for by the trust
+    /// check above, so none is repeated here, and a signer certificate that has expired since signing
+    /// still has its chain read: the signature is timestamped, the root is what is asked for.</summary>
+    private static string? ReadChainRootThumbprint(string path)
+    {
+        try
+        {
+#pragma warning disable SYSLIB0057 // No replacement reads the signer of a signed file; WinVerifyTrust above has already proven the signature.
+            var certificate = X509Certificate.CreateFromSignedFile(path);
+#pragma warning restore SYSLIB0057
+            using var signer = new X509Certificate2(certificate);
+            return ChainRootThumbprint(signer, trustedRoots: null);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Builds the chain of <paramref name="signer"/> and returns the thumbprint of its last
+    /// certificate. With <paramref name="trustedRoots"/> the chain is judged against exactly those roots
+    /// instead of the machine's store (a test seam: a made-up root for a made-up signer).</summary>
+    internal static string? ChainRootThumbprint(X509Certificate2 signer, X509Certificate2Collection? trustedRoots)
+    {
+        using var chain = new X509Chain();
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllFlags;
+        if (trustedRoots is not null)
+        {
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            chain.ChainPolicy.CustomTrustStore.AddRange(trustedRoots);
+        }
+
+        chain.Build(signer);
+        return chain.ChainElements.Count > 0 ? chain.ChainElements[^1].Certificate.Thumbprint : null;
     }
 
     /// <summary>Maps the trust check's answer to pass or fail: only 0 passes, plus the one case where

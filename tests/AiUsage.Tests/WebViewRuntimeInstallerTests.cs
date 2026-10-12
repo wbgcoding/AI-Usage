@@ -25,6 +25,7 @@ public class WebViewRuntimeInstallerTests
         public int ExitCode;
         public Exception? DownloadFailure;
         public SignatureCheckResult Signature = new(true, "");
+        public bool PlantFileBesideDownload;
 
         public WebViewRuntimeInstaller Build() => new(
             download: (url, destination, _, ct) =>
@@ -34,6 +35,8 @@ public class WebViewRuntimeInstallerTests
                 if (DownloadFailure is not null)
                     return Task.FromException(DownloadFailure);
                 File.WriteAllText(destination, "fake installer");
+                if (PlantFileBesideDownload)
+                    File.WriteAllText(Path.Combine(Path.GetDirectoryName(destination)!, "planted.dll"), "x");
                 return Task.CompletedTask;
             },
             verify: file =>
@@ -75,6 +78,49 @@ public class WebViewRuntimeInstallerTests
         Assert.Equal("/silent /install", rig.RunArguments);
         Assert.True(installingSeen);
         Assert.False(File.Exists(rig.DownloadedFile), "the downloaded installer must be deleted afterwards");
+    }
+
+    [Fact]
+    public async Task The_installer_runs_from_a_new_folder_of_its_own_with_nothing_beside_it()
+    {
+        var rig = new Rig { Installed = true };
+        string[]? entriesAtRun = null;
+        var installer = new WebViewRuntimeInstaller(
+            (_, destination, _, _) => { File.WriteAllText(destination, "x"); return Task.CompletedTask; },
+            _ => new SignatureCheckResult(true, ""),
+            (path, _, _) =>
+            {
+                rig.RunPath = path;
+                entriesAtRun = Directory.GetFileSystemEntries(Path.GetDirectoryName(path)!);
+                return Task.FromResult(0);
+            },
+            () => true,
+            () => rig.Folder);
+
+        await installer.InstallAsync(null, null, CancellationToken.None);
+
+        var runFolder = Path.GetDirectoryName(rig.RunPath)!;
+        Assert.Equal(Path.GetFullPath(rig.Folder), Path.GetDirectoryName(runFolder));
+        Assert.NotEqual(Path.GetFullPath(rig.Folder), Path.GetFullPath(runFolder));
+        Assert.Equal(rig.RunPath, Assert.Single(entriesAtRun!));
+        Assert.False(Directory.Exists(runFolder), "the run folder is removed again");
+
+        // A second run gets another folder.
+        var secondRig = new Rig { Installed = true };
+        var again = secondRig.Build();
+        await again.InstallAsync(null, null, CancellationToken.None);
+        Assert.NotEqual(runFolder, Path.GetDirectoryName(secondRig.RunPath));
+    }
+
+    [Fact]
+    public async Task A_file_planted_beside_the_download_stops_the_run()
+    {
+        var rig = new Rig { Installed = true, PlantFileBesideDownload = true };
+
+        var result = await rig.Build().InstallAsync(null, null, CancellationToken.None);
+
+        Assert.Equal(WebViewInstallOutcome.DownloadFailed, result.Outcome);
+        Assert.DoesNotContain("run", rig.Calls);
     }
 
     [Fact]
@@ -236,6 +282,41 @@ public class WebViewRuntimeInstallerTests
         var result = AuthenticodeSignature.Check(SignedMicrosoftFile());
 
         Assert.True(result.IsValid, result.Detail);
+    }
+
+    [Fact]
+    public void A_signer_chain_ending_in_a_root_that_is_not_pinned_is_refused()
+    {
+        var now = DateTimeOffset.UtcNow;
+        using var rootKey = System.Security.Cryptography.RSA.Create(2048);
+        var rootRequest = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            "CN=Test Root", rootKey, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        rootRequest.CertificateExtensions.Add(new System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension(true, false, 0, true));
+        using var root = rootRequest.CreateSelfSigned(now.AddDays(-1), now.AddDays(30));
+
+        using var leafKey = System.Security.Cryptography.RSA.Create(2048);
+        var leafRequest = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            "O=Microsoft Corporation", leafKey, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        using var leaf = leafRequest.Create(root, now.AddDays(-1), now.AddDays(10), [1, 2, 3, 4]);
+
+        var rootThumbprint = AuthenticodeSignature.ChainRootThumbprint(
+            leaf, new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(root));
+
+        Assert.Equal(root.Thumbprint, rootThumbprint);
+        Assert.False(AuthenticodeSignature.IsPinnedRoot(rootThumbprint));
+    }
+
+    [Fact]
+    public void Only_the_two_pinned_microsoft_roots_count_and_the_case_does_not_matter()
+    {
+        Assert.All(AuthenticodeSignature.PinnedRootThumbprints, thumbprint =>
+        {
+            Assert.True(AuthenticodeSignature.IsPinnedRoot(thumbprint));
+            Assert.True(AuthenticodeSignature.IsPinnedRoot(thumbprint.ToLowerInvariant()));
+        });
+        Assert.Equal(2, AuthenticodeSignature.PinnedRootThumbprints.Length);
+        Assert.False(AuthenticodeSignature.IsPinnedRoot(null));
+        Assert.False(AuthenticodeSignature.IsPinnedRoot("0000000000000000000000000000000000000000"));
     }
 
     [Fact]

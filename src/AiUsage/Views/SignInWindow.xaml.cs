@@ -105,6 +105,8 @@ public partial class SignInWindow : Window
             // own right-click menu stays - only the developer tools go, the same as the hidden reader
             // session this window shares a profile with.
             Browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            // No provider sign-in needs a file: every download the page starts is cancelled.
+            Browser.CoreWebView2.DownloadStarting += (_, args) => args.Cancel = true;
             Browser.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             Browser.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
             Browser.CoreWebView2.SourceChanged += CoreWebView2_SourceChanged;

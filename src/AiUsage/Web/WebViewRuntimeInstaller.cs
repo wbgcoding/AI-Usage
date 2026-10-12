@@ -77,12 +77,16 @@ public sealed class WebViewRuntimeInstaller
         IProgress<double>? downloadProgress, Action? installing, CancellationToken ct)
     {
         string? file = null;
+        string? runFolder = null;
         FileStream? guard = null;
         try
         {
-            var folder = _tempFolder();
-            Directory.CreateDirectory(folder);
-            file = Path.Combine(folder, $"MicrosoftEdgeWebview2Setup-{Guid.NewGuid():N}.exe");
+            // The installer asks for elevation, and a program loads libraries from its own folder:
+            // the file goes into a folder created fresh for this run, with nothing beside it.
+            runFolder = FreshRunFolder.TryCreate(_tempFolder());
+            if (runFolder is null)
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, "prepare: the download folder cannot be trusted");
+            file = Path.Combine(runFolder, "MicrosoftEdgeWebview2Setup.exe");
 
             try
             {
@@ -124,6 +128,10 @@ public sealed class WebViewRuntimeInstaller
             // The one gate before anything runs: not proven to be Microsoft's, not executed.
             if (!signature.IsValid)
                 return new WebViewInstallResult(WebViewInstallOutcome.SignatureInvalid, signature.Detail);
+
+            // Anything beside the checked file means the folder was tampered with after it was created.
+            if (!FreshRunFolder.HoldsOnly(runFolder, file))
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, "prepare: the download folder holds more than the installer");
 
             installing?.Invoke();
             int exitCode;
@@ -169,6 +177,9 @@ public sealed class WebViewRuntimeInstaller
                     // Left behind in the temp folder; the next run uses another name.
                 }
             }
+
+            if (runFolder is not null)
+                FreshRunFolder.TryRemoveEmpty(runFolder);
         }
     }
 
