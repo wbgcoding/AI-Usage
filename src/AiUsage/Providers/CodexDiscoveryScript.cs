@@ -43,20 +43,25 @@ internal static class CodexDiscoveryScript
     /// usage address with 401, which is what left the tile saying "failed" with the account clearly
     /// signed in. The key goes on these requests and nowhere else: never stored, never logged, never
     /// part of an answer this script returns. The session route itself carries no usage data and no
-    /// message content, so reading it can never cost the account anything.</summary>
+    /// message content, so reading it can never cost the account anything. A session route that did
+    /// not answer (rate limit, server error, a page that is not JSON) makes the read failed or
+    /// blocked, never signed out: the usage address would answer 401 without the key and read as
+    /// "sign in".</summary>
     private const string AuthHeadersSnippet = """
         async function authHeaders() {
             try {
                 const res = await fetch('/api/auth/session', {method: 'GET', credentials: 'include'});
-                if (res.status === 401 || res.status === 403) return {signedOut: true, headers: {}};
-                if (!res.ok) return {signedOut: false, headers: {}};
-                if (!(res.headers.get('content-type') || '').includes('json')) return {signedOut: false, headers: {}};
+                if (res.status === 401 || res.status === 403) return {signedOut: true, failure: null, headers: {}};
+                if (res.status === 429) return {signedOut: false, failure: 'blocked', headers: {}};
+                if (!res.ok) return {signedOut: false, failure: 'failed', headers: {}};
+                if (!(res.headers.get('content-type') || '').includes('json')) return {signedOut: false, failure: 'failed', headers: {}};
                 const session = await res.json();
                 if (session && typeof session.accessToken === 'string' && session.accessToken.length > 0)
-                    return {signedOut: false, headers: {Authorization: 'Bearer ' + session.accessToken}};
-                return {signedOut: !session || !session.user, headers: {}};
+                    return {signedOut: false, failure: null, headers: {Authorization: 'Bearer ' + session.accessToken}};
+                if (!session || !session.user) return {signedOut: true, failure: null, headers: {}};
+                return {signedOut: false, failure: 'failed', headers: {}};
             } catch (e) {
-                return {signedOut: false, headers: {}};
+                return {signedOut: false, failure: 'failed', headers: {}};
             }
         }
         """;
@@ -79,8 +84,9 @@ internal static class CodexDiscoveryScript
         }
         """;
 
-    /// <summary>Full discovery: try every candidate path in order, return the first one that answers
-    /// with JSON. The answer also carries what each candidate replied with (path and status code
+    /// <summary>Full discovery: try every candidate path in order and return every one that answers
+    /// with JSON (the reader takes the first that parses, so an unknown shape on an earlier address
+    /// never hides a later working one). The answer also carries what each candidate replied with (path and status code
     /// only, never a body, a cookie or a token), so a run against the live site says in the app's own
     /// log which address exists today instead of leaving that to guesswork.</summary>
     public static string Discover()
@@ -92,7 +98,9 @@ internal static class CodexDiscoveryScript
                 try {
                     const auth = await authHeaders();
                     if (auth.signedOut) return {status: 'not_signed_in', attempts: attempts};
+                    if (auth.failure) return {status: auth.failure, attempts: attempts};
                     let sawAuthFailure = false;
+                    const results = [];
                     for (const path of [{{candidates}}]) {
                         const res = await fetch(path, {method: 'GET', credentials: 'include', headers: auth.headers});
                         attempts.push(path + ' ' + res.status);
@@ -101,10 +109,11 @@ internal static class CodexDiscoveryScript
                         if (!res.ok) continue;
                         const ct = res.headers.get('content-type') || '';
                         const text = await res.text();
-                        if (ct.includes('json')) {
-                            const email = await readEmail(auth.headers);
-                            return {status: 'ok', path: path, body: text, attempts: attempts, email: email};
-                        }
+                        if (ct.includes('json')) results.push({path: path, body: text});
+                    }
+                    if (results.length > 0) {
+                        const email = await readEmail(auth.headers);
+                        return {status: 'ok', results: results, attempts: attempts, email: email};
                     }
                     if (sawAuthFailure) return {status: 'not_signed_in', attempts: attempts};
                     return {status: 'failed', attempts: attempts};
@@ -133,6 +142,7 @@ internal static class CodexDiscoveryScript
                 try {
                     const auth = await authHeaders();
                     if (auth.signedOut) return {status: 'not_signed_in'};
+                    if (auth.failure) return {status: auth.failure};
                     const res = await fetch({{pathJson}}, {method: 'GET', credentials: 'include', headers: auth.headers});
                     if (res.status === 401 || res.status === 403) return {status: 'not_signed_in'};
                     if (res.status === 429) return {status: 'blocked'};

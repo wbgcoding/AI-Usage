@@ -85,7 +85,7 @@ public class CodexDiscoveryScriptTests
     {
         var script = CodexDiscoveryScript.Discover();
 
-        Assert.Contains("signedOut: !session || !session.user", script, StringComparison.Ordinal);
+        Assert.Contains("if (!session || !session.user) return {signedOut: true", script, StringComparison.Ordinal);
         Assert.Contains("if (auth.signedOut) return {status: 'not_signed_in'", script, StringComparison.Ordinal);
     }
 

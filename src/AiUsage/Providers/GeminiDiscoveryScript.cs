@@ -53,8 +53,8 @@ internal static class GeminiDiscoveryScript
         };
         """;
 
-    /// <summary>Full discovery: try every candidate path in order, return the first one that answers
-    /// with JSON. The answer also carries what each candidate replied with (path and status code
+    /// <summary>Full discovery: try every candidate path in order and return every one that answers
+    /// with JSON (the reader takes the first that parses). The answer also carries what each candidate replied with (path and status code
     /// only, never a body, a cookie or a token), so a run against the live site says in the app's own
     /// log which address exists today instead of leaving that to guesswork.</summary>
     public static string Discover()
@@ -67,6 +67,7 @@ internal static class GeminiDiscoveryScript
                 try {
                     let sawAuthFailure = false;
                     let online;
+                    const results = [];
                     for (const path of [{{candidates}}]) {
                         let res;
                         try {
@@ -87,8 +88,9 @@ internal static class GeminiDiscoveryScript
                         if (!res.ok) continue;
                         const ct = res.headers.get('content-type') || '';
                         const text = await res.text();
-                        if (ct.includes('json')) return {status: 'ok', path: path, body: text, attempts: attempts};
+                        if (ct.includes('json')) results.push({path: path, body: text});
                     }
+                    if (results.length > 0) return {status: 'ok', results: results, attempts: attempts};
                     if (sawAuthFailure) return {status: 'not_signed_in', attempts: attempts};
                     return {status: 'failed', attempts: attempts};
                 } catch (e) {

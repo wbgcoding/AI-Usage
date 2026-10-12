@@ -68,7 +68,7 @@ internal static class ClaudeDiscoveryScript
         """;
 
     /// <summary>Full discovery: find the organisation, try every candidate path in order, return
-    /// the first one that answers with JSON. Only needed once - <see cref="Fetch"/> covers every
+    /// every one that answers with JSON (the reader takes the first that parses). Only needed once - <see cref="Fetch"/> covers every
     /// later tick once a path is cached in settings.</summary>
     public static string Discover()
     {
@@ -88,13 +88,15 @@ internal static class ClaudeDiscoveryScript
                     const uuid = org.uuid;
                     if (typeof uuid !== 'string' || !/^[0-9a-fA-F-]{36}$/.test(uuid)) return {status: 'failed'};
                     const candidates = [{{candidates}}].map(p => p.replace('{0}', uuid));
+                    const results = [];
                     for (const path of candidates) {
                         const res = await fetch(path, {method: 'GET', credentials: 'include'});
                         if (!res.ok) continue;
                         const ct = res.headers.get('content-type') || '';
                         const text = await res.text();
-                        if (ct.includes('json')) return {status: 'ok', path: path, body: text, plan: planOf(org)};
+                        if (ct.includes('json')) results.push({path: path, body: text});
                     }
+                    if (results.length > 0) return {status: 'ok', results: results, plan: planOf(org)};
                     return {status: 'failed'};
                 } catch (e) {
                     return {status: 'failed'};
