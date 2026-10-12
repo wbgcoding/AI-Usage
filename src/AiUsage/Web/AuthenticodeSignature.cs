@@ -55,7 +55,7 @@ internal static class AuthenticodeSignature
             var certificate = X509Certificate.CreateFromSignedFile(path);
 #pragma warning restore SYSLIB0057
             using var signer = new X509Certificate2(certificate);
-            return ChainRootThumbprint(signer, trustedRoots: null);
+            return ChainRootThumbprint(signer, trustedRoots: null, EmbeddedCertificates(path));
         }
         catch (System.Security.Cryptography.CryptographicException)
         {
@@ -63,12 +63,36 @@ internal static class AuthenticodeSignature
         }
     }
 
+    /// <summary>The certificates the file's signature carries beside the signer's own (its
+    /// intermediates), so the chain reaches the root without the machine having to know or download
+    /// them. Empty when the file carries none or they cannot be read.</summary>
+    internal static X509Certificate2Collection EmbeddedCertificates(string path)
+    {
+        var certificates = new X509Certificate2Collection();
+        try
+        {
+#pragma warning disable SYSLIB0057 // No loader reads the certificates of a signed file; they only help build the chain, trust still comes from the pinned root.
+            certificates.Import(path);
+#pragma warning restore SYSLIB0057
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            // Nothing embedded to add: the chain is built from the machine's store alone.
+        }
+
+        return certificates;
+    }
+
     /// <summary>Builds the chain of <paramref name="signer"/> and returns the thumbprint of its last
     /// certificate. With <paramref name="trustedRoots"/> the chain is judged against exactly those roots
-    /// instead of the machine's store (a test seam: a made-up root for a made-up signer).</summary>
-    internal static string? ChainRootThumbprint(X509Certificate2 signer, X509Certificate2Collection? trustedRoots)
+    /// instead of the machine's store (a test seam: a made-up root for a made-up signer).
+    /// <paramref name="extraCertificates"/> are offered as possible intermediates.</summary>
+    internal static string? ChainRootThumbprint(
+        X509Certificate2 signer, X509Certificate2Collection? trustedRoots, X509Certificate2Collection? extraCertificates = null)
     {
         using var chain = new X509Chain();
+        if (extraCertificates is not null)
+            chain.ChainPolicy.ExtraStore.AddRange(extraCertificates);
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
         chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllFlags;
         if (trustedRoots is not null)

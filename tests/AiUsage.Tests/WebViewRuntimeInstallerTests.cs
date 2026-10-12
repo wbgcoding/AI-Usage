@@ -348,6 +348,43 @@ public class WebViewRuntimeInstallerTests
     }
 
     [Fact]
+    public void An_intermediate_carried_in_the_file_lets_the_chain_reach_its_root_without_the_machine_knowing_it()
+    {
+        var now = DateTimeOffset.UtcNow;
+        using var rootKey = System.Security.Cryptography.RSA.Create(2048);
+        var rootRequest = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            "CN=Test Root", rootKey, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        rootRequest.CertificateExtensions.Add(new System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension(true, false, 1, true));
+        using var root = rootRequest.CreateSelfSigned(now.AddDays(-1), now.AddDays(30));
+
+        using var middleKey = System.Security.Cryptography.RSA.Create(2048);
+        var middleRequest = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            "CN=Test Intermediate", middleKey, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        middleRequest.CertificateExtensions.Add(new System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension(true, false, 0, true));
+        using var middlePublic = middleRequest.Create(root, now.AddDays(-1), now.AddDays(20), [1, 2, 3, 5]);
+
+        using var leafKey = System.Security.Cryptography.RSA.Create(2048);
+        var leafRequest = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            "O=Microsoft Corporation", leafKey, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        using var middle = System.Security.Cryptography.X509Certificates.RSACertificateExtensions.CopyWithPrivateKey(middlePublic, middleKey);
+        using var leaf = leafRequest.Create(middle, now.AddDays(-1), now.AddDays(10), [1, 2, 3, 6]);
+        var roots = new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(root);
+        var carried = new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(middlePublic);
+
+        Assert.Equal(root.Thumbprint, AuthenticodeSignature.ChainRootThumbprint(leaf, roots, carried));
+        Assert.Equal(leaf.Thumbprint, AuthenticodeSignature.ChainRootThumbprint(leaf, roots));
+    }
+
+    [Fact]
+    public void The_certificates_a_signed_file_carries_can_be_read()
+    {
+        var carried = AuthenticodeSignature.EmbeddedCertificates(SignedMicrosoftFile());
+
+        Assert.NotEmpty(carried);
+        Assert.Empty(AuthenticodeSignature.EmbeddedCertificates(typeof(WebViewRuntimeInstallerTests).Assembly.Location.Replace(".dll", ".missing")));
+    }
+
+    [Fact]
     public void Only_the_two_pinned_microsoft_roots_count_and_the_case_does_not_matter()
     {
         Assert.All(AuthenticodeSignature.PinnedRootThumbprints, thumbprint =>
