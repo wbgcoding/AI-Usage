@@ -137,7 +137,8 @@ public class AboutWindowTests
             throw new InvalidOperationException("SettingsWindow build failed.", failure);
 
         Assert.NotEqual(result!.Value.Before, result.Value.After);
-        Assert.StartsWith("Reads:", result.Value.After, StringComparison.Ordinal);
+        // No provider is connected in this fresh setup, so the caption is the "not connected" text.
+        Assert.Equal("not connected yet", result.Value.After);
     }
 
     private static (string Before, string After) SwitchLanguageWithTheWindowOpen()

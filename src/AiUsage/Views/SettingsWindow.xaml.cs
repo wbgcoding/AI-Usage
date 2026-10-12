@@ -501,7 +501,7 @@ public partial class SettingsWindow : Window
             Width = 10,
             Height = 10,
             Stretch = System.Windows.Media.Stretch.Uniform,
-            Data = (System.Windows.Media.Geometry)FindResource("Icon.ArrowDown"),
+            Data = (System.Windows.Media.Geometry)FindResource("Icon.ChevronDown"),
             Fill = (Brush)FindResource("Text.Secondary"),
             Margin = new Thickness(0, 0, 8, 0),
             VerticalAlignment = VerticalAlignment.Center,
@@ -511,6 +511,9 @@ public partial class SettingsWindow : Window
         // here through the live tile rather than resolved a second time) - so nothing new has to be
         // written or translated per provider for this caption.
         var sourceLabel = _viewModel.Main.Tiles.FirstOrDefault(tile => tile.RealProviderId == provider.Id)?.SourceBadgeText ?? "";
+        // A provider that is not connected yet has no source to name; "Reads:" with nothing after it
+        // would look broken.
+        var caption = string.IsNullOrEmpty(sourceLabel) ? loc["Settings.Via.None"] : loc.Format("About.ProviderGroupHeader", sourceLabel);
         var headerText = new System.Windows.Controls.StackPanel();
         headerText.Children.Add(new System.Windows.Controls.TextBlock
         {
@@ -519,7 +522,7 @@ public partial class SettingsWindow : Window
         });
         headerText.Children.Add(new System.Windows.Controls.TextBlock
         {
-            Text = loc.Format("About.ProviderGroupHeader", sourceLabel),
+            Text = caption,
             FontSize = (double)FindResource("Font.Size.Small"),
             Foreground = (Brush)FindResource("Text.Secondary"),
         });
@@ -552,12 +555,12 @@ public partial class SettingsWindow : Window
             HorizontalContentAlignment = HorizontalAlignment.Left,
             Content = headerContent,
         };
-        System.Windows.Automation.AutomationProperties.SetName(headerButton, $"{provider.DisplayName}: {loc.Format("About.ProviderGroupHeader", sourceLabel)}");
+        System.Windows.Automation.AutomationProperties.SetName(headerButton, $"{provider.DisplayName}: {caption}");
         headerButton.Click += (_, _) =>
         {
             var expanded = content.Visibility == Visibility.Visible;
             content.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-            chevron.Data = (System.Windows.Media.Geometry)FindResource(expanded ? "Icon.ArrowDown" : "Icon.ArrowUp");
+            chevron.Data = (System.Windows.Media.Geometry)FindResource(expanded ? "Icon.ChevronDown" : "Icon.ChevronUp");
         };
 
         var group = new System.Windows.Controls.StackPanel { Margin = new Thickness(0, 0, 0, 4) };

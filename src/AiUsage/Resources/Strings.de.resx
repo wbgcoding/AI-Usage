@@ -303,7 +303,7 @@
   <data name="Settings.DataFolderRefused" xml:space="preserve"><value>In diesen Ordner kann nicht geschrieben werden. Es wurde nichts geändert.</value></data>
   <data name="Settings.DataFolderTemp" xml:space="preserve"><value>Windows leert temporäre Ordner. Wähle einen anderen Ordner, es wurde nichts geändert.</value></data>
   <data name="About.Installed" xml:space="preserve"><value>Installierte Version</value></data>
-  <data name="About.Portable" xml:space="preserve"><value>Tragbare Version</value></data>
+  <data name="About.Portable" xml:space="preserve"><value>Portable Version</value></data>
   <data name="About.DataFolder" xml:space="preserve"><value>Datenordner: {0}</value></data>
   <data name="About.DataFolder.Chosen" xml:space="preserve"><value>Von dir gewählter Ordner</value></data>
   <data name="About.DataFolder.Fallback" xml:space="preserve"><value>Notfallordner, weil das Benutzerprofil nicht beschreibbar war</value></data>

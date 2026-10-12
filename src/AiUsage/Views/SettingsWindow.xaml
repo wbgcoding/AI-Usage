@@ -896,9 +896,11 @@
                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.DataFolder]}"/>
                     <!-- Read-only TextBox, not a TextBlock, for the same reason the old About window's own
                          DataFolderBox is one: the path is the one fact here a user might actually need
-                         to select and copy. DataFolderDisplayText trims it to one line with a middle
-                         ellipsis; the full path always stays in the tooltip. -->
+                         to select and copy. DataFolderDisplayText shortens a long path with a middle
+                         ellipsis and the full path stays in the tooltip; at the narrowest window width
+                         even the shortened path is wider than the row, so it wraps. -->
                     <TextBox Text="{Binding DataFolderDisplayText, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                             TextWrapping="Wrap"
                              FontSize="{StaticResource Font.Size.Body}" Cursor="IBeam"
                              ToolTip="{Binding DataFolderToolTip}" AutomationProperties.Name="{Binding DataFolderPath}"/>
                     <TextBlock Text="{Binding DataFolderKindText}" FontSize="{StaticResource Font.Size.Small}"
