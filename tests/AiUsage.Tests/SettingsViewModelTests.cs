@@ -728,7 +728,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ExportHistoryWritesACsvFileStartingWithTheHeaderThroughTheFakePathProvider()
+    public async Task ExportHistoryWritesACsvFileStartingWithTheHeaderThroughTheFakePathProvider()
     {
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
@@ -747,14 +747,14 @@ public class SettingsViewModelTests : IDisposable
             historyStore: historyStore,
             askForSavePath: _ => exportPath);
 
-        vm.ExportHistoryCommand.Execute(null);
+        await vm.ExportHistoryCommand.ExecuteAsync(null);
 
         Assert.True(File.Exists(exportPath));
         Assert.StartsWith("provider,window,timestamp_utc,percent,resets_at_utc,tokens\r\n", File.ReadAllText(exportPath));
     }
 
     [Fact]
-    public void ExportHistoryDoesNothingWhenTheSaveDialogIsCancelled()
+    public async Task ExportHistoryDoesNothingWhenTheSaveDialogIsCancelled()
     {
         var (vm, _) = Build();
         var exportPath = Path.Combine(TempDirectory(), "never-written.csv");
@@ -769,13 +769,13 @@ public class SettingsViewModelTests : IDisposable
             loadThemeDictionary: LoadThemeFixture,
             askForSavePath: _ => null);
 
-        cancelledVm.ExportHistoryCommand.Execute(null);
+        await cancelledVm.ExportHistoryCommand.ExecuteAsync(null);
 
         Assert.False(File.Exists(exportPath));
     }
 
     [Fact]
-    public void ExportHistoryReportsAWriteFailureThroughTheMessageSeam()
+    public async Task ExportHistoryReportsAWriteFailureThroughTheMessageSeam()
     {
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
@@ -797,7 +797,7 @@ public class SettingsViewModelTests : IDisposable
             askForSavePath: _ => unwritablePath,
             showMessage: message => shownMessage = message);
 
-        vm.ExportHistoryCommand.Execute(null);
+        await vm.ExportHistoryCommand.ExecuteAsync(null);
 
         Assert.False(File.Exists(unwritablePath));
         Assert.Equal(LocalizationService.Instance["Settings.ExportFailed"], shownMessage);
@@ -1862,6 +1862,117 @@ public class SettingsViewModelTests : IDisposable
         Assert.Single(messages);
     }
 
+    /// <summary>Blocks the first history read until released and notes the thread it ran on.</summary>
+    private sealed class BlockingHistoryStore(string directory, Func<DateTimeOffset> now) : HistoryStore(directory, now)
+    {
+        public readonly ManualResetEventSlim Entered = new();
+        public readonly ManualResetEventSlim Release = new();
+        public int LoadThreadId;
+        public volatile bool Armed;
+
+        public override IReadOnlyList<HistoryPoint> Load(string providerId, DateTimeOffset from, DateTimeOffset until)
+        {
+            if (!Armed)
+                return base.Load(providerId, from, until);
+
+            LoadThreadId = Environment.CurrentManagedThreadId;
+            Entered.Set();
+            Release.Wait(TimeSpan.FromSeconds(10));
+            return base.Load(providerId, from, until);
+        }
+    }
+
+    [Fact]
+    public async Task ExportHistoryReadsOnAWorkerAndDisablesBothDataCommandsUntilItIsDone()
+    {
+        var settings = new AppSettings();
+        var settingsStore = new SettingsStore(TempDirectory());
+        var historyStore = new BlockingHistoryStore(TempDirectory(), () => Now);
+        var main = new MainViewModel(settingsStore, settings, [new FakeProvider("codex")], historyStore);
+        var exportPath = Path.Combine(TempDirectory(), "export.csv");
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false, enableAutostart: _ => true, disableAutostart: () => true,
+            applyLanguage: _ => { }, loadThemeDictionary: LoadThemeFixture,
+            historyStore: historyStore, askForSavePath: _ => exportPath);
+
+        historyStore.Armed = true;
+        var running = vm.ExportHistoryCommand.ExecuteAsync(null);
+
+        Assert.True(historyStore.Entered.Wait(TimeSpan.FromSeconds(10)));
+        Assert.NotEqual(Environment.CurrentManagedThreadId, historyStore.LoadThreadId);
+        Assert.False(running.IsCompleted);
+        Assert.False(vm.ExportHistoryCommand.CanExecute(null));
+        Assert.False(vm.RemoveImportedPcCommand.CanExecute("x"));
+
+        historyStore.Release.Set();
+        await running;
+
+        Assert.True(File.Exists(exportPath));
+        Assert.True(vm.ExportHistoryCommand.CanExecute(null));
+        Assert.True(vm.RemoveImportedPcCommand.CanExecute("x"));
+    }
+
+    [Fact]
+    public async Task RemovingAnImportedPcRunsOnAWorkerAndDisablesTheCommandMeanwhile()
+    {
+        var data = SeededDataFolder(OwnPc, 1000, machine: OtherPc);
+        var stats = new Stats.StatsStore(data);
+        var entered = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        var workerThread = 0;
+        var settings = new AppSettings { MachineId = OwnPc };
+        var settingsStore = new SettingsStore(data);
+        var main = new MainViewModel(settingsStore, settings, [new FakeProvider("codex")], new HistoryStore(TempDirectory(), () => Now));
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false, enableAutostart: _ => true, disableAutostart: () => true,
+            applyLanguage: _ => { }, loadThemeDictionary: LoadThemeFixture,
+            showMessage: _ => { }, statsStore: stats,
+            removeMachine: id =>
+            {
+                workerThread = Environment.CurrentManagedThreadId;
+                entered.Set();
+                release.Wait(TimeSpan.FromSeconds(10));
+                return stats.RemoveMachine(id);
+            });
+
+        var running = vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
+
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+        Assert.NotEqual(Environment.CurrentManagedThreadId, workerThread);
+        Assert.False(running.IsCompleted);
+        Assert.False(vm.RemoveImportedPcCommand.CanExecute(OtherPc));
+        Assert.False(vm.ExportHistoryCommand.CanExecute(null));
+
+        release.Set();
+        await running;
+
+        Assert.Empty(vm.ImportedPcs);
+        Assert.True(vm.RemoveImportedPcCommand.CanExecute(OtherPc));
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public async Task A_failed_PC_removal_shows_the_error_text_and_frees_the_command()
+    {
+        var data = SeededDataFolder(OwnPc, 1000, machine: OtherPc);
+        var messages = new List<string>();
+        var settings = new AppSettings { MachineId = OwnPc };
+        var settingsStore = new SettingsStore(data);
+        var main = new MainViewModel(settingsStore, settings, [new FakeProvider("codex")], new HistoryStore(TempDirectory(), () => Now));
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false, enableAutostart: _ => true, disableAutostart: () => true,
+            applyLanguage: _ => { }, loadThemeDictionary: LoadThemeFixture,
+            showMessage: messages.Add, statsStore: new Stats.StatsStore(data),
+            removeMachine: _ => false);
+
+        await vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
+
+        Assert.Equal([Loc("Settings.ExportFailed")], messages);
+        Assert.Single(vm.ImportedPcs);
+        Assert.True(vm.RemoveImportedPcCommand.CanExecute(OtherPc));
+        IndexPools.Release(data);
+    }
+
     [Fact]
     public async Task Importing_another_PCs_backup_files_its_history_once_lists_it_and_can_remove_it()
     {
@@ -1885,7 +1996,7 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal(77, stats.LoadAll().Where(r => r.Machine == OtherPc).Sum(r => r.TotalTokens));
         Assert.Equal(1000, stats.LoadAll().Where(r => r.Machine == "").Sum(r => r.TotalTokens));
 
-        vm.RemoveImportedPcCommand.Execute(OtherPc);
+        await vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
 
         Assert.Empty(settings.ImportedMachines);
         Assert.Empty(vm.ImportedPcs);
@@ -1915,7 +2026,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Every_label_in_the_index_is_listed_with_a_fallback_name_and_can_be_removed_while_an_unlisted_one_changes_nothing()
+    public async Task Every_label_in_the_index_is_listed_with_a_fallback_name_and_can_be_removed_while_an_unlisted_one_changes_nothing()
     {
         var data = SeededDataFolder(OwnPc, 1000, machine: OtherPc);
         var stats = new Stats.StatsStore(data);
@@ -1923,12 +2034,12 @@ public class SettingsViewModelTests : IDisposable
 
         Assert.Equal(new ImportedPcRow(OtherPc, Loc("Settings.Machine.Unknown")), Assert.Single(vm.ImportedPcs));
 
-        vm.RemoveImportedPcCommand.Execute("not-listed");
-        vm.RemoveImportedPcCommand.Execute("");
-        vm.RemoveImportedPcCommand.Execute(null);
+        await vm.RemoveImportedPcCommand.ExecuteAsync("not-listed");
+        await vm.RemoveImportedPcCommand.ExecuteAsync("");
+        await vm.RemoveImportedPcCommand.ExecuteAsync(null);
         Assert.Equal(1000, stats.LoadAll().Single().InputTokens);
 
-        vm.RemoveImportedPcCommand.Execute(OtherPc);
+        await vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
 
         Assert.Empty(vm.ImportedPcs);
         Assert.Empty(stats.LoadAll());

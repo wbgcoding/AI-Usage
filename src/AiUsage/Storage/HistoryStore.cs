@@ -254,9 +254,9 @@ public class HistoryStore
 
     /// <summary>Reads backward and stops as soon as a point falls before <paramref name="from"/> - a
     /// multi-year file never has to be read whole for a narrow slice. A point newer than <paramref
-    /// name="to"/> is skipped without stopping the scan, so a slice that ends in the past (the
+    /// name="until"/> is skipped without stopping the scan, so a slice that ends in the past (the
     /// previous-week comparison line) still finds its data behind whatever was appended since.</summary>
-    public IReadOnlyList<HistoryPoint> Load(string providerId, DateTimeOffset from, DateTimeOffset to)
+    public virtual IReadOnlyList<HistoryPoint> Load(string providerId, DateTimeOffset from, DateTimeOffset until)
     {
         var path = FilePath(providerId);
         if (!File.Exists(path))
@@ -264,7 +264,7 @@ public class HistoryStore
 
         // A rewrite of a multi-year file can take a while; the chart reads the file as it is.
         if (StateOf(providerId).Rewriting)
-            return ReadRangeUnlocked(providerId, path, from, to);
+            return ReadRangeUnlocked(providerId, path, from, until);
 
         return Locked<IReadOnlyList<HistoryPoint>>(providerId, () =>
         {
@@ -273,7 +273,7 @@ public class HistoryStore
             {
                 var all = LoadPoints(state, providerId, path, from);
                 // A new list every time: callers get to keep and change theirs.
-                return all.Where(point => point.Timestamp >= from && point.Timestamp <= to).ToList();
+                return all.Where(point => point.Timestamp >= from && point.Timestamp <= until).ToList();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
