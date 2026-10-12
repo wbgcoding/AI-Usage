@@ -3,8 +3,8 @@
     <!-- Used instead of any of the four literal themes while Windows high-contrast mode is on
  - every token maps to the matching SystemColors brush/font so the
          app follows the user's chosen high-contrast palette rather than a fixed one. Snapshot at
-         the moment ThemeService.Apply runs; a high-contrast palette change while the app is
-         already running needs a re-apply (no window exists yet to wire that up). -->
+         the moment ThemeService.Apply runs; the main window applies the theme again whenever the
+         high-contrast setting or palette changes. -->
     <SolidColorBrush x:Key="Bg.Base" Color="{x:Static SystemColors.WindowColor}"/>
     <SolidColorBrush x:Key="Bg.Surface" Color="{x:Static SystemColors.WindowColor}"/>
     <SolidColorBrush x:Key="Bg.TitleBar" Color="{x:Static SystemColors.WindowColor}"/>
