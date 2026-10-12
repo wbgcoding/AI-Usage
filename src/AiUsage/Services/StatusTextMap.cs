@@ -40,6 +40,8 @@ public static class StatusTextMap
         ["Status_Failed_Server_Reason"] = "State.Failed.Server.Reason",
         ["Status_Failed_Refused_Headline"] = "State.Failed.Refused.Head",
         ["Status_Failed_Refused_Reason"] = "State.Failed.Refused.Reason",
+        ["Status_Failed_RateLimited_Headline"] = "State.Failed.RateLimited.Head",
+        ["Status_Failed_RateLimited_Reason"] = "State.Failed.RateLimited.Reason",
         ["Status_Failed_Timeout_Headline"] = "State.Failed.Timeout.Head",
         ["Status_Failed_Timeout_Reason"] = "State.Failed.Timeout.Reason",
         ["Status_Failed_Network_Headline"] = "State.Failed.Network.Head",

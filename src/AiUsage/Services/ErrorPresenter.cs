@@ -45,7 +45,7 @@ public static class ErrorPresenter
             ProviderStatus.NotSignedIn => ("Status_NotSignedIn_Headline", "Status_NotSignedIn_Reason", "Action_SignIn"),
             ProviderStatus.Blocked => ("Status_Blocked_Headline", "Status_Blocked_Reason", canSignInOnWeb ? "Action_SignIn" : null),
             ProviderStatus.RuntimeMissing => ("Status_RuntimeMissing_Headline", "Status_RuntimeMissing_Reason", "Action_OpenWebView2Download"),
-            ProviderStatus.Failed => FailedKeys(error?.Kind ?? FailureKind.Other),
+            ProviderStatus.Failed => FailedKeys(error),
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, message: null),
         };
 
@@ -70,17 +70,26 @@ public static class ErrorPresenter
         status == ProviderStatus.Stale && sourceKind == SourceKind.LocalFile
         && providerId == "codex";
 
+    // A 404 means the address no longer answers the way the app expects (the provider moved or changed
+    // it), which a retry cannot fix: it reads as an unreadable answer, not as a refusal.
+    private static (string, string, string?) FailedKeys(ProviderError? error) => error switch
+    {
+        { Kind: FailureKind.Refused, HttpStatus: 404 } => ("Status_Failed_Headline", "Status_UnreadableAnswer_Reason", null),
+        _ => FailedKeys(error?.Kind ?? FailureKind.Other),
+    };
+
     private static (string, string, string?) FailedKeys(FailureKind kind) => kind switch
     {
         FailureKind.ServerError => ("Status_Failed_Server_Headline", "Status_Failed_Server_Reason", null),
         FailureKind.Refused => ("Status_Failed_Refused_Headline", "Status_Failed_Refused_Reason", null),
+        FailureKind.RateLimited => ("Status_Failed_RateLimited_Headline", "Status_Failed_RateLimited_Reason", null),
         FailureKind.Timeout => ("Status_Failed_Timeout_Headline", "Status_Failed_Timeout_Reason", null),
         FailureKind.Network => ("Status_Failed_Network_Headline", "Status_Failed_Network_Reason", null),
         _ => ("Status_Failed_Headline", GenericFailedReason, null),
     };
 
     /// <summary>Whether a failed read's kind says plainly that signing in again would not help: the
-    /// server answered with an error, did not answer, or could not be reached.</summary>
+    /// server answered with an error, asked for fewer requests, did not answer, or could not be reached.</summary>
     public static bool IsNotASignInProblem(FailureKind kind) =>
-        kind is FailureKind.ServerError or FailureKind.Timeout or FailureKind.Network;
+        kind is FailureKind.ServerError or FailureKind.RateLimited or FailureKind.Timeout or FailureKind.Network;
 }

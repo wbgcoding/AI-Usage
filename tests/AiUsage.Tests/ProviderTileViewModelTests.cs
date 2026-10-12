@@ -393,11 +393,35 @@ public class ProviderTileViewModelTests
         var loc = LocalizationService.Instance;
         var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
 
-        tile.Apply(FailedSnapshot(FailureKind.Refused, 404), Now);
+        tile.Apply(FailedSnapshot(FailureKind.Refused, 403), Now);
 
         Assert.Equal(loc.Format("State.Failed.Refused.Head", "Claude"), tile.HeadlineText);
-        Assert.Equal(loc.Format("State.Failed.Refused.Reason", "Claude", 404), tile.ReasonText);
+        Assert.Equal(loc.Format("State.Failed.Refused.Reason", "Claude", 403), tile.ReasonText);
         Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ATooManyRequestsAnswerNamesTheLimitAndOffersNoSignIn()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.RateLimited, 429), Now);
+
+        Assert.Equal(loc.Format("State.Failed.RateLimited.Head", "Claude"), tile.HeadlineText);
+        Assert.Equal(loc.Format("State.Failed.RateLimited.Reason", "Claude", 429), tile.ReasonText);
+        Assert.False(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void ANotFoundAnswerReadsAsAnUnreadableAnswer()
+    {
+        var loc = LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+
+        tile.Apply(FailedSnapshot(FailureKind.Refused, 404), Now);
+
+        Assert.Equal(loc["State.UnreadableAnswer.Reason"], tile.ReasonText);
     }
 
     [Fact]
