@@ -49,6 +49,7 @@ public class StatsIndexerServiceTests
         service.StartInBackground();
         Assert.True(completed.Wait(TimeSpan.FromSeconds(5)));
         completed.Reset();
+        WaitIdle(service);
         service.StartInBackground();
 
         Assert.True(completed.Wait(TimeSpan.FromSeconds(5)));
@@ -75,15 +76,14 @@ public class StatsIndexerServiceTests
         var completed = new ManualResetEventSlim(initialState: false);
 
         using var service = new StatsIndexerService(token => Interlocked.Increment(ref runCount));
-        // Waited on through IndexCompleted rather than a signal set inside the delegate itself: that
-        // would race the restartability check below against the thread still unwinding from the
-        // delegate's own return, since IndexCompleted only fires once the walk is fully marked not
-        // running any more.
+        // Waited on through IndexCompleted rather than a signal set inside the delegate itself, then
+        // until the thread has marked the walk finished: the event fires just before that.
         service.IndexCompleted += (_, _) => completed.Set();
 
         service.StartInBackground();
         Assert.True(completed.Wait(TimeSpan.FromSeconds(5)));
         completed.Reset();
+        WaitIdle(service);
 
         // The first walk already finished by now, so this call is a fresh walk, not a no op -
         // usage made while the app keeps running must still reach the statistics.
@@ -109,6 +109,7 @@ public class StatsIndexerServiceTests
         service.StartInBackground();
         Assert.True(finished.Wait(TimeSpan.FromSeconds(5)));
         finished.Reset();
+        WaitIdle(service);
 
         service.StartInBackground();
         Assert.True(finished.Wait(TimeSpan.FromSeconds(5)));
@@ -121,6 +122,35 @@ public class StatsIndexerServiceTests
 
     private static StatsDataSnapshot EmptySnapshot() => new([], []);
 
+    private static void WaitIdle(StatsIndexerService service) =>
+        Assert.True(SpinWait.SpinUntil(() => !service.IsRunning, TimeSpan.FromSeconds(5)));
+
+    [Fact]
+    public void A_start_while_the_snapshot_loads_is_ignored()
+    {
+        var walks = 0;
+        using var loading = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var service = StatsIndexerService.ForTest(_ =>
+        {
+            Interlocked.Increment(ref walks);
+            return Walk(1, 0);
+        }, loadSnapshot: () =>
+        {
+            loading.Set();
+            release.Wait(TimeSpan.FromSeconds(5));
+            return EmptySnapshot();
+        });
+
+        service.StartInBackground();
+        Assert.True(loading.Wait(TimeSpan.FromSeconds(5)));
+        service.StartInBackground(); // the first thread is still busy with its snapshot
+        release.Set();
+        WaitIdle(service);
+
+        Assert.Equal(1, walks);
+    }
+
     private static void RunWalk(StatsIndexerService service)
     {
         using var raised = new ManualResetEventSlim();
@@ -129,6 +159,7 @@ public class StatsIndexerServiceTests
         service.StartInBackground();
         Assert.True(raised.Wait(TimeSpan.FromSeconds(5)));
         service.IndexCompleted -= OnRaised;
+        WaitIdle(service);
     }
 
     [Fact]

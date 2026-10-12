@@ -155,17 +155,25 @@ public sealed class StatsIndexerService : IDisposable
         }
         finally
         {
-            lock (_gate)
-                _isRunning = false;
-            if (raise)
+            try
             {
+                if (raise)
+                {
+                    lock (_gate)
+                        _lastRaisedDate = _today();
+                    // Before the event, so a window that reacts to it finds the new data waiting. A walk
+                    // cancelled at shutdown skips it: nobody reads it, and it would hold up the exit.
+                    if (!token.IsCancellationRequested)
+                        RefreshSnapshot();
+                    RaiseIndexCompleted();
+                }
+            }
+            finally
+            {
+                // Last, so no second walk starts while this thread still loads the snapshot or
+                // raises the event: Dispose then waits for the one thread that is left.
                 lock (_gate)
-                    _lastRaisedDate = _today();
-                // Before the event, so a window that reacts to it finds the new data waiting. A walk
-                // cancelled at shutdown skips it: nobody reads it, and it would hold up the exit.
-                if (!token.IsCancellationRequested)
-                    RefreshSnapshot();
-                RaiseIndexCompleted();
+                    _isRunning = false;
             }
         }
     }

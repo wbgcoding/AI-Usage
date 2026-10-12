@@ -916,15 +916,16 @@ public sealed class StatsStore
     /// <summary>What <see cref="StatsIndexer"/> actually calls: a walk's new usage rows, the session
     /// totals they belong to and its source file's new offset, written in one transaction over one connection - so a crash between
     /// the two writes can never leave a range counted without its marker having moved, which would
-    /// count that same range again on the next run.</summary>
-    public void ApplyIndexResult(
+    /// count that same range again on the next run. False when nothing was stored (the index is
+    /// locked, full or unusable): the caller must not count the file as read.</summary>
+    public bool ApplyIndexResult(
         IReadOnlyList<StatsRecord> records, StatsSourceFileState sourceFileState, IReadOnlyList<StatsSessionDelta>? sessions = null)
     {
         try
         {
             using var connection = Open();
             if (!IsUsable)
-                return;
+                return false;
 
             using var transaction = connection.BeginTransaction();
             AddDeltaWithinTransaction(connection, transaction, records);
@@ -932,9 +933,11 @@ public sealed class StatsStore
                 AddSessionDeltasWithinTransaction(connection, transaction, sessions, replace: false);
             SetSourceFileWithinTransaction(connection, transaction, sourceFileState);
             transaction.Commit();
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
+            return false;
         }
     }
 
@@ -1493,7 +1496,7 @@ public sealed class StatsStore
                 state = ReadSourceFileState(reader, reader.GetString(0), firstColumn: 1);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or FormatException)
         {
             return false;
         }
@@ -1548,12 +1551,18 @@ public sealed class StatsStore
         }
     }
 
+    // A time that does not parse (a future build's format, a hand-edited file) reads as the oldest
+    // possible one: it never matches the file on disk, so the file is read on from its stored offset
+    // and the row is rewritten with a good time.
+    private static DateTime ParseWriteTime(string text) =>
+        DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var time) ? time : DateTime.MinValue;
+
     private static StatsSourceFileState ReadSourceFileState(SqliteDataReader reader, string path, int firstColumn) => new(
         Path: path,
         Provider: reader.GetString(firstColumn),
         Offset: reader.GetInt64(firstColumn + 1),
         Size: reader.GetInt64(firstColumn + 2),
-        WriteTimeUtc: DateTime.Parse(reader.GetString(firstColumn + 3), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+        WriteTimeUtc: ParseWriteTime(reader.GetString(firstColumn + 3)),
         CurrentModel: reader.GetString(firstColumn + 4),
         CumulativeInputTokens: reader.GetInt64(firstColumn + 5),
         CumulativeOutputTokens: reader.GetInt64(firstColumn + 6),
@@ -1583,9 +1592,12 @@ public sealed class StatsStore
             var candidates = new List<string>();
             using (var list = connection.CreateCommand())
             {
-                list.CommandText = "SELECT path FROM source_file WHERE provider = $provider AND path <> $path COLLATE NOCASE";
+                // Only paths ending in the file's name come back; the exact name match below stays.
+                list.CommandText = @"SELECT path FROM source_file WHERE provider = $provider AND path <> $path COLLATE NOCASE
+                    AND path LIKE $suffix ESCAPE '\'";
                 list.Parameters.AddWithValue("$provider", provider);
                 list.Parameters.AddWithValue("$path", newPath);
+                list.Parameters.AddWithValue("$suffix", "%" + fileName.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_"));
                 using var reader = list.ExecuteReader();
                 while (reader.Read())
                     candidates.Add(reader.GetString(0));
@@ -1614,26 +1626,29 @@ public sealed class StatsStore
             transaction.Commit();
             return moved;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or FormatException)
         {
             return null;
         }
     }
 
-    public void SetSourceFile(StatsSourceFileState state)
+    /// <summary>Stores one file's marker; false when nothing was stored.</summary>
+    public bool SetSourceFile(StatsSourceFileState state)
     {
         try
         {
             using var connection = Open();
             if (!IsUsable)
-                return;
+                return false;
 
             using var transaction = connection.BeginTransaction();
             SetSourceFileWithinTransaction(connection, transaction, state);
             transaction.Commit();
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
+            return false;
         }
     }
 

@@ -133,8 +133,12 @@ public sealed class StatsIndexer
 
     private static string DefaultCodexArchivedRoot => Providers.CodexPaths.ArchivedSessions;
 
+    // Files whose result could not be stored during the current walk; one log line at its end.
+    private int _failedWrites;
+
     public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default)
     {
+        _failedWrites = 0;
         var claudeFilesSeen = 0;
         var claudeFilesRead = 0;
         var claudeLinesParsed = 0L;
@@ -232,6 +236,9 @@ public sealed class StatsIndexer
             BackfillSubagentUsageOnce(afterWalk, cancellationToken);
         }
 
+        if (_failedWrites > 0)
+            Log?.LogError($"Statistics: the results of {_failedWrites} session file(s) could not be stored (the index is locked or unwritable); they are read again on the next walk.");
+
         return new StatsIndexResult(
             new StatsIndexCounters(claudeFilesSeen, claudeFilesRead, claudeLinesParsed, claudeLinesSkipped, claudeFoldersSkipped),
             new StatsIndexCounters(codexFilesSeen, codexFilesRead, codexLinesParsed, codexLinesSkipped, codexFoldersSkipped),
@@ -315,6 +322,14 @@ public sealed class StatsIndexer
         }
     }
 
+    /// <summary>Counts a write that did not land, so the walk can say so once at its end.</summary>
+    private bool NoteStored(bool stored)
+    {
+        if (!stored)
+            _failedWrites++;
+        return stored;
+    }
+
     private (bool Read, long LinesParsed, long LinesSkipped) IndexClaudeFile(
         FileInfo listed, Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
@@ -334,7 +349,7 @@ public sealed class StatsIndexer
             // cannot be traced back out, so reading the new content from the start would count the
             // same usage twice. The file is left unread and only its remembered size and write time
             // move to what is on disk now, so a later append is picked up from the new end.
-            _store.SetSourceFile(existing with { Offset = info.Length, Size = info.Length, WriteTimeUtc = info.LastWriteTimeUtc });
+            NoteStored(_store.SetSourceFile(existing with { Offset = info.Length, Size = info.Length, WriteTimeUtc = info.LastWriteTimeUtc }));
             return (false, 0, 0);
         }
 
@@ -389,7 +404,7 @@ public sealed class StatsIndexer
         }
 
         var lastCounted = copies.CountedForLastKey;
-        _store.ApplyIndexResult(
+        var stored = _store.ApplyIndexResult(
             [.. buckets.Values],
             new StatsSourceFileState(
                 existing?.Path ?? path, ClaudeProviderId, consumedOffset, openLength, info.LastWriteTimeUtc,
@@ -397,7 +412,7 @@ public sealed class StatsIndexer
                 CountedInputTokens: lastCounted?.Input, CountedOutputTokens: lastCounted?.Output,
                 CountedCacheCreationTokens: lastCounted?.CacheCreation, CountedCacheReadTokens: lastCounted?.CacheRead),
             sessions.ToDeltas());
-        return (true, linesParsed, linesSkipped);
+        return NoteStored(stored) ? (true, linesParsed, linesSkipped) : (false, 0, 0);
     }
 
     /// <summary>What a Claude file's repeated responses have added to the totals so far. A response
@@ -490,7 +505,7 @@ public sealed class StatsIndexer
         if (existing is not null && info.Length < existing.Size)
         {
             // Same as for a shrunk Claude file: not read again, only its size and write time move.
-            _store.SetSourceFile(existing with { Offset = info.Length, Size = info.Length, WriteTimeUtc = info.LastWriteTimeUtc });
+            NoteStored(_store.SetSourceFile(existing with { Offset = info.Length, Size = info.Length, WriteTimeUtc = info.LastWriteTimeUtc }));
             return (false, 0, 0);
         }
 
@@ -550,14 +565,14 @@ public sealed class StatsIndexer
         }
 
         var state = parser.State;
-        _store.ApplyIndexResult(
+        var stored = _store.ApplyIndexResult(
             [.. buckets.Values],
             new StatsSourceFileState(
                 existing?.Path ?? path, CodexProviderId, consumedOffset, openLength, info.LastWriteTimeUtc,
                 state.Model, state.CumulativeInput, state.CumulativeOutput, state.CumulativeCacheCreation, state.CumulativeCacheRead,
                 state.Effort),
             sessions.ToDeltas());
-        return (true, linesParsed, linesSkipped);
+        return NoteStored(stored) ? (true, linesParsed, linesSkipped) : (false, 0, 0);
     }
 
     /// <summary>Reads the model calls added to one Antigravity conversation file since the last run.
@@ -604,7 +619,7 @@ public sealed class StatsIndexer
             // A file that is not a usable database (wrong schema, corrupt, unexpected value types).
             // It is remembered as it is now, so it is skipped, and logged once, until it changes.
             Log?.LogError($"Statistics: an Antigravity conversation file could not be read and is skipped until it changes ({ex.GetType().Name}).");
-            _store.ApplyIndexResult([], new StatsSourceFileState(existing?.Path ?? path, GeminiProviderId, existing?.Offset ?? 0, size, writeTime), []);
+            NoteStored(_store.ApplyIndexResult([], new StatsSourceFileState(existing?.Path ?? path, GeminiProviderId, existing?.Offset ?? 0, size, writeTime), []));
             return (false, 0, 0);
         }
 
@@ -619,13 +634,13 @@ public sealed class StatsIndexer
                 call.InputTokens, call.OutputTokens, 0, call.CacheReadTokens);
         }
 
-        _store.ApplyIndexResult(
+        var stored = _store.ApplyIndexResult(
             [.. buckets.Values],
             // A read that stopped early is stored with a size that never matches, so the next walk
             // continues it even when the file itself does not change.
             new StatsSourceFileState(existing?.Path ?? path, GeminiProviderId, result.NextIndex, result.Incomplete ? -1 : size, writeTime),
             sessions.ToDeltas());
-        return (true, result.Events.Count, result.RowsSkipped);
+        return NoteStored(stored) ? (true, result.Events.Count, result.RowsSkipped) : (false, 0, 0);
     }
 
     /// <summary>The one-time pass after a migration that left usage rows without sessions: every
