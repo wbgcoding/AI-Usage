@@ -718,15 +718,43 @@ public sealed class SettingsStore : IDisposable
     private static double ClampDimension(double value, double min) =>
         double.IsFinite(value) ? Math.Max(min, value) : min;
 
+    /// <summary>How many quarantined copies of a settings file stay in the data folder.</summary>
+    private const int KeptCorruptCopies = 2;
+
     private static void QuarantineCorruptFile(string path)
     {
         try
         {
             File.Move(path, $"{path}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}", overwrite: true);
+            DeleteOlderCorruptCopies(path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // best effort - the caller runs on defaults either way
+        }
+    }
+
+    /// <summary>Keeps the newest <see cref="KeptCorruptCopies"/> quarantined copies of
+    /// <paramref name="path"/> and deletes the rest. The stamp in the name sorts by time.</summary>
+    internal static void DeleteOlderCorruptCopies(string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(directory))
+            return;
+
+        var older = Directory.EnumerateFiles(directory, Path.GetFileName(path) + ".corrupt-*")
+            .OrderByDescending(file => file, StringComparer.OrdinalIgnoreCase)
+            .Skip(KeptCorruptCopies);
+        foreach (var file in older)
+        {
+            try
+            {
+                File.Delete(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // a copy held open stays for the next time
+            }
         }
     }
 

@@ -245,7 +245,9 @@ public static class AppPaths
         || name.StartsWith(BackupService.PendingFileName + ".", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith(BackupService.JournalFileName + ".", StringComparison.OrdinalIgnoreCase)
         || (name.StartsWith("history-",StringComparison.OrdinalIgnoreCase)
-            && name.Contains(".jsonl.", StringComparison.OrdinalIgnoreCase));
+            && name.Contains(".jsonl.", StringComparison.OrdinalIgnoreCase))
+        || (name.StartsWith("stats.v", StringComparison.OrdinalIgnoreCase)
+            && name.EndsWith(".bak.tmp", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Internal, not private: <see cref="ViewModels.SettingsViewModel"/>'s own "change data
     /// folder" flow needs the exact same writability check before it trusts a user-picked folder.</summary>

@@ -1610,8 +1610,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
                 foreach (var providerId in providerIds)
                 {
-                    _historyStore.Compact(providerId);
-                    _historyStore.Prune(providerId, _settings.HistoryRetentionDays);
+                    _historyStore.Maintain(providerId, _settings.HistoryRetentionDays);
                 }
 
                 if (dispatcher is not null && !dispatcher.CheckAccess())
