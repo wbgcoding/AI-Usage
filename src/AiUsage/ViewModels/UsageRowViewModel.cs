@@ -28,7 +28,7 @@ public partial class UsageRowViewModel : ObservableObject
     /// provider-supplied name), next to the already-localized <see cref="LabelText"/> - <see
     /// cref="Views.MainWindow.TryComputeTraySummary"/> matches a "Label:&lt;label&gt;" tray window
     /// choice against this, since two Other rows share the same <see cref="Kind"/> and can only be
-    /// told apart by their label. Never reassigned after construction, same as <see cref="Kind"/>.</summary>
+    /// told apart by their label. <see cref="Update"/> moves it along with the window it shows.</summary>
     public string Label { get; private set; }
 
     /// <summary>Raw window kind, next to the already-localized <see cref="LabelText"/> - the tray
