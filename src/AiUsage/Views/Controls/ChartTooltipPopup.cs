@@ -87,6 +87,7 @@ public sealed class ChartTooltipPopup
         _textBlock.Text = string.Join("\n", lines);
         _mousePoint = mousePoint;
 
+        HookOwner(owner);
         _popup.PlacementTarget = owner;
         _popup.CustomPopupPlacementCallback = (popupSize, _, _) =>
         {
@@ -119,4 +120,53 @@ public sealed class ChartTooltipPopup
     }
 
     public void Hide() => _popup.IsOpen = false;
+
+    // The popup is a topmost window of its own, so it must close itself whenever the owner stops
+    // being a live, visible, active chart: another window takes over, the window is minimized or
+    // closed, or the chart leaves the tree or is hidden. Hooked once per owner and window.
+    private FrameworkElement? _hookedOwner;
+    private Window? _hookedWindow;
+
+    private void HookOwner(FrameworkElement owner)
+    {
+        if (!ReferenceEquals(_hookedOwner, owner))
+        {
+            if (_hookedOwner is not null)
+            {
+                _hookedOwner.Unloaded -= OnOwnerGone;
+                _hookedOwner.IsVisibleChanged -= OnOwnerVisibleChanged;
+            }
+
+            _hookedOwner = owner;
+            owner.Unloaded += OnOwnerGone;
+            owner.IsVisibleChanged += OnOwnerVisibleChanged;
+        }
+
+        var window = Window.GetWindow(owner);
+        if (ReferenceEquals(_hookedWindow, window))
+            return;
+
+        if (_hookedWindow is not null)
+        {
+            _hookedWindow.Deactivated -= OnOwnerGone;
+            _hookedWindow.StateChanged -= OnOwnerGone;
+            _hookedWindow.Closed -= OnOwnerGone;
+        }
+
+        _hookedWindow = window;
+        if (window is null)
+            return;
+
+        window.Deactivated += OnOwnerGone;
+        window.StateChanged += OnOwnerGone;
+        window.Closed += OnOwnerGone;
+    }
+
+    private void OnOwnerGone(object? sender, EventArgs e) => Hide();
+
+    private void OnOwnerVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is false)
+            Hide();
+    }
 }

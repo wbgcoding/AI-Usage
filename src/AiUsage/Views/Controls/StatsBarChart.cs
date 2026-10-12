@@ -55,6 +55,8 @@ public sealed class StatsBarChart : FrameworkElement
     private static void OnBarsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var chart = (StatsBarChart)d;
+        chart._hoverIndex = -1;
+        chart._tooltipPopup?.Hide();
         if (chart._focusedIndex >= 0)
         {
             // The bars changed under the keyboard focus: keep it on a bar that still exists.
@@ -453,6 +455,13 @@ public sealed class StatsBarChart : FrameworkElement
     private int _hoverIndex = -1;
     private ChartTooltipPopup? _tooltipPopup;
 
+    /// <summary>The hovered bar, -1 for none; settable so a test can stand in for the pointer.</summary>
+    internal int HoverIndex
+    {
+        get => _hoverIndex;
+        set => _hoverIndex = value;
+    }
+
     protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
     {
         base.OnMouseMove(e);
@@ -468,7 +477,6 @@ public sealed class StatsBarChart : FrameworkElement
         }
 
         _hoverIndex = index;
-        InvalidateVisual();
         UpdateTooltip(mouse);
     }
 
@@ -479,7 +487,6 @@ public sealed class StatsBarChart : FrameworkElement
             return;
 
         _hoverIndex = -1;
-        InvalidateVisual();
         _tooltipPopup?.Hide();
     }
 

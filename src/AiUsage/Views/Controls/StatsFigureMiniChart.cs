@@ -204,16 +204,42 @@ public sealed class StatsFigureMiniChart : FrameworkElement
         }
         geometry.Freeze();
 
-        var fillBrush = AccentBrush.Clone();
-        fillBrush.Opacity = 0.25;
+        var (fillBrush, linePen) = SparklineResources();
         drawingContext.DrawGeometry(fillBrush, null, geometry);
-        drawingContext.DrawGeometry(null, new Pen(AccentBrush, 1.5), geometry);
+        drawingContext.DrawGeometry(null, linePen, geometry);
     }
+
+    // The faded fill and the line pen only change with the accent, so they are built once per accent
+    // instead of on every render.
+    private (Brush Accent, Color? Color, Brush Fill, Pen Line)? _sparklineResources;
+
+    private (Brush Fill, Pen Line) SparklineResources()
+    {
+        var accent = AccentBrush;
+        var color = (accent as SolidColorBrush)?.Color;
+        if (_sparklineResources is { } cached && ReferenceEquals(cached.Accent, accent) && cached.Color == color)
+            return (cached.Fill, cached.Line);
+
+        var fill = accent.Clone();
+        fill.Opacity = 0.25;
+        if (fill.CanFreeze)
+            fill.Freeze();
+        var line = new Pen(accent, 1.5);
+        if (line.CanFreeze)
+            line.Freeze();
+
+        _sparklineResources = (accent, color, fill, line);
+        return (fill, line);
+    }
+
+    /// <summary>The height of each of the two bars with the 2 px gap between them, never negative so
+    /// a very short control cannot ask for an invalid rectangle.</summary>
+    internal static double TwoBarHeight(double height) => Math.Max(0, (height - 2) / 2);
 
     private void DrawTwoBar(DrawingContext drawingContext, double width, double height)
     {
         var max = Math.Max(1, Math.Max(PreviousValue, CurrentValue));
-        var barHeight = (height - 2) / 2;
+        var barHeight = TwoBarHeight(height);
 
         var previousWidth = Math.Clamp(PreviousValue / max, 0, 1) * width;
         var currentWidth = Math.Clamp(CurrentValue / max, 0, 1) * width;

@@ -144,6 +144,8 @@ public sealed class StatsHeatmap : FrameworkElement
     private static void OnDataChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var heatmap = (StatsHeatmap)d;
+        heatmap._hoverCell = null;
+        heatmap._tooltipPopup?.Hide();
         heatmap.UpdateSummaryName();
         if (heatmap._focusedCell is not null)
             heatmap.UpdateFocusedAutomationName();
@@ -205,6 +207,13 @@ public sealed class StatsHeatmap : FrameworkElement
 
     private readonly List<CellHit> _cellHits = [];
     private CellHit? _hoverCell;
+
+    /// <summary>True while a hovered cell is remembered - what a data change has to clear.</summary>
+    internal bool HasHover
+    {
+        get => _hoverCell is not null;
+        set => _hoverCell = value ? new CellHit(new Rect(0, 0, 1, 1), 0, 0) : null;
+    }
     private (int Row, int Column)? _focusedCell;
 
     /// <summary>The width of one cell in a control <paramref name="width"/> wide: never below one

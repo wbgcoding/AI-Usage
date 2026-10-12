@@ -13,7 +13,7 @@ namespace AiUsage.Views.Controls;
 /// the same bare <see cref="FrameworkElement"/>/<see cref="OnRender"/> construction <see
 /// cref="StatsBarChart"/> already uses, no chart library. One continuous grid covering the whole
 /// last twelve months: columns are calendar weeks (oldest left, today right), seven rows are
-/// weekdays starting at the current culture's first day of week, and every day in the span draws
+/// weekdays starting at Monday, and every day in the span draws
 /// its own square - including a day with no usage at all, filled in a neutral surface tone rather
 /// than left out, and a day still ahead of today, drawn the same way at reduced opacity and never
 /// clickable. Cell color is the hue of whichever provider led that day (<see
@@ -74,6 +74,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     private static void OnSummaryInputChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var grid = (StatsMonthGrid)d;
+        grid.ResetHover();
         if (grid.IsKeyboardFocused && grid._focusedDay is not null)
             grid.UpdateFocusedAutomationName();
         else
@@ -374,6 +375,10 @@ public sealed class StatsMonthGrid : FrameworkElement
     private const double OutsideHighlightOpacity = 0.35;
     private const double LeftLabelWidth = 22;
 
+    // Room around the cells for the selection halo and the focus ring, which are drawn outside the
+    // cell and would otherwise be clipped at the control's edge where no label gutter holds them.
+    private const double EdgeMargin = 3;
+
     /// <summary>How many week columns fit <paramref name="availableWidth"/> at <see
     /// cref="DefaultCellSize"/> next to the weekday column, never less than 1 - what the widget tile
     /// and the statistics window use to decide how far back the grid reaches.</summary>
@@ -628,17 +633,17 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private static Color BrushColor(Brush brush) => brush is SolidColorBrush solid ? solid.Color : Colors.Gray;
 
-    /// <summary>The weekday column's own width - zero while <see cref="ShowAxisLabels"/> is off, so
-    /// the grid's cells start flush at the left edge instead of leaving a blank gutter for a column
-    /// that is never drawn.</summary>
-    private double EffectiveLeftLabelWidth => ShowAxisLabels ? LeftLabelWidth : 0;
+    /// <summary>Where the cells start on the left: after the weekday column, or - while <see
+    /// cref="ShowAxisLabels"/> is off - after just the edge margin, instead of leaving a blank gutter
+    /// for a column that is never drawn.</summary>
+    private double EffectiveLeftLabelWidth => ShowAxisLabels ? LeftLabelWidth : EdgeMargin;
 
     /// <summary>Same reasoning as <see cref="EffectiveLeftLabelWidth"/>, for the month row above the
     /// grid.</summary>
-    private double EffectiveTopLabelHeight => ShowAxisLabels ? TopLabelHeight : 0;
+    private double EffectiveTopLabelHeight => ShowAxisLabels ? TopLabelHeight : EdgeMargin;
 
     private double ContentWidth(int totalColumns, GridFit fit) =>
-        EffectiveLeftLabelWidth + totalColumns * fit.CellSize + Math.Max(0, totalColumns - 1) * fit.Gap;
+        EffectiveLeftLabelWidth + totalColumns * fit.CellSize + Math.Max(0, totalColumns - 1) * fit.Gap + EdgeMargin;
 
     /// <summary>The prepared, ready-to-draw shape of the current bindings - computed once per measure
     /// and once per render so the two never disagree about how tall or wide the control is.</summary>
@@ -666,7 +671,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             columns = BuildColumns(gridStart, rangeEnd, Today, days, TotalColumns(gridStart, rangeEnd), HighlightStart, HighlightEnd);
         }
         var totalColumns = columns.Count;
-        var fit = FitToWidth(totalColumns, Math.Max(0, availableWidth - EffectiveLeftLabelWidth));
+        var fit = FitToWidth(totalColumns, Math.Max(0, availableWidth - EffectiveLeftLabelWidth - EdgeMargin));
         var sortedNonZero = ResolveColorScale(ColorScaleTotals, days, rangeStart, rangeEnd);
         var providerLegend = ShowLegend ? BuildProviderLegend([.. days.Where(day => day.Day >= rangeStart && day.Day <= rangeEnd)]) : [];
         return new PreparedLayout(true, columns, fit, sortedNonZero, providerLegend);
@@ -674,7 +679,8 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private int RowCount => SingleRow ? 1 : 7;
 
-    private double ContentHeight(GridFit fit) => EffectiveTopLabelHeight + RowCount * fit.CellSize + (RowCount - 1) * fit.Gap;
+    private double ContentHeight(GridFit fit) =>
+        EffectiveTopLabelHeight + RowCount * fit.CellSize + (RowCount - 1) * fit.Gap + EdgeMargin;
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -695,6 +701,20 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private readonly List<CellHit> _cellHits = [];
     private CellHit? _hoverCell;
+
+    /// <summary>True while a hovered cell is remembered - what a data change has to clear.</summary>
+    internal bool HasHover
+    {
+        get => _hoverCell is not null;
+        set => _hoverCell = value ? new CellHit(new Rect(0, 0, 1, 1), default, 0, []) : null;
+    }
+
+    // The data under a stationary pointer changed: the old cell and its tooltip text no longer match.
+    private void ResetHover()
+    {
+        _hoverCell = null;
+        _tooltipPopup?.Hide();
+    }
 
     protected override void OnRender(DrawingContext drawingContext)
     {
@@ -856,16 +876,33 @@ public sealed class StatsMonthGrid : FrameworkElement
         const double square = 10;
         const double gap = 2;
         const double rightMargin = 4;
+        var key = (LegendLessText, LegendMoreText, dpi, typeface);
+        if (_scaleWidthKey == key)
+            return _scaleWidth;
+
         var lessText = new FormattedText(LegendLessText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 9, EmptyTextBrush, dpi);
         var moreText = new FormattedText(LegendMoreText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 9, EmptyTextBrush, dpi);
-        return lessText.Width + 4 + 5 * square + 4 * gap + 4 + moreText.Width + rightMargin;
+        _scaleWidth = lessText.Width + 4 + 5 * square + 4 * gap + 4 + moreText.Width + rightMargin;
+        _scaleWidthKey = key;
+        return _scaleWidth;
     }
+
+    // The two legend widths only change with their inputs, so measure and render share one result
+    // instead of rebuilding the same FormattedText objects on every pass.
+    private (string, string, double, Typeface)? _scaleWidthKey;
+    private double _scaleWidth;
+    private (IReadOnlyList<LegendEntry>, IReadOnlyDictionary<string, string>, double, Typeface)? _legendWidthKey;
+    private double _legendWidth;
 
     /// <summary>Width the color key takes, trailing gap after the last entry left out.</summary>
     private double ProviderLegendWidth(IReadOnlyList<LegendEntry> legend, double dpi, Typeface typeface)
     {
         const double swatch = 10;
         var providerNames = ProviderDisplayNames;
+        var key = (legend, providerNames, dpi, typeface);
+        if (_legendWidthKey == key)
+            return _legendWidth;
+
         var width = 0.0;
         foreach (var entry in legend)
         {
@@ -873,7 +910,10 @@ public sealed class StatsMonthGrid : FrameworkElement
             var nameText = new FormattedText(name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
             width += swatch + 4 + nameText.Width + 16;
         }
-        return Math.Max(0, width - 16);
+
+        _legendWidth = Math.Max(0, width - 16);
+        _legendWidthKey = key;
+        return _legendWidth;
     }
 
     /// <summary>True when the color key (left) and the intensity scale (right) share one row with
@@ -892,7 +932,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         foreach (var entry in legend)
         {
             var color = ChartPalette.ForProvider(entry.ProviderId);
-            dc.DrawRoundedRectangle(new SolidColorBrush(color), null, new Rect(x, y, swatch, swatch), 2, 2);
+            dc.DrawRoundedRectangle(IntensityBrush(color, 4), null, new Rect(x, y, swatch, swatch), 2, 2);
 
             var name = providerNames.GetValueOrDefault(entry.ProviderId, entry.ProviderId);
             var nameText = new FormattedText(name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
@@ -1048,9 +1088,15 @@ public sealed class StatsMonthGrid : FrameworkElement
         OnFocusedDayChanged();
     }
 
+    // True while a click moves the focus here: the clicked day, not the selected one, takes the ring.
+    private bool _focusingByClick;
+
     protected override void OnGotKeyboardFocus(KeyboardFocusChangedEventArgs e)
     {
         base.OnGotKeyboardFocus(e);
+        if (_focusingByClick)
+            return;
+
         var layout = Prepare(AvailableWidth);
         if (!layout.HasContent)
             return;
@@ -1076,8 +1122,15 @@ public sealed class StatsMonthGrid : FrameworkElement
     {
         UpdateFocusedAutomationName();
         InvalidateVisual();
-        if (_focusedDay is { } day && _cellHits.FindIndex(hit => hit.Day == day) is var at and >= 0)
-            ShowTooltip(_cellHits[at]);
+        if (_focusedDay is not { } day || _cellHits.FindIndex(hit => hit.Day == day) is not (var at and >= 0))
+            return;
+
+        // Below the minimum cell width the grid sits in a horizontal scroller: bring the cell, with
+        // room for its ring, into view before the tooltip is placed from the same rectangle.
+        var rect = _cellHits[at].Rect;
+        rect.Inflate(CellGap + EdgeMargin, CellGap + EdgeMargin);
+        BringIntoView(rect);
+        ShowTooltip(_cellHits[at]);
     }
 
     /// <summary>What a screen reader announces for the focused day: the lines the hover tooltip
@@ -1136,6 +1189,14 @@ public sealed class StatsMonthGrid : FrameworkElement
         var hit = _cellHits.FirstOrDefault(cell => cell.Rect.Contains(point));
         if (hit.Rect.Width <= 0)
             return;
+
+        // A click puts the keyboard on the clicked day, so the arrow keys continue from there.
+        _focusingByClick = true;
+        try { Focus(); }
+        finally { _focusingByClick = false; }
+        _focusedDay = hit.Day;
+        UpdateFocusedAutomationName();
+        InvalidateVisual();
 
         DaySelected?.Invoke(this, hit.Day);
     }

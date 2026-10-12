@@ -41,6 +41,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private static void OnRowsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var chart = (StatsHorizontalBarChart)d;
+        chart._hoverIndex = -1;
+        chart._tooltipPopup?.Hide();
         chart.ForgetStaleIcons((IReadOnlyList<StatsProjectRow>)e.NewValue);
         chart._focusedRowIndex = -1;
         AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<StatsProjectRow>)e.NewValue));
@@ -453,6 +455,26 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     }
 
     private int _hoverIndex = -1;
+
+    /// <summary>The hovered row, -1 for none; settable so a test can stand in for the pointer.</summary>
+    internal int HoverIndex
+    {
+        get => _hoverIndex;
+        set => _hoverIndex = value;
+    }
+
+    /// <summary>The row under <paramref name="y"/>, or -1 above the first row or in the blank area
+    /// below the last one - one hit test for hover and click, so a tooltip never names a row the
+    /// click would ignore.</summary>
+    internal static int RowIndexAt(double y, double rowHeight, int rowCount)
+    {
+        if (rowCount <= 0 || rowHeight <= 0 || y < 0)
+            return -1;
+
+        var index = (int)(y / rowHeight);
+        return index < rowCount ? index : -1;
+    }
+
     private int _focusedRowIndex = -1;
     private ChartTooltipPopup? _tooltipPopup;
 
@@ -478,8 +500,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (!IsActivatable || rows.Count == 0)
             return;
 
-        var index = (int)(e.GetPosition(this).Y / CurrentRowHeight);
-        if (index < 0 || index >= rows.Count)
+        var index = RowIndexAt(e.GetPosition(this).Y, CurrentRowHeight, rows.Count);
+        if (index < 0)
             return;
 
         RowActivated?.Invoke(this, index);
@@ -491,7 +513,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         base.OnMouseMove(e);
         var rows = Rows;
         var rowHeight = CurrentRowHeight;
-        var index = rows.Count == 0 ? -1 : Math.Clamp((int)(e.GetPosition(this).Y / rowHeight), 0, rows.Count - 1);
+        var index = RowIndexAt(e.GetPosition(this).Y, rowHeight, rows.Count);
 
         if (!ShowProjectDetails)
         {

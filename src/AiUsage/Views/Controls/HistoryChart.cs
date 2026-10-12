@@ -21,7 +21,16 @@ public sealed class HistoryChart : FrameworkElement
         // A value at 100% touches the top edge exactly; without this a pen's half-width can bleed
         // a pixel past the rounded border container that hosts this control.
         ClipToBounds = true;
+        // The colors come from theme resources read while drawing; a theme swap must redraw them.
+        Loaded += (_, _) =>
+        {
+            ThemeService.Applied -= OnThemeApplied;
+            ThemeService.Applied += OnThemeApplied;
+        };
+        Unloaded += (_, _) => ThemeService.Applied -= OnThemeApplied;
     }
+
+    private void OnThemeApplied(object? sender, EventArgs e) => InvalidateVisual();
 
     // No hardcoded literal here on purpose: every visible string comes from LocalizationService
     // - the caller binds this to [Chart.Empty].
@@ -275,27 +284,99 @@ public sealed class HistoryChart : FrameworkElement
             return -1;
 
         var span = (end - start).TotalSeconds;
+        double PixelOf(int index) => PlotX(span > 0 ? (points[index].At - start).TotalSeconds / span : 0, width);
+
+        // The points are time ordered, so the pixel x grows with the index: a point outside the
+        // visible range is never drawn and must not be offered on hover either (it would otherwise
+        // map to a pixel beyond the edges and still land within reach), which the two bounds cut off.
+        var low = FirstIndexAtOrAfter(points, start);
+        var high = FirstIndexAtOrAfter(points, end, strictlyAfter: true) - 1;
+        if (low > high)
+            return -1;
+
+        // The first visible point at or right of the pointer; its left neighbour is the other candidate.
+        var from = low;
+        var to = high + 1;
+        while (from < to)
+        {
+            var middle = from + (to - from) / 2;
+            if (PixelOf(middle) >= x)
+                to = middle;
+            else
+                from = middle + 1;
+        }
+
         var bestIndex = -1;
         var bestDistance = double.MaxValue;
-
-        for (var i = 0; i < points.Count; i++)
+        if (from <= high)
         {
-            // A point outside the visible range is never drawn, so it must not be offered on hover
-            // either (it would otherwise map to a pixel beyond the edges and still land within reach).
-            if (points[i].At < start || points[i].At > end)
-                continue;
+            bestIndex = from;
+            bestDistance = Math.Abs(PixelOf(from) - x);
+        }
 
-            var px = PlotX(span > 0 ? (points[i].At - start).TotalSeconds / span : 0, width);
-            var distance = Math.Abs(px - x);
-            if (distance < bestDistance)
+        if (from - 1 >= low)
+        {
+            var distance = Math.Abs(PixelOf(from - 1) - x);
+            if (distance <= bestDistance)
             {
+                bestIndex = from - 1;
                 bestDistance = distance;
-                bestIndex = i;
             }
         }
 
+        // Several samples at one instant: the first of them, as a front-to-back scan would pick.
+        while (bestIndex > low && points[bestIndex - 1].At == points[bestIndex].At)
+            bestIndex--;
+
         return bestDistance <= 12 ? bestIndex : -1;
     }
+
+    private static int FirstIndexAtOrAfter(IReadOnlyList<ChartPoint> points, DateTimeOffset moment, bool strictlyAfter = false)
+    {
+        var from = 0;
+        var to = points.Count;
+        while (from < to)
+        {
+            var middle = from + (to - from) / 2;
+            var at = points[middle].At;
+            if (strictlyAfter ? at > moment : at >= moment)
+                to = middle;
+            else
+                from = middle + 1;
+        }
+
+        return from;
+    }
+
+    /// <summary>Remembers the last reduction of one series, so a redraw at the same width over the
+    /// same data (every hover move) does not reduce tens of thousands of points again.</summary>
+    internal sealed class ReducedColumnsCache
+    {
+        private IReadOnlyList<ChartPoint>? _source;
+        private int _count;
+        private int _columns;
+        private DateTimeOffset _start;
+        private DateTimeOffset _end;
+        private IReadOnlyList<ChartPoint> _result = [];
+
+        public IReadOnlyList<ChartPoint> Get(IReadOnlyList<ChartPoint> points, int columns, DateTimeOffset start, DateTimeOffset end)
+        {
+            if (ReferenceEquals(_source, points) && _count == points.Count && _columns == columns && _start == start && _end == end)
+                return _result;
+
+            _result = ReduceToColumns(points, columns, start, end);
+            _source = points;
+            _count = points.Count;
+            _columns = columns;
+            _start = start;
+            _end = end;
+            return _result;
+        }
+    }
+
+    private readonly ReducedColumnsCache _fiveHourColumns = new();
+    private readonly ReducedColumnsCache _weeklyColumns = new();
+    private readonly ReducedColumnsCache _previousWeekColumns = new();
 
     protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
     {
@@ -513,8 +594,8 @@ public sealed class HistoryChart : FrameworkElement
         // collapse into a single column, leave fewer than two and would otherwise show bare grid
         // lines instead of the empty-state text.
         var columns = Math.Max(1, (int)Math.Round(width));
-        var fiveHourReduced = ReduceToColumns(fiveHourValues, columns, RangeStart, RangeEnd);
-        var weeklyReduced = ReduceToColumns(weeklyValues, columns, RangeStart, RangeEnd);
+        var fiveHourReduced = _fiveHourColumns.Get(fiveHourValues, columns, RangeStart, RangeEnd);
+        var weeklyReduced = _weeklyColumns.Get(weeklyValues, columns, RangeStart, RangeEnd);
         var hasFiveHour = fiveHourReduced.Count >= 2;
         var hasWeekly = weeklyReduced.Count >= 2;
 
@@ -607,7 +688,7 @@ public sealed class HistoryChart : FrameworkElement
             return;
 
         var columns = Math.Max(1, (int)Math.Round(width));
-        var reduced = ReduceToColumns(previousWeek, columns, RangeStart, RangeEnd);
+        var reduced = _previousWeekColumns.Get(previousWeek, columns, RangeStart, RangeEnd);
         if (reduced.Count < 2)
             return;
 
