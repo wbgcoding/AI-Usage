@@ -40,6 +40,7 @@ internal static class NativeMonitors
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
 
     private const int MdtEffectiveDpi = 0;
+    private const uint MonitorInfoFPrimary = 1;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Point
@@ -115,7 +116,8 @@ internal static class NativeMonitors
                 results.Add(new MonitorArea(
                     info.DeviceName,
                     info.WorkArea.Left / scale, info.WorkArea.Top / scale,
-                    (info.WorkArea.Right - info.WorkArea.Left) / scale, (info.WorkArea.Bottom - info.WorkArea.Top) / scale));
+                    (info.WorkArea.Right - info.WorkArea.Left) / scale, (info.WorkArea.Bottom - info.WorkArea.Top) / scale,
+                    (info.Flags & MonitorInfoFPrimary) != 0));
             }
 
             return true;

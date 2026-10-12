@@ -348,7 +348,7 @@ public partial class MainWindow : Window, IDisposable
     {
         var (cursorX, cursorY) = NativeMonitors.CursorPositionInWorkAreaUnits();
         var monitors = _monitorAreas.Areas;
-        var primary = FirstOrDefault(monitors);
+        var primary = WindowPlacementService.PrimaryOf(monitors);
 
         var resolved = WindowPlacementService.CenterOnCursorMonitor(
             cursorX, cursorY, Width, Math.Max(ActualHeight, MinHeight), monitors, primary);
@@ -919,7 +919,7 @@ public partial class MainWindow : Window, IDisposable
     private void ApplyRememberedPlacement()
     {
         var monitors = _monitorAreas.Areas;
-        var primary = monitors.FirstOrDefault(m => m.DeviceName == _settings.Window.MonitorDeviceName, FirstOrDefault(monitors));
+        var primary = monitors.FirstOrDefault(m => m.DeviceName == _settings.Window.MonitorDeviceName, WindowPlacementService.PrimaryOf(monitors));
         var desired = new WindowRect(_settings.Window.Left, _settings.Window.Top, Current.Width, Current.Height ?? MinHeight);
 
         var resolved = WindowPlacementService.ResolvePosition(desired, monitors, primary);
@@ -947,8 +947,6 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
-    private static MonitorArea FirstOrDefault(IReadOnlyList<MonitorArea> monitors) => monitors.Count > 0 ? monitors[0] : default;
-
     private static bool Contains(MonitorArea monitor, WindowRect rect) =>
         rect.Left >= monitor.Left && rect.Left < monitor.Right && rect.Top >= monitor.Top && rect.Top < monitor.Bottom;
 
@@ -974,7 +972,7 @@ public partial class MainWindow : Window, IDisposable
             }
         }
 
-        return monitors.FirstOrDefault(m => Contains(m, rect), FirstOrDefault(monitors));
+        return monitors.FirstOrDefault(m => Contains(m, rect), WindowPlacementService.PrimaryOf(monitors));
     }
 
     private void SystemParameters_HighContrastChanged(object? sender, PropertyChangedEventArgs e)

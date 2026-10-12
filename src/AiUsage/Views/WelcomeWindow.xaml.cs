@@ -39,7 +39,7 @@ public partial class WelcomeWindow : Window
     {
         var (cursorX, cursorY) = NativeMonitors.CursorPositionInWorkAreaUnits();
         var monitors = NativeMonitors.WorkAreas();
-        var primary = monitors.Count > 0 ? monitors[0] : default;
+        var primary = WindowPlacementService.PrimaryOf(monitors);
 
         var resolved = WindowPlacementService.CenterOnCursorMonitor(cursorX, cursorY, ActualWidth, ActualHeight, monitors, primary);
         Left = resolved.Left;

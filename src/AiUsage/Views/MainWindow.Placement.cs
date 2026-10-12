@@ -66,7 +66,7 @@ public partial class MainWindow
         _monitorAreas.Refresh();
 
         var monitors = _monitorAreas.Areas;
-        var primary = FirstOrDefault(monitors);
+        var primary = WindowPlacementService.PrimaryOf(monitors);
         var current = new WindowRect(Left, Top, Width, Math.Max(ActualHeight, MinHeight));
         var resolved = WindowPlacementService.ResolvePosition(current, monitors, primary);
         Left = resolved.Left;
