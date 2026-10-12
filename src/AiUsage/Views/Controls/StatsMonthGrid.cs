@@ -565,7 +565,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         return labels;
     }
 
-    internal readonly record struct GridFit(double CellSize, int VisibleColumns);
+    internal readonly record struct GridFit(double CellSize, int VisibleColumns, double Gap = CellGap);
 
     /// <summary>How the grid fits <paramref name="totalColumns"/> weeks into <paramref
     /// name="availableWidth"/>: the default cell size while every column still fits, otherwise a
@@ -576,17 +576,39 @@ public sealed class StatsMonthGrid : FrameworkElement
     internal static GridFit FitColumns(int totalColumns, double availableWidth, double gap, double defaultSize, double minSize)
     {
         if (totalColumns <= 0)
-            return new GridFit(defaultSize, totalColumns);
+            return new GridFit(defaultSize, totalColumns, gap);
 
         double Width(int columns, double size) => columns * size + Math.Max(0, columns - 1) * gap;
 
         if (availableWidth > 0 && Width(totalColumns, defaultSize) <= availableWidth)
-            return new GridFit(defaultSize, totalColumns);
+            return new GridFit(defaultSize, totalColumns, gap);
         if (availableWidth <= 0)
-            return new GridFit(minSize, totalColumns);
+            return new GridFit(minSize, totalColumns, gap);
 
         var shrunk = (availableWidth - Math.Max(0, totalColumns - 1) * gap) / totalColumns;
-        return new GridFit(Math.Max(shrunk, minSize), totalColumns);
+        return new GridFit(Math.Max(shrunk, minSize), totalColumns, gap);
+    }
+
+    // The tightest layout: cells down to this size with a one pixel gap, used before the grid would
+    // have to scroll sideways (and lose its weekday labels and legend off the edge).
+    internal const double CompactMinCellSize = 4;
+    private const double CompactGap = 1;
+
+    /// <summary>The regular fit, or - when even the minimum cell size does not fit <paramref
+    /// name="availableWidth"/> - the compact one: a thinner gap and smaller cells, so the whole year
+    /// still fits without a scrollbar. Only a width too small for that goes on to scroll.</summary>
+    internal static GridFit FitToWidth(int totalColumns, double availableWidth)
+    {
+        var regular = FitColumns(totalColumns, availableWidth, CellGap, DefaultCellSize, MinCellSize);
+        if (totalColumns <= 0 || availableWidth <= 0)
+            return regular;
+
+        var regularWidth = totalColumns * regular.CellSize + (totalColumns - 1) * CellGap;
+        if (regularWidth <= availableWidth + 0.01)
+            return regular;
+
+        var cell = (availableWidth - (totalColumns - 1) * CompactGap) / totalColumns;
+        return new GridFit(Math.Clamp(cell, CompactMinCellSize, MinCellSize), totalColumns, CompactGap);
     }
 
     private static Color WithIntensity(Color color, int step) =>
@@ -615,8 +637,8 @@ public sealed class StatsMonthGrid : FrameworkElement
     /// grid.</summary>
     private double EffectiveTopLabelHeight => ShowAxisLabels ? TopLabelHeight : 0;
 
-    private double ContentWidth(int totalColumns, double cellSize) =>
-        EffectiveLeftLabelWidth + totalColumns * cellSize + Math.Max(0, totalColumns - 1) * CellGap;
+    private double ContentWidth(int totalColumns, GridFit fit) =>
+        EffectiveLeftLabelWidth + totalColumns * fit.CellSize + Math.Max(0, totalColumns - 1) * fit.Gap;
 
     /// <summary>The prepared, ready-to-draw shape of the current bindings - computed once per measure
     /// and once per render so the two never disagree about how tall or wide the control is.</summary>
@@ -644,7 +666,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             columns = BuildColumns(gridStart, rangeEnd, Today, days, TotalColumns(gridStart, rangeEnd), HighlightStart, HighlightEnd);
         }
         var totalColumns = columns.Count;
-        var fit = FitColumns(totalColumns, Math.Max(0, availableWidth - EffectiveLeftLabelWidth), CellGap, DefaultCellSize, MinCellSize);
+        var fit = FitToWidth(totalColumns, Math.Max(0, availableWidth - EffectiveLeftLabelWidth));
         var sortedNonZero = ResolveColorScale(ColorScaleTotals, days, rangeStart, rangeEnd);
         var providerLegend = ShowLegend ? BuildProviderLegend([.. days.Where(day => day.Day >= rangeStart && day.Day <= rangeEnd)]) : [];
         return new PreparedLayout(true, columns, fit, sortedNonZero, providerLegend);
@@ -652,7 +674,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private int RowCount => SingleRow ? 1 : 7;
 
-    private double ContentHeight(double cellSize) => EffectiveTopLabelHeight + RowCount * cellSize + (RowCount - 1) * CellGap;
+    private double ContentHeight(GridFit fit) => EffectiveTopLabelHeight + RowCount * fit.CellSize + (RowCount - 1) * fit.Gap;
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -660,13 +682,13 @@ public sealed class StatsMonthGrid : FrameworkElement
         if (!layout.HasContent)
             return new Size(AvailableWidth, EmptyHeight);
 
-        var width = ContentWidth(layout.Columns.Count, layout.Fit.CellSize);
+        var width = ContentWidth(layout.Columns.Count, layout.Fit);
         if (!ShowLegend)
-            return new Size(width, ContentHeight(layout.Fit.CellSize));
+            return new Size(width, ContentHeight(layout.Fit));
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var legendRows = LegendFitsOneRow(layout.ProviderLegend, width, dpi, ChartFonts.UiTypeface(this)) ? 1 : 2;
-        return new Size(width, ContentHeight(layout.Fit.CellSize) + LegendGapTop + legendRows * LegendRowHeight);
+        return new Size(width, ContentHeight(layout.Fit) + LegendGapTop + legendRows * LegendRowHeight);
     }
 
     internal readonly record struct CellHit(Rect Rect, DateOnly Day, long Total, IReadOnlyList<ProviderTotal> ByProvider);
@@ -694,16 +716,16 @@ public sealed class StatsMonthGrid : FrameworkElement
 
         if (ShowAxisLabels)
         {
-            DrawWeekdayLabels(drawingContext, layout.Fit.CellSize, dpi, typeface);
-            DrawMonthLabels(drawingContext, layout.Columns, layout.Fit.CellSize, dpi, typeface);
+            DrawWeekdayLabels(drawingContext, layout.Fit, dpi, typeface);
+            DrawMonthLabels(drawingContext, layout.Columns, layout.Fit, dpi, typeface);
         }
-        DrawColumns(drawingContext, layout.Columns, layout.Fit.CellSize, layout.SortedNonZeroTotals);
+        DrawColumns(drawingContext, layout.Columns, layout.Fit, layout.SortedNonZeroTotals);
 
         if (!ShowLegend)
             return;
 
-        var contentWidth = ContentWidth(layout.Columns.Count, layout.Fit.CellSize);
-        var legendY = ContentHeight(layout.Fit.CellSize) + LegendGapTop;
+        var contentWidth = ContentWidth(layout.Columns.Count, layout.Fit);
+        var legendY = ContentHeight(layout.Fit) + LegendGapTop;
         DrawIntensityScale(drawingContext, legendY, contentWidth, dpi, typeface, layout.ProviderLegend);
         if (layout.ProviderLegend.Count > 0)
         {
@@ -712,8 +734,9 @@ public sealed class StatsMonthGrid : FrameworkElement
         }
     }
 
-    private void DrawWeekdayLabels(DrawingContext dc, double cellSize, double dpi, Typeface typeface)
+    private void DrawWeekdayLabels(DrawingContext dc, GridFit fit, double dpi, Typeface typeface)
     {
+        var cellSize = fit.CellSize;
         const DayOfWeek firstDayOfWeek = DayOfWeek.Monday;
         var dayAbbreviations = CultureInfo.CurrentCulture.DateTimeFormat.AbbreviatedDayNames;
         for (var row = 0; row < 7; row++)
@@ -722,18 +745,18 @@ public sealed class StatsMonthGrid : FrameworkElement
             if (dayOfWeek is not (DayOfWeek.Monday or DayOfWeek.Wednesday or DayOfWeek.Friday))
                 continue;
 
-            var y = EffectiveTopLabelHeight + row * (cellSize + CellGap);
+            var y = EffectiveTopLabelHeight + row * (cellSize + fit.Gap);
             var text = new FormattedText(
                 dayAbbreviations[(int)dayOfWeek], CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 8, EmptyTextBrush, dpi);
             dc.DrawText(text, new Point(0, y + (cellSize - text.Height) / 2));
         }
     }
 
-    private void DrawMonthLabels(DrawingContext dc, IReadOnlyList<GridCell?[]> columns, double cellSize, double dpi, Typeface typeface)
+    private void DrawMonthLabels(DrawingContext dc, IReadOnlyList<GridCell?[]> columns, GridFit fit, double dpi, Typeface typeface)
     {
         foreach (var (column, label) in MonthLabels(columns, CultureInfo.CurrentCulture))
         {
-            var x = EffectiveLeftLabelWidth + column * (cellSize + CellGap);
+            var x = EffectiveLeftLabelWidth + column * (fit.CellSize + fit.Gap);
             var text = new FormattedText(label, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 11, TextBrush, dpi);
             // A month that only just began in the last column has no room for its name; a cut-off
             // name reads worse than none.
@@ -744,17 +767,18 @@ public sealed class StatsMonthGrid : FrameworkElement
     }
 
     private void DrawColumns(
-        DrawingContext dc, IReadOnlyList<GridCell?[]> columns, double cellSize, IReadOnlyList<long> sortedNonZeroTotals)
+        DrawingContext dc, IReadOnlyList<GridCell?[]> columns, GridFit fit, IReadOnlyList<long> sortedNonZeroTotals)
     {
+        var cellSize = fit.CellSize;
         for (var column = 0; column < columns.Count; column++)
         {
-            var x = EffectiveLeftLabelWidth + column * (cellSize + CellGap);
+            var x = EffectiveLeftLabelWidth + column * (cellSize + fit.Gap);
             for (var row = 0; row < 7; row++)
             {
                 if (columns[column][row] is not { } cell)
                     continue;
 
-                var y = EffectiveTopLabelHeight + row * (cellSize + CellGap);
+                var y = EffectiveTopLabelHeight + row * (cellSize + fit.Gap);
                 var rect = new Rect(x, y, cellSize, cellSize);
 
                 if (cell.IsFuture)

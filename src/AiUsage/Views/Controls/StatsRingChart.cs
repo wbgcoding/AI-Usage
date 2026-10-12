@@ -241,8 +241,18 @@ public sealed class StatsRingChart : FrameworkElement
         return (Math.Max(0, outerRadius - strokeThickness / 2), strokeThickness);
     }
 
-    private const double LegendWidth = 120;
+    private const double LegendGap = 12;
+    private const double MinLegendWidth = 100;
     private const double LegendRowHeight = 18;
+
+    /// <summary>The ring's diameter and where the legend starts: the legend sits right after the ring
+    /// and gets all the rest of the width; a narrow control shrinks the ring before the legend loses
+    /// its minimum width. Pure so the layout is unit testable without a visual tree.</summary>
+    internal static (double Diameter, double LegendX) RingLayout(double width, double height)
+    {
+        var diameter = Math.Clamp(width - MinLegendWidth - LegendGap, 0, height);
+        return (diameter, diameter + LegendGap);
+    }
 
     /// <summary>True when a click on a slice or a legend entry means something.</summary>
     public static readonly DependencyProperty IsActivatableProperty = DependencyProperty.Register(
@@ -325,9 +335,8 @@ public sealed class StatsRingChart : FrameworkElement
         if (width <= 0 || height <= 0 || slices.Count == 0 || slices.All(slice => slice.Percent <= 0))
             return -1;
 
-        var ringArea = Math.Max(0, width - LegendWidth);
-        var diameter = Math.Min(ringArea, height);
-        var center = new Point(ringArea / 2, height / 2);
+        var (diameter, legendStart) = RingLayout(width, height);
+        var center = new Point(diameter / 2, height / 2);
         var (radius, strokeThickness) = RingGeometry(diameter);
 
         var dx = point.X - center.X;
@@ -349,7 +358,7 @@ public sealed class StatsRingChart : FrameworkElement
             return -1;
         }
 
-        var legendX = Math.Min(ringArea + 8, Math.Max(0, width - 4));
+        var legendX = Math.Min(legendStart, Math.Max(0, width - 4));
         var legendTop = Math.Max(0, (height - slices.Count * LegendRowHeight) / 2);
         if (point.X >= legendX && point.Y >= legendTop)
         {
@@ -386,9 +395,8 @@ public sealed class StatsRingChart : FrameworkElement
             return;
         }
 
-        var ringArea = Math.Max(0, width - LegendWidth);
-        var diameter = Math.Min(ringArea, height);
-        var center = new Point(ringArea / 2, height / 2);
+        var (diameter, legendStart) = RingLayout(width, height);
+        var center = new Point(diameter / 2, height / 2);
         var (radius, strokeThickness) = RingGeometry(diameter);
 
         var brushes = SliceBrushes;
@@ -406,7 +414,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         DrawCenterText(drawingContext, slices, brushes, center, radius, strokeThickness, dpi, typeface);
 
-        DrawLegend(drawingContext, slices, brushes, ringArea, width, height, dpi, typeface);
+        DrawLegend(drawingContext, slices, brushes, legendStart, width, height, dpi, typeface);
     }
 
     private const double CenterValueBaseFontSize = 13;
@@ -557,7 +565,7 @@ public sealed class StatsRingChart : FrameworkElement
         const double rowHeight = LegendRowHeight;
         var totalHeight = slices.Count * rowHeight;
         var y = Math.Max(0, (height - totalHeight) / 2);
-        var x = Math.Min(legendX + 8, Math.Max(0, width - 4));
+        var x = Math.Min(legendX, Math.Max(0, width - 4));
 
         for (var i = 0; i < slices.Count; i++)
         {
@@ -565,17 +573,33 @@ public sealed class StatsRingChart : FrameworkElement
             dc.DrawRectangle(brush, null, new Rect(x, y + (rowHeight - swatch) / 2, swatch, swatch));
 
             var percentText = slices[i].LegendText ?? StatsBarChart.PercentLabel(slices[i].Percent, CultureInfo.CurrentCulture);
-            var text = $"{slices[i].Label} · {percentText}";
-            var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi)
+            var (label, percent) = LegendEntryTexts(
+                slices[i].Label, percentText, Math.Max(1, width - x - swatch - 8), dpi, typeface, TextBrush);
+            var textX = x + swatch + 4;
+            dc.DrawText(label, new Point(textX, y + (rowHeight - label.Height) / 2));
+            dc.DrawText(percent, new Point(textX + label.Width, y + (rowHeight - percent.Height) / 2));
+
+            y += rowHeight;
+        }
+    }
+
+    /// <summary>One legend entry as two texts: the label, trimmed with an ellipsis to what is left of
+    /// <paramref name="maxWidth"/>, and " · figure" right after it. The figure is the number the ring
+    /// exists to show, so it is laid out first and never cut; only the label gives way.</summary>
+    internal static (FormattedText Label, FormattedText Figure) LegendEntryTexts(
+        string label, string figure, double maxWidth, double dpi, Typeface typeface, Brush brush)
+    {
+        FormattedText Make(string text, double limit) =>
+            new(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, brush, dpi)
             {
-                MaxTextWidth = Math.Max(1, width - x - swatch - 8),
+                MaxTextWidth = Math.Max(1, limit),
                 // One line per row: a wrapped second line would run into the next row.
                 MaxLineCount = 1,
                 Trimming = TextTrimming.CharacterEllipsis,
             };
-            dc.DrawText(formatted, new Point(x + swatch + 4, y + (rowHeight - formatted.Height) / 2));
 
-            y += rowHeight;
-        }
+        var figureText = Make(" · " + figure, maxWidth);
+        var labelText = Make(label, maxWidth - figureText.Width);
+        return (labelText, figureText);
     }
 }

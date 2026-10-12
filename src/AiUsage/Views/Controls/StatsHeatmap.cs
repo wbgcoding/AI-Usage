@@ -207,11 +207,16 @@ public sealed class StatsHeatmap : FrameworkElement
     private CellHit? _hoverCell;
     private (int Row, int Column)? _focusedCell;
 
-    private static double CellHeightFor(double width)
-    {
-        var cellWidth = (width - LeftLabelWidth - (Columns - 1) * CellGap) / Columns;
-        return Math.Clamp(cellWidth, MinCellHeight, MaxCellHeight);
-    }
+    /// <summary>The width of one cell in a control <paramref name="width"/> wide: never below one
+    /// pixel, so a very narrow control cannot produce a negative rectangle.</summary>
+    internal static double CellWidthFor(double width) =>
+        Math.Max(1, (width - LeftLabelWidth - (Columns - 1) * CellGap) / Columns);
+
+    private static double CellHeightFor(double width) =>
+        Math.Clamp(CellWidthFor(width), MinCellHeight, MaxCellHeight);
+
+    /// <summary>True when the control is wide enough to draw anything beside the label column.</summary>
+    internal static bool CanDrawCells(double width) => width > LeftLabelWidth;
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -245,7 +250,10 @@ public sealed class StatsHeatmap : FrameworkElement
             return;
         }
 
-        var cellWidth = (width - LeftLabelWidth - (Columns - 1) * CellGap) / Columns;
+        if (!CanDrawCells(width))
+            return;
+
+        var cellWidth = CellWidthFor(width);
         var cellHeight = CellHeightFor(width);
         var sorted = SortedNonZero(Values);
         var accent = AccentBrush is SolidColorBrush solid ? solid.Color : Colors.SteelBlue;
