@@ -49,6 +49,15 @@ public sealed partial class CodexProvider : IUsageProvider
     private readonly Dictionary<WindowKind, (double UsedPercent, DateTimeOffset? ResetsAt)> _lastAcceptedLocalReading = new();
     private readonly Dictionary<WindowKind, (double UsedPercent, DateTimeOffset? ResetsAt, DateTimeOffset? DataTimestamp, DateTimeOffset FirstSeen)> _pendingLocalOutlier = new();
 
+    // Session files read to their start without a usable rate-limit line, by path: the same length and
+    // write time means the same content, so the next walk skips the file. Pruned to the files of the
+    // current walk, so it never outgrows MaxFilesToCheck.
+    private readonly Dictionary<string, (long Length, DateTime WriteTimeUtc)> _filesWithoutUsableLine = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Session files opened for reading lines over this provider's lifetime - internal so a
+    /// test can prove an unchanged file is not read a second time.</summary>
+    internal int FilesOpened { get; private set; }
+
     public CodexProvider() : this(CodexPaths.Sessions, now: null)
     {
     }
@@ -220,6 +229,9 @@ public sealed partial class CodexProvider : IUsageProvider
                 return new LocalRead(NoLocalData(fetchedAt, diagnostics.DirectoryMissing()), FromSessionFile: false);
 
             var files = LocalFileScan.NewestFiles(_sessionsRoot, "rollout-*.jsonl", MaxDepth, MaxFilesToCheck);
+            var walked = files.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in _filesWithoutUsableLine.Keys.Where(path => !walked.Contains(path)).ToList())
+                _filesWithoutUsableLine.Remove(path);
             ProviderSnapshot? newestSnapshot = null;
             var newestIsRejection = false;
 
@@ -244,6 +256,11 @@ public sealed partial class CodexProvider : IUsageProvider
                 if (fetchedAt.UtcDateTime - file.LastWriteTimeUtc > OldestFileToOpen)
                     break;
 
+                // Files come newest first and no line is newer than its file: once a file is older than
+                // the best event found, nothing after it can beat that event.
+                if (newestSnapshot?.DataTimestamp is { } newestEvent && file.LastWriteTimeUtc < newestEvent.UtcDateTime)
+                    break;
+
                 filesChecked++;
 
                 // A file's write time says nothing about how recent the rate-limit EVENT inside it
@@ -253,6 +270,15 @@ public sealed partial class CodexProvider : IUsageProvider
                 // timestamp wins across all of them, not just the first file examined.
                 try
                 {
+                    // Read to its start before without finding a rate-limit line, and not touched
+                    // since: the answer is the same, so the file is not opened again.
+                    if (_filesWithoutUsableLine.TryGetValue(file.FullName, out var known)
+                        && known == (file.Length, file.LastWriteTimeUtc))
+                        continue;
+
+                    FilesOpened++;
+                    var foundUsableLine = false;
+
                     // Set the instant a later line in this file is a genuine error event naming a
                     // rejection (HTTP 429, or a message naming a usage limit) - reading newest-first,
                     // that is any such line seen BEFORE the percentage line itself is reached below.
@@ -291,8 +317,12 @@ public sealed partial class CodexProvider : IUsageProvider
                             newestIsRejection = sawUsageLimitRejectionSinceNewestPercent;
                         }
 
+                        foundUsableLine = true;
                         break; // this file's newest usable event is found - move on to the next file
                     }
+
+                    if (!foundUsableLine)
+                        _filesWithoutUsableLine[file.FullName] = (file.Length, file.LastWriteTimeUtc);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {

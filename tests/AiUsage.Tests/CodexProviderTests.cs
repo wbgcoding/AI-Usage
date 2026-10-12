@@ -131,6 +131,46 @@ public class CodexProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_second_scan_of_unchanged_files_without_a_usable_line_opens_none_of_them()
+    {
+        var now = DateTimeOffset.Parse("2026-09-01T10:01:00Z");
+        var directory = NewSessionsDirectory();
+        for (var index = 0; index < 3; index++)
+            PlaceFixture(directory, "codex-null-windows.jsonl", $"rollout-empty-{index}.jsonl", now.AddMinutes(-index));
+        var provider = new CodexProvider(directory, () => now);
+
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(3, provider.FilesOpened);
+
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(3, provider.FilesOpened);
+
+        // A file written to since is looked at again.
+        File.AppendAllText(Path.Combine(directory, "rollout-empty-1.jsonl"), RateLimitLine(now, 7, UnixSeconds(now.AddHours(2))) + Environment.NewLine);
+        File.SetLastWriteTimeUtc(Path.Combine(directory, "rollout-empty-1.jsonl"), now.UtcDateTime);
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+        Assert.Equal(4, provider.FilesOpened);
+        Assert.Equal(7.0, snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+    }
+
+    [Fact]
+    public async Task The_scan_stops_at_a_file_older_than_the_newest_event_already_found()
+    {
+        var now = DateTimeOffset.Parse("2026-09-01T10:01:00Z");
+        var directory = NewSessionsDirectory();
+        var newest = Path.Combine(directory, "rollout-newest.jsonl");
+        WriteTick(newest, now.AddMinutes(-1), primaryPercent: 12, primaryResetsAtUnix: UnixSeconds(now.AddHours(3)));
+        for (var index = 1; index <= 3; index++)
+            WriteTick(Path.Combine(directory, $"rollout-older-{index}.jsonl"), now.AddHours(-index), primaryPercent: 5, primaryResetsAtUnix: UnixSeconds(now.AddHours(3)));
+        var provider = new CodexProvider(directory, () => now);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(12.0, snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+        Assert.Equal(1, provider.FilesOpened);
+    }
+
+    [Fact]
     public async Task FetchAsync_picks_the_newest_event_by_its_own_timestamp_not_by_file_write_time()
     {
         var now = DateTimeOffset.Parse("2026-09-01T10:01:00Z");

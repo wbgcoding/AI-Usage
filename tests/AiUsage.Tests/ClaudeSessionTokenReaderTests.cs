@@ -98,6 +98,50 @@ public class ClaudeSessionTokenReaderTests : IDisposable
     }
 
     [Fact]
+    public void Two_sessions_taking_turns_as_the_newest_file_are_not_re_read_from_the_start()
+    {
+        var first = WriteFile(
+            ClaudeLine("2026-01-01T12:00:00Z", input: 10, output: 20, cacheCreation: 0, cacheRead: 0),
+            ClaudeLine("2026-01-01T12:00:05Z", input: 1, output: 2, cacheCreation: 0, cacheRead: 0));
+        var second = WriteFile(ClaudeLine("2026-01-01T12:01:00Z", input: 100, output: 200, cacheCreation: 0, cacheRead: 0));
+        var reader = new ClaudeSessionTokenReader();
+
+        reader.SumTokens(first);
+        reader.SumTokens(second);
+        var readSoFar = reader.TotalBytesRead;
+
+        // Back to the first file, unchanged: nothing is read again, the sum is still its own.
+        Assert.Equal(10 + 20 + 1 + 2, reader.SumTokens(first));
+        Assert.Equal(readSoFar, reader.TotalBytesRead);
+
+        // Both grow: each only reads what was appended to it.
+        var appended = ClaudeLine("2026-01-01T12:02:00Z", input: 5, output: 6, cacheCreation: 0, cacheRead: 0) + "\n";
+        File.AppendAllText(first, appended);
+        File.AppendAllText(second, appended);
+        Assert.Equal(10 + 20 + 1 + 2 + 5 + 6, reader.SumTokens(first));
+        Assert.Equal(100 + 200 + 5 + 6, reader.SumTokens(second));
+        Assert.Equal(readSoFar + 2 * appended.Length, reader.TotalBytesRead);
+    }
+
+    [Fact]
+    public void Only_the_last_four_files_are_remembered()
+    {
+        var reader = new ClaudeSessionTokenReader();
+        var files = Enumerable.Range(0, 5)
+            .Select(i => WriteFile(ClaudeLine("2026-01-01T12:00:00Z", input: 10 + i, output: 0, cacheCreation: 0, cacheRead: 0)))
+            .ToList();
+        foreach (var file in files)
+            reader.SumTokens(file);
+        var readSoFar = reader.TotalBytesRead;
+
+        // The newest four are still known; the oldest was dropped and is read again.
+        reader.SumTokens(files[4]);
+        Assert.Equal(readSoFar, reader.TotalBytesRead);
+        reader.SumTokens(files[0]);
+        Assert.True(reader.TotalBytesRead > readSoFar);
+    }
+
+    [Fact]
     public void SumTokens_counts_a_response_written_several_times_only_once()
     {
         // Claude Code writes one response more than once: same message id, same request id, same numbers.
