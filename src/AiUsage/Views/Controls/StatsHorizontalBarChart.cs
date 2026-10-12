@@ -41,7 +41,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private static void OnRowsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var chart = (StatsHorizontalBarChart)d;
-        chart._iconCache.Clear();
+        chart.ForgetStaleIcons((IReadOnlyList<StatsProjectRow>)e.NewValue);
         chart._focusedRowIndex = -1;
         AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<StatsProjectRow>)e.NewValue));
     }
@@ -389,35 +389,67 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     internal static double BarWidth(long value, long maxValue, double maxWidth) =>
         maxValue <= 0 ? 0 : Math.Max(0, value) / (double)maxValue * maxWidth;
 
-    private readonly Dictionary<string, BitmapSource?> _iconCache = [];
+    private const int MaxCachedIcons = 64;
 
-    /// <summary>Decodes and caches <paramref name="iconPath"/> once - re-decoding a project's icon
-    /// on every single render pass would undo the whole point of <see cref="ProjectColorResolver"/>'s
-    /// own on-disk cache. Cleared whenever <see cref="Rows"/> changes (<see cref="OnRowsChanged"/>),
-    /// since a project's icon can only ever change between one <see cref="Rows"/> assignment and the
-    /// next, never mid-render.</summary>
+    private readonly record struct CachedIcon(DateTime WriteUtc, int PixelWidth, BitmapSource? Image);
+
+    private readonly Dictionary<string, CachedIcon> _iconCache = [];
+
+    /// <summary>Drops cached icons whose file changed since they were decoded, and (past a bound)
+    /// those no row asks for any more. The rest stays across <see cref="Rows"/> changes: decoding a
+    /// project's icon again on every range or grouping click would undo the whole point of <see
+    /// cref="ProjectColorResolver"/>'s own on-disk cache.</summary>
+    private void ForgetStaleIcons(IReadOnlyList<StatsProjectRow> rows)
+    {
+        var wanted = rows.Select(row => row.IconPath).Where(path => !string.IsNullOrEmpty(path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, cached) in _iconCache.ToList())
+        {
+            if (!wanted.Contains(path) ? _iconCache.Count > MaxCachedIcons : SafeWriteUtc(path) != cached.WriteUtc)
+                _iconCache.Remove(path);
+        }
+    }
+
+    private static DateTime SafeWriteUtc(string path)
+    {
+        try { return System.IO.File.GetLastWriteTimeUtc(path); }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { return DateTime.MinValue; }
+    }
+
+    /// <summary>The icon of <paramref name="iconPath"/>, decoded once at the size it is drawn.</summary>
     private BitmapSource? GetIcon(string? iconPath)
     {
         if (string.IsNullOrEmpty(iconPath))
             return null;
-        if (_iconCache.TryGetValue(iconPath, out var cached))
-            return cached;
 
-        BitmapSource? decoded = null;
+        var pixelWidth = (int)Math.Ceiling(RichIconSize * VisualTreeHelper.GetDpi(this).DpiScaleX);
+        if (_iconCache.TryGetValue(iconPath, out var cached) && cached.PixelWidth == pixelWidth)
+            return cached.Image;
+
+        var decoded = DecodeIcon(iconPath, pixelWidth);
+        _iconCache[iconPath] = new CachedIcon(SafeWriteUtc(iconPath), pixelWidth, decoded);
+        return decoded;
+    }
+
+    /// <summary>A frozen bitmap decoded to <paramref name="pixelWidth"/>; null for a file that cannot
+    /// be read as an image, whatever way the decoder fails on it.</summary>
+    internal static BitmapSource? DecodeIcon(string iconPath, int pixelWidth)
+    {
         try
         {
             using var stream = System.IO.File.OpenRead(iconPath);
-            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-            if (decoder.Frames.Count > 0)
-                decoded = new FormatConvertedBitmap(decoder.Frames[0], PixelFormats.Bgra32, null, 0);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.DecodePixelWidth = Math.Max(1, pixelWidth);
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
         }
-        catch (Exception ex) when (ex is System.IO.IOException or NotSupportedException or UnauthorizedAccessException or FileFormatException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            decoded = null;
+            return null;
         }
-
-        _iconCache[iconPath] = decoded;
-        return decoded;
     }
 
     private int _hoverIndex = -1;

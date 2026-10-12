@@ -30,6 +30,7 @@ public static class ProjectColorResolver
     // Raised whenever the icon search changes what it finds, so colors computed from an older find are
     // recomputed once.
     private const int CacheVersion = 2;
+    private const int MaxCachedProjects = 300;
     private const int MaxIconSearchDepth = 6;
     private const int DeclaredIconSearchDepth = 3;
     private const int MaxDirectoryEntriesInspected = 5000;
@@ -80,45 +81,140 @@ public static class ProjectColorResolver
     /// the same list in a different order can pick different fallback colors for the entries that
     /// need one, though never a color already spoken for earlier in this same call. Reuses
     /// <paramref name="cacheFilePath"/>'s stored entry for a folder whose icon path and last-write
-    /// time have not changed since it was last computed; everything else (a first run, a changed or
-    /// vanished icon, or a cache file from an unrecognised version) is recomputed and the cache
-    /// rewritten to match.</summary>
-    public static IReadOnlyDictionary<string, ProjectColorInfo> ResolveAll(IReadOnlyList<string> projectFolders, string cacheFilePath)
+    /// time have not changed since it was last computed, without walking the folder again while its
+    /// own write time is unchanged; everything else (a first run, a changed or vanished icon, or a
+    /// cache file from an unrecognised version) is recomputed and the cache rewritten to match.
+    /// Entries of folders not in this call stay (unless the folder is gone), so a project keeps its
+    /// color across calls with different folder sets. A folder that is not on a local drive is never
+    /// touched: hash color, no icon. One folder that fails never costs the others their color.</summary>
+    public static IReadOnlyDictionary<string, ProjectColorInfo> ResolveAll(IReadOnlyList<string> projectFolders, string cacheFilePath) =>
+        ResolveAll(projectFolders, cacheFilePath, FindIconFile, DominantIconColor);
+
+    private static readonly object ResolveGate = new();
+
+    /// <summary>Same, with the folder walk and the icon decode swapped for a test.</summary>
+    internal static IReadOnlyDictionary<string, ProjectColorInfo> ResolveAll(
+        IReadOnlyList<string> projectFolders, string cacheFilePath,
+        Func<string, string?> findIcon, Func<string, Color?> dominantIconColor)
     {
-        var cache = LoadCache(cacheFilePath);
-        var nextCache = new Dictionary<string, CacheEntry>();
-        var result = new Dictionary<string, ProjectColorInfo>();
-        var usedHues = new List<double>(ChartPalette.ProviderHueList);
-
-        foreach (var folder in projectFolders)
+        lock (ResolveGate)
         {
-            var iconPath = FindIconFile(folder);
-            var iconWriteUtc = iconPath is not null ? SafeLastWriteUtc(iconPath) : null;
+            var cache = LoadCache(cacheFilePath);
+            var nextCache = KeepEntriesOfOtherFolders(cache, projectFolders);
+            var result = new Dictionary<string, ProjectColorInfo>();
+            var usedHues = new List<double>(ChartPalette.ProviderHueList);
 
-            if (cache.TryGetValue(folder, out var cached)
-                && cached.IconPath == iconPath
-                && cached.IconLastWriteUtc == iconWriteUtc
-                && TryParseColor(cached.ColorHex, out var cachedColor))
+            foreach (var folder in projectFolders)
             {
-                result[folder] = new ProjectColorInfo(cachedColor, iconPath);
-                nextCache[folder] = cached;
-                usedHues.Add(ChartPalette.HslOf(cachedColor).H);
-                continue;
+                ProjectColorInfo info;
+                CacheEntry entry;
+                try
+                {
+                    (info, entry) = ResolveFolder(folder, cache, usedHues, findIcon, dominantIconColor);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // This folder falls back to its hash color; the rest of the call goes on.
+                    var fallback = ResolveColor(folder, null, usedHues, dominantIconColor);
+                    info = new ProjectColorInfo(fallback, null);
+                    entry = new CacheEntry(null, null, ColorToHex(fallback));
+                }
+
+                result[folder] = info;
+                nextCache[folder] = entry;
+                usedHues.Add(ChartPalette.HslOf(info.Color).H);
             }
 
-            var color = ResolveColor(folder, iconPath, usedHues);
-            result[folder] = new ProjectColorInfo(color, iconPath);
-            nextCache[folder] = new CacheEntry(iconPath, iconWriteUtc, ColorToHex(color));
-            usedHues.Add(ChartPalette.HslOf(color).H);
+            if (!SameEntries(cache, nextCache))
+                SaveCache(cacheFilePath, nextCache);
+            return result;
         }
-
-        SaveCache(cacheFilePath, nextCache);
-        return result;
     }
 
-    private static Color ResolveColor(string projectFolder, string? iconPath, IReadOnlyList<double> excludedHues)
+    private static (ProjectColorInfo Info, CacheEntry Entry) ResolveFolder(
+        string folder, Dictionary<string, CacheEntry> cache, List<double> usedHues,
+        Func<string, string?> findIcon, Func<string, Color?> dominantIconColor)
     {
-        if (iconPath is not null && DominantIconColor(iconPath) is { } iconColor)
+        var hasCached = cache.TryGetValue(folder, out var cached);
+        var cachedColor = default(Color);
+        var cachedValid = hasCached && TryParseColor(cached!.ColorHex, out cachedColor);
+
+        if (!IsLocalFolder(folder))
+        {
+            var color = cachedValid ? cachedColor : ResolveColor(folder, null, usedHues, dominantIconColor);
+            return (new ProjectColorInfo(color, null), new CacheEntry(null, null, ColorToHex(color)));
+        }
+
+        var folderWrite = SafeFolderWriteUtc(folder);
+        if (cachedValid && folderWrite is not null && cached!.FolderLastWriteUtc == folderWrite && IconUnchanged(cached))
+            return (new ProjectColorInfo(cachedColor, cached.IconPath), cached);
+
+        var iconPath = findIcon(folder);
+        var iconWriteUtc = iconPath is not null ? SafeLastWriteUtc(iconPath) : null;
+        if (cachedValid && cached!.IconPath == iconPath && cached.IconLastWriteUtc == iconWriteUtc)
+            return (new ProjectColorInfo(cachedColor, iconPath), cached with { FolderLastWriteUtc = folderWrite });
+
+        var resolved = ResolveColor(folder, iconPath, usedHues, dominantIconColor);
+        return (new ProjectColorInfo(resolved, iconPath), new CacheEntry(iconPath, iconWriteUtc, ColorToHex(resolved), folderWrite));
+    }
+
+    private static bool IconUnchanged(CacheEntry cached) =>
+        cached.IconPath is null
+        || (File.Exists(cached.IconPath) && SafeLastWriteUtc(cached.IconPath) == cached.IconLastWriteUtc);
+
+    /// <summary>The stored entries of folders this call does not ask for, minus those whose folder is
+    /// gone (checked only on a local drive), capped in size.</summary>
+    private static Dictionary<string, CacheEntry> KeepEntriesOfOtherFolders(
+        Dictionary<string, CacheEntry> cache, IReadOnlyList<string> projectFolders)
+    {
+        var kept = new Dictionary<string, CacheEntry>();
+        var asked = new HashSet<string>(projectFolders);
+        foreach (var (folder, entry) in cache)
+        {
+            if (kept.Count >= MaxCachedProjects)
+                break;
+            if (asked.Contains(folder) || (IsLocalFolder(folder) && !Directory.Exists(folder)))
+                continue;
+            kept[folder] = entry;
+        }
+
+        return kept;
+    }
+
+    private static bool SameEntries(Dictionary<string, CacheEntry> a, Dictionary<string, CacheEntry> b) =>
+        a.Count == b.Count && a.All(pair => b.TryGetValue(pair.Key, out var other) && other == pair.Value);
+
+    /// <summary>True for a fully qualified path on a local drive. A network share, a mapped network
+    /// drive and anything not rooted at a drive letter is never read.</summary>
+    internal static bool IsLocalFolder(string folder)
+    {
+        try
+        {
+            if (!Path.IsPathFullyQualified(folder))
+                return false;
+
+            var root = Path.GetPathRoot(folder);
+            if (string.IsNullOrEmpty(root) || root.Length < 2 || !char.IsAsciiLetter(root[0]) || root[1] != ':')
+                return false;
+
+            return new DriveInfo(root[..1]).DriveType is not (DriveType.Network or DriveType.Unknown or DriveType.NoRootDirectory);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static DateTime? SafeFolderWriteUtc(string folder)
+    {
+        try { return Directory.Exists(folder) ? Directory.GetLastWriteTimeUtc(folder) : null; }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
+    }
+
+    private static Color ResolveColor(string projectFolder, string? iconPath, IReadOnlyList<double> excludedHues, Func<string, Color?> dominantIconColor)
+    {
+        if (iconPath is not null && dominantIconColor(iconPath) is { } iconColor)
             return iconColor;
 
         var projectName = Path.GetFileName(projectFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -504,6 +600,19 @@ public static class ProjectColorResolver
     /// decode, has no frames, or has no pixel left standing after that filter.</summary>
     internal static Color? DominantIconColor(string iconFilePath)
     {
+        try
+        {
+            return DecodeDominantColor(iconFilePath);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A damaged file can fail the decoder in many ways; it just has no color of its own.
+            return null;
+        }
+    }
+
+    private static Color? DecodeDominantColor(string iconFilePath)
+    {
         BitmapSource frame;
         try
         {
@@ -634,5 +743,5 @@ public static class ProjectColorResolver
         public Dictionary<string, CacheEntry>? Entries { get; set; }
     }
 
-    internal sealed record CacheEntry(string? IconPath, DateTime? IconLastWriteUtc, string ColorHex);
+    internal sealed record CacheEntry(string? IconPath, DateTime? IconLastWriteUtc, string ColorHex, DateTime? FolderLastWriteUtc = null);
 }

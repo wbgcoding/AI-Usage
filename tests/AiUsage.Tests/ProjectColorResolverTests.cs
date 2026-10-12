@@ -382,6 +382,113 @@ public class ProjectColorResolverTests
     }
 
     [Fact]
+    public void AProjectKeepsItsColorAcrossCallsWithDifferentFolderSets()
+    {
+        using var a = TestPaths.CreateDisposableDirectory("keep-a-project");
+        using var b = TestPaths.CreateDisposableDirectory("keep-b-project");
+        using var c = TestPaths.CreateDisposableDirectory("keep-c-project");
+        using var d = TestPaths.CreateDisposableDirectory("keep-d-project");
+        var cachePath = TestPaths.GetPath("project-colors-keep", ".json");
+
+        var first = ProjectColorResolver.ResolveAll([a.Path, b.Path, c.Path], cachePath);
+        ProjectColorResolver.ResolveAll([d.Path], cachePath);
+
+        var stored = File.ReadAllText(cachePath);
+        foreach (var folder in new[] { a.Path, b.Path, c.Path, d.Path })
+            Assert.Contains(folder.Replace("\\", "\\\\"), stored);
+
+        var again = ProjectColorResolver.ResolveAll([c.Path, b.Path, a.Path], cachePath);
+        foreach (var folder in new[] { a.Path, b.Path, c.Path })
+            Assert.Equal(first[folder].Color, again[folder].Color);
+    }
+
+    [Fact]
+    public void ACacheEntryOfAFolderThatIsGoneIsDropped()
+    {
+        using var kept = TestPaths.CreateDisposableDirectory("drop-kept-project");
+        var gone = Path.Combine(TestPaths.CreateDirectory("drop-gone-parent"), "vanished-project");
+        Directory.CreateDirectory(gone);
+        var cachePath = TestPaths.GetPath("project-colors-drop", ".json");
+        ProjectColorResolver.ResolveAll([kept.Path, gone], cachePath);
+        Directory.Delete(gone);
+
+        ProjectColorResolver.ResolveAll([kept.Path], cachePath);
+
+        Assert.DoesNotContain("vanished-project", File.ReadAllText(cachePath));
+    }
+
+    [Fact]
+    public void AnIconThatMakesTheDecoderThrowOnlyCostsItsOwnFolderItsColor()
+    {
+        using var broken = TestPaths.CreateDisposableDirectory("throwing-icon-project");
+        using var healthy = TestPaths.CreateDisposableDirectory("healthy-icon-project");
+        var cachePath = TestPaths.GetPath("project-colors-throwing", ".json");
+        var green = Color.FromRgb(20, 180, 60);
+
+        var result = ProjectColorResolver.ResolveAll(
+            [broken.Path, healthy.Path], cachePath,
+            folder => Path.Combine(folder, "icon.png"),
+            icon => icon.Contains("throwing-icon", StringComparison.Ordinal)
+                ? throw new InvalidOperationException("damaged")
+                : green);
+
+        Assert.Equal(2, result.Count);
+        Assert.Null(result[broken.Path].IconPath);
+        Assert.Equal(green, result[healthy.Path].Color);
+        Assert.NotNull(result[healthy.Path].IconPath);
+    }
+
+    [Fact]
+    public void ANetworkFolderIsNeverWalkedAndGetsAHashColorWithoutAnIcon()
+    {
+        var calls = 0;
+        var cachePath = TestPaths.GetPath("project-colors-unc", ".json");
+
+        var result = ProjectColorResolver.ResolveAll(
+            [@"\\offline-host\share\project"], cachePath,
+            _ =>
+            {
+                calls++;
+                return null;
+            },
+            _ => null);
+
+        Assert.Equal(0, calls);
+        Assert.Null(result[@"\\offline-host\share\project"].IconPath);
+    }
+
+    [Theory]
+    [InlineData(@"\\host\share\project", false)]
+    [InlineData(@"relative\project", false)]
+    [InlineData("project", false)]
+    [InlineData(@"C:\Windows", true)]
+    public void OnlyAFullyQualifiedPathOnALocalDriveCountsAsLocal(string folder, bool expected) =>
+        Assert.Equal(expected, ProjectColorResolver.IsLocalFolder(folder));
+
+    [Fact]
+    public void TheFolderWalkIsSkippedWhileTheFolderIsUnchanged()
+    {
+        using var project = TestPaths.CreateDisposableDirectory("walk-skip-project");
+        var cachePath = TestPaths.GetPath("project-colors-walk", ".json");
+        var calls = 0;
+        string? Find(string folder)
+        {
+            calls++;
+            return null;
+        }
+
+        ProjectColorResolver.ResolveAll([project.Path], cachePath, Find, _ => null);
+        Assert.Equal(1, calls);
+
+        ProjectColorResolver.ResolveAll([project.Path], cachePath, Find, _ => null);
+        Assert.Equal(1, calls); // unchanged: served from the cache
+
+        Directory.SetLastWriteTimeUtc(project.Path, DateTime.UtcNow.AddMinutes(5));
+        ProjectColorResolver.ResolveAll([project.Path], cachePath, Find, _ => null);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
     public void ResolveAllCacheRoundTripsAndRejectsAnUnrecognisedVersion()
     {
         using var project = TestPaths.CreateDisposableDirectory("gamma-cache-project");

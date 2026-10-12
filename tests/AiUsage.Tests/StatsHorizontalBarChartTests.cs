@@ -11,6 +11,29 @@ namespace AiUsage.Tests;
 public class StatsHorizontalBarChartTests
 {
     [Fact]
+    public void An_icon_is_decoded_small_and_frozen_and_a_damaged_file_gives_none()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("chart-icon");
+        var png = Path.Combine(dir.Path, "icon.png");
+        var pixels = new byte[64 * 64 * 4];
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(64, 64, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, pixels, 64 * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using (var stream = File.Create(png))
+            encoder.Save(stream);
+        var damaged = Path.Combine(dir.Path, "damaged.png");
+        File.WriteAllBytes(damaged, [1, 2, 3, 4, 5, 6, 7, 8]);
+
+        var decoded = StatsHorizontalBarChart.DecodeIcon(png, 20);
+
+        Assert.NotNull(decoded);
+        Assert.Equal(20, decoded!.PixelWidth);
+        Assert.True(decoded.IsFrozen);
+        Assert.Null(StatsHorizontalBarChart.DecodeIcon(damaged, 20));
+        Assert.Null(StatsHorizontalBarChart.DecodeIcon(Path.Combine(dir.Path, "missing.png"), 20));
+    }
+
+    [Fact]
     public void Desired_height_follows_the_row_count()
     {
         var (one, three, none) = RunOnSta(() =>
