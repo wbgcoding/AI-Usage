@@ -279,6 +279,35 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task Without_a_profile_folder_no_browser_is_started_and_the_answer_is_signed_out()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var profileExists = false;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        }, profileExists: () => profileExists);
+
+        var answer = await runner.ExecuteScriptAsync("script", CancellationToken.None);
+
+        Assert.Equal(0, starts);
+        Assert.Contains("not_signed_in", answer);
+
+        // The sign-in has created the folder: the next read starts the session.
+        profileExists = true;
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        while (current is null || current.ExecuteCalls == 0)
+            await Task.Delay(5);
+        current.CompleteScript("{}");
+        Assert.Equal("{}", await call);
+        Assert.Equal(1, starts);
+    }
+
+    [Fact]
     public async Task After_disposal_a_further_call_answers_not_signed_in_without_starting_a_new_host()
     {
         var starts = 0;

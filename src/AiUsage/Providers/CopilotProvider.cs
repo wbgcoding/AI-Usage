@@ -71,6 +71,11 @@ public sealed class CopilotProvider : IUsageProvider
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
     {
         var fetchedAt = _now();
+
+        // The quota call goes to GitHub: a held fetch (pause, energy saver) makes no request.
+        if (FetchContext.NetworkHeld)
+            return ProviderSnapshots.NoData(AccountKey, fetchedAt);
+
         var result = await _read(ct);
 
         // Copilot has exactly one source (the GitHub CLI's own sign-in), so the chooser has nothing

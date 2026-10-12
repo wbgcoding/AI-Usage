@@ -20,6 +20,25 @@ public class CursorProviderTests
     private static CursorProvider Provider(WebUsageResult result) => Provider(_ => Task.FromResult(result));
 
     [Fact]
+    public async Task A_held_network_makes_no_read_and_shows_no_data()
+    {
+        var reads = 0;
+        var provider = Provider(_ =>
+        {
+            reads++;
+            return Task.FromResult(WebUsageResult.NotSignedIn);
+        });
+
+        ProviderSnapshot snapshot;
+        using (AiUsage.Services.FetchContext.HoldNetwork())
+            snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(0, reads);
+        Assert.Equal(ProviderStatus.NoLocalData, snapshot.Status);
+        Assert.Empty(snapshot.Windows);
+    }
+
+    [Fact]
     public async Task An_ok_result_with_windows_shows_as_ok_through_the_web_session()
     {
         var snapshot = await Provider(new WebUsageResult(WebUsageOutcome.Ok, [Window])).FetchAsync(CancellationToken.None);

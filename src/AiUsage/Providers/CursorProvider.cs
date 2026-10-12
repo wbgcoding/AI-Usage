@@ -71,6 +71,10 @@ public sealed class CursorProvider : IUsageProvider
     {
         var fetchedAt = _now();
 
+        // The read goes to cursor.com: a held fetch (pause, energy saver) makes no request.
+        if (FetchContext.NetworkHeld)
+            return ProviderSnapshots.NoData(AccountKey, fetchedAt);
+
         WebUsageResult web;
         try
         {

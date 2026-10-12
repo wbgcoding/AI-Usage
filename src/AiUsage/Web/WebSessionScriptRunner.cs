@@ -42,6 +42,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     private readonly TimeSpan _navigationTimeout;
     private readonly TimeSpan _scriptTimeout;
     private readonly TimeProvider _timeProvider;
+    private readonly Func<bool>? _profileExists;
     private IHiddenBrowserHost? _host;
     private Task? _ready;
 
@@ -80,7 +81,8 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     public WebSessionScriptRunner(WebSessionDescriptor descriptor)
         : this(() => new WebView2HiddenBrowserHost(new WebViewHost(descriptor), descriptor),
             providerId: descriptor.ProviderId, timingLog: WebReadTimingLog.Shared,
-            writeTimingLine: LogService.Shared.LogInfo)
+            writeTimingLine: LogService.Shared.LogInfo,
+            profileExists: () => WebViewHost.ProfileExists(descriptor.ProfileFolderName))
     {
     }
 
@@ -91,8 +93,9 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     internal WebSessionScriptRunner(
         Func<IHiddenBrowserHost> hostFactory, TimeSpan? navigationTimeout = null, TimeSpan? scriptTimeout = null, TimeProvider? timeProvider = null,
         TimeSpan? suspendWait = null, string providerId = "web", WebReadTimingLog? timingLog = null,
-        Action<string>? writeTimingLine = null)
+        Action<string>? writeTimingLine = null, Func<bool>? profileExists = null)
     {
+        _profileExists = profileExists;
         _providerId = providerId;
         _timingLog = timingLog;
         _writeTimingLine = writeTimingLine;
@@ -109,6 +112,14 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
             return NotSignedInEnvelope;
 
         ct.ThrowIfCancellationRequested();
+
+        // Nothing was ever signed in here (no profile folder yet): a browser would cost a whole
+        // WebView2 process tree and a request to the provider's site for a user who may never use
+        // this route. "Signed out" is the honest answer and what the tile needs to offer the
+        // sign-in; the read starts for real once that sign-in has created the folder. A running
+        // host proves the folder exists.
+        if (_host is null && _profileExists is { } profileExists && !profileExists())
+            return NotSignedInEnvelope;
 
         Interlocked.Increment(ref _inFlight);
         DisarmIdleTimer();

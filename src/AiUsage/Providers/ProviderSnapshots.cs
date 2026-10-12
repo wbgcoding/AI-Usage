@@ -30,6 +30,18 @@ internal static class ProviderSnapshots
             : OfflineError,
         SkipReasonWord: skipReasonWord);
 
+    /// <summary>The answer of a fetch that leaves the network alone (a pause or the energy saver holds
+    /// network reads back): no windows, no failure, nothing to retry.</summary>
+    internal static ProviderSnapshot NoData(string accountKey, DateTimeOffset fetchedAt) => new(
+        ProviderId: accountKey,
+        Windows: [],
+        PlanType: null,
+        SourceKind: SourceKind.None,
+        FetchedAt: fetchedAt,
+        DataTimestamp: null,
+        Status: ProviderStatus.NoLocalData,
+        Error: null);
+
     /// <summary>The offline stand-in alone: null while the machine is online, so a caller whose
     /// failure case has nothing better to say can fall through to its own fallback.</summary>
     internal static ProviderSnapshot? OfflineOrNull(string accountKey, DateTimeOffset fetchedAt) =>

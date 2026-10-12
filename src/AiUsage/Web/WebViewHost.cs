@@ -70,6 +70,13 @@ public sealed class WebViewHost : IAsyncDisposable
     /// creating or migrating anything - for asking whether one is still on disk.</summary>
     internal static string ProfileFolderPath(string profileFolderName) => Path.Combine(RootFolder(), profileFolderName);
 
+    /// <summary>Whether anything was ever signed in under <paramref name="profileFolderName"/>: its
+    /// folder exists, or (for the one provider that had a session before the per-provider layout) the
+    /// old flat profile is still in the root waiting for its migration.</summary>
+    internal static bool ProfileExists(string profileFolderName) =>
+        Directory.Exists(ProfileFolderPath(profileFolderName))
+        || (profileFolderName == LegacyFlatProfileOwner && Directory.Exists(Path.Combine(RootFolder(), "EBWebView")));
+
     /// <summary>Points every session at another root: a second instance's own profile folder, or a
     /// test's fake root well away from the real shared one.</summary>
     internal static void SetRootOverride(string root) => _rootOverride = root;

@@ -29,6 +29,25 @@ public class CopilotProviderTests
         new((_) => Task.FromResult(fetch), () => Now);
 
     [Fact]
+    public async Task A_held_network_makes_no_call_and_shows_no_data()
+    {
+        var calls = 0;
+        var provider = new CopilotProvider(_ =>
+        {
+            calls++;
+            return Task.FromResult(new CopilotFetch(GitHubCliOutcome.Ok, UserJson));
+        }, () => Now);
+
+        ProviderSnapshot snapshot;
+        using (AiUsage.Services.FetchContext.HoldNetwork())
+            snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(0, calls);
+        Assert.Equal(ProviderStatus.NoLocalData, snapshot.Status);
+        Assert.Empty(snapshot.Windows);
+    }
+
+    [Fact]
     public async Task A_signed_in_read_fills_one_window_per_real_quota_bucket()
     {
         var snapshot = await Provider(new CopilotFetch(GitHubCliOutcome.Ok, UserJson)).FetchAsync(CancellationToken.None);

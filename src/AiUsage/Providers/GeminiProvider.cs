@@ -130,6 +130,10 @@ public sealed class GeminiProvider : IUsageProvider
                     Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn);
         }
 
+        // The sign-in read asks Google's servers: a held fetch (pause, energy saver) makes no request.
+        if (FetchContext.NetworkHeld)
+            return ProviderSnapshots.NoData(AccountKey, fetchedAt);
+
         var readLocal = _read;
         var usage = await Task.Run(() => readLocal(ct), ct);
         var local = BuildSnapshot(usage, fetchedAt);

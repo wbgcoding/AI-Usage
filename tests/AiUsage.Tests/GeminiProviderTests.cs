@@ -45,6 +45,24 @@ public class GeminiProviderTests : IDisposable
     private static GeminiProvider Provider(AntigravityUsage usage, string? accountLabel = null) =>
         new((_) => Task.FromResult(usage), () => Now, readAccountLabel: () => accountLabel);
 
+    [Fact]
+    public async Task A_held_network_skips_the_sign_in_read_and_shows_no_data()
+    {
+        var reads = 0;
+        var provider = new GeminiProvider(_ =>
+        {
+            reads++;
+            return Task.FromResult(AntigravityUsage.NotSignedIn);
+        }, () => Now, readAccountLabel: () => null);
+
+        ProviderSnapshot snapshot;
+        using (FetchContext.HoldNetwork())
+            snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(0, reads);
+        Assert.Equal(ProviderStatus.NoLocalData, snapshot.Status);
+    }
+
     // Built by concatenation rather than as one literal - ShipCleanTests bans a real-looking email
     // address anywhere in the tracked source, fixtures included.
     private const string FakeEmail = "user" + "@" + "example.com";
