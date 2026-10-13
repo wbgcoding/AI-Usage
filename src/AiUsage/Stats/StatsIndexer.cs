@@ -393,7 +393,7 @@ public sealed class StatsIndexer
             return (false, 0, 0);
 
         var offset = existing?.Offset ?? 0;
-        var ownPath = existing?.Path ?? path;
+        var ownFileId = owners?.FileIdOf(existing?.Path ?? path);
         var foreignKeys = new HashSet<string>(StringComparer.Ordinal);
         var copies = new ClaudeCopyTracker(existing);
         var project = ClaudeUsageLogParser.ExtractProjectFromFilePath(path);
@@ -417,7 +417,7 @@ public sealed class StatsIndexer
             {
                 if (ClaudeUsageLogParser.TryParse(line, out var usageEvent))
                 {
-                    if (owners is not null && IsCountedByAnotherFile(usageEvent.MessageKey, ownPath, copies, owners, foreignKeys))
+                    if (owners is not null && IsCountedByAnotherFile(usageEvent.MessageKey, ownFileId, copies, owners, foreignKeys))
                     {
                         linesSkipped++;
                         return;
@@ -470,7 +470,7 @@ public sealed class StatsIndexer
     /// this file has already counted (or settled as foreign) is not looked up again; an empty key
     /// belongs to no one.</summary>
     private static bool IsCountedByAnotherFile(
-        string key, string ownPath, ClaudeCopyTracker copies, StatsStore.ClaudeOwnerLookup owners, HashSet<string> foreignKeys)
+        string key, long? ownFileId, ClaudeCopyTracker copies, StatsStore.ClaudeOwnerLookup owners, HashSet<string> foreignKeys)
     {
         if (key.Length == 0 || copies.HasCounted(key))
             return false;
@@ -478,7 +478,7 @@ public sealed class StatsIndexer
             return true;
 
         var owner = owners.OwnerOf(key);
-        if (owner is null || string.Equals(owner, ownPath, StringComparison.OrdinalIgnoreCase))
+        if (owner is null || owner == ownFileId)
             return false;
 
         foreignKeys.Add(key);
@@ -1035,6 +1035,7 @@ public sealed class StatsIndexer
         var copies = new ClaudeCopyTracker(null);
         var foreignKeys = new HashSet<string>(StringComparer.Ordinal);
         var ownKeys = new HashSet<string>(StringComparer.Ordinal);
+        var ownFileId = owners.FileIdOf(path);
 
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         if (stream.Length < state.Offset)
@@ -1056,7 +1057,7 @@ public sealed class StatsIndexer
                     return;
 
                 var owner = owners.OwnerOf(key);
-                if (owner is null || string.Equals(owner, path, StringComparison.OrdinalIgnoreCase))
+                if (owner is null || owner == ownFileId)
                 {
                     ownKeys.Add(key);
                     return;
@@ -1090,6 +1091,7 @@ public sealed class StatsIndexer
         var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
         var fallbackSessionId = ClaudeUsageLogParser.FallbackSessionId(path);
         var countedKeys = new HashSet<string>(StringComparer.Ordinal);
+        var ownFileId = owners?.FileIdOf(path);
 
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         if (stream.Length < state.Offset)
@@ -1102,7 +1104,7 @@ public sealed class StatsIndexer
             if (usageEvent.MessageKey.Length > 0 && !countedKeys.Add(usageEvent.MessageKey))
                 return;
             if (owners is not null && usageEvent.MessageKey.Length > 0
-                && owners.OwnerOf(usageEvent.MessageKey) is { } owner && !string.Equals(owner, path, StringComparison.OrdinalIgnoreCase))
+                && owners.OwnerOf(usageEvent.MessageKey) is { } owner && owner != ownFileId)
                 return;
 
             sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,

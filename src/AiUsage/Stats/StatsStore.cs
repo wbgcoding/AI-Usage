@@ -1,5 +1,8 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using AiUsage.Storage;
 using Microsoft.Data.Sqlite;
 
@@ -32,9 +35,9 @@ public sealed class StatsStore
     // token columns to source_file (a Claude response written several times counts its fullest
     // copy); every row stays, and the part earlier builds missed is added once from the source files
     // that still exist. Schema v9 adds the claude_message table (which source file counted each Claude
-    // response first, so a copy of it in a resumed or forked transcript is not counted again); every
-    // row stays, and the copies already counted twice are subtracted once from the source files that
-    // still exist.
+    // response first, so a copy of it in a resumed or forked transcript is not counted again; keyed by
+    // a 64-bit hash of the message key, the file as a number from claude_file); every row stays, and
+    // the copies already counted twice are subtracted once from the source files that still exist.
     internal const int SchemaVersion = 9;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved
@@ -432,7 +435,7 @@ public sealed class StatsStore
         TryExecute(connection, "PRAGMA journal_mode = DELETE");
     }
 
-    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message"];
+    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message", "claude_file"];
 
     /// <summary>Drops everything in the file's schema that this app did not create: triggers and views,
     /// tables other than its own, and every explicit index (the app declares none; the indexes that
@@ -757,10 +760,14 @@ public sealed class StatsStore
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS claude_file (
+                id INTEGER PRIMARY KEY,
+                path TEXT NOT NULL UNIQUE COLLATE NOCASE
+            );
             CREATE TABLE IF NOT EXISTS claude_message (
-                key TEXT PRIMARY KEY,
-                path TEXT NOT NULL
-            ) WITHOUT ROWID;
+                hash INTEGER PRIMARY KEY,
+                file INTEGER NOT NULL
+            );
             """);
 
         // Files from before v8 lack the counted token columns (new, unset: NULL).
@@ -1429,18 +1436,41 @@ public sealed class StatsStore
     private static void ClaimClaudeKeysWithinTransaction(
         SqliteConnection connection, SqliteTransaction transaction, string path, IReadOnlyCollection<string> keys)
     {
+        // Rows are never pruned: a resumed copy of a transcript that is gone must still be recognised.
+        using (var add = connection.CreateCommand())
+        {
+            add.Transaction = transaction;
+            add.CommandText = "INSERT OR IGNORE INTO claude_file (path) VALUES ($path)";
+            add.Parameters.AddWithValue("$path", path);
+            add.ExecuteNonQuery();
+        }
+
+        long file;
+        using (var find = connection.CreateCommand())
+        {
+            find.Transaction = transaction;
+            find.CommandText = "SELECT id FROM claude_file WHERE path = $path";
+            find.Parameters.AddWithValue("$path", path);
+            file = Convert.ToInt64(find.ExecuteScalar(), CultureInfo.InvariantCulture);
+        }
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "INSERT OR IGNORE INTO claude_message (key, path) VALUES ($key, $path)";
-        var key = AddParameter(command, "$key", SqliteType.Text);
-        command.Parameters.AddWithValue("$path", path);
+        command.CommandText = "INSERT OR IGNORE INTO claude_message (hash, file) VALUES ($hash, $file)";
+        var hash = AddParameter(command, "$hash", SqliteType.Integer);
+        command.Parameters.AddWithValue("$file", file);
         command.Prepare();
         foreach (var value in keys)
         {
-            key.Value = value;
+            hash.Value = ClaudeKeyHash(value);
             command.ExecuteNonQuery();
         }
     }
+
+    /// <summary>A stable 64-bit digest of a Claude message key: the first eight bytes of its SHA-256.
+    /// Two different responses meet only by a chance of about one in 10^19 per pair.</summary>
+    internal static long ClaudeKeyHash(string key) =>
+        BinaryPrimitives.ReadInt64LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
 
     /// <summary>Opens a lookup of which file counted a Claude response first; null when the index
     /// cannot be read. Holds one connection and one prepared statement, so a file with thousands of
@@ -1468,28 +1498,49 @@ public sealed class StatsStore
     {
         private readonly SqliteConnection _connection;
         private readonly SqliteCommand _command;
-        private readonly SqliteParameter _key;
+        private readonly SqliteParameter _hash;
+        private readonly SqliteCommand _fileCommand;
+        private readonly SqliteParameter _path;
 
         internal ClaudeOwnerLookup(SqliteConnection connection)
         {
             _connection = connection;
             _command = connection.CreateCommand();
-            _command.CommandText = "SELECT path FROM claude_message WHERE key = $key";
-            _key = AddParameter(_command, "$key", SqliteType.Text);
+            _command.CommandText = "SELECT file FROM claude_message WHERE hash = $hash";
+            _hash = AddParameter(_command, "$hash", SqliteType.Integer);
+            _fileCommand = connection.CreateCommand();
+            _fileCommand.CommandText = "SELECT id FROM claude_file WHERE path = $path";
+            _path = AddParameter(_fileCommand, "$path", SqliteType.Text);
         }
 
         /// <summary>True once a lookup failed: the answers so far cannot be trusted and the file being
         /// read must be left for the next walk.</summary>
         public bool Failed { get; private set; }
 
-        /// <summary>The file that counted <paramref name="key"/> first; null when none did (or the
-        /// lookup failed).</summary>
-        public string? OwnerOf(string key)
+        /// <summary>The file (its number, see <see cref="FileIdOf"/>) that counted <paramref name="key"/>
+        /// first; null when none did (or the lookup failed).</summary>
+        public long? OwnerOf(string key)
         {
             try
             {
-                _key.Value = key;
-                return _command.ExecuteScalar() as string;
+                _hash.Value = ClaudeKeyHash(key);
+                return _command.ExecuteScalar() is long file ? file : null;
+            }
+            catch (SqliteException)
+            {
+                Failed = true;
+                return null;
+            }
+        }
+
+        /// <summary>The number of a file that owns at least one response; null for a file that owns
+        /// none (or when the lookup failed).</summary>
+        public long? FileIdOf(string path)
+        {
+            try
+            {
+                _path.Value = path;
+                return _fileCommand.ExecuteScalar() is long file ? file : null;
             }
             catch (SqliteException)
             {
@@ -1501,6 +1552,7 @@ public sealed class StatsStore
         public void Dispose()
         {
             _command.Dispose();
+            _fileCommand.Dispose();
             _connection.Dispose();
         }
     }
@@ -2018,6 +2070,20 @@ public sealed class StatsStore
                 delete.CommandText = "DELETE FROM source_file WHERE path = $path";
                 delete.Parameters.AddWithValue("$path", oldPath);
                 delete.ExecuteNonQuery();
+            }
+
+            // What the old path counted stays its own under the new path.
+            using (var follow = connection.CreateCommand())
+            {
+                follow.Transaction = transaction;
+                follow.CommandText = """
+                    UPDATE OR IGNORE claude_file SET path = $new WHERE path = $old;
+                    UPDATE OR REPLACE meta SET key = $skipPrefix || $new WHERE key = $skipPrefix || $old;
+                    """;
+                follow.Parameters.AddWithValue("$new", newPath);
+                follow.Parameters.AddWithValue("$old", oldPath);
+                follow.Parameters.AddWithValue("$skipPrefix", ClaudeOwnerSkipPrefix);
+                follow.ExecuteNonQuery();
             }
 
             SetSourceFileWithinTransaction(connection, transaction, moved);

@@ -36,7 +36,7 @@ public class StatsClaudeOwnerTests
     }
 
     private static long OwnedBy(string dbPath, string transcript) =>
-        (long)Scalar(dbPath, $"SELECT COUNT(*) FROM claude_message WHERE path = '{transcript.Replace("'", "''")}'")!;
+        (long)Scalar(dbPath, $"SELECT COUNT(*) FROM claude_message m JOIN claude_file f ON f.id = m.file WHERE f.path = '{transcript.Replace("'", "''")}'")!;
 
     private static (long Input, long Output) Totals(StatsStore store)
     {
@@ -304,6 +304,31 @@ public class StatsClaudeOwnerTests
         // The first copy of each response (5 + 20): what the session pass has always counted.
         Assert.Equal(25L, sessions["sess-1"].OutputTokens);
         Assert.Equal(3L, sessions["sess-2"].OutputTokens);
+    }
+
+    [Fact]
+    public void A_claim_is_a_number_pair_and_survives_the_deletion_of_its_transcript()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-kept-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-kept-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-kept-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var original = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // Neither the message key nor a path is stored per response.
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM pragma_table_info('claude_message') WHERE type <> 'INTEGER'"));
+        Assert.NotEqual(StatsStore.ClaudeKeyHash("m1|r-m1"), StatsStore.ClaudeKeyHash("m2|r-m2"));
+        Assert.Equal(StatsStore.ClaudeKeyHash("m1|r-m1"), StatsStore.ClaudeKeyHash("m1|r-m1"));
+
+        // Claude Code deletes the original; a later transcript still repeats its history.
+        File.Delete(original);
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-3.jsonl", New, New, ResumedLines());
+        var again = new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.Equal((157L, 490L), Totals(store));
+        Assert.Equal((1L, 3L), (again.Claude.LinesParsed, again.Claude.LinesSkipped));
     }
 
     [Fact]
