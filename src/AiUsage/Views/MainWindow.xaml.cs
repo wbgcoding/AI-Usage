@@ -1027,7 +1027,7 @@ public partial class MainWindow : Window, IDisposable
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
     {
         _monitorAreas.Refresh();
-        var hwndSource = (HwndSource)PresentationSource.FromVisual(this)!;
+        var hwndSource = WindowChromeNative.SourceOf(this)!;
         hwndSource.AddHook(WndProc);
 
         WindowChromeNative.Bootstrap(this, followsOpacity: true);
@@ -1135,7 +1135,7 @@ public partial class MainWindow : Window, IDisposable
     /// comes back only if it was this that hid it.</summary>
     private void FullscreenWatcher_FullscreenChanged(object? sender, bool fullscreen)
     {
-        if (PresentationSource.FromVisual(this) is not HwndSource hwndSource)
+        if (WindowChromeNative.SourceOf(this) is not { } hwndSource)
             return;
 
         if (fullscreen)
@@ -1189,7 +1189,7 @@ public partial class MainWindow : Window, IDisposable
                 MicaBackdrop.Reevaluate();
         }
 
-        if (PresentationSource.FromVisual(this) is HwndSource hwndSource)
+        if (WindowChromeNative.SourceOf(this) is { } hwndSource)
             NativeWindowStyle.SetClickThrough(hwndSource.Handle, clickThrough);
 
         if (opacityChanged && resolvedOpacity >= 100)

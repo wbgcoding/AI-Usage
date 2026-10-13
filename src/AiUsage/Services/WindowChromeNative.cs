@@ -11,6 +11,12 @@ namespace AiUsage.Services;
 /// </summary>
 public static class WindowChromeNative
 {
+    /// <summary>The window's own HwndSource once its handle exists, also while SourceInitialized is
+    /// running for a handle created ahead of the first Show (the window is not yet the source's root
+    /// visual then, so <see cref="PresentationSource.FromVisual"/> still answers null).</summary>
+    public static HwndSource? SourceOf(Window window) =>
+        new WindowInteropHelper(window).Handle is var handle && handle != IntPtr.Zero ? HwndSource.FromHwnd(handle) : null;
+
     /// <param name="roundedCorners">False for a window that never used the rounded chrome card in the
     /// first place (<see cref="Views.SignInWindow"/>, which hosts a WebView2 control and has always
     /// been a plain square window) - corner rounding does not apply.</param>
@@ -25,12 +31,12 @@ public static class WindowChromeNative
         firstFrame = (_, _) =>
         {
             window.ContentRendered -= firstFrame;
-            if (followsOpacity && PresentationSource.FromVisual(window) is HwndSource renderedSource)
+            if (followsOpacity && SourceOf(window) is { } renderedSource)
                 WindowOpacity.Redraw(renderedSource.Handle);
         };
         window.ContentRendered += firstFrame;
 
-        if (PresentationSource.FromVisual(window) is HwndSource hwndSource)
+        if (SourceOf(window) is { } hwndSource)
         {
             Apply(hwndSource.Handle, roundedCorners, followsOpacity, mica);
             return;
@@ -38,7 +44,7 @@ public static class WindowChromeNative
 
         window.SourceInitialized += (_, _) =>
         {
-            if (PresentationSource.FromVisual(window) is HwndSource lateSource)
+            if (SourceOf(window) is { } lateSource)
                 Apply(lateSource.Handle, roundedCorners, followsOpacity, mica);
         };
     }
