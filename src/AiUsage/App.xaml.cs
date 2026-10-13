@@ -326,7 +326,18 @@ public partial class App : Application, IDisposable
     {
         HandleFatal(e.Exception);
         e.Handled = true;
-        Shutdown();
+        RequestShutdown();
+    }
+
+    /// <summary>The one way to end the running app once the main window may exist: the window is marked
+    /// as really closing first, because WPF ignores a cancelled Closing during a shutdown and would
+    /// otherwise hide into the tray instead of saving and disposing. Shutdown calls made before the
+    /// window exists (headless switches, the single-instance hand-over) use Shutdown directly.</summary>
+    internal static void RequestShutdown()
+    {
+        if (Current is App app)
+            app._mainWindow?.PrepareForShutdown();
+        Current?.Shutdown();
     }
 
     /// <summary>A background task nobody awaited failed: on record in the log, not fatal.</summary>

@@ -16,16 +16,46 @@ public class MainWindowCloseGuardTests
     {
         var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Views", "MainWindow.xaml.cs"));
 
+        // The tray exit marks the window through the shared shutdown route, not on its own.
+        Assert.Contains("private void ShutdownFromTray() => App.RequestShutdown();", source, StringComparison.Ordinal);
+
         var assignments = Regex.Matches(source, @"_reallyClosing\s*=\s*true");
         Assert.Equal(2, assignments.Count);
 
-        foreach (var method in new[] { "private void ShutdownFromTray()", "private void Application_SessionEnding(" })
+        foreach (var method in new[] { "public void PrepareForShutdown()", "private void Application_SessionEnding(" })
         {
             var methodStart = source.IndexOf(method, StringComparison.Ordinal);
             Assert.True(methodStart >= 0, method + " not found");
             var methodBody = source.Substring(methodStart, Math.Min(300, source.Length - methodStart));
             Assert.Contains("_reallyClosing = true", methodBody, StringComparison.Ordinal);
         }
+    }
+
+    /// <summary>WPF ignores a cancelled Closing while the application shuts down, so a Shutdown() that
+    /// reaches the main window without it being marked as really closing hides into the tray instead
+    /// of saving and disposing (ghost tray icon, lost placement). Every shutdown that can run while
+    /// the window exists therefore goes through App.RequestShutdown.</summary>
+    [Fact]
+    public void EveryShutdownThatCanRunWithTheMainWindowGoesThroughTheSharedRoute()
+    {
+        var src = Path.Combine(FindRepoRoot(), "src", "AiUsage");
+        var app = File.ReadAllText(Path.Combine(src, "App.xaml.cs"));
+        var settings = File.ReadAllText(Path.Combine(src, "ViewModels", "SettingsViewModel.cs"));
+
+        Assert.DoesNotContain("Application.Current?.Shutdown()", settings, StringComparison.Ordinal);
+        Assert.Contains("App.RequestShutdown()", settings, StringComparison.Ordinal);
+
+        var handlerStart = app.IndexOf("private void OnDispatcherUnhandledException(", StringComparison.Ordinal);
+        Assert.True(handlerStart >= 0);
+        var handlerBody = app.Substring(handlerStart, 250);
+        Assert.Contains("RequestShutdown()", handlerBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("Shutdown();", handlerBody.Replace("RequestShutdown();", ""), StringComparison.Ordinal);
+
+        var routeStart = app.IndexOf("internal static void RequestShutdown()", StringComparison.Ordinal);
+        Assert.True(routeStart >= 0);
+        var routeBody = app.Substring(routeStart, 250);
+        Assert.True(routeBody.IndexOf("PrepareForShutdown()", StringComparison.Ordinal)
+            < routeBody.IndexOf("Current?.Shutdown()", StringComparison.Ordinal));
     }
 
     /// <summary>The window used to write its position only when a mouse drag ended, so a window moved

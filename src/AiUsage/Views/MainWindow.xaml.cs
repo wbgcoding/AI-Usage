@@ -1729,11 +1729,12 @@ public partial class MainWindow : Window, IDisposable
     private void UpdateLater_Click(object sender, RoutedEventArgs e) => ViewModel.Update.Dismiss();
 
     /// <summary>The only way the window is really allowed to close - the tray menu's exit item (Tray.Exit).</summary>
-    private void ShutdownFromTray()
-    {
-        _reallyClosing = true;
-        Application.Current.Shutdown();
-    }
+    private void ShutdownFromTray() => App.RequestShutdown();
+
+    /// <summary>Marks the window as really closing, so the Closing event WPF raises during an
+    /// application shutdown tears down instead of hiding into the tray (WPF ignores the cancel there).
+    /// Every shutdown goes through <see cref="App.RequestShutdown"/>, which calls this first.</summary>
+    public void PrepareForShutdown() => _reallyClosing = true;
 
     private void TitleBarControl_CollapseToggleRequested(object? sender, EventArgs e)
     {
@@ -1755,10 +1756,18 @@ public partial class MainWindow : Window, IDisposable
             return;
         }
 
-        _tickTimer.Stop();
-        SaveWindowSettings();
-        _settingsStore.SaveNow(_settings);
-        Dispose();
+        // Also runs on the crash path, where a second exception must not escape the shutdown.
+        try
+        {
+            _tickTimer.Stop();
+            SaveWindowSettings();
+            _settingsStore.SaveNow(_settings);
+            Dispose();
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Teardown on close failed ({ex.GetType().Name}): {ex.Message}");
+        }
     }
 
     public void Dispose()

@@ -1562,7 +1562,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        Application.Current?.Shutdown();
+        App.RequestShutdown();
         return true;
     }
 
