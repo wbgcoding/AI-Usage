@@ -334,7 +334,7 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
-    public void A_correction_never_takes_a_row_below_zero()
+    public void A_correction_skips_a_record_its_row_cannot_cover_and_one_without_a_row()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-floor");
         var store = new StatsStore(dataDir);
@@ -345,9 +345,9 @@ public class StatsClaudeOwnerTests
              new StatsRecord("claude", new DateOnly(2026, 1, 1), "modelA", "other", 9, 9, 0, 0, 5, "", Subagent: false)],
             []);
 
-        Assert.NotNull(removed);
+        Assert.Equal(new StatsStore.ClaudeOwnerCorrection(0, 2), removed);
         var row = Assert.Single(store.LoadAll());
-        Assert.Equal((0L, 15L), (row.InputTokens, row.OutputTokens));
+        Assert.Equal((10L, 20L), (row.InputTokens, row.OutputTokens));
     }
 
     /// <summary>A database exactly as a v7 or v8 build left it, with one remembered file and one session.</summary>

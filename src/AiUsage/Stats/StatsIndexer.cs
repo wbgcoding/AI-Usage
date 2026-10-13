@@ -990,8 +990,13 @@ public sealed class StatsIndexer
                 return;
         }
 
-        if (_store.ApplyClaudeOwnerCorrection([.. totals.Values], sessions.ToDeltas()) is { } removed && removed > 0)
-            Log?.LogInfo($"Statistics: {removed} tokens of Claude responses counted twice were taken out.");
+        if (_store.ApplyClaudeOwnerCorrection([.. totals.Values], sessions.ToDeltas()) is not { } correction)
+            return;
+
+        if (correction.Removed > 0)
+            Log?.LogInfo($"Statistics: {correction.Removed} tokens of Claude responses counted twice were taken out.");
+        if (correction.Skipped > 0)
+            Log?.LogInfo($"Statistics: {correction.Skipped} corrections were skipped because their hour no longer holds that many tokens.");
     }
 
     private HashSet<string> ReadClaudeKeys(StatsSourceFileState state, long start, CancellationToken cancellationToken)

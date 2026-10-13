@@ -1505,11 +1505,16 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>What <see cref="ApplyClaudeOwnerCorrection"/> took out: the token total, and how many
+    /// usage records were left alone because their row is missing or holds less than the record.</summary>
+    public readonly record struct ClaudeOwnerCorrection(long Removed, int Skipped);
+
     /// <summary>Takes the tokens of Claude responses that a second transcript counted again out of the
-    /// usage rows and session totals they were added to (never below zero; a usage row left empty is
-    /// removed) and marks the one-time pass done - in one transaction. Returns the subtracted token
-    /// total, or null when nothing was written (the pass is then repeated).</summary>
-    public long? ApplyClaudeOwnerCorrection(IReadOnlyList<StatsRecord> duplicates, IReadOnlyList<StatsSessionDelta> sessions)
+    /// usage rows and session totals they were added to and marks the one-time pass done - in one
+    /// transaction. A usage record whose row is gone or holds less than the record (the machine's time
+    /// zone moved since the tokens were filed) is skipped, never clamped into another hour; a row left
+    /// empty is removed. Null when nothing was written (the pass is then repeated).</summary>
+    public ClaudeOwnerCorrection? ApplyClaudeOwnerCorrection(IReadOnlyList<StatsRecord> duplicates, IReadOnlyList<StatsSessionDelta> sessions)
     {
         try
         {
@@ -1518,7 +1523,7 @@ public sealed class StatsStore
                 return null;
 
             using var transaction = connection.BeginTransaction();
-            SubtractUsageWithinTransaction(connection, transaction, duplicates);
+            var correction = SubtractUsageWithinTransaction(connection, transaction, duplicates);
             SubtractSessionsWithinTransaction(connection, transaction, sessions);
             using var mark = connection.CreateCommand();
             mark.Transaction = transaction;
@@ -1532,7 +1537,7 @@ public sealed class StatsStore
             clearSkips.Parameters.AddWithValue("$prefix", ClaudeOwnerSkipPrefix);
             clearSkips.ExecuteNonQuery();
             transaction.Commit();
-            return duplicates.Sum(record => record.TotalTokens);
+            return correction;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
@@ -1540,21 +1545,24 @@ public sealed class StatsStore
         }
     }
 
-    private static void SubtractUsageWithinTransaction(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsRecord> records)
+    private static ClaudeOwnerCorrection SubtractUsageWithinTransaction(
+        SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsRecord> records)
     {
         if (records.Count == 0)
-            return;
+            return new ClaudeOwnerCorrection(0, 0);
 
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             UPDATE usage SET
-                input_tokens = MAX(0, input_tokens - $input),
-                output_tokens = MAX(0, output_tokens - $output),
-                cache_creation_tokens = MAX(0, cache_creation_tokens - $cacheCreation),
-                cache_read_tokens = MAX(0, cache_read_tokens - $cacheRead)
+                input_tokens = input_tokens - $input,
+                output_tokens = output_tokens - $output,
+                cache_creation_tokens = cache_creation_tokens - $cacheCreation,
+                cache_read_tokens = cache_read_tokens - $cacheRead
             WHERE provider = $provider AND day = $day AND hour = $hour AND model = $model AND project = $project
               AND effort = $effort AND machine = $machine AND subagent = $subagent
+              AND input_tokens >= $input AND output_tokens >= $output
+              AND cache_creation_tokens >= $cacheCreation AND cache_read_tokens >= $cacheRead
             """;
         using var remove = connection.CreateCommand();
         remove.Transaction = transaction;
@@ -1564,6 +1572,8 @@ public sealed class StatsStore
               AND effort = $effort AND machine = $machine AND subagent = $subagent
               AND input_tokens = 0 AND output_tokens = 0 AND cache_creation_tokens = 0 AND cache_read_tokens = 0
             """;
+        long removed = 0;
+        var skipped = 0;
         foreach (var record in records)
         {
             foreach (var each in new[] { command, remove })
@@ -1583,9 +1593,17 @@ public sealed class StatsStore
             command.Parameters.AddWithValue("$output", record.OutputTokens);
             command.Parameters.AddWithValue("$cacheCreation", record.CacheCreationTokens);
             command.Parameters.AddWithValue("$cacheRead", record.CacheReadTokens);
-            command.ExecuteNonQuery();
+            if (command.ExecuteNonQuery() == 0)
+            {
+                skipped++;
+                continue;
+            }
+
+            removed += record.TotalTokens;
             remove.ExecuteNonQuery();
         }
+
+        return new ClaudeOwnerCorrection(removed, skipped);
     }
 
     private static void SubtractSessionsWithinTransaction(
