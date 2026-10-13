@@ -665,6 +665,14 @@ public sealed class StatsStore
         }
 
         // The v4 step already left a backup of the untouched file; v5 and v6 files get theirs here.
+        // A v7 or v8 file gets one too: the owner pass subtracts from rows that exist nowhere else.
+        if (existingVersion is 7 or 8 && (_backupFailed || !BackUpBeforeMigration(originalVersion!.Value)))
+        {
+            _backupFailed = true;
+            IsUsable = false;
+            return false;
+        }
+
         if (existingVersion is 5 or 6)
         {
             if (_backupFailed || (originalVersion != 4 && !BackUpBeforeMigration(originalVersion!.Value)))

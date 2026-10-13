@@ -298,14 +298,12 @@ public class StatsClaudeOwnerTests
         Assert.Equal((0L, 15L), (row.InputTokens, row.OutputTokens));
     }
 
-    [Fact]
-    public void Migration_from_v8_keeps_every_row_and_offers_the_pass()
+    /// <summary>A database exactly as a v7 or v8 build left it, with one remembered file and one session.</summary>
+    private static void WritePreOwnerDatabase(string dbPath, int version)
     {
-        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-v8");
-        var dbPath = Path.Combine(dataDir, "stats.db");
         Run(dbPath, """
             CREATE TABLE schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);
-            INSERT INTO schema_version (id, version) VALUES (1, 8);
+            INSERT INTO schema_version (id, version) VALUES (1, SCHEMA_VERSION);
             CREATE TABLE usage (
                 provider TEXT NOT NULL, day TEXT NOT NULL, hour INTEGER NOT NULL DEFAULT 0, model TEXT NOT NULL, project TEXT NOT NULL,
                 effort TEXT NOT NULL DEFAULT '', machine TEXT NOT NULL DEFAULT '', subagent INTEGER NOT NULL DEFAULT 0,
@@ -342,7 +340,17 @@ public class StatsClaudeOwnerTests
             VALUES ('gone.jsonl', 'claude', 5, 5, '2026-01-01T00:00:00.0000000Z', 'm1|r-m1', 100, 20, 30, 40);
             INSERT INTO session VALUES ('claude', '', 'sess-1', 'C:\Projects\Sample', '2026-01-01T10:00:00.0000000Z', '2026-01-01T11:00:00.0000000Z', 107, 28, 39, 50, 'modelA', 34);
             INSERT INTO session_model VALUES ('claude', '', 'sess-1', 'modelA', 224);
-            """);
+            """.Replace("SCHEMA_VERSION", version.ToString()));
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Migration_from_v7_or_v8_keeps_every_row_offers_the_pass_and_leaves_a_backup(int version)
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-v8");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WritePreOwnerDatabase(dbPath, version);
 
         var store = new StatsStore(dataDir);
         var rows = store.LoadAll();
@@ -361,8 +369,31 @@ public class StatsClaudeOwnerTests
         Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM claude_message"));
         Assert.False(store.IsClaudeOwnerPassDone());
 
+        // The untouched file is kept beside it, as the older migrations do.
+        var backup = Path.Combine(dataDir, $"stats.v{version}.bak");
+        Assert.Equal((long)version, Scalar(backup, "SELECT version FROM schema_version"));
+        Assert.Equal(3L, Scalar(backup, "SELECT COUNT(*) FROM usage"));
+
         // A second open leaves the migrated file alone.
         Assert.Equal(3, new StatsStore(dataDir).LoadAll().Count);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Migration_from_v7_or_v8_does_not_run_when_the_backup_cannot_be_written(int version)
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-nobackup");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WritePreOwnerDatabase(dbPath, version);
+        Directory.CreateDirectory(Path.Combine(dataDir, $"stats.v{version}.bak"));
+
+        var store = new StatsStore(dataDir);
+
+        Assert.Empty(store.LoadAll());
+        Assert.False(store.IsUsable);
+        Assert.Equal((long)version, Scalar(dbPath, "SELECT version FROM schema_version"));
+        Assert.Equal(3L, Scalar(dbPath, "SELECT COUNT(*) FROM usage"));
     }
 
     [Fact]
