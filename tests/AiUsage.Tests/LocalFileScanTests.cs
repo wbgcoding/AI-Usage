@@ -73,6 +73,54 @@ public class LocalFileScanTests : IDisposable
     }
 
     [Fact]
+    public void The_default_ranking_budget_is_twenty_thousand_entries()
+    {
+        Assert.Equal(20000, LocalFileScan.DefaultMaxRankingEntries);
+    }
+
+    [Fact]
+    public void A_ranking_budget_spent_mid_level_still_returns_every_file_and_ranks_the_listed_folders_by_their_newest_file()
+    {
+        // Folder write times run fA > fB > fC > fD. Only two folders are listed for ranking, so fB's
+        // fresh file lifts it above fA, while fD's fresh file is not seen and fD keeps its folder time.
+        var root = TempDirectory();
+        var now = DateTime.UtcNow;
+        var a = MakeFolderWithFile(root, "fA", "a.txt", now.AddDays(-30), now.AddMinutes(-1));
+        var b = MakeFolderWithFile(root, "fB", "b.txt", now, now.AddMinutes(-2));
+        var c = MakeFolderWithFile(root, "fC", "c.txt", now.AddDays(-30), now.AddMinutes(-3));
+        var d = MakeFolderWithFile(root, "fD", "d.txt", now.AddSeconds(-20), now.AddMinutes(-4));
+
+        var order = new List<string>();
+        var result = LocalFileScan.NewestFiles(root, "*.txt", maxDepth: 2, maxFiles: 10, isExcluded: path =>
+        {
+            order.Add(path);
+            return false;
+        }, maxRankingEntries: 2);
+
+        Assert.Equal([b, a, c, d], order);
+        Assert.Equal(4, result.Count);
+    }
+
+    [Fact]
+    public void Without_a_ranking_budget_the_folders_keep_their_folder_time_order_and_all_files_are_found()
+    {
+        var root = TempDirectory();
+        var now = DateTime.UtcNow;
+        var a = MakeFolderWithFile(root, "fA", "a.txt", now.AddDays(-30), now.AddMinutes(-1));
+        var b = MakeFolderWithFile(root, "fB", "b.txt", now, now.AddMinutes(-2));
+
+        var order = new List<string>();
+        var result = LocalFileScan.NewestFiles(root, "*.txt", maxDepth: 2, maxFiles: 10, isExcluded: path =>
+        {
+            order.Add(path);
+            return false;
+        }, maxRankingEntries: 0);
+
+        Assert.Equal([a, b], order);
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
     public void A_tree_of_five_hundred_files_across_six_levels_returns_at_most_the_configured_cap()
     {
         var root = TempDirectory();

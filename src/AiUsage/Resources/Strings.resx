@@ -568,6 +568,8 @@
   <data name="Settings.DataFolder.Risky.Title" xml:space="preserve"><value>Use this folder?</value></data>
   <data name="Settings.DataFolder.Risky.Body" xml:space="preserve"><value>This folder is on a network drive, a removable drive or in a cloud sync folder. The token index can be damaged there when the connection drops or a sync runs while it is written, and it is the only copy of your past usage. Use it anyway?</value></data>
   <data name="Settings.DataFolder.Risky.UseAnyway" xml:space="preserve"><value>Use anyway</value></data>
+  <data name="Settings.DataFolder.Replace.Body" xml:space="preserve"><value>This folder holds an older copy of your AI-Usage data. Replace it with the current data?</value></data>
+  <data name="Settings.DataFolder.Replace.Button" xml:space="preserve"><value>Replace</value></data>
   <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Read at most every</value></data>
   <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Default ({0} min)</value></data>
   <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>

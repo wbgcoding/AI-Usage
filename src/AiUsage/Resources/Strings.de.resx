@@ -567,6 +567,8 @@
   <data name="Settings.DataFolder.Risky.Title" xml:space="preserve"><value>Diesen Ordner verwenden?</value></data>
   <data name="Settings.DataFolder.Risky.Body" xml:space="preserve"><value>Dieser Ordner liegt auf einem Netzlaufwerk, einem Wechseldatenträger oder in einem Cloud-Sync-Ordner. Dort kann der Token-Index beschädigt werden, wenn die Verbindung abbricht oder während des Schreibens synchronisiert wird, und er ist die einzige Kopie deiner bisherigen Nutzung. Trotzdem verwenden?</value></data>
   <data name="Settings.DataFolder.Risky.UseAnyway" xml:space="preserve"><value>Trotzdem verwenden</value></data>
+  <data name="Settings.DataFolder.Replace.Body" xml:space="preserve"><value>Dieser Ordner enthält eine ältere Kopie deiner AI-Usage-Daten. Durch die aktuellen Daten ersetzen?</value></data>
+  <data name="Settings.DataFolder.Replace.Button" xml:space="preserve"><value>Ersetzen</value></data>
   <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Höchstens abrufen alle</value></data>
   <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Standard ({0} min)</value></data>
   <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>

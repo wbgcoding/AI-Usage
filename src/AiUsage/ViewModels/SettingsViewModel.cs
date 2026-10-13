@@ -44,6 +44,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string, bool> _confirmRestore;
     private readonly Func<bool> _restartApp;
     private readonly Func<string, bool> _confirmRiskyFolder;
+    private readonly Func<string, bool> _confirmReplaceOldCopy;
     private readonly Stats.StatsStore _statsStore;
     private readonly bool _readsMachineList;
     private readonly Func<Uri, ResourceDictionary> _loadThemeDictionary;
@@ -507,7 +508,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Action<string, string>? copySmallFiles = null,
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
         Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
-        Func<string, bool>? removeMachine = null, Func<string, bool>? confirmRiskyFolder = null)
+        Func<string, bool>? removeMachine = null, Func<string, bool>? confirmRiskyFolder = null,
+        Func<string, bool>? confirmReplaceOldCopy = null)
     {
         Main = main;
         _settings = settings;
@@ -529,6 +531,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _confirmRestore = confirmRestore ?? ShowRealRestoreConfirm;
         _restartApp = restartApp ?? RestartForRestore;
         _confirmRiskyFolder = confirmRiskyFolder ?? ShowRealRiskyFolderConfirm;
+        _confirmReplaceOldCopy = confirmReplaceOldCopy ?? ShowRealReplaceConfirm;
         _statsStore = statsStore ?? new Stats.StatsStore();
         _removeMachine = removeMachine ?? _statsStore.RemoveMachine;
         // The list of other PCs reads the index; a settings store of its own folder (a test) never touches the real one.
@@ -1300,12 +1303,25 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return; // already there
 
         // The copy overwrites stats.db and settings.json, so a folder that already holds a copy's data
-        // (the running everyday copy's included) is never a target.
-        if (File.Exists(Path.Combine(destination, "stats.db")) || File.Exists(Path.Combine(destination, "settings.json"))
-            || (AppPaths.IsSecondInstance && SameFolder(destination, AppPaths.EverydayDataDirectory())))
+        // is refused (the running everyday copy's included), except this copy's own default folder:
+        // the old copy stays behind there after a move away, and moving back has to be possible.
+        var holdsMessage = LocalizationService.Instance["Settings.DataFolderHoldsData"];
+        if (AppPaths.IsSecondInstance && SameFolder(destination, AppPaths.EverydayDataDirectory()))
         {
-            _showMessage(LocalizationService.Instance["Settings.DataFolderHoldsData"]);
+            _showMessage(holdsMessage);
             return;
+        }
+
+        if (File.Exists(Path.Combine(destination, "stats.db")) || File.Exists(Path.Combine(destination, "settings.json")))
+        {
+            if (!SameFolder(destination, OwnDefaultDataDirectory()))
+            {
+                _showMessage(holdsMessage);
+                return;
+            }
+
+            if (!_confirmReplaceOldCopy(destination))
+                return;
         }
 
         // Windows empties temporary folders, and the next start ignores a pointer into one.
@@ -1540,6 +1556,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         var loc = LocalizationService.Instance;
         var dialog = new Views.ConfirmWindow(loc["Settings.DataFolder.Risky.Title"], loc["Settings.DataFolder.Risky.Body"],
             loc["Settings.DataFolder.Risky.UseAnyway"], loc["Action.Cancel"]);
+        Views.OwnerWindowResolver.ApplyOwner(dialog, null);
+        return dialog.ShowDialog() == true;
+    }
+
+    /// <summary>This copy's own default data folder: where its pointer file lives, which for the
+    /// second instance is its own subfolder, never the everyday copy's.</summary>
+    private static string OwnDefaultDataDirectory() => Path.GetDirectoryName(AppPaths.LocationPointerFile)!;
+
+    private static bool ShowRealReplaceConfirm(string folder)
+    {
+        var loc = LocalizationService.Instance;
+        var dialog = new Views.ConfirmWindow(AppInfo.ProductName, loc["Settings.DataFolder.Replace.Body"],
+            loc["Settings.DataFolder.Replace.Button"], loc["Action.Cancel"]);
         Views.OwnerWindowResolver.ApplyOwner(dialog, null);
         return dialog.ShowDialog() == true;
     }
