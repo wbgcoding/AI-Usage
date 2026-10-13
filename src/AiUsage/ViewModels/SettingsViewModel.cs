@@ -1269,6 +1269,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
+    private static bool SameFolder(string a, string b) => string.Equals(
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)), StringComparison.OrdinalIgnoreCase);
+
     private static string? ShowRealFolderDialog()
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = AppPaths.DataDirectory };
@@ -1294,6 +1298,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         var source = _store.DataDirectory;
         if (string.Equals(Path.GetFullPath(destination), Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase))
             return; // already there
+
+        // The copy overwrites stats.db and settings.json, so a folder that already holds a copy's data
+        // (the running everyday copy's included) is never a target.
+        if (File.Exists(Path.Combine(destination, "stats.db")) || File.Exists(Path.Combine(destination, "settings.json"))
+            || (AppPaths.IsSecondInstance && SameFolder(destination, AppPaths.EverydayDataDirectory())))
+        {
+            _showMessage(LocalizationService.Instance["Settings.DataFolderHoldsData"]);
+            return;
+        }
 
         // Windows empties temporary folders, and the next start ignores a pointer into one.
         if (AppPaths.IsUnderRoot(Path.GetFullPath(destination), Path.GetTempPath()))

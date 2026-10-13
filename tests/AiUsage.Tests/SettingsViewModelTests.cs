@@ -1102,6 +1102,56 @@ public class SettingsViewModelTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("stats.db")]
+    [InlineData("settings.json")]
+    [InlineData("everyday")]
+    public async Task ChooseDataFolderRefusesAFolderThatAlreadyHoldsDataAndChangesNothing(string marker)
+    {
+        var sourceDirectory = TempDirectory();
+        var fakePointerRoot = TempDirectory();
+        var everydayDirectory = Path.Combine(fakePointerRoot, "AI-Usage");
+        var destinationDirectory = marker == "everyday" ? everydayDirectory : TempDirectory();
+        Directory.CreateDirectory(destinationDirectory);
+        if (marker != "everyday")
+            File.WriteAllText(Path.Combine(destinationDirectory, marker), "keep");
+        var settings = new AppSettings();
+        var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
+        var settingsStore = new SettingsStore(sourceDirectory);
+        var historyStore = new HistoryStore(sourceDirectory, () => Now);
+        var main = new MainViewModel(settingsStore, settings, providers, historyStore);
+        var messages = new List<string>();
+        var copyCalls = 0;
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false,
+            enableAutostart: _ => true,
+            disableAutostart: () => true,
+            applyLanguage: _ => { },
+            loadThemeDictionary: LoadThemeFixture,
+            historyStore: historyStore,
+            showMessage: messages.Add,
+            askForDataFolder: () => destinationDirectory,
+            copyIndex: (_, _) => copyCalls++,
+            copySmallFiles: (_, _) => copyCalls++);
+
+        AppPaths.SetPointerRootOverride(fakePointerRoot);
+        if (marker == "everyday")
+            AppPaths.UseSecondInstancePointer();
+        try
+        {
+            await vm.ChooseDataFolderCommand.ExecuteAsync(null);
+
+            Assert.Equal(LocalizationService.Instance["Settings.DataFolderHoldsData"], Assert.Single(messages));
+            Assert.Equal(0, copyCalls);
+            Assert.False(File.Exists(AppPaths.LocationPointerFile));
+        }
+        finally
+        {
+            AppPaths.ClearOverrideForTests();
+            AppPaths.ClearPointerRootOverrideForTests();
+        }
+    }
+
     [Fact]
     public async Task ChooseDataFolderAsksBeforeUsingARiskyFolderAndDecliningKeepsTheOldOne()
     {

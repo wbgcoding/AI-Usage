@@ -190,6 +190,17 @@ public static class AppPaths
     /// <summary>Switches <see cref="LocationPointerFile"/> to the second instance's own file.</summary>
     internal static void UseSecondInstancePointer() => _secondInstancePointer = true;
 
+    internal static bool IsSecondInstance => _secondInstancePointer;
+
+    /// <summary>The folder the everyday copy keeps its data in: what its pointer file names, else the
+    /// default profile folder. Read only, so it is safe to ask from the second instance.</summary>
+    internal static string EverydayDataDirectory()
+    {
+        var candidate = Path.Combine(
+            _pointerRootOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppFolderName);
+        return TryReadPointer(Path.Combine(candidate, PointerFileName), out var pointed) ? pointed : candidate;
+    }
+
     /// <summary>The folder <see cref="LocationPointerFile"/> names when it can be used, else null.</summary>
     internal static string? ReadPointedDirectory() => ReadPointedDirectory(Path.GetTempPath());
 

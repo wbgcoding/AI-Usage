@@ -303,6 +303,7 @@
   <data name="Settings.DataFolderMoved" xml:space="preserve"><value>Data now lives in {0}. The old folder can be deleted by hand.</value></data>
   <data name="Settings.DataFolderRefused" xml:space="preserve"><value>That folder cannot be written to. Nothing was changed.</value></data>
   <data name="Settings.DataFolderTemp" xml:space="preserve"><value>Windows empties temporary folders. Choose another folder; nothing was changed.</value></data>
+  <data name="Settings.DataFolderHoldsData" xml:space="preserve"><value>This folder already holds AI-Usage data. Pick an empty folder.</value></data>
   <data name="About.Installed" xml:space="preserve"><value>Installed copy</value></data>
   <data name="About.Portable" xml:space="preserve"><value>Portable copy</value></data>
   <data name="About.DataFolder" xml:space="preserve"><value>Data folder: {0}</value></data>
