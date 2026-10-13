@@ -5,8 +5,10 @@ namespace AiUsage.Providers;
 /// for its own quota file. The walk is lazy and depth-first: a folder's files come first (last write
 /// time, newest first), then its subfolders, ranked by the newest of the folder's own write time and
 /// the newest matching file directly inside it (appending to a file does not touch its folder's
-/// stamp, so the folder time alone would bury a long-running session). It touches at most
-/// <see cref="MaxTouchedEntries"/> entries however large the tree is, keeps only the newest
+/// stamp, so the folder time alone would bury a long-running session). Every entry a listing
+/// returns counts against the touched-entry budget, the ranking listings included, and no further
+/// folder is listed once it is spent; only the one level being ranked when that happens is still
+/// listed whole. Files read from disk are capped by the same number. It keeps only the newest
 /// <c>maxFiles</c> files and returns them newest first (by <c>LastWriteTimeUtc</c>). A small
 /// process-wide memory of the last result per root and pattern is checked first, so a file found
 /// once is still found when the walk budget no longer reaches its folder.
@@ -14,7 +16,8 @@ namespace AiUsage.Providers;
 internal static class LocalFileScan
 {
     internal static IReadOnlyList<FileInfo> NewestFiles(
-        string root, string searchPattern, int maxDepth, int maxFiles, Func<string, bool>? isExcluded = null)
+        string root, string searchPattern, int maxDepth, int maxFiles, Func<string, bool>? isExcluded = null,
+        int maxTouchedEntries = DefaultMaxTouchedEntries)
     {
         // A missing root is checked here, not inside the lazy walk, so it costs nothing.
         if (!Directory.Exists(root))
@@ -22,11 +25,12 @@ internal static class LocalFileScan
 
         var remembered = Recall(root, searchPattern);
         var seen = new HashSet<string>(remembered, StringComparer.OrdinalIgnoreCase);
+        var budget = new Budget(maxTouchedEntries);
         var candidates = EnumerateRemembered(remembered)
-            .Concat(WalkNewestFirst(ListDirectory(root, searchPattern, descendInto: maxDepth > 0), searchPattern, maxDepth, depth: 0)
+            .Concat(WalkNewestFirst(ListDirectory(root, searchPattern, descendInto: maxDepth > 0, budget), searchPattern, maxDepth, depth: 0, budget)
                 .Where(f => !seen.Contains(f.FullName)));
 
-        var result = SelectNewest(candidates, maxFiles, isExcluded);
+        var result = SelectNewest(candidates, maxFiles, isExcluded, maxTouchedEntries);
         Remember(root, searchPattern, result);
         return result;
     }
@@ -34,12 +38,23 @@ internal static class LocalFileScan
     /// <summary>A tree with more eligible entries than this must not turn "look at the newest files"
     /// into "walk everything that ever existed" - unrelated to <c>maxFiles</c>, which bounds the
     /// RESULT, not how much of the tree gets looked at. Past this many touched entries, the walk
-    /// stops and returns whatever it has already selected.</summary>
-    private const int MaxTouchedEntries = 20000;
+    /// stops and returns whatever it has already selected. The newest-file ranking and the remembered
+    /// last result bring the live file first, so a small budget is enough.</summary>
+    internal const int DefaultMaxTouchedEntries = 5000;
+
+    /// <summary>Entries listed so far across the whole walk.</summary>
+    private sealed class Budget(int limit)
+    {
+        private int _listed;
+
+        public bool Spent => _listed >= limit;
+
+        public void Charge(int entries) => _listed += entries;
+    }
 
     /// <summary>The selection over the candidate entries; each one is re-read from disk before it is
     /// compared, so what is kept (and later read by callers) is current.</summary>
-    private static List<FileInfo> SelectNewest(IEnumerable<FileInfo> candidates, int maxFiles, Func<string, bool>? isExcluded)
+    private static List<FileInfo> SelectNewest(IEnumerable<FileInfo> candidates, int maxFiles, Func<string, bool>? isExcluded, int maxTouchedEntries)
     {
         var kept = new List<FileInfo>(Math.Min(maxFiles, 64));
 
@@ -47,7 +62,7 @@ internal static class LocalFileScan
         {
             var touched = 0;
             using var enumerator = candidates.GetEnumerator();
-            while (touched < MaxTouchedEntries && enumerator.MoveNext())
+            while (touched < maxTouchedEntries && enumerator.MoveNext())
             {
                 touched++;
                 var file = enumerator.Current;
@@ -138,19 +153,20 @@ internal static class LocalFileScan
     /// time descending, then its subfolders ranked by the newest of the folder's own stamp and its
     /// newest direct matching file, whatever its name. Each child is listed once while ranking and
     /// that listing is handed down. The walk is lazy per level, so a consumer that stops after its
-    /// entry budget never lists the older branches below the folder it stopped in.</summary>
-    private static IEnumerable<FileInfo> WalkNewestFirst(Listing listing, string searchPattern, int maxDepth, int depth)
+    /// entry budget never lists the older branches below the folder it stopped in; once the budget is
+    /// spent no deeper level is listed at all.</summary>
+    private static IEnumerable<FileInfo> WalkNewestFirst(Listing listing, string searchPattern, int maxDepth, int depth, Budget budget)
     {
         foreach (var file in listing.Files)
             yield return file;
 
-        if (depth >= maxDepth)
+        if (depth >= maxDepth || budget.Spent)
             yield break;
 
         var ranked = listing.Subdirectories
             .Select(d =>
             {
-                var child = ListDirectory(d.FullName, searchPattern, descendInto: depth + 1 < maxDepth);
+                var child = ListDirectory(d.FullName, searchPattern, descendInto: depth + 1 < maxDepth, budget);
                 var rank = child.Files.Length > 0 && child.Files[0].LastWriteTimeUtc > d.LastWriteTimeUtc
                     ? child.Files[0].LastWriteTimeUtc
                     : d.LastWriteTimeUtc;
@@ -161,11 +177,11 @@ internal static class LocalFileScan
             .ToArray();
 
         foreach (var entry in ranked)
-            foreach (var file in WalkNewestFirst(entry.Child, searchPattern, maxDepth, depth + 1))
+            foreach (var file in WalkNewestFirst(entry.Child, searchPattern, maxDepth, depth + 1, budget))
                 yield return file;
     }
 
-    private static Listing ListDirectory(string directory, string searchPattern, bool descendInto)
+    private static Listing ListDirectory(string directory, string searchPattern, bool descendInto, Budget budget)
     {
         var options = new EnumerationOptions { IgnoreInaccessible = true };
         try
@@ -175,6 +191,7 @@ internal static class LocalFileScan
                 .OrderByDescending(f => f.LastWriteTimeUtc)
                 .ToArray();
             var subdirectories = descendInto ? info.EnumerateDirectories("*", options).ToArray() : [];
+            budget.Charge(files.Length + subdirectories.Length);
             return new Listing(files, subdirectories);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

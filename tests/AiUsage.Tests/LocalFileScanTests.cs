@@ -27,16 +27,49 @@ public class LocalFileScanTests : IDisposable
     public void A_tree_past_the_touched_entry_ceiling_stops_walking_instead_of_scanning_everything()
     {
         var root = TempDirectory();
-        CreateFiles(root, 20100, "file", ".txt", DateTime.UtcNow);
+        CreateFiles(root, 320, "file", ".txt", DateTime.UtcNow);
 
         var touched = 0;
         LocalFileScan.NewestFiles(root, "*", maxDepth: 0, maxFiles: 40, isExcluded: _ =>
         {
             touched++;
             return true;
-        });
+        }, maxTouchedEntries: 300);
 
-        Assert.Equal(20000, touched);
+        Assert.Equal(300, touched);
+    }
+
+    [Fact]
+    public void The_default_ceiling_is_five_thousand_entries()
+    {
+        Assert.Equal(5000, LocalFileScan.DefaultMaxTouchedEntries);
+    }
+
+    [Fact]
+    public void Folders_listed_for_ranking_count_against_the_ceiling_so_no_deeper_level_is_listed()
+    {
+        // Three folders of 40 old files, each with a "deep" subfolder holding a newer file. Ranking the
+        // three folders already lists more entries than the ceiling, so none of the deep folders may be
+        // listed afterwards, although far fewer files than the ceiling were read.
+        var root = TempDirectory();
+        var old = DateTime.UtcNow.AddDays(-30);
+        var deepFiles = new List<string>();
+        for (var i = 0; i < 3; i++)
+        {
+            var folder = Directory.CreateDirectory(Path.Combine(root, $"f{i}")).FullName;
+            CreateFiles(folder, 40, "old", ".txt", old);
+            var deep = Directory.CreateDirectory(Path.Combine(folder, "deep")).FullName;
+            var file = Path.Combine(deep, $"deep{i}.txt");
+            File.WriteAllText(file, "x");
+            deepFiles.Add(file);
+        }
+
+        var limited = LocalFileScan.NewestFiles(root, "*.txt", maxDepth: 3, maxFiles: 200, maxTouchedEntries: 100);
+        Assert.Empty(limited.Select(f => f.FullName).Intersect(deepFiles));
+
+        // Same tree under another pattern spelling (no memory) and a roomy budget reaches them all.
+        var roomy = LocalFileScan.NewestFiles(root, "?*.txt", maxDepth: 3, maxFiles: 200, maxTouchedEntries: 1000);
+        Assert.Equal(3, roomy.Select(f => f.FullName).Intersect(deepFiles).Count());
     }
 
     [Fact]
@@ -106,14 +139,14 @@ public class LocalFileScanTests : IDisposable
     [Fact]
     public void A_date_tree_past_the_touched_ceiling_still_returns_the_newest_day()
     {
-        // 6000 files in year/month/day folders: a name-ascending walk would spend its whole budget on
-        // the oldest days and never reach the newest folder.
+        // 240 files in year/month/day folders, past the ceiling: a name-ascending walk would spend its
+        // whole budget on the oldest days and never reach the newest folder.
         var root = TempDirectory();
         var old = DateTime.UtcNow.AddDays(-30);
         for (var day = 1; day <= 12; day++)
         {
             var folder = Directory.CreateDirectory(Path.Combine(root, "2024", "01", day.ToString("00"))).FullName;
-            for (var i = 0; i < 500; i++)
+            for (var i = 0; i < 20; i++)
             {
                 var path = Path.Combine(folder, $"rollout-{i}.jsonl");
                 File.WriteAllText(path, "x");
@@ -125,7 +158,7 @@ public class LocalFileScanTests : IDisposable
         var newest = Path.Combine(newestFolder, "rollout-newest.jsonl");
         File.WriteAllText(newest, "x");
 
-        var result = LocalFileScan.NewestFiles(root, "rollout-*.jsonl", maxDepth: 4, maxFiles: 40);
+        var result = LocalFileScan.NewestFiles(root, "rollout-*.jsonl", maxDepth: 4, maxFiles: 40, maxTouchedEntries: 100);
 
         Assert.Equal(newest, result[0].FullName);
     }
@@ -138,7 +171,7 @@ public class LocalFileScanTests : IDisposable
         var root = TempDirectory();
         var stale = Directory.CreateDirectory(Path.Combine(root, "z-stale")).FullName;
         var old = DateTime.UtcNow.AddDays(-30);
-        CreateFiles(stale, 20100, "f", ".txt", old);
+        CreateFiles(stale, 120, "f", ".txt", old);
 
         Directory.SetLastWriteTimeUtc(stale, old);
 
@@ -146,7 +179,7 @@ public class LocalFileScanTests : IDisposable
         var newest = Path.Combine(recent, "f-newest.txt");
         File.WriteAllText(newest, "x");
 
-        var result = LocalFileScan.NewestFiles(root, "*", maxDepth: 2, maxFiles: 10);
+        var result = LocalFileScan.NewestFiles(root, "*", maxDepth: 2, maxFiles: 10, maxTouchedEntries: 100);
 
         Assert.Equal(newest, result[0].FullName);
     }
@@ -183,7 +216,7 @@ public class LocalFileScanTests : IDisposable
         for (var i = 0; i < 5; i++)
         {
             var folder = Directory.CreateDirectory(Path.Combine(root, $"new-{i}")).FullName;
-            CreateFiles(folder, 4020, "s", ".jsonl", hourAgo);
+            CreateFiles(folder, 30, "s", ".jsonl", hourAgo);
             Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow);
         }
 
@@ -192,7 +225,7 @@ public class LocalFileScanTests : IDisposable
         File.WriteAllText(live, "x");
         Directory.SetLastWriteTimeUtc(oldFolder, DateTime.UtcNow.AddDays(-30));
 
-        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 2, maxFiles: 10);
+        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 2, maxFiles: 10, maxTouchedEntries: 100);
 
         Assert.Equal(live, result[0].FullName);
     }
@@ -224,7 +257,7 @@ public class LocalFileScanTests : IDisposable
         var deepFolder = Directory.CreateDirectory(Path.Combine(root, "old", "subagents")).FullName;
         var live = Path.Combine(deepFolder, "live.jsonl");
         File.WriteAllText(live, "x");
-        Assert.Equal(live, LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 3, maxFiles: 5)[0].FullName);
+        Assert.Equal(live, LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 3, maxFiles: 5, maxTouchedEntries: 100)[0].FullName);
 
         // The live file is written again (newest of all) but its folders keep their old stamps and hold
         // no direct file that ranks them up, while newer-stamped folders fill the whole walk budget.
@@ -232,7 +265,7 @@ public class LocalFileScanTests : IDisposable
         for (var i = 0; i < 5; i++)
         {
             var folder = Directory.CreateDirectory(Path.Combine(root, $"new-{i}")).FullName;
-            CreateFiles(folder, 4020, "s", ".jsonl", hourAgo);
+            CreateFiles(folder, 30, "s", ".jsonl", hourAgo);
             Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow);
         }
 
@@ -241,10 +274,10 @@ public class LocalFileScanTests : IDisposable
         Directory.SetLastWriteTimeUtc(Path.Combine(root, "old"), DateTime.UtcNow.AddDays(-30));
 
         // Same files under another pattern spelling = no memory yet: the walk alone misses the live file.
-        var withoutMemory = LocalFileScan.NewestFiles(root, "?*.jsonl", maxDepth: 3, maxFiles: 5);
+        var withoutMemory = LocalFileScan.NewestFiles(root, "?*.jsonl", maxDepth: 3, maxFiles: 5, maxTouchedEntries: 100);
         Assert.DoesNotContain(live, withoutMemory.Select(f => f.FullName));
 
-        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 3, maxFiles: 5);
+        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 3, maxFiles: 5, maxTouchedEntries: 100);
 
         Assert.Equal(live, result[0].FullName);
     }
