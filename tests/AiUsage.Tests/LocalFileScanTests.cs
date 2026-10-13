@@ -27,8 +27,7 @@ public class LocalFileScanTests : IDisposable
     public void A_tree_past_the_touched_entry_ceiling_stops_walking_instead_of_scanning_everything()
     {
         var root = TempDirectory();
-        for (var i = 0; i < 5100; i++)
-            File.WriteAllText(Path.Combine(root, $"file-{i}.txt"), "x");
+        CreateFiles(root, 20100, "file", ".txt", DateTime.UtcNow);
 
         var touched = 0;
         LocalFileScan.NewestFiles(root, "*", maxDepth: 0, maxFiles: 40, isExcluded: _ =>
@@ -37,7 +36,7 @@ public class LocalFileScanTests : IDisposable
             return true;
         });
 
-        Assert.Equal(5000, touched);
+        Assert.Equal(20000, touched);
     }
 
     [Fact]
@@ -139,12 +138,7 @@ public class LocalFileScanTests : IDisposable
         var root = TempDirectory();
         var stale = Directory.CreateDirectory(Path.Combine(root, "z-stale")).FullName;
         var old = DateTime.UtcNow.AddDays(-30);
-        for (var i = 0; i < 5200; i++)
-        {
-            var path = Path.Combine(stale, $"f-{i}.txt");
-            File.WriteAllText(path, "x");
-            File.SetLastWriteTimeUtc(path, old);
-        }
+        CreateFiles(stale, 20100, "f", ".txt", old);
 
         Directory.SetLastWriteTimeUtc(stale, old);
 
@@ -178,6 +172,159 @@ public class LocalFileScanTests : IDisposable
         Assert.Equal(5005, result.Single().Length);
         Assert.True(result.Single().LastWriteTimeUtc >= secondWriteAt.AddMilliseconds(-500));
     }
+
+    [Fact]
+    public void A_long_running_session_in_an_old_folder_is_found_past_the_ceiling()
+    {
+        // Appending to a file leaves its folder's stamp alone, so the folder of a live session looks
+        // old while newer-stamped folders hold more files than the whole walk budget.
+        var root = TempDirectory();
+        var hourAgo = DateTime.UtcNow.AddHours(-1);
+        for (var i = 0; i < 5; i++)
+        {
+            var folder = Directory.CreateDirectory(Path.Combine(root, $"new-{i}")).FullName;
+            CreateFiles(folder, 4020, "s", ".jsonl", hourAgo);
+            Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow);
+        }
+
+        var oldFolder = Directory.CreateDirectory(Path.Combine(root, "old")).FullName;
+        var live = Path.Combine(oldFolder, "live.jsonl");
+        File.WriteAllText(live, "x");
+        Directory.SetLastWriteTimeUtc(oldFolder, DateTime.UtcNow.AddDays(-30));
+
+        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 2, maxFiles: 10);
+
+        Assert.Equal(live, result[0].FullName);
+    }
+
+    [Fact]
+    public void Subfolders_are_ranked_by_the_newest_matching_file_directly_inside()
+    {
+        var root = TempDirectory();
+        var now = DateTime.UtcNow;
+        var fresh = MakeFolderWithFile(root, "a-stale-stamp", "fresh.jsonl", fileAt: now, folderAt: now.AddDays(-1));
+        var stale = MakeFolderWithFile(root, "b-recent-stamp", "stale.jsonl", fileAt: now.AddDays(-2), folderAt: now.AddHours(-1));
+        var unrelated = MakeFolderWithFile(root, "c-other", "notes.txt", fileAt: now, folderAt: now.AddDays(-3));
+
+        var visited = new List<string>();
+        LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 2, maxFiles: 10, isExcluded: path =>
+        {
+            visited.Add(path);
+            return false;
+        });
+
+        Assert.Equal([fresh, stale], visited);
+        Assert.DoesNotContain(unrelated, visited);
+    }
+
+    [Fact]
+    public void A_file_found_by_the_last_scan_is_returned_even_when_the_walk_no_longer_reaches_it()
+    {
+        var root = TempDirectory();
+        var deepFolder = Directory.CreateDirectory(Path.Combine(root, "old", "subagents")).FullName;
+        var live = Path.Combine(deepFolder, "live.jsonl");
+        File.WriteAllText(live, "x");
+        Assert.Equal(live, LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 3, maxFiles: 5)[0].FullName);
+
+        // The live file is written again (newest of all) but its folders keep their old stamps and hold
+        // no direct file that ranks them up, while newer-stamped folders fill the whole walk budget.
+        var hourAgo = DateTime.UtcNow.AddHours(-1);
+        for (var i = 0; i < 5; i++)
+        {
+            var folder = Directory.CreateDirectory(Path.Combine(root, $"new-{i}")).FullName;
+            CreateFiles(folder, 4020, "s", ".jsonl", hourAgo);
+            Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow);
+        }
+
+        File.AppendAllText(live, "more");
+        Directory.SetLastWriteTimeUtc(deepFolder, DateTime.UtcNow.AddDays(-30));
+        Directory.SetLastWriteTimeUtc(Path.Combine(root, "old"), DateTime.UtcNow.AddDays(-30));
+
+        // Same files under another pattern spelling = no memory yet: the walk alone misses the live file.
+        var withoutMemory = LocalFileScan.NewestFiles(root, "?*.jsonl", maxDepth: 3, maxFiles: 5);
+        Assert.DoesNotContain(live, withoutMemory.Select(f => f.FullName));
+
+        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 3, maxFiles: 5);
+
+        Assert.Equal(live, result[0].FullName);
+    }
+
+    [Fact]
+    public void A_remembered_file_that_was_deleted_is_skipped()
+    {
+        var root = TempDirectory();
+        var gone = Path.Combine(root, "gone.jsonl");
+        var stays = Path.Combine(root, "stays.jsonl");
+        File.WriteAllText(gone, "x");
+        File.WriteAllText(stays, "x");
+        Assert.Equal(2, LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 1, maxFiles: 5).Count);
+
+        File.Delete(gone);
+        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 1, maxFiles: 5);
+
+        Assert.Equal(stays, result.Single().FullName);
+    }
+
+    [Fact]
+    public void A_remembered_file_the_exclusion_predicate_rejects_is_left_out()
+    {
+        var root = TempDirectory();
+        var first = Path.Combine(root, "first.jsonl");
+        File.WriteAllText(first, "x");
+        Assert.Single(LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 1, maxFiles: 5));
+
+        var result = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 1, maxFiles: 5, isExcluded: path => path == first);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void A_file_the_memory_and_the_walk_both_meet_is_returned_once()
+    {
+        var root = TempDirectory();
+        Directory.CreateDirectory(Path.Combine(root, "sub"));
+        for (var i = 0; i < 6; i++)
+            File.WriteAllText(Path.Combine(root, i % 2 == 0 ? "sub" : "", $"s{i}.jsonl"), "x");
+
+        for (var scan = 0; scan < 3; scan++)
+        {
+            var paths = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 2, maxFiles: 50).Select(f => f.FullName).ToList();
+
+            Assert.Equal(6, paths.Count);
+            Assert.Equal(paths.Count, paths.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
+    }
+
+    [Fact]
+    public void Parallel_scans_of_the_same_root_do_not_interfere()
+    {
+        var root = TempDirectory();
+        for (var i = 0; i < 20; i++)
+            File.WriteAllText(Path.Combine(root, $"s{i}.jsonl"), "x");
+
+        var counts = new int[16];
+        Parallel.For(0, counts.Length, n => counts[n] = LocalFileScan.NewestFiles(root, "*.jsonl", maxDepth: 1, maxFiles: 50).Count);
+
+        Assert.All(counts, count => Assert.Equal(20, count));
+    }
+
+    private static string MakeFolderWithFile(string root, string folderName, string fileName, DateTime fileAt, DateTime folderAt)
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(root, folderName)).FullName;
+        var path = Path.Combine(folder, fileName);
+        File.WriteAllText(path, "x");
+        File.SetLastWriteTimeUtc(path, fileAt);
+        Directory.SetLastWriteTimeUtc(folder, folderAt);
+        return path;
+    }
+
+    private static void CreateFiles(string folder, int count, string prefix, string extension, DateTime writeTime) =>
+        Parallel.For(0, count, i =>
+        {
+            var path = Path.Combine(folder, $"{prefix}-{i}{extension}");
+            File.WriteAllText(path, "x");
+            File.SetLastWriteTimeUtc(path, writeTime);
+        });
 
     private static void BuildDeepTree(string root, int levels, int filesPerLevel)
     {
