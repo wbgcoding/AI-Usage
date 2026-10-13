@@ -900,7 +900,7 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheStatusFileKeepsTheLastNumbersOnlyThroughAFailedOrStaleRead()
+    public void TheStatusFileDropsTheLastNumbersWhenTheSourceIsGone()
     {
         var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
         var (vm, _, _) = Build(settings);
@@ -909,7 +909,7 @@ public class MainViewModelTests : IDisposable
         var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
 
         vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null));
-        vm.OnSnapshotReady(new ProviderSnapshot("claude", [], null, SourceKind.None, Now, null, ProviderStatus.NotSignedIn, null));
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [], null, SourceKind.None, Now, null, ProviderStatus.NoLocalData, null));
         vm.StatusFile.Flush();
 
         using var document = JsonDocument.Parse(File.ReadAllText(path));

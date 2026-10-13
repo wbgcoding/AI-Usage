@@ -1744,7 +1744,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void UpdateLater_Click(object sender, RoutedEventArgs e) => ViewModel.Update.Dismiss();
 
-    /// <summary>The only way the window is really allowed to close - the tray menu's exit item (Tray.Exit).</summary>
+    /// <summary>The tray menu's exit item (Tray.Exit): the only way the user really closes the window.</summary>
     private void ShutdownFromTray() => App.RequestShutdown();
 
     /// <summary>Marks the window as really closing, so the Closing event WPF raises during an
