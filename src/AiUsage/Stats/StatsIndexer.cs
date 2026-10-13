@@ -136,6 +136,10 @@ public sealed class StatsIndexer
     // Files whose result could not be stored during the current walk; one log line at its end.
     private int _failedWrites;
 
+    // Whether the walk consults and writes the owner of each Claude response (only once the one-time
+    // owner pass has run).
+    private bool _claimsActive;
+
     public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default)
     {
         _failedWrites = 0;
@@ -162,6 +166,10 @@ public sealed class StatsIndexer
         // After the passes above, which count a file's responses the old way; this one then removes
         // what a second transcript counted of the same responses.
         BackfillClaudeOwnersOnce(known, cancellationToken);
+
+        // Until that pass has run, the walk counts exactly like the builds before it: it neither reads
+        // nor writes claims, so the pass later handles this content like any older content.
+        _claimsActive = _store.IsClaudeOwnerPassDone();
 
         foreach (var claudeRoot in _claudeProjectsRoots)
         {
@@ -360,8 +368,8 @@ public sealed class StatsIndexer
         // A copy of a response that another transcript counted first (a resumed or forked session
         // repeats the history of its parent) adds nothing here. Without the lookup the file is left
         // for the next walk rather than counted blind.
-        using var owners = _store.OpenClaudeOwners();
-        if (owners is null)
+        using var owners = _claimsActive ? _store.OpenClaudeOwners() : null;
+        if (_claimsActive && owners is null)
             return (false, 0, 0);
 
         var offset = existing?.Offset ?? 0;
@@ -389,7 +397,7 @@ public sealed class StatsIndexer
             {
                 if (ClaudeUsageLogParser.TryParse(line, out var usageEvent))
                 {
-                    if (IsCountedByAnotherFile(usageEvent.MessageKey, ownPath, copies, owners, foreignKeys))
+                    if (owners is not null && IsCountedByAnotherFile(usageEvent.MessageKey, ownPath, copies, owners, foreignKeys))
                     {
                         linesSkipped++;
                         return;
@@ -423,7 +431,7 @@ public sealed class StatsIndexer
         }
 
         // A lookup that failed may have let a foreign copy through: nothing is stored from this read.
-        if (owners.Failed)
+        if (owners is { Failed: true })
             return (false, 0, 0);
 
         var lastCounted = copies.CountedForLastKey;
@@ -434,7 +442,7 @@ public sealed class StatsIndexer
                 LastMessageKey: copies.LastKey,
                 CountedInputTokens: lastCounted?.Input, CountedOutputTokens: lastCounted?.Output,
                 CountedCacheCreationTokens: lastCounted?.CacheCreation, CountedCacheReadTokens: lastCounted?.CacheRead),
-            sessions.ToDeltas(), copies.Keys);
+            sessions.ToDeltas(), _claimsActive ? copies.Keys : null);
         return NoteStored(stored) ? (true, linesParsed, linesSkipped) : (false, 0, 0);
     }
 
@@ -894,7 +902,10 @@ public sealed class StatsIndexer
         if (_store.IsClaudeOwnerPassDone())
             return;
 
-        if (known.Count == 0 && _store.HasUsageRows())
+        // An empty snapshot next to usage rows may be a failed read: ask again, and leave the pass
+        // for the next walk when that fails too. With no Claude file remembered there is nothing to
+        // correct and the pass is marked done below.
+        if (known.Count == 0 && _store.HasUsageRows() && !_store.TryLoadSourceFiles(out known))
             return;
 
         // The original transcript is the oldest file: a copy of its history is made later.

@@ -199,6 +199,56 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void A_pass_that_failed_leaves_the_walk_counting_like_before_and_loses_no_token_when_it_runs_later()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-failed-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-failed-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-failed-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
+
+        // The pass cannot write its claims; the resumed transcript shows up meanwhile.
+        Run(dbPath, "CREATE TRIGGER no_claims BEFORE INSERT ON claude_message BEGIN SELECT RAISE(ABORT, 'locked'); END");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var walk = new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeOwnerPassDone());
+        Assert.Equal(1, walk.Claude.FilesRead);
+        Assert.Equal((157L + 150L, 490L + 487L), Totals(store));
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM claude_message"));
+
+        Run(dbPath, "DROP TRIGGER no_claims");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // The parent keeps everything, the copied history is taken out exactly once.
+        Assert.True(store.IsClaudeOwnerPassDone());
+        Assert.Equal((157L, 490L), Totals(store));
+        var sessions = store.LoadSessions().ToDictionary(session => session.SessionId);
+        Assert.Equal(487L, sessions["sess-1"].OutputTokens);
+        Assert.Equal(3L, sessions["sess-2"].OutputTokens);
+    }
+
+    [Fact]
+    public void An_index_without_a_remembered_claude_file_marks_the_pass_done()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-nofile-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var store = new StatsStore(dataDir);
+        store.AddDelta([new StatsRecord("codex", new DateOnly(2026, 1, 1), "modelC", "proj", 10, 20, 0, 0, 5, "", Subagent: false)]);
+        Run(dbPath, $"DELETE FROM meta WHERE key = '{OwnerPassKey}'");
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+    }
+
+    [Fact]
     public void The_one_time_pass_leaves_a_transcript_that_is_gone_as_it_was()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-gone-claude");
