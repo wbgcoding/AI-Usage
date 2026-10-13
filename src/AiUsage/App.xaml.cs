@@ -251,6 +251,12 @@ public partial class App : Application, IDisposable
             if (ShouldShowMainWindow(Dispatcher.HasShutdownStarted))
                 _mainWindow.Show();
         }
+        else
+        {
+            // Nothing is on screen until the window is first asked for, so reads keep the slower
+            // cadence of a hidden window until then.
+            _mainWindow.ViewModel.WindowVisible = false;
+        }
 
         // The one visible trace of a restore: where the previous data went, or that nothing changed.
         if (_restoreOutcome != RestoreOutcome.NoPending)
