@@ -159,6 +159,10 @@ public sealed class StatsIndexer
             BackfillClaudeCopiesOnce(known, cancellationToken);
         }
 
+        // After the passes above, which count a file's responses the old way; this one then removes
+        // what a second transcript counted of the same responses.
+        BackfillClaudeOwnersOnce(known, cancellationToken);
+
         foreach (var claudeRoot in _claudeProjectsRoots)
         {
             var claudeFiles = EnumerateNewestFirstWithInfo(claudeRoot, "*.jsonl", out var foldersSkipped, cancellationToken);
@@ -353,7 +357,16 @@ public sealed class StatsIndexer
             return (false, 0, 0);
         }
 
+        // A copy of a response that another transcript counted first (a resumed or forked session
+        // repeats the history of its parent) adds nothing here. Without the lookup the file is left
+        // for the next walk rather than counted blind.
+        using var owners = _store.OpenClaudeOwners();
+        if (owners is null)
+            return (false, 0, 0);
+
         var offset = existing?.Offset ?? 0;
+        var ownPath = existing?.Path ?? path;
+        var foreignKeys = new HashSet<string>(StringComparer.Ordinal);
         var copies = new ClaudeCopyTracker(existing);
         var project = ClaudeUsageLogParser.ExtractProjectFromFilePath(path);
         var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
@@ -376,6 +389,12 @@ public sealed class StatsIndexer
             {
                 if (ClaudeUsageLogParser.TryParse(line, out var usageEvent))
                 {
+                    if (IsCountedByAnotherFile(usageEvent.MessageKey, ownPath, copies, owners, foreignKeys))
+                    {
+                        linesSkipped++;
+                        return;
+                    }
+
                     // The same response is written more than once while it streams, the early copies with
                     // placeholder output counts: the first copy counts, a fuller one adds its excess.
                     if (copies.Observe(usageEvent) is not { } add)
@@ -403,6 +422,10 @@ public sealed class StatsIndexer
             return (false, 0, 0); // left exactly as it was - retried next run
         }
 
+        // A lookup that failed may have let a foreign copy through: nothing is stored from this read.
+        if (owners.Failed)
+            return (false, 0, 0);
+
         var lastCounted = copies.CountedForLastKey;
         var stored = _store.ApplyIndexResult(
             [.. buckets.Values],
@@ -411,8 +434,27 @@ public sealed class StatsIndexer
                 LastMessageKey: copies.LastKey,
                 CountedInputTokens: lastCounted?.Input, CountedOutputTokens: lastCounted?.Output,
                 CountedCacheCreationTokens: lastCounted?.CacheCreation, CountedCacheReadTokens: lastCounted?.CacheRead),
-            sessions.ToDeltas());
+            sessions.ToDeltas(), copies.Keys);
         return NoteStored(stored) ? (true, linesParsed, linesSkipped) : (false, 0, 0);
+    }
+
+    /// <summary>True when <paramref name="key"/> is a response another transcript counted first. A key
+    /// this file has already counted (or settled as foreign) is not looked up again; an empty key
+    /// belongs to no one.</summary>
+    private static bool IsCountedByAnotherFile(
+        string key, string ownPath, ClaudeCopyTracker copies, StatsStore.ClaudeOwnerLookup owners, HashSet<string> foreignKeys)
+    {
+        if (key.Length == 0 || copies.HasCounted(key))
+            return false;
+        if (foreignKeys.Contains(key))
+            return true;
+
+        var owner = owners.OwnerOf(key);
+        if (owner is null || string.Equals(owner, ownPath, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        foreignKeys.Add(key);
+        return true;
     }
 
     /// <summary>What a Claude file's repeated responses have added to the totals so far. A response
@@ -446,6 +488,11 @@ public sealed class StatsIndexer
             LastKey.Length > 0 && _counted.TryGetValue(LastKey, out var counted) ? counted : null;
 
         public ClaudeCopyTokens? CountedFor(string key) => _counted.TryGetValue(key, out var counted) ? counted : null;
+
+        public bool HasCounted(string key) => _counted.ContainsKey(key);
+
+        /// <summary>Every response this file counted a copy of, to be recorded as its own.</summary>
+        public IReadOnlyCollection<string> Keys => _counted.Keys;
 
         /// <summary>The tokens this copy adds to the totals; null when it adds nothing.</summary>
         public ClaudeCopyTokens? Observe(ClaudeUsageLogParser.UsageEvent usageEvent) => Observe(usageEvent, out _);
@@ -832,6 +879,156 @@ public sealed class StatsIndexer
 
         if (state.LastMessageKey.Length > 0 && copies.CountedFor(state.LastMessageKey) is { } counted)
             lastMessages.Add((path, state.LastMessageKey, counted));
+    }
+
+    /// <summary>The one-time pass for Claude responses that two transcripts both counted (a resumed or
+    /// forked session repeats the history of its parent). The Claude files that still exist are read up
+    /// to their stored offsets, oldest first, and the first one to hold a response owns it. Whatever any
+    /// other file counted of that response (its first copy plus what later copies added) is then taken
+    /// out of the usage rows and session totals it was added to. A file Claude Code has already
+    /// deleted cannot be corrected and stays as it is. The owners are written first and idempotently,
+    /// the subtraction in one transaction with the done mark, so a cancelled or failed pass is simply
+    /// repeated.</summary>
+    private void BackfillClaudeOwnersOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    {
+        if (_store.IsClaudeOwnerPassDone())
+            return;
+
+        if (known.Count == 0 && _store.HasUsageRows())
+            return;
+
+        // The original transcript is the oldest file: a copy of its history is made later.
+        var files = new List<(StatsSourceFileState State, DateTime Created)>();
+        foreach (var state in known.Values)
+        {
+            if (state.Provider != ClaudeProviderId || state.Offset <= 0)
+                continue;
+
+            var info = TryStat(state.Path);
+            if (info is not null)
+                files.Add((state, info.CreationTimeUtc));
+        }
+
+        files.Sort((a, b) =>
+        {
+            var byAge = a.Created.CompareTo(b.Created);
+            return byAge != 0 ? byAge : string.CompareOrdinal(a.State.Path, b.State.Path);
+        });
+
+        foreach (var (state, _) in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var keys = ReadClaudeKeys(state, cancellationToken);
+                if (keys.Count > 0 && !_store.ClaimClaudeKeys(state.Path, keys))
+                    return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A file that vanished or is locked has nothing to give.
+            }
+        }
+
+        var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
+        var sessions = new StatsSessionAccumulator();
+        using (var owners = _store.OpenClaudeOwners())
+        {
+            if (owners is null)
+                return;
+
+            foreach (var (state, _) in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    SumClaudeForeignCopies(state, owners, totals, sessions, cancellationToken);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A file that vanished or is locked has nothing to give.
+                }
+            }
+
+            if (owners.Failed)
+                return;
+        }
+
+        if (_store.ApplyClaudeOwnerCorrection([.. totals.Values], sessions.ToDeltas()) is { } removed && removed > 0)
+            Log?.LogInfo($"Statistics: {removed} tokens of Claude responses counted twice were taken out.");
+    }
+
+    private HashSet<string> ReadClaudeKeys(StatsSourceFileState state, CancellationToken cancellationToken)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        using var stream = new FileStream(state.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < state.Offset)
+            return keys;
+
+        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        {
+            if (ClaudeUsageLogParser.TryParse(line, out var usageEvent) && usageEvent.MessageKey.Length > 0)
+                keys.Add(usageEvent.MessageKey);
+        }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
+        return keys;
+    }
+
+    private void SumClaudeForeignCopies(
+        StatsSourceFileState state, StatsStore.ClaudeOwnerLookup owners,
+        Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord> totals,
+        StatsSessionAccumulator sessions, CancellationToken cancellationToken)
+    {
+        var path = state.Path;
+        var fileIsSubagent = ClaudeUsageLogParser.IsSubagentFile(path);
+        var fallbackSessionId = ClaudeUsageLogParser.FallbackSessionId(path);
+        var copies = new ClaudeCopyTracker(null);
+        var foreignKeys = new HashSet<string>(StringComparer.Ordinal);
+        var ownKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < state.Offset)
+            return;
+
+        var project = ProbeClaudeProject(path, ClaudeUsageLogParser.ExtractProjectFromFilePath(path), cancellationToken);
+        var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
+        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        {
+            if (!ClaudeUsageLogParser.TryParse(line, out var usageEvent) || usageEvent.MessageKey.Length == 0)
+                return;
+
+            // Only the responses another file owns: the tracker then yields exactly what this file
+            // added for them (the first copy, then what later copies exceeded it by).
+            var key = usageEvent.MessageKey;
+            if (!foreignKeys.Contains(key))
+            {
+                if (ownKeys.Contains(key))
+                    return;
+
+                var owner = owners.OwnerOf(key);
+                if (owner is null || string.Equals(owner, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    ownKeys.Add(key);
+                    return;
+                }
+
+                foreignKeys.Add(key);
+            }
+
+            if (copies.Observe(usageEvent) is not { } add)
+                return;
+
+            var subagent = fileIsSubagent || usageEvent.IsSidechain;
+            Accumulate(buckets, ClaudeProviderId, project, usageEvent.Timestamp, usageEvent.Model,
+                add.Input, add.Output, add.CacheCreation, add.CacheRead, usageEvent.Effort, subagent);
+            sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,
+                usageEvent.Timestamp, usageEvent.Model, subagent, add.Input, add.Output, add.CacheCreation, add.CacheRead);
+        }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
+
+        foreach (var record in buckets.Values)
+        {
+            var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort, record.Subagent);
+            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
+        }
     }
 
     private void BackfillClaudeFile(StatsSourceFileState state, StatsSessionAccumulator sessions, CancellationToken cancellationToken)
