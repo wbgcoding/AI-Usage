@@ -8,6 +8,53 @@ namespace AiUsage.Tests;
 
 public class SettingsStoreTests : IDisposable
 {
+    private static readonly TimeSpan[] NoWait = [TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero];
+
+    [Theory]
+    [InlineData(unchecked((int)0x80070020))]
+    [InlineData(unchecked((int)0x80070021))]
+    public void A_sharing_or_lock_violation_gets_the_long_retry(int hResult)
+    {
+        var attempts = 0;
+        var text = SettingsStore.ReadAllTextWithRetry("x", NoWait, [TimeSpan.Zero], _ =>
+        {
+            if (++attempts <= 4)
+                throw new IOException("busy", hResult);
+            return "ok";
+        });
+
+        Assert.Equal("ok", text);
+        Assert.Equal(5, attempts);
+    }
+
+    [Fact]
+    public void An_access_denied_error_is_tried_three_times_in_all_not_for_seconds()
+    {
+        var attempts = 0;
+        Assert.Throws<UnauthorizedAccessException>(() => SettingsStore.ReadAllTextWithRetry(
+            "x", NoWait, [TimeSpan.Zero, TimeSpan.Zero], _ =>
+            {
+                attempts++;
+                throw new UnauthorizedAccessException();
+            }));
+
+        Assert.Equal(3, attempts);
+    }
+
+    [Fact]
+    public void Any_other_IO_error_is_tried_three_times_in_all()
+    {
+        var attempts = 0;
+        Assert.Throws<IOException>(() => SettingsStore.ReadAllTextWithRetry(
+            "x", NoWait, [TimeSpan.Zero, TimeSpan.Zero], _ =>
+            {
+                attempts++;
+                throw new IOException("other", unchecked((int)0x80070057));
+            }));
+
+        Assert.Equal(3, attempts);
+    }
+
     [Fact]
     public void Load_renames_the_old_Copilot_window_labels_in_hidden_windows_and_the_tray_choice()
     {

@@ -154,26 +154,39 @@ public sealed class SettingsStore : IDisposable
         }
     }
 
-    /// <summary>The waits between the read attempts at start: about five seconds in all, because a
-    /// session that gives up too early runs on defaults and would read accounts the user signed out.</summary>
+    /// <summary>The waits between the read attempts at start while another process holds the file
+    /// (sharing or lock violation): about five seconds in all, because a session that gives up too
+    /// early runs on defaults and would read accounts the user signed out.</summary>
     private static readonly TimeSpan[] ReadRetryDelays =
         [.. new[] { 150, 300, 600, 1200, 1200, 1500 }.Select(ms => TimeSpan.FromMilliseconds(ms))];
 
+    /// <summary>Any other failure (denied access never heals by waiting) gets only a short second
+    /// chance, so the start is not held up before a window exists.</summary>
+    private static readonly TimeSpan[] ShortRetryDelays = [TimeSpan.FromMilliseconds(150), TimeSpan.FromMilliseconds(150)];
+
+    private const int ErrorSharingViolation = unchecked((int)0x80070020);
+    private const int ErrorLockViolation = unchecked((int)0x80070021);
+
     /// <summary>A sync client or virus scanner can hold the file for a moment. That is not corruption,
     /// so a retry with growing waits comes before the caller's quarantine-and-fall-back path.</summary>
-    private static string ReadAllTextWithRetry(string path) => ReadAllTextWithRetry(path, ReadRetryDelays);
+    private static string ReadAllTextWithRetry(string path) =>
+        ReadAllTextWithRetry(path, ReadRetryDelays, ShortRetryDelays, File.ReadAllText);
 
-    /// <summary>Exposed so a test can use short waits.</summary>
-    internal static string ReadAllTextWithRetry(string path, IReadOnlyList<TimeSpan> delays)
+    /// <summary>Exposed so a test can use short waits and count the attempts.</summary>
+    internal static string ReadAllTextWithRetry(
+        string path, IReadOnlyList<TimeSpan> sharingDelays, IReadOnlyList<TimeSpan> otherDelays, Func<string, string> read)
     {
         for (var attempt = 0; ; attempt++)
         {
             try
             {
-                return File.ReadAllText(path);
+                return read(path);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < delays.Count)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                var delays = ex is IOException { HResult: ErrorSharingViolation or ErrorLockViolation } ? sharingDelays : otherDelays;
+                if (attempt >= delays.Count)
+                    throw;
                 Thread.Sleep(delays[attempt]);
             }
         }
