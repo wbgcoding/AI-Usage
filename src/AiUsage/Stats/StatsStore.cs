@@ -1629,6 +1629,13 @@ public sealed class StatsStore
             UPDATE session_model SET tokens = MAX(0, tokens - $tokens)
             WHERE provider = $provider AND machine = $machine AND session_id = $session AND model = $model
             """;
+        // Only what this correction touched: a model or session it brought to zero tokens is not listed any more.
+        using var dropModel = connection.CreateCommand();
+        dropModel.Transaction = transaction;
+        dropModel.CommandText = """
+            DELETE FROM session_model
+            WHERE provider = $provider AND machine = $machine AND session_id = $session AND model = $model AND tokens = 0
+            """;
         using var mainModel = connection.CreateCommand();
         mainModel.Transaction = transaction;
         mainModel.CommandText = """
@@ -1638,9 +1645,24 @@ public sealed class StatsStore
                 ORDER BY tokens DESC, model LIMIT 1), '')
             WHERE provider = $provider AND machine = $machine AND session_id = $session
             """;
+        using var dropSession = connection.CreateCommand();
+        dropSession.Transaction = transaction;
+        dropSession.CommandText = """
+            DELETE FROM session
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+              AND input = 0 AND output = 0 AND cache_creation = 0 AND cache_read = 0
+            """;
+        using var dropSessionModels = connection.CreateCommand();
+        dropSessionModels.Transaction = transaction;
+        dropSessionModels.CommandText = """
+            DELETE FROM session_model
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+              AND NOT EXISTS (SELECT 1 FROM session
+                              WHERE provider = $provider AND machine = $machine AND session_id = $session)
+            """;
         foreach (var delta in deltas)
         {
-            foreach (var each in new[] { session, mainModel })
+            foreach (var each in new[] { session, mainModel, dropSession, dropSessionModels })
             {
                 each.Parameters.Clear();
                 each.Parameters.AddWithValue("$provider", delta.Provider);
@@ -1664,9 +1686,17 @@ public sealed class StatsStore
                 model.Parameters.AddWithValue("$model", name);
                 model.Parameters.AddWithValue("$tokens", tokens);
                 model.ExecuteNonQuery();
+                dropModel.Parameters.Clear();
+                dropModel.Parameters.AddWithValue("$provider", delta.Provider);
+                dropModel.Parameters.AddWithValue("$machine", delta.Machine);
+                dropModel.Parameters.AddWithValue("$session", delta.SessionId);
+                dropModel.Parameters.AddWithValue("$model", name);
+                dropModel.ExecuteNonQuery();
             }
 
             mainModel.ExecuteNonQuery();
+            if (dropSession.ExecuteNonQuery() > 0)
+                dropSessionModels.ExecuteNonQuery();
         }
     }
 

@@ -179,7 +179,7 @@ public class StatsClaudeOwnerTests
     /// <summary>The index as the previous build left it: both transcripts counted, nothing recorded
     /// about who counted what, the owner pass still to run.</summary>
     private static (StatsStore Store, string Original, string Resumed) DoubleCountedIndex(
-        string claudeRoot, string codexRoot, string dataDir)
+        string claudeRoot, string codexRoot, string dataDir, string[]? resumedLines = null)
     {
         var original = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
         var store = new StatsStore(dataDir);
@@ -187,7 +187,7 @@ public class StatsClaudeOwnerTests
         var dbPath = Path.Combine(dataDir, "stats.db");
         Run(dbPath, "DELETE FROM claude_message");
 
-        var resumed = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var resumed = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, resumedLines ?? ResumedLines());
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
         Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
         return (store, original, resumed);
@@ -321,6 +321,28 @@ public class StatsClaudeOwnerTests
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
 
         Assert.True(store.IsClaudeOwnerPassDone());
+    }
+
+    [Fact]
+    public void A_session_the_pass_leaves_without_tokens_is_not_listed_any_more()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-empty-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-empty-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-empty-data");
+        // The second transcript holds nothing but the first one's history, filed under its own session.
+        var (store, _, _) = DoubleCountedIndex(claudeRoot, codexRoot, dataDir,
+        [
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5, "sess-2"),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467, "sess-2"),
+        ]);
+        Assert.Contains("sess-2", store.LoadSessions().Select(session => session.SessionId));
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.Equal(["sess-1"], store.LoadSessions().Select(session => session.SessionId));
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM session_model WHERE session_id = 'sess-2'"));
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM session WHERE (input = 0 AND output = 0 AND cache_creation = 0 AND cache_read = 0)"));
     }
 
     [Fact]
