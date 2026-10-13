@@ -181,14 +181,38 @@ public static class AppPaths
     /// the data itself moved somewhere else entirely.</summary>
     public static string LocationPointerFile => Path.Combine(
         _pointerRootOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        AppFolderName, PointerFileName);
+        AppFolderName, _secondInstancePointer ? SecondInstanceMode.FolderName : "", PointerFileName);
+
+    /// <summary>True once this process runs as the second instance: its pointer file then lives in its
+    /// own subfolder, so moving its data never rewrites the everyday copy's pointer.</summary>
+    private static bool _secondInstancePointer;
+
+    /// <summary>Switches <see cref="LocationPointerFile"/> to the second instance's own file.</summary>
+    internal static void UseSecondInstancePointer() => _secondInstancePointer = true;
+
+    /// <summary>The folder <see cref="LocationPointerFile"/> names when it can be used, else null.</summary>
+    internal static string? ReadPointedDirectory() => ReadPointedDirectory(Path.GetTempPath());
+
+    /// <summary>Exposed so a test can name a fake temp root: the real one holds every test folder.</summary>
+    internal static string? ReadPointedDirectory(string tempRoot)
+    {
+        if (!TryReadPointer(LocationPointerFile, out var directory)
+            || IsUnderRoot(directory, tempRoot)
+            || !TryEnsureWritableDirectory(directory))
+            return null;
+        return directory;
+    }
 
     /// <summary>Test seam only: see <see cref="_pointerRootOverride"/>.</summary>
     internal static void SetPointerRootOverride(string root) => _pointerRootOverride = root;
 
     /// <summary>Test seam only: undoes <see cref="SetPointerRootOverride"/> so one test's fake pointer
     /// root does not leak into whichever test happens to run in this process next.</summary>
-    internal static void ClearPointerRootOverrideForTests() => _pointerRootOverride = null;
+    internal static void ClearPointerRootOverrideForTests()
+    {
+        _pointerRootOverride = null;
+        _secondInstancePointer = false;
+    }
 
     public static string LogsDirectory => Path.Combine(DataDirectory, "logs");
 

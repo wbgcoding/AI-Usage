@@ -26,7 +26,8 @@ public static class SecondInstanceMode
     /// the everyday folders.</summary>
     public static void Redirect()
     {
-        AppPaths.SetOverride(Path.Combine(AppPaths.DataDirectory, FolderName));
+        AppPaths.UseSecondInstancePointer();
+        AppPaths.SetOverride(AppPaths.ReadPointedDirectory() ?? Path.Combine(AppPaths.DataDirectory, FolderName));
         WebViewHost.SetRootOverride(Path.Combine(WebViewHost.SharedRootFolder(), FolderName));
     }
 }
