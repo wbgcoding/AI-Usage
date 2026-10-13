@@ -27,6 +27,24 @@ public class RefreshSchedulerTests
     }
 
     [Fact]
+    public async Task A_clock_moved_back_delays_the_next_fetch_by_one_interval_at_most()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("codex");
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock);
+        provider.NextResult = Ok(provider.Id);
+        await Task.WhenAll(scheduler.Tick());
+
+        clock.Advance(TimeSpan.FromHours(-2));
+        Assert.Empty(scheduler.Tick());
+        clock.Advance(BaseInterval);
+
+        var due = scheduler.Tick();
+        _ = Assert.Single(due);
+        await Task.WhenAll(due);
+    }
+
+    [Fact]
     public async Task A_FetchStarted_subscriber_that_throws_is_logged_and_the_fetch_still_completes()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));

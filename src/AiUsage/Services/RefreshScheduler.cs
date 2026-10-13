@@ -339,6 +339,10 @@ public sealed class RefreshScheduler
     private bool IsDueLocked(IUsageProvider provider, DateTimeOffset now, bool ignoreNetworkSkip = false)
     {
         var state = _state[provider.AccountKey];
+        // The due time is a wall-clock instant: after the clock moved back it can lie far beyond one
+        // interval, so it is pulled in to the latest a fetch may wait from now.
+        if (state.NextDueAt > now + state.CurrentInterval)
+            state.NextDueAt = now + state.CurrentInterval;
         if (state.InFlight || now < state.NextDueAt)
             return false;
         // A skipped provider keeps its past due time, so it is fetched on the first tick after the
