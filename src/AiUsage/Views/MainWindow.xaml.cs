@@ -1772,17 +1772,23 @@ public partial class MainWindow : Window, IDisposable
             return;
         }
 
-        // Also runs on the crash path, where a second exception must not escape the shutdown.
+        // Also runs on the crash path, where a second exception must not escape the shutdown. Each step
+        // has its own guard so a failing save still lets Dispose remove the tray icon.
+        TeardownStep("Stopping the tick timer", _tickTimer.Stop);
+        TeardownStep("Saving the window settings", SaveWindowSettings);
+        TeardownStep("Saving the settings", () => _settingsStore.SaveNow(_settings));
+        TeardownStep("Disposing the window", Dispose);
+    }
+
+    private static void TeardownStep(string step, Action action)
+    {
         try
         {
-            _tickTimer.Stop();
-            SaveWindowSettings();
-            _settingsStore.SaveNow(_settings);
-            Dispose();
+            action();
         }
         catch (Exception ex)
         {
-            LogService.Shared.LogError($"Teardown on close failed ({ex.GetType().Name}): {ex.Message}");
+            LogService.Shared.LogError($"Teardown on close failed ({step}, {ex.GetType().Name}): {ex.Message}");
         }
     }
 
