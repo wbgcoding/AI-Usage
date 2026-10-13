@@ -27,7 +27,12 @@ public static class SecondInstanceMode
     public static void Redirect()
     {
         AppPaths.UseSecondInstancePointer();
-        AppPaths.SetOverride(AppPaths.ReadPointedDirectory() ?? Path.Combine(AppPaths.DataDirectory, FolderName));
+        var directory = AppPaths.ReadPointedDirectory(Path.GetTempPath(), out var unreachable)
+            ?? Path.Combine(AppPaths.DataDirectory, FolderName);
+        AppPaths.SetStartRedirect(directory, unreachable);
+        if (unreachable is not null)
+            LogService.AppendTo(Path.Combine(directory, "logs"),
+                $"The data folder {PathSanitizer.Sanitize(unreachable)} is not available; this session uses the default folder.");
         WebViewHost.SetRootOverride(Path.Combine(WebViewHost.SharedRootFolder(), FolderName));
     }
 }

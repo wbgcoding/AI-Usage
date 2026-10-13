@@ -32,4 +32,38 @@ public class SecondInstancePointerTests
             AppPaths.ClearPointerRootOverrideForTests();
         }
     }
+
+    [Fact]
+    public void An_unreachable_second_instance_pointer_is_reported_like_the_everyday_one()
+    {
+        var root = TestPaths.CreateDirectory("pointer-unreachable");
+        var blocker = Path.Combine(root, "blocker");
+        File.WriteAllText(blocker, "a file where the pointed folder would have to go");
+        var target = Path.Combine(blocker, "data");
+        AppPaths.SetPointerRootOverride(root);
+        try
+        {
+            AppPaths.UseSecondInstancePointer();
+            Directory.CreateDirectory(Path.GetDirectoryName(AppPaths.LocationPointerFile)!);
+            File.WriteAllText(AppPaths.LocationPointerFile, target);
+
+            var pointed = AppPaths.ReadPointedDirectory(Path.Combine(root, "fake-temp"), out var unreachable);
+
+            Assert.Null(pointed);
+            Assert.Equal(target, unreachable);
+
+            var fallback = Path.Combine(root, "AI-Usage", "second-instance");
+            AppPaths.SetStartRedirect(fallback, unreachable);
+            Assert.Equal(fallback, AppPaths.DataDirectory);
+            Assert.Equal(target, AppPaths.UnreachableDataFolder);
+
+            AppPaths.SetOverride(Path.Combine(root, "moved"));
+            Assert.Null(AppPaths.UnreachableDataFolder);
+        }
+        finally
+        {
+            AppPaths.ClearOverrideForTests();
+            AppPaths.ClearPointerRootOverrideForTests();
+        }
+    }
 }

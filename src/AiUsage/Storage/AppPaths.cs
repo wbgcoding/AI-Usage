@@ -33,6 +33,10 @@ public static class AppPaths
     /// move takes effect for the rest of the running process without a restart.</summary>
     private static string? _overrideDirectory;
 
+    /// <summary>The folder <see cref="SetStartRedirect"/> chose at start, so the note about an
+    /// unreachable pointer target holds until a later move replaces it.</summary>
+    private static string? _startRedirect;
+
     /// <summary>Test seam only: the floor <see cref="ClearOverrideForTests"/> falls back to instead of
     /// null - see that method for why null is never safe once a test process is running.</summary>
     private static string? _overrideFloorForTests;
@@ -47,7 +51,7 @@ public static class AppPaths
         get
         {
             _ = DataDirectory;
-            return _overrideDirectory is null ? _unreachableAtStart : null;
+            return _overrideDirectory is null || _overrideDirectory == _startRedirect ? _unreachableAtStart : null;
         }
     }
 
@@ -201,17 +205,31 @@ public static class AppPaths
         return TryReadPointer(Path.Combine(candidate, PointerFileName), out var pointed) ? pointed : candidate;
     }
 
-    /// <summary>The folder <see cref="LocationPointerFile"/> names when it can be used, else null.</summary>
-    internal static string? ReadPointedDirectory() => ReadPointedDirectory(Path.GetTempPath());
-
     /// <summary>Exposed so a test can name a fake temp root: the real one holds every test folder.</summary>
-    internal static string? ReadPointedDirectory(string tempRoot)
+    internal static string? ReadPointedDirectory(string tempRoot) => ReadPointedDirectory(tempRoot, out _);
+
+    /// <summary><paramref name="unreachableTarget"/> is the folder the pointer named when it could not
+    /// be used (not writable right now), else null.</summary>
+    internal static string? ReadPointedDirectory(string tempRoot, out string? unreachableTarget)
     {
-        if (!TryReadPointer(LocationPointerFile, out var directory)
-            || IsUnderRoot(directory, tempRoot)
-            || !TryEnsureWritableDirectory(directory))
+        unreachableTarget = null;
+        if (!TryReadPointer(LocationPointerFile, out var directory) || IsUnderRoot(directory, tempRoot))
             return null;
+        if (!TryEnsureWritableDirectory(directory))
+        {
+            unreachableTarget = directory;
+            return null;
+        }
         return directory;
+    }
+
+    /// <summary>The start-time choice of a process that does not use the lazily resolved folder (the
+    /// second instance): sets the folder and remembers the pointer target that could not be used, so
+    /// it is reported like the everyday copy reports it.</summary>
+    internal static void SetStartRedirect(string directory, string? unreachableTarget)
+    {
+        _overrideDirectory = _startRedirect = directory;
+        _unreachableAtStart = unreachableTarget;
     }
 
     /// <summary>Test seam only: see <see cref="_pointerRootOverride"/>.</summary>
@@ -223,6 +241,8 @@ public static class AppPaths
     {
         _pointerRootOverride = null;
         _secondInstancePointer = false;
+        _startRedirect = null;
+        _unreachableAtStart = null;
     }
 
     public static string LogsDirectory => Path.Combine(DataDirectory, "logs");
