@@ -1,5 +1,8 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using AiUsage.Storage;
 using Microsoft.Data.Sqlite;
 
@@ -32,9 +35,9 @@ public sealed class StatsStore
     // token columns to source_file (a Claude response written several times counts its fullest
     // copy); every row stays, and the part earlier builds missed is added once from the source files
     // that still exist. Schema v9 adds the claude_message table (which source file counted each Claude
-    // response first, so a copy of it in a resumed or forked transcript is not counted again); every
-    // row stays, and the copies already counted twice are subtracted once from the source files that
-    // still exist.
+    // response first, so a copy of it in a resumed or forked transcript is not counted again; keyed by
+    // a 64-bit hash of the message key, the file as a number from claude_file); every row stays, and
+    // the copies already counted twice are subtracted once from the source files that still exist.
     internal const int SchemaVersion = 9;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved
@@ -432,7 +435,7 @@ public sealed class StatsStore
         TryExecute(connection, "PRAGMA journal_mode = DELETE");
     }
 
-    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message"];
+    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message", "claude_file"];
 
     /// <summary>Drops everything in the file's schema that this app did not create: triggers and views,
     /// tables other than its own, and every explicit index (the app declares none; the indexes that
@@ -665,6 +668,14 @@ public sealed class StatsStore
         }
 
         // The v4 step already left a backup of the untouched file; v5 and v6 files get theirs here.
+        // A v7 or v8 file gets one too: the owner pass subtracts from rows that exist nowhere else.
+        if (existingVersion is 7 or 8 && (_backupFailed || !BackUpBeforeMigration(originalVersion!.Value)))
+        {
+            _backupFailed = true;
+            IsUsable = false;
+            return false;
+        }
+
         if (existingVersion is 5 or 6)
         {
             if (_backupFailed || (originalVersion != 4 && !BackUpBeforeMigration(originalVersion!.Value)))
@@ -749,10 +760,14 @@ public sealed class StatsStore
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS claude_file (
+                id INTEGER PRIMARY KEY,
+                path TEXT NOT NULL UNIQUE COLLATE NOCASE
+            );
             CREATE TABLE IF NOT EXISTS claude_message (
-                key TEXT PRIMARY KEY,
-                path TEXT NOT NULL
-            ) WITHOUT ROWID;
+                hash INTEGER PRIMARY KEY,
+                file INTEGER NOT NULL
+            );
             """);
 
         // Files from before v8 lack the counted token columns (new, unset: NULL).
@@ -793,6 +808,10 @@ public sealed class StatsStore
     private const string SubagentUsageBackfilledKey = "subagent_usage_backfilled";
     private const string ClaudeCopyBackfilledKey = "claude_copy_backfilled";
     private const string ClaudeOwnerPassKey = "claude_owner_pass";
+
+    // One meta row per file whose offset moved without a read while the owner pass was still to run:
+    // the value is the offset from which its content was really counted.
+    private const string ClaudeOwnerSkipPrefix = "claude_owner_skip|";
 
     private static readonly string[] CountedColumns = ["counted_input", "counted_output", "counted_cache_creation", "counted_cache_read"];
 
@@ -1339,6 +1358,60 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>Remembers that <paramref name="path"/> was counted only from <paramref name="countedFrom"/>
+    /// on: its offset was moved to the end of a replaced file without reading it, so the owner pass
+    /// must not take that unread part into account. False when nothing was written.</summary>
+    public bool SetClaudeOwnerSkip(string path, long countedFrom)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, $value)";
+            command.Parameters.AddWithValue("$key", ClaudeOwnerSkipPrefix + path);
+            command.Parameters.AddWithValue("$value", countedFrom.ToString(CultureInfo.InvariantCulture));
+            command.ExecuteNonQuery();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>The offsets set by <see cref="SetClaudeOwnerSkip"/>, per file. Null when they cannot be
+    /// read: the pass is then left for the next walk.</summary>
+    public Dictionary<string, long>? LoadClaudeOwnerSkips()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            var skips = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT key, value FROM meta WHERE substr(key, 1, $length) = $prefix";
+            command.Parameters.AddWithValue("$length", ClaudeOwnerSkipPrefix.Length);
+            command.Parameters.AddWithValue("$prefix", ClaudeOwnerSkipPrefix);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (long.TryParse(reader.GetString(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var from))
+                    skips[reader.GetString(0)[ClaudeOwnerSkipPrefix.Length..]] = from;
+            }
+
+            return skips;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Records <paramref name="path"/> as the file that counted each of <paramref name="keys"/>;
     /// a key another file already owns stays with it. False when nothing was written.</summary>
     public bool ClaimClaudeKeys(string path, IReadOnlyCollection<string> keys)
@@ -1363,22 +1436,46 @@ public sealed class StatsStore
     private static void ClaimClaudeKeysWithinTransaction(
         SqliteConnection connection, SqliteTransaction transaction, string path, IReadOnlyCollection<string> keys)
     {
+        // Rows are never pruned: a resumed copy of a transcript that is gone must still be recognised.
+        using (var add = connection.CreateCommand())
+        {
+            add.Transaction = transaction;
+            add.CommandText = "INSERT OR IGNORE INTO claude_file (path) VALUES ($path)";
+            add.Parameters.AddWithValue("$path", path);
+            add.ExecuteNonQuery();
+        }
+
+        long file;
+        using (var find = connection.CreateCommand())
+        {
+            find.Transaction = transaction;
+            find.CommandText = "SELECT id FROM claude_file WHERE path = $path";
+            find.Parameters.AddWithValue("$path", path);
+            file = Convert.ToInt64(find.ExecuteScalar(), CultureInfo.InvariantCulture);
+        }
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "INSERT OR IGNORE INTO claude_message (key, path) VALUES ($key, $path)";
-        var key = AddParameter(command, "$key", SqliteType.Text);
-        command.Parameters.AddWithValue("$path", path);
+        command.CommandText = "INSERT OR IGNORE INTO claude_message (hash, file) VALUES ($hash, $file)";
+        var hash = AddParameter(command, "$hash", SqliteType.Integer);
+        command.Parameters.AddWithValue("$file", file);
         command.Prepare();
         foreach (var value in keys)
         {
-            key.Value = value;
+            hash.Value = ClaudeKeyHash(value);
             command.ExecuteNonQuery();
         }
     }
 
+    /// <summary>A stable 64-bit digest of a Claude message key: the first eight bytes of its SHA-256.
+    /// Two different responses meet only by a chance of about one in 10^19 per pair.</summary>
+    internal static long ClaudeKeyHash(string key) =>
+        BinaryPrimitives.ReadInt64LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+
     /// <summary>Opens a lookup of which file counted a Claude response first; null when the index
-    /// cannot be read. Holds one connection and one prepared statement, so a file with thousands of
-    /// responses is checked without reopening anything.</summary>
+    /// cannot be read. Holds one connection and prepared statements, and reads a file's responses in
+    /// one read transaction (<see cref="ClaudeOwnerLookup.EndRead"/> ends it), so a file with thousands
+    /// of responses is checked without a lock round trip each.</summary>
     internal ClaudeOwnerLookup? OpenClaudeOwners()
     {
         try
@@ -1402,28 +1499,91 @@ public sealed class StatsStore
     {
         private readonly SqliteConnection _connection;
         private readonly SqliteCommand _command;
-        private readonly SqliteParameter _key;
+        private readonly SqliteParameter _hash;
+        private readonly SqliteCommand _fileCommand;
+        private readonly SqliteParameter _path;
+        private SqliteTransaction? _transaction;
+        private bool _prepared;
 
         internal ClaudeOwnerLookup(SqliteConnection connection)
         {
             _connection = connection;
             _command = connection.CreateCommand();
-            _command.CommandText = "SELECT path FROM claude_message WHERE key = $key";
-            _key = AddParameter(_command, "$key", SqliteType.Text);
+            _command.CommandText = "SELECT file FROM claude_message WHERE hash = $hash";
+            _hash = AddParameter(_command, "$hash", SqliteType.Integer);
+            _fileCommand = connection.CreateCommand();
+            _fileCommand.CommandText = "SELECT id FROM claude_file WHERE path = $path";
+            _path = AddParameter(_fileCommand, "$path", SqliteType.Text);
+        }
+
+        private void BeginRead()
+        {
+            if (_transaction is not null)
+                return;
+
+            _transaction = _connection.BeginTransaction(deferred: true);
+            _command.Transaction = _transaction;
+            _fileCommand.Transaction = _transaction;
+            if (!_prepared)
+            {
+                _command.Prepare();
+                _fileCommand.Prepare();
+                _prepared = true;
+            }
+        }
+
+        /// <summary>Ends the read transaction of the file just read. It must end before anything is
+        /// written to the index: an open read blocks the commit of another connection.</summary>
+        public void EndRead()
+        {
+            var transaction = _transaction;
+            _transaction = null;
+            if (transaction is null)
+                return;
+
+            try
+            {
+                transaction.Dispose();
+            }
+            catch (SqliteException)
+            {
+                Failed = true;
+            }
+
+            _command.Transaction = null;
+            _fileCommand.Transaction = null;
         }
 
         /// <summary>True once a lookup failed: the answers so far cannot be trusted and the file being
         /// read must be left for the next walk.</summary>
         public bool Failed { get; private set; }
 
-        /// <summary>The file that counted <paramref name="key"/> first; null when none did (or the
-        /// lookup failed).</summary>
-        public string? OwnerOf(string key)
+        /// <summary>The file (its number, see <see cref="FileIdOf"/>) that counted <paramref name="key"/>
+        /// first; null when none did (or the lookup failed).</summary>
+        public long? OwnerOf(string key)
         {
             try
             {
-                _key.Value = key;
-                return _command.ExecuteScalar() as string;
+                BeginRead();
+                _hash.Value = ClaudeKeyHash(key);
+                return _command.ExecuteScalar() is long file ? file : null;
+            }
+            catch (SqliteException)
+            {
+                Failed = true;
+                return null;
+            }
+        }
+
+        /// <summary>The number of a file that owns at least one response; null for a file that owns
+        /// none (or when the lookup failed).</summary>
+        public long? FileIdOf(string path)
+        {
+            try
+            {
+                BeginRead();
+                _path.Value = path;
+                return _fileCommand.ExecuteScalar() is long file ? file : null;
             }
             catch (SqliteException)
             {
@@ -1434,16 +1594,23 @@ public sealed class StatsStore
 
         public void Dispose()
         {
+            EndRead();
             _command.Dispose();
+            _fileCommand.Dispose();
             _connection.Dispose();
         }
     }
 
+    /// <summary>What <see cref="ApplyClaudeOwnerCorrection"/> took out: the token total, and how many
+    /// usage records were left alone because their row is missing or holds less than the record.</summary>
+    public readonly record struct ClaudeOwnerCorrection(long Removed, int Skipped);
+
     /// <summary>Takes the tokens of Claude responses that a second transcript counted again out of the
-    /// usage rows and session totals they were added to (never below zero; a usage row left empty is
-    /// removed) and marks the one-time pass done - in one transaction. Returns the subtracted token
-    /// total, or null when nothing was written (the pass is then repeated).</summary>
-    public long? ApplyClaudeOwnerCorrection(IReadOnlyList<StatsRecord> duplicates, IReadOnlyList<StatsSessionDelta> sessions)
+    /// usage rows and session totals they were added to and marks the one-time pass done - in one
+    /// transaction. A usage record whose row is gone or holds less than the record (the machine's time
+    /// zone moved since the tokens were filed) is skipped, never clamped into another hour; a row left
+    /// empty is removed. Null when nothing was written (the pass is then repeated).</summary>
+    public ClaudeOwnerCorrection? ApplyClaudeOwnerCorrection(IReadOnlyList<StatsRecord> duplicates, IReadOnlyList<StatsSessionDelta> sessions)
     {
         try
         {
@@ -1452,15 +1619,21 @@ public sealed class StatsStore
                 return null;
 
             using var transaction = connection.BeginTransaction();
-            SubtractUsageWithinTransaction(connection, transaction, duplicates);
+            var correction = SubtractUsageWithinTransaction(connection, transaction, duplicates);
             SubtractSessionsWithinTransaction(connection, transaction, sessions);
             using var mark = connection.CreateCommand();
             mark.Transaction = transaction;
             mark.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, '1')";
             mark.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
             mark.ExecuteNonQuery();
+            using var clearSkips = connection.CreateCommand();
+            clearSkips.Transaction = transaction;
+            clearSkips.CommandText = "DELETE FROM meta WHERE substr(key, 1, $length) = $prefix";
+            clearSkips.Parameters.AddWithValue("$length", ClaudeOwnerSkipPrefix.Length);
+            clearSkips.Parameters.AddWithValue("$prefix", ClaudeOwnerSkipPrefix);
+            clearSkips.ExecuteNonQuery();
             transaction.Commit();
-            return duplicates.Sum(record => record.TotalTokens);
+            return correction;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
@@ -1468,21 +1641,24 @@ public sealed class StatsStore
         }
     }
 
-    private static void SubtractUsageWithinTransaction(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsRecord> records)
+    private static ClaudeOwnerCorrection SubtractUsageWithinTransaction(
+        SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsRecord> records)
     {
         if (records.Count == 0)
-            return;
+            return new ClaudeOwnerCorrection(0, 0);
 
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             UPDATE usage SET
-                input_tokens = MAX(0, input_tokens - $input),
-                output_tokens = MAX(0, output_tokens - $output),
-                cache_creation_tokens = MAX(0, cache_creation_tokens - $cacheCreation),
-                cache_read_tokens = MAX(0, cache_read_tokens - $cacheRead)
+                input_tokens = input_tokens - $input,
+                output_tokens = output_tokens - $output,
+                cache_creation_tokens = cache_creation_tokens - $cacheCreation,
+                cache_read_tokens = cache_read_tokens - $cacheRead
             WHERE provider = $provider AND day = $day AND hour = $hour AND model = $model AND project = $project
               AND effort = $effort AND machine = $machine AND subagent = $subagent
+              AND input_tokens >= $input AND output_tokens >= $output
+              AND cache_creation_tokens >= $cacheCreation AND cache_read_tokens >= $cacheRead
             """;
         using var remove = connection.CreateCommand();
         remove.Transaction = transaction;
@@ -1492,6 +1668,8 @@ public sealed class StatsStore
               AND effort = $effort AND machine = $machine AND subagent = $subagent
               AND input_tokens = 0 AND output_tokens = 0 AND cache_creation_tokens = 0 AND cache_read_tokens = 0
             """;
+        long removed = 0;
+        var skipped = 0;
         foreach (var record in records)
         {
             foreach (var each in new[] { command, remove })
@@ -1511,9 +1689,17 @@ public sealed class StatsStore
             command.Parameters.AddWithValue("$output", record.OutputTokens);
             command.Parameters.AddWithValue("$cacheCreation", record.CacheCreationTokens);
             command.Parameters.AddWithValue("$cacheRead", record.CacheReadTokens);
-            command.ExecuteNonQuery();
+            if (command.ExecuteNonQuery() == 0)
+            {
+                skipped++;
+                continue;
+            }
+
+            removed += record.TotalTokens;
             remove.ExecuteNonQuery();
         }
+
+        return new ClaudeOwnerCorrection(removed, skipped);
     }
 
     private static void SubtractSessionsWithinTransaction(
@@ -1539,6 +1725,13 @@ public sealed class StatsStore
             UPDATE session_model SET tokens = MAX(0, tokens - $tokens)
             WHERE provider = $provider AND machine = $machine AND session_id = $session AND model = $model
             """;
+        // Only what this correction touched: a model or session it brought to zero tokens is not listed any more.
+        using var dropModel = connection.CreateCommand();
+        dropModel.Transaction = transaction;
+        dropModel.CommandText = """
+            DELETE FROM session_model
+            WHERE provider = $provider AND machine = $machine AND session_id = $session AND model = $model AND tokens = 0
+            """;
         using var mainModel = connection.CreateCommand();
         mainModel.Transaction = transaction;
         mainModel.CommandText = """
@@ -1548,9 +1741,24 @@ public sealed class StatsStore
                 ORDER BY tokens DESC, model LIMIT 1), '')
             WHERE provider = $provider AND machine = $machine AND session_id = $session
             """;
+        using var dropSession = connection.CreateCommand();
+        dropSession.Transaction = transaction;
+        dropSession.CommandText = """
+            DELETE FROM session
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+              AND input = 0 AND output = 0 AND cache_creation = 0 AND cache_read = 0
+            """;
+        using var dropSessionModels = connection.CreateCommand();
+        dropSessionModels.Transaction = transaction;
+        dropSessionModels.CommandText = """
+            DELETE FROM session_model
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+              AND NOT EXISTS (SELECT 1 FROM session
+                              WHERE provider = $provider AND machine = $machine AND session_id = $session)
+            """;
         foreach (var delta in deltas)
         {
-            foreach (var each in new[] { session, mainModel })
+            foreach (var each in new[] { session, mainModel, dropSession, dropSessionModels })
             {
                 each.Parameters.Clear();
                 each.Parameters.AddWithValue("$provider", delta.Provider);
@@ -1574,9 +1782,17 @@ public sealed class StatsStore
                 model.Parameters.AddWithValue("$model", name);
                 model.Parameters.AddWithValue("$tokens", tokens);
                 model.ExecuteNonQuery();
+                dropModel.Parameters.Clear();
+                dropModel.Parameters.AddWithValue("$provider", delta.Provider);
+                dropModel.Parameters.AddWithValue("$machine", delta.Machine);
+                dropModel.Parameters.AddWithValue("$session", delta.SessionId);
+                dropModel.Parameters.AddWithValue("$model", name);
+                dropModel.ExecuteNonQuery();
             }
 
             mainModel.ExecuteNonQuery();
+            if (dropSession.ExecuteNonQuery() > 0)
+                dropSessionModels.ExecuteNonQuery();
         }
     }
 
@@ -1898,6 +2114,20 @@ public sealed class StatsStore
                 delete.CommandText = "DELETE FROM source_file WHERE path = $path";
                 delete.Parameters.AddWithValue("$path", oldPath);
                 delete.ExecuteNonQuery();
+            }
+
+            // What the old path counted stays its own under the new path.
+            using (var follow = connection.CreateCommand())
+            {
+                follow.Transaction = transaction;
+                follow.CommandText = """
+                    UPDATE OR IGNORE claude_file SET path = $new WHERE path = $old;
+                    UPDATE OR REPLACE meta SET key = $skipPrefix || $new WHERE key = $skipPrefix || $old;
+                    """;
+                follow.Parameters.AddWithValue("$new", newPath);
+                follow.Parameters.AddWithValue("$old", oldPath);
+                follow.Parameters.AddWithValue("$skipPrefix", ClaudeOwnerSkipPrefix);
+                follow.ExecuteNonQuery();
             }
 
             SetSourceFileWithinTransaction(connection, transaction, moved);

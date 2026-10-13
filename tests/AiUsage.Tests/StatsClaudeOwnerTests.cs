@@ -35,6 +35,9 @@ public class StatsClaudeOwnerTests
         return command.ExecuteScalar();
     }
 
+    private static long OwnedBy(string dbPath, string transcript) =>
+        (long)Scalar(dbPath, $"SELECT COUNT(*) FROM claude_message m JOIN claude_file f ON f.id = m.file WHERE f.path = '{transcript.Replace("'", "''")}'")!;
+
     private static (long Input, long Output) Totals(StatsStore store)
     {
         var rows = store.LoadAll();
@@ -100,6 +103,23 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void A_fresh_index_gives_a_response_to_the_older_transcript_even_when_the_newer_was_written_last()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-order-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-order-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-order-data");
+        var original = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var resumed = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var store = new StatsStore(dataDir);
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        Assert.Equal(2L, OwnedBy(dbPath, original));
+        Assert.Equal(1L, OwnedBy(dbPath, resumed));
+    }
+
+    [Fact]
     public void The_owner_is_not_blocked_when_it_is_read_again_from_scratch()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-again-claude");
@@ -159,7 +179,7 @@ public class StatsClaudeOwnerTests
     /// <summary>The index as the previous build left it: both transcripts counted, nothing recorded
     /// about who counted what, the owner pass still to run.</summary>
     private static (StatsStore Store, string Original, string Resumed) DoubleCountedIndex(
-        string claudeRoot, string codexRoot, string dataDir)
+        string claudeRoot, string codexRoot, string dataDir, string[]? resumedLines = null)
     {
         var original = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
         var store = new StatsStore(dataDir);
@@ -167,7 +187,7 @@ public class StatsClaudeOwnerTests
         var dbPath = Path.Combine(dataDir, "stats.db");
         Run(dbPath, "DELETE FROM claude_message");
 
-        var resumed = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var resumed = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, resumedLines ?? ResumedLines());
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
         Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
         return (store, original, resumed);
@@ -196,6 +216,181 @@ public class StatsClaudeOwnerTests
         // Once: the done mark withdrawn is the only way to offer it again, so a second walk changes nothing.
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
         Assert.Equal((157L, 490L), Totals(store));
+    }
+
+    [Fact]
+    public void A_pass_that_failed_leaves_the_walk_counting_like_before_and_loses_no_token_when_it_runs_later()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-failed-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-failed-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-failed-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
+
+        // The pass cannot write its claims; the resumed transcript shows up meanwhile.
+        Run(dbPath, "CREATE TRIGGER no_claims BEFORE INSERT ON claude_message BEGIN SELECT RAISE(ABORT, 'locked'); END");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var walk = new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeOwnerPassDone());
+        Assert.Equal(1, walk.Claude.FilesRead);
+        Assert.Equal((157L + 150L, 490L + 487L), Totals(store));
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM claude_message"));
+
+        Run(dbPath, "DROP TRIGGER no_claims");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // The parent keeps everything, the copied history is taken out exactly once.
+        Assert.True(store.IsClaudeOwnerPassDone());
+        Assert.Equal((157L, 490L), Totals(store));
+        var sessions = store.LoadSessions().ToDictionary(session => session.SessionId);
+        Assert.Equal(487L, sessions["sess-1"].OutputTokens);
+        Assert.Equal(3L, sessions["sess-2"].OutputTokens);
+    }
+
+    [Fact]
+    public void The_pass_leaves_out_the_part_of_a_replaced_transcript_that_was_never_counted()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-replaced-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-replaced-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-replaced-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
+
+        // The pass cannot run yet; a longer transcript is counted, then replaced by a shorter one
+        // whose content (a copy of the original's history) is never read.
+        Run(dbPath, "CREATE TRIGGER no_claims BEFORE INSERT ON claude_message BEGIN SELECT RAISE(ABORT, 'locked'); END");
+        var other = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New,
+            Line("2026-01-02T10:00:00Z", "m5", 1, 1, "sess-2"), Line("2026-01-02T10:00:01Z", "m6", 1, 1, "sess-2"),
+            Line("2026-01-02T10:00:02Z", "m7", 1, 1, "sess-2"), Line("2026-01-02T10:00:03Z", "m8", 1, 1, "sess-2"));
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        var counted = Totals(store);
+        File.WriteAllText(other, Line("2026-01-01T10:00:00Z", "m1", 100, 467) + "\n");
+        File.SetLastWriteTimeUtc(other, New.AddHours(1));
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        Run(dbPath, "DROP TRIGGER no_claims");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+        Assert.Equal(counted, Totals(store));
+    }
+
+    [Fact]
+    public void A_session_pass_that_follows_the_walk_does_not_bring_the_copies_back()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-sessions-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-sessions-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-sessions-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // The session totals are rebuilt from the files, as after a failed session pass.
+        Run(dbPath, "DELETE FROM session; DELETE FROM session_model; DELETE FROM meta WHERE key = 'sessions_backfilled'");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsSessionBackfillDone());
+        var sessions = store.LoadSessions().ToDictionary(session => session.SessionId);
+        // The first copy of each response (5 + 20): what the session pass has always counted.
+        Assert.Equal(25L, sessions["sess-1"].OutputTokens);
+        Assert.Equal(3L, sessions["sess-2"].OutputTokens);
+    }
+
+    [Fact]
+    public void A_claim_is_a_number_pair_and_survives_the_deletion_of_its_transcript()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-kept-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-kept-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-kept-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var original = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // Neither the message key nor a path is stored per response.
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM pragma_table_info('claude_message') WHERE type <> 'INTEGER'"));
+        Assert.NotEqual(StatsStore.ClaudeKeyHash("m1|r-m1"), StatsStore.ClaudeKeyHash("m2|r-m2"));
+        Assert.Equal(StatsStore.ClaudeKeyHash("m1|r-m1"), StatsStore.ClaudeKeyHash("m1|r-m1"));
+
+        // Claude Code deletes the original; a later transcript still repeats its history.
+        File.Delete(original);
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-3.jsonl", New, New, ResumedLines());
+        var again = new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.Equal((157L, 490L), Totals(store));
+        Assert.Equal((1L, 3L), (again.Claude.LinesParsed, again.Claude.LinesSkipped));
+    }
+
+    [Fact]
+    public void The_owner_lookup_reads_in_one_transaction_that_ends_before_a_write()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-lookup");
+        var store = new StatsStore(dataDir, busyTimeoutMs: 100);
+        Assert.True(store.ClaimClaudeKeys("first.jsonl", ["m1|r-m1", "m2|r-m2"]));
+        using var owners = store.OpenClaudeOwners()!;
+
+        var first = owners.FileIdOf("FIRST.jsonl");
+        Assert.NotNull(first);
+        Assert.Equal(first, owners.OwnerOf("m1|r-m1"));
+        Assert.Equal(first, owners.OwnerOf("m2|r-m2"));
+        Assert.Null(owners.OwnerOf("m3|r-m3"));
+
+        // The read of this file is over: another connection can write, and the next read sees it.
+        owners.EndRead();
+        Assert.True(store.ClaimClaudeKeys("second.jsonl", ["m3|r-m3"]));
+        var second = owners.OwnerOf("m3|r-m3");
+        Assert.NotNull(second);
+        Assert.NotEqual(first, second);
+        Assert.False(owners.Failed);
+    }
+
+    [Fact]
+    public void An_index_without_a_remembered_claude_file_marks_the_pass_done()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-nofile-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var store = new StatsStore(dataDir);
+        store.AddDelta([new StatsRecord("codex", new DateOnly(2026, 1, 1), "modelC", "proj", 10, 20, 0, 0, 5, "", Subagent: false)]);
+        Run(dbPath, $"DELETE FROM meta WHERE key = '{OwnerPassKey}'");
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+    }
+
+    [Fact]
+    public void A_session_the_pass_leaves_without_tokens_is_not_listed_any_more()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-empty-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-empty-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-empty-data");
+        // The second transcript holds nothing but the first one's history, filed under its own session.
+        var (store, _, _) = DoubleCountedIndex(claudeRoot, codexRoot, dataDir,
+        [
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5, "sess-2"),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467, "sess-2"),
+        ]);
+        Assert.Contains("sess-2", store.LoadSessions().Select(session => session.SessionId));
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.Equal(["sess-1"], store.LoadSessions().Select(session => session.SessionId));
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM session_model WHERE session_id = 'sess-2'"));
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM session WHERE (input = 0 AND output = 0 AND cache_creation = 0 AND cache_read = 0)"));
     }
 
     [Fact]
@@ -232,7 +427,7 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
-    public void A_correction_never_takes_a_row_below_zero()
+    public void A_correction_skips_a_record_its_row_cannot_cover_and_one_without_a_row()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-floor");
         var store = new StatsStore(dataDir);
@@ -243,19 +438,17 @@ public class StatsClaudeOwnerTests
              new StatsRecord("claude", new DateOnly(2026, 1, 1), "modelA", "other", 9, 9, 0, 0, 5, "", Subagent: false)],
             []);
 
-        Assert.NotNull(removed);
+        Assert.Equal(new StatsStore.ClaudeOwnerCorrection(0, 2), removed);
         var row = Assert.Single(store.LoadAll());
-        Assert.Equal((0L, 15L), (row.InputTokens, row.OutputTokens));
+        Assert.Equal((10L, 20L), (row.InputTokens, row.OutputTokens));
     }
 
-    [Fact]
-    public void Migration_from_v8_keeps_every_row_and_offers_the_pass()
+    /// <summary>A database exactly as a v7 or v8 build left it, with one remembered file and one session.</summary>
+    private static void WritePreOwnerDatabase(string dbPath, int version)
     {
-        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-v8");
-        var dbPath = Path.Combine(dataDir, "stats.db");
         Run(dbPath, """
             CREATE TABLE schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);
-            INSERT INTO schema_version (id, version) VALUES (1, 8);
+            INSERT INTO schema_version (id, version) VALUES (1, SCHEMA_VERSION);
             CREATE TABLE usage (
                 provider TEXT NOT NULL, day TEXT NOT NULL, hour INTEGER NOT NULL DEFAULT 0, model TEXT NOT NULL, project TEXT NOT NULL,
                 effort TEXT NOT NULL DEFAULT '', machine TEXT NOT NULL DEFAULT '', subagent INTEGER NOT NULL DEFAULT 0,
@@ -292,7 +485,17 @@ public class StatsClaudeOwnerTests
             VALUES ('gone.jsonl', 'claude', 5, 5, '2026-01-01T00:00:00.0000000Z', 'm1|r-m1', 100, 20, 30, 40);
             INSERT INTO session VALUES ('claude', '', 'sess-1', 'C:\Projects\Sample', '2026-01-01T10:00:00.0000000Z', '2026-01-01T11:00:00.0000000Z', 107, 28, 39, 50, 'modelA', 34);
             INSERT INTO session_model VALUES ('claude', '', 'sess-1', 'modelA', 224);
-            """);
+            """.Replace("SCHEMA_VERSION", version.ToString()));
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Migration_from_v7_or_v8_keeps_every_row_offers_the_pass_and_leaves_a_backup(int version)
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-v8");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WritePreOwnerDatabase(dbPath, version);
 
         var store = new StatsStore(dataDir);
         var rows = store.LoadAll();
@@ -311,8 +514,31 @@ public class StatsClaudeOwnerTests
         Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM claude_message"));
         Assert.False(store.IsClaudeOwnerPassDone());
 
+        // The untouched file is kept beside it, as the older migrations do.
+        var backup = Path.Combine(dataDir, $"stats.v{version}.bak");
+        Assert.Equal((long)version, Scalar(backup, "SELECT version FROM schema_version"));
+        Assert.Equal(3L, Scalar(backup, "SELECT COUNT(*) FROM usage"));
+
         // A second open leaves the migrated file alone.
         Assert.Equal(3, new StatsStore(dataDir).LoadAll().Count);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Migration_from_v7_or_v8_does_not_run_when_the_backup_cannot_be_written(int version)
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-nobackup");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WritePreOwnerDatabase(dbPath, version);
+        Directory.CreateDirectory(Path.Combine(dataDir, $"stats.v{version}.bak"));
+
+        var store = new StatsStore(dataDir);
+
+        Assert.Empty(store.LoadAll());
+        Assert.False(store.IsUsable);
+        Assert.Equal((long)version, Scalar(dbPath, "SELECT version FROM schema_version"));
+        Assert.Equal(3L, Scalar(dbPath, "SELECT COUNT(*) FROM usage"));
     }
 
     [Fact]
