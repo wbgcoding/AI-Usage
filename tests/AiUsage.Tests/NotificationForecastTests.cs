@@ -2,6 +2,7 @@ using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Storage;
 using AiUsage.ViewModels;
+using AiUsage.Web;
 using Xunit;
 
 namespace AiUsage.Tests;
@@ -212,5 +213,39 @@ public class NotificationForecastTests : IDisposable
             s.QuietHoursStart = "00:00";
             s.QuietHoursEnd = "23:59";
         }));
+    }
+    [Fact]
+    public async Task A_signed_out_account_raises_no_forecast_on_a_later_history_refresh()
+    {
+        var id = $"forecast-test-{Guid.NewGuid():N}";
+        var settings = new AppSettings();
+        settings.Providers[id] = new ProviderSettings { Visible = true };
+        var clock = DateTimeOffset.Now;
+        var store = new HistoryStore(TempDirectory(), () => clock);
+        var now = clock;
+        var resetsAt = now.AddHours(2);
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [new SteadyProvider(id)], store);
+        vm.SignOutWebView = _ => SignOutResult.Removed;
+        var raised = new List<ForecastNotification>();
+        vm.ForecastRaised += raised.Add;
+
+        // No history yet, so the good read alone raises nothing.
+        vm.OnSnapshotReady(new ProviderSnapshot(
+            id, [FiveHour(89, resetsAt)], "Plus", SourceKind.LocalFile, now, now, ProviderStatus.Ok, null));
+        await vm.WaitForPendingHistoryReadsAsync();
+        await vm.SignOutAsync(id);
+
+        // A climbing history then arrives and the charts are drawn again before the next read.
+        for (var i = 0; i < 8; i++)
+        {
+            clock = now.AddMinutes(-49 + (i * 7));
+            store.Append(id, WindowKind.FiveHour, 40 + (i * 7), resetsAt);
+        }
+
+        clock = now;
+        vm.RefreshHistoryForAllTiles();
+        await vm.WaitForPendingHistoryReadsAsync();
+
+        Assert.Empty(raised);
     }
 }

@@ -233,6 +233,7 @@ public sealed partial class MainViewModel
             _ownRows.Remove(tile);
             _fetchStartedAt.Remove(accountKey);
             _pendingFetchClear.Remove(accountKey);
+            _forecastInputs.Remove(accountKey);
             _notifications.RemoveAccount(accountKey);
             RenumberRowOrders();
             RefreshHiddenCount();
@@ -426,6 +427,8 @@ public sealed partial class MainViewModel
             tile.Apply(new ProviderSnapshot(accountKey, [], null, SourceKind.None, now, null, ProviderStatus.NotSignedIn, null), now);
             // The status file must not keep the numbers of an account that is no longer connected.
             _statusReadings[accountKey] = (ProviderStatus.NotSignedIn, []);
+            // Nor may a chart refresh before the next read raise a forecast on its old numbers.
+            _forecastInputs.Remove(accountKey);
             QueueStatusFile(now);
         }
 
