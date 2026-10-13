@@ -131,6 +131,9 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - A limit that has reset no longer shows last period's token count.
 - Setting the clock back no longer pauses the refresh.
 - A settings file briefly locked by a sync tool or virus scanner no longer starts the app on default settings.
+- A Claude response that Claude Code copies into a resumed session is counted once; tokens already counted twice are taken off once from the session files that still exist (the token index is backed up first).
+- The Claude limit of a long-running session is found again in very large project folders.
+- Moving the data folder refuses a folder that already holds AI-Usage data, so it can never overwrite another copy's data.
 
 ### Security
 
