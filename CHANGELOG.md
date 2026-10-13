@@ -123,6 +123,14 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - History export and removing an imported PC no longer freeze the settings window.
 - Keyboard focus is visible on every button, check box and radio button, and screen readers name both quiet-hours boxes.
 - Setup no longer hangs forever on a stalled .NET download.
+- Closing after a crash or restarting to restore a backup no longer leaves a dead tray icon behind, and the window position is saved.
+- A second instance keeps its own data folder setting and stays a second instance through an update.
+- A Claude folder that is linked to another one is no longer counted twice.
+- Signing out clears that account's numbers from the status file and stops forecast alerts for it.
+- A changed time zone applies at once instead of after a restart.
+- A limit that has reset no longer shows last period's token count.
+- Setting the clock back no longer pauses the refresh.
+- A settings file briefly locked by a sync tool or virus scanner no longer starts the app on default settings.
 
 ### Security
 
