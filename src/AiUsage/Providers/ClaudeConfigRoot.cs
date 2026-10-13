@@ -40,11 +40,55 @@ internal static class ClaudeConfigRoot
             if (!Directory.Exists(entry))
                 continue;
             var fullPath = Path.GetFullPath(entry);
-            if (seen.Add(fullPath))
+            if (seen.Add(ResolveLinks(fullPath)))
                 roots.Add(fullPath);
         }
 
         return roots;
+    }
+
+    /// <summary>The path with every junction or symbolic link in it replaced by its final target, so
+    /// two roots reaching the same folder compare equal and its transcripts are read once. A link that
+    /// cannot be resolved stays as it is.</summary>
+    internal static string ResolveLinks(string path)
+    {
+        var current = Path.GetFullPath(path);
+        // Each round replaces the deepest link found; a target can itself sit below another link.
+        for (var round = 0; round < 8; round++)
+        {
+            var replaced = false;
+            var tail = "";
+            for (var probe = new DirectoryInfo(current); probe is not null; probe = probe.Parent)
+            {
+                if (TryResolveLink(probe) is { } target)
+                {
+                    current = Path.GetFullPath(Path.Combine(target, tail));
+                    replaced = true;
+                    break;
+                }
+
+                tail = tail.Length == 0 ? probe.Name : Path.Combine(probe.Name, tail);
+            }
+
+            if (!replaced)
+                break;
+        }
+
+        return current;
+    }
+
+    private static string? TryResolveLink(DirectoryInfo directory)
+    {
+        try
+        {
+            if (!directory.Exists || !directory.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                return null;
+            return directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>The <c>projects</c> folders that exist under <paramref name="candidates"/>.</summary>
@@ -58,7 +102,7 @@ internal static class ClaudeConfigRoot
             if (!Directory.Exists(projects))
                 continue;
             var fullPath = Path.GetFullPath(projects);
-            if (seen.Add(fullPath))
+            if (seen.Add(ResolveLinks(fullPath)))
                 roots.Add(fullPath);
         }
 
