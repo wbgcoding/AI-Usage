@@ -424,6 +424,9 @@ public sealed partial class MainViewModel
         {
             var now = DateTimeOffset.Now;
             tile.Apply(new ProviderSnapshot(accountKey, [], null, SourceKind.None, now, null, ProviderStatus.NotSignedIn, null), now);
+            // The status file must not keep the numbers of an account that is no longer connected.
+            _statusReadings[accountKey] = (ProviderStatus.NotSignedIn, []);
+            QueueStatusFile(now);
         }
 
         return signedOut;

@@ -1351,7 +1351,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
             RefreshTileHistory(snapshot.ProviderId);
 
-            var windows = snapshot.Windows.Count > 0 || !_statusReadings.TryGetValue(snapshot.ProviderId, out var before)
+            // Only a read that failed or went stale may show the last numbers; a sign-out or a missing
+            // source has none to show.
+            var windows = snapshot.Windows.Count > 0 || snapshot.Status is not (ProviderStatus.Failed or ProviderStatus.Stale)
+                || !_statusReadings.TryGetValue(snapshot.ProviderId, out var before)
                 ? snapshot.Windows
                 : before.Windows;
             _statusReadings[snapshot.ProviderId] = (snapshot.Status, windows);

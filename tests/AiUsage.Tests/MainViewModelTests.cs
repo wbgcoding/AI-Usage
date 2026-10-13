@@ -880,6 +880,44 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task TheStatusFileDropsTheNumbersOfAnAccountThatSignedOut()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        vm.SignOutWebView = _ => SignOutResult.Removed;
+        var path = Path.Combine(TempDirectory(), StatusFileWriter.FileName);
+        vm.StatusFile = new StatusFileWriter(() => path, TimeSpan.FromHours(1));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null));
+        await vm.SignOutAsync("claude");
+        vm.StatusFile.Flush();
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var claude = document.RootElement.GetProperty("providers").EnumerateArray().Single(p => p.GetProperty("id").GetString() == "claude");
+        Assert.Equal("signin", claude.GetProperty("status").GetString());
+        Assert.Equal(0, claude.GetProperty("windows").GetArrayLength());
+    }
+
+    [Fact]
+    public void TheStatusFileKeepsTheLastNumbersOnlyThroughAFailedOrStaleRead()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        var path = Path.Combine(TempDirectory(), StatusFileWriter.FileName);
+        vm.StatusFile = new StatusFileWriter(() => path, TimeSpan.FromHours(1));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null));
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [], null, SourceKind.None, Now, null, ProviderStatus.NotSignedIn, null));
+        vm.StatusFile.Flush();
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var claude = document.RootElement.GetProperty("providers").EnumerateArray().Single(p => p.GetProperty("id").GetString() == "claude");
+        Assert.Equal(0, claude.GetProperty("windows").GetArrayLength());
+    }
+
+    [Fact]
     public void ByUsageOrderPutsARedTileAboveANormalOne()
     {
         var (vm, _) = BuildOrdered("ByUsage");
