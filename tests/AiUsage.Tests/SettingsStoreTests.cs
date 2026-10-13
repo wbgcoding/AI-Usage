@@ -27,6 +27,50 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(["Chat"], loaded.Providers["codex"].HiddenWindows);
     }
 
+    [Fact]
+    public void Load_waits_for_a_file_another_program_holds_for_a_few_seconds()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+        var original = new AppSettings();
+        original.Providers["claude"].Disconnected = true;
+        store.SaveNow(original);
+
+        using var holder = new FileStream(Path.Combine(directory, "settings.json"), FileMode.Open, FileAccess.Read, FileShare.None);
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            holder.Dispose();
+        });
+
+        using var reloadStore = new SettingsStore(directory);
+        var loaded = reloadStore.Load();
+        release.Wait();
+
+        Assert.True(loaded.Providers["claude"].Disconnected);
+    }
+
+    [Fact]
+    public void A_file_that_stays_locked_is_never_overwritten_by_the_defaults_of_that_session()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+        var original = new AppSettings();
+        original.Providers["claude"].Disconnected = true;
+        store.SaveNow(original);
+        var before = File.ReadAllText(Path.Combine(directory, "settings.json"));
+
+        using (new FileStream(Path.Combine(directory, "settings.json"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            using var reloadStore = new SettingsStore(directory);
+            var loaded = reloadStore.Load();
+            reloadStore.SaveNow(loaded);
+        }
+
+        var after = File.ReadAllText(Path.Combine(directory, "settings.json"));
+        Assert.Equal(before, after);
+    }
+
     [Theory]
     [InlineData("codex", "Label:Chat", "Label:Chat")]
     [InlineData("claude#2", "Label:Premium", "Label:Premium")]

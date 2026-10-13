@@ -154,19 +154,27 @@ public sealed class SettingsStore : IDisposable
         }
     }
 
+    /// <summary>The waits between the read attempts at start: about five seconds in all, because a
+    /// session that gives up too early runs on defaults and would read accounts the user signed out.</summary>
+    private static readonly TimeSpan[] ReadRetryDelays =
+        [.. new[] { 150, 300, 600, 1200, 1200, 1500 }.Select(ms => TimeSpan.FromMilliseconds(ms))];
+
     /// <summary>A sync client or virus scanner can hold the file for a moment. That is not corruption,
-    /// so a short retry comes before the caller's quarantine-and-fall-back path.</summary>
-    private static string ReadAllTextWithRetry(string path)
+    /// so a retry with growing waits comes before the caller's quarantine-and-fall-back path.</summary>
+    private static string ReadAllTextWithRetry(string path) => ReadAllTextWithRetry(path, ReadRetryDelays);
+
+    /// <summary>Exposed so a test can use short waits.</summary>
+    internal static string ReadAllTextWithRetry(string path, IReadOnlyList<TimeSpan> delays)
     {
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 0; ; attempt++)
         {
             try
             {
                 return File.ReadAllText(path);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < 3)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < delays.Count)
             {
-                Thread.Sleep(150);
+                Thread.Sleep(delays[attempt]);
             }
         }
     }
