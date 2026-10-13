@@ -10,6 +10,14 @@ public class UpdateHostTests
     private static readonly string[] Roots = [@"C:\Program Files", @"C:\Program Files (x86)"];
 
     [Fact]
+    public void The_restart_after_an_update_keeps_the_second_instance_switch()
+    {
+        Assert.Equal("--after-update 42", UpdateHost.RestartArguments(["AI-Usage.exe"], 42));
+        Assert.Equal("--after-update 42 --second-instance",
+            UpdateHost.RestartArguments(["AI-Usage.exe", "--second-instance"], 42));
+    }
+
+    [Fact]
     public void A_copy_under_Program_Files_updates_for_all_users()
     {
         Assert.Equal("/SILENT /ALLUSERS" + " /RELAUNCH=1", UpdateHost.BuildSetupArguments(@"C:\Program Files\AI-Usage\AI-Usage.exe", Roots));

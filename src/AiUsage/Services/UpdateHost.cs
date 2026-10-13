@@ -232,7 +232,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
         try
         {
-            using var started = Process.Start(new ProcessStartInfo(running, $"{AfterUpdateSwitch} {Environment.ProcessId}") { UseShellExecute = false });
+            using var started = Process.Start(new ProcessStartInfo(running, RestartArguments(Environment.GetCommandLineArgs(), Environment.ProcessId)) { UseShellExecute = false });
             if (started is null)
                 return false;
         }
@@ -244,6 +244,15 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
         exitApplication();
         return true;
+    }
+
+    /// <summary>The command line of the restart: the wait for <paramref name="processId"/> to end, and
+    /// the second-instance switch when the running copy has it, so the new copy lands in the same
+    /// data folder instead of replacing the everyday one.</summary>
+    internal static string RestartArguments(IReadOnlyList<string> currentArgs, int processId)
+    {
+        var arguments = $"{AfterUpdateSwitch} {processId}";
+        return SecondInstanceMode.IsRequested(currentArgs) ? $"{arguments} {SecondInstanceMode.Switch}" : arguments;
     }
 
     /// <summary>True when the command line is the restart a portable update starts.</summary>

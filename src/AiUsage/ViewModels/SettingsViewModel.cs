@@ -1547,9 +1547,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (Environment.ProcessPath is not { } exe)
             return false;
 
-        var arguments = $"{UpdateHost.AfterUpdateSwitch} {Environment.ProcessId}";
-        if (SecondInstanceMode.IsRequested(Environment.GetCommandLineArgs()))
-            arguments += $" {SecondInstanceMode.Switch}";
+        var arguments = UpdateHost.RestartArguments(Environment.GetCommandLineArgs(), Environment.ProcessId);
 
         try
         {
