@@ -735,6 +735,13 @@ public sealed class StatsIndexer
         if (known.Count == 0 && _store.HasUsageRows())
             return;
 
+        // Once the owner pass has run, a response another transcript owns is not counted here either
+        // (this pass can follow a walk that already skipped those copies). Before it, the content
+        // counts like every older content and the owner pass takes the copies out later.
+        using var owners = _store.IsClaudeOwnerPassDone() ? _store.OpenClaudeOwners() : null;
+        if (owners is null && _store.IsClaudeOwnerPassDone())
+            return;
+
         var sessions = new StatsSessionAccumulator();
         foreach (var state in known.Values)
         {
@@ -745,7 +752,7 @@ public sealed class StatsIndexer
             try
             {
                 if (state.Provider == ClaudeProviderId)
-                    BackfillClaudeFile(state, sessions, cancellationToken);
+                    BackfillClaudeFile(state, owners, sessions, cancellationToken);
                 else if (state.Provider == CodexProviderId)
                     BackfillCodexFile(state, sessions, cancellationToken);
             }
@@ -754,6 +761,9 @@ public sealed class StatsIndexer
                 // A file that vanished or is locked has no session data to give.
             }
         }
+
+        if (owners is { Failed: true })
+            return;
 
         _store.ReplaceSessionsAndMarkBackfilled(sessions.ToDeltas());
     }
@@ -1072,7 +1082,8 @@ public sealed class StatsIndexer
         }
     }
 
-    private void BackfillClaudeFile(StatsSourceFileState state, StatsSessionAccumulator sessions, CancellationToken cancellationToken)
+    private void BackfillClaudeFile(
+        StatsSourceFileState state, StatsStore.ClaudeOwnerLookup? owners, StatsSessionAccumulator sessions, CancellationToken cancellationToken)
     {
         var path = state.Path;
         var project = ProbeClaudeProject(path, ClaudeUsageLogParser.ExtractProjectFromFilePath(path), cancellationToken);
@@ -1089,6 +1100,9 @@ public sealed class StatsIndexer
             if (!ClaudeUsageLogParser.TryParse(line, out var usageEvent))
                 return;
             if (usageEvent.MessageKey.Length > 0 && !countedKeys.Add(usageEvent.MessageKey))
+                return;
+            if (owners is not null && usageEvent.MessageKey.Length > 0
+                && owners.OwnerOf(usageEvent.MessageKey) is { } owner && !string.Equals(owner, path, StringComparison.OrdinalIgnoreCase))
                 return;
 
             sessions.Add(ClaudeProviderId, usageEvent.SessionId.Length > 0 ? usageEvent.SessionId : fallbackSessionId, project,

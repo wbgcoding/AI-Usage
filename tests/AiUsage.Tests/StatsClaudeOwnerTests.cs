@@ -284,6 +284,29 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void A_session_pass_that_follows_the_walk_does_not_bring_the_copies_back()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-sessions-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-sessions-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-sessions-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // The session totals are rebuilt from the files, as after a failed session pass.
+        Run(dbPath, "DELETE FROM session; DELETE FROM session_model; DELETE FROM meta WHERE key = 'sessions_backfilled'");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsSessionBackfillDone());
+        var sessions = store.LoadSessions().ToDictionary(session => session.SessionId);
+        // The first copy of each response (5 + 20): what the session pass has always counted.
+        Assert.Equal(25L, sessions["sess-1"].OutputTokens);
+        Assert.Equal(3L, sessions["sess-2"].OutputTokens);
+    }
+
+    [Fact]
     public void An_index_without_a_remembered_claude_file_marks_the_pass_done()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-claude");
