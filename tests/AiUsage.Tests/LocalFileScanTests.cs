@@ -318,13 +318,17 @@ public class LocalFileScanTests : IDisposable
         return path;
     }
 
-    private static void CreateFiles(string folder, int count, string prefix, string extension, DateTime writeTime) =>
-        Parallel.For(0, count, i =>
+    // Sequential on purpose: a parallel loop would starve the thread pool and make timing-sensitive
+    // tests running beside this class flaky.
+    private static void CreateFiles(string folder, int count, string prefix, string extension, DateTime writeTime)
+    {
+        for (var i = 0; i < count; i++)
         {
             var path = Path.Combine(folder, $"{prefix}-{i}{extension}");
             File.WriteAllText(path, "x");
             File.SetLastWriteTimeUtc(path, writeTime);
-        });
+        }
+    }
 
     private static void BuildDeepTree(string root, int levels, int filesPerLevel)
     {
