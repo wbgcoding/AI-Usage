@@ -950,7 +950,9 @@ public sealed class StatsIndexer
             return;
 
         // The original transcript is the oldest file: a copy of its history is made later. A file
-        // whose offset moved without a read is read from where its counted content starts.
+        // whose offset moved without a read is read from where its counted content starts. Known
+        // limit: a shrunk file reset by a build before the skip rows left no trace, so its never
+        // counted prefix is read like counted content and copies of it may be taken out wrongly.
         var files = new List<(StatsSourceFileState State, DateTime Created, long Start)>();
         foreach (var state in known.Values)
         {
