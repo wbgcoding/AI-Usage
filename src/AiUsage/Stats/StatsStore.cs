@@ -31,8 +31,11 @@ public sealed class StatsStore
     // once from the source files that still exist (see StatsIndexer). Schema v8 adds the counted
     // token columns to source_file (a Claude response written several times counts its fullest
     // copy); every row stays, and the part earlier builds missed is added once from the source files
-    // that still exist.
-    internal const int SchemaVersion = 8;
+    // that still exist. Schema v9 adds the claude_message table (which source file counted each Claude
+    // response first, so a copy of it in a resumed or forked transcript is not counted again); every
+    // row stays, and the copies already counted twice are subtracted once from the source files that
+    // still exist.
+    internal const int SchemaVersion = 9;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved
     // data folder takes the index along without rebuilding any store that already exists.
@@ -429,7 +432,7 @@ public sealed class StatsStore
         TryExecute(connection, "PRAGMA journal_mode = DELETE");
     }
 
-    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta"];
+    private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message"];
 
     /// <summary>Drops everything in the file's schema that this app did not create: triggers and views,
     /// tables other than its own, and every explicit index (the app declares none; the indexes that
@@ -746,6 +749,10 @@ public sealed class StatsStore
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS claude_message (
+                key TEXT PRIMARY KEY,
+                path TEXT NOT NULL
+            ) WITHOUT ROWID;
             """);
 
         // Files from before v8 lack the counted token columns (new, unset: NULL).
@@ -768,6 +775,10 @@ public sealed class StatsStore
         if (originalVersion is null or <= 4)
             Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{ClaudeCopyBackfilledKey}', '1')");
 
+        // Same for the owner pass: a rebuilt or brand new index claims every response while it walks.
+        if (originalVersion is null or <= 4)
+            Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{ClaudeOwnerPassKey}', '1')");
+
         using (var writeVersion = connection.CreateCommand())
         {
             writeVersion.CommandText = "INSERT OR REPLACE INTO schema_version (id, version) VALUES (1, $version)";
@@ -781,6 +792,7 @@ public sealed class StatsStore
     private const string SessionsBackfilledKey = "sessions_backfilled";
     private const string SubagentUsageBackfilledKey = "subagent_usage_backfilled";
     private const string ClaudeCopyBackfilledKey = "claude_copy_backfilled";
+    private const string ClaudeOwnerPassKey = "claude_owner_pass";
 
     private static readonly string[] CountedColumns = ["counted_input", "counted_output", "counted_cache_creation", "counted_cache_read"];
 
@@ -919,7 +931,8 @@ public sealed class StatsStore
     /// count that same range again on the next run. False when nothing was stored (the index is
     /// locked, full or unusable): the caller must not count the file as read.</summary>
     public bool ApplyIndexResult(
-        IReadOnlyList<StatsRecord> records, StatsSourceFileState sourceFileState, IReadOnlyList<StatsSessionDelta>? sessions = null)
+        IReadOnlyList<StatsRecord> records, StatsSourceFileState sourceFileState, IReadOnlyList<StatsSessionDelta>? sessions = null,
+        IReadOnlyCollection<string>? claimedClaudeKeys = null)
     {
         try
         {
@@ -931,6 +944,10 @@ public sealed class StatsStore
             AddDeltaWithinTransaction(connection, transaction, records);
             if (sessions is { Count: > 0 })
                 AddSessionDeltasWithinTransaction(connection, transaction, sessions, replace: false);
+            // In the same transaction as the counts, so a response is never counted without being
+            // claimed (a second file would then count it again) or claimed without being counted.
+            if (claimedClaudeKeys is { Count: > 0 })
+                ClaimClaudeKeysWithinTransaction(connection, transaction, sourceFileState.Path, claimedClaudeKeys);
             SetSourceFileWithinTransaction(connection, transaction, sourceFileState);
             transaction.Commit();
             return true;
@@ -1299,6 +1316,267 @@ public sealed class StatsStore
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
             return null;
+        }
+    }
+
+    /// <summary>True once the Claude responses that two transcripts both counted were corrected.</summary>
+    public bool IsClaudeOwnerPassDone()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return true;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM meta WHERE key = $key";
+            command.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
+            return command.ExecuteScalar() as string == "1";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>Records <paramref name="path"/> as the file that counted each of <paramref name="keys"/>;
+    /// a key another file already owns stays with it. False when nothing was written.</summary>
+    public bool ClaimClaudeKeys(string path, IReadOnlyCollection<string> keys)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var transaction = connection.BeginTransaction();
+            ClaimClaudeKeysWithinTransaction(connection, transaction, path, keys);
+            transaction.Commit();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
+    private static void ClaimClaudeKeysWithinTransaction(
+        SqliteConnection connection, SqliteTransaction transaction, string path, IReadOnlyCollection<string> keys)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "INSERT OR IGNORE INTO claude_message (key, path) VALUES ($key, $path)";
+        var key = AddParameter(command, "$key", SqliteType.Text);
+        command.Parameters.AddWithValue("$path", path);
+        command.Prepare();
+        foreach (var value in keys)
+        {
+            key.Value = value;
+            command.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Opens a lookup of which file counted a Claude response first; null when the index
+    /// cannot be read. Holds one connection and one prepared statement, so a file with thousands of
+    /// responses is checked without reopening anything.</summary>
+    internal ClaudeOwnerLookup? OpenClaudeOwners()
+    {
+        try
+        {
+            var connection = Open();
+            if (!IsUsable)
+            {
+                connection.Dispose();
+                return null;
+            }
+
+            return new ClaudeOwnerLookup(connection);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
+    internal sealed class ClaudeOwnerLookup : IDisposable
+    {
+        private readonly SqliteConnection _connection;
+        private readonly SqliteCommand _command;
+        private readonly SqliteParameter _key;
+
+        internal ClaudeOwnerLookup(SqliteConnection connection)
+        {
+            _connection = connection;
+            _command = connection.CreateCommand();
+            _command.CommandText = "SELECT path FROM claude_message WHERE key = $key";
+            _key = AddParameter(_command, "$key", SqliteType.Text);
+        }
+
+        /// <summary>True once a lookup failed: the answers so far cannot be trusted and the file being
+        /// read must be left for the next walk.</summary>
+        public bool Failed { get; private set; }
+
+        /// <summary>The file that counted <paramref name="key"/> first; null when none did (or the
+        /// lookup failed).</summary>
+        public string? OwnerOf(string key)
+        {
+            try
+            {
+                _key.Value = key;
+                return _command.ExecuteScalar() as string;
+            }
+            catch (SqliteException)
+            {
+                Failed = true;
+                return null;
+            }
+        }
+
+        public void Dispose()
+        {
+            _command.Dispose();
+            _connection.Dispose();
+        }
+    }
+
+    /// <summary>Takes the tokens of Claude responses that a second transcript counted again out of the
+    /// usage rows and session totals they were added to (never below zero; a usage row left empty is
+    /// removed) and marks the one-time pass done - in one transaction. Returns the subtracted token
+    /// total, or null when nothing was written (the pass is then repeated).</summary>
+    public long? ApplyClaudeOwnerCorrection(IReadOnlyList<StatsRecord> duplicates, IReadOnlyList<StatsSessionDelta> sessions)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using var transaction = connection.BeginTransaction();
+            SubtractUsageWithinTransaction(connection, transaction, duplicates);
+            SubtractSessionsWithinTransaction(connection, transaction, sessions);
+            using var mark = connection.CreateCommand();
+            mark.Transaction = transaction;
+            mark.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, '1')";
+            mark.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
+            mark.ExecuteNonQuery();
+            transaction.Commit();
+            return duplicates.Sum(record => record.TotalTokens);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
+    private static void SubtractUsageWithinTransaction(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsRecord> records)
+    {
+        if (records.Count == 0)
+            return;
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE usage SET
+                input_tokens = MAX(0, input_tokens - $input),
+                output_tokens = MAX(0, output_tokens - $output),
+                cache_creation_tokens = MAX(0, cache_creation_tokens - $cacheCreation),
+                cache_read_tokens = MAX(0, cache_read_tokens - $cacheRead)
+            WHERE provider = $provider AND day = $day AND hour = $hour AND model = $model AND project = $project
+              AND effort = $effort AND machine = $machine AND subagent = $subagent
+            """;
+        using var remove = connection.CreateCommand();
+        remove.Transaction = transaction;
+        remove.CommandText = """
+            DELETE FROM usage
+            WHERE provider = $provider AND day = $day AND hour = $hour AND model = $model AND project = $project
+              AND effort = $effort AND machine = $machine AND subagent = $subagent
+              AND input_tokens = 0 AND output_tokens = 0 AND cache_creation_tokens = 0 AND cache_read_tokens = 0
+            """;
+        foreach (var record in records)
+        {
+            foreach (var each in new[] { command, remove })
+            {
+                each.Parameters.Clear();
+                each.Parameters.AddWithValue("$provider", record.Provider);
+                each.Parameters.AddWithValue("$day", record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                each.Parameters.AddWithValue("$hour", record.Hour);
+                each.Parameters.AddWithValue("$model", record.Model);
+                each.Parameters.AddWithValue("$project", record.Project);
+                each.Parameters.AddWithValue("$effort", record.Effort);
+                each.Parameters.AddWithValue("$machine", record.Machine);
+                each.Parameters.AddWithValue("$subagent", record.Subagent ? 1 : 0);
+            }
+
+            command.Parameters.AddWithValue("$input", record.InputTokens);
+            command.Parameters.AddWithValue("$output", record.OutputTokens);
+            command.Parameters.AddWithValue("$cacheCreation", record.CacheCreationTokens);
+            command.Parameters.AddWithValue("$cacheRead", record.CacheReadTokens);
+            command.ExecuteNonQuery();
+            remove.ExecuteNonQuery();
+        }
+    }
+
+    private static void SubtractSessionsWithinTransaction(
+        SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<StatsSessionDelta> deltas)
+    {
+        if (deltas.Count == 0)
+            return;
+
+        using var session = connection.CreateCommand();
+        session.Transaction = transaction;
+        session.CommandText = """
+            UPDATE session SET
+                input = MAX(0, input - $input),
+                output = MAX(0, output - $output),
+                cache_creation = MAX(0, cache_creation - $cacheCreation),
+                cache_read = MAX(0, cache_read - $cacheRead),
+                subagent_tokens = MAX(0, subagent_tokens - $subagent)
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+            """;
+        using var model = connection.CreateCommand();
+        model.Transaction = transaction;
+        model.CommandText = """
+            UPDATE session_model SET tokens = MAX(0, tokens - $tokens)
+            WHERE provider = $provider AND machine = $machine AND session_id = $session AND model = $model
+            """;
+        using var mainModel = connection.CreateCommand();
+        mainModel.Transaction = transaction;
+        mainModel.CommandText = """
+            UPDATE session SET main_model = COALESCE((
+                SELECT model FROM session_model
+                WHERE provider = $provider AND machine = $machine AND session_id = $session
+                ORDER BY tokens DESC, model LIMIT 1), '')
+            WHERE provider = $provider AND machine = $machine AND session_id = $session
+            """;
+        foreach (var delta in deltas)
+        {
+            foreach (var each in new[] { session, mainModel })
+            {
+                each.Parameters.Clear();
+                each.Parameters.AddWithValue("$provider", delta.Provider);
+                each.Parameters.AddWithValue("$machine", delta.Machine);
+                each.Parameters.AddWithValue("$session", delta.SessionId);
+            }
+
+            session.Parameters.AddWithValue("$input", delta.InputTokens);
+            session.Parameters.AddWithValue("$output", delta.OutputTokens);
+            session.Parameters.AddWithValue("$cacheCreation", delta.CacheCreationTokens);
+            session.Parameters.AddWithValue("$cacheRead", delta.CacheReadTokens);
+            session.Parameters.AddWithValue("$subagent", delta.SubagentTokens);
+            session.ExecuteNonQuery();
+
+            foreach (var (name, tokens) in delta.ModelTokens)
+            {
+                model.Parameters.Clear();
+                model.Parameters.AddWithValue("$provider", delta.Provider);
+                model.Parameters.AddWithValue("$machine", delta.Machine);
+                model.Parameters.AddWithValue("$session", delta.SessionId);
+                model.Parameters.AddWithValue("$model", name);
+                model.Parameters.AddWithValue("$tokens", tokens);
+                model.ExecuteNonQuery();
+            }
+
+            mainModel.ExecuteNonQuery();
         }
     }
 
