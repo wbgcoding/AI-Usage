@@ -3,21 +3,39 @@ namespace AiUsage.Providers;
 /// <summary>
 /// Shared, bounded file-tree scan for every provider that watches a local config or session folder
 /// for its own quota file. The walk is lazy and depth-first: a folder's files come first (last write
-/// time, newest first), then its subfolders, most recently changed first. It touches at most
+/// time, newest first), then its subfolders, ranked by the newest of the folder's own write time and
+/// the newest matching file directly inside it (appending to a file does not touch its folder's
+/// stamp, so the folder time alone would bury a long-running session). It touches at most
 /// <see cref="MaxTouchedEntries"/> entries however large the tree is, keeps only the newest
-/// <c>maxFiles</c> files and returns them newest first (by <c>LastWriteTimeUtc</c>).
+/// <c>maxFiles</c> files and returns them newest first (by <c>LastWriteTimeUtc</c>). A small
+/// process-wide memory of the last result per root and pattern is checked first, so a file found
+/// once is still found when the walk budget no longer reaches its folder.
 /// </summary>
 internal static class LocalFileScan
 {
     internal static IReadOnlyList<FileInfo> NewestFiles(
-        string root, string searchPattern, int maxDepth, int maxFiles, Func<string, bool>? isExcluded = null) =>
-        SelectNewest(EnumerateCandidates(root, searchPattern, maxDepth), maxFiles, isExcluded);
+        string root, string searchPattern, int maxDepth, int maxFiles, Func<string, bool>? isExcluded = null)
+    {
+        // A missing root is checked here, not inside the lazy walk, so it costs nothing.
+        if (!Directory.Exists(root))
+            return [];
+
+        var remembered = Recall(root, searchPattern);
+        var seen = new HashSet<string>(remembered, StringComparer.OrdinalIgnoreCase);
+        var candidates = EnumerateRemembered(remembered)
+            .Concat(WalkNewestFirst(ListDirectory(root, searchPattern, descendInto: maxDepth > 0), searchPattern, maxDepth, depth: 0)
+                .Where(f => !seen.Contains(f.FullName)));
+
+        var result = SelectNewest(candidates, maxFiles, isExcluded);
+        Remember(root, searchPattern, result);
+        return result;
+    }
 
     /// <summary>A tree with more eligible entries than this must not turn "look at the newest files"
     /// into "walk everything that ever existed" - unrelated to <c>maxFiles</c>, which bounds the
     /// RESULT, not how much of the tree gets looked at. Past this many touched entries, the walk
     /// stops and returns whatever it has already selected.</summary>
-    private const int MaxTouchedEntries = 5000;
+    private const int MaxTouchedEntries = 20000;
 
     /// <summary>The selection over the candidate entries; each one is re-read from disk before it is
     /// compared, so what is kept (and later read by callers) is current.</summary>
@@ -73,33 +91,81 @@ internal static class LocalFileScan
             kept.RemoveAt(0);
     }
 
-    private static IEnumerable<FileInfo> EnumerateCandidates(string root, string searchPattern, int maxDepth)
-    {
-        // A missing root is checked here, not inside the lazy walk, so it costs nothing.
-        if (!Directory.Exists(root))
-            return [];
+    private static readonly object MemoryLock = new();
+    private static readonly Dictionary<string, string[]> Memory = [];
 
-        return WalkNewestFirst(root, searchPattern, maxDepth, depth: 0);
+    /// <summary>Roots are few (one per provider and account); the cap only guards against a caller
+    /// that scans an endless series of distinct folders.</summary>
+    private const int MaxRememberedKeys = 64;
+
+    private static string MemoryKey(string root, string searchPattern) =>
+        Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToUpperInvariant()
+        + "|" + searchPattern.ToUpperInvariant();
+
+    private static string[] Recall(string root, string searchPattern)
+    {
+        lock (MemoryLock)
+            return Memory.TryGetValue(MemoryKey(root, searchPattern), out var paths) ? paths : [];
     }
 
-    /// <summary>Depth-first walk that yields the newest candidates first: subdirectories by last
-    /// write time descending (a folder that just received a file is the one worth reaching before the
-    /// budget runs out, whatever its name), files of each folder by write time descending. The walk
-    /// is lazy, so a consumer that stops after its entry budget never lists the older folders at
-    /// all.</summary>
-    private static IEnumerable<FileInfo> WalkNewestFirst(string directory, string searchPattern, int maxDepth, int depth)
+    private static void Remember(string root, string searchPattern, List<FileInfo> result)
     {
-        var (files, subdirectories) = ListDirectory(directory, searchPattern, descendInto: depth < maxDepth);
+        var paths = result.Select(f => f.FullName).ToArray();
+        lock (MemoryLock)
+        {
+            if (Memory.Count >= MaxRememberedKeys)
+                Memory.Clear();
+            Memory[MemoryKey(root, searchPattern)] = paths;
+        }
+    }
 
-        foreach (var file in files)
+    /// <summary>The files the last scan returned, as candidates ahead of the walk. A file that has
+    /// since vanished is skipped; the selection re-reads the rest from disk.</summary>
+    private static IEnumerable<FileInfo> EnumerateRemembered(string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            var file = new FileInfo(path);
+            file.Refresh();
+            if (file.Exists)
+                yield return file;
+        }
+    }
+
+    private readonly record struct Listing(FileInfo[] Files, DirectoryInfo[] Subdirectories);
+
+    /// <summary>Depth-first walk that yields the newest candidates first: a folder's files by write
+    /// time descending, then its subfolders ranked by the newest of the folder's own stamp and its
+    /// newest direct matching file, whatever its name. Each child is listed once while ranking and
+    /// that listing is handed down. The walk is lazy per level, so a consumer that stops after its
+    /// entry budget never lists the older branches below the folder it stopped in.</summary>
+    private static IEnumerable<FileInfo> WalkNewestFirst(Listing listing, string searchPattern, int maxDepth, int depth)
+    {
+        foreach (var file in listing.Files)
             yield return file;
 
-        foreach (var subdirectory in subdirectories)
-            foreach (var file in WalkNewestFirst(subdirectory, searchPattern, maxDepth, depth + 1))
+        if (depth >= maxDepth)
+            yield break;
+
+        var ranked = listing.Subdirectories
+            .Select(d =>
+            {
+                var child = ListDirectory(d.FullName, searchPattern, descendInto: depth + 1 < maxDepth);
+                var rank = child.Files.Length > 0 && child.Files[0].LastWriteTimeUtc > d.LastWriteTimeUtc
+                    ? child.Files[0].LastWriteTimeUtc
+                    : d.LastWriteTimeUtc;
+                return (Directory: d, Child: child, Rank: rank);
+            })
+            .OrderByDescending(r => r.Rank)
+            .ThenByDescending(r => r.Directory.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        foreach (var entry in ranked)
+            foreach (var file in WalkNewestFirst(entry.Child, searchPattern, maxDepth, depth + 1))
                 yield return file;
     }
 
-    private static (FileInfo[] Files, string[] Subdirectories) ListDirectory(string directory, string searchPattern, bool descendInto)
+    private static Listing ListDirectory(string directory, string searchPattern, bool descendInto)
     {
         var options = new EnumerationOptions { IgnoreInaccessible = true };
         try
@@ -108,19 +174,13 @@ internal static class LocalFileScan
             var files = info.EnumerateFiles(searchPattern, options)
                 .OrderByDescending(f => f.LastWriteTimeUtc)
                 .ToArray();
-            var subdirectories = descendInto
-                ? info.EnumerateDirectories("*", options)
-                    .OrderByDescending(d => d.LastWriteTimeUtc)
-                    .ThenByDescending(d => d.FullName, StringComparer.Ordinal)
-                    .Select(d => d.FullName)
-                    .ToArray()
-                : [];
-            return (files, subdirectories);
+            var subdirectories = descendInto ? info.EnumerateDirectories("*", options).ToArray() : [];
+            return new Listing(files, subdirectories);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A folder that vanished or cannot be read is skipped; the rest of the tree still counts.
-            return ([], []);
+            return new Listing([], []);
         }
     }
 }
