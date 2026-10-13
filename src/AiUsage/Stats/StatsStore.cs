@@ -1473,8 +1473,9 @@ public sealed class StatsStore
         BinaryPrimitives.ReadInt64LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
 
     /// <summary>Opens a lookup of which file counted a Claude response first; null when the index
-    /// cannot be read. Holds one connection and one prepared statement, so a file with thousands of
-    /// responses is checked without reopening anything.</summary>
+    /// cannot be read. Holds one connection and prepared statements, and reads a file's responses in
+    /// one read transaction (<see cref="ClaudeOwnerLookup.EndRead"/> ends it), so a file with thousands
+    /// of responses is checked without a lock round trip each.</summary>
     internal ClaudeOwnerLookup? OpenClaudeOwners()
     {
         try
@@ -1501,6 +1502,8 @@ public sealed class StatsStore
         private readonly SqliteParameter _hash;
         private readonly SqliteCommand _fileCommand;
         private readonly SqliteParameter _path;
+        private SqliteTransaction? _transaction;
+        private bool _prepared;
 
         internal ClaudeOwnerLookup(SqliteConnection connection)
         {
@@ -1513,6 +1516,44 @@ public sealed class StatsStore
             _path = AddParameter(_fileCommand, "$path", SqliteType.Text);
         }
 
+        private void BeginRead()
+        {
+            if (_transaction is not null)
+                return;
+
+            _transaction = _connection.BeginTransaction(deferred: true);
+            _command.Transaction = _transaction;
+            _fileCommand.Transaction = _transaction;
+            if (!_prepared)
+            {
+                _command.Prepare();
+                _fileCommand.Prepare();
+                _prepared = true;
+            }
+        }
+
+        /// <summary>Ends the read transaction of the file just read. It must end before anything is
+        /// written to the index: an open read blocks the commit of another connection.</summary>
+        public void EndRead()
+        {
+            var transaction = _transaction;
+            _transaction = null;
+            if (transaction is null)
+                return;
+
+            try
+            {
+                transaction.Dispose();
+            }
+            catch (SqliteException)
+            {
+                Failed = true;
+            }
+
+            _command.Transaction = null;
+            _fileCommand.Transaction = null;
+        }
+
         /// <summary>True once a lookup failed: the answers so far cannot be trusted and the file being
         /// read must be left for the next walk.</summary>
         public bool Failed { get; private set; }
@@ -1523,6 +1564,7 @@ public sealed class StatsStore
         {
             try
             {
+                BeginRead();
                 _hash.Value = ClaudeKeyHash(key);
                 return _command.ExecuteScalar() is long file ? file : null;
             }
@@ -1539,6 +1581,7 @@ public sealed class StatsStore
         {
             try
             {
+                BeginRead();
                 _path.Value = path;
                 return _fileCommand.ExecuteScalar() is long file ? file : null;
             }
@@ -1551,6 +1594,7 @@ public sealed class StatsStore
 
         public void Dispose()
         {
+            EndRead();
             _command.Dispose();
             _fileCommand.Dispose();
             _connection.Dispose();

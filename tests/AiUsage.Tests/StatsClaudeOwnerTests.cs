@@ -332,6 +332,29 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void The_owner_lookup_reads_in_one_transaction_that_ends_before_a_write()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-lookup");
+        var store = new StatsStore(dataDir, busyTimeoutMs: 100);
+        Assert.True(store.ClaimClaudeKeys("first.jsonl", ["m1|r-m1", "m2|r-m2"]));
+        using var owners = store.OpenClaudeOwners()!;
+
+        var first = owners.FileIdOf("FIRST.jsonl");
+        Assert.NotNull(first);
+        Assert.Equal(first, owners.OwnerOf("m1|r-m1"));
+        Assert.Equal(first, owners.OwnerOf("m2|r-m2"));
+        Assert.Null(owners.OwnerOf("m3|r-m3"));
+
+        // The read of this file is over: another connection can write, and the next read sees it.
+        owners.EndRead();
+        Assert.True(store.ClaimClaudeKeys("second.jsonl", ["m3|r-m3"]));
+        var second = owners.OwnerOf("m3|r-m3");
+        Assert.NotNull(second);
+        Assert.NotEqual(first, second);
+        Assert.False(owners.Failed);
+    }
+
+    [Fact]
     public void An_index_without_a_remembered_claude_file_marks_the_pass_done()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-claude");

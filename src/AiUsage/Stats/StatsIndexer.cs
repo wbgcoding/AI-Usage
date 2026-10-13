@@ -450,6 +450,9 @@ public sealed class StatsIndexer
             return (false, 0, 0); // left exactly as it was - retried next run
         }
 
+        // The read ends before the write below: an open read would block its commit.
+        owners?.EndRead();
+
         // A lookup that failed may have let a foreign copy through: nothing is stored from this read.
         if (owners is { Failed: true })
             return (false, 0, 0);
@@ -760,6 +763,10 @@ public sealed class StatsIndexer
             {
                 // A file that vanished or is locked has no session data to give.
             }
+            finally
+            {
+                owners?.EndRead();
+            }
         }
 
         if (owners is { Failed: true })
@@ -993,6 +1000,10 @@ public sealed class StatsIndexer
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     // A file that vanished or is locked has nothing to give.
+                }
+                finally
+                {
+                    owners.EndRead();
                 }
             }
 
