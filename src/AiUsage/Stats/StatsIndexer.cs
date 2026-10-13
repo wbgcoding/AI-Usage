@@ -171,21 +171,34 @@ public sealed class StatsIndexer
         // nor writes claims, so the pass later handles this content like any older content.
         _claimsActive = _store.IsClaudeOwnerPassDone();
 
+        var claudeFiles = new List<FileInfo>();
         foreach (var claudeRoot in _claudeProjectsRoots)
         {
-            var claudeFiles = EnumerateNewestFirstWithInfo(claudeRoot, "*.jsonl", out var foldersSkipped, cancellationToken);
+            claudeFiles.AddRange(EnumerateNewestFirstWithInfo(claudeRoot, "*.jsonl", out var foldersSkipped, cancellationToken));
             claudeFoldersSkipped += foldersSkipped;
+        }
 
-            foreach (var listed in claudeFiles)
+        // A file new to the index is read after the files it may repeat: the first transcript to count
+        // a response owns it, and a resumed session copies its parent's history. Once every file is
+        // known only appended parts are read and the order no longer matters.
+        if (claudeFiles.Any(file => !known.ContainsKey(file.FullName)))
+        {
+            claudeFiles.Sort((a, b) =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                claudeFilesSeen++;
-                var (read, linesParsed, linesSkipped) = IndexClaudeFile(listed, known, cancellationToken);
-                if (read)
-                    claudeFilesRead++;
-                claudeLinesParsed += linesParsed;
-                claudeLinesSkipped += linesSkipped;
-            }
+                var byAge = a.CreationTimeUtc.CompareTo(b.CreationTimeUtc);
+                return byAge != 0 ? byAge : string.CompareOrdinal(a.FullName, b.FullName);
+            });
+        }
+
+        foreach (var listed in claudeFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            claudeFilesSeen++;
+            var (read, linesParsed, linesSkipped) = IndexClaudeFile(listed, known, cancellationToken);
+            if (read)
+                claudeFilesRead++;
+            claudeLinesParsed += linesParsed;
+            claudeLinesSkipped += linesSkipped;
         }
 
         var codexFilesSeen = 0;

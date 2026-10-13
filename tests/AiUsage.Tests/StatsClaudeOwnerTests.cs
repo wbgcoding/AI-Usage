@@ -35,6 +35,9 @@ public class StatsClaudeOwnerTests
         return command.ExecuteScalar();
     }
 
+    private static long OwnedBy(string dbPath, string transcript) =>
+        (long)Scalar(dbPath, $"SELECT COUNT(*) FROM claude_message WHERE path = '{transcript.Replace("'", "''")}'")!;
+
     private static (long Input, long Output) Totals(StatsStore store)
     {
         var rows = store.LoadAll();
@@ -97,6 +100,23 @@ public class StatsClaudeOwnerTests
         // A later walk with nothing new changes nothing.
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
         Assert.Equal((157L, 490L), Totals(store));
+    }
+
+    [Fact]
+    public void A_fresh_index_gives_a_response_to_the_older_transcript_even_when_the_newer_was_written_last()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-order-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-order-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-order-data");
+        var original = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var resumed = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        var store = new StatsStore(dataDir);
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        Assert.Equal(2L, OwnedBy(dbPath, original));
+        Assert.Equal(1L, OwnedBy(dbPath, resumed));
     }
 
     [Fact]
