@@ -940,10 +940,10 @@ public sealed class StatsIndexer
         if (_store.IsClaudeOwnerPassDone())
             return;
 
-        // An empty snapshot next to usage rows may be a failed read: ask again, and leave the pass
-        // for the next walk when that fails too. With no Claude file remembered there is nothing to
-        // correct and the pass is marked done below.
-        if (known.Count == 0 && _store.HasUsageRows() && !_store.TryLoadSourceFiles(out known))
+        // An empty snapshot may be a failed read: ask again, and leave the pass for the next walk
+        // when that fails too (HasUsageRows answers false on an error, so it cannot tell). With no
+        // Claude file remembered there is nothing to correct and the pass is marked done below.
+        if (known.Count == 0 && !_store.TryLoadSourceFiles(out known))
             return;
 
         if (_store.LoadClaudeOwnerSkips() is not { } skips)

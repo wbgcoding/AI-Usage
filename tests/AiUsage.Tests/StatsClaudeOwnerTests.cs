@@ -278,6 +278,26 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void A_pass_that_cannot_read_the_file_list_is_not_marked_done()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-blind-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-blind-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-blind-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
+
+        // The file list cannot be read, and no usage row is there to show the index is not empty.
+        Run(dbPath, "DELETE FROM usage; ALTER TABLE source_file RENAME TO source_file_real; " +
+            "CREATE VIEW source_file AS SELECT abs(-9223372036854775808) AS path FROM source_file_real;");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.Equal(0L, Scalar(dbPath, $"SELECT COUNT(*) FROM meta WHERE key = '{OwnerPassKey}'"));
+    }
+
+    [Fact]
     public void The_pass_leaves_out_the_part_of_a_replaced_transcript_that_was_never_counted()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-replaced-claude");
