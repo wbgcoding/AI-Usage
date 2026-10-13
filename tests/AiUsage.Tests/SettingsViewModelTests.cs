@@ -1152,6 +1152,107 @@ public class SettingsViewModelTests : IDisposable
         }
     }
 
+    private async Task<(List<string> Messages, List<string> Confirms, int CopyCalls, string DefaultFolder, bool PointerWritten)> MoveBackTo(
+        bool secondInstance, bool answer, bool useOtherFolder = false, bool placeEverydayData = false)
+    {
+        var sourceDirectory = TempDirectory();
+        var pointerRoot = MoveTarget(); // outside the temp folder, which is refused as a target
+        var everyday = Path.Combine(pointerRoot, "AI-Usage");
+        var ownDefault = secondInstance ? Path.Combine(everyday, SecondInstanceMode.FolderName) : everyday;
+        var destination = useOtherFolder ? MoveTarget() : ownDefault;
+        Directory.CreateDirectory(destination);
+        File.WriteAllText(Path.Combine(destination, "stats.db"), "old");
+        if (placeEverydayData)
+        {
+            destination = everyday;
+            File.WriteAllText(Path.Combine(everyday, "stats.db"), "old");
+        }
+
+        var settings = new AppSettings();
+        var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
+        var settingsStore = new SettingsStore(sourceDirectory);
+        var historyStore = new HistoryStore(sourceDirectory, () => Now);
+        var main = new MainViewModel(settingsStore, settings, providers, historyStore);
+        var messages = new List<string>();
+        var confirms = new List<string>();
+        var copyCalls = 0;
+        var vm = new SettingsViewModel(main, settings, settingsStore,
+            isAutostartEnabled: () => false,
+            enableAutostart: _ => true,
+            disableAutostart: () => true,
+            applyLanguage: _ => { },
+            loadThemeDictionary: LoadThemeFixture,
+            historyStore: historyStore,
+            showMessage: messages.Add,
+            askForDataFolder: () => destination,
+            copyIndex: (_, _) => copyCalls++,
+            copySmallFiles: (_, _) => copyCalls++,
+            confirmReplaceOldCopy: folder => { confirms.Add(folder); return answer; });
+
+        AppPaths.SetPointerRootOverride(pointerRoot);
+        if (secondInstance)
+            AppPaths.UseSecondInstancePointer();
+        try
+        {
+            await vm.ChooseDataFolderCommand.ExecuteAsync(null);
+            return (messages, confirms, copyCalls, destination, File.Exists(AppPaths.LocationPointerFile));
+        }
+        finally
+        {
+            AppPaths.ClearOverrideForTests();
+            AppPaths.ClearPointerRootOverrideForTests();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChooseDataFolderAsksBeforeReplacingTheOldCopyInThisCopysOwnDefaultFolderAndReplacesOnYes(bool secondInstance)
+    {
+        var result = await MoveBackTo(secondInstance, answer: true);
+
+        Assert.Equal([result.DefaultFolder], result.Confirms);
+        Assert.Equal(LocalizationService.Instance.Format("Settings.DataFolderMoved", result.DefaultFolder), Assert.Single(result.Messages));
+        Assert.Equal(2, result.CopyCalls);
+        Assert.True(result.PointerWritten);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChooseDataFolderKeepsTheOldCopyInThisCopysOwnDefaultFolderOnNo(bool secondInstance)
+    {
+        var result = await MoveBackTo(secondInstance, answer: false);
+
+        Assert.Single(result.Confirms);
+        Assert.Empty(result.Messages);
+        Assert.Equal(0, result.CopyCalls);
+        Assert.False(result.PointerWritten);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChooseDataFolderStillRefusesAnotherFolderWithDataWithoutAsking(bool secondInstance)
+    {
+        var result = await MoveBackTo(secondInstance, answer: true, useOtherFolder: true);
+
+        Assert.Empty(result.Confirms);
+        Assert.Equal(LocalizationService.Instance["Settings.DataFolderHoldsData"], Assert.Single(result.Messages));
+        Assert.Equal(0, result.CopyCalls);
+    }
+
+    [Fact]
+    public async Task TheSecondInstanceCanNeverTargetTheEverydayFolderEvenWithAConfirmingAnswer()
+    {
+        var result = await MoveBackTo(secondInstance: true, answer: true, placeEverydayData: true);
+
+        Assert.Empty(result.Confirms);
+        Assert.Equal(LocalizationService.Instance["Settings.DataFolderHoldsData"], Assert.Single(result.Messages));
+        Assert.Equal(0, result.CopyCalls);
+        Assert.False(result.PointerWritten);
+    }
+
     [Fact]
     public async Task ChooseDataFolderAsksBeforeUsingARiskyFolderAndDecliningKeepsTheOldOne()
     {
