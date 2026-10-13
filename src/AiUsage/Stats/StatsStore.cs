@@ -1526,6 +1526,11 @@ public sealed class StatsStore
         private readonly SqliteParameter _path;
         private SqliteTransaction? _transaction;
         private bool _prepared;
+        private int _reads;
+
+        // A read transaction keeps other connections from committing; a large transcript would hold
+        // it for the whole read, so it ends after this many lookups and the next one starts anew.
+        private const int LookupsPerTransaction = 500;
 
         internal ClaudeOwnerLookup(SqliteConnection connection)
         {
@@ -1554,12 +1559,19 @@ public sealed class StatsStore
             }
         }
 
+        private void CountLookup()
+        {
+            if (++_reads >= LookupsPerTransaction)
+                EndRead();
+        }
+
         /// <summary>Ends the read transaction of the file just read. It must end before anything is
         /// written to the index: an open read blocks the commit of another connection.</summary>
         public void EndRead()
         {
             var transaction = _transaction;
             _transaction = null;
+            _reads = 0;
             if (transaction is null)
                 return;
 
@@ -1588,7 +1600,9 @@ public sealed class StatsStore
             {
                 BeginRead();
                 _hash.Value = ClaudeKeyHash(key);
-                return _command.ExecuteScalar() is long file ? file : null;
+                var owner = _command.ExecuteScalar() is long file ? file : (long?)null;
+                CountLookup();
+                return owner;
             }
             catch (SqliteException)
             {
@@ -1605,7 +1619,9 @@ public sealed class StatsStore
             {
                 BeginRead();
                 _path.Value = path;
-                return _fileCommand.ExecuteScalar() is long file ? file : null;
+                var id = _fileCommand.ExecuteScalar() is long file ? file : (long?)null;
+                CountLookup();
+                return id;
             }
             catch (SqliteException)
             {

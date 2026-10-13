@@ -401,6 +401,23 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void The_owner_lookup_releases_the_index_every_few_hundred_lookups()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-periodic");
+        var store = new StatsStore(dataDir, busyTimeoutMs: 100);
+        Assert.True(store.ClaimClaudeKeys("first.jsonl", ["m1|r-m1"]));
+        using var owners = store.OpenClaudeOwners()!;
+
+        for (var i = 0; i < 500; i++)
+            owners.OwnerOf($"unknown-{i}");
+
+        // No EndRead call: a long file's read must not keep other writers waiting.
+        Assert.True(store.ClaimClaudeKeys("second.jsonl", ["m3|r-m3"]));
+        Assert.NotNull(owners.OwnerOf("m3|r-m3"));
+        Assert.False(owners.Failed);
+    }
+
+    [Fact]
     public void An_index_without_a_remembered_claude_file_marks_the_pass_done()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-claude");
