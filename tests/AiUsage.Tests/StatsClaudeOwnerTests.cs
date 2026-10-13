@@ -586,6 +586,30 @@ public class StatsClaudeOwnerTests
         Assert.Equal(3, new StatsStore(dataDir).LoadAll().Count);
     }
 
+    [Fact]
+    public void A_claim_table_from_an_intermediate_build_is_rebuilt_and_the_pass_offered_again()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-intermediate");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        new StatsStore(dataDir).LoadAll();
+        Run(dbPath, $"DROP TABLE claude_message; DROP TABLE claude_file; CREATE TABLE claude_message (key TEXT PRIMARY KEY, path TEXT NOT NULL); " +
+            $"INSERT INTO claude_message VALUES ('m1|r-m1', 'a.jsonl'); INSERT OR REPLACE INTO meta VALUES ('{OwnerPassKey}', '1'); " +
+            "INSERT INTO usage VALUES ('claude', '2026-01-01', 1, 'modelA', 'P', '', '', 0, 5, 6, 7, 8);");
+
+        // A new path is unknown to the process cache, so the schema step runs again.
+        using var otherDir = TestPaths.CreateDisposableDirectory("stats-owner-intermediate-copy");
+        var otherDb = Path.Combine(otherDir, "stats.db");
+        File.Copy(dbPath, otherDb);
+        var store = new StatsStore(otherDir);
+
+        Assert.Single(store.LoadAll());
+        Assert.False(store.IsClaudeOwnerPassDone());
+        Assert.Equal(0L, Scalar(otherDb, "SELECT COUNT(*) FROM pragma_table_info('claude_message') WHERE name = 'key'"));
+        Assert.Equal(1L, Scalar(otherDb, "SELECT COUNT(*) FROM pragma_table_info('claude_message') WHERE name = 'hash'"));
+        Assert.Equal(0L, Scalar(otherDb, "SELECT COUNT(*) FROM claude_message"));
+        Assert.True(store.ClaimClaudeKeys("a.jsonl", ["m1|r-m1"]));
+    }
+
     [Theory]
     [InlineData(7)]
     [InlineData(8)]

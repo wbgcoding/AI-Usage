@@ -699,6 +699,12 @@ public sealed class StatsStore
         if (existingVersion < 4)
             Execute(connection, "DROP TABLE IF EXISTS usage; DROP TABLE IF EXISTS source_file;");
 
+        // A database written by an intermediate development build holds claude_message keyed by path;
+        // the claims are rebuilt (the pass is offered again), every other table stays.
+        var rebuildClaims = TableExists(connection, "claude_message") && !ColumnExists(connection, "claude_message", "hash");
+        if (rebuildClaims)
+            Execute(connection, "DROP TABLE claude_message; DROP TABLE IF EXISTS claude_file;");
+
         Execute(connection, """
             CREATE TABLE IF NOT EXISTS usage (
                 provider TEXT NOT NULL,
@@ -770,6 +776,9 @@ public sealed class StatsStore
             );
             """);
 
+        if (rebuildClaims)
+            Execute(connection, $"DELETE FROM meta WHERE key = '{ClaudeOwnerPassKey}'");
+
         // Files from before v8 lack the counted token columns (new, unset: NULL).
         foreach (var column in CountedColumns)
         {
@@ -814,6 +823,14 @@ public sealed class StatsStore
     private const string ClaudeOwnerSkipPrefix = "claude_owner_skip|";
 
     private static readonly string[] CountedColumns = ["counted_input", "counted_output", "counted_cache_creation", "counted_cache_read"];
+
+    private static bool TableExists(SqliteConnection connection, string table)
+    {
+        using var info = connection.CreateCommand();
+        info.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $name";
+        info.Parameters.AddWithValue("$name", table);
+        return info.ExecuteScalar() is not null;
+    }
 
     private static bool ColumnExists(SqliteConnection connection, string table, string column)
     {
