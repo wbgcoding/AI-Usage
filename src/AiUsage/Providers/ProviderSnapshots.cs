@@ -59,7 +59,8 @@ internal static class ProviderSnapshots
         {
             Windows = snapshot.Windows
                 .Select(window => window.ResetsAt is { } reset && reset <= now
-                    ? new UsageWindow(window.Label, window.Kind, 0, null, window.WindowMinutes, window.Tokens, window.Allowance)
+                    ? new UsageWindow(window.Label, window.Kind, 0, null, window.WindowMinutes, null,
+                        window.Allowance is { } allowance ? allowance with { Used = 0 } : null)
                     : window)
                 .ToList(),
         };
