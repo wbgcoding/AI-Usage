@@ -169,7 +169,7 @@ public sealed class StatsIndexer
 
         // Until that pass has run, the walk counts exactly like the builds before it: it neither reads
         // nor writes claims, so the pass later handles this content like any older content.
-        _claimsActive = _store.IsClaudeOwnerPassDone();
+        _claimsActive = _store.IsClaudeOwnerPassConfirmedDone();
 
         var claudeFiles = new List<FileInfo>();
         foreach (var claudeRoot in _claudeProjectsRoots)
@@ -741,8 +741,9 @@ public sealed class StatsIndexer
         // Once the owner pass has run, a response another transcript owns is not counted here either
         // (this pass can follow a walk that already skipped those copies). Before it, the content
         // counts like every older content and the owner pass takes the copies out later.
-        using var owners = _store.IsClaudeOwnerPassDone() ? _store.OpenClaudeOwners() : null;
-        if (owners is null && _store.IsClaudeOwnerPassDone())
+        var claims = _store.IsClaudeOwnerPassConfirmedDone();
+        using var owners = claims ? _store.OpenClaudeOwners() : null;
+        if (owners is null && claims)
             return;
 
         var sessions = new StatsSessionAccumulator();

@@ -252,6 +252,32 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void A_walk_whose_pass_flag_cannot_be_read_does_not_switch_claims_on()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-unreadable-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-unreadable-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-unreadable-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
+
+        // Reading the pass flag fails (a locked index does the same); every other meta read works.
+        Run(dbPath, $"INSERT INTO meta VALUES ('{OwnerPassKey}', '0'); ALTER TABLE meta RENAME TO meta_real; " +
+            $"CREATE VIEW meta AS SELECT key, CASE WHEN key = '{OwnerPassKey}' THEN abs(-9223372036854775808) ELSE value END AS value FROM meta_real;");
+        Assert.False(store.IsClaudeOwnerPassConfirmedDone());
+        Assert.True(store.IsClaudeOwnerPassDone());
+
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New, ResumedLines());
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // Counted like before the claims existed: nothing claimed, nothing skipped.
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM claude_message"));
+        Assert.Equal((157L + 150L, 490L + 487L), Totals(store));
+    }
+
+    [Fact]
     public void The_pass_leaves_out_the_part_of_a_replaced_transcript_that_was_never_counted()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-replaced-claude");

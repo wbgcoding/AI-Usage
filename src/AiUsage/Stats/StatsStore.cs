@@ -1358,6 +1358,28 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>True only when the index was read successfully and the owner pass is marked done. Any
+    /// error answers false: switching claims on before the pass ran loses tokens for good, while
+    /// leaving them off merely counts the old way for one more walk.</summary>
+    public bool IsClaudeOwnerPassConfirmedDone()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM meta WHERE key = $key";
+            command.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
+            return command.ExecuteScalar() as string == "1";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Remembers that <paramref name="path"/> was counted only from <paramref name="countedFrom"/>
     /// on: its offset was moved to the end of a replaced file without reading it, so the owner pass
     /// must not take that unread part into account. False when nothing was written.</summary>
