@@ -802,6 +802,10 @@ public sealed class StatsStore
     private const string ClaudeCopyBackfilledKey = "claude_copy_backfilled";
     private const string ClaudeOwnerPassKey = "claude_owner_pass";
 
+    // One meta row per file whose offset moved without a read while the owner pass was still to run:
+    // the value is the offset from which its content was really counted.
+    private const string ClaudeOwnerSkipPrefix = "claude_owner_skip|";
+
     private static readonly string[] CountedColumns = ["counted_input", "counted_output", "counted_cache_creation", "counted_cache_read"];
 
     private static bool ColumnExists(SqliteConnection connection, string table, string column)
@@ -1347,6 +1351,60 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>Remembers that <paramref name="path"/> was counted only from <paramref name="countedFrom"/>
+    /// on: its offset was moved to the end of a replaced file without reading it, so the owner pass
+    /// must not take that unread part into account. False when nothing was written.</summary>
+    public bool SetClaudeOwnerSkip(string path, long countedFrom)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, $value)";
+            command.Parameters.AddWithValue("$key", ClaudeOwnerSkipPrefix + path);
+            command.Parameters.AddWithValue("$value", countedFrom.ToString(CultureInfo.InvariantCulture));
+            command.ExecuteNonQuery();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>The offsets set by <see cref="SetClaudeOwnerSkip"/>, per file. Null when they cannot be
+    /// read: the pass is then left for the next walk.</summary>
+    public Dictionary<string, long>? LoadClaudeOwnerSkips()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            var skips = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT key, value FROM meta WHERE substr(key, 1, $length) = $prefix";
+            command.Parameters.AddWithValue("$length", ClaudeOwnerSkipPrefix.Length);
+            command.Parameters.AddWithValue("$prefix", ClaudeOwnerSkipPrefix);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (long.TryParse(reader.GetString(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var from))
+                    skips[reader.GetString(0)[ClaudeOwnerSkipPrefix.Length..]] = from;
+            }
+
+            return skips;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Records <paramref name="path"/> as the file that counted each of <paramref name="keys"/>;
     /// a key another file already owns stays with it. False when nothing was written.</summary>
     public bool ClaimClaudeKeys(string path, IReadOnlyCollection<string> keys)
@@ -1467,6 +1525,12 @@ public sealed class StatsStore
             mark.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, '1')";
             mark.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
             mark.ExecuteNonQuery();
+            using var clearSkips = connection.CreateCommand();
+            clearSkips.Transaction = transaction;
+            clearSkips.CommandText = "DELETE FROM meta WHERE substr(key, 1, $length) = $prefix";
+            clearSkips.Parameters.AddWithValue("$length", ClaudeOwnerSkipPrefix.Length);
+            clearSkips.Parameters.AddWithValue("$prefix", ClaudeOwnerSkipPrefix);
+            clearSkips.ExecuteNonQuery();
             transaction.Commit();
             return duplicates.Sum(record => record.TotalTokens);
         }

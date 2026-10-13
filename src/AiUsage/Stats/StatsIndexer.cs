@@ -374,6 +374,13 @@ public sealed class StatsIndexer
             // cannot be traced back out, so reading the new content from the start would count the
             // same usage twice. The file is left unread and only its remembered size and write time
             // move to what is on disk now, so a later append is picked up from the new end.
+            // The owner pass, when still to run, must not read that unread part either.
+            if (!_claimsActive && !_store.SetClaudeOwnerSkip(existing.Path, info.Length))
+            {
+                NoteStored(false);
+                return (false, 0, 0);
+            }
+
             NoteStored(_store.SetSourceFile(existing with { Offset = info.Length, Size = info.Length, WriteTimeUtc = info.LastWriteTimeUtc }));
             return (false, 0, 0);
         }
@@ -921,16 +928,21 @@ public sealed class StatsIndexer
         if (known.Count == 0 && _store.HasUsageRows() && !_store.TryLoadSourceFiles(out known))
             return;
 
-        // The original transcript is the oldest file: a copy of its history is made later.
-        var files = new List<(StatsSourceFileState State, DateTime Created)>();
+        if (_store.LoadClaudeOwnerSkips() is not { } skips)
+            return;
+
+        // The original transcript is the oldest file: a copy of its history is made later. A file
+        // whose offset moved without a read is read from where its counted content starts.
+        var files = new List<(StatsSourceFileState State, DateTime Created, long Start)>();
         foreach (var state in known.Values)
         {
             if (state.Provider != ClaudeProviderId || state.Offset <= 0)
                 continue;
 
+            var start = skips.GetValueOrDefault(state.Path);
             var info = TryStat(state.Path);
-            if (info is not null)
-                files.Add((state, info.CreationTimeUtc));
+            if (info is not null && start < state.Offset)
+                files.Add((state, info.CreationTimeUtc, start));
         }
 
         files.Sort((a, b) =>
@@ -939,12 +951,12 @@ public sealed class StatsIndexer
             return byAge != 0 ? byAge : string.CompareOrdinal(a.State.Path, b.State.Path);
         });
 
-        foreach (var (state, _) in files)
+        foreach (var (state, _, start) in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var keys = ReadClaudeKeys(state, cancellationToken);
+                var keys = ReadClaudeKeys(state, start, cancellationToken);
                 if (keys.Count > 0 && !_store.ClaimClaudeKeys(state.Path, keys))
                     return;
             }
@@ -961,12 +973,12 @@ public sealed class StatsIndexer
             if (owners is null)
                 return;
 
-            foreach (var (state, _) in files)
+            foreach (var (state, _, start) in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    SumClaudeForeignCopies(state, owners, totals, sessions, cancellationToken);
+                    SumClaudeForeignCopies(state, start, owners, totals, sessions, cancellationToken);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -982,14 +994,14 @@ public sealed class StatsIndexer
             Log?.LogInfo($"Statistics: {removed} tokens of Claude responses counted twice were taken out.");
     }
 
-    private HashSet<string> ReadClaudeKeys(StatsSourceFileState state, CancellationToken cancellationToken)
+    private HashSet<string> ReadClaudeKeys(StatsSourceFileState state, long start, CancellationToken cancellationToken)
     {
         var keys = new HashSet<string>(StringComparer.Ordinal);
         using var stream = new FileStream(state.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         if (stream.Length < state.Offset)
             return keys;
 
-        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        CompleteLineReader.Read(stream, start, true, MaxRecordBytes, LogOversizedRecord, line =>
         {
             if (ClaudeUsageLogParser.TryParse(line, out var usageEvent) && usageEvent.MessageKey.Length > 0)
                 keys.Add(usageEvent.MessageKey);
@@ -998,7 +1010,7 @@ public sealed class StatsIndexer
     }
 
     private void SumClaudeForeignCopies(
-        StatsSourceFileState state, StatsStore.ClaudeOwnerLookup owners,
+        StatsSourceFileState state, long start, StatsStore.ClaudeOwnerLookup owners,
         Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord> totals,
         StatsSessionAccumulator sessions, CancellationToken cancellationToken)
     {
@@ -1015,7 +1027,7 @@ public sealed class StatsIndexer
 
         var project = ProbeClaudeProject(path, ClaudeUsageLogParser.ExtractProjectFromFilePath(path), cancellationToken);
         var buckets = new Dictionary<UsageBucketKey, StatsRecord>();
-        CompleteLineReader.Read(stream, 0, true, MaxRecordBytes, LogOversizedRecord, line =>
+        CompleteLineReader.Read(stream, start, true, MaxRecordBytes, LogOversizedRecord, line =>
         {
             if (!ClaudeUsageLogParser.TryParse(line, out var usageEvent) || usageEvent.MessageKey.Length == 0)
                 return;

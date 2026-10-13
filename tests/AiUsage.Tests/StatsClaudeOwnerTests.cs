@@ -252,6 +252,38 @@ public class StatsClaudeOwnerTests
     }
 
     [Fact]
+    public void The_pass_leaves_out_the_part_of_a_replaced_transcript_that_was_never_counted()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-replaced-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-owner-replaced-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-owner-replaced-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-1.jsonl", Old, Old, OriginalLines());
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerPassKey}';");
+
+        // The pass cannot run yet; a longer transcript is counted, then replaced by a shorter one
+        // whose content (a copy of the original's history) is never read.
+        Run(dbPath, "CREATE TRIGGER no_claims BEFORE INSERT ON claude_message BEGIN SELECT RAISE(ABORT, 'locked'); END");
+        var other = WriteTranscript(claudeRoot, "C--Projects-Sample", "sess-2.jsonl", New, New,
+            Line("2026-01-02T10:00:00Z", "m5", 1, 1, "sess-2"), Line("2026-01-02T10:00:01Z", "m6", 1, 1, "sess-2"),
+            Line("2026-01-02T10:00:02Z", "m7", 1, 1, "sess-2"), Line("2026-01-02T10:00:03Z", "m8", 1, 1, "sess-2"));
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        var counted = Totals(store);
+        File.WriteAllText(other, Line("2026-01-01T10:00:00Z", "m1", 100, 467) + "\n");
+        File.SetLastWriteTimeUtc(other, New.AddHours(1));
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        Run(dbPath, "DROP TRIGGER no_claims");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+        Assert.Equal(counted, Totals(store));
+    }
+
+    [Fact]
     public void An_index_without_a_remembered_claude_file_marks_the_pass_done()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-owner-nofile-claude");
