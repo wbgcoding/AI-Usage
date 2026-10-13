@@ -5,6 +5,7 @@ namespace AiUsage.Tests;
 /// <summary>The release tool's <c>verify</c> command, run against keys it makes for the test itself
 /// (never the real signing key): a signature made with the key behind the app's public key passes, one
 /// made with any other key, a changed file or a missing signature fails.</summary>
+[Collection("UpdateSigner tool")]
 public class UpdateSignerVerifyTests
 {
     private static (string Folder, string KeyPath, string PublicKeySource) NewKey(string name)

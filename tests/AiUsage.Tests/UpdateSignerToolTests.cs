@@ -7,6 +7,9 @@ namespace AiUsage.Tests;
 /// <summary>Runs the real release-signing tool against a key it makes for the test itself (never the
 /// real signing key) and checks its output with the program's own verifier, so the two ends of the
 /// signature format cannot drift apart.</summary>
+// Both signer test classes start the tool with "dotnet run"; two builds of the same project at
+// once collide on its output files, so they share one collection and run one after the other.
+[Collection("UpdateSigner tool")]
 public class UpdateSignerToolTests
 {
     private static string ToolProject()
