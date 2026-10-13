@@ -38,6 +38,8 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Token usage: Gemini usage from the Antigravity CLI is counted too.
 - Token usage: periods "This month", "Last month" and a custom range with a calendar.
 - A portable exe for ARM64, `AI-Usage-arm64.exe`, joins the downloads.
+- Settings > Providers: each account can read at most every 5, 10, 15, 30 or 60 minutes, or follow the default. The slider under Refresh now applies to every provider read over the internet; a browser session is never read more often than every 5 minutes.
+- Picking a data folder on a network drive, a removable drive or in a cloud sync folder asks first, since the token index can be damaged there. When the chosen folder is not available at start, the data folder row says so.
 
 ### Changed
 
@@ -66,6 +68,11 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Token usage: resetting or importing settings while the window is open updates its period, grouping, colors, section arrangement and collapsed sections at once.
 - Token usage: a model has the same color in the model ring, the stacked columns and the weekday by hour grid.
 - Token usage: the weekday by hour grid is colored by the "Color by" choice; each cell takes the color of what leads it and its hover text names that leader.
+- Ctrl+Alt+Arrow keys snap the widget only while it is the active window; they no longer take these keys from other programs.
+- Too many requests (HTTP 429) reads as such and no longer offers a sign-in; a moved provider address no longer offers one either.
+- While an update downloads, the widget says so beside the install button. A release without a file for your copy and a release that is not newer get their own messages.
+- In a narrow widget the reset clock time gives way before a window name is shortened.
+- Removing the app with "also remove data" now also removes the browser sign-ins of the providers.
 
 ### Fixed
 
@@ -99,6 +106,23 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The token usage window no longer clips text in its smallest size, and its charts use the "Terminal" theme's font.
 - Dates use the same month abbreviations everywhere.
 - The 1.1.0 weekday or hour chart choice carries over into the new groupings.
+- A hidden browser that crashed or was ended in Task Manager is replaced at the next read instead of leaving every web tile without numbers until a restart.
+- A failed web read keeps the last numbers while they are fresh and no longer blocks the next attempt.
+- No hidden browser starts for a provider nobody signed into, and Pause also holds Cursor, Copilot and the Gemini sign-in check.
+- The sign-in window no longer closes when a link on the login page (privacy, pricing) is clicked.
+- A brief provider error no longer reads as signed out, and a provider that changes one of its addresses is still found.
+- Web tiles refresh as soon as the network is back after sleep, also with a VPN or virtual network adapter.
+- Hotkeys, hiding during full screen and click-through work right after a start into the tray.
+- Changing monitors or the Windows color mode can no longer crash the widget, and the widget returns to the right monitor.
+- Token usage at its narrowest width shows every legend entry, the weekday labels of the year grid and full session times.
+- "This month" compares with the same number of days of the previous month.
+- Project colors stay the same when the period changes, model colors are distinct, and one broken project icon no longer removes the colors of all projects.
+- Chart tooltips no longer stay on screen after switching to another program.
+- A failed write to the token index is logged and retried without reading the same files again; one damaged line no longer stops the rest.
+- Data files are flushed to disk before they replace the old copy, and leftover backup and corrupt copies no longer pile up.
+- History export and removing an imported PC no longer freeze the settings window.
+- Keyboard focus is visible on every button, check box and radio button, and screen readers name both quiet-hours boxes.
+- Setup no longer hangs forever on a stalled .NET download.
 
 ### Security
 
@@ -106,6 +130,10 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - An installation for all users starts the verified setup with administrator rights directly, and the previous program file is kept until the new one has started.
 - Dialogs on a provider's page can no longer block the hidden browser, and the sign-in window shows the address of any page that is not the provider's own.
 - The key file created for signing updates is readable only by your user and the system.
+- A restored backup is cleaned of anything the app did not create itself before its token index is used.
+- The address found for reading a provider is stored without account ids.
+- The WebView2 installer runs from its own new folder, its signer must chain to a pinned Microsoft root, and the sign-in window allows no downloads.
+- The build refuses a release whose signature does not match the key built into the app.
 
 ## [1.1.0] - 2026-10-08
 
