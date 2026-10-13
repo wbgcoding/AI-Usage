@@ -58,6 +58,20 @@ public class MainWindowCloseGuardTests
             < routeBody.IndexOf("Current?.Shutdown()", StringComparison.Ordinal));
     }
 
+    /// <summary>The process caches the time zone it started in, so a change of the zone (or of the
+    /// clock) must drop that cache and redraw; the subscription ends with the window.</summary>
+    [Fact]
+    public void A_change_of_the_system_time_drops_the_cached_time_zone()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Views", "MainWindow.xaml.cs"));
+
+        Assert.Contains("SystemEvents.TimeChanged += SystemEvents_TimeChanged", source, StringComparison.Ordinal);
+        Assert.Contains("SystemEvents.TimeChanged -= SystemEvents_TimeChanged", source, StringComparison.Ordinal);
+        var handlerStart = source.IndexOf("private void SystemEvents_TimeChanged(", StringComparison.Ordinal);
+        Assert.True(handlerStart >= 0, "SystemEvents_TimeChanged not found");
+        Assert.Contains("TimeZoneInfo.ClearCachedData()", source.Substring(handlerStart, 200), StringComparison.Ordinal);
+    }
+
     /// <summary>The window used to write its position only when a mouse drag ended, so a window moved
     /// any other way - or a process ended by an update installing over it rather than by its own Exit
     /// - restored a position it had long left. Far enough from the real one, that remembered

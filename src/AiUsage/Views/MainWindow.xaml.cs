@@ -159,6 +159,7 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         SystemEvents.SessionSwitch += SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
+        SystemEvents.TimeChanged += SystemEvents_TimeChanged;
         NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
         NetworkChange.NetworkAddressChanged += NetworkChange_NetworkAddressChanged;
         _addressChangeTimer.Tick += AddressChangeTimer_Tick;
@@ -579,6 +580,21 @@ public partial class MainWindow : Window, IDisposable
                 Dispatcher.BeginInvoke(() => SetSessionLocked(false));
                 break;
         }
+    }
+
+    /// <summary>The clock or the time zone changed (travel, daylight saving, a manual change). The
+    /// process caches the zone it started in, so every local day, hour and reset time would stay
+    /// in the old one until a restart; the cache is dropped and what is on screen is drawn again.</summary>
+    private void SystemEvents_TimeChanged(object? sender, EventArgs e)
+    {
+        TimeZoneInfo.ClearCachedData();
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (_reallyClosing)
+                return;
+            ViewModel.RefreshHistoryForAllTiles();
+            ViewModel.Tick(DateTimeOffset.Now);
+        });
     }
 
     private void SystemEvents_PowerModeChanged(object sender, PowerModeChangedEventArgs e)
@@ -1777,6 +1793,7 @@ public partial class MainWindow : Window, IDisposable
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SystemEvents.SessionSwitch -= SystemEvents_SessionSwitch;
         SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
+        SystemEvents.TimeChanged -= SystemEvents_TimeChanged;
         NetworkChange.NetworkAvailabilityChanged -= NetworkChange_NetworkAvailabilityChanged;
         NetworkChange.NetworkAddressChanged -= NetworkChange_NetworkAddressChanged;
         _addressChangeTimer.Stop();
