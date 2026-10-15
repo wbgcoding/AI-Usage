@@ -85,6 +85,7 @@ public partial class UsageRowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightLabelText))]
     [NotifyPropertyChangedFor(nameof(DetailText))]
+    [NotifyPropertyChangedFor(nameof(MiniTooltipText))]
     private string countdownText = "";
 
     /// <summary>The reset instant's local wall-clock time ("21:15"/"Mi 21:15"), on top of the bare
@@ -102,6 +103,7 @@ public partial class UsageRowViewModel : ObservableObject
     /// cref="UpdateForecast"/>/<see cref="ClearForecast"/>, never computed here directly - this row
     /// has no access to the chart history or the tile's own density/status.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MiniTooltipText))]
     private string forecastText = "";
 
     /// <summary>Real token count read alongside this window, or null when the
@@ -119,30 +121,22 @@ public partial class UsageRowViewModel : ObservableObject
     /// notification is switched off in Settings, in which case the bar shows no marker at all.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowThresholdMarker))]
-    [NotifyPropertyChangedFor(nameof(ThresholdMarkerTooltip))]
-    [NotifyPropertyChangedFor(nameof(BarTooltipText))]
     private double? thresholdPercent;
 
     /// <summary>The marker only ever shows at Full density: Mini has no bar left to put a
     /// marker on.</summary>
     public bool ShowThresholdMarker => ThresholdPercent is not null && _density == TileDensity.Full;
 
-    public string ThresholdMarkerTooltip => ThresholdPercent is { } percent
-        ? Loc.Format("Tile.ThresholdMarker", StatusTextMap.UsagePercent(percent))
-        : "";
-
     /// <summary>Assigns <see cref="_density"/> and, only when it actually changes, raises the
-    /// notification for the two properties that depend on it (<see cref="ShowThresholdMarker"/>,
-    /// <see cref="ThresholdMarkerTooltip"/>) - a plain field write raises nothing on its own, which
-    /// left the marker stuck at its old visibility across a density switch until the row was rebuilt.</summary>
+    /// notification for the property that depends on it (<see cref="ShowThresholdMarker"/>) - a plain
+    /// field write raises nothing on its own, which left the marker stuck at its old visibility
+    /// across a density switch until the row was rebuilt.</summary>
     private void SetDensity(TileDensity density)
     {
         if (density == _density)
             return;
         _density = density;
         OnPropertyChanged(nameof(ShowThresholdMarker));
-        OnPropertyChanged(nameof(ThresholdMarkerTooltip));
-        OnPropertyChanged(nameof(BarTooltipText));
     }
 
     /// <summary>Mirrors <see cref="UsageWindow.Allowance"/> for <see cref="AllowanceText"/> - null
@@ -184,12 +178,17 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>Percentage points the usage may sit away from the pace before it counts as ahead or below.</summary>
     private const double PaceTolerance = 3;
 
-    /// <summary>The bar's tooltip: the allowance line, the pace line, then the notification threshold
-    /// while its marker is drawn (the 1 px marker itself is too thin to hover); empty (no tooltip)
-    /// only when all of them are.</summary>
+    /// <summary>The bar's tooltip: the allowance line, then the pace line; empty (no tooltip) when
+    /// both are.</summary>
     public string BarTooltipText => string.Join(
         Environment.NewLine,
-        new[] { AllowanceText, PaceText, ShowThresholdMarker ? ThresholdMarkerTooltip : "" }.Where(line => line.Length > 0));
+        new[] { AllowanceText, PaceText }.Where(line => line.Length > 0));
+
+    /// <summary>The Mini row's tooltip: the countdown, then the forecast; empty lines are dropped and
+    /// the tooltip stays off while both are empty.</summary>
+    public string MiniTooltipText => string.Join(
+        Environment.NewLine,
+        new[] { CountdownText, ForecastText }.Where(line => line.Length > 0));
 
     private double? ComputePacePercent(DateTimeOffset now)
     {
@@ -390,7 +389,6 @@ public partial class UsageRowViewModel : ObservableObject
         // raises nothing, yet the texts built around it follow the language.
         OnPropertyChanged(nameof(PercentText));
         OnPropertyChanged(nameof(MiniPercentText));
-        OnPropertyChanged(nameof(ThresholdMarkerTooltip));
         OnPropertyChanged(nameof(RightLabelText));
         OnPropertyChanged(nameof(InlineTokensText));
         OnPropertyChanged(nameof(InlineTokensToolTip));
