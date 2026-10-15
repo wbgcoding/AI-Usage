@@ -157,8 +157,8 @@ public partial class TitleBar : UserControl
     public TitleBar()
     {
         InitializeComponent();
-        // Before "Close", the last entry of the menu.
-        WindowMenu.Items.Insert(WindowMenu.Items.Count - 1, _windowLayerMenu.Header);
+        // Right after "Refresh", the first entry of the menu.
+        WindowMenu.Items.Insert(1, _windowLayerMenu.Header);
         _windowLayerMenu.Chosen += (_, layer) => WindowLayerRequested?.Invoke(this, layer);
         RefreshWindowMenuCollapseHeader();
         RefreshButtonTooltips();
@@ -166,7 +166,49 @@ public partial class TitleBar : UserControl
         // through a RelativeSource binding), so it has to follow a language switch by hand. A weak
         // subscription, so the long-lived localization service never keeps a closed dialog alive.
         PropertyChangedEventManager.AddHandler(LocalizationService.Instance, Localization_PropertyChanged, "Item[]");
+        PostAtInputPriority = work => Dispatcher.BeginInvoke(DispatcherPriority.Input, work);
+        Loaded += (_, _) => AttachToWindow();
+        Unloaded += (_, _) => DetachFromWindow();
     }
+
+    /// <summary>Re-tests which element is under the real cursor. A minimized or hidden window gets no
+    /// mouse-leave, so a button stays "hovered" until the pointer moves; swapped out by tests.</summary>
+    internal Action SynchronizeMouse { get; set; } = Mouse.Synchronize;
+
+    /// <summary>Queues work behind the input that is already pending; swapped out by tests.</summary>
+    internal Action<Action> PostAtInputPriority { get; set; } = null!;
+
+    private Window? _hostWindow;
+
+    internal bool IsWatchingWindow => _hostWindow is not null;
+
+    private void AttachToWindow() => AttachToWindow(Window.GetWindow(this));
+
+    internal void AttachToWindow(Window? window)
+    {
+        DetachFromWindow();
+        _hostWindow = window;
+        if (_hostWindow is null)
+            return;
+        _hostWindow.StateChanged += HostWindow_Changed;
+        _hostWindow.Activated += HostWindow_Changed;
+        _hostWindow.IsVisibleChanged += HostWindow_VisibleChanged;
+    }
+
+    internal void DetachFromWindow()
+    {
+        if (_hostWindow is null)
+            return;
+        _hostWindow.StateChanged -= HostWindow_Changed;
+        _hostWindow.Activated -= HostWindow_Changed;
+        _hostWindow.IsVisibleChanged -= HostWindow_VisibleChanged;
+        _hostWindow = null;
+    }
+
+    private void HostWindow_Changed(object? sender, EventArgs e) =>
+        PostAtInputPriority(() => SynchronizeMouse());
+
+    private void HostWindow_VisibleChanged(object sender, DependencyPropertyChangedEventArgs e) => HostWindow_Changed(sender, EventArgs.Empty);
 
     private void Localization_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -245,9 +287,7 @@ public partial class TitleBar : UserControl
     {
         if (RefreshMenuItem is null)
             return;
-        var visibility = ShowRefresh ? Visibility.Visible : Visibility.Collapsed;
-        RefreshMenuItem.Visibility = visibility;
-        RefreshMenuSeparator.Visibility = visibility;
+        RefreshMenuItem.Visibility = ShowRefresh ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke(this, EventArgs.Empty);

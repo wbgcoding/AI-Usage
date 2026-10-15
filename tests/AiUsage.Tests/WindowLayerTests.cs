@@ -238,12 +238,12 @@ public class WindowLayerTests
     }
 
     private static string CheckedTags(MenuItem parent) =>
-        string.Join(",", parent.Items.Cast<MenuItem>().Where(i => i.IsChecked).Select(i => (string)i.Tag));
+        string.Join(",", parent.Items.Cast<MenuItem>().Where(i => i.IsChecked && i.Tag is string).Select(i => (string)i.Tag));
 
     private static (string[] All, string Checked) LayerEntries(ContextMenu menu)
     {
-        var parent = menu.Items.OfType<MenuItem>().Single(item => item.Items.Count == 3);
-        return (parent.Items.Cast<MenuItem>().Select(i => (string)i.Tag).ToArray(), CheckedTags(parent));
+        var parent = menu.Items.OfType<MenuItem>().Single(item => item.Items.OfType<MenuItem>().Count(i => i.Tag is string) == 3);
+        return (parent.Items.Cast<MenuItem>().Where(i => i.Tag is string).Select(i => (string)i.Tag).ToArray(), CheckedTags(parent));
     }
 
     private sealed record MenuResult(

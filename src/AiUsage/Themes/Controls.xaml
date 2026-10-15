@@ -13,8 +13,77 @@
          so keyboard users still see where they are; the check box and the radio button draw it
          outside the glyph with a gap, because a checked glyph is Accent-filled and a ring on it
          would vanish. -->
+    <!-- Focus rings are FocusVisualStyles, not template triggers: WPF draws one only after keyboard
+         navigation, so a mouse click never leaves a ring behind. -->
+    <Style x:Key="FocusRing.TitleBar">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border Margin="4" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FocusRing.Control">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FocusRing.Small">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border CornerRadius="{StaticResource Radius.S}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FocusRing.LeftBar">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border BorderThickness="3,0,0,0" BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The check box and radio rings surround the 16 px glyph, 3 px outside it, not the whole row. -->
+    <Style x:Key="FocusRing.CheckBox">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border Width="22" Height="22" Margin="-3,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            CornerRadius="{StaticResource Radius.S}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FocusRing.RadioButton">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Ellipse Width="22" Height="22" Margin="-3,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                             Stroke="{DynamicResource Accent}" StrokeThickness="1" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="RadioButton">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.RadioButton}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -41,7 +110,6 @@
                             <Ellipse x:Name="Ring" Stroke="{DynamicResource Border.Control}" StrokeThickness="1"
                                      Fill="{DynamicResource Bg.Raised}"/>
                             <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{DynamicResource Accent}" Visibility="Collapsed"/>
-                            <Ellipse x:Name="Focus" Stroke="{DynamicResource Accent}" StrokeThickness="1" Margin="-3" Visibility="Collapsed"/>
                         </Grid>
                         <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                     </DockPanel>
@@ -53,9 +121,6 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource Accent.Hover}"/>
                         </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
-                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
                         </Trigger>
@@ -66,7 +131,7 @@
     </Style>
 
     <Style TargetType="CheckBox">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.CheckBox}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -93,8 +158,6 @@
                                   Stroke="{DynamicResource Bg.Base}" StrokeThickness="2"
                                   StrokeEndLineCap="Round" StrokeStartLineCap="Round"
                                   Data="M 0,5 L 4,9 L 11,1"/>
-                            <Border x:Name="Focus" CornerRadius="{StaticResource Radius.S}" BorderThickness="1" Margin="-3"
-                                    BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                         </Grid>
                         <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                     </DockPanel>
@@ -106,9 +169,6 @@
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent.Hover}"/>
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
@@ -141,6 +201,7 @@
     </Style>
 
     <Style TargetType="Slider">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Small}"/>
         <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
         <Setter Property="MinHeight" Value="20"/>
         <Setter Property="Template">
@@ -173,14 +234,7 @@
                                 </RepeatButton>
                             </Track.IncreaseRepeatButton>
                         </Track>
-                        <Border x:Name="Focus" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
-                                CornerRadius="{StaticResource Radius.S}" Visibility="Collapsed"/>
                     </Grid>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -468,6 +522,7 @@
     </DataTemplate>
 
     <Style TargetType="ComboBox">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
         <Setter Property="ItemTemplate" Value="{StaticResource ChoiceLabelTemplate}"/>
         <Setter Property="Background" Value="{DynamicResource Bg.Surface}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
@@ -538,9 +593,6 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
                         </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
-                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
                         </Trigger>
@@ -564,7 +616,7 @@
     </Style>
 
     <Style x:Key="AiUsageButton" TargetType="Button">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
         <Setter Property="Background" Value="{DynamicResource Bg.Raised}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}"/>
@@ -585,15 +637,10 @@
                                 TextElement.Foreground="{TemplateBinding Foreground}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
-                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
@@ -605,7 +652,7 @@
     </Style>
 
     <Style x:Key="AiUsageQuietButton" TargetType="Button">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -623,15 +670,10 @@
                                 TextElement.Foreground="{TemplateBinding Foreground}">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
                         </Border>
-                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
-                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
@@ -649,7 +691,7 @@
          Opacity override in a Setter, and this keeps the border/text at full opacity on hover since
          only the overlay Border itself is faded. -->
     <Style x:Key="AiUsageDangerButton" TargetType="Button">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
         <Setter Property="Background" Value="{DynamicResource Bg.Raised}"/>
         <Setter Property="Foreground" Value="{DynamicResource Level.Crit}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
@@ -674,15 +716,10 @@
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
-                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
-                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="HoverFill" Property="Visibility" Value="Visible"/>
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
@@ -760,6 +797,7 @@
     </Style>
 
     <Style x:Key="AiUsageCalendarDayButton" TargetType="CalendarDayButton">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Small}"/>
         <Setter Property="MinWidth" Value="28"/>
         <Setter Property="MinHeight" Value="28"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
@@ -786,9 +824,6 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
                         </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
-                        </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}"/>
                         </Trigger>
@@ -805,6 +840,7 @@
     </Style>
 
     <Style x:Key="AiUsageCalendarMonthButton" TargetType="CalendarButton">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Small}"/>
         <Setter Property="MinWidth" Value="40"/>
         <Setter Property="MinHeight" Value="40"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
@@ -828,9 +864,6 @@
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

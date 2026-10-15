@@ -1,8 +1,12 @@
 using System.Threading;
+using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Xml.Linq;
+using AiUsage.Services;
 using AiUsage.Views.Controls;
 using Xunit;
 
@@ -11,6 +15,7 @@ namespace AiUsage.Tests;
 /// <summary>Keyboard focus is visible on every focusable button, check box and radio button style, the
 /// window chrome buttons are named for a screen reader, and the other accessibility fixes of the same
 /// pass. The XAML is read as text or XML (no window needed).</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class KeyboardFocusTests
 {
     private static readonly XNamespace Wpf = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
@@ -36,7 +41,8 @@ public class KeyboardFocusTests
     [InlineData("Views", "Controls", "TitleBar.xaml")]
     [InlineData("Views", "Controls", "CollapsibleSection.xaml")]
     [InlineData("Views", "Controls", "ProviderTile.xaml")]
-    public void Every_focusable_button_style_shows_a_focus_ring_and_drops_the_default_dotted_one(params string[] parts)
+    [InlineData("Views", "SettingsWindow.xaml")]
+    public void Every_focusable_button_style_draws_its_ring_as_a_focus_visual_style_not_a_trigger(params string[] parts)
     {
         var styles = FocusableStyles(Src(parts)).ToList();
 
@@ -44,23 +50,71 @@ public class KeyboardFocusTests
         {
             var hasTrigger = style.Descendants(Wpf + "Trigger")
                 .Any(trigger => (string?)trigger.Attribute("Property") == "IsKeyboardFocused");
-            var dropsDefault = style.Elements(Wpf + "Setter").Any(setter =>
-                (string?)setter.Attribute("Property") == "FocusVisualStyle" && (string?)setter.Attribute("Value") == "{x:Null}");
-            Assert.True(hasTrigger, $"{Name(style)} has no IsKeyboardFocused trigger");
-            Assert.True(dropsDefault, $"{Name(style)} keeps the default focus rectangle");
+            var visual = style.Elements(Wpf + "Setter")
+                .SingleOrDefault(setter => (string?)setter.Attribute("Property") == "FocusVisualStyle");
+            Assert.False(hasTrigger, $"{Name(style)} still draws its ring from an IsKeyboardFocused trigger");
+            Assert.True(visual is not null && ((string?)visual.Attribute("Value") ?? "").Contains("FocusRing.", StringComparison.Ordinal),
+                $"{Name(style)} has no FocusRing focus visual style");
         }
+    }
+
+    [Fact]
+    public void Only_text_inputs_keep_an_IsKeyboardFocused_trigger()
+    {
+        var offenders = Directory.EnumerateFiles(Src(), "*.xaml", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(file => XDocument.Load(file).Descendants(Wpf + "Trigger")
+                .Where(trigger => (string?)trigger.Attribute("Property") == "IsKeyboardFocused")
+                .Select(trigger => (File: Path.GetFileName(file), Target: (string?)trigger.Ancestors(Wpf + "Style").First().Attribute("TargetType"))))
+            .Where(hit => hit.Target != "TextBox")
+            .ToList();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]
     public void The_check_box_and_radio_rings_sit_outside_the_glyph_so_a_checked_one_still_shows_it()
     {
         var doc = XDocument.Load(Src("Themes", "Controls.xaml"));
-        foreach (var type in new[] { "CheckBox", "RadioButton" })
+        foreach (var key in new[] { "FocusRing.CheckBox", "FocusRing.RadioButton" })
         {
-            var style = doc.Descendants(Wpf + "Style").Single(s => (string?)s.Attribute("TargetType") == type);
-            var ring = style.Descendants().Single(e => (string?)e.Attribute(X + "Name") == "Focus");
-            Assert.Equal("-3", (string?)ring.Attribute("Margin"));
+            var style = doc.Descendants(Wpf + "Style").Single(s => (string?)s.Attribute(X + "Key") == key);
+            var ring = style.Descendants(Wpf + "ControlTemplate").Single().Elements().Single();
+            Assert.Equal("-3,0,0,0", (string?)ring.Attribute("Margin"));
+            Assert.Equal("22", (string?)ring.Attribute("Width"));
+            Assert.Equal("22", (string?)ring.Attribute("Height"));
         }
+    }
+
+    [Fact]
+    public void The_focus_visual_styles_of_the_controls_build_a_ring_in_the_theme_accent()
+    {
+        var rings = StaTestRunner.Run(() =>
+        {
+            ThemeService.Apply(AppTheme.Dark, Application.Current!.Resources.MergedDictionaries,
+                uri => new ResourceDictionary { Source = new Uri("pack://application:,,,/AI-Usage;component/" + uri.OriginalString, UriKind.Absolute) },
+                () => false);
+            var owners = new object[] { typeof(CheckBox), typeof(RadioButton), typeof(Slider), typeof(ComboBox), "AiUsageButton" };
+            return owners.Select(key =>
+            {
+                var owner = (Style)Application.Current.FindResource(key);
+                var visual = owner.Setters.OfType<Setter>().Single(setter => setter.Property == FrameworkElement.FocusVisualStyleProperty);
+                var ring = new Control { Style = (Style)visual.Value };
+                ring.Measure(new Size(30, 30));
+                ring.ApplyTemplate();
+                var root = (FrameworkElement)VisualTreeHelper.GetChild(ring, 0);
+                var brush = root switch
+                {
+                    Border border => border.BorderBrush,
+                    System.Windows.Shapes.Shape shape => shape.Stroke,
+                    _ => null,
+                };
+                return (Name: key.ToString()!, Accent: (brush as SolidColorBrush)?.Color);
+            }).ToList();
+        });
+
+        Assert.Equal(5, rings.Count);
+        Assert.All(rings, ring => Assert.True(ring.Accent is not null, $"{ring.Name} focus ring has no accent brush"));
     }
 
     [Fact]

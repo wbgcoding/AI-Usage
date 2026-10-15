@@ -207,7 +207,7 @@ public partial class StatsWindow : Window
             down.Click += (_, _) => MoveSection(section, up: false);
             var reset = new MenuItem();
             reset.Click += (_, _) => CommitLayout(StatsLayout.Default());
-            var menu = new ContextMenu { Items = { up, down, new Separator(), reset } };
+            var menu = new ContextMenu { Items = { up, down, reset } };
             _sectionMenus[section] = menu;
             button.ContextMenu = menu;
             button.ContextMenuOpening += (_, _) => RefreshContextMenu(section);
@@ -238,7 +238,7 @@ public partial class StatsWindow : Window
         var visible = VisibleSectionKeys();
         var up = (MenuItem)_sectionMenus[section].Items[0];
         var down = (MenuItem)_sectionMenus[section].Items[1];
-        var reset = (MenuItem)_sectionMenus[section].Items[3];
+        var reset = (MenuItem)_sectionMenus[section].Items[2];
         up.Header = localization["Stats.Layout.MoveUp"];
         up.InputGestureText = localization["Stats.Layout.MoveUpKey"];
         up.IsEnabled = !StatsLayout.AreEqual(StatsLayout.MoveUp(current, section.SectionKey, visible), current);

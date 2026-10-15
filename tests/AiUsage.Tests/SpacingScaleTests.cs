@@ -26,7 +26,8 @@ public class SpacingScaleTests
 
     private static readonly int[] SpacingRaster = [0, 4, 8, 12, 16, 24];
 
-    // Margin="-3" (the slider thumb's halo overlay) and Margin="-1" (the danger button's hover
+    // Margin="-3" (the slider thumb's halo overlay), Margin="-3,0,0,0" (the check box and radio
+    // focus rings, 3 px outside the glyph) and Margin="-1" (the danger button's hover
     // overlay border) are deliberate negative visual offsets, not spacing, and are commented as
     // such at their own site. The tile name button's "-4,0,0,0" cancels its own 4 px left padding so
     // the text lines up with the bars; the tile's bar-row gap ("0,0,0,6") and the gap above its body
@@ -37,6 +38,7 @@ public class SpacingScaleTests
     private static readonly HashSet<(string Attribute, string Value)> AllowedExceptions =
     [
         ("Margin", "-3"),
+        ("Margin", "-3,0,0,0"),
         ("Margin", "-1"),
         ("Margin", "-4,0,0,0"),
         ("Margin", "0,0,0,6"),

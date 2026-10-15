@@ -192,6 +192,7 @@ public partial class MainWindow : Window, IDisposable
             () => LocalizationService.Instance["Toast.ShowWidget"]);
         // A click arrives on a platform thread; the window is brought forward on the UI thread.
         _toasts.Activated += () => Dispatcher.BeginInvoke(new Action(ShowAndActivate));
+        _tray.WidgetVisible = () => IsVisibleForTick() && !_hiddenByFullscreen;
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
         _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow(userStarted: true);
         _tray.PauseRequested += (_, _) => ViewModel.TogglePause();

@@ -22,7 +22,15 @@ public class TitleBarMarkupTests
         Assert.Equal("RefreshMenuItem", (string?)first.Attribute(Xaml + "Name"));
         Assert.Equal("F5", (string?)first.Attribute("InputGestureText"));
         Assert.Contains("Action.RefreshNow", (string?)first.Attribute("Header"), StringComparison.Ordinal);
-        Assert.Equal(Presentation + "Separator", menu.Elements().Skip(1).First().Name);
+    }
+
+    [Fact]
+    public void The_layout_popup_offers_no_automatic_size_check_boxes()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views", "Controls", "TitleBar.xaml"));
+
+        Assert.DoesNotContain("Window.AutoHeight", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Window.AutoWidth", text, StringComparison.Ordinal);
     }
 
     [Fact]

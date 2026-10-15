@@ -20,7 +20,7 @@
             <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
         </Style>
         <Style x:Key="TitleBarButton" TargetType="Button">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.TitleBar}"/>
             <Setter Property="Width" Value="32"/>
             <Setter Property="Height" Value="32"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -36,16 +36,11 @@
                             <Border x:Name="Root" Background="{TemplateBinding Background}">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <Border x:Name="Focus" Margin="4" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
-                                    BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -70,11 +65,10 @@
                 <MenuItem x:Name="RefreshMenuItem" InputGestureText="F5"
                           Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
                           Click="RefreshMenuItem_Click"/>
-                <Separator x:Name="RefreshMenuSeparator"/>
+                <!-- The window level submenu is inserted after the refresh entry from code (WindowLayerMenu). -->
+                <MenuItem x:Name="CollapseMenuItem" Click="CollapseMenuItem_Click"/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Minimize]}"
                           Click="MinimizeButton_Click"/>
-                <MenuItem x:Name="CollapseMenuItem" Click="CollapseMenuItem_Click"/>
-                <!-- The window level submenu is inserted here from code (WindowLayerMenu). -->
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Close]}"
                           Click="CloseButton_Click"/>
             </ContextMenu>
@@ -197,14 +191,6 @@
                                   SelectedItem="{Binding SelectedDensityChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}"
                                   FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
-
-                        <Separator Margin="0,8"/>
-                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.AutoHeight]}"
-                                  IsChecked="{Binding HeightAutomatic}" Margin="0,0,0,8"
-                                  Foreground="{DynamicResource Text.Primary}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
-                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.AutoWidth]}"
-                                  IsChecked="{Binding WidthAutomatic}" Margin="0,0"
-                                  Foreground="{DynamicResource Text.Primary}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
                     </StackPanel>
                 </Border>
                 </Grid>

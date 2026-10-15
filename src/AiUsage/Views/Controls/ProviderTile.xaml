@@ -25,7 +25,7 @@
              The left margin cancels the left padding, so the hover area keeps its inset while the
              name text lines up with the window labels and bars below it. -->
         <Style x:Key="TileNameButtonStyle" TargetType="Button">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -50,13 +50,8 @@
                                                            Visibility="Collapsed"/>
                                 </StackPanel>
                             </Border>
-                            <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
-                                    BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                         </Grid>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
-                            </Trigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
                                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
@@ -212,16 +207,15 @@
             <ContextMenu>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
                           Command="{Binding RefreshCommand}"/>
-                <Separator/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Menu.OpenUsagePage]}"
                           Command="{Binding OpenUsagePageCommand}"/>
                 <MenuItem Header="{Binding DetailsMenuHeader}"
                           Command="{Binding ToggleDetailsCommand}"
                           Visibility="{Binding HasDiagnostics, Converter={StaticResource BoolToVis}}"/>
-                <MenuItem Header="{Binding ChartMenuHeader}" Command="{Binding ToggleChartCommand}"
-                          Visibility="{Binding ShowChartMenuItem, Converter={StaticResource BoolToVis}}"/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.CopyDetails]}"
                           Command="{Binding CopyDetailsCommand}"/>
+                <MenuItem Header="{Binding ChartMenuHeader}" Command="{Binding ToggleChartCommand}"
+                          Visibility="{Binding ShowChartMenuItem, Converter={StaticResource BoolToVis}}"/>
                 <MenuItem x:Name="HelpMenuItem" Click="HelpMenuItem_Click"
                           Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Menu.Help]}">
                     <MenuItem.Style>
