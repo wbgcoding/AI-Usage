@@ -184,13 +184,7 @@
                                ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
                                TitleText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Title]}"
                                CloseRequested="TitleBarControl_CloseRequested"/>
-            <!-- HorizontalScrollBarVisibility stays at its Disabled default here, which is what
-                 pins the content to the window's own width: a scroll region that could scroll
-                 sideways would measure every wrapping label below at unlimited width, so the label
-                 would report the width of its longest single line and be cut off instead. -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          Padding="{StaticResource Space.M}">
-        <Grid>
+        <Grid Margin="12,12,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="150"/>
                 <ColumnDefinition Width="*"/>
@@ -217,7 +211,13 @@
                  comes out to whichever of the two is taller: the sidebar for a short category, the
                  category itself for a tall one. See SettingsWindow.xaml.cs for why switching also
                  has to re-assert SizeToContent explicitly. -->
-            <Grid Grid.Column="1">
+            <!-- HorizontalScrollBarVisibility stays at its Disabled default here, which is what
+                 pins the content to this column's own width: a scroll region that could scroll
+                 sideways would measure every wrapping label below at unlimited width, so the label
+                 would report the width of its longest single line and be cut off instead. Only
+                 this column scrolls; the sidebar stays put. -->
+            <ScrollViewer x:Name="ContentScroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
+            <Grid>
         <StackPanel>
             <StackPanel.Style>
                 <Style TargetType="StackPanel">
@@ -1063,8 +1063,8 @@
             </Border>
         </StackPanel>
             </Grid>
-        </Grid>
             </ScrollViewer>
+        </Grid>
         </DockPanel>
     </Border>
     <Thumb Style="{StaticResource ResizeGrip}" Margin="{StaticResource Space.S}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
