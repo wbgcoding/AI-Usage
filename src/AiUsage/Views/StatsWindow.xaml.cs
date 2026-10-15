@@ -418,12 +418,30 @@ public partial class StatsWindow : Window
     internal void PrepareOffscreen()
     {
         _viewModel.TryShowSnapshot();
+        ApplyRememberedSizeAhead();
         if (Content is UIElement root && !double.IsNaN(Width) && !double.IsNaN(Height))
         {
             root.Measure(new Size(Width, Height));
             root.Arrange(new Rect(0, 0, Width, Height));
             root.UpdateLayout();
         }
+    }
+
+    /// <summary>Takes the opening size before the first layout pass, so the open does not lay out
+    /// every chart again at a new size. Without a remembered position the monitor is the widget's;
+    /// <see cref="StatsWindow_Loaded"/> still corrects the size should the window land elsewhere.</summary>
+    private void ApplyRememberedSizeAhead()
+    {
+        var placement = WindowPlacementService.Shared;
+        var probe = placement?.RememberedStatsWindowPosition is { } position
+            ? new WindowRect(position.Left + 1, position.Top + 1, 0, 0)
+            : Application.Current?.MainWindow is { } main && !double.IsNaN(main.Left)
+                ? new WindowRect(main.Left + main.ActualWidth / 2, main.Top + main.ActualHeight / 2, 0, 0)
+                : new WindowRect(0, 0, 0, 0);
+        var area = MainWindow.PickArea(NativeMonitors.WorkAreas(), null, probe);
+        var size = WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight);
+        Width = size.Width;
+        Height = size.Height;
     }
 
     private long _openStartedAt;

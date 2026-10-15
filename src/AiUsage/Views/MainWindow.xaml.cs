@@ -1644,7 +1644,13 @@ public partial class MainWindow : Window, IDisposable
         {
             _statsWindow = TakePreparedStatsWindow() ?? CreateStatsWindow();
             OwnerWindowResolver.ApplyOwner(_statsWindow, this);
-            _statsWindow.Closed += (_, _) => _statsWindow = null;
+            _statsWindow.Closed += (_, _) =>
+            {
+                _statsWindow = null;
+                // The next open shows a prepared window again; not once the widget itself is closing.
+                if (new WindowInteropHelper(this).Handle != IntPtr.Zero)
+                    _prebuildTimer?.Start();
+            };
             _statsWindow.BeginOpenMeasurement(clicked);
         }
         _statsWindow.Show();
@@ -1656,9 +1662,10 @@ public partial class MainWindow : Window, IDisposable
         ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
     }, _settings, _settingsStore);
 
-    // The statistics window, built once shortly after startup and kept unshown, so the click only has
-    // to show it. Used once; the next open builds a fresh one (cheap by then: the code is warm).
+    // The statistics window, built shortly after startup and again after each close, kept unshown so
+    // the click only has to show it.
     private StatsWindow? _preparedStatsWindow;
+    private DispatcherTimer? _prebuildTimer;
 
     private StatsWindow? TakePreparedStatsWindow()
     {
@@ -1682,7 +1689,7 @@ public partial class MainWindow : Window, IDisposable
 
     private void SchedulePreparedStatsWindow()
     {
-        var timer = new DispatcherTimer(DispatcherPriority.ApplicationIdle, Dispatcher) { Interval = PrebuildDelay };
+        var timer = _prebuildTimer = new DispatcherTimer(DispatcherPriority.ApplicationIdle, Dispatcher) { Interval = PrebuildDelay };
         timer.Tick += (_, _) =>
         {
             var step = NextPrebuildStep(

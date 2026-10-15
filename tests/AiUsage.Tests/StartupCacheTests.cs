@@ -96,6 +96,24 @@ public class StartupCacheTests : IDisposable
         Assert.Contains("DispatcherPriority.ApplicationIdle, timer.Start", body);
     }
 
+    [Fact]
+    public void Closing_the_statistics_window_prepares_the_next_one()
+    {
+        var source = Source("Views", "MainWindow.xaml.cs");
+        var start = source.IndexOf("private void TitleBarControl_StatsRequested", StringComparison.Ordinal);
+        var body = source[start..source.IndexOf("private StatsWindow CreateStatsWindow()", start, StringComparison.Ordinal)];
+        Assert.Contains("_prebuildTimer?.Start()", body);
+    }
+
+    [Fact]
+    public void The_prepared_statistics_window_takes_its_opening_size_before_the_first_layout()
+    {
+        var source = Source("Views", "StatsWindow.xaml.cs");
+        var start = source.IndexOf("internal void PrepareOffscreen()", StringComparison.Ordinal);
+        var body = source[start..source.IndexOf("root.Measure(", start, StringComparison.Ordinal)];
+        Assert.Contains("ApplyRememberedSizeAhead();", body);
+    }
+
     [Theory]
     [InlineData(false, false, MainWindow.PrebuildStep.Build)]
     [InlineData(false, true, MainWindow.PrebuildStep.Wait)]

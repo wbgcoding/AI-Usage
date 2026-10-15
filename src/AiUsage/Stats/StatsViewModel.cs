@@ -1148,18 +1148,28 @@ public sealed partial class StatsViewModel : ObservableObject
     internal Func<StatsDataSnapshot?> TakeSnapshot { get; set; } = () => null;
 
     /// <summary>Shows the prepared data right away, without reading the store. False when there is
-    /// none, which leaves the window to its normal load.</summary>
+    /// none, which leaves the window to its normal load. Data already on screen (the window was
+    /// prepared with it, or a new index run found nothing new) is left as it is, so opening the window
+    /// never rebuilds and lays out every chart a second time.</summary>
     public bool TryShowSnapshot()
     {
         if (TakeSnapshot() is not { } snapshot)
             return false;
 
-        _allSessions = snapshot.Sessions;
-        RecomputeFrom(snapshot.Records);
+        if (!ReferenceEquals(snapshot, _shownSnapshot)
+            && !(RecordsLoaded && MatchesShown(snapshot.Records, snapshot.Sessions)))
+        {
+            _allSessions = snapshot.Sessions;
+            RecomputeFrom(snapshot.Records);
+        }
+
+        _shownSnapshot = snapshot;
         RecordsLoaded = true;
         IsLoading = false;
         return true;
     }
+
+    private StatsDataSnapshot? _shownSnapshot;
 
     /// <summary>Every stored session, kept from the last load for the session grouping.</summary>
     private IReadOnlyList<StatsSessionRecord> _allSessions = [];

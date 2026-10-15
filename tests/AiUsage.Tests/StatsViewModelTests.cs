@@ -2111,6 +2111,30 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
+    public void TryShowSnapshot_leaves_data_already_on_screen_alone_and_rebuilds_only_for_new_data()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-snapshot-again");
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var records = new List<StatsRecord> { new("claude", today, "modelA", "projA", 100, 50, 0, 0) };
+        var snapshot = new StatsDataSnapshot(records, []);
+        var viewModel = new StatsViewModel(new StatsStore(dataDir)) { TakeSnapshot = () => snapshot };
+
+        Assert.True(viewModel.TryShowSnapshot());
+        var shown = viewModel.Bars;
+
+        Assert.True(viewModel.TryShowSnapshot());
+        Assert.Same(shown, viewModel.Bars); // the prepared window opened: same data, no rebuild
+
+        snapshot = new StatsDataSnapshot([.. records], []);
+        Assert.True(viewModel.TryShowSnapshot());
+        Assert.Same(shown, viewModel.Bars); // a new index run with the same counts: no rebuild
+
+        snapshot = new StatsDataSnapshot([.. records, new StatsRecord("codex", today, "modelB", "projB", 10, 5, 0, 0)], []);
+        Assert.True(viewModel.TryShowSnapshot());
+        Assert.NotSame(shown, viewModel.Bars);
+    }
+
+    [Fact]
     public async Task RecomputeAsync_without_the_loading_state_never_shows_the_pill_and_skips_an_unchanged_rebuild()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-quiet-reload");
