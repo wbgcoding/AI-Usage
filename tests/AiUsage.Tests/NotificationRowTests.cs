@@ -89,4 +89,40 @@ public class NotificationRowTests
         Assert.False(settings.NotifyOnResetEnabled);
         Assert.True(settings.Thresholds.UseCustom);
     }
+    private static NotificationRowViewModel RowFor(ProviderTileViewModel tile) =>
+        new(tile.ProviderId, tile.HeaderDisplayName, new ProviderSettings(), () => { }, tile);
+
+    [Fact]
+    public void The_own_threshold_row_names_the_real_other_window()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var row = RowFor(tile);
+        var otherWord = AiUsage.Services.LocalizationService.Instance["Window.Other"];
+        Assert.Equal(otherWord, row.Threshold.OtherWindowLabel);
+
+        tile.Apply(Snapshot([new UsageWindow("Fable", WindowKind.Other, 12, Now.AddDays(3), null)]), Now);
+
+        Assert.Equal("Fable", row.Threshold.OtherWindowLabel);
+        Assert.Contains("Fable", row.Threshold.OtherFullLabel, StringComparison.Ordinal);
+        Assert.Contains("Fable", row.Threshold.OtherEnabledFullLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Several_other_windows_are_listed_and_none_falls_back_to_the_generic_word()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var row = RowFor(tile);
+        var otherWord = AiUsage.Services.LocalizationService.Instance["Window.Other"];
+
+        tile.Apply(Snapshot(
+        [
+            new UsageWindow("Fable", WindowKind.Other, 12, Now.AddDays(3), null),
+            new UsageWindow("Opus", WindowKind.Other, 30, Now.AddDays(3), null),
+            new UsageWindow("Fable", WindowKind.Other, 12, Now.AddDays(3), null),
+        ]), Now);
+        Assert.Equal("Fable, Opus", row.Threshold.OtherWindowLabel);
+
+        tile.Apply(Snapshot([new UsageWindow("Window_Weekly", WindowKind.Weekly, 40, Now.AddDays(3), 10080)]), Now);
+        Assert.Equal(otherWord, row.Threshold.OtherWindowLabel);
+    }
 }

@@ -275,6 +275,23 @@ public class SettingsViewModelTests : IDisposable
         Assert.Contains("work", row.NotificationsForProviderText, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ANewSnapshotsOtherWindowNameReachesTheThresholdRowLive()
+    {
+        var (vm, _) = Build();
+        var row = vm.NotificationRows.Single(r => r.ProviderId == "claude");
+        var tile = vm.Main.Tiles.Single(t => t.ProviderId == "claude");
+        var changed = new List<string?>();
+        row.Threshold.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        tile.Apply(
+            new ProviderSnapshot("claude", [new UsageWindow("Fable", WindowKind.Other, 12, Now.AddDays(3), null)], null,
+                SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null), Now);
+
+        Assert.Equal("Fable", row.Threshold.OtherWindowLabel);
+        Assert.Contains(nameof(ThresholdRowViewModel.OtherWindowLabel), changed);
+    }
+
     [Theory]
     [InlineData(0, 1)]
     [InlineData(90, 60)]

@@ -92,7 +92,7 @@ public sealed partial class NotificationRowViewModel : ObservableObject
         _providerSettings = providerSettings;
         _save = save;
         Tile = tile;
-        Threshold = new ThresholdRowViewModel(providerId, headerDisplayName, providerSettings.Thresholds, save);
+        Threshold = new ThresholdRowViewModel(providerId, headerDisplayName, providerSettings.Thresholds, save, () => tile?.OtherWindowName);
         Threshold.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ThresholdRowViewModel.UseCustom))

@@ -13,6 +13,7 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
 {
     private readonly ThresholdSettings _thresholds;
     private readonly Action _save;
+    private readonly Func<string?> _otherWindowName;
 
     /// <summary>The stable key a caller or a test uses to find one provider's row - not something the view binds.</summary>
     public string ProviderId { get; }
@@ -70,14 +71,18 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
 
     public string FiveHourFullLabel => $"{Loc["Window.FiveHour"]}: {FiveHourLabel}";
     public string WeeklyFullLabel => $"{Loc["Window.Weekly"]}: {WeeklyLabel}";
-    public string OtherFullLabel => $"{Loc["Window.Other"]}: {OtherLabel}";
+    public string OtherFullLabel => $"{OtherWindowLabel}: {OtherLabel}";
+
+    /// <summary>What the third row is called: the real name of the provider's Other window(s) once a
+    /// snapshot has told, the generic word until then.</summary>
+    public string OtherWindowLabel => _otherWindowName() is { Length: > 0 } name ? name : Loc["Window.Other"];
 
     /// <summary>Names what each window's own Ein/Aus check box actually toggles, including which
     /// provider's row it lives in - without this a screen reader announces four bare "Ein" boxes
     /// (the checkbox's own Content text) with no way to tell them apart.</summary>
     public string FiveHourEnabledFullLabel => $"{HeaderDisplayName} {Loc["Window.FiveHour"]}: {Loc["Settings.On"]}";
     public string WeeklyEnabledFullLabel => $"{HeaderDisplayName} {Loc["Window.Weekly"]}: {Loc["Settings.On"]}";
-    public string OtherEnabledFullLabel => $"{HeaderDisplayName} {Loc["Window.Other"]}: {Loc["Settings.On"]}";
+    public string OtherEnabledFullLabel => $"{HeaderDisplayName} {OtherWindowLabel}: {Loc["Settings.On"]}";
 
     public string OwnThresholdFullLabel => $"{HeaderDisplayName}: {Loc["Settings.OwnThreshold"]}";
 
@@ -92,14 +97,17 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
         OnPropertyChanged(nameof(FiveHourFullLabel));
         OnPropertyChanged(nameof(WeeklyFullLabel));
         OnPropertyChanged(nameof(OtherFullLabel));
+        OnPropertyChanged(nameof(OtherWindowLabel));
         OnPropertyChanged(nameof(FiveHourEnabledFullLabel));
         OnPropertyChanged(nameof(WeeklyEnabledFullLabel));
         OnPropertyChanged(nameof(OtherEnabledFullLabel));
         OnPropertyChanged(nameof(OwnThresholdFullLabel));
     }
 
-    public ThresholdRowViewModel(string providerId, string headerDisplayName, ThresholdSettings thresholds, Action save)
+    public ThresholdRowViewModel(string providerId, string headerDisplayName, ThresholdSettings thresholds, Action save,
+        Func<string?>? otherWindowName = null)
     {
+        _otherWindowName = otherWindowName ?? (() => null);
         ProviderId = providerId;
         HeaderDisplayName = headerDisplayName;
         _thresholds = thresholds;

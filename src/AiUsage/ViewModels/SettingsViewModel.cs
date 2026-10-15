@@ -622,15 +622,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _watchedTiles.Clear();
     }
 
-    /// <summary>An extra account's real name arrives with its first snapshot, possibly while this
-    /// window is open: the row's caption follows it instead of keeping the placeholder.</summary>
+    /// <summary>An extra account's real name, or the real name of its Other window, arrives with a
+    /// snapshot, possibly while this window is open: the row's captions follow it instead of keeping
+    /// the placeholder.</summary>
     private void OnTilePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(ProviderTileViewModel.HeaderDisplayName) || sender is not ProviderTileViewModel tile)
+        if (sender is not ProviderTileViewModel tile
+            || e.PropertyName is not (nameof(ProviderTileViewModel.HeaderDisplayName) or nameof(ProviderTileViewModel.OtherWindowName)))
             return;
         foreach (var row in NotificationRows)
         {
-            if (row.Tile == tile)
+            if (row.Tile != tile)
+                continue;
+            if (e.PropertyName == nameof(ProviderTileViewModel.OtherWindowName))
+                row.Threshold.RefreshLabels();
+            else
                 row.SetHeaderDisplayName(tile.HeaderDisplayName);
         }
     }

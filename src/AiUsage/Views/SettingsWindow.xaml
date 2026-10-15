@@ -735,7 +735,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.Other]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Threshold.OtherWindowLabel}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
                                                         <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.OtherEnabled}"
                                                                   AutomationProperties.Name="{Binding Threshold.OtherEnabledFullLabel}"/>
                                                     </Grid>

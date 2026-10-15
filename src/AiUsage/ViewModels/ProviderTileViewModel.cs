@@ -41,6 +41,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     public bool HasWeeklyWindow => _knownWindowKinds?.Contains(WindowKind.Weekly) ?? true;
     public bool HasOtherWindow => _knownWindowKinds?.Contains(WindowKind.Other) ?? true;
 
+    private string _otherWindowName = "";
+
+    /// <summary>What the provider's Other windows are really called (the distinct row names of its last
+    /// snapshot that carried any window, joined with ", "); empty while none is known.</summary>
+    public string OtherWindowName => _otherWindowName;
+
     /// <summary>This tile's own hidden Other-row labels (see <see
     /// cref="Models.ProviderSettings.HiddenWindows"/>) - set by <see
     /// cref="ViewModels.MainViewModel.BuildTile"/> right after construction and again by <see
@@ -1086,6 +1092,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
                 OnPropertyChanged(nameof(KnownWindowKinds));
             }
             RebuildWindowToggles(snapshot.Windows);
+            var otherName = string.Join(", ", snapshot.Windows
+                .Where(window => window.Kind == WindowKind.Other)
+                .Select(window => StatusTextMap.Resolve(window.Label))
+                .Where(name => name.Length > 0)
+                .Distinct());
+            if (otherName != _otherWindowName)
+            {
+                _otherWindowName = otherName;
+                OnPropertyChanged(nameof(OtherWindowName));
+            }
         }
         _lastShowAttentionMark = showAttentionMark;
         _lastRefreshInterval = refreshInterval;
