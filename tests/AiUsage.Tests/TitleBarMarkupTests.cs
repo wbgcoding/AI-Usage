@@ -26,6 +26,15 @@ public class TitleBarMarkupTests
     }
 
     [Fact]
+    public void The_layout_popup_offers_no_automatic_size_check_boxes()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views", "Controls", "TitleBar.xaml"));
+
+        Assert.DoesNotContain("Window.AutoHeight", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Window.AutoWidth", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_title_bar_keeps_the_eye_stats_settings_minimize_and_close_buttons()
     {
         var document = XDocument.Load(Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views", "Controls", "TitleBar.xaml"));

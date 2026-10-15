@@ -197,14 +197,6 @@
                                   SelectedItem="{Binding SelectedDensityChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}"
                                   FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
-
-                        <Separator Margin="0,8"/>
-                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.AutoHeight]}"
-                                  IsChecked="{Binding HeightAutomatic}" Margin="0,0,0,8"
-                                  Foreground="{DynamicResource Text.Primary}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
-                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.AutoWidth]}"
-                                  IsChecked="{Binding WidthAutomatic}" Margin="0,0"
-                                  Foreground="{DynamicResource Text.Primary}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
                     </StackPanel>
                 </Border>
                 </Grid>
