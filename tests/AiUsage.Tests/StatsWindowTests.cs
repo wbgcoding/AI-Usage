@@ -805,16 +805,21 @@ public class StatsWindowTests
         RunInWindow(null, (window, root) =>
         {
             Assert.Equal(limitProviders, ((StatsViewModel)window.DataContext).LimitGroups.Count);
+            var heights = new List<double>();
             foreach (var height in new[] { 800.0, 1400.0 })
             {
                 root.Measure(new Size(1100, height));
                 root.Arrange(new Rect(0, 0, 1100, height));
                 root.UpdateLayout();
 
-                Assert.Equal(132, window.ProviderRing.ActualHeight);
-                Assert.Equal(132, window.ModelRing.ActualHeight);
-                Assert.Equal(132, window.EffortRing.ActualHeight);
+                foreach (var ring in new[] { window.ProviderRing, window.ModelRing, window.EffortRing })
+                    Assert.Equal(StatsRingChart.HeightFor(ring.ActualWidth, ring.Slices.Count), ring.ActualHeight);
+                Assert.Equal(window.ProviderRing.ActualHeight, window.ModelRing.ActualHeight);
+                Assert.Equal(window.ProviderRing.ActualHeight, window.EffortRing.ActualHeight);
+                heights.Add(window.ProviderRing.ActualHeight);
             }
+
+            Assert.Equal(heights[0], heights[1]);
         }, configureViewModel: viewModel =>
         {
             viewModel.LoadRecords = () => records;
