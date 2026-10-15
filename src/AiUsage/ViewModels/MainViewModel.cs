@@ -870,6 +870,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public void RefreshNetworkFailed() =>
         _scheduler.RefreshNetworkFailed(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
 
+    private readonly object _windowTokensApplyLock = new();
+
     /// <summary>Queries <see cref="_statsStore"/> for the index slice of every window row of every
     /// shown tile whose real provider has a local token index (see <see
     /// cref="UsageRowViewModel.TokenKeyFor"/>): the tokens since that window's own last reset. A
@@ -921,9 +923,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
                 var dispatcher = Application.Current?.Dispatcher;
                 if (dispatcher is not null && !dispatcher.CheckAccess())
+                {
                     dispatcher.BeginInvoke(Apply);
+                }
                 else
-                    Apply();
+                {
+                    // No dispatcher (tests): the five-hour and weekly answers land on two pool
+                    // threads at once and both write the tile's token dictionary.
+                    lock (_windowTokensApplyLock)
+                        Apply();
+                }
             });
         }
     }
