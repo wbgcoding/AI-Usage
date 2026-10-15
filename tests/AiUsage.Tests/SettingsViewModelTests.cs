@@ -887,6 +887,170 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheBarColorModeOfATileTravelsThroughExportAndImportAndResetClearsIt()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Providers["claude"].BarColorMode = BarColorModes.Agent;
+        sourceSettings.Providers["codex"].BarColorMode = BarColorModes.Model;
+        var exportPath = Path.Combine(TempDirectory(), "export-bar-color.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(BarColorModes.Agent, targetSettings.Providers["claude"].BarColorMode);
+        Assert.Equal(BarColorModes.Model, targetSettings.Providers["codex"].BarColorMode);
+        var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "claude");
+        Assert.Equal(BarColorModes.Agent, tile.BarColorMode);
+        Assert.Equal(BarColorModes.Agent, tile.SelectedBarColorChoice!.Value);
+
+        targetVm.ResetToDefaults();
+
+        Assert.Equal(BarColorModes.Level, targetSettings.Providers["claude"].BarColorMode);
+        Assert.Equal(BarColorModes.Level, tile.BarColorMode);
+        Assert.Equal(BarColorModes.Level, tile.SelectedBarColorChoice!.Value);
+    }
+
+    private static ProviderSnapshot FiveHourSnapshot(string providerId)
+    {
+        var now = DateTimeOffset.Now;
+        return new ProviderSnapshot(
+            providerId, [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 40, now.AddHours(2), 300)],
+            "Plus", SourceKind.LocalFile, now, now, ProviderStatus.Ok, null);
+    }
+
+    [Fact]
+    public void TheTimeMarkerSwitchHidesTheMarkerOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
+    {
+        var (vm, settings) = Build();
+        foreach (var tile in vm.Main.Tiles)
+            tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
+        Assert.True(vm.ShowPaceMarker);
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotNull(row.PacePercent)));
+
+        vm.ShowPaceMarker = false;
+
+        Assert.False(settings.ShowPaceMarker);
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Null(row.PacePercent)));
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Equal("", row.BarTooltipText)));
+
+        var exportPath = Path.Combine(TempDirectory(), "export-time-marker.json");
+        var (sourceVm, _) = Build(new AppSettings { ShowPaceMarker = false }, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        foreach (var tile in targetVm.Main.Tiles)
+            tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.False(targetSettings.ShowPaceMarker);
+        Assert.False(targetVm.ShowPaceMarker);
+        Assert.All(targetVm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Null(row.PacePercent)));
+
+        targetVm.ResetToDefaults();
+
+        Assert.True(targetSettings.ShowPaceMarker);
+        Assert.All(targetVm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotNull(row.PacePercent)));
+    }
+
+    [Fact]
+    public void TheForecastLeadPickerOffersTheNineChoicesStoresThePickAndResetGoesBackToThirty()
+    {
+        var settings = new AppSettings { Language = "de" };
+        var (vm, _) = Build(settings);
+
+        Assert.Equal([3, 5, 10, 15, 30, 45, 60, 90, 120], vm.ForecastLeadChoices.Select(choice => choice.Value));
+        Assert.Equal(30, vm.SelectedForecastLeadChoice!.Value);
+        Assert.Equal("etwa 3 Minuten vorher", vm.ForecastLeadChoices[0].Label);
+        Assert.Equal("etwa 1 Stunde vorher", vm.ForecastLeadChoices.Single(choice => choice.Value == 60).Label);
+        Assert.Equal("etwa 90 Minuten vorher", vm.ForecastLeadChoices.Single(choice => choice.Value == 90).Label);
+        Assert.Equal("etwa 2 Stunden vorher", vm.ForecastLeadChoices.Single(choice => choice.Value == 120).Label);
+
+        vm.SelectedForecastLeadChoice = vm.ForecastLeadChoices.Single(choice => choice.Value == 120);
+        Assert.Equal(120, settings.ForecastLeadMinutes);
+
+        vm.ResetToDefaults();
+
+        Assert.Equal(30, settings.ForecastLeadMinutes);
+        Assert.Equal(30, vm.SelectedForecastLeadChoice!.Value);
+    }
+
+    [Fact]
+    public void TheForecastLeadTravelsThroughExportAndImport()
+    {
+        var sourceSettings = new AppSettings { ForecastLeadMinutes = 45 };
+        var exportPath = Path.Combine(TempDirectory(), "export-forecast-lead.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(45, targetSettings.ForecastLeadMinutes);
+        Assert.Equal(45, targetVm.SelectedForecastLeadChoice!.Value);
+    }
+
+    [Fact]
+    public void TheWeekdayBoxesFollowTheMainBoxAndTheirChoiceIsKeptWhileItIsOn()
+    {
+        var settings = new AppSettings { Language = "de" };
+        var (vm, _) = Build(settings);
+        Assert.True(vm.AllDaysAllowed);
+        Assert.Equal(7, vm.QuietDays.Count);
+        Assert.All(vm.QuietDays, day => Assert.True(day.IsAllowed));
+        Assert.Equal(DayOfWeek.Monday, vm.QuietDays[0].Day);
+        Assert.Equal(DayOfWeek.Sunday, vm.QuietDays[6].Day);
+
+        vm.AllDaysAllowed = false;
+        vm.QuietDays[2].IsAllowed = false; // Wednesday
+        vm.QuietDays[5].IsAllowed = false; // Saturday
+        Assert.False(settings.AllDaysAllowed);
+        Assert.Equal(["Wednesday", "Saturday"], settings.QuietDays);
+
+        vm.AllDaysAllowed = true;
+        Assert.True(settings.AllDaysAllowed);
+        Assert.Equal(["Wednesday", "Saturday"], settings.QuietDays);
+        Assert.False(vm.QuietDays[2].IsAllowed);
+
+        vm.QuietDays[2].IsAllowed = true;
+        Assert.Equal(["Saturday"], settings.QuietDays);
+    }
+
+    [Fact]
+    public void TheWeekdayNamesFollowTheActiveLanguageWithACapitalLetter()
+    {
+        var (vm, _) = Build();
+
+        Assert.Equal("Montag", vm.QuietDays[0].Name);
+        Assert.Equal("Sonntag", vm.QuietDays[6].Name);
+    }
+
+    [Fact]
+    public void TheQuietDaysTravelThroughExportAndImportAndResetChecksAllDaysAgain()
+    {
+        var sourceSettings = new AppSettings { AllDaysAllowed = false, QuietDays = ["Saturday", "Sunday"] };
+        var exportPath = Path.Combine(TempDirectory(), "export-quiet-days.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.False(targetSettings.AllDaysAllowed);
+        Assert.Equal(["Saturday", "Sunday"], targetSettings.QuietDays);
+        Assert.False(targetVm.AllDaysAllowed);
+        Assert.Equal([false, false], targetVm.QuietDays.Skip(5).Select(day => day.IsAllowed));
+        Assert.All(targetVm.QuietDays.Take(5), day => Assert.True(day.IsAllowed));
+
+        targetVm.ResetToDefaults();
+
+        Assert.True(targetSettings.AllDaysAllowed);
+        Assert.Empty(targetSettings.QuietDays);
+        Assert.True(targetVm.AllDaysAllowed);
+        Assert.All(targetVm.QuietDays, day => Assert.True(day.IsAllowed));
+    }
+
+    [Fact]
     public void PickingAReadIntervalOnATileStoresItAndTheDefaultRowNamesTheGlobalValue()
     {
         var (vm, settings) = Build();

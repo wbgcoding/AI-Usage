@@ -79,6 +79,10 @@ public sealed class AppSettings
     /// a week ago is usually the more useful reading, not an opt-in extra.</summary>
     public bool ShowPreviousWeekLine { get; set; } = true;
 
+    /// <summary>Whether each bar shows the short tick for how much of its time window has passed.
+    /// Defaults on, also for a file written before the setting existed.</summary>
+    public bool ShowPaceMarker { get; set; } = true;
+
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs
     /// OnStartup), not per element. Defaults on. No longer offered in the Settings window; kept so a
@@ -125,6 +129,24 @@ public sealed class AppSettings
     /// per-provider switch and quiet hours as the threshold alert.</summary>
     public bool ForecastAlertEnabled { get; set; } = true;
 
+    /// <summary>How long before a window is projected to fill the early warning fires, in minutes: one of
+    /// <see cref="ForecastLeadChoices"/> (30 by default). <see cref="Storage.SettingsStore"/> snaps a
+    /// stored value to the nearest choice on load.</summary>
+    public int ForecastLeadMinutes { get; set; } = DefaultForecastLeadMinutes;
+
+    public const int DefaultForecastLeadMinutes = 30;
+
+    /// <summary>The leads the settings picker offers, in minutes.</summary>
+    public static readonly IReadOnlyList<int> ForecastLeadChoices = [3, 5, 10, 15, 30, 45, 60, 90, 120];
+
+    /// <summary>The choice nearest to <paramref name="minutes"/>, which is first clamped to the range of the
+    /// choices; a value halfway between two takes the shorter one.</summary>
+    public static int NormalizeForecastLeadMinutes(int minutes)
+    {
+        var clamped = Math.Clamp(minutes, ForecastLeadChoices[0], ForecastLeadChoices[^1]);
+        return ForecastLeadChoices.OrderBy(choice => Math.Abs(choice - clamped)).ThenBy(choice => choice).First();
+    }
+
     /// <summary>Alert once per window period when a window reaches 100 % - default on, gated by
     /// the same global threshold switch, per-provider switch and quiet hours as the threshold alert.</summary>
     public bool LimitReachedAlertEnabled { get; set; } = true;
@@ -150,9 +172,20 @@ public sealed class AppSettings
 
     public string QuietHoursEnd { get; set; } = "08:00";
 
-    /// <summary>Whole Saturday and Sunday (local time) without notifications, whatever the daily
-    /// window above says.</summary>
-    public bool QuietWeekend { get; set; }
+    /// <summary>Whether notifications may come on every day. Off: the days in <see cref="QuietDays"/>
+    /// stay completely quiet (local time), whatever the daily window above says. The list is kept while
+    /// this is on, so switching it off again brings the same days back.</summary>
+    public bool AllDaysAllowed { get; set; } = true;
+
+    /// <summary>The <see cref="DayOfWeek"/> names (English, "Monday") without notifications while <see
+    /// cref="AllDaysAllowed"/> is off. <see cref="Storage.SettingsStore"/> tidies it on load.</summary>
+    public List<string> QuietDays { get; set; } = [];
+
+    /// <summary>The old "quiet all weekend" switch, read only to carry it into <see cref="AllDaysAllowed"/>
+    /// and <see cref="QuietDays"/> and then cleared, so it is never written back.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("QuietWeekend")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? LegacyQuietWeekend { get; set; }
 
     /// <summary>True once the one-time "still running in the tray" balloon has been shown.</summary>
     public bool TrayHintShown { get; set; }
@@ -412,6 +445,41 @@ public sealed class ProviderSettings
     /// this app stops reading it. Default false, so an existing settings.json with no such key loads
     /// every account connected.</summary>
     public bool Disconnected { get; set; }
+
+    /// <summary>How this tile's bars are colored: one of <see cref="BarColorModes"/>. Anything else, and
+    /// a mode this provider cannot offer, reads back as Level (see <see cref="BarColorModes.Normalize"/>).</summary>
+    public string BarColorMode { get; set; } = BarColorModes.Level;
+}
+
+/// <summary>The ways a bar's filled part can be colored: by usage level (green, yellow, red), or split
+/// by each model's or the main and subagents' share of the tokens in that window.</summary>
+public static class BarColorModes
+{
+    public const string Level = "Level";
+
+    public const string Agent = "Agent";
+
+    public const string Model = "Model";
+
+    /// <summary>The modes a provider offers, level first. Model needs a local token index; Agent also
+    /// needs the index to tell main agent from subagent apart, which only Claude's session files do.</summary>
+    public static IReadOnlyList<string> OfferedFor(string realProviderId)
+    {
+        var modes = new List<string> { Level };
+        if (Stats.ProviderCoverage.HasLocalTokenData(realProviderId))
+        {
+            if (realProviderId == Stats.StatsIndexer.ClaudeProviderId)
+                modes.Add(Agent);
+            modes.Add(Model);
+        }
+
+        return modes;
+    }
+
+    /// <summary>The canonical spelling of <paramref name="mode"/> (case-insensitive), or Level when it is
+    /// unknown or <paramref name="realProviderId"/> does not offer it.</summary>
+    public static string Normalize(string? mode, string realProviderId) =>
+        OfferedFor(realProviderId).FirstOrDefault(offered => string.Equals(offered, mode, StringComparison.OrdinalIgnoreCase)) ?? Level;
 }
 
 public sealed class ThresholdSettings

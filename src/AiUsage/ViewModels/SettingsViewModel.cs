@@ -166,6 +166,57 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         new("Settings.AttentionMaxAge.24h", 24),
     ];
 
+    /// <summary>The "warning lead time" picker under the forecast check box: one row per <see
+    /// cref="AppSettings.ForecastLeadChoices"/> value, labelled in minutes, one hour or hours.</summary>
+    public ObservableCollection<Choice<int>> ForecastLeadChoices { get; } = [];
+
+    /// <summary>Same shape as <see cref="SelectedAttentionMaxAgeChoice"/>, for the lead picker.</summary>
+    public Choice<int>? SelectedForecastLeadChoice
+    {
+        get => ForecastLeadChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null && value.Value != _settings.ForecastLeadMinutes)
+                SetForecastLead(value.Value);
+        }
+    }
+
+    private void SetForecastLead(int minutes)
+    {
+        _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(minutes);
+        _store.RequestSave(_settings);
+        Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
+        OnPropertyChanged(nameof(SelectedForecastLeadChoice));
+    }
+
+    /// <summary>"about 15 minutes before", "about 1 hour before", "about 2 hours before".</summary>
+    private static string ForecastLeadLabel(int minutes)
+    {
+        var loc = LocalizationService.Instance;
+        return minutes switch
+        {
+            60 => loc["Settings.ForecastLead.Hour"],
+            120 => loc.Format("Settings.ForecastLead.Hours", 2),
+            _ => loc.Format("Settings.ForecastLead.Minutes", minutes),
+        };
+    }
+
+    /// <summary>Builds the rows once and afterwards only rewrites their labels (a language switch).</summary>
+    private void RefreshForecastLeadChoices()
+    {
+        if (ForecastLeadChoices.Count != AppSettings.ForecastLeadChoices.Count)
+        {
+            ForecastLeadChoices.Clear();
+            foreach (var minutes in AppSettings.ForecastLeadChoices)
+                ForecastLeadChoices.Add(Choice.WithFixedLabel(ForecastLeadLabel(minutes), minutes));
+            Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
+            return;
+        }
+
+        for (var i = 0; i < ForecastLeadChoices.Count; i++)
+            ForecastLeadChoices[i].Label = ForecastLeadLabel(ForecastLeadChoices[i].Value);
+    }
+
     /// <summary>The Anzeige card's layout picker is a <c>ComboBox</c> bound to this instead of driving
     /// <see cref="LayoutChoices"/>' own <see cref="Choice{TValue}.IsSelected"/> flags through a radio
     /// group - same shape as <see cref="MainViewModel.SelectedDensityChoice"/>: a set forwards to
@@ -371,7 +422,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool limitReachedAlertEnabled;
 
     [ObservableProperty]
-    private bool quietWeekend;
+    private bool showPaceMarker = true;
+
+    [ObservableProperty]
+    private bool allDaysAllowed = true;
+
+    /// <summary>Monday to Sunday, one check box each, shown while <see cref="AllDaysAllowed"/> is off.</summary>
+    public ObservableCollection<QuietDayViewModel> QuietDays { get; } = [];
 
     [ObservableProperty]
     private bool showAttentionMark;
@@ -560,7 +617,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         showAttentionMark = settings.ShowAttentionMark;
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
-        quietWeekend = settings.QuietWeekend;
+        allDaysAllowed = settings.AllDaysAllowed;
+        showPaceMarker = settings.ShowPaceMarker;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -589,8 +647,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main.WindowLayerChanged += OnMainWindowLayerChanged;
         Choice.Select(TileOrderChoices, settings.TileOrderMode);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
+        RefreshForecastLeadChoices();
 
         RebuildImportedPcs();
+        RebuildQuietDays();
         RebuildProviderRows();
         // An account added or removed while this window is open gets or loses its rows right away.
         Main.Tiles.CollectionChanged += OnTilesChanged;
@@ -745,6 +805,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             choice.RefreshLabel();
         foreach (var choice in AttentionMaxAgeChoices)
             choice.RefreshLabel();
+        foreach (var day in QuietDays)
+            day.RefreshName();
+        RefreshForecastLeadChoices();
         Main.RefreshProviderIntervalLabels();
         foreach (var row in ThresholdRows)
             row.RefreshLabels();
@@ -1027,10 +1090,37 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
     }
 
-    partial void OnQuietWeekendChanged(bool value)
+    partial void OnShowPaceMarkerChanged(bool value)
     {
-        _settings.QuietWeekend = value;
+        _settings.ShowPaceMarker = value;
         _store.RequestSave(_settings);
+        Main.ApplyShowPaceMarkerToAllTiles(value);
+    }
+
+    partial void OnAllDaysAllowedChanged(bool value)
+    {
+        // The day list stays as it is: switching the box back off finds the same days unchecked.
+        _settings.AllDaysAllowed = value;
+        _store.RequestSave(_settings);
+    }
+
+    /// <summary>A day check box was ticked or cleared: its name joins or leaves the stored list.</summary>
+    private void OnQuietDayChanged(DayOfWeek day, bool allowed)
+    {
+        var quiet = new HashSet<string>(_settings.QuietDays, StringComparer.OrdinalIgnoreCase);
+        if (allowed)
+            quiet.Remove(day.ToString());
+        else
+            quiet.Add(day.ToString());
+        _settings.QuietDays = QuietHours.NormalizeDays(quiet);
+        _store.RequestSave(_settings);
+    }
+
+    private void RebuildQuietDays()
+    {
+        QuietDays.Clear();
+        foreach (var day in QuietHours.WeekOrder)
+            QuietDays.Add(new QuietDayViewModel(day, !_settings.QuietDays.Contains(day.ToString(), StringComparer.OrdinalIgnoreCase), OnQuietDayChanged));
     }
 
     partial void OnQuietHoursStartTextChanged(string value)
@@ -1774,6 +1864,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.MicaEnabled = source.MicaEnabled;
         _settings.ChartRange = source.ChartRange;
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
+        _settings.ShowPaceMarker = source.ShowPaceMarker;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
         _settings.ZoomPercent = WindowZoom.Normalize(source.ZoomPercent);
         _settings.ShowTooltips = source.ShowTooltips;
@@ -1783,13 +1874,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
+        _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(source.ForecastLeadMinutes);
         _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
-        _settings.QuietWeekend = source.QuietWeekend;
+        _settings.AllDaysAllowed = source.AllDaysAllowed;
+        _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
         _settings.QuietHoursStart = source.QuietHoursStart;
         _settings.QuietHoursEnd = source.QuietHoursEnd;
         _settings.HotkeyEnabled = source.HotkeyEnabled;
@@ -1839,6 +1932,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             tile.ChartHidden = providerSettings.ChartHidden;
             tile.AccountName = providerSettings.AccountName;
             tile.AttentionDisabled = providerSettings.AttentionDisabled;
+            tile.BarColorMode = BarColorModes.Normalize(providerSettings.BarColorMode, tile.RealProviderId);
             tile.RefreshMinutes = providerSettings.RefreshMinutes;
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();
@@ -1859,6 +1953,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         MicaEnabled = _settings.MicaEnabled;
         Autostart = _settings.Autostart;
         ShowPreviousWeekLine = _settings.ShowPreviousWeekLine;
+        ShowPaceMarker = _settings.ShowPaceMarker;
+        Main.ApplyShowPaceMarkerToAllTiles(_settings.ShowPaceMarker);
         HideOnFullscreen = _settings.HideOnFullscreen;
         ZoomPercent = _settings.ZoomPercent;
         ShowTooltips = _settings.ShowTooltips;
@@ -1866,12 +1962,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
         ForecastAlertEnabled = _settings.ForecastAlertEnabled;
+        Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
+        OnPropertyChanged(nameof(SelectedForecastLeadChoice));
         LimitReachedAlertEnabled = _settings.LimitReachedAlertEnabled;
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
-        QuietWeekend = _settings.QuietWeekend;
+        AllDaysAllowed = _settings.AllDaysAllowed;
+        RebuildQuietDays();
         QuietHoursStartText = _settings.QuietHoursStart;
         QuietHoursEndText = _settings.QuietHoursEnd;
         QuietHoursStartInvalid = false;

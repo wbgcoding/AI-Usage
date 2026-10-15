@@ -108,9 +108,6 @@ public sealed class NotificationService
 
     public event Action<LimitReachedNotification>? LimitReachedRaised;
 
-    /// <summary>How close to full the projection must be before the early warning fires.</summary>
-    internal static readonly TimeSpan ForecastLead = TimeSpan.FromMinutes(30);
-
     // Two reset times this close together are the same window period: a provider's own reset
     // instant can wobble by a few minutes between fetches, which must not count as a new period.
     private static readonly TimeSpan PeriodTolerance = TimeSpan.FromMinutes(10);
@@ -254,16 +251,18 @@ public sealed class NotificationService
     }
 
     /// <summary>The early warning: raises once per window period when <paramref name="timeToFull"/>
-    /// (see <see cref="UsageForecast.TimeToFull"/>) is within <see cref="ForecastLead"/>, the window is
+    /// (see <see cref="UsageForecast.TimeToFull"/>) is within <paramref name="lead"/> (the person's
+    /// choice, <see cref="AppSettings.DefaultForecastLeadMinutes"/> minutes when omitted), the window is
     /// not full yet and its reset does not come first. The period is the window's reset time, kept in
     /// the state file, so a dip and a new climb inside one period stay quiet and the next period warns
     /// again. A window without a reset time has no period to key on and never warns.</summary>
     public void EvaluateForecast(
-        string providerId, string providerDisplayName, UsageWindow window, TimeSpan? timeToFull, bool enabled, DateTimeOffset now)
+        string providerId, string providerDisplayName, UsageWindow window, TimeSpan? timeToFull, bool enabled, DateTimeOffset now,
+        TimeSpan? lead = null)
     {
         if (!enabled || timeToFull is not { } remaining || window.ResetsAt is not { } resetsAt)
             return;
-        if (remaining > ForecastLead || window.UsedPercent >= 100 || resetsAt <= now + remaining)
+        if (remaining > (lead ?? TimeSpan.FromMinutes(AppSettings.DefaultForecastLeadMinutes)) || window.UsedPercent >= 100 || resetsAt <= now + remaining)
             return;
 
         ForecastNotification notification;

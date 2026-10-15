@@ -342,6 +342,40 @@
                         </StackPanel>
                     </Grid>
 
+                    <!-- Per tile: how its bars are colored. Only providers with a local token index offer more
+                         than the level colors; the others do not appear. -->
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.BarColor]}" Style="{StaticResource FieldLabel}"
+                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"/>
+                    <ItemsControl x:Name="BarColorList" ItemsSource="{Binding Main.Tiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SupportsBarColor}" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,16,4">
+                                    <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox ItemsSource="{Binding BarColorChoices}"
+                                              SelectedItem="{Binding SelectedBarColorChoice, Mode=TwoWay}"
+                                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"
+                                              AutomationProperties.Name="{Binding HeaderDisplayName}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowPaceMarker]}"
+                              IsChecked="{Binding ShowPaceMarker}" Style="{StaticResource CheckBox.GapS}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ShowPaceMarker]}"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
                         <ItemsControl.ItemsPanel>
@@ -568,6 +602,15 @@
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastAlert]}"
                               IsChecked="{Binding ForecastAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
+                    <!-- Wraps when narrow; only usable while the warning itself is on. -->
+                    <WrapPanel Orientation="Horizontal" Margin="16,4,0,0" IsEnabled="{Binding ForecastAlertEnabled}">
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastLead]}"
+                                   VerticalAlignment="Center" Margin="0,0,8,4"/>
+                        <ComboBox ItemsSource="{Binding ForecastLeadChoices}"
+                                  SelectedItem="{Binding SelectedForecastLeadChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastLead]}"
+                                  VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LimitReachedAlert]}"
                               IsChecked="{Binding LimitReachedAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
@@ -658,8 +701,29 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietWeekend]}"
-                              IsChecked="{Binding QuietWeekend}" Style="{StaticResource CheckBox.GapS}"/>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AllDays]}"
+                              IsChecked="{Binding AllDaysAllowed}" Style="{StaticResource CheckBox.GapS}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.AllDays]}"/>
+                    <!-- Only while "every day" is off: one box per weekday, checked = notifications allowed. -->
+                    <ItemsControl x:Name="QuietDaysList" ItemsSource="{Binding QuietDays}" Focusable="False" Margin="16,0,0,0">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AllDaysAllowed}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAllowed}" Margin="0,4,16,0"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PerProvider]}"
                                FontWeight="SemiBold" Margin="0,16,0,4"/>

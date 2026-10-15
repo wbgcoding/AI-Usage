@@ -298,7 +298,7 @@ internal static class Program
     internal static void RenderWidget(
         string dataDirectory, IReadOnlyList<SampleProviders.Sample> samples, DateTimeOffset now,
         IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380, double zoom = 1,
-        Action<ProviderTileViewModel>? history = null)
+        Action<ProviderTileViewModel>? history = null, string? barColorMode = null)
     {
         var settings = new AppSettings();
         foreach (var id in AppSettings.KnownProviderIds)
@@ -321,6 +321,14 @@ internal static class Program
                 var index = 0;
                 foreach (var key in tile.WindowTokenKeys)
                     tile.SetWindowTokens(key, sampleTokens[index++ % sampleTokens.Length]);
+                if (barColorMode is not null)
+                {
+                    // Stands in for the per model and agent rows of the index, in the same way.
+                    tile.BarColorMode = barColorMode;
+                    var shareRows = SampleShareRows(tile.RealProviderId);
+                    foreach (var key in tile.WindowTokenKeys)
+                        tile.SetWindowShares(key, shareRows);
+                }
                 if (history is not null)
                     history(tile);
                 else if (sample.History is { } points)
@@ -347,6 +355,12 @@ internal static class Program
             viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
+
+    private static IReadOnlyList<WindowShareRow> SampleShareRows(string providerId) => providerId switch
+    {
+        "claude" => [new("claude-opus-4-8", false, 520_000), new("claude-opus-4-8", true, 140_000), new("claude-sonnet-5", false, 180_000), new("claude-haiku-4-5", true, 90_000)],
+        _ => [new("gpt-5.6-sol", false, 700_000), new("gpt-5.6-terra", false, 240_000), new("gpt-5.6-luna", false, 60_000)],
+    };
 
     // The statistics window ------------------------------------------------------------------------
 

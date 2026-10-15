@@ -274,6 +274,7 @@ public sealed class SettingsStore : IDisposable
         LegacyWindowLabels.Migrate(loaded, MainViewModel.TrayWindowLabelPrefix);
         MigrateWindowLayer(loaded);
         MigrateStatsPerDayView(loaded);
+        MigrateQuietWeekend(loaded);
         ClampToValidRanges(loaded);
         return (loaded, null);
     }
@@ -285,6 +286,19 @@ public sealed class SettingsStore : IDisposable
     {
         settings.WindowLayer = WindowLayers.Normalize(settings.WindowLayer ?? WindowLayers.FromLegacy(settings.LegacyAlwaysOnTop));
         settings.LegacyAlwaysOnTop = null;
+    }
+
+    /// <summary>A file with the old "quiet all weekend" switch on opens with Saturday and Sunday unchecked
+    /// in the weekday list; the old key is cleared so it is never written back.</summary>
+    internal static void MigrateQuietWeekend(AppSettings settings)
+    {
+        if (settings.LegacyQuietWeekend == true)
+        {
+            settings.AllDaysAllowed = false;
+            settings.QuietDays = QuietHours.NormalizeDays([.. settings.QuietDays ?? [], nameof(DayOfWeek.Saturday), nameof(DayOfWeek.Sunday)]);
+        }
+
+        settings.LegacyQuietWeekend = null;
     }
 
     /// <summary>A 1.1.0 file that left the day grouping on its weekday or hour chart opens on that
@@ -673,6 +687,9 @@ public sealed class SettingsStore : IDisposable
         if (settings.TileDensity != "Auto")
             settings.TileDensity = CanonicalEnumName<TileDensity>(settings.TileDensity, "Auto");
 
+        settings.QuietDays = QuietHours.NormalizeDays(settings.QuietDays);
+        settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(settings.ForecastLeadMinutes);
+
         settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
             ? "ByUsage"
             : "Custom";
@@ -693,6 +710,10 @@ public sealed class SettingsStore : IDisposable
             provider.AccountName = ProviderSettings.NormalizeAccountName(provider.AccountName);
             provider.RefreshMinutes = ProviderSettings.NormalizeRefreshMinutes(provider.RefreshMinutes);
         }
+
+        // Keyed by account key; a mode the provider behind it does not offer reads back as Level.
+        foreach (var (accountKey, provider) in settings.Providers)
+            provider.BarColorMode = BarColorModes.Normalize(provider.BarColorMode, ProviderRegistry.BaseProviderId(accountKey));
     }
 
     private const int MaxImportedMachines = 50;

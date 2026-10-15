@@ -1,5 +1,6 @@
 using AiUsage.Models;
 using AiUsage.Services;
+using AiUsage.Storage;
 using Xunit;
 
 namespace AiUsage.Tests;
@@ -72,26 +73,36 @@ public class QuietHoursTests
     [Theory]
     [InlineData(3)] // Saturday
     [InlineData(4)] // Sunday
-    public void TheWeekendSwitchMakesSaturdayAndSundayQuietEvenWithTheDailyWindowOff(int day)
+    public void AnUncheckedDayIsQuietEvenWithTheDailyWindowOff(int day)
     {
-        var settings = new AppSettings { QuietHoursEnabled = false, QuietWeekend = true };
+        var settings = new AppSettings { QuietHoursEnabled = false, AllDaysAllowed = false, QuietDays = ["Saturday", "Sunday"] };
 
         Assert.True(QuietHours.IsQuiet(settings, LocalNoon(day)));
     }
 
     [Fact]
-    public void WithoutTheWeekendSwitchSaturdayNoonIsNotQuiet()
+    public void ACheckedSaturdayIsNotQuietWhileAnUncheckedWednesdayIs()
     {
-        var settings = new AppSettings { QuietHoursEnabled = false, QuietWeekend = false };
+        var settings = new AppSettings { QuietHoursEnabled = false, AllDaysAllowed = false, QuietDays = ["Wednesday"] };
 
-        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(3)));
+        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(3))); // Saturday
+        Assert.True(QuietHours.IsQuiet(settings, LocalNoon(7))); // Wednesday
     }
 
     [Fact]
-    public void TheWeekendSwitchLeavesAMondayToTheDailyWindow()
+    public void TheDayListIsIgnoredWhileEveryDayIsAllowed()
     {
-        var off = new AppSettings { QuietHoursEnabled = false, QuietWeekend = true };
-        var daily = new AppSettings { QuietHoursEnabled = true, QuietWeekend = true, QuietHoursStart = "22:00", QuietHoursEnd = "08:00" };
+        var settings = new AppSettings { QuietHoursEnabled = false, AllDaysAllowed = true, QuietDays = ["Saturday", "Wednesday"] };
+
+        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(3)));
+        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(7)));
+    }
+
+    [Fact]
+    public void TheDayListLeavesAMondayToTheDailyWindow()
+    {
+        var off = new AppSettings { QuietHoursEnabled = false, AllDaysAllowed = false, QuietDays = ["Saturday", "Sunday"] };
+        var daily = new AppSettings { QuietHoursEnabled = true, AllDaysAllowed = false, QuietDays = ["Saturday", "Sunday"], QuietHoursStart = "22:00", QuietHoursEnd = "08:00" };
 
         Assert.False(QuietHours.IsQuiet(off, LocalNoon(5)));
         Assert.False(QuietHours.IsQuiet(daily, LocalNoon(5)));
@@ -107,5 +118,49 @@ public class QuietHoursTests
         var noonLocal = LocalNoon(5);
 
         Assert.False(QuietHours.IsQuiet(settings, noonLocal));
+    }
+
+    [Fact]
+    public void AFileWithTheOldWeekendSwitchOnOpensWithSaturdayAndSundayUnchecked()
+    {
+        var (settings, _) = SettingsStore.Validate("""{"quietWeekend":true}""");
+
+        Assert.False(settings!.AllDaysAllowed);
+        Assert.Equal(["Saturday", "Sunday"], settings.QuietDays);
+        Assert.Null(settings.LegacyQuietWeekend);
+        Assert.True(QuietHours.IsQuiet(settings, LocalNoon(3)));
+        Assert.False(QuietHours.IsQuiet(settings, LocalNoon(5)));
+    }
+
+    [Theory]
+    [InlineData("""{"quietWeekend":false}""")]
+    [InlineData("{}")]
+    public void AFileWithoutTheOldSwitchKeepsEveryDayAllowed(string json)
+    {
+        var (settings, _) = SettingsStore.Validate(json);
+
+        Assert.True(settings!.AllDaysAllowed);
+        Assert.Empty(settings.QuietDays);
+    }
+
+    [Fact]
+    public void TheOldKeyIsNeverWrittenBackAndTheNewFieldsRoundTrip()
+    {
+        var (migrated, _) = SettingsStore.Validate("""{"quietWeekend":true}""");
+
+        var json = System.Text.Json.JsonSerializer.Serialize(migrated, SettingsStore.JsonOptions);
+        var (reloaded, _) = SettingsStore.Validate(json);
+
+        Assert.DoesNotContain("quietWeekend", json, StringComparison.OrdinalIgnoreCase);
+        Assert.False(reloaded!.AllDaysAllowed);
+        Assert.Equal(["Saturday", "Sunday"], reloaded.QuietDays);
+    }
+
+    [Fact]
+    public void AHandEditedDayListKeepsOnlyRealDaysOnceEachInWeekOrder()
+    {
+        var (settings, _) = SettingsStore.Validate("""{"allDaysAllowed":false,"quietDays":["sunday","Funday","Monday","MONDAY",null]}""");
+
+        Assert.Equal(["Monday", "Sunday"], settings!.QuietDays);
     }
 }
