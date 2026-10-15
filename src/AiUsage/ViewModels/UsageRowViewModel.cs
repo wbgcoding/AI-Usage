@@ -153,7 +153,8 @@ public partial class UsageRowViewModel : ObservableObject
             if (providerId != StatsIndexer.ClaudeProviderId || window.Label.Length == 0
                 || window.Label.StartsWith("Window_", StringComparison.Ordinal))
                 return null;
-            model = window.Label.ToLowerInvariant();
+            // The index keeps model ids ("claude-sonnet-4-5"), the window a display name ("Sonnet 4.5").
+            model = window.Label.ToLowerInvariant().Replace(' ', '-').Replace('.', '-');
         }
 
         if (WindowLengths.MinutesFor(window, providerId) is not { } minutes)

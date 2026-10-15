@@ -187,6 +187,12 @@ public class WindowLengthsTests
     }
 
     [Fact]
+    public void A_model_window_with_a_versioned_name_matches_the_model_id_spelling()
+    {
+        Assert.Equal("sonnet-4-5", UsageRowViewModel.TokenKeyFor(Window("Sonnet 4.5", WindowKind.Other, TimeSpan.FromDays(3)), "claude")!.Value.ModelContains);
+    }
+
+    [Fact]
     public void A_reached_claude_limit_of_an_unknown_kind_names_no_model_and_counts_no_slice()
     {
         Assert.Null(UsageRowViewModel.TokenKeyFor(Window("Window_LimitReached", WindowKind.Other, TimeSpan.FromDays(3)), "claude"));

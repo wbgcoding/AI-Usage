@@ -12,7 +12,7 @@ public sealed class RefreshScheduler
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
     private const string TimeoutDetailKey = "State.Failed.Detail.Timeout";
 
-    /// <summary>The pause before the one quiet retry of a read that timed out or lost its connection.</summary>
+    /// <summary>The pause before the one quiet retry of a read that timed out.</summary>
     internal static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromSeconds(20);
 
     // A mutable list, not the IReadOnlyList the constructor still accepts: AddProvider/RemoveProvider
