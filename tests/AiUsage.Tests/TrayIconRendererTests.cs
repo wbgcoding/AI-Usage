@@ -5,6 +5,8 @@ using Xunit;
 
 namespace AiUsage.Tests;
 
+// Draws into the renderer's static cache, which TrayIconCacheTests counts.
+[Collection(SharedStateTestsCollection.Name)]
 public class TrayIconRendererTests
 {
     [Theory]

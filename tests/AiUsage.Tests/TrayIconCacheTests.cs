@@ -4,6 +4,8 @@ using AiUsage.Services;
 
 namespace AiUsage.Tests;
 
+// Shares the renderer's static cache and compose counter with every other test that draws a tray icon.
+[Collection(SharedStateTestsCollection.Name)]
 public class TrayIconCacheTests
 {
     private static byte[] Pixels(Bitmap bitmap)
