@@ -490,6 +490,8 @@
   <data name="Settings.QuietWeekend" xml:space="preserve"><value>Am Wochenende (Samstag und Sonntag) ganz ruhig</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Meldungen an allen Tagen zulassen</value></data>
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Ausschalten, um einzelne Wochentage ohne Meldungen festzulegen: an nicht angehakten Tagen bleibt es ganz ruhig.</value></data>
+  <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Zeitmarke in den Balken zeigen</value></data>
+  <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Ein kurzer Strich im Balken zeigt, wie viel vom Zeitfenster schon vergangen ist. Reicht die Füllung darüber hinaus, verbrauchst du schneller, als die Zeit vergeht.</value></data>
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, wird knapp</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, Limit fast erreicht</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: Limit erreicht</value></data>
