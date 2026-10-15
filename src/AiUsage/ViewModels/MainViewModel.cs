@@ -152,7 +152,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 .Select(p => new HistoryChart.ChartPoint(p.Timestamp, p.Percent)).ToArray();
             var lookback = window.Kind == WindowKind.FiveHour ? TimeSpan.FromHours(2) : TimeSpan.FromHours(24);
             var timeToFull = UsageForecast.TimeToFull(series, now, window.ResetsAt, lookback: lookback);
-            _notifications.EvaluateForecast(providerId, input.DisplayName, window, timeToFull, enabled: true, now);
+            _notifications.EvaluateForecast(
+                providerId, input.DisplayName, window, timeToFull, enabled: true, now, TimeSpan.FromMinutes(_settings.ForecastLeadMinutes));
         }
     }
 

@@ -17,7 +17,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.ShowPreviousWeekLine), nameof(AppSettings.HideOnFullscreen), nameof(AppSettings.ZoomPercent),
         nameof(AppSettings.ShowTooltips), nameof(AppSettings.TileDensity), nameof(AppSettings.DayGridShownOnce),
         nameof(AppSettings.DefaultThreshold), nameof(AppSettings.DefaultThresholdEnabled), nameof(AppSettings.NotifyOnReset),
-        nameof(AppSettings.ForecastAlertEnabled), nameof(AppSettings.LimitReachedAlertEnabled),
+        nameof(AppSettings.ForecastAlertEnabled), nameof(AppSettings.ForecastLeadMinutes), nameof(AppSettings.LimitReachedAlertEnabled),
         nameof(AppSettings.ShowAttentionMark), nameof(AppSettings.AttentionMaxAgeMinutes), nameof(AppSettings.CheckForUpdates),
         nameof(AppSettings.SaveEnergyOnBattery), nameof(AppSettings.QuietHoursEnabled), nameof(AppSettings.AllDaysAllowed), nameof(AppSettings.QuietDays),
         nameof(AppSettings.QuietHoursStart), nameof(AppSettings.QuietHoursEnd), nameof(AppSettings.HotkeyEnabled),

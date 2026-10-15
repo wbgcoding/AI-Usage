@@ -598,6 +598,15 @@
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastAlert]}"
                               IsChecked="{Binding ForecastAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
+                    <!-- Wraps when narrow; only usable while the warning itself is on. -->
+                    <WrapPanel Orientation="Horizontal" Margin="16,4,0,0" IsEnabled="{Binding ForecastAlertEnabled}">
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastLead]}"
+                                   VerticalAlignment="Center" Margin="0,0,8,4"/>
+                        <ComboBox ItemsSource="{Binding ForecastLeadChoices}"
+                                  SelectedItem="{Binding SelectedForecastLeadChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastLead]}"
+                                  VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LimitReachedAlert]}"
                               IsChecked="{Binding LimitReachedAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>

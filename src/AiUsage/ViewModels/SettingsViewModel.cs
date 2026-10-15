@@ -166,6 +166,57 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         new("Settings.AttentionMaxAge.24h", 24),
     ];
 
+    /// <summary>The "warning lead time" picker under the forecast check box: one row per <see
+    /// cref="AppSettings.ForecastLeadChoices"/> value, labelled in minutes, one hour or hours.</summary>
+    public ObservableCollection<Choice<int>> ForecastLeadChoices { get; } = [];
+
+    /// <summary>Same shape as <see cref="SelectedAttentionMaxAgeChoice"/>, for the lead picker.</summary>
+    public Choice<int>? SelectedForecastLeadChoice
+    {
+        get => ForecastLeadChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null && value.Value != _settings.ForecastLeadMinutes)
+                SetForecastLead(value.Value);
+        }
+    }
+
+    private void SetForecastLead(int minutes)
+    {
+        _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(minutes);
+        _store.RequestSave(_settings);
+        Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
+        OnPropertyChanged(nameof(SelectedForecastLeadChoice));
+    }
+
+    /// <summary>"about 15 minutes before", "about 1 hour before", "about 2 hours before".</summary>
+    private static string ForecastLeadLabel(int minutes)
+    {
+        var loc = LocalizationService.Instance;
+        return minutes switch
+        {
+            60 => loc["Settings.ForecastLead.Hour"],
+            120 => loc.Format("Settings.ForecastLead.Hours", 2),
+            _ => loc.Format("Settings.ForecastLead.Minutes", minutes),
+        };
+    }
+
+    /// <summary>Builds the rows once and afterwards only rewrites their labels (a language switch).</summary>
+    private void RefreshForecastLeadChoices()
+    {
+        if (ForecastLeadChoices.Count != AppSettings.ForecastLeadChoices.Count)
+        {
+            ForecastLeadChoices.Clear();
+            foreach (var minutes in AppSettings.ForecastLeadChoices)
+                ForecastLeadChoices.Add(Choice.WithFixedLabel(ForecastLeadLabel(minutes), minutes));
+            Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
+            return;
+        }
+
+        for (var i = 0; i < ForecastLeadChoices.Count; i++)
+            ForecastLeadChoices[i].Label = ForecastLeadLabel(ForecastLeadChoices[i].Value);
+    }
+
     /// <summary>The Anzeige card's layout picker is a <c>ComboBox</c> bound to this instead of driving
     /// <see cref="LayoutChoices"/>' own <see cref="Choice{TValue}.IsSelected"/> flags through a radio
     /// group - same shape as <see cref="MainViewModel.SelectedDensityChoice"/>: a set forwards to
@@ -592,6 +643,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main.WindowLayerChanged += OnMainWindowLayerChanged;
         Choice.Select(TileOrderChoices, settings.TileOrderMode);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
+        RefreshForecastLeadChoices();
 
         RebuildImportedPcs();
         RebuildQuietDays();
@@ -751,6 +803,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             choice.RefreshLabel();
         foreach (var day in QuietDays)
             day.RefreshName();
+        RefreshForecastLeadChoices();
         Main.RefreshProviderIntervalLabels();
         foreach (var row in ThresholdRows)
             row.RefreshLabels();
@@ -1809,6 +1862,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
+        _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(source.ForecastLeadMinutes);
         _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
@@ -1894,6 +1948,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
         ForecastAlertEnabled = _settings.ForecastAlertEnabled;
+        Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
+        OnPropertyChanged(nameof(SelectedForecastLeadChoice));
         LimitReachedAlertEnabled = _settings.LimitReachedAlertEnabled;
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;

@@ -913,6 +913,43 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheForecastLeadPickerOffersTheNineChoicesStoresThePickAndResetGoesBackToThirty()
+    {
+        var settings = new AppSettings { Language = "de" };
+        var (vm, _) = Build(settings);
+
+        Assert.Equal([3, 5, 10, 15, 30, 45, 60, 90, 120], vm.ForecastLeadChoices.Select(choice => choice.Value));
+        Assert.Equal(30, vm.SelectedForecastLeadChoice!.Value);
+        Assert.Equal("etwa 3 Minuten vorher", vm.ForecastLeadChoices[0].Label);
+        Assert.Equal("etwa 1 Stunde vorher", vm.ForecastLeadChoices.Single(choice => choice.Value == 60).Label);
+        Assert.Equal("etwa 90 Minuten vorher", vm.ForecastLeadChoices.Single(choice => choice.Value == 90).Label);
+        Assert.Equal("etwa 2 Stunden vorher", vm.ForecastLeadChoices.Single(choice => choice.Value == 120).Label);
+
+        vm.SelectedForecastLeadChoice = vm.ForecastLeadChoices.Single(choice => choice.Value == 120);
+        Assert.Equal(120, settings.ForecastLeadMinutes);
+
+        vm.ResetToDefaults();
+
+        Assert.Equal(30, settings.ForecastLeadMinutes);
+        Assert.Equal(30, vm.SelectedForecastLeadChoice!.Value);
+    }
+
+    [Fact]
+    public void TheForecastLeadTravelsThroughExportAndImport()
+    {
+        var sourceSettings = new AppSettings { ForecastLeadMinutes = 45 };
+        var exportPath = Path.Combine(TempDirectory(), "export-forecast-lead.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(45, targetSettings.ForecastLeadMinutes);
+        Assert.Equal(45, targetVm.SelectedForecastLeadChoice!.Value);
+    }
+
+    [Fact]
     public void TheWeekdayBoxesFollowTheMainBoxAndTheirChoiceIsKeptWhileItIsOn()
     {
         var settings = new AppSettings { Language = "de" };

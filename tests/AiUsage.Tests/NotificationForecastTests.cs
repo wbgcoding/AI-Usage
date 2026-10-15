@@ -202,6 +202,74 @@ public class NotificationForecastTests : IDisposable
         Assert.True(only.Remaining < TimeSpan.FromMinutes(30));
     }
 
+    [Theory]
+    [InlineData(3, 3, true)]
+    [InlineData(3, 4, false)]
+    [InlineData(120, 120, true)]
+    [InlineData(120, 121, false)]
+    [InlineData(30, 30, true)]
+    [InlineData(30, 31, false)]
+    public void The_chosen_lead_is_the_boundary_for_the_warning(int leadMinutes, int minutesToFull, bool fires)
+    {
+        var (service, raised) = Watch(TempDirectory());
+
+        service.EvaluateForecast(
+            "codex", "Codex", FiveHour(80, Start.AddHours(5)), TimeSpan.FromMinutes(minutesToFull), true, Start, TimeSpan.FromMinutes(leadMinutes));
+
+        Assert.Equal(fires, raised.Count == 1);
+    }
+
+    [Fact]
+    public void Without_a_lead_the_default_of_thirty_minutes_applies()
+    {
+        var (service, raised) = Watch(TempDirectory());
+
+        service.EvaluateForecast("codex", "Codex", FiveHour(80, Start.AddHours(5)), TimeSpan.FromMinutes(31), true, Start);
+        Assert.Empty(raised);
+        service.EvaluateForecast("codex", "Codex", FiveHour(80, Start.AddHours(5)), TimeSpan.FromMinutes(30), true, Start);
+        Assert.Single(raised);
+    }
+
+    [Theory]
+    [InlineData(30, 30)]
+    [InlineData(3, 3)]
+    [InlineData(120, 120)]
+    [InlineData(0, 3)]
+    [InlineData(-5, 3)]
+    [InlineData(500, 120)]
+    [InlineData(7, 5)] // nearer to 5 than to 10
+    [InlineData(8, 10)]
+    [InlineData(4, 3)] // halfway: the shorter lead
+    [InlineData(20, 15)] // halfway between 15 and 30 is 22.5, so 20 is nearer to 15
+    [InlineData(40, 45)]
+    [InlineData(75, 60)] // halfway between 60 and 90: the shorter lead
+    public void A_stored_lead_is_clamped_and_snapped_to_the_nearest_choice(int stored, int expected) =>
+        Assert.Equal(expected, AppSettings.NormalizeForecastLeadMinutes(stored));
+
+    // The stored value goes through the file format as is, bypassing nothing the loader does.
+    private static string ForecastLeadJson(int minutes) =>
+        System.Text.Json.JsonSerializer.Serialize(new AppSettings { ForecastLeadMinutes = minutes }, SettingsStore.JsonOptions);
+
+    [Fact]
+    public void A_settings_file_loads_its_lead_snapped_and_a_missing_one_as_thirty_and_it_round_trips()
+    {
+        Assert.Equal(30, SettingsStore.Validate("{}").Settings!.ForecastLeadMinutes);
+        Assert.Equal(5, SettingsStore.Validate(ForecastLeadJson(7)).Settings!.ForecastLeadMinutes);
+        Assert.Equal(120, SettingsStore.Validate(ForecastLeadJson(9999)).Settings!.ForecastLeadMinutes);
+
+        var settings = new AppSettings { ForecastLeadMinutes = 90 };
+        var json = System.Text.Json.JsonSerializer.Serialize(settings, SettingsStore.JsonOptions);
+        Assert.Equal(90, SettingsStore.Validate(json).Settings!.ForecastLeadMinutes);
+    }
+
+    [Fact]
+    public async Task The_view_model_uses_the_lead_from_the_settings()
+    {
+        // The history climbs to full in about ten minutes: a three minute lead stays quiet, a two hour one warns.
+        Assert.Empty(await RunViewModel((s, _) => s.ForecastLeadMinutes = 3));
+        Assert.Single(await RunViewModel((s, _) => s.ForecastLeadMinutes = 120));
+    }
+
     [Fact]
     public async Task The_settings_switch_the_provider_switch_and_quiet_hours_suppress_it()
     {

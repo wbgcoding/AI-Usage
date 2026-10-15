@@ -688,6 +688,7 @@ public sealed class SettingsStore : IDisposable
             settings.TileDensity = CanonicalEnumName<TileDensity>(settings.TileDensity, "Auto");
 
         settings.QuietDays = QuietHours.NormalizeDays(settings.QuietDays);
+        settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(settings.ForecastLeadMinutes);
 
         settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
             ? "ByUsage"

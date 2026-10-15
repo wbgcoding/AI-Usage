@@ -125,6 +125,24 @@ public sealed class AppSettings
     /// per-provider switch and quiet hours as the threshold alert.</summary>
     public bool ForecastAlertEnabled { get; set; } = true;
 
+    /// <summary>How long before a window is projected to fill the early warning fires, in minutes: one of
+    /// <see cref="ForecastLeadChoices"/> (30 by default). <see cref="Storage.SettingsStore"/> snaps a
+    /// stored value to the nearest choice on load.</summary>
+    public int ForecastLeadMinutes { get; set; } = DefaultForecastLeadMinutes;
+
+    public const int DefaultForecastLeadMinutes = 30;
+
+    /// <summary>The leads the settings picker offers, in minutes.</summary>
+    public static readonly IReadOnlyList<int> ForecastLeadChoices = [3, 5, 10, 15, 30, 45, 60, 90, 120];
+
+    /// <summary>The choice nearest to <paramref name="minutes"/>, which is first clamped to the range of the
+    /// choices; a value halfway between two takes the shorter one.</summary>
+    public static int NormalizeForecastLeadMinutes(int minutes)
+    {
+        var clamped = Math.Clamp(minutes, ForecastLeadChoices[0], ForecastLeadChoices[^1]);
+        return ForecastLeadChoices.OrderBy(choice => Math.Abs(choice - clamped)).ThenBy(choice => choice).First();
+    }
+
     /// <summary>Alert once per window period when a window reaches 100 % - default on, gated by
     /// the same global threshold switch, per-provider switch and quiet hours as the threshold alert.</summary>
     public bool LimitReachedAlertEnabled { get; set; } = true;
