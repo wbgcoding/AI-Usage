@@ -289,16 +289,26 @@
                         </Grid>
                     </Grid>
 
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
-                              IsChecked="{Binding MicaEnabled}"
-                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
-                              Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
-
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ComboBox ItemsSource="{Binding ZoomChoices}"
-                              SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
-                              HorizontalAlignment="Left"/>
+                    <!-- Size and the Mica backdrop share one row: two short controls. Without the
+                         Mica option the right column stays empty and nothing moves. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
+                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}"
+                                      SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
+                                      HorizontalAlignment="Left"/>
+                        </StackPanel>
+                        <CheckBox x:Name="MicaCheck" Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
+                                  IsChecked="{Binding MicaEnabled}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
+                                  VerticalAlignment="Bottom" Margin="0,0,0,4"
+                                  Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
                     <!-- Arrangement and tile density sit side by side: two short pickers that belong to
