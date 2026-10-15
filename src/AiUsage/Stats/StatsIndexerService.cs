@@ -1,4 +1,5 @@
 using AiUsage.Services;
+using AiUsage.Storage;
 
 namespace AiUsage.Stats;
 
@@ -40,6 +41,13 @@ public sealed class StatsIndexerService : IDisposable
     private StatsDataSnapshot? _latest;
     private int _snapshotGeneration;
 
+    // Where the last data is kept between runs (see StatsSnapshotFile); null for a service that
+    // keeps nothing. _persisted is the data last read from or written to that file, so an unchanged
+    // snapshot is not written again.
+    private readonly Func<string>? _snapshotPath;
+    private StatsDataSnapshot? _persisted;
+    private readonly object _persistGate = new();
+
     /// <summary>Raised on a background thread after a walk finishes (cancelled or not) that read at
     /// least one file, after the first walk of the process whatever it read, after the first walk on a
     /// new local day, and after <see cref="RefreshSnapshotInBackground"/> has reloaded the data. A walk
@@ -67,7 +75,8 @@ public sealed class StatsIndexerService : IDisposable
     }
 
     public StatsIndexerService(StatsStore store, LogService? logService = null)
-        : this(token => new StatsIndexer(store, logService).IndexOnce(token), () => StatsDataSnapshot.Load(store), logService)
+        : this(token => new StatsIndexer(store, logService).IndexOnce(token), () => StatsDataSnapshot.Load(store), logService,
+            () => StatsSnapshotFile.PathIn(store.FixedDirectory ?? AppPaths.DataDirectory))
     {
     }
 
@@ -87,14 +96,68 @@ public sealed class StatsIndexerService : IDisposable
     /// "only announce a walk that read something" rule can be driven.</summary>
     internal static StatsIndexerService ForTest(
         Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null,
-        Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null) =>
-        new(token => runIndexOnce(token), loadSnapshot, logService) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+        Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null, Func<string>? snapshotPath = null) =>
+        new(token => runIndexOnce(token), loadSnapshot, logService, snapshotPath) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
 
-    private StatsIndexerService(Func<CancellationToken, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService)
+    private StatsIndexerService(
+        Func<CancellationToken, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
+        Func<string>? snapshotPath = null)
     {
         _runIndexOnce = runIndexOnce;
         _loadSnapshot = loadSnapshot;
         _logService = logService;
+        _snapshotPath = snapshotPath;
+    }
+
+    /// <summary>Takes up the data the last run left behind as <see cref="Latest"/>, so a window opened
+    /// before the first walk is over still has something to show at once. Reads on a pool thread. A
+    /// walk that delivered newer data in the meantime wins; the file is then simply ignored.</summary>
+    public Task LoadPersistedSnapshotInBackground()
+    {
+        if (_snapshotPath is null)
+            return Task.CompletedTask;
+
+        int generation;
+        lock (_gate)
+            generation = _snapshotGeneration;
+        return Task.Run(() =>
+        {
+            var snapshot = StatsSnapshotFile.Load(_snapshotPath());
+            if (snapshot is null)
+                return;
+            lock (_gate)
+            {
+                if (_latest is not null || generation != _snapshotGeneration)
+                    return;
+                _latest = snapshot;
+            }
+            lock (_persistGate)
+                _persisted = snapshot;
+        });
+    }
+
+    /// <summary>Writes <see cref="Latest"/> to the file for the next run, when it differs from what the
+    /// file already holds. Runs on the caller's thread; a window close hands it to a pool thread.</summary>
+    public void SavePersistedSnapshot()
+    {
+        if (_snapshotPath is null)
+            return;
+
+        StatsDataSnapshot? snapshot;
+        lock (_gate)
+            snapshot = _latest;
+        if (snapshot is null)
+            return;
+
+        lock (_persistGate)
+        {
+            if (ReferenceEquals(_persisted, snapshot))
+                return;
+            if (StatsSnapshotFile.Save(_snapshotPath(), snapshot))
+                _persisted = snapshot;
+            else
+                _logService?.LogError("Statistics snapshot could not be saved.");
+        }
     }
 
     internal bool IsRunning

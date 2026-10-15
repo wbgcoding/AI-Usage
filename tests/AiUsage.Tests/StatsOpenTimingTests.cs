@@ -81,6 +81,15 @@ public class StatsOpenTimingTests(ITestOutputHelper output)
         var resolved = StatsAggregator.ResolveBareProjectNames(records);
         lines.Add($"ResolveBareProjects  {Ms(sw),9:F1} ms");
 
+        // The kept snapshot: what a start reads from its file instead of waiting for the first walk.
+        var keptPath = Path.Combine(directory, "perf-" + StatsSnapshotFile.FileName);
+        sw.Restart();
+        StatsSnapshotFile.Save(keptPath, new StatsDataSnapshot(resolved, sessions));
+        lines.Add($"snapshot file save   {Ms(sw),9:F1} ms  bytes={new FileInfo(keptPath).Length}");
+        var kept = StatsSnapshotFile.Load(keptPath);
+        lines.Add($"snapshot file load   {Ms(sw),9:F1} ms  rows={kept?.Records.Count}");
+        File.Delete(keptPath);
+
         foreach (var grouping in new[] { StatsGrouping.Weekday, StatsGrouping.WeekdayHour })
         {
             var vm = new StatsViewModel(store) { LoadRecords = () => resolved, LoadSessions = () => sessions };
@@ -98,7 +107,7 @@ public class StatsOpenTimingTests(ITestOutputHelper output)
             ThemeService.Apply(AppTheme.Nebula, Application.Current!.Resources.MergedDictionaries,
                 uri => new ResourceDictionary { Source = new Uri("pack://application:,,,/AI-Usage;component/" + uri.OriginalString, UriKind.Absolute) }, () => false);
 
-            var vmWindow = new StatsViewModel(store) { TakeSnapshot = () => new StatsDataSnapshot(resolved, sessions) };
+            var vmWindow = new StatsViewModel(store) { TakeSnapshot = () => kept };
             vmWindow.RestoreSelection("All", nameof(StatsGrouping.Weekday), "Provider", null, null);
             sw.Restart();
             var window = new StatsWindow(vmWindow);

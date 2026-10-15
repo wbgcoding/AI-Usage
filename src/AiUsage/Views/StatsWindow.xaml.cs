@@ -526,7 +526,13 @@ public partial class StatsWindow : Window
         }
 
         if (StatsIndexerService.Shared is { } indexer)
+        {
             indexer.IndexCompleted -= OnIndexCompleted;
+            // Only a window that was shown has seen the data worth keeping for the next start; a
+            // prepared one closing at exit leaves that to the app's own exit. Off the UI thread.
+            if (_opened)
+                _ = Task.Run(indexer.SavePersistedSnapshot);
+        }
 
         _dragController.Cancel();
         _layoutPresenter.Detach();

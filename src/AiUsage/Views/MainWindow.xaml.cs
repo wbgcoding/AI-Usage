@@ -1636,19 +1636,37 @@ public partial class MainWindow : Window, IDisposable
         return window;
     }
 
+    /// <summary>How long after the first idle moment the statistics window is built ahead of time.</summary>
+    internal static readonly TimeSpan PrebuildDelay = TimeSpan.FromSeconds(2);
+
+    /// <summary>What the prebuild timer does when it fires: nothing more to do (a window is open or
+    /// already prepared), wait for another round (the startup walk over the session logs still runs, and
+    /// building then would compete with it for the CPU), or build.</summary>
+    public enum PrebuildStep { Skip, Wait, Build }
+
+    internal static PrebuildStep NextPrebuildStep(bool windowExists, bool indexRunning) =>
+        windowExists ? PrebuildStep.Skip : indexRunning ? PrebuildStep.Wait : PrebuildStep.Build;
+
     private void SchedulePreparedStatsWindow()
     {
-        var timer = new DispatcherTimer(DispatcherPriority.ApplicationIdle, Dispatcher) { Interval = TimeSpan.FromSeconds(8) };
+        var timer = new DispatcherTimer(DispatcherPriority.ApplicationIdle, Dispatcher) { Interval = PrebuildDelay };
         timer.Tick += (_, _) =>
         {
+            var step = NextPrebuildStep(
+                windowExists: _statsWindow is not null || _preparedStatsWindow is not null,
+                indexRunning: StatsIndexerService.Shared?.IsRunning == true);
+            if (step == PrebuildStep.Wait)
+                return; // ticks again after another delay
+
             timer.Stop();
-            if (_statsWindow is null && _preparedStatsWindow is null)
+            if (step == PrebuildStep.Build)
             {
                 _preparedStatsWindow = CreateStatsWindow();
                 _preparedStatsWindow.PrepareOffscreen();
             }
         };
-        timer.Start();
+        // Started at the first idle moment after the window exists, not at its construction.
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, timer.Start);
         Closed += (_, _) =>
         {
             timer.Stop();

@@ -27,6 +27,10 @@ public partial class App : Application, IDisposable
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // First, before any window or service exists: the multi-core JIT replays the methods the last
+        // runs compiled while this one is still starting up.
+        StartupProfile.Start();
+
         base.OnStartup(e);
 
         // FrameworkElement.Language defaults to en-US for the whole element tree regardless of the
@@ -204,6 +208,9 @@ public partial class App : Application, IDisposable
         // statistics window opens.
         _statsIndexerService = new StatsIndexerService(new StatsStore(), logService);
         StatsIndexerService.Shared = _statsIndexerService;
+        // The data the last run left behind, so a statistics window opened before the first walk is
+        // over has numbers to show at once.
+        _ = _statsIndexerService.LoadPersistedSnapshotInBackground();
         _statsIndexerService.StartInBackground();
         _statsIndexerReindexTimer = new DispatcherTimer
         {
@@ -316,6 +323,7 @@ public partial class App : Application, IDisposable
         _statsIndexerReindexTimer?.Stop();
         if (ReferenceEquals(StatsIndexerService.Shared, _statsIndexerService))
             StatsIndexerService.Shared = null;
+        _statsIndexerService?.SavePersistedSnapshot();
         _statsIndexerService?.Dispose();
         _settingsStore?.Dispose();
         _singleInstance?.Dispose();
