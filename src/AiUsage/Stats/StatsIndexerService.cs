@@ -76,7 +76,7 @@ public sealed class StatsIndexerService : IDisposable
 
     public StatsIndexerService(StatsStore store, LogService? logService = null)
         : this(token => new StatsIndexer(store, logService).IndexOnce(token), () => StatsDataSnapshot.Load(store), logService,
-            () => StatsSnapshotFile.PathIn(store.FixedDirectory ?? AppPaths.DataDirectory))
+            () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath)
     {
     }
 

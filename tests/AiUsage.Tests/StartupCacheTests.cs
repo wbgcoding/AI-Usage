@@ -142,6 +142,26 @@ public class StartupCacheTests : IDisposable
     }
 
     [Fact]
+    public void The_snapshot_lives_in_the_machine_local_cache_folder()
+    {
+        Assert.Equal(StartupProfile.CacheDirectory, Path.GetDirectoryName(StatsSnapshotFile.DefaultPath));
+        Assert.Equal(StatsSnapshotFile.FileName, Path.GetFileName(StatsSnapshotFile.DefaultPath));
+    }
+
+    [Fact]
+    public void The_copy_in_the_data_folder_is_removed_and_a_missing_one_is_fine()
+    {
+        var legacy = StatsSnapshotFile.PathIn(_directory);
+        Assert.True(StatsSnapshotFile.Save(legacy, Sample()));
+
+        StatsSnapshotFile.DeleteLegacy(_directory);
+        StatsSnapshotFile.DeleteLegacy(_directory);
+        StatsSnapshotFile.DeleteLegacy(Path.Combine(_directory, "missing"));
+
+        Assert.False(File.Exists(legacy));
+    }
+
+    [Fact]
     public void An_unknown_version_is_ignored_and_deleted()
     {
         var path = StatsSnapshotFile.PathIn(_directory);

@@ -122,7 +122,9 @@ public partial class App : Application, IDisposable
         _restoreOutcome = BackupService.ApplyPendingRestore(AppPaths.DataDirectory, DateTime.Now, _logService.LogInfo, out _restoredFrom);
         // The statistics kept from the last run describe the index the backup just replaced.
         if (_restoreOutcome == RestoreOutcome.Restored)
-            StatsSnapshotFile.Delete(StatsSnapshotFile.PathIn(AppPaths.DataDirectory));
+            StatsSnapshotFile.Delete(StatsSnapshotFile.DefaultPath);
+        // Earlier versions kept the file in the roaming data folder.
+        StatsSnapshotFile.DeleteLegacy(AppPaths.DataDirectory);
 
         // Best-effort: a copy the reader could not delete last run (file still locked, app killed
         // mid-read) should not sit in the cache folder forever waiting for another lookup to fail.
