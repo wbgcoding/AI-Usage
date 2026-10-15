@@ -487,7 +487,6 @@
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>etwa {0} Minuten vorher</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Vorlauf der Warnung</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
-  <data name="Settings.QuietWeekend" xml:space="preserve"><value>Am Wochenende (Samstag und Sonntag) ganz ruhig</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Meldungen an allen Tagen zulassen</value></data>
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Ausschalten, um einzelne Wochentage ohne Meldungen festzulegen: an nicht angehakten Tagen bleibt es ganz ruhig.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Zeitmarke in den Balken zeigen</value></data>
