@@ -252,17 +252,21 @@ public sealed class NotificationService
 
     /// <summary>The early warning: raises once per window period when <paramref name="timeToFull"/>
     /// (see <see cref="UsageForecast.TimeToFull"/>) is within <paramref name="lead"/> (the person's
-    /// choice, <see cref="AppSettings.DefaultForecastLeadMinutes"/> minutes when omitted), the window is
-    /// not full yet and its reset does not come first. The period is the window's reset time, kept in
+    /// choice, <see cref="AppSettings.DefaultForecastLeadMinutes"/> minutes when omitted) plus
+    /// <paramref name="readInterval"/> (how long until the provider is read again, none when omitted),
+    /// the window is not full yet and its reset does not come first. The interval is added because the
+    /// forecast is only evaluated after a read: with the bare lead, a projection could pass from
+    /// "later than the lead" to full between two reads and never warn. The period is the window's reset time, kept in
     /// the state file, so a dip and a new climb inside one period stay quiet and the next period warns
     /// again. A window without a reset time has no period to key on and never warns.</summary>
     public void EvaluateForecast(
         string providerId, string providerDisplayName, UsageWindow window, TimeSpan? timeToFull, bool enabled, DateTimeOffset now,
-        TimeSpan? lead = null)
+        TimeSpan? lead = null, TimeSpan? readInterval = null)
     {
         if (!enabled || timeToFull is not { } remaining || window.ResetsAt is not { } resetsAt)
             return;
-        if (remaining > (lead ?? TimeSpan.FromMinutes(AppSettings.DefaultForecastLeadMinutes)) || window.UsedPercent >= 100 || resetsAt <= now + remaining)
+        var warnWithin = (lead ?? TimeSpan.FromMinutes(AppSettings.DefaultForecastLeadMinutes)) + (readInterval ?? TimeSpan.Zero);
+        if (remaining > warnWithin || window.UsedPercent >= 100 || resetsAt <= now + remaining)
             return;
 
         ForecastNotification notification;

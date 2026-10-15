@@ -104,6 +104,20 @@ public class NotificationForecastTests : IDisposable
         Assert.Empty(raised);
     }
 
+    [Theory]
+    [InlineData(5, 3, 7, true)] // 7 min to full, lead 3 + read every 5: the next read could already be past it
+    [InlineData(5, 3, 8, true)] // exactly the lead plus the interval
+    [InlineData(5, 3, 9, false)] // beyond both
+    public void The_read_interval_widens_the_warning_range(int intervalMinutes, int leadMinutes, int minutesToFull, bool fires)
+    {
+        var (service, raised) = Watch(TempDirectory());
+
+        service.EvaluateForecast("codex", "Codex", FiveHour(80, Start.AddHours(3)), TimeSpan.FromMinutes(minutesToFull), true, Start,
+            TimeSpan.FromMinutes(leadMinutes), TimeSpan.FromMinutes(intervalMinutes));
+
+        Assert.Equal(fires, raised.Count == 1);
+    }
+
     [Fact]
     public void A_window_without_a_reset_time_never_warns()
     {

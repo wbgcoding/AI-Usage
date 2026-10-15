@@ -694,6 +694,14 @@ public sealed class RefreshScheduler
         }
     }
 
+    /// <summary>How long this provider waits between reads right now (its resolved interval, or the
+    /// backed-off one after failures); null for an unknown id.</summary>
+    internal TimeSpan? CurrentIntervalOf(string accountKey)
+    {
+        lock (_gate)
+            return _state.TryGetValue(accountKey, out var state) ? state.CurrentInterval : null;
+    }
+
     /// <summary>Caller must already hold <see cref="_gate"/>.</summary>
     private TimeSpan ResolveIntervalLocked(IUsageProvider provider) =>
         ResolveInterval(_baseInterval, provider.MinRefreshInterval, _hiddenByAccount.GetValueOrDefault(provider.AccountKey), _windowVisible,
