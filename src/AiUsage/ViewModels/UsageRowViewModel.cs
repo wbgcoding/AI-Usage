@@ -219,11 +219,34 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>Percentage points the usage may sit away from the pace before it counts as ahead or below.</summary>
     private const double PaceTolerance = 3;
 
-    /// <summary>The bar's tooltip: the allowance line, then the pace line; empty (no tooltip) when
-    /// both are.</summary>
+    /// <summary>The colored parts of the bar's filled section (see <see cref="WindowShares"/>), set by
+    /// the tile from the window's token shares; empty draws the bar in its level color. The bar's
+    /// tooltip names each part.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BarTooltipText))]
+    [NotifyPropertyChangedFor(nameof(HasBarSegments))]
+    private IReadOnlyList<BarSegment> barSegments = [];
+
+    /// <summary>Whether the bar draws its filled part in colored shares instead of the level color.</summary>
+    public bool HasBarSegments => BarSegments.Count > 0;
+
+    /// <summary>Replaces the colored parts only when they differ, so the once-a-minute token answer
+    /// does not redraw an unchanged bar.</summary>
+    internal void SetBarSegments(IReadOnlyList<BarSegment> segments)
+    {
+        if (!BarSegments.SequenceEqual(segments))
+            BarSegments = segments;
+    }
+
+    /// <summary>"Opus 4.8 · 62 %" for each colored part of the bar, one line each.</summary>
+    private IEnumerable<string> SegmentLines => BarSegments.Select(segment =>
+        $"{segment.Label} · {StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(segment.SharePercent).ToString(CultureInfo.CurrentCulture))}");
+
+    /// <summary>The bar's tooltip: the allowance line, then the pace line, then one line per colored
+    /// part; empty (no tooltip) when all are.</summary>
     public string BarTooltipText => string.Join(
         Environment.NewLine,
-        new[] { AllowanceText, PaceText }.Where(line => line.Length > 0));
+        new[] { AllowanceText, PaceText }.Concat(SegmentLines).Where(line => line.Length > 0));
 
     /// <summary>The Mini row's tooltip: the countdown, then the forecast; empty lines are dropped and
     /// the tooltip stays off while both are empty.</summary>

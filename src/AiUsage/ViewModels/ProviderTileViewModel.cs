@@ -5,6 +5,7 @@ using System.Linq;
 using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Services;
+using AiUsage.Stats;
 using AiUsage.Views.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -603,8 +604,98 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     private void PushWindowTokensToRows()
     {
+        var loc = LocalizationService.Instance;
         foreach (var row in Rows)
+        {
             row.WindowTokens = row.TokenKey is { } key && _windowTokens.TryGetValue(key, out var tokens) ? tokens : null;
+            row.SetBarSegments(row.TokenKey is { } shareKey && _windowShares.TryGetValue(shareKey, out var shares)
+                ? WindowShares.Build(BarColorMode, RealProviderId, shares, loc["Stats.Agent.Main"], loc["Stats.SubagentShare"])
+                : []);
+        }
+    }
+
+    // The per model and agent token rows of each slice, asked for only while this tile colors its bars
+    // by them (see BarColorMode). Kept for every window of the last snapshot like _windowTokens.
+    private readonly Dictionary<WindowTokenKey, IReadOnlyList<WindowShareRow>> _windowShares = new();
+
+    /// <summary>Hands a row slice's per model and agent rows to every row showing that slice.</summary>
+    internal void SetWindowShares(WindowTokenKey key, IReadOnlyList<WindowShareRow>? rows)
+    {
+        if (rows is not null)
+            _windowShares[key] = rows;
+        else
+            _windowShares.Remove(key);
+        PushWindowTokensToRows();
+    }
+
+    /// <summary>True when this tile asks the index for the token shares of its windows: its bar color
+    /// is a share mode.</summary>
+    internal bool WantsWindowShares => BarColorMode != BarColorModes.Level;
+
+    private string _barColorMode = BarColorModes.Level;
+
+    /// <summary>The modes the settings picker offers for this tile, in the current language.</summary>
+    public ObservableCollection<Choice<string>> BarColorChoices { get; } = [];
+
+    /// <summary>Whether this tile's provider offers anything beyond the level colors at all.</summary>
+    public bool SupportsBarColor => BarColorModes.OfferedFor(RealProviderId).Count > 1;
+
+    public Choice<string>? SelectedBarColorChoice
+    {
+        get
+        {
+            EnsureBarColorChoices();
+            return BarColorChoices.FirstOrDefault(c => c.IsSelected);
+        }
+        set
+        {
+            if (value is not null)
+                BarColorMode = value.Value;
+        }
+    }
+
+    /// <summary>How this tile's bars are colored (see <see cref="ProviderSettings.BarColorMode"/>):
+    /// Level, or a split of the filled part by token share. A mode this provider does not offer counts
+    /// as Level.</summary>
+    public string BarColorMode
+    {
+        get => _barColorMode;
+        set
+        {
+            var normalized = BarColorModes.Normalize(value, RealProviderId);
+            EnsureBarColorChoices();
+            Choice.Select(BarColorChoices, normalized);
+            OnPropertyChanged(nameof(SelectedBarColorChoice));
+            if (normalized == _barColorMode)
+                return;
+            _barColorMode = normalized;
+            OnPropertyChanged();
+            PushWindowTokensToRows();
+            BarColorModeChanged?.Invoke(this, normalized);
+        }
+    }
+
+    /// <summary>Raised when the bar color mode changed, so MainViewModel can persist it and ask the
+    /// index for the shares.</summary>
+    public event EventHandler<string>? BarColorModeChanged;
+
+    private static string BarColorLabelKey(string mode) => mode switch
+    {
+        BarColorModes.Agent => "Stats.ColorBy.Agent",
+        BarColorModes.Model => "Stats.ColorBy.Model",
+        _ => "Settings.BarColor.Level",
+    };
+
+    private void EnsureBarColorChoices()
+    {
+        var offered = BarColorModes.OfferedFor(RealProviderId);
+        if (BarColorChoices.Count != offered.Count)
+        {
+            BarColorChoices.Clear();
+            foreach (var mode in offered)
+                BarColorChoices.Add(new Choice<string>(BarColorLabelKey(mode), mode));
+            Choice.Select(BarColorChoices, _barColorMode);
+        }
     }
 
     /// <summary>True once the newest record in this tile's own session file reads as "waiting for
@@ -1043,6 +1134,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(SettingsRowText));
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
+        foreach (var choice in BarColorChoices)
+            choice.RefreshLabel();
     }
 
     /// <summary><paramref name="thresholds"/> is optional (defaults to null, meaning "no marker on
@@ -1283,6 +1376,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         var current = windows.Select(window => UsageRowViewModel.TokenKeyFor(window, RealProviderId)).OfType<WindowTokenKey>().ToHashSet();
         foreach (var stale in _windowTokens.Keys.Where(key => !current.Contains(key)).ToList())
             _windowTokens.Remove(stale);
+        foreach (var stale in _windowShares.Keys.Where(key => !current.Contains(key)).ToList())
+            _windowShares.Remove(stale);
         PushWindowTokensToRows();
         OnPropertyChanged(nameof(IsLimitReached));
         // Rebuilt rows start without a forecast: hand them the series the last history read produced.

@@ -693,6 +693,10 @@ public sealed class SettingsStore : IDisposable
             provider.AccountName = ProviderSettings.NormalizeAccountName(provider.AccountName);
             provider.RefreshMinutes = ProviderSettings.NormalizeRefreshMinutes(provider.RefreshMinutes);
         }
+
+        // Keyed by account key; a mode the provider behind it does not offer reads back as Level.
+        foreach (var (accountKey, provider) in settings.Providers)
+            provider.BarColorMode = BarColorModes.Normalize(provider.BarColorMode, ProviderRegistry.BaseProviderId(accountKey));
     }
 
     private const int MaxImportedMachines = 50;

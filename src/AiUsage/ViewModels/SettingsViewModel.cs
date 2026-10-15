@@ -1839,6 +1839,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             tile.ChartHidden = providerSettings.ChartHidden;
             tile.AccountName = providerSettings.AccountName;
             tile.AttentionDisabled = providerSettings.AttentionDisabled;
+            tile.BarColorMode = BarColorModes.Normalize(providerSettings.BarColorMode, tile.RealProviderId);
             tile.RefreshMinutes = providerSettings.RefreshMinutes;
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();

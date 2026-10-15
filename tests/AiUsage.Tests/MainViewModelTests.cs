@@ -163,9 +163,11 @@ public class MainViewModelTests : IDisposable
         Assert.NotEmpty(historyStore.Load("gemini", TimeSpan.FromDays(1)));
     }
 
+    private AppSettings? _statsSettings;
+
     private MainViewModel BuildWithStats(out List<ProviderTileViewModel> weekTiles)
     {
-        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var settings = _statsSettings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
         var providers = new List<IUsageProvider> { new FakeProvider("codex"), new FakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
         var vm = new MainViewModel(
             new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now),
@@ -228,6 +230,74 @@ public class MainViewModelTests : IDisposable
         vm.RefreshWindowTokens(Now.AddSeconds(2));
 
         await TestWait.UntilAsync(() => log.Count == perRound * 2);
+    }
+
+    [Fact]
+    public async Task A_tile_colored_by_share_asks_for_the_model_rows_and_its_bar_gets_colored_parts_with_a_tooltip_line_each()
+    {
+        var vm = BuildWithStats(out var tiles);
+        ApplyWindows(tiles, WeeklyReset);
+        var plain = new QueryLog();
+        vm.WindowTokensQuery = plain.Run;
+        var asked = new System.Collections.Concurrent.ConcurrentBag<string>();
+        vm.WindowSharesQuery = (provider, _, _) =>
+        {
+            asked.Add(provider);
+            return [new Stats.WindowShareRow("claude-opus-4-8", false, 60), new Stats.WindowShareRow("claude-sonnet-5", false, 40)];
+        };
+        var claude = tiles.Single(tile => tile.ProviderId == "claude");
+        claude.BarColorMode = BarColorModes.Model;
+
+        vm.RefreshWindowTokens(Now);
+
+        await TestWait.UntilAsync(() => claude.Rows.All(row => row.HasBarSegments));
+        Assert.All(asked, provider => Assert.Equal("claude", provider));
+        Assert.All(claude.Rows, row =>
+        {
+            Assert.Equal(["Opus 4.8", "Sonnet 5"], row.BarSegments.Select(part => part.Label));
+            Assert.Equal(100, row.WindowTokens);
+            Assert.Contains("Opus 4.8 · ", row.BarTooltipText);
+            Assert.Contains("Sonnet 5 · ", row.BarTooltipText);
+        });
+        // A tile left on the level colors keeps the plain query and a plain bar.
+        var codex = tiles.Single(tile => tile.ProviderId == "codex");
+        await TestWait.UntilAsync(() => codex.Rows.All(row => row.WindowTokens == 1));
+        Assert.All(codex.Rows, row => Assert.False(row.HasBarSegments));
+    }
+
+    [Fact]
+    public async Task Switching_a_tile_back_to_the_level_colors_removes_the_parts_at_once()
+    {
+        var vm = BuildWithStats(out var tiles);
+        ApplyWindows(tiles, WeeklyReset);
+        vm.WindowTokensQuery = (_, _, _) => 1;
+        vm.WindowSharesQuery = (_, _, _) => [new Stats.WindowShareRow("claude-opus-4-8", false, 10)];
+        var claude = tiles.Single(tile => tile.ProviderId == "claude");
+        claude.BarColorMode = BarColorModes.Model;
+        vm.RefreshWindowTokens(Now);
+        await TestWait.UntilAsync(() => claude.Rows.All(row => row.HasBarSegments));
+
+        claude.BarColorMode = BarColorModes.Level;
+
+        Assert.All(claude.Rows, row => Assert.False(row.HasBarSegments));
+    }
+
+    [Fact]
+    public void The_bar_color_mode_of_a_tile_is_stored_and_a_mode_the_provider_lacks_is_ignored()
+    {
+        var vm = BuildWithStats(out var tiles);
+        var settings = _statsSettings!;
+        var claude = tiles.Single(tile => tile.ProviderId == "claude");
+        var codex = tiles.Single(tile => tile.ProviderId == "codex");
+
+        claude.SelectedBarColorChoice = claude.BarColorChoices.Single(choice => choice.Value == BarColorModes.Agent);
+        codex.BarColorMode = BarColorModes.Agent;
+
+        Assert.Equal(BarColorModes.Agent, settings.Providers["claude"].BarColorMode);
+        Assert.Equal(BarColorModes.Level, codex.BarColorMode);
+        Assert.Equal(["Level", "Agent", "Model"], claude.BarColorChoices.Select(choice => choice.Value));
+        Assert.Equal(["Level", "Model"], codex.BarColorChoices.Select(choice => choice.Value));
+        Assert.True(claude.SupportsBarColor);
     }
 
     [Fact]

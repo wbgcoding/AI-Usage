@@ -2025,6 +2025,49 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>The same window slice as <see cref="SumTokensSince"/>, kept apart by model and by main
+    /// agent or subagent: one row per pair with its token sum, empty pairs left out. Their sum is
+    /// what <see cref="SumTokensSince"/> answers for the same arguments. Null when the index could not
+    /// be read.</summary>
+    public IReadOnlyList<WindowShareRow>? SumTokensByModelSince(string providerId, DateTime localStart, string? modelContains = null)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT model, subagent, SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens)
+                FROM usage WHERE provider = $provider AND (day > $day OR (day = $day AND hour >= $hour))
+                """ + (modelContains is { Length: > 0 } ? " AND lower(model) LIKE $model ESCAPE '\\'" : "") + " GROUP BY model, subagent";
+            if (modelContains is { Length: > 0 })
+            {
+                var escaped = modelContains.ToLowerInvariant().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+                command.Parameters.AddWithValue("$model", "%" + escaped + "%");
+            }
+            command.Parameters.AddWithValue("$provider", providerId);
+            command.Parameters.AddWithValue("$day", localStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$hour", localStart.Hour);
+
+            var rows = new List<WindowShareRow>();
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var tokens = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
+                if (tokens > 0)
+                    rows.Add(new WindowShareRow(reader.GetString(0), reader.GetInt64(1) != 0, tokens));
+            }
+
+            return rows;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
     public StatsSourceFileState? GetSourceFile(string path) =>
         TryGetSourceFile(path, out var state) ? state : null;
 

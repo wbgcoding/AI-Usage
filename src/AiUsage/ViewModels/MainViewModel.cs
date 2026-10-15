@@ -59,6 +59,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// null uses the store's own.</summary>
     internal Func<string, DateTime, string?, long?>? WindowTokensQuery { get; set; }
 
+    /// <summary>Test seam for the per model and agent token rows of a window slice, asked instead of
+    /// <see cref="WindowTokensQuery"/> while a tile colors its bars by share; null uses the store's own.</summary>
+    internal Func<string, DateTime, string?, IReadOnlyList<WindowShareRow>?>? WindowSharesQuery { get; set; }
+
     /// <summary>Per real provider id (not per account - two Claude accounts would otherwise double
     /// the query for numbers <see cref="Stats.StatsStore"/> cannot even tell apart by account) and
     /// index slice, the last time <see cref="RefreshWindowTokens"/> actually queried. Empty at
@@ -590,6 +594,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ShowWeekly = providerSettings?.ShowWeekly ?? true,
             ChartHidden = providerSettings?.ChartHidden ?? false,
             AttentionDisabled = providerSettings?.AttentionDisabled ?? false,
+            BarColorMode = providerSettings?.BarColorMode ?? BarColorModes.Level,
             HiddenWindows = [.. providerSettings?.HiddenWindows ?? []],
             AccountName = providerSettings?.AccountName ?? "",
             RefreshMinutes = providerSettings?.RefreshMinutes,
@@ -603,6 +608,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
         tile.RefreshMinutesChanged += (_, value) => SetRefreshMinutes(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
+        tile.BarColorModeChanged += (_, value) => SetBarColorMode(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
         tile.WindowToggles.CollectionChanged += (_, _) =>
         {
@@ -888,10 +894,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var query = WindowTokensQuery ?? store.SumTokensSince;
 
         var wanted = new HashSet<(string ProviderId, WindowTokenKey Slice)>();
+        var wantedWithShares = new HashSet<(string ProviderId, WindowTokenKey Slice)>();
         foreach (var tile in Tiles.Where(tile => !tile.IsHidden))
         {
             foreach (var key in tile.WindowTokenKeys)
+            {
                 wanted.Add((tile.RealProviderId, key));
+                if (tile.WantsWindowShares)
+                    wantedWithShares.Add((tile.RealProviderId, key));
+            }
         }
 
         // Windows that are gone (a reset passed) leave the cache, so it never grows week by week.
@@ -907,16 +918,35 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var (providerId, slice) = key;
             var localStart = slice.Start.LocalDateTime;
 
+            // One query per slice: the figure itself, or - while a tile colors its bars by share - the
+            // rows it is the sum of.
+            var withShares = wantedWithShares.Contains(key);
             Task.Run(() =>
             {
+                IReadOnlyList<WindowShareRow>? shares = null;
+                long? answer;
+                if (withShares)
+                {
+                    shares = (WindowSharesQuery ?? store.SumTokensByModelSince)(providerId, localStart, slice.ModelContains);
+                    answer = shares?.Sum(row => row.Tokens);
+                }
+                else
+                {
+                    answer = query(providerId, localStart, slice.ModelContains);
+                }
+
                 // Null: the index could not be read, so the figure already shown stays.
-                if (query(providerId, localStart, slice.ModelContains) is not { } tokens)
+                if (answer is not { } tokens)
                     return;
 
                 void Apply()
                 {
                     foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId))
+                    {
                         tile.SetWindowTokens(slice, tokens);
+                        if (shares is not null)
+                            tile.SetWindowShares(slice, shares);
+                    }
                 }
 
                 var dispatcher = Application.Current?.Dispatcher;
@@ -1181,6 +1211,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         GetOrCreateProviderSettings(providerId).AttentionDisabled = value;
         _settingsStore.RequestSave(_settings);
+    }
+
+    /// <summary>Persists a tile's bar color mode and asks the index for its token shares on the next
+    /// tick instead of after the usual wait.</summary>
+    private void SetBarColorMode(string providerId, string value)
+    {
+        GetOrCreateProviderSettings(providerId).BarColorMode = value;
+        _settingsStore.RequestSave(_settings);
+        _lastWindowTokensQueryAt.Clear();
     }
 
     private void SetAccountName(string providerId, string value)

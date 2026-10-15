@@ -79,6 +79,9 @@
                 <DataTrigger Binding="{Binding UsedPercent}" Value="0">
                     <Setter Property="MinWidth" Value="0"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding HasBarSegments}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="UsageProgressBarStyle" TargetType="ProgressBar">
@@ -101,6 +104,22 @@
                                 <Grid>
                                     <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left" RadiusX="4" RadiusY="4"
                                                Style="{StaticResource LevelFillStyle}"/>
+                                    <!-- Colored by token share (the tile's bar color setting): replaces the
+                                         level fill while the index has answered, the level fill shows
+                                         until then. -->
+                                    <controls:SegmentedBarFill x:Name="PART_SegmentedFill" UsedPercent="{Binding UsedPercent}"
+                                                               Segments="{Binding BarSegments}" IsHitTestVisible="False">
+                                        <controls:SegmentedBarFill.Style>
+                                            <Style TargetType="controls:SegmentedBarFill">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasBarSegments}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </controls:SegmentedBarFill.Style>
+                                    </controls:SegmentedBarFill>
                                     <!-- The notification threshold, drawn as a thin line on top of the
                                          fill - collapsed when that window's notification is off, and
                                          only ever shown at Full density (ShowThresholdMarker). -->

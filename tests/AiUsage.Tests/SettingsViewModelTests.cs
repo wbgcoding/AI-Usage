@@ -887,6 +887,32 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheBarColorModeOfATileTravelsThroughExportAndImportAndResetClearsIt()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Providers["claude"].BarColorMode = BarColorModes.Agent;
+        sourceSettings.Providers["codex"].BarColorMode = BarColorModes.Model;
+        var exportPath = Path.Combine(TempDirectory(), "export-bar-color.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(BarColorModes.Agent, targetSettings.Providers["claude"].BarColorMode);
+        Assert.Equal(BarColorModes.Model, targetSettings.Providers["codex"].BarColorMode);
+        var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "claude");
+        Assert.Equal(BarColorModes.Agent, tile.BarColorMode);
+        Assert.Equal(BarColorModes.Agent, tile.SelectedBarColorChoice!.Value);
+
+        targetVm.ResetToDefaults();
+
+        Assert.Equal(BarColorModes.Level, targetSettings.Providers["claude"].BarColorMode);
+        Assert.Equal(BarColorModes.Level, tile.BarColorMode);
+        Assert.Equal(BarColorModes.Level, tile.SelectedBarColorChoice!.Value);
+    }
+
+    [Fact]
     public void PickingAReadIntervalOnATileStoresItAndTheDefaultRowNamesTheGlobalValue()
     {
         var (vm, settings) = Build();

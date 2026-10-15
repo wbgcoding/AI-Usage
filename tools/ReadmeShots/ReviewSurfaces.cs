@@ -108,6 +108,12 @@ internal static class ReviewSurfaces
             new("widget.mini", GroupWidget, context => Program.RenderWidget(
                 context.DataDirectory, context.Samples, context.Now, context.AllProviders, TileDensity.Mini,
                 context.OutputPath("widget.mini"), context.Pick(WidgetWidth, MinWidgetWidth)), HasMinSize: true),
+            new("widget.barcolor.model", GroupWidget, context => Program.RenderWidget(
+                context.DataDirectory, context.Samples, context.Now, context.AllProviders, TileDensity.Full,
+                context.OutputPath("widget.barcolor.model"), context.Pick(WidgetWidth, MinWidgetWidth), barColorMode: BarColorModes.Model), HasMinSize: true),
+            new("widget.barcolor.agent", GroupWidget, context => Program.RenderWidget(
+                context.DataDirectory, context.Samples, context.Now, context.AllProviders, TileDensity.Full,
+                context.OutputPath("widget.barcolor.agent"), context.Pick(WidgetWidth, MinWidgetWidth), barColorMode: BarColorModes.Agent), HasMinSize: true),
             new("widget.full.zoom90", GroupWidget, context => ZoomedWidget(context, "widget.full.zoom90", TileDensity.Full, 90), HasMinSize: true),
             new("widget.mini.zoom90", GroupWidget, context => ZoomedWidget(context, "widget.mini.zoom90", TileDensity.Mini, 90), HasMinSize: true),
             new("widget.full.zoom125", GroupWidget, context => ZoomedWidget(context, "widget.full.zoom125", TileDensity.Full, 125), HasMinSize: true),

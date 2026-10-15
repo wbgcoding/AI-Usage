@@ -412,6 +412,41 @@ public sealed class ProviderSettings
     /// this app stops reading it. Default false, so an existing settings.json with no such key loads
     /// every account connected.</summary>
     public bool Disconnected { get; set; }
+
+    /// <summary>How this tile's bars are colored: one of <see cref="BarColorModes"/>. Anything else, and
+    /// a mode this provider cannot offer, reads back as Level (see <see cref="BarColorModes.Normalize"/>).</summary>
+    public string BarColorMode { get; set; } = BarColorModes.Level;
+}
+
+/// <summary>The ways a bar's filled part can be colored: by usage level (green, yellow, red), or split
+/// by each model's or the main and subagents' share of the tokens in that window.</summary>
+public static class BarColorModes
+{
+    public const string Level = "Level";
+
+    public const string Agent = "Agent";
+
+    public const string Model = "Model";
+
+    /// <summary>The modes a provider offers, level first. Model needs a local token index; Agent also
+    /// needs the index to tell main agent from subagent apart, which only Claude's session files do.</summary>
+    public static IReadOnlyList<string> OfferedFor(string realProviderId)
+    {
+        var modes = new List<string> { Level };
+        if (Stats.ProviderCoverage.HasLocalTokenData(realProviderId))
+        {
+            if (realProviderId == Stats.StatsIndexer.ClaudeProviderId)
+                modes.Add(Agent);
+            modes.Add(Model);
+        }
+
+        return modes;
+    }
+
+    /// <summary>The canonical spelling of <paramref name="mode"/> (case-insensitive), or Level when it is
+    /// unknown or <paramref name="realProviderId"/> does not offer it.</summary>
+    public static string Normalize(string? mode, string realProviderId) =>
+        OfferedFor(realProviderId).FirstOrDefault(offered => string.Equals(offered, mode, StringComparison.OrdinalIgnoreCase)) ?? Level;
 }
 
 public sealed class ThresholdSettings
