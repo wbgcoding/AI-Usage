@@ -159,10 +159,12 @@ public partial class UsageRowViewModel : ObservableObject
 
         if (WindowLengths.MinutesFor(window, providerId) is not { } minutes)
             return null;
-        // Whole minutes: a reset instant that wobbles by seconds between fetches keeps the same
-        // slice, so the figure is not dropped and asked again (the index is hour-grained anyway).
+        // The nearest whole minute: a reset instant that wobbles by seconds between fetches (also
+        // across a minute boundary, as an on-the-hour reset does) keeps the same slice, so the
+        // figure is not dropped and asked again (the index is hour-grained anyway).
         var start = resetsAt - TimeSpan.FromMinutes(minutes);
-        start = new DateTimeOffset(start.Ticks - start.Ticks % TimeSpan.TicksPerMinute, start.Offset);
+        var rounded = start.Ticks + TimeSpan.TicksPerMinute / 2;
+        start = new DateTimeOffset(rounded - rounded % TimeSpan.TicksPerMinute, start.Offset);
         return new WindowTokenKey(start, model);
     }
 

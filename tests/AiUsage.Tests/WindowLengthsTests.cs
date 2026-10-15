@@ -187,6 +187,20 @@ public class WindowLengthsTests
     }
 
     [Fact]
+    public void A_reset_instant_wobbling_across_a_minute_boundary_keeps_one_slice()
+    {
+        var onTheMinute = new DateTimeOffset(Now.Year, Now.Month, Now.Day, Now.Hour, Now.Minute, 0, Now.Offset).AddHours(2);
+        UsageWindow At(TimeSpan offset) => new("Window_FiveHour", WindowKind.FiveHour, 40, onTheMinute + offset, null);
+
+        var early = UsageRowViewModel.TokenKeyFor(At(TimeSpan.FromMilliseconds(-200)), "claude");
+        var late = UsageRowViewModel.TokenKeyFor(At(TimeSpan.FromMilliseconds(200)), "claude");
+
+        Assert.NotNull(early);
+        Assert.Equal(early, late);
+        Assert.Equal(onTheMinute - TimeSpan.FromMinutes(300), early!.Value.Start);
+    }
+
+    [Fact]
     public void A_model_window_with_a_versioned_name_matches_the_model_id_spelling()
     {
         Assert.Equal("sonnet-4-5", UsageRowViewModel.TokenKeyFor(Window("Sonnet 4.5", WindowKind.Other, TimeSpan.FromDays(3)), "claude")!.Value.ModelContains);
