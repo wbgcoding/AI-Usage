@@ -1236,20 +1236,22 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>The thresholds notifications actually use (global default unless the provider has its
-    /// own), so the bar's marker never shows a different number than the balloon fires at.</summary>
-    private ThresholdSettings ResolvedThresholds(string providerId)
+    /// own), so the bar's marker never shows a different number than the balloon fires at. A tile whose
+    /// own notifications are off gets every window disabled, so it shows no marker at all.</summary>
+    internal ThresholdSettings ResolvedThresholds(string providerId)
     {
+        var tileOn = !_settings.Providers.TryGetValue(providerId, out var providerSettings) || providerSettings.NotificationsEnabled;
         var (fiveHour, fiveHourEnabled) = SettingsRanges.ResolveThreshold(_settings, providerId, WindowKind.FiveHour);
         var (weekly, weeklyEnabled) = SettingsRanges.ResolveThreshold(_settings, providerId, WindowKind.Weekly);
         var (other, otherEnabled) = SettingsRanges.ResolveThreshold(_settings, providerId, WindowKind.Other);
         return new ThresholdSettings
         {
             FiveHour = fiveHour,
-            FiveHourEnabled = fiveHourEnabled,
+            FiveHourEnabled = tileOn && fiveHourEnabled,
             Weekly = weekly,
-            WeeklyEnabled = weeklyEnabled,
+            WeeklyEnabled = tileOn && weeklyEnabled,
             Other = other,
-            OtherEnabled = otherEnabled,
+            OtherEnabled = tileOn && otherEnabled,
         };
     }
 

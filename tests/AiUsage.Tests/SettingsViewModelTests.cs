@@ -225,6 +225,22 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SwitchingOffATilesNotificationsHidesItsBarMarker()
+    {
+        var (vm, _) = Build();
+        var tile = vm.Main.Tiles.Single(t => t.ProviderId == "codex");
+        tile.Apply(FiveHourSnapshot(), Now, new ThresholdSettings { FiveHour = 80, FiveHourEnabled = true });
+        var row = vm.NotificationRows.Single(r => r.ProviderId == "codex");
+
+        row.NotificationsEnabled = false;
+        Assert.False(tile.Rows.Single().ShowThresholdMarker);
+        Assert.Null(tile.Rows.Single().ThresholdPercent);
+
+        row.NotificationsEnabled = true;
+        Assert.True(tile.Rows.Single().ShowThresholdMarker);
+    }
+
+    [Fact]
     public void MovingAProvidersOwnThresholdMovesItsBarMarkerWithoutAnotherFetch()
     {
         var (vm, _) = Build();
