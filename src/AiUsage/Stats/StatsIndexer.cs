@@ -1238,8 +1238,8 @@ public sealed class StatsIndexer
     /// <summary>The day and hour bucket are this machine's own LOCAL day/hour of <paramref
     /// name="timestamp"/>, not UTC - a session made at 23:30 local time in a zone ahead of UTC would
     /// land on the next UTC day, and every hour in the "by hour" chart would read one or two hours off
-    /// in Germany (UTC+1/+2). <see cref="MainViewModel.RefreshWeekTokens"/> already computes its
-    /// own week start in local time, so this makes the index consistent with it rather than the other
+    /// in Germany (UTC+1/+2). <see cref="MainViewModel.RefreshWindowTokens"/> already queries from
+    /// each window start in local time, so this makes the index consistent with it rather than the other
     /// way around.</summary>
     private static void Accumulate(
         Dictionary<UsageBucketKey, StatsRecord> buckets, string provider, string project,

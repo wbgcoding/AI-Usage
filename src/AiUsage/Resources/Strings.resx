@@ -127,7 +127,6 @@
   <data name="Settings.HistorySize" xml:space="preserve"><value>History size on disk: {0}</value></data>
   <data name="Slider.Decrease" xml:space="preserve"><value>Lower the value</value></data>
   <data name="Slider.Increase" xml:space="preserve"><value>Raise the value</value></data>
-  <data name="Tile.ThresholdMarker" xml:space="preserve"><value>Notification at {0}%</value></data>
   <data name="Tile.Menu.OpenUsagePage" xml:space="preserve"><value>Open usage page</value></data>
   <data name="Tile.Menu.Details" xml:space="preserve"><value>Show details</value></data>
   <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Hide details</value></data>
@@ -175,12 +174,9 @@
   <data name="Density.Auto" xml:space="preserve"><value>Automatic</value></data>
   <data name="Density.Full" xml:space="preserve"><value>Full</value></data>
   <data name="Density.Mini" xml:space="preserve"><value>Small</value></data>
-  <data name="Window.AutoHeight" xml:space="preserve"><value>Automatic height</value></data>
-  <data name="Window.AutoWidth" xml:space="preserve"><value>Automatic width</value></data>
 
   <data name="Action.RefreshNow" xml:space="preserve"><value>Refresh</value></data>
   <data name="Action.Cancel" xml:space="preserve"><value>Cancel</value></data>
-  <data name="Tray.ShowHide" xml:space="preserve"><value>Show/Hide</value></data>
   <data name="Tray.Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="Tray.Stats" xml:space="preserve"><value>Token usage</value></data>
   <data name="Tray.Exit" xml:space="preserve"><value>Exit</value></data>
@@ -391,7 +387,6 @@
   <data name="Settings.SignIn" xml:space="preserve"><value>Sign in</value></data>
   <data name="Tip.Stats.Total" xml:space="preserve"><value>Every token counted in the selected period, across all providers shown.</value></data>
   <data name="Tip.Stats.PerDay" xml:space="preserve"><value>The total divided by the days in the period, counted from the first recorded day, not only by the days you actually worked.</value></data>
-  <data name="Tip.Stats.BusiestDay" xml:space="preserve"><value>The single day with the most tokens in the period.</value></data>
   <data name="Tip.Stats.VsPrevious" xml:space="preserve"><value>Compared with the period of the same length directly before this one.</value></data>
   <data name="Tip.Stats.Range" xml:space="preserve"><value>Sets how far back the figures and the charts reach.</value></data>
   <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>Move up</value></data>
@@ -404,9 +399,7 @@
   <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Sets what the chart and the table below are grouped by.</value></data>
   <data name="Tip.Stats.Chart.PerDay" xml:space="preserve"><value>One column per day, split by provider.</value></data>
   <data name="Tip.Stats.Chart.PerWeek" xml:space="preserve"><value>One column per week, split by provider.</value></data>
-  <data name="Tip.Stats.Chart.ByProvider" xml:space="preserve"><value>How the tokens in this period split across the providers.</value></data>
   <data name="Tip.Stats.Chart.ByModel" xml:space="preserve"><value>How the tokens split across the models. The six largest are named, the rest are pooled.</value></data>
-  <data name="Tip.Stats.Chart.ByEffort" xml:space="preserve"><value>How the tokens split by reasoning effort level.</value></data>
   <data name="Tip.Stats.Chart.CacheShare" xml:space="preserve"><value>How much of the total was new text, written to the cache, read from the cache, or produced as output.</value></data>
   <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>The projects with the most tokens. Sessions without a folder are pooled.</value></data>
   <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Which weekdays the tokens fall on, added up over the whole period.</value></data>
@@ -461,7 +454,6 @@
   <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Selected day · {0}</value></data>
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Close day detail</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Waiting for an answer. Click to dismiss.</value></data>
-  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} tokens since the 7-day window reset</value></data>
   <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % of the time has passed, usage is ahead of it.</value></data>
   <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % of the time has passed, usage is on pace.</value></data>
   <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % of the time has passed, usage is below it.</value></data>

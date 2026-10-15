@@ -127,7 +127,6 @@
   <data name="Settings.HistorySize" xml:space="preserve"><value>Speicherbedarf des Verlaufs: {0}</value></data>
   <data name="Slider.Decrease" xml:space="preserve"><value>Wert verringern</value></data>
   <data name="Slider.Increase" xml:space="preserve"><value>Wert erhöhen</value></data>
-  <data name="Tile.ThresholdMarker" xml:space="preserve"><value>Meldung ab {0} %</value></data>
   <data name="Tile.Menu.OpenUsagePage" xml:space="preserve"><value>Nutzungsseite öffnen</value></data>
   <data name="Tile.Menu.Details" xml:space="preserve"><value>Einzelheiten anzeigen</value></data>
   <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Einzelheiten ausblenden</value></data>
@@ -175,11 +174,8 @@
   <data name="Density.Auto" xml:space="preserve"><value>Automatisch</value></data>
   <data name="Density.Full" xml:space="preserve"><value>Voll</value></data>
   <data name="Density.Mini" xml:space="preserve"><value>Klein</value></data>
-  <data name="Window.AutoHeight" xml:space="preserve"><value>Höhe automatisch</value></data>
-  <data name="Window.AutoWidth" xml:space="preserve"><value>Breite automatisch</value></data>
   <data name="Action.RefreshNow" xml:space="preserve"><value>Aktualisieren</value></data>
   <data name="Action.Cancel" xml:space="preserve"><value>Abbrechen</value></data>
-  <data name="Tray.ShowHide" xml:space="preserve"><value>Einblenden/Ausblenden</value></data>
   <data name="Tray.Settings" xml:space="preserve"><value>Einstellungen</value></data>
   <data name="Tray.Stats" xml:space="preserve"><value>Tokenverbrauch</value></data>
   <data name="Tray.Exit" xml:space="preserve"><value>Beenden</value></data>
@@ -390,7 +386,6 @@
   <data name="Settings.SignIn" xml:space="preserve"><value>Anmelden</value></data>
   <data name="Tip.Stats.Total" xml:space="preserve"><value>Alle Token im gewählten Zeitraum, über alle gezeigten Anbieter.</value></data>
   <data name="Tip.Stats.PerDay" xml:space="preserve"><value>Die Summe geteilt durch die Tage im Zeitraum, ab dem ersten erfassten Tag gezählt, nicht nur durch die Tage, an denen du gearbeitet hast.</value></data>
-  <data name="Tip.Stats.BusiestDay" xml:space="preserve"><value>Der einzelne Tag mit den meisten Token im Zeitraum.</value></data>
   <data name="Tip.Stats.VsPrevious" xml:space="preserve"><value>Verglichen mit dem gleich langen Zeitraum direkt davor.</value></data>
   <data name="Tip.Stats.Range" xml:space="preserve"><value>Legt fest, wie weit die Zahlen und die Diagramme zurückreichen.</value></data>
   <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>Nach oben verschieben</value></data>
@@ -403,9 +398,7 @@
   <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Legt fest, wonach Diagramm und Tabelle darunter gruppiert werden.</value></data>
   <data name="Tip.Stats.Chart.PerDay" xml:space="preserve"><value>Eine Säule je Tag, aufgeteilt nach Anbieter.</value></data>
   <data name="Tip.Stats.Chart.PerWeek" xml:space="preserve"><value>Eine Säule je Woche, aufgeteilt nach Anbieter.</value></data>
-  <data name="Tip.Stats.Chart.ByProvider" xml:space="preserve"><value>Wie sich die Token dieses Zeitraums auf die Anbieter verteilen.</value></data>
   <data name="Tip.Stats.Chart.ByModel" xml:space="preserve"><value>Wie sich die Token auf die Modelle verteilen. Die sechs größten stehen einzeln, der Rest ist zusammengefasst.</value></data>
-  <data name="Tip.Stats.Chart.ByEffort" xml:space="preserve"><value>Wie sich die Token auf die Effort-Stufen verteilen.</value></data>
   <data name="Tip.Stats.Chart.CacheShare" xml:space="preserve"><value>Wie viel der Summe neuer Text war, in den Cache geschrieben, aus dem Cache gelesen oder als Ausgabe erzeugt.</value></data>
   <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>Die Projekte mit den meisten Token. Sitzungen ohne Ordner sind zusammengefasst.</value></data>
   <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Auf welche Wochentage die Token fallen, über den ganzen Zeitraum summiert.</value></data>
@@ -460,7 +453,6 @@
   <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Ausgewählter Tag · {0}</value></data>
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Tagesdetail schließen</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Wartet auf eine Antwort. Zum Ausblenden anklicken.</value></data>
-  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token seit dem Reset des 7-Tage-Fensters</value></data>
   <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darüber.</value></data>
   <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt im Plan.</value></data>
   <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darunter.</value></data>

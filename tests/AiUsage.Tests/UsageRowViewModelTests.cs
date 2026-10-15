@@ -533,10 +533,8 @@ public class UsageRowViewModelTests
     {
         var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300);
         var row = new UsageRowViewModel(window, Now, TileDensity.Full, thresholdPercent: 85);
-        var thresholdText = LocalizationService.Instance.Format("Tile.ThresholdMarker", StatusTextMap.UsagePercent(85));
 
         Assert.True(row.ShowThresholdMarker);
-        Assert.DoesNotContain(thresholdText, row.BarTooltipText);
         Assert.Equal("", row.BarTooltipText);
     }
 
