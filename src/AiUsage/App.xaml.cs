@@ -120,6 +120,9 @@ public partial class App : Application, IDisposable
         // A restore asked for in the previous run happens here: this process owns the single-instance
         // lock and the previous copy is gone, so no data file is open anywhere yet.
         _restoreOutcome = BackupService.ApplyPendingRestore(AppPaths.DataDirectory, DateTime.Now, _logService.LogInfo, out _restoredFrom);
+        // The statistics kept from the last run describe the index the backup just replaced.
+        if (_restoreOutcome == RestoreOutcome.Restored)
+            StatsSnapshotFile.Delete(StatsSnapshotFile.PathIn(AppPaths.DataDirectory));
 
         // Best-effort: a copy the reader could not delete last run (file still locked, app killed
         // mid-read) should not sit in the cache folder forever waiting for another lookup to fail.

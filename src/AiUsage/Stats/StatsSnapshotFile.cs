@@ -60,7 +60,9 @@ internal static class StatsSnapshotFile
         return null;
     }
 
-    private static void Delete(string path)
+    /// <summary>Removes the file, quietly: a restored backup brings another index, which the kept
+    /// numbers no longer match.</summary>
+    internal static void Delete(string path)
     {
         try
         {
