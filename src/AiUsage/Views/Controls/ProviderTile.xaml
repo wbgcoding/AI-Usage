@@ -99,11 +99,11 @@
         <!-- Mini's own compact row: no bar (too thin to read at a glance), just a large tabular
              number coloured by level, an alert glyph at Warn and a warning glyph at Crit, and a thin divider between windows. -->
         <DataTemplate x:Key="MiniRowTemplate">
-            <StackPanel Orientation="Horizontal" ToolTip="{Binding CountdownText}">
+            <StackPanel Orientation="Horizontal" ToolTip="{Binding MiniTooltipText}">
                 <StackPanel.Style>
                     <Style TargetType="StackPanel">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding CountdownText}" Value="">
+                            <DataTrigger Binding="{Binding MiniTooltipText}" Value="">
                                 <Setter Property="ToolTipService.IsEnabled" Value="False"/>
                             </DataTrigger>
                         </Style.Triggers>
@@ -434,6 +434,7 @@
                                                 ShowAxes="{Binding ShowDiagram}"
                                                 FiveHourLabel="{Binding FiveHourLabelText}"
                                                 WeeklyLabel="{Binding WeeklyLabelText}"
+                                                PreviousWeekLabel="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.PreviousWeek]}"
                                                 AutomationProperties.Name="{Binding ChartSummaryText}"/>
                     </Border>
                 </StackPanel>
@@ -466,8 +467,7 @@
                          numbers off. -->
                     <TextBlock Grid.Column="0" Text="{Binding HeaderDisplayName}" FontFamily="{DynamicResource Font.Ui}"
                                FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
-                               MaxWidth="110" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                               ToolTip="{Binding HeaderDisplayName}"/>
+                               MaxWidth="110" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Text="{Binding HeadlineText}" FontFamily="{DynamicResource Font.Ui}"
                                FontSize="{StaticResource Font.Size.Small}" Margin="8,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource Text.Secondary}"

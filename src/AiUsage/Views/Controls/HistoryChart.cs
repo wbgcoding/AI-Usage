@@ -129,6 +129,18 @@ public sealed class HistoryChart : FrameworkElement
         set => SetValue(WeeklyLabelProperty, value);
     }
 
+    /// <summary>The legend name of the previous-week line; the entry shows only while that line is
+    /// drawn and this text is not empty.</summary>
+    public static readonly DependencyProperty PreviousWeekLabelProperty = DependencyProperty.Register(
+        nameof(PreviousWeekLabel), typeof(string), typeof(HistoryChart),
+        new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public string PreviousWeekLabel
+    {
+        get => (string)GetValue(PreviousWeekLabelProperty);
+        set => SetValue(PreviousWeekLabelProperty, value);
+    }
+
     /// <summary>Last week's figures, already shifted forward by seven days by the caller so they
     /// draw on the same axis as the current window. Drawn last, on top of both real series (a plain
     /// muted line with no fill and no per-level color, so it still reads as background context rather
@@ -203,6 +215,24 @@ public sealed class HistoryChart : FrameworkElement
     /// edge, 100 % at the top).</summary>
     internal static double MapY(double percent, double plotHeight) =>
         plotHeight - Math.Clamp(percent, 0, 100) / 100.0 * plotHeight;
+
+    /// <summary>The y a line of the given thickness is drawn at: <see cref="MapY"/>, but never lower
+    /// than half the thickness above the plot's bottom edge, so a series at 0 % keeps its whole
+    /// stroke inside the plot instead of being cut off at the caption strip.</summary>
+    internal static double StrokeY(double percent, double plotHeight, double thickness) =>
+        Math.Min(MapY(percent, plotHeight), plotHeight - thickness / 2);
+
+    /// <summary>The order the series are painted in: the solid weekly one first, the dashed five-hour
+    /// one on top of it, so at equal values the dashes stay visible on the weekly line.</summary>
+    internal static readonly IReadOnlyList<WindowKind> SeriesDrawOrder = [WindowKind.Weekly, WindowKind.FiveHour];
+
+    internal const double SeriesThickness = 1.5;
+    internal static readonly double[] FiveHourDashes = [3, 2];
+
+    /// <summary>The previous-week line: thin and dotted, so it cannot be mistaken for the dashed
+    /// five-hour line.</summary>
+    internal const double PreviousWeekThickness = 1;
+    internal static readonly double[] PreviousWeekDashes = [1, 3];
 
     /// <summary>The two reference lines - 100% (top edge, solid) and 50% (dashed) - as a pure
     /// function of the plot height alone, so the geometry is unit-testable without a visual tree.</summary>
@@ -500,15 +530,22 @@ public sealed class HistoryChart : FrameworkElement
     /// name is empty is left out rather than shown as a bare line pattern. Pure so it is
     /// unit-testable without a visual tree.</summary>
     internal static IReadOnlyList<(WindowKind Kind, string Label)> LegendEntries(
-        bool hasFiveHour, bool hasWeekly, string? fiveHourLabel, string? weeklyLabel)
+        bool hasFiveHour, bool hasWeekly, string? fiveHourLabel, string? weeklyLabel,
+        bool hasPreviousWeek = false, string? previousWeekLabel = null)
     {
-        var entries = new List<(WindowKind, string)>(2);
+        var entries = new List<(WindowKind, string)>(3);
         if (hasFiveHour && !string.IsNullOrEmpty(fiveHourLabel))
             entries.Add((WindowKind.FiveHour, fiveHourLabel));
         if (hasWeekly && !string.IsNullOrEmpty(weeklyLabel))
             entries.Add((WindowKind.Weekly, weeklyLabel));
+        if (hasPreviousWeek && !string.IsNullOrEmpty(previousWeekLabel))
+            entries.Add((PreviousWeekLegendKind, previousWeekLabel));
         return entries;
     }
+
+    /// <summary>The kind <see cref="LegendEntries"/> reports for the previous-week entry (no real
+    /// window kind: it is the same data a week earlier).</summary>
+    internal const WindowKind PreviousWeekLegendKind = WindowKind.Other;
 
     /// <summary>The width of a legend whose entries have the given label widths: per entry a line
     /// pattern, a small gap and the name, with a wider gap between entries.</summary>
@@ -526,9 +563,26 @@ public sealed class HistoryChart : FrameworkElement
         return left >= earliest && left + legendWidth <= latestEnd ? left : null;
     }
 
+    /// <summary>Where the legend starts and how many of its entries show: all of them when they fit,
+    /// else without the last one when that is the previous-week entry, else null (no legend).</summary>
+    internal static (double Left, int Count)? LegendFit(
+        double width, double startCaptionWidth, double endCaptionWidth, IReadOnlyList<double> labelWidths, bool lastIsPreviousWeek)
+    {
+        if (LegendLeft(width, startCaptionWidth, endCaptionWidth, LegendWidth(labelWidths)) is { } all)
+            return (all, labelWidths.Count);
+        if (!lastIsPreviousWeek || labelWidths.Count < 2)
+            return null;
+
+        var shorter = labelWidths.Take(labelWidths.Count - 1).ToArray();
+        return LegendLeft(width, startCaptionWidth, endCaptionWidth, LegendWidth(shorter)) is { } left
+            ? (left, shorter.Length)
+            : null;
+    }
+
     /// <summary>The range's start/end captions in the strip under the plot (see <see
     /// cref="HasCaptionStrip"/>), with the legend centred between them when it fits.</summary>
-    private void DrawAxisCaptions(DrawingContext dc, double width, double height, (string Label, Pen Pen)[] legend)
+    private void DrawAxisCaptions(
+        DrawingContext dc, double width, double height, (string Label, Pen Pen)[] legend, bool lastIsPreviousWeek)
     {
         if (!HasCaptionStrip(height, ShowAxes))
             return;
@@ -555,13 +609,12 @@ public sealed class HistoryChart : FrameworkElement
             return;
 
         var labels = legend.Select(entry => MakeText(entry.Label)).ToArray();
-        var legendWidth = LegendWidth(labels.Select(label => label.Width).ToArray());
-        if (LegendLeft(width, startCaption.Width, endCaption.Width, legendWidth) is not { } left)
+        if (LegendFit(width, startCaption.Width, endCaption.Width, labels.Select(label => label.Width).ToArray(), lastIsPreviousWeek) is not var (left, count))
             return;
 
         var x = left;
         var lineY = plotHeight + CaptionStripHeight / 2;
-        for (var i = 0; i < labels.Length; i++)
+        for (var i = 0; i < count; i++)
         {
             dc.DrawLine(legend[i].Pen, new Point(x, lineY), new Point(x + LegendPatternWidth, lineY));
             x += LegendPatternWidth + LegendPatternGap;
@@ -599,7 +652,13 @@ public sealed class HistoryChart : FrameworkElement
         var hasFiveHour = fiveHourReduced.Count >= 2;
         var hasWeekly = weeklyReduced.Count >= 2;
 
-        DrawAxisCaptions(drawingContext, width, height, SeriesLegend(hasFiveHour ? fiveHourReduced[^1].Percent : 0, hasFiveHour, hasWeekly));
+        var previousWeekReduced = hasFiveHour || hasWeekly ? ReducedPreviousWeek(width) : [];
+        var hasPreviousWeek = previousWeekReduced.Count >= 2;
+
+        DrawAxisCaptions(
+            drawingContext, width, height,
+            SeriesLegend(hasFiveHour ? fiveHourReduced[^1].Percent : 0, hasFiveHour, hasWeekly, hasPreviousWeek),
+            lastIsPreviousWeek: hasPreviousWeek && !string.IsNullOrEmpty(PreviousWeekLabel));
 
         if (!hasFiveHour && !hasWeekly)
         {
@@ -610,10 +669,13 @@ public sealed class HistoryChart : FrameworkElement
         // Each series is drawn from its own data and picks its own color from its own last value,
         // independently of the other series - so the five-hour dashed line can be critical-red while
         // the weekly solid line stays its own, unrelated color.
-        if (hasFiveHour)
-            DrawSeries(drawingContext, fiveHourReduced, width, plotHeight, WindowKind.FiveHour);
-        if (hasWeekly)
-            DrawSeries(drawingContext, weeklyReduced, width, plotHeight, WindowKind.Weekly);
+        foreach (var kind in SeriesDrawOrder)
+        {
+            if (kind == WindowKind.FiveHour && hasFiveHour)
+                DrawSeries(drawingContext, fiveHourReduced, width, plotHeight, WindowKind.FiveHour);
+            else if (kind == WindowKind.Weekly && hasWeekly)
+                DrawSeries(drawingContext, weeklyReduced, width, plotHeight, WindowKind.Weekly);
+        }
 
         // Drawn last, on top of both real series: a steady user's week-over-week figure often tracks
         // its own current one closely, and a comparison line drawn UNDER an opaque real series' own
@@ -621,18 +683,21 @@ public sealed class HistoryChart : FrameworkElement
         // the one case a comparison is most likely to actually apply to. On top, its own opacity keeps
         // it reading as background context without ever depending on how close the real line happens
         // to run.
-        DrawPreviousWeekLine(drawingContext, width, plotHeight);
+        DrawPreviousWeekLine(drawingContext, previousWeekReduced, width, plotHeight);
 
         DrawHover(drawingContext, width, plotHeight);
     }
 
     /// <summary>The legend entries with the pen each series is drawn in; the five-hour pattern shows
     /// the colour its line has now.</summary>
-    private (string Label, Pen Pen)[] SeriesLegend(double fiveHourLastPercent, bool hasFiveHour, bool hasWeekly) =>
-        LegendEntries(hasFiveHour, hasWeekly, FiveHourLabel, WeeklyLabel)
-            .Select(entry => (entry.Label, entry.Kind == WindowKind.FiveHour
-                ? GetSeriesColours(WindowKind.FiveHour, UsageRowViewModel.Classify(fiveHourLastPercent)).DashedPen
-                : GetSeriesColours(WindowKind.Weekly, UsageLevel.Ok).SolidPen))
+    private (string Label, Pen Pen)[] SeriesLegend(double fiveHourLastPercent, bool hasFiveHour, bool hasWeekly, bool hasPreviousWeek) =>
+        LegendEntries(hasFiveHour, hasWeekly, FiveHourLabel, WeeklyLabel, hasPreviousWeek, PreviousWeekLabel)
+            .Select(entry => (entry.Label, entry.Kind switch
+            {
+                WindowKind.FiveHour => GetSeriesColours(WindowKind.FiveHour, UsageRowViewModel.Classify(fiveHourLastPercent)).DashedPen,
+                PreviousWeekLegendKind => GetPreviousWeekPen(),
+                _ => GetSeriesColours(WindowKind.Weekly, UsageLevel.Ok).SolidPen,
+            }))
             .ToArray();
 
     /// <summary>Draws one series from points already reduced to one per pixel column.</summary>
@@ -648,7 +713,7 @@ public sealed class HistoryChart : FrameworkElement
         for (var i = 0; i < reduced.Count; i++)
         {
             var x = MapX(reduced[i].At, width);
-            var y = MapY(reduced[i].Percent, plotHeight);
+            var y = StrokeY(reduced[i].Percent, plotHeight, SeriesThickness);
             points[i] = new Point(x, y);
         }
 
@@ -675,20 +740,26 @@ public sealed class HistoryChart : FrameworkElement
         dc.DrawGeometry(null, style.IsDashed ? levelStyle.DashedPen : levelStyle.SolidPen, lineGeometry);
     }
 
-    /// <summary>The previous-week comparison line - Full density only (the same <see
-    /// cref="ShowAxes"/> flag the axis captions already use), a plain 1px muted line with no fill,
-    /// skipped below two points exactly like a real series would be.</summary>
-    private void DrawPreviousWeekLine(DrawingContext dc, double width, double plotHeight)
+    /// <summary>The previous-week points reduced to one per pixel column; empty when the line is not
+    /// drawn (no axes, so not Full density, or fewer than two points in the range).</summary>
+    private IReadOnlyList<ChartPoint> ReducedPreviousWeek(double width)
     {
         if (!ShowAxes)
-            return;
+            return [];
 
         var previousWeek = PreviousWeekValues ?? [];
         if (previousWeek.Count < 2)
-            return;
+            return [];
 
         var columns = Math.Max(1, (int)Math.Round(width));
-        var reduced = _previousWeekColumns.Get(previousWeek, columns, RangeStart, RangeEnd);
+        return _previousWeekColumns.Get(previousWeek, columns, RangeStart, RangeEnd);
+    }
+
+    /// <summary>The previous-week comparison line - Full density only (the same <see
+    /// cref="ShowAxes"/> flag the axis captions already use), a plain 1px muted line with no fill,
+    /// skipped below two points exactly like a real series would be.</summary>
+    private void DrawPreviousWeekLine(DrawingContext dc, IReadOnlyList<ChartPoint> reduced, double width, double plotHeight)
+    {
         if (reduced.Count < 2)
             return;
 
@@ -698,7 +769,7 @@ public sealed class HistoryChart : FrameworkElement
         for (var i = 0; i < reduced.Count; i++)
         {
             var x = MapX(reduced[i].At, width);
-            var y = MapY(reduced[i].Percent, plotHeight);
+            var y = StrokeY(reduced[i].Percent, plotHeight, PreviousWeekThickness);
             points[i] = new Point(x, y);
         }
 
@@ -775,11 +846,11 @@ public sealed class HistoryChart : FrameworkElement
         if (LevelStyleCache.TryGetValue(key, out var cached) && ReferenceEquals(cached.SourceBrush, resolved))
             return cached;
 
-        var solidPen = new Pen(resolved, 1.5);
+        var solidPen = new Pen(resolved, SeriesThickness);
         if (solidPen.CanFreeze)
             solidPen.Freeze();
 
-        var dashedPen = new Pen(resolved, 1.5) { DashStyle = new DashStyle([3, 2], 0) };
+        var dashedPen = new Pen(resolved, SeriesThickness) { DashStyle = new DashStyle(FiveHourDashes, 0) };
         if (dashedPen.CanFreeze)
             dashedPen.Freeze();
 
@@ -859,11 +930,9 @@ public sealed class HistoryChart : FrameworkElement
         if (lineBrush.CanFreeze)
             lineBrush.Freeze();
 
-        // Same thickness as a real series' own solid line (so it is never thinned out by
-        // anti-aliasing at the exact row a real series happens to occupy too) and its own dash
-        // pattern, distinct from the five-hour series' dashes - between the two, the line stays
+        // Thin and dotted, clearly unlike the longer dashes of the five-hour line, so it stays
         // identifiable even where its value tracks a real series almost exactly.
-        var pen = new Pen(lineBrush, 1.5) { DashStyle = new DashStyle([5, 3], 0) };
+        var pen = new Pen(lineBrush, PreviousWeekThickness) { DashStyle = new DashStyle(PreviousWeekDashes, 0) };
         if (pen.CanFreeze)
             pen.Freeze();
 

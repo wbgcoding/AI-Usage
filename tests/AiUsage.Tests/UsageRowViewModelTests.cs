@@ -71,17 +71,17 @@ public class UsageRowViewModelTests
         var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300);
 
         var row = new UsageRowViewModel(window, Now);
-        row.WeekTokens = 5_000_000;
 
         Assert.Equal("", row.InlineTokensToolTip);
         Assert.Equal("", row.InlineTokensText);
     }
 
     [Fact]
-    public void WeekTokens_feed_only_a_weekly_row_without_a_window_count()
+    public void WindowTokens_feed_any_row_and_win_over_the_provider_count()
     {
         var weekly = new UsageWindow("Window_Weekly", WindowKind.Weekly, 42.0, resetsAt: null, windowMinutes: 10080);
-        var other = new UsageWindow("Window_Weekly", WindowKind.Other, 42.0, resetsAt: null, windowMinutes: 10080);
+        var other = new UsageWindow("Fable", WindowKind.Other, 42.0, resetsAt: null, windowMinutes: null);
+        var counted = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300, tokens: new TokenUsage(100));
         var previousCulture = CultureInfo.CurrentCulture;
         try
         {
@@ -90,13 +90,20 @@ public class UsageRowViewModelTests
             var row = new UsageRowViewModel(weekly, Now);
             Assert.Equal("", row.InlineTokensText);
 
-            row.WeekTokens = 1_823_457;
+            row.WindowTokens = 1_823_457;
 
             Assert.Equal("1.82 M tokens", row.InlineTokensText);
-            Assert.Equal("1,823,457 tokens since the 7-day window reset", row.InlineTokensToolTip);
+            Assert.Equal("1,823,457 tokens since this window last reset", row.InlineTokensToolTip);
 
-            var notWeekly = new UsageRowViewModel(other, Now) { WeekTokens = 1_823_457 };
-            Assert.Equal("", notWeekly.InlineTokensText);
+            var model = new UsageRowViewModel(other, Now) { WindowTokens = 1_823_457 };
+            Assert.Equal("1.82 M tokens", model.InlineTokensText);
+
+            var withProviderCount = new UsageRowViewModel(counted, Now);
+            Assert.Equal("100 tokens in this window", withProviderCount.InlineTokensToolTip);
+            withProviderCount.WindowTokens = 5_000_000;
+            Assert.Equal("5,000,000 tokens since this window last reset", withProviderCount.InlineTokensToolTip);
+            withProviderCount.WindowTokens = null;
+            Assert.Equal("100 tokens in this window", withProviderCount.InlineTokensToolTip);
         }
         finally
         {
@@ -287,7 +294,6 @@ public class UsageRowViewModelTests
 
         Assert.True(row.ShowThresholdMarker);
         Assert.Contains(nameof(UsageRowViewModel.ShowThresholdMarker), raised);
-        Assert.Contains(nameof(UsageRowViewModel.ThresholdMarkerTooltip), raised);
     }
 
     [Fact]
@@ -302,7 +308,6 @@ public class UsageRowViewModelTests
 
         Assert.False(row.ShowThresholdMarker);
         Assert.Contains(nameof(UsageRowViewModel.ShowThresholdMarker), raised);
-        Assert.Contains(nameof(UsageRowViewModel.ThresholdMarkerTooltip), raised);
     }
 
     [Fact]
@@ -524,31 +529,64 @@ public class UsageRowViewModelTests
     }
 
     [Fact]
-    public void BarTooltipText_names_the_notification_threshold_only_while_its_marker_is_drawn()
+    public void BarTooltipText_never_names_the_notification_threshold()
     {
         var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300);
         var row = new UsageRowViewModel(window, Now, TileDensity.Full, thresholdPercent: 85);
-        var raised = new List<string?>();
-        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        var thresholdText = LocalizationService.Instance.Format("Tile.ThresholdMarker", StatusTextMap.UsagePercent(85));
 
-        Assert.Equal(row.ThresholdMarkerTooltip, row.BarTooltipText);
-
-        row.RefreshCountdown(Now, TileDensity.Mini);
-
+        Assert.True(row.ShowThresholdMarker);
+        Assert.DoesNotContain(thresholdText, row.BarTooltipText);
         Assert.Equal("", row.BarTooltipText);
-        Assert.Contains(nameof(UsageRowViewModel.BarTooltipText), raised);
     }
 
     [Fact]
-    public void The_thin_threshold_marker_carries_no_tooltip_and_an_empty_mini_countdown_shows_none()
+    public void MiniTooltipText_joins_the_countdown_and_the_forecast_and_drops_empty_lines()
     {
-        var controls = Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views", "Controls");
-        var bar = File.ReadAllText(Path.Combine(controls, "UsageBar.xaml"));
-        var tile = File.ReadAllText(Path.Combine(controls, "ProviderTile.xaml"));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, Now.AddHours(2), windowMinutes: 300);
+        var row = new UsageRowViewModel(window, Now, TileDensity.Mini);
+        var raised = new List<string?>();
+        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
-        Assert.DoesNotContain("ToolTip=\"{Binding ThresholdMarkerTooltip}\"", bar);
+        Assert.NotEqual("", row.CountdownText);
+        Assert.Equal(row.CountdownText, row.MiniTooltipText);
+
+        row.ForecastText = "full in about 2h 5m";
+
+        Assert.Equal(row.CountdownText + Environment.NewLine + "full in about 2h 5m", row.MiniTooltipText);
+        Assert.Contains(nameof(UsageRowViewModel.MiniTooltipText), raised);
+
+        var noReset = new UsageRowViewModel(
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300), Now, TileDensity.Mini);
+        Assert.Equal("", noReset.MiniTooltipText);
+        noReset.ForecastText = "full in about 2h 5m";
+        Assert.Equal("full in about 2h 5m", noReset.MiniTooltipText);
+    }
+
+    [Fact]
+    public void Tooltips_that_only_repeat_a_visible_name_are_gone_and_the_percent_carries_the_forecast()
+    {
+        var src = Path.Combine(RepoRoot.Find(), "src", "AiUsage", "Views");
+        var bar = File.ReadAllText(Path.Combine(src, "Controls", "UsageBar.xaml"));
+        var tile = File.ReadAllText(Path.Combine(src, "Controls", "ProviderTile.xaml"));
+        var stats = File.ReadAllText(Path.Combine(src, "StatsWindow.xaml"));
+
+        Assert.DoesNotContain("ToolTip=\"{Binding LabelText}\"", bar);
+        Assert.DoesNotContain("ToolTip=\"{Binding HeaderDisplayName}\"", tile);
+        Assert.DoesNotContain("Tip.Stats.Chart.ByProvider", stats);
+        Assert.DoesNotContain("Tip.Stats.Chart.ByEffort", stats);
+        Assert.DoesNotContain("Tip.Stats.BusiestDay", stats);
+
+        var percentStart = bar.IndexOf("<TextBlock Text=\"{Binding PercentText}\"", StringComparison.Ordinal);
+        var percentEnd = bar.IndexOf("<TextBlock Text=\"{Binding Tag", percentStart, StringComparison.Ordinal);
+        var percent = bar[percentStart..percentEnd];
+        Assert.Contains("ToolTip=\"{Binding ForecastText}\"", percent);
+        Assert.Contains("<DataTrigger Binding=\"{Binding ForecastText}\" Value=\"\">", percent);
+        Assert.Contains("ToolTipService.IsEnabled", percent);
+
         var mini = tile[tile.IndexOf("x:Key=\"MiniRowTemplate\"", StringComparison.Ordinal)..];
         mini = mini[..mini.IndexOf("</DataTemplate>", StringComparison.Ordinal)];
-        Assert.Contains("<DataTrigger Binding=\"{Binding CountdownText}\" Value=\"\">", mini);
+        Assert.Contains("ToolTip=\"{Binding MiniTooltipText}\"", mini);
+        Assert.Contains("<DataTrigger Binding=\"{Binding MiniTooltipText}\" Value=\"\">", mini);
     }
 }

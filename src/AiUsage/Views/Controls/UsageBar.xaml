@@ -35,10 +35,20 @@
                      the clock), and an ellipsis here hides exactly the part that matters at the limit.
                      The window label on the left gives way instead. The percentage leads; the
                      countdown and clock follow smaller and greyer. -->
-                <TextBlock Text="{Binding PercentText}"
+                <TextBlock Text="{Binding PercentText}" ToolTip="{Binding ForecastText}"
                            FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Strong}" FontWeight="SemiBold"
                            Typography.NumeralAlignment="Tabular"
-                           Foreground="{DynamicResource Text.Primary}"/>
+                           Foreground="{DynamicResource Text.Primary}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ForecastText}" Value="">
+                                    <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
                 <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=ContentControl}}" Margin="8,0,0,0" VerticalAlignment="Bottom"
                            FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Small}"
                            Typography.NumeralAlignment="Tabular"
@@ -159,7 +169,7 @@
                  sit beside it only when they fit entirely, so the percent and countdown on the right
                  never have to give way to them. The reset clock goes before the label is trimmed. -->
             <controls:FitOrHidePanel Margin="0,0,8,0">
-                <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding LabelText}"
+                <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"
                            Foreground="{DynamicResource Text.Primary}"/>
                 <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip}" VerticalAlignment="Bottom"

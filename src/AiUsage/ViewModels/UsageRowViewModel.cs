@@ -7,6 +7,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AiUsage.ViewModels;
 
+/// <summary>The slice of the local token index one window row shows: everything since <paramref
+/// name="Start"/>, narrowed to the models containing <paramref name="ModelContains"/> (lower case)
+/// when set. Rows with an equal key share one query and one answer.</summary>
+internal readonly record struct WindowTokenKey(DateTimeOffset Start, string? ModelContains);
+
 /// <summary>One percentage bar on a tile - the 5-hour window, the weekly
 /// window, or an "Other" one a provider adds beyond those two.</summary>
 public partial class UsageRowViewModel : ObservableObject
@@ -85,6 +90,7 @@ public partial class UsageRowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightLabelText))]
     [NotifyPropertyChangedFor(nameof(DetailText))]
+    [NotifyPropertyChangedFor(nameof(MiniTooltipText))]
     private string countdownText = "";
 
     /// <summary>The reset instant's local wall-clock time ("21:15"/"Mi 21:15"), on top of the bare
@@ -102,47 +108,76 @@ public partial class UsageRowViewModel : ObservableObject
     /// cref="UpdateForecast"/>/<see cref="ClearForecast"/>, never computed here directly - this row
     /// has no access to the chart history or the tile's own density/status.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MiniTooltipText))]
     private string forecastText = "";
 
     /// <summary>Real token count read alongside this window, or null when the
     /// provider has no local source for it - never a placeholder, the row simply omits the segment.</summary>
     public long? TokenCount { get; private set; }
 
-    /// <summary>This provider's token sum for the current week, handed in by the tile - shown on a
-    /// weekly row that has no token count of its own.</summary>
+    /// <summary>The tokens since this window's own last reset, read from the local index and handed
+    /// in by the tile; null until answered, and for a row with no <see cref="TokenKey"/>.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InlineTokensText))]
     [NotifyPropertyChangedFor(nameof(InlineTokensToolTip))]
-    private long? weekTokens;
+    private long? windowTokens;
+
+    /// <summary>Which slice of the index <see cref="WindowTokens"/> counts; set by the tile, null
+    /// when the provider has no local index or the window has no known reset.</summary>
+    internal WindowTokenKey? TokenKey { get; set; }
+
+    /// <summary>The index slice a window shows, or null: only providers with a local token index
+    /// (<see cref="ProviderCoverage.HasLocalTokenData"/>) and only windows with a known reset. The
+    /// start is the reset minus the window length (five hours, a week for the weekly window and a
+    /// Claude model window when the provider names none). A Claude model window counts only its own
+    /// model's tokens, matched by the window's name.</summary>
+    internal static WindowTokenKey? TokenKeyFor(UsageWindow window, string providerId)
+    {
+        if (!ProviderCoverage.HasLocalTokenData(providerId) || window.ResetsAt is not { } resetsAt)
+            return null;
+
+        string? model = null;
+        int? defaultMinutes;
+        switch (window.Kind)
+        {
+            case WindowKind.FiveHour:
+                defaultMinutes = 5 * 60;
+                break;
+            case WindowKind.Weekly:
+                defaultMinutes = 7 * 24 * 60;
+                break;
+            case WindowKind.Other when providerId == StatsIndexer.ClaudeProviderId && window.Label.Length > 0:
+                defaultMinutes = 7 * 24 * 60;
+                model = window.Label.ToLowerInvariant();
+                break;
+            default:
+                return null;
+        }
+
+        var minutes = window.WindowMinutes is > 0 ? window.WindowMinutes.Value : defaultMinutes.Value;
+        return new WindowTokenKey(resetsAt - TimeSpan.FromMinutes(minutes), model);
+    }
 
     /// <summary>This window's notification threshold, in percent - null when that window's
     /// notification is switched off in Settings, in which case the bar shows no marker at all.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowThresholdMarker))]
-    [NotifyPropertyChangedFor(nameof(ThresholdMarkerTooltip))]
-    [NotifyPropertyChangedFor(nameof(BarTooltipText))]
     private double? thresholdPercent;
 
     /// <summary>The marker only ever shows at Full density: Mini has no bar left to put a
     /// marker on.</summary>
     public bool ShowThresholdMarker => ThresholdPercent is not null && _density == TileDensity.Full;
 
-    public string ThresholdMarkerTooltip => ThresholdPercent is { } percent
-        ? Loc.Format("Tile.ThresholdMarker", StatusTextMap.UsagePercent(percent))
-        : "";
-
     /// <summary>Assigns <see cref="_density"/> and, only when it actually changes, raises the
-    /// notification for the two properties that depend on it (<see cref="ShowThresholdMarker"/>,
-    /// <see cref="ThresholdMarkerTooltip"/>) - a plain field write raises nothing on its own, which
-    /// left the marker stuck at its old visibility across a density switch until the row was rebuilt.</summary>
+    /// notification for the property that depends on it (<see cref="ShowThresholdMarker"/>) - a plain
+    /// field write raises nothing on its own, which left the marker stuck at its old visibility
+    /// across a density switch until the row was rebuilt.</summary>
     private void SetDensity(TileDensity density)
     {
         if (density == _density)
             return;
         _density = density;
         OnPropertyChanged(nameof(ShowThresholdMarker));
-        OnPropertyChanged(nameof(ThresholdMarkerTooltip));
-        OnPropertyChanged(nameof(BarTooltipText));
     }
 
     /// <summary>Mirrors <see cref="UsageWindow.Allowance"/> for <see cref="AllowanceText"/> - null
@@ -184,12 +219,17 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>Percentage points the usage may sit away from the pace before it counts as ahead or below.</summary>
     private const double PaceTolerance = 3;
 
-    /// <summary>The bar's tooltip: the allowance line, the pace line, then the notification threshold
-    /// while its marker is drawn (the 1 px marker itself is too thin to hover); empty (no tooltip)
-    /// only when all of them are.</summary>
+    /// <summary>The bar's tooltip: the allowance line, then the pace line; empty (no tooltip) when
+    /// both are.</summary>
     public string BarTooltipText => string.Join(
         Environment.NewLine,
-        new[] { AllowanceText, PaceText, ShowThresholdMarker ? ThresholdMarkerTooltip : "" }.Where(line => line.Length > 0));
+        new[] { AllowanceText, PaceText }.Where(line => line.Length > 0));
+
+    /// <summary>The Mini row's tooltip: the countdown, then the forecast; empty lines are dropped and
+    /// the tooltip stays off while both are empty.</summary>
+    public string MiniTooltipText => string.Join(
+        Environment.NewLine,
+        new[] { CountdownText, ForecastText }.Where(line => line.Length > 0));
 
     private double? ComputePacePercent(DateTimeOffset now)
     {
@@ -244,28 +284,29 @@ public partial class UsageRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>"1,8 Mio Token" - the window's own token count, or on a weekly row the tile's week
-    /// sum, shortened and in the OS regional number format. Empty when neither exists, which hides
-    /// the segment; the exact figure is <see cref="InlineTokensToolTip"/>.</summary>
+    /// <summary>"1,8 Mio Token" - the tokens since the window's last reset from the local index, else
+    /// the count the provider reported with the window, shortened and in the OS regional number
+    /// format. Empty when neither exists, which hides the segment; the exact figure is <see
+    /// cref="InlineTokensToolTip"/>.</summary>
     public string InlineTokensText => InlineTokens is { } tokens
         ? Loc.Format(
             "Window.TokensInline",
             StatsAggregator.ShortenTokenCount(tokens, Loc["Number.Thousand"], Loc["Number.Million"], Loc["Number.Billion"]))
         : "";
 
-    /// <summary>The exact count behind <see cref="InlineTokensText"/> with what it covers ("in this
-    /// window" or "this week"); empty when the text is.</summary>
+    /// <summary>The exact count behind <see cref="InlineTokensText"/> with what it covers ("since this
+    /// window last reset" or "in this window"); empty when the text is.</summary>
     public string InlineTokensToolTip
     {
         get
         {
             if (InlineTokens is not { } tokens)
                 return "";
-            return Loc.Format(TokenCount is null ? "Tile.TokensThisWeek" : "Window.TokensThisSession", tokens.ToString("N0", CultureInfo.CurrentCulture));
+            return Loc.Format(WindowTokens is null ? "Window.TokensThisSession" : "Window.TokensSinceReset", tokens.ToString("N0", CultureInfo.CurrentCulture));
         }
     }
 
-    private long? InlineTokens => TokenCount ?? (Kind == WindowKind.Weekly ? WeekTokens : null);
+    private long? InlineTokens => WindowTokens ?? TokenCount;
 
     private string RoundedPercentText() =>
         StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(UsedPercent).ToString(CultureInfo.CurrentCulture));
@@ -390,7 +431,6 @@ public partial class UsageRowViewModel : ObservableObject
         // raises nothing, yet the texts built around it follow the language.
         OnPropertyChanged(nameof(PercentText));
         OnPropertyChanged(nameof(MiniPercentText));
-        OnPropertyChanged(nameof(ThresholdMarkerTooltip));
         OnPropertyChanged(nameof(RightLabelText));
         OnPropertyChanged(nameof(InlineTokensText));
         OnPropertyChanged(nameof(InlineTokensToolTip));

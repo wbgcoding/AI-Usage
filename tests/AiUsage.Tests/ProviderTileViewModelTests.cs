@@ -4,6 +4,7 @@ using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.ViewModels;
 using Xunit;
+using ChartPoint = AiUsage.Views.Controls.HistoryChart.ChartPoint;
 
 namespace AiUsage.Tests;
 
@@ -582,6 +583,80 @@ public class ProviderTileViewModelTests
         Assert.Equal(expected, tile.HasChartData);
         Assert.Equal(expected, tile.ShowChartBox);
         Assert.Equal(!expected, tile.ShowChartHint);
+    }
+
+    private static ChartPoint[] Series(DateTimeOffset first, DateTimeOffset last, double firstPercent = 10, double lastPercent = 20) =>
+        [new ChartPoint(first, firstPercent), new ChartPoint(first.AddMinutes(1), 15), new ChartPoint(last, lastPercent)];
+
+    [Fact]
+    public void PaddingMakesTheEarlierEndingSeriesReachTheLaterOneWithinFifteenMinutes()
+    {
+        var weekly = Series(Now.AddHours(-3), Now, lastPercent: 5);
+        var fiveHour = Series(Now.AddHours(-3), Now.AddMinutes(-15), lastPercent: 7);
+
+        var (paddedFive, paddedWeekly) = ProviderTileViewModel.PadToCommonEnds(fiveHour, weekly);
+
+        Assert.Equal(new ChartPoint(Now, 7), paddedFive[^1]);
+        Assert.Equal(fiveHour.Length + 1, paddedFive.Count);
+        Assert.Same(weekly, paddedWeekly);
+    }
+
+    [Fact]
+    public void PaddingLeavesAGapOfMoreThanFifteenMinutesAlone()
+    {
+        var weekly = Series(Now.AddHours(-3), Now);
+        var fiveHour = Series(Now.AddHours(-3), Now.AddMinutes(-15).AddSeconds(-1));
+
+        var (paddedFive, paddedWeekly) = ProviderTileViewModel.PadToCommonEnds(fiveHour, weekly);
+
+        Assert.Same(fiveHour, paddedFive);
+        Assert.Same(weekly, paddedWeekly);
+    }
+
+    [Fact]
+    public void PaddingAlsoReachesBackToTheEarlierFirstPointWithinFifteenMinutes()
+    {
+        var fiveHour = Series(Now.AddHours(-3).AddMinutes(15), Now, firstPercent: 4);
+        var weekly = Series(Now.AddHours(-3), Now);
+
+        var (paddedFive, _) = ProviderTileViewModel.PadToCommonEnds(fiveHour, weekly);
+
+        Assert.Equal(new ChartPoint(Now.AddHours(-3), 4), paddedFive[0]);
+
+        var tooLate = Series(Now.AddHours(-3).AddMinutes(15).AddSeconds(1), Now);
+        var (unchanged, _) = ProviderTileViewModel.PadToCommonEnds(tooLate, weekly);
+        Assert.Same(tooLate, unchanged);
+    }
+
+    [Fact]
+    public void PaddingNeverInventsALineForASeriesWithASingleOrNoPoint()
+    {
+        var weekly = Series(Now.AddHours(-3), Now);
+        ChartPoint[] single = [new(Now.AddMinutes(-5), 10)];
+
+        var (paddedSingle, _) = ProviderTileViewModel.PadToCommonEnds(single, weekly);
+        Assert.Same(single, paddedSingle);
+
+        var (paddedEmpty, _) = ProviderTileViewModel.PadToCommonEnds([], weekly);
+        Assert.Empty(paddedEmpty);
+    }
+
+    [Fact]
+    public void UpdateHistoryHandsTheChartSeriesThatEndAtTheSameInstant()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        var points = new[]
+        {
+            new HistoryPoint(1, Now.AddHours(-2), WindowKind.FiveHour, 0, null),
+            new HistoryPoint(1, Now.AddSeconds(-61), WindowKind.FiveHour, 0, null),
+            new HistoryPoint(1, Now.AddHours(-2), WindowKind.Weekly, 0, null),
+            new HistoryPoint(1, Now, WindowKind.Weekly, 0, null),
+        };
+
+        tile.UpdateHistory(points, [], Now.AddDays(-1), Now);
+
+        Assert.Equal(tile.WeeklyValues[^1].At, tile.FiveHourValues[^1].At);
     }
 
     [Fact]
@@ -1961,50 +2036,122 @@ public class ProviderTileViewModelTests
             ],
         };
 
+    private static readonly DateTimeOffset KeyReset = new(2026, 10, 21, 14, 0, 0, TimeSpan.Zero);
+
+    private static ProviderSnapshot KeySnapshot(string providerId, params UsageWindow[] windows) =>
+        new(providerId, windows, "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null);
+
     [Fact]
-    public void WeekTokensReachOnlyTheWeeklyRowAndStayEmptyWithoutAValue()
+    public void EveryRowGetsItsOwnTokenWindowFromItsResetAndLength()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
+        tile.Apply(KeySnapshot("claude",
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, KeyReset, null),
+            new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, KeyReset.AddDays(1), null),
+            new UsageWindow("Fable", WindowKind.Other, 5, KeyReset.AddDays(2), null),
+            new UsageWindow("Other", WindowKind.Other, 5, null, null)), Now);
+
+        Assert.Equal(
+            [
+                new WindowTokenKey(KeyReset.AddMinutes(-300), null),
+                new WindowTokenKey(KeyReset.AddDays(1).AddDays(-7), null),
+                new WindowTokenKey(KeyReset.AddDays(2).AddDays(-7), "fable"),
+            ],
+            tile.WindowTokenKeys);
+        Assert.Null(tile.Rows[3].TokenKey);
+    }
+
+    [Fact]
+    public void AProvidersOwnWindowLengthWinsOverTheDefault()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
+        tile.Apply(KeySnapshot("claude", new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, KeyReset, 4320)), Now);
+
+        Assert.Equal([new WindowTokenKey(KeyReset.AddMinutes(-4320), null)], tile.WindowTokenKeys);
+    }
+
+    [Fact]
+    public void ModelRowsOfAProviderOtherThanClaudeAndProvidersWithoutAnIndexGetNoTokenWindow()
+    {
+        var gemini = new ProviderTileViewModel("gemini", "Gemini") { Density = TileDensity.Full };
+        gemini.Apply(KeySnapshot("gemini", new UsageWindow("Gemini Pro", WindowKind.Other, 27, KeyReset, null)), Now);
+        Assert.Empty(gemini.WindowTokenKeys);
+
+        var cursor = new ProviderTileViewModel("cursor", "Cursor") { Density = TileDensity.Full };
+        cursor.Apply(KeySnapshot("cursor", new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, KeyReset, 300)), Now);
+        Assert.Empty(cursor.WindowTokenKeys);
+    }
+
+    [Fact]
+    public void ProviderReportedTokensStayForAProviderWithoutAnIndex()
+    {
+        var cursor = new ProviderTileViewModel("cursor", "Cursor") { Density = TileDensity.Full };
+        cursor.Apply(KeySnapshot("cursor",
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, KeyReset, 300, new TokenUsage(2_500_000))), Now);
+
+        var row = cursor.Rows.Single();
+
+        Assert.NotEqual("", row.InlineTokensText);
+        Assert.Equal(LocalizationService.Instance.Format("Window.TokensThisSession", 2_500_000L.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)), row.InlineTokensToolTip);
+    }
+
+    [Fact]
+    public void WindowTokensReachOnlyTheRowWithTheMatchingKeyAndStayEmptyWithoutAValue()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
         tile.Apply(WeeklySnapshot(), Now);
         var weekly = tile.Rows.Single(r => r.Kind == WindowKind.Weekly);
         var fiveHour = tile.Rows.Single(r => r.Kind == WindowKind.FiveHour);
 
-        Assert.Null(tile.WeekTokens);
+        Assert.Null(weekly.WindowTokens);
         Assert.Equal("", weekly.InlineTokensText);
 
-        tile.WeekTokens = 12345;
+        tile.SetWindowTokens(weekly.TokenKey!.Value, 12345);
 
         Assert.NotEqual("", weekly.InlineTokensText);
         Assert.Equal("", fiveHour.InlineTokensText);
     }
 
     [Fact]
-    public void WeekTokensSurviveRebuiltAndUpdatedRows()
+    public void WindowTokensSurviveRebuiltAndUpdatedRows()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
-        tile.WeekTokens = 12345;
+        tile.Apply(WeeklySnapshot(), Now);
+        tile.SetWindowTokens(tile.WindowTokenKeys[1], 12345);
+        Assert.NotEqual("", tile.Rows.Single(r => r.Kind == WindowKind.Weekly).InlineTokensText);
 
-        tile.Apply(WeeklySnapshot(), Now); // rows built after the value landed
         var weekly = tile.Rows.Single(r => r.Kind == WindowKind.Weekly);
-        Assert.NotEqual("", weekly.InlineTokensText);
-
-        tile.Apply(WeeklySnapshot(), Now.AddMinutes(1)); // rows updated in place
+        tile.Apply(WeeklySnapshot(), Now); // rows updated in place, same windows
         Assert.Same(weekly, tile.Rows.Single(r => r.Kind == WindowKind.Weekly));
         Assert.NotEqual("", weekly.InlineTokensText);
 
-        tile.Apply(Snapshot(ProviderStatus.Ok), Now.AddMinutes(2)); // weekly row gone, then back
-        tile.Apply(WeeklySnapshot(), Now.AddMinutes(3));
+        tile.Density = TileDensity.Mini; // rows rebuilt for another density
+        tile.Density = TileDensity.Full;
         Assert.NotEqual("", tile.Rows.Single(r => r.Kind == WindowKind.Weekly).InlineTokensText);
     }
 
     [Fact]
-    public void WeekTokensShortenLikeTheStatsFigures()
+    public void AChangedResetDropsTheOldFigureUntilTheNewWindowIsAnswered()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
+        tile.Apply(WeeklySnapshot(), Now);
+        tile.SetWindowTokens(tile.WindowTokenKeys[1], 12345);
+
+        tile.Apply(KeySnapshot("claude",
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, Now.AddHours(2), 300),
+            new UsageWindow("Window_Weekly", WindowKind.Weekly, 1, Now.AddDays(10), 10080)), Now);
+
+        Assert.Null(tile.Rows.Single(r => r.Kind == WindowKind.Weekly).WindowTokens);
+    }
+
+    [Fact]
+    public void WindowTokensShortenLikeTheStatsFigures()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
         var loc = LocalizationService.Instance;
         tile.Apply(WeeklySnapshot(), Now);
 
-        tile.WeekTokens = 123_123_123_123;
+        tile.SetWindowTokens(tile.WindowTokenKeys[1], 123_123_123_123);
 
         var weekly = tile.Rows.Single(r => r.Kind == WindowKind.Weekly);
         var expected = AiUsage.Stats.StatsAggregator.ShortenTokenCount(123_123_123_123, loc["Number.Thousand"], loc["Number.Million"], loc["Number.Billion"]);

@@ -408,8 +408,7 @@
                                         <Border Height="28" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
-                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.BusiestDay]}">
+                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8">
                                     <StackPanel>
                                         <TextBlock Text="{Binding BusiestDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
@@ -726,8 +725,7 @@
                             </controls:CollapsibleSection>
 
                             <controls:CollapsibleSection x:Name="ProviderSection" SectionKey="provider"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByProvider]}"
-                                    HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByProvider]}">
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByProvider]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsRingChart x:Name="ProviderRing" Margin="8" Height="132" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ProviderShareSlices}"
@@ -757,8 +755,7 @@
                                 </Border>
                             </controls:CollapsibleSection>
                             <controls:CollapsibleSection x:Name="EffortSection" SectionKey="effort"
-                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByEffort]}"
-                                    HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByEffort]}">
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByEffort]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsRingChart x:Name="EffortRing" Margin="8" Height="132" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding EffortShareSlices}"
