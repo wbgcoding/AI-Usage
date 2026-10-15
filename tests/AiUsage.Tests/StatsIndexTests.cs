@@ -925,6 +925,27 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void SumTokensSince_with_a_model_filter_counts_only_matching_models_case_insensitively()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-sum-since-model");
+        var store = new StatsStore(dataDir);
+        var day = new DateOnly(2026, 10, 15);
+        store.AddDelta([
+            new StatsRecord("claude", day, "claude-Fable-4", "proj", 10, 0, 0, 0),
+            new StatsRecord("claude", day, "claude-opus-4", "proj", 100, 0, 0, 0),
+            new StatsRecord("claude", day, "fable_x", "proj", 1000, 0, 0, 0),
+        ]);
+        var start = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Local);
+
+        Assert.Equal(10 + 100 + 1000, store.SumTokensSince("claude", start));
+        Assert.Equal(10 + 1000, store.SumTokensSince("claude", start, "fable"));
+        Assert.Equal(0, store.SumTokensSince("claude", start, "sonnet"));
+        // LIKE wildcards in a label are literal text, not patterns.
+        Assert.Equal(0, store.SumTokensSince("claude", start, "%"));
+        Assert.Equal(1000, store.SumTokensSince("claude", start, "fable_"));
+    }
+
+    [Fact]
     public void SumTokensSince_is_zero_for_a_provider_with_no_rows_at_all()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-sum-since-empty");

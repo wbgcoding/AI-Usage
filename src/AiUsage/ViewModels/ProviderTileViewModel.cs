@@ -574,41 +574,31 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [ObservableProperty]
     private bool showWeekly = true;
 
-    /// <summary>This provider's own token sum since the start of its current 7-day window - set from
-    /// outside (see <see cref="ViewModels.MainViewModel"/>'s own periodic query against <see
-    /// cref="Stats.StatsStore.SumTokensSince"/>), never computed here, same split as <see
-    /// cref="IsFetching"/>. Null until that query has landed at least once, while the window's start
-    /// is unknown (see <see cref="WeeklyWindowStart"/>), and always null for a provider <see
-    /// cref="Stats.ProviderCoverage.HasLocalTokenData"/> says has no local token index at all - <see
-    /// cref="WeekTokensText"/> stays empty either way.</summary>
-    [ObservableProperty]
-    private long? weekTokens;
+    /// <summary>The index slices the visible rows show (see <see cref="UsageRowViewModel.TokenKeyFor"/>),
+    /// each once, in row order - what <see cref="ViewModels.MainViewModel"/> asks <see
+    /// cref="Stats.StatsStore.SumTokensSince"/> for.</summary>
+    internal IReadOnlyList<WindowTokenKey> WindowTokenKeys =>
+        Rows.Select(row => row.TokenKey).OfType<WindowTokenKey>().Distinct().ToList();
 
-    /// <summary>When the provider's current 7-day window began: its reset time minus the window
-    /// length (a full week when the provider names none). Prefers the window labelled as the weekly
-    /// one, else any weekly window; null while no weekly window carries a reset time.</summary>
-    internal DateTimeOffset? WeeklyWindowStart
+    // The answers to those queries, per slice: set from outside, never computed here (same split as
+    // IsFetching). Kept for every window of the last snapshot, so a window hidden and shown again
+    // brings its figure back at once.
+    private readonly Dictionary<WindowTokenKey, long> _windowTokens = new();
+
+    /// <summary>Hands a row slice's answer to every row showing that slice.</summary>
+    internal void SetWindowTokens(WindowTokenKey key, long? tokens)
     {
-        get
-        {
-            if (_lastSnapshot is not { } snapshot)
-                return null;
-
-            var window = snapshot.Windows.FirstOrDefault(w => w.Kind == WindowKind.Weekly && w.Label == "Window_Weekly" && w.ResetsAt is not null)
-                ?? snapshot.Windows.FirstOrDefault(w => w.Kind == WindowKind.Weekly && w.ResetsAt is not null);
-            return window is { ResetsAt: { } resetsAt }
-                ? resetsAt - TimeSpan.FromMinutes(window.WindowMinutes ?? 7 * 24 * 60)
-                : null;
-        }
+        if (tokens is { } value)
+            _windowTokens[key] = value;
+        else
+            _windowTokens.Remove(key);
+        PushWindowTokensToRows();
     }
 
-    partial void OnWeekTokensChanged(long? value) => PushWeekTokensToRows();
-
-    /// <summary>Hands the week sum to every weekly row (each row decides whether it shows it).</summary>
-    private void PushWeekTokensToRows()
+    private void PushWindowTokensToRows()
     {
         foreach (var row in Rows)
-            row.WeekTokens = WeekTokens;
+            row.WindowTokens = row.TokenKey is { } key && _windowTokens.TryGetValue(key, out var tokens) ? tokens : null;
     }
 
     /// <summary>True once the newest record in this tile's own session file reads as "waiting for
@@ -1270,7 +1260,14 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
                 Rows.Add(new UsageRowViewModel(window, now, Density, ThresholdPercentFor(window.Kind, thresholds)));
         }
 
-        PushWeekTokensToRows();
+        for (var i = 0; i < Rows.Count; i++)
+            Rows[i].TokenKey = UsageRowViewModel.TokenKeyFor(visibleWindows[i], RealProviderId);
+
+        // A window that is gone from the snapshot (its reset moved on) takes its old answer along.
+        var current = windows.Select(window => UsageRowViewModel.TokenKeyFor(window, RealProviderId)).OfType<WindowTokenKey>().ToHashSet();
+        foreach (var stale in _windowTokens.Keys.Where(key => !current.Contains(key)).ToList())
+            _windowTokens.Remove(stale);
+        PushWindowTokensToRows();
         OnPropertyChanged(nameof(IsLimitReached));
         // Rebuilt rows start without a forecast: hand them the series the last history read produced.
         RefreshForecastsFromLastSeries();

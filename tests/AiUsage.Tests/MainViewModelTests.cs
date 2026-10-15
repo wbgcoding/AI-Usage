@@ -176,138 +176,188 @@ public class MainViewModelTests : IDisposable
     }
 
     private static readonly DateTimeOffset WeeklyReset = new(2026, 1, 8, 14, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FiveHourReset = Now.AddHours(2);
 
-    private static ProviderSnapshot WeeklySnapshot(string providerId, DateTimeOffset? weeklyReset, int? windowMinutes = 10080) =>
-        new(providerId,
-            [
-                new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, Now.AddHours(2), 300),
-                new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, weeklyReset, windowMinutes),
-            ],
-            "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null);
+    private static ProviderSnapshot WindowsSnapshot(string providerId, DateTimeOffset? weeklyReset, int? windowMinutes = 10080, bool withModelRow = false)
+    {
+        var windows = new List<UsageWindow>
+        {
+            new("Window_FiveHour", WindowKind.FiveHour, 10, FiveHourReset, 300),
+            new("Window_Weekly", WindowKind.Weekly, 20, weeklyReset, windowMinutes),
+        };
+        if (withModelRow)
+            windows.Add(new UsageWindow("Fable", WindowKind.Other, 5, WeeklyReset, null));
+        return new ProviderSnapshot(providerId, windows, "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null);
+    }
 
-    private static void ApplyWeekly(IEnumerable<ProviderTileViewModel> tiles, DateTimeOffset? weeklyReset)
+    private static void ApplyWindows(IEnumerable<ProviderTileViewModel> tiles, DateTimeOffset? weeklyReset, bool withModelRow = false)
     {
         foreach (var tile in tiles)
-            tile.Apply(WeeklySnapshot(tile.RealProviderId, weeklyReset), Now);
+            tile.Apply(WindowsSnapshot(tile.RealProviderId, weeklyReset, withModelRow: withModelRow), Now);
+    }
+
+    private sealed class QueryLog
+    {
+        public System.Collections.Concurrent.ConcurrentBag<(string Provider, DateTime Start, string? Model)> Calls { get; } = [];
+
+        public int Count => Calls.Count;
+
+        public long? Run(string provider, DateTime start, string? model)
+        {
+            Calls.Add((provider, start, model));
+            return 1;
+        }
     }
 
     [Fact]
-    public async Task A_finished_index_run_makes_the_next_tick_ask_for_the_week_tokens_again()
+    public async Task A_finished_index_run_makes_the_next_tick_ask_for_the_window_tokens_again()
     {
         var vm = BuildWithStats(out var tiles);
-        ApplyWeekly(tiles, WeeklyReset);
-        var calls = 0;
-        vm.WeekTokensQuery = (_, _) => Interlocked.Increment(ref calls);
+        ApplyWindows(tiles, WeeklyReset);
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
+        var perRound = tiles.Count * 2;
 
-        vm.RefreshWeekTokens(Now);
-        await TestWait.UntilAsync(() => Volatile.Read(ref calls) == tiles.Count);
-        vm.RefreshWeekTokens(Now.AddSeconds(1));
+        vm.RefreshWindowTokens(Now);
+        await TestWait.UntilAsync(() => log.Count == perRound);
+        vm.RefreshWindowTokens(Now.AddSeconds(1));
         await Task.Delay(100);
-        Assert.Equal(tiles.Count, Volatile.Read(ref calls));
+        Assert.Equal(perRound, log.Count);
 
         vm.OnStatsIndexCompleted();
-        vm.RefreshWeekTokens(Now.AddSeconds(2));
+        vm.RefreshWindowTokens(Now.AddSeconds(2));
 
-        await TestWait.UntilAsync(() => Volatile.Read(ref calls) == tiles.Count * 2);
+        await TestWait.UntilAsync(() => log.Count == perRound * 2);
     }
 
     [Fact]
-    public async Task A_week_token_query_that_fails_keeps_the_figure_shown()
+    public async Task A_window_token_query_that_fails_keeps_the_figure_shown()
     {
         var vm = BuildWithStats(out var tiles);
-        ApplyWeekly(tiles, WeeklyReset);
+        ApplyWindows(tiles, WeeklyReset);
         long? answer = 500;
-        vm.WeekTokensQuery = (_, _) => answer;
-        vm.RefreshWeekTokens(Now);
-        await TestWait.UntilAsync(() => tiles.All(tile => tile.WeekTokens == 500));
+        vm.WindowTokensQuery = (_, _, _) => answer;
+        vm.RefreshWindowTokens(Now);
+        await TestWait.UntilAsync(() => tiles.All(tile => tile.Rows.All(row => row.WindowTokens == 500)));
 
         answer = null;
         vm.OnStatsIndexCompleted();
-        vm.RefreshWeekTokens(Now.AddSeconds(1));
+        vm.RefreshWindowTokens(Now.AddSeconds(1));
         await Task.Delay(150);
 
-        Assert.All(tiles, tile => Assert.Equal(500, tile.WeekTokens));
+        Assert.All(tiles, tile => Assert.All(tile.Rows, row => Assert.Equal(500, row.WindowTokens)));
 
         answer = 700;
         vm.OnStatsIndexCompleted();
-        vm.RefreshWeekTokens(Now.AddSeconds(2));
-        await TestWait.UntilAsync(() => tiles.All(tile => tile.WeekTokens == 700));
+        vm.RefreshWindowTokens(Now.AddSeconds(2));
+        await TestWait.UntilAsync(() => tiles.All(tile => tile.Rows.All(row => row.WindowTokens == 700)));
     }
 
     [Fact]
-    public async Task The_week_token_query_starts_at_the_providers_weekly_window_start()
+    public async Task Every_window_row_is_asked_from_its_own_reset_minus_its_window_length()
     {
         var vm = BuildWithStats(out var tiles);
         var reset = new DateTimeOffset(2026, 10, 21, 14, 0, 0, TimeSpan.Zero);
-        ApplyWeekly(tiles, reset);
-        var starts = new System.Collections.Concurrent.ConcurrentBag<DateTime>();
-        vm.WeekTokensQuery = (_, start) =>
-        {
-            starts.Add(start);
-            return 1;
-        };
+        foreach (var tile in tiles)
+            tile.Apply(WindowsSnapshot(tile.RealProviderId, reset), Now);
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
 
-        vm.RefreshWeekTokens(Now);
+        vm.RefreshWindowTokens(Now);
 
-        await TestWait.UntilAsync(() => starts.Count == tiles.Count);
-        Assert.All(starts, start => Assert.Equal(reset.AddDays(-7).LocalDateTime, start));
+        await TestWait.UntilAsync(() => log.Count == tiles.Count * 2);
+        Assert.Equal(tiles.Count, log.Calls.Count(call => call.Start == reset.AddDays(-7).LocalDateTime));
+        Assert.Equal(tiles.Count, log.Calls.Count(call => call.Start == FiveHourReset.AddMinutes(-300).LocalDateTime));
+        Assert.All(log.Calls, call => Assert.Null(call.Model));
     }
 
     [Fact]
-    public async Task A_window_length_from_the_provider_moves_the_week_token_start()
+    public async Task A_model_row_asks_for_its_own_models_tokens_only()
     {
         var vm = BuildWithStats(out var tiles);
-        foreach (var tile in tiles)
-            tile.Apply(WeeklySnapshot(tile.RealProviderId, WeeklyReset, windowMinutes: null), Now);
-        var starts = new System.Collections.Concurrent.ConcurrentBag<DateTime>();
-        vm.WeekTokensQuery = (_, start) =>
-        {
-            starts.Add(start);
-            return 1;
-        };
+        var claude = tiles.Single(tile => tile.RealProviderId == "claude");
+        claude.Apply(WindowsSnapshot("claude", WeeklyReset, withModelRow: true), Now);
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
 
-        vm.RefreshWeekTokens(Now);
+        vm.RefreshWindowTokens(Now);
 
-        await TestWait.UntilAsync(() => starts.Count == tiles.Count);
-        Assert.All(starts, start => Assert.Equal(WeeklyReset.AddDays(-7).LocalDateTime, start));
+        await TestWait.UntilAsync(() => log.Calls.Any(call => call.Model == "fable"));
+        var fable = log.Calls.Single(call => call.Model == "fable");
+        Assert.Equal("claude", fable.Provider);
+        Assert.Equal(WeeklyReset.AddDays(-7).LocalDateTime, fable.Start);
     }
 
     [Fact]
-    public async Task Without_a_known_weekly_reset_there_is_no_week_token_figure_and_no_query()
+    public async Task Without_a_known_reset_a_window_has_no_figure_and_no_query()
     {
         var vm = BuildWithStats(out var tiles);
-        ApplyWeekly(tiles, null);
         foreach (var tile in tiles)
-            tile.WeekTokens = 123;
-        var calls = 0;
-        vm.WeekTokensQuery = (_, _) => Interlocked.Increment(ref calls);
+            tile.Apply(new ProviderSnapshot(tile.RealProviderId,
+                [new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, null, 10080)],
+                "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null), Now);
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
 
-        vm.RefreshWeekTokens(Now);
+        vm.RefreshWindowTokens(Now);
         await Task.Delay(150);
 
-        Assert.Equal(0, Volatile.Read(ref calls));
-        Assert.All(tiles, tile => Assert.Null(tile.WeekTokens));
+        Assert.Equal(0, log.Count);
+        Assert.All(tiles, tile => Assert.All(tile.Rows, row => Assert.Null(row.WindowTokens)));
     }
 
     [Fact]
-    public async Task A_weekly_reset_that_moves_forward_asks_for_the_week_tokens_at_once()
+    public async Task A_reset_that_moves_a_window_forward_asks_for_its_tokens_at_once()
     {
         var vm = BuildWithStats(out var tiles);
-        ApplyWeekly(tiles, WeeklyReset);
-        var starts = new System.Collections.Concurrent.ConcurrentBag<DateTime>();
-        vm.WeekTokensQuery = (_, start) =>
-        {
-            starts.Add(start);
-            return 1;
-        };
-        vm.RefreshWeekTokens(Now);
-        await TestWait.UntilAsync(() => starts.Count == tiles.Count);
+        ApplyWindows(tiles, WeeklyReset);
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
+        vm.RefreshWindowTokens(Now);
+        await TestWait.UntilAsync(() => log.Count == tiles.Count * 2);
 
-        ApplyWeekly(tiles, WeeklyReset.AddDays(7));
-        vm.RefreshWeekTokens(Now.AddSeconds(1));
+        ApplyWindows(tiles, WeeklyReset.AddDays(7));
+        vm.RefreshWindowTokens(Now.AddSeconds(1));
 
-        await TestWait.UntilAsync(() => starts.Count == tiles.Count * 2);
-        Assert.Contains(WeeklyReset.LocalDateTime, starts);
+        await TestWait.UntilAsync(() => log.Count == tiles.Count * 3);
+        Assert.Contains(log.Calls, call => call.Start == WeeklyReset.LocalDateTime);
+    }
+
+    [Fact]
+    public async Task The_same_window_is_asked_again_only_after_a_minute()
+    {
+        var vm = BuildWithStats(out var tiles);
+        ApplyWindows(tiles, WeeklyReset);
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
+        var perRound = tiles.Count * 2;
+        vm.RefreshWindowTokens(Now);
+        await TestWait.UntilAsync(() => log.Count == perRound);
+
+        vm.RefreshWindowTokens(Now.AddSeconds(59));
+        await Task.Delay(100);
+        Assert.Equal(perRound, log.Count);
+
+        vm.RefreshWindowTokens(Now.AddSeconds(61));
+        await TestWait.UntilAsync(() => log.Count == perRound * 2);
+    }
+
+    [Fact]
+    public async Task A_hidden_tile_is_not_asked_for_window_tokens()
+    {
+        var vm = BuildWithStats(out var tiles);
+        ApplyWindows(tiles, WeeklyReset);
+        var hidden = tiles[0];
+        hidden.IsHidden = true;
+        var log = new QueryLog();
+        vm.WindowTokensQuery = log.Run;
+
+        vm.RefreshWindowTokens(Now);
+
+        await TestWait.UntilAsync(() => log.Count == (tiles.Count - 1) * 2);
+        await Task.Delay(100);
+        Assert.Equal((tiles.Count - 1) * 2, log.Count);
+        Assert.DoesNotContain(log.Calls, call => call.Provider == hidden.RealProviderId);
     }
 
     // A provider that is signed out or unreachable after a restart still shows the numbers it last had.

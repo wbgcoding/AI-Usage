@@ -71,6 +71,13 @@ internal static class SampleProviders
             new(id, windows, plan, source, now - age, now - age, ProviderStatus.Ok, null);
 
         var claude = Build(now).Single(sample => sample.Id == "claude");
+        claude = claude with
+        {
+            Snapshot = claude.Snapshot with
+            {
+                Windows = [.. claude.Snapshot.Windows, new UsageWindow("Fable", WindowKind.Other, 21, In(TimeSpan.FromDays(3)), null)],
+            },
+        };
         return
         [
             claude,

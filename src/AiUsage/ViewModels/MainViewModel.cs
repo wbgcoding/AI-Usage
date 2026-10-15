@@ -44,28 +44,28 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Writes <c>status.json</c> after snapshots; null (no file) in every test and design-time path.</summary>
     internal StatusFileWriter? StatusFile { get; set; }
 
-    /// <summary>The token usage index, read only for the weekly line each tile's <see
-    /// cref="ProviderTileViewModel.WeekTokens"/> shows - null in every test that never passes one
-    /// (see the test-seam constructor), which simply turns <see cref="RefreshWeekTokens"/> into a
-    /// no-op rather than touching a real database no test asked for.</summary>
+    /// <summary>The token usage index, read only for the figure beside each window (see <see
+    /// cref="UsageRowViewModel.WindowTokens"/>) - null in every test that never passes one (see the
+    /// test-seam constructor), which simply turns <see cref="RefreshWindowTokens"/> into a no-op
+    /// rather than touching a real database no test asked for.</summary>
     private readonly StatsStore? _statsStore;
 
-    /// <summary>Same cadence as a web provider's own <see cref="Services.IUsageProvider.MinRefreshInterval"/>
-    /// floor - a weekly total does not need to be any fresher than that, and querying it on every
-    /// one-second <see cref="Tick"/> would just be wasted SQLite work.</summary>
-    private static readonly TimeSpan WeekTokensQueryInterval = TimeSpan.FromMinutes(5);
+    /// <summary>How often one window's figure is asked for again - a figure that moves with every
+    /// session message needs to be fresh, but querying on every one-second <see cref="Tick"/> would
+    /// just be wasted SQLite work.</summary>
+    private static readonly TimeSpan WindowTokensQueryInterval = TimeSpan.FromMinutes(1);
 
-    /// <summary>Test seam for the weekly token query (provider id, local window start); null uses the
-    /// store's own.</summary>
-    internal Func<string, DateTime, long?>? WeekTokensQuery { get; set; }
+    /// <summary>Test seam for the window token query (provider id, local window start, model filter);
+    /// null uses the store's own.</summary>
+    internal Func<string, DateTime, string?, long?>? WindowTokensQuery { get; set; }
 
     /// <summary>Per real provider id (not per account - two Claude accounts would otherwise double
     /// the query for numbers <see cref="Stats.StatsStore"/> cannot even tell apart by account) and
-    /// weekly window start, the last time <see cref="RefreshWeekTokens"/> actually queried. Empty at
-    /// construction, so the very first <see cref="Tick"/> queries every eligible provider right away
+    /// index slice, the last time <see cref="RefreshWindowTokens"/> actually queried. Empty at
+    /// construction, so the very first <see cref="Tick"/> queries every eligible window right away
     /// instead of waiting out the first interval; a new window start is a new key and so asks at
     /// once.</summary>
-    private readonly Dictionary<(string ProviderId, DateTimeOffset Start), DateTimeOffset> _lastWeekTokensQueryAt = new();
+    private readonly Dictionary<(string ProviderId, WindowTokenKey Slice), DateTimeOffset> _lastWindowTokensQueryAt = new();
 
     // A fetch completing in a handful of milliseconds must still show its "working" indicator long
     // enough to be seen rather than flicker - each started fetch is timestamped here,
@@ -483,8 +483,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <paramref name="logService"/> null keeps every test silent. <paramref name="timeProvider"/>
     /// null uses the real clock - a test injects a fake one to make the IsFetching minimum-visible-
     /// duration (see <see cref="MinFetchingDuration"/>) deterministic. <paramref name="statsStore"/>
-    /// null leaves the weekly token line permanently off (no real store, so <see
-    /// cref="RefreshWeekTokens"/> never runs) - the shape every existing test keeps compiling with;
+    /// null leaves the window token figures permanently off (no real store, so <see
+    /// cref="RefreshWindowTokens"/> never runs) - the shape every existing test keeps compiling with;
     /// production wires up a real one (see the two constructors above).</summary>
     internal MainViewModel(
         SettingsStore settingsStore, AppSettings settings, IReadOnlyList<IUsageProvider> providers,
@@ -779,11 +779,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         indexer.StartInBackground();
     }
 
-    /// <summary>New index data (a walk, an import, a removed PC): the weekly token figures are asked
+    /// <summary>New index data (a walk, an import, a removed PC): the window token figures are asked
     /// for again on the next tick instead of after the usual wait, and the day grid reloads.</summary>
     internal void OnStatsIndexCompleted()
     {
-        _lastWeekTokensQueryAt.Clear();
+        _lastWindowTokensQueryAt.Clear();
         RefreshDayGridIfShown();
     }
 
@@ -842,7 +842,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             TryClearFetching(providerId);
         PausedUntil = _scheduler.PausedUntil;
         _scheduler.Tick(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
-        RefreshWeekTokens(now);
+        RefreshWindowTokens(now);
         if (OrderedByUsage)
             ApplyTileOrder();
     }
@@ -870,60 +870,53 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public void RefreshNetworkFailed() =>
         _scheduler.RefreshNetworkFailed(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
 
-    /// <summary>Queries <see cref="_statsStore"/> for every tile whose real provider <see
-    /// cref="ProviderCoverage.HasLocalTokenData"/> says has a local token index: the tokens since the
-    /// start of that tile's own 7-day window (<see cref="ProviderTileViewModel.WeeklyWindowStart"/>).
-    /// A tile without a known window start shows no figure. A query repeats at most once per <see
-    /// cref="WeekTokensQueryInterval"/> per real provider and window start, but a changed start (the
-    /// window reset) asks at once. A no-op entirely when no store was wired up (see the test-seam
-    /// constructor). The query itself runs on the thread pool, same "read off the UI thread, only
-    /// the landed result comes back to it" split as <see cref="RefreshTileHistory"/>; accounts of
-    /// the same provider with the same start share one query and one answer, since <see
-    /// cref="Stats.StatsStore"/> indexes by provider id, not by account.</summary>
-    internal void RefreshWeekTokens(DateTimeOffset now)
+    /// <summary>Queries <see cref="_statsStore"/> for the index slice of every window row of every
+    /// shown tile whose real provider has a local token index (see <see
+    /// cref="UsageRowViewModel.TokenKeyFor"/>): the tokens since that window's own last reset. A
+    /// query repeats at most once per <see cref="WindowTokensQueryInterval"/> per real provider and
+    /// slice, but a changed slice (the window reset) asks at once, and a hidden tile asks for
+    /// nothing. A no-op entirely when no store was wired up (see the test-seam constructor). The
+    /// query itself runs on the thread pool, same "read off the UI thread, only the landed result
+    /// comes back to it" split as <see cref="RefreshTileHistory"/>; accounts of the same provider
+    /// with the same slice share one query and one answer, since <see cref="Stats.StatsStore"/>
+    /// indexes by provider id, not by account.</summary>
+    internal void RefreshWindowTokens(DateTimeOffset now)
     {
         if (_statsStore is not { } store)
             return;
 
-        var query = WeekTokensQuery ?? store.SumTokensSince;
+        var query = WindowTokensQuery ?? store.SumTokensSince;
 
-        var wanted = new HashSet<(string ProviderId, DateTimeOffset Start)>();
-        foreach (var tile in Tiles)
+        var wanted = new HashSet<(string ProviderId, WindowTokenKey Slice)>();
+        foreach (var tile in Tiles.Where(tile => !tile.IsHidden))
         {
-            if (!ProviderCoverage.HasLocalTokenData(tile.RealProviderId))
-                continue;
-            if (tile.WeeklyWindowStart is not { } start)
-            {
-                tile.WeekTokens = null;
-                continue;
-            }
-
-            wanted.Add((tile.RealProviderId, start));
+            foreach (var key in tile.WindowTokenKeys)
+                wanted.Add((tile.RealProviderId, key));
         }
 
         // Windows that are gone (a reset passed) leave the cache, so it never grows week by week.
-        foreach (var key in _lastWeekTokensQueryAt.Keys.Where(key => !wanted.Contains(key)).ToList())
-            _lastWeekTokensQueryAt.Remove(key);
+        foreach (var key in _lastWindowTokensQueryAt.Keys.Where(key => !wanted.Contains(key)).ToList())
+            _lastWindowTokensQueryAt.Remove(key);
 
         foreach (var key in wanted)
         {
-            var (providerId, start) = key;
-            if (_lastWeekTokensQueryAt.TryGetValue(key, out var last) && now - last < WeekTokensQueryInterval)
+            if (_lastWindowTokensQueryAt.TryGetValue(key, out var last) && now - last < WindowTokensQueryInterval)
                 continue;
 
-            _lastWeekTokensQueryAt[key] = now;
-            var localStart = start.LocalDateTime;
+            _lastWindowTokensQueryAt[key] = now;
+            var (providerId, slice) = key;
+            var localStart = slice.Start.LocalDateTime;
 
             Task.Run(() =>
             {
                 // Null: the index could not be read, so the figure already shown stays.
-                if (query(providerId, localStart) is not { } tokens)
+                if (query(providerId, localStart, slice.ModelContains) is not { } tokens)
                     return;
 
                 void Apply()
                 {
-                    foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId && t.WeeklyWindowStart == start))
-                        tile.WeekTokens = tokens;
+                    foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId))
+                        tile.SetWindowTokens(slice, tokens);
                 }
 
                 var dispatcher = Application.Current?.Dispatcher;

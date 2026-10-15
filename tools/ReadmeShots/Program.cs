@@ -316,6 +316,11 @@ internal static class Program
                 var sample = samples.Single(candidate => candidate.Id == tile.ProviderId);
                 tile.Density = density;
                 tile.Apply(sample.Snapshot, now);
+                // Stands in for the answers of the local token index, which a picture never reads.
+                long[] sampleTokens = [1_823_457, 41_217_903, 6_104_220];
+                var index = 0;
+                foreach (var key in tile.WindowTokenKeys)
+                    tile.SetWindowTokens(key, sampleTokens[index++ % sampleTokens.Length]);
                 if (history is not null)
                     history(tile);
                 else if (sample.History is { } points)

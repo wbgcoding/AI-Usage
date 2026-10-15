@@ -71,17 +71,17 @@ public class UsageRowViewModelTests
         var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300);
 
         var row = new UsageRowViewModel(window, Now);
-        row.WeekTokens = 5_000_000;
 
         Assert.Equal("", row.InlineTokensToolTip);
         Assert.Equal("", row.InlineTokensText);
     }
 
     [Fact]
-    public void WeekTokens_feed_only_a_weekly_row_without_a_window_count()
+    public void WindowTokens_feed_any_row_and_win_over_the_provider_count()
     {
         var weekly = new UsageWindow("Window_Weekly", WindowKind.Weekly, 42.0, resetsAt: null, windowMinutes: 10080);
-        var other = new UsageWindow("Window_Weekly", WindowKind.Other, 42.0, resetsAt: null, windowMinutes: 10080);
+        var other = new UsageWindow("Fable", WindowKind.Other, 42.0, resetsAt: null, windowMinutes: null);
+        var counted = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300, tokens: new TokenUsage(100));
         var previousCulture = CultureInfo.CurrentCulture;
         try
         {
@@ -90,13 +90,20 @@ public class UsageRowViewModelTests
             var row = new UsageRowViewModel(weekly, Now);
             Assert.Equal("", row.InlineTokensText);
 
-            row.WeekTokens = 1_823_457;
+            row.WindowTokens = 1_823_457;
 
             Assert.Equal("1.82 M tokens", row.InlineTokensText);
-            Assert.Equal("1,823,457 tokens since the 7-day window reset", row.InlineTokensToolTip);
+            Assert.Equal("1,823,457 tokens since this window last reset", row.InlineTokensToolTip);
 
-            var notWeekly = new UsageRowViewModel(other, Now) { WeekTokens = 1_823_457 };
-            Assert.Equal("", notWeekly.InlineTokensText);
+            var model = new UsageRowViewModel(other, Now) { WindowTokens = 1_823_457 };
+            Assert.Equal("1.82 M tokens", model.InlineTokensText);
+
+            var withProviderCount = new UsageRowViewModel(counted, Now);
+            Assert.Equal("100 tokens in this window", withProviderCount.InlineTokensToolTip);
+            withProviderCount.WindowTokens = 5_000_000;
+            Assert.Equal("5,000,000 tokens since this window last reset", withProviderCount.InlineTokensToolTip);
+            withProviderCount.WindowTokens = null;
+            Assert.Equal("100 tokens in this window", withProviderCount.InlineTokensToolTip);
         }
         finally
         {

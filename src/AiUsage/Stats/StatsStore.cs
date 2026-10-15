@@ -1992,9 +1992,10 @@ public sealed class StatsStore
     /// the local hour containing <paramref name="localStart"/> onward (the index keeps a local day
     /// plus hour), computed directly in SQL rather than through <see cref="LoadAll"/> - a caller that
     /// only wants one provider's running window total should never pay for pulling and summing every
-    /// row of every provider first. Null when the index could not be read, which is not the same as
-    /// no tokens.</summary>
-    public long? SumTokensSince(string providerId, DateTime localStart)
+    /// row of every provider first. <paramref name="modelContains"/> narrows it to the models whose
+    /// name contains that text, case-insensitively and literally (no wildcards). Null when the index
+    /// could not be read, which is not the same as no tokens.</summary>
+    public long? SumTokensSince(string providerId, DateTime localStart, string? modelContains = null)
     {
         try
         {
@@ -2006,7 +2007,12 @@ public sealed class StatsStore
             command.CommandText = """
                 SELECT SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens)
                 FROM usage WHERE provider = $provider AND (day > $day OR (day = $day AND hour >= $hour))
-                """;
+                """ + (modelContains is { Length: > 0 } ? " AND lower(model) LIKE $model ESCAPE '\\'" : "");
+            if (modelContains is { Length: > 0 })
+            {
+                var escaped = modelContains.ToLowerInvariant().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+                command.Parameters.AddWithValue("$model", "%" + escaped + "%");
+            }
             command.Parameters.AddWithValue("$provider", providerId);
             command.Parameters.AddWithValue("$day", localStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             command.Parameters.AddWithValue("$hour", localStart.Hour);
