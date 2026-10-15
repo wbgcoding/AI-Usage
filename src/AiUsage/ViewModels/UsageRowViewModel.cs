@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Stats;
@@ -159,7 +159,11 @@ public partial class UsageRowViewModel : ObservableObject
 
         if (WindowLengths.MinutesFor(window, providerId) is not { } minutes)
             return null;
-        return new WindowTokenKey(resetsAt - TimeSpan.FromMinutes(minutes), model);
+        // Whole minutes: a reset instant that wobbles by seconds between fetches keeps the same
+        // slice, so the figure is not dropped and asked again (the index is hour-grained anyway).
+        var start = resetsAt - TimeSpan.FromMinutes(minutes);
+        start = new DateTimeOffset(start.Ticks - start.Ticks % TimeSpan.TicksPerMinute, start.Offset);
+        return new WindowTokenKey(start, model);
     }
 
     /// <summary>This window's notification threshold, in percent - null when that window's
