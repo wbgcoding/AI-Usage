@@ -297,7 +297,8 @@ internal static class Program
 
     internal static void RenderWidget(
         string dataDirectory, IReadOnlyList<SampleProviders.Sample> samples, DateTimeOffset now,
-        IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380, double zoom = 1)
+        IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380, double zoom = 1,
+        Action<ProviderTileViewModel>? history = null)
     {
         var settings = new AppSettings();
         foreach (var id in AppSettings.KnownProviderIds)
@@ -315,8 +316,10 @@ internal static class Program
                 var sample = samples.Single(candidate => candidate.Id == tile.ProviderId);
                 tile.Density = density;
                 tile.Apply(sample.Snapshot, now);
-                if (sample.History is { } history)
-                    tile.UpdateHistory(history, [], now - TimeSpan.FromDays(7), now);
+                if (history is not null)
+                    history(tile);
+                else if (sample.History is { } points)
+                    tile.UpdateHistory(points, [], now - TimeSpan.FromDays(7), now);
             }
 
             var chrome = (Border)XamlReader.Parse(WidgetChromeXaml);

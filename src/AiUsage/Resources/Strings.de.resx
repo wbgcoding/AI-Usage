@@ -185,8 +185,12 @@
   <data name="Tray.Exit" xml:space="preserve"><value>Beenden</value></data>
   <data name="Tray.Short.FiveHour" xml:space="preserve"><value>5 Std.</value></data>
   <data name="Tray.Short.Week" xml:space="preserve"><value>7 T.</value></data>
-  <data name="Tray.ResetPosition" xml:space="preserve"><value>Fenster zurück in die Mitte holen</value></data>
+  <data name="Tray.ResetPosition" xml:space="preserve"><value>In die Bildschirmmitte holen</value></data>
   <data name="Tray.ClickThrough" xml:space="preserve"><value>Klicks durchlassen</value></data>
+  <data name="Chart.PreviousWeek" xml:space="preserve"><value>Vorwoche</value></data>
+  <data name="Tray.Widget" xml:space="preserve"><value>Widget</value></data>
+  <data name="Tray.Hide" xml:space="preserve"><value>Widget ausblenden</value></data>
+  <data name="Tray.Show" xml:space="preserve"><value>Widget einblenden</value></data>
   <data name="Tray.StillRunning" xml:space="preserve"><value>AI-Usage läuft im Infobereich weiter.</value></data>
   <data name="TitleBar.Minimize" xml:space="preserve"><value>Minimieren</value></data>
   <data name="TitleBar.Close" xml:space="preserve"><value>Schließen</value></data>
@@ -456,7 +460,7 @@
   <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Ausgewählter Tag · {0}</value></data>
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Tagesdetail schließen</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Wartet auf eine Antwort. Zum Ausblenden anklicken.</value></data>
-  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token diese Woche</value></data>
+  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} Token seit dem Reset des 7-Tage-Fensters</value></data>
   <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darüber.</value></data>
   <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt im Plan.</value></data>
   <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % der Zeit sind vergangen, der Verbrauch liegt darunter.</value></data>

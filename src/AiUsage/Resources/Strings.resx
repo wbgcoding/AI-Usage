@@ -186,8 +186,12 @@
   <data name="Tray.Exit" xml:space="preserve"><value>Exit</value></data>
   <data name="Tray.Short.FiveHour" xml:space="preserve"><value>5h</value></data>
   <data name="Tray.Short.Week" xml:space="preserve"><value>7d</value></data>
-  <data name="Tray.ResetPosition" xml:space="preserve"><value>Move window back to the center</value></data>
+  <data name="Tray.ResetPosition" xml:space="preserve"><value>Move to screen center</value></data>
   <data name="Tray.ClickThrough" xml:space="preserve"><value>Click-through</value></data>
+  <data name="Chart.PreviousWeek" xml:space="preserve"><value>Last week</value></data>
+  <data name="Tray.Widget" xml:space="preserve"><value>Widget</value></data>
+  <data name="Tray.Hide" xml:space="preserve"><value>Hide widget</value></data>
+  <data name="Tray.Show" xml:space="preserve"><value>Show widget</value></data>
   <data name="Tray.StillRunning" xml:space="preserve"><value>AI-Usage keeps running in the notification area.</value></data>
   <data name="TitleBar.Minimize" xml:space="preserve"><value>Minimize</value></data>
   <data name="TitleBar.Close" xml:space="preserve"><value>Close</value></data>
@@ -457,7 +461,7 @@
   <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Selected day · {0}</value></data>
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Close day detail</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Waiting for an answer. Click to dismiss.</value></data>
-  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} tokens this week</value></data>
+  <data name="Tile.TokensThisWeek" xml:space="preserve"><value>{0} tokens since the 7-day window reset</value></data>
   <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % of the time has passed, usage is ahead of it.</value></data>
   <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % of the time has passed, usage is on pace.</value></data>
   <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % of the time has passed, usage is below it.</value></data>

@@ -1,4 +1,4 @@
-// The review mode's list of surfaces and its command line: every picture the review set can draw is
+﻿// The review mode's list of surfaces and its command line: every picture the review set can draw is
 // one entry here, picked by id or by group, and rendered per theme, language and size.
 
 using System.IO;
@@ -114,6 +114,7 @@ internal static class ReviewSurfaces
             new("widget.mini.zoom125", GroupWidget, context => ZoomedWidget(context, "widget.mini.zoom125", TileDensity.Mini, 125), HasMinSize: true),
             new("widget.full.zoom150", GroupWidget, context => ZoomedWidget(context, "widget.full.zoom150", TileDensity.Full, 150), HasMinSize: true),
             new("widget.mini.zoom150", GroupWidget, context => ZoomedWidget(context, "widget.mini.zoom150", TileDensity.Mini, 150), HasMinSize: true),
+            new("widget.chart.fresh", GroupWidget, context => FreshChart(context, "widget.chart.fresh"), HasMinSize: true),
             new("widget.daytile.full", GroupWidget, context => DayTile(context, "widget.daytile.full", TileDensity.Full, wide: false), HasMinSize: true),
             new("widget.daytile.mini", GroupWidget, context => DayTile(context, "widget.daytile.mini", TileDensity.Mini, wide: false), HasMinSize: true),
             new("widget.daytile.full.wide", GroupWidget, context => DayTile(context, "widget.daytile.full.wide", TileDensity.Full, wide: true)),
@@ -235,6 +236,27 @@ internal static class ReviewSurfaces
         Program.RenderWidget(
             context.DataDirectory, context.Samples, context.Now, context.AllProviders, density,
             context.OutputPath(id), context.Pick(WidgetWidth * zoom, WindowPlacementService.MinWidthFor(zoom)), zoom);
+    }
+
+    /// <summary>The Claude tile twenty minutes after the start: both windows flat at 0 %, last week's
+    /// line at 6 %, the range starting at the first point as the running app draws it.</summary>
+    private static void FreshChart(SurfaceContext context, string id)
+    {
+        var now = context.Now;
+        var start = now - TimeSpan.FromMinutes(21);
+        var points = new List<HistoryPoint>();
+        var previous = new List<HistoryPoint>();
+        for (var minute = 0; minute <= 21; minute += 3)
+        {
+            var at = start + TimeSpan.FromMinutes(minute);
+            points.Add(new HistoryPoint(1, at, WindowKind.FiveHour, 0, null));
+            points.Add(new HistoryPoint(1, at.AddSeconds(1), WindowKind.Weekly, 0, null));
+            previous.Add(new HistoryPoint(1, at, WindowKind.Weekly, 6, null));
+        }
+        Program.RenderWidget(
+            context.DataDirectory, context.Samples, now, ["claude"], TileDensity.Full,
+            context.OutputPath(id), context.Pick(WidgetWidth, MinWidgetWidth),
+            history: tile => tile.UpdateHistory(points, previous, start, now));
     }
 
     private static void DayTile(SurfaceContext context, string id, TileDensity density, bool wide) =>
