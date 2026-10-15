@@ -121,7 +121,10 @@ public sealed class GeminiProvider : IUsageProvider
         // to at all, only the web read below ever answers for it.
         if (_read is null)
         {
+            var webClockOnly = System.Diagnostics.Stopwatch.StartNew();
             var webOnly = await ReadWebAsync(fetchedAt, ct);
+            if (webOnly is not null)
+                LogFailedSource("web session read", webOnly, webClockOnly.ElapsedMilliseconds);
             return webOnly is not null
                 ? webOnly with
                 {
@@ -140,13 +143,18 @@ public sealed class GeminiProvider : IUsageProvider
             return ProviderSnapshots.NoData(AccountKey, fetchedAt);
 
         var readLocal = _read;
+        var localClock = System.Diagnostics.Stopwatch.StartNew();
         var usage = await Task.Run(() => readLocal(ct), ct);
         var local = BuildSnapshot(usage, fetchedAt);
+        LogFailedSource("Antigravity sign-in read", local, localClock.ElapsedMilliseconds);
 
         if (_webSource is null)
             return await WithAccountLabelAsync(local);
 
+        var webClock = System.Diagnostics.Stopwatch.StartNew();
         var web = _webReader is null ? null : await _webReader.ReadUnlessHeldAsync(fetchedAt, ct);
+        if (web is not null)
+            LogFailedSource("web session read", web, webClock.ElapsedMilliseconds);
 
         var candidates = new List<ProviderSnapshot> { local };
         if (web is not null)
@@ -169,6 +177,15 @@ public sealed class GeminiProvider : IUsageProvider
         // The CLI record is a file read: only taken when nothing else named the account, and off the UI thread.
         label ??= await Task.Run(_readAccountLabel);
         return chosen with { AccountLabel = label };
+    }
+
+    /// <summary>Names the source and the time it took whenever a read ends in a failure, so a log alone
+    /// tells which of the two sources timed out.</summary>
+    private void LogFailedSource(string source, ProviderSnapshot snapshot, long elapsedMs)
+    {
+        if (snapshot.Status == ProviderStatus.Failed)
+            LogService.Shared.LogInfo(
+                $"{AccountKey}: {source} failed ({snapshot.Error?.Kind.ToString() ?? "Other"}) after {elapsedMs} ms.");
     }
 
     /// <summary>The web read, throttled (see <see cref="ThrottledWebReader"/>): in between, the snapshot

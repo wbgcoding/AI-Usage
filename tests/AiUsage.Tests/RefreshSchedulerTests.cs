@@ -262,7 +262,7 @@ public class RefreshSchedulerTests
             return Ok("codex"); // unreachable
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50));
+            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
@@ -287,7 +287,7 @@ public class RefreshSchedulerTests
         var neverCompletes = new TaskCompletionSource<ProviderSnapshot>();
         var provider = new FakeProvider("codex", _ => neverCompletes.Task);
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50));
+            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
@@ -377,7 +377,7 @@ public class RefreshSchedulerTests
             return Ok("claude"); // unreachable
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50));
+            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
@@ -405,7 +405,7 @@ public class RefreshSchedulerTests
             return Ok("claude");
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30));
+            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30), retryDelay: TimeSpan.Zero);
         var ended = new List<string>();
         var reported = new List<ProviderSnapshot>();
         scheduler.FetchEnded += ended.Add;
@@ -436,7 +436,7 @@ public class RefreshSchedulerTests
             return Failed("codex");
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30));
+            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30), retryDelay: TimeSpan.Zero);
         var ended = new List<string>();
         var reported = new List<ProviderSnapshot>();
         scheduler.FetchEnded += ended.Add;
@@ -467,7 +467,7 @@ public class RefreshSchedulerTests
             return Ok("claude");
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50));
+            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
@@ -684,7 +684,7 @@ public class RefreshSchedulerTests
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
         var scheduler = new RefreshScheduler([new FakeProvider("codex", fetch)], BaseInterval, clock,
             minFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(20) : TimeSpan.FromMinutes(5),
-            maxFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMinutes(10));
+            maxFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMinutes(10), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
         await Task.WhenAll(scheduler.Tick());
@@ -749,6 +749,119 @@ public class RefreshSchedulerTests
 
     private static ProviderSnapshot Failed(string providerId) =>
         new(providerId, [], null, SourceKind.None, DateTimeOffset.UtcNow, null, ProviderStatus.Failed, new ProviderError("Status_Failed_Reason"));
+
+    private static ProviderSnapshot FailedWith(string providerId, FailureKind kind) =>
+        new(providerId, [], null, SourceKind.None, DateTimeOffset.UtcNow, null, ProviderStatus.Failed,
+            new ProviderError("Status_Failed_Reason", "Action_Retry", Kind: kind));
+
+    [Fact]
+    public void The_quiet_retry_waits_twenty_seconds_by_default()
+    {
+        Assert.Equal(TimeSpan.FromSeconds(20), RefreshScheduler.DefaultRetryDelay);
+    }
+
+    [Fact]
+    public async Task A_first_timeout_is_not_reported_and_the_retry_that_succeeds_is()
+    {
+        var kind = FailureKind.Timeout;
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var calls = 0;
+        var secondStarted = new TaskCompletionSource();
+        var releaseSecond = new TaskCompletionSource();
+        var provider = new FakeProvider("gemini", async _ =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+                return FailedWith("gemini", kind);
+            secondStarted.SetResult();
+            await releaseSecond.Task;
+            return Ok("gemini");
+        });
+        var logged = new List<string>();
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMilliseconds(30), logInfo: logged.Add);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        var run = Task.WhenAll(scheduler.Tick());
+        await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The retry is running: the tile has been told nothing about the first failure.
+        Assert.Empty(reported);
+        releaseSecond.SetResult();
+        await run;
+
+        Assert.Equal(2, calls);
+        Assert.Equal(ProviderStatus.Ok, Assert.Single(reported).Status);
+        var line = Assert.Single(logged);
+        Assert.Contains("'gemini'", line);
+        Assert.Contains(kind.ToString(), line);
+        Assert.Contains(" ms", line);
+    }
+
+    [Fact]
+    public async Task Two_timeouts_in_a_row_report_a_failure_and_the_next_try_follows_the_normal_interval()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("gemini") { NextResult = FailedWith("gemini", FailureKind.Timeout) };
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMilliseconds(10), logInfo: _ => { });
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(2, provider.FetchCount);
+        var shown = Assert.Single(reported);
+        Assert.Equal(ProviderStatus.Failed, shown.Status);
+        Assert.Equal(FailureKind.Timeout, shown.Error?.Kind);
+
+        // No back-off: due again after the plain interval, not the doubled one.
+        clock.Advance(BaseInterval - TimeSpan.FromSeconds(1));
+        Assert.Empty(scheduler.Tick());
+        clock.Advance(TimeSpan.FromSeconds(1));
+        var due = scheduler.Tick();
+        _ = Assert.Single(due);
+        await Task.WhenAll(due);
+    }
+
+    [Fact]
+    public async Task A_failure_of_another_kind_is_reported_at_once_without_a_retry()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("gemini") { NextResult = FailedWith("gemini", FailureKind.ServerError) };
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMilliseconds(10), logInfo: _ => { });
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(1, provider.FetchCount);
+        Assert.Single(reported);
+    }
+
+    [Fact]
+    public async Task An_owner_cancel_during_the_retry_pause_ends_the_attempt_without_a_snapshot()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var firstDone = new TaskCompletionSource();
+        var provider = new FakeProvider("gemini", _ =>
+        {
+            firstDone.TrySetResult();
+            return Task.FromResult(FailedWith("gemini", FailureKind.Timeout));
+        });
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMinutes(5), logInfo: _ => { });
+        var ended = new List<string>();
+        var reported = new List<ProviderSnapshot>();
+        scheduler.FetchEnded += ended.Add;
+        scheduler.SnapshotReady += reported.Add;
+
+        var run = Task.WhenAll(scheduler.Tick());
+        await firstDone.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await scheduler.CancelProvider("gemini");
+        await run;
+
+        Assert.Equal(["gemini"], ended);
+        Assert.Empty(reported);
+        Assert.Equal(1, provider.FetchCount);
+    }
 
     private sealed class FakeProvider : IUsageProvider
     {

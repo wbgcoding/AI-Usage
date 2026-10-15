@@ -12,6 +12,9 @@ public sealed class RefreshScheduler
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
     private const string TimeoutDetailKey = "State.Failed.Detail.Timeout";
 
+    /// <summary>The pause before the one quiet retry of a read that timed out or lost its connection.</summary>
+    internal static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromSeconds(20);
+
     // A mutable list, not the IReadOnlyList the constructor still accepts: AddProvider/RemoveProvider
     // (the Settings.AddAccount and Settings.RemoveAccount actions) change it after
     // construction - every read and write of it happens under _gate, same as _state below.
@@ -21,6 +24,8 @@ public sealed class RefreshScheduler
     private readonly TimeSpan _minFetchTimeout;
     private readonly TimeSpan _maxFetchTimeout;
     private readonly Action<string>? _log;
+    private readonly Action<string> _logInfo;
+    private readonly TimeSpan _retryDelay;
 
     // Every read and write of a ProviderState's fields (and of _baseInterval) takes this - Tick's
     // one-second timer reads them from the UI thread while RunOneAsync writes them from whichever
@@ -60,9 +65,12 @@ public sealed class RefreshScheduler
     /// test-controlled. <paramref name="log"/> receives one line for each subscriber that throws.
     /// </summary>
     public RefreshScheduler(IReadOnlyList<IUsageProvider> providers, TimeSpan baseInterval, TimeProvider? timeProvider = null,
-        TimeSpan? minFetchTimeout = null, TimeSpan? maxFetchTimeout = null, Action<string>? log = null)
+        TimeSpan? minFetchTimeout = null, TimeSpan? maxFetchTimeout = null, Action<string>? log = null,
+        TimeSpan? retryDelay = null, Action<string>? logInfo = null)
     {
         _log = log;
+        _retryDelay = retryDelay ?? DefaultRetryDelay;
+        _logInfo = logInfo ?? (line => LogService.Shared.LogInfo(line));
         _providers = providers.ToList();
         _baseInterval = baseInterval;
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -436,69 +444,43 @@ public sealed class RefreshScheduler
                 baseForTimeout = ResolveIntervalLocked(provider);
             var timeout = Clamp(baseForTimeout * 2, _minFetchTimeout, _maxFetchTimeout);
 
-            ProviderSnapshot snapshot;
             lock (_gate)
             {
                 state.RunCancellation = timeoutCts;
                 state.CancelledByOwner = false;
             }
-            timeoutCts.CancelAfter(timeout);
-            Task<ProviderSnapshot>? fetchTask = null;
-            try
+
+            var attemptClock = _timeProvider.GetTimestamp();
+            var snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, timeoutCts, state, ct);
+            if (snapshot is not null && IsTransientFailure(snapshot))
             {
-                // The timeout is enforced here, by the caller, rather than relying solely on the
-                // provider observing timeoutCts.Token - a provider whose returned task never
-                // completes (and never checks its token) would otherwise hang this await forever,
-                // leaving InFlight stuck and the provider never due again.
-                //
-                // Most providers do real synchronous work (a directory walk, reading session files)
-                // before their first await, which would otherwise run on this method's own caller -
-                // the UI thread's dispatcher timer. Starting the fetch on the thread pool keeps that
-                // off the UI thread. The one provider that must not move is the web-session-backed
-                // one: it already marshals its own work and expects to start on the calling thread.
-                using (holdNetwork ? FetchContext.HoldNetwork() : null)
+                // A timeout is usually gone a moment later: the tile keeps its last
+                // numbers (nothing is reported yet) and the same source is read once more. Only a second
+                // failure in a row is shown. The pause runs under the same cancellation an owner can use.
+                _logInfo($"Provider '{provider.AccountKey}': read failed ({snapshot.Error?.Kind}) after "
+                    + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, "
+                    + $"last source {state.LastSource?.ToString() ?? "none"}, retrying once in {(int)_retryDelay.TotalSeconds} s.");
+                try
                 {
-                    fetchTask = provider.RunsOnUiThread
-                        ? provider.FetchAsync(timeoutCts.Token)
-                        : Task.Run(() => provider.FetchAsync(timeoutCts.Token), timeoutCts.Token);
+                    await Task.Delay(_retryDelay, _timeProvider, timeoutCts.Token);
                 }
-                snapshot = await fetchTask.WaitAsync(timeout, ct);
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))
+                {
+                    EndOwnerCancelled(provider, state);
+                    return;
+                }
+
+                attemptClock = _timeProvider.GetTimestamp();
+                snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, timeoutCts, state, ct);
+                if (snapshot is not null && snapshot.Status == ProviderStatus.Failed)
+                    _logInfo($"Provider '{provider.AccountKey}': retry failed too ({snapshot.Error?.Kind}) after "
+                        + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, reporting the failure.");
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))
+
+            if (snapshot is null)
             {
                 EndOwnerCancelled(provider, state);
                 return;
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                // Our own timeout fired (the caller's own token was not cancelled) - a provider
-                // whose fetch never completes must still free itself up for the next attempt instead
-                // of staying InFlight forever.
-                snapshot = new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
-                    ProviderStatus.Failed, FailedError(TimeoutDetailKey, kind: FailureKind.Timeout));
-            }
-            catch (TimeoutException)
-            {
-                // WaitAsync's own timeout fired because the provider's task is still running and
-                // ignored timeoutCts.Token entirely. The task is abandoned here - observe its
-                // eventual fault (if any) so it never surfaces as an unobserved task exception.
-                _ = fetchTask?.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
-                snapshot = new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
-                    ProviderStatus.Failed, FailedError(TimeoutDetailKey, kind: FailureKind.Timeout));
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // FetchAsync's contract is "never throws" - this is defence in depth against a violation.
-                snapshot = new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
-                    ProviderStatus.Failed, ex switch
-                    {
-                        System.Net.Http.HttpRequestException { StatusCode: { } status } =>
-                            FailedError(
-                                "State.Failed.Detail.Http", ((int)status).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                ProviderError.KindForStatus((int)status), (int)status),
-                        System.Net.Http.HttpRequestException => FailedError("State.Failed.Detail.Network", kind: FailureKind.Network),
-                        _ => FailedError(),
-                    });
             }
 
             // A provider that swallowed the owner's cancellation and answered with a failure must not
@@ -512,7 +494,9 @@ public sealed class RefreshScheduler
             lock (_gate)
             {
                 var baseForProvider = ResolveIntervalLocked(provider);
-                state.CurrentInterval = snapshot.Status == ProviderStatus.Failed
+                // A shown timeout was already retried once, so the next try follows
+                // the provider's normal cadence; any other failure keeps backing off.
+                state.CurrentInterval = snapshot.Status == ProviderStatus.Failed && !IsTransientFailure(snapshot)
                     ? Max(baseForProvider, Min(state.CurrentInterval * 2, MaxBackoff))
                     : baseForProvider;
                 // From completion, not attemptStartedAt: a fetch that itself took longer than its
@@ -540,6 +524,84 @@ public sealed class RefreshScheduler
             // caller cancelled) is told to stop before the source goes away.
             timeoutCts.Cancel();
             timeoutCts.Dispose();
+        }
+    }
+
+    /// <summary>A failure that is worth one quiet retry: no answer in time. A lost connection (Network)
+    /// is left to its own recovery, which reads the failed providers again once the network is back.</summary>
+    private static bool IsTransientFailure(ProviderSnapshot snapshot) =>
+        snapshot.Status == ProviderStatus.Failed && snapshot.Error?.Kind == FailureKind.Timeout;
+
+    /// <summary>One read of the provider under its own timeout. Null when the owner cancelled it; the
+    /// caller's own cancellation propagates.</summary>
+    private async Task<ProviderSnapshot?> FetchAttemptAsync(
+        IUsageProvider provider, DateTimeOffset attemptStartedAt, bool holdNetwork, TimeSpan timeout,
+        CancellationTokenSource runCts, ProviderState state, CancellationToken ct)
+    {
+        var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(runCts.Token);
+        attemptCts.CancelAfter(timeout);
+        Task<ProviderSnapshot>? fetchTask = null;
+        try
+        {
+            // The timeout is enforced here, by the caller, rather than relying solely on the
+            // provider observing attemptCts.Token - a provider whose returned task never
+            // completes (and never checks its token) would otherwise hang this await forever,
+            // leaving InFlight stuck and the provider never due again.
+            //
+            // Most providers do real synchronous work (a directory walk, reading session files)
+            // before their first await, which would otherwise run on this method's own caller -
+            // the UI thread's dispatcher timer. Starting the fetch on the thread pool keeps that
+            // off the UI thread. The one provider that must not move is the web-session-backed
+            // one: it already marshals its own work and expects to start on the calling thread.
+            using (holdNetwork ? FetchContext.HoldNetwork() : null)
+            {
+                fetchTask = provider.RunsOnUiThread
+                    ? provider.FetchAsync(attemptCts.Token)
+                    : Task.Run(() => provider.FetchAsync(attemptCts.Token), attemptCts.Token);
+            }
+            return await fetchTask.WaitAsync(timeout, ct);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))
+        {
+            return null;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Our own timeout fired (the caller's own token was not cancelled) - a provider
+            // whose fetch never completes must still free itself up for the next attempt instead
+            // of staying InFlight forever.
+            return new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
+                ProviderStatus.Failed, FailedError(TimeoutDetailKey, kind: FailureKind.Timeout));
+        }
+        catch (TimeoutException)
+        {
+            // WaitAsync's own timeout fired because the provider's task is still running and
+            // ignored attemptCts.Token entirely. The task is abandoned here - observe its
+            // eventual fault (if any) so it never surfaces as an unobserved task exception.
+            _ = fetchTask?.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            return new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
+                ProviderStatus.Failed, FailedError(TimeoutDetailKey, kind: FailureKind.Timeout));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // FetchAsync's contract is "never throws" - this is defence in depth against a violation.
+            return new ProviderSnapshot(provider.AccountKey, [], null, SourceKind.None, attemptStartedAt, null,
+                ProviderStatus.Failed, ex switch
+                {
+                    System.Net.Http.HttpRequestException { StatusCode: { } status } =>
+                        FailedError(
+                            "State.Failed.Detail.Http", ((int)status).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ProviderError.KindForStatus((int)status), (int)status),
+                    System.Net.Http.HttpRequestException => FailedError("State.Failed.Detail.Network", kind: FailureKind.Network),
+                    _ => FailedError(),
+                });
+        }
+        finally
+        {
+            // Whatever is still running under this token (an abandoned, timed-out fetch) is told to
+            // stop before the source goes away.
+            attemptCts.Cancel();
+            attemptCts.Dispose();
         }
     }
 
