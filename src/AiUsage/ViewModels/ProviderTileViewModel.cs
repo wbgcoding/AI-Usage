@@ -574,14 +574,33 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [ObservableProperty]
     private bool showWeekly = true;
 
-    /// <summary>This provider's own token sum since the Monday of the current ISO week - set from
+    /// <summary>This provider's own token sum since the start of its current 7-day window - set from
     /// outside (see <see cref="ViewModels.MainViewModel"/>'s own periodic query against <see
     /// cref="Stats.StatsStore.SumTokensSince"/>), never computed here, same split as <see
-    /// cref="IsFetching"/>. Null until that query has landed at least once, and always null for a
-    /// provider <see cref="Stats.ProviderCoverage.HasLocalTokenData"/> says has no local token
-    /// index at all - <see cref="WeekTokensText"/> stays empty either way.</summary>
+    /// cref="IsFetching"/>. Null until that query has landed at least once, while the window's start
+    /// is unknown (see <see cref="WeeklyWindowStart"/>), and always null for a provider <see
+    /// cref="Stats.ProviderCoverage.HasLocalTokenData"/> says has no local token index at all - <see
+    /// cref="WeekTokensText"/> stays empty either way.</summary>
     [ObservableProperty]
     private long? weekTokens;
+
+    /// <summary>When the provider's current 7-day window began: its reset time minus the window
+    /// length (a full week when the provider names none). Prefers the window labelled as the weekly
+    /// one, else any weekly window; null while no weekly window carries a reset time.</summary>
+    internal DateTimeOffset? WeeklyWindowStart
+    {
+        get
+        {
+            if (_lastSnapshot is not { } snapshot)
+                return null;
+
+            var window = snapshot.Windows.FirstOrDefault(w => w.Kind == WindowKind.Weekly && w.Label == "Window_Weekly" && w.ResetsAt is not null)
+                ?? snapshot.Windows.FirstOrDefault(w => w.Kind == WindowKind.Weekly && w.ResetsAt is not null);
+            return window is { ResetsAt: { } resetsAt }
+                ? resetsAt - TimeSpan.FromMinutes(window.WindowMinutes ?? 7 * 24 * 60)
+                : null;
+        }
+    }
 
     partial void OnWeekTokensChanged(long? value) => PushWeekTokensToRows();
 

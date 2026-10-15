@@ -900,24 +900,28 @@ public class StatsIndexTests
     }
 
     [Fact]
-    public void SumTokensSince_adds_only_the_rows_on_or_after_the_cutoff_day()
+    public void SumTokensSince_counts_from_the_start_hour_of_the_window()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-sum-since");
         var store = new StatsStore(dataDir);
         store.AddDelta([
-            // Week 1 - before the cutoff, must not count.
-            new StatsRecord("claude", new DateOnly(2026, 1, 1), "modelA", "proj", 10, 0, 0, 0),
-            // Week 2 - exactly on the cutoff day, must count.
-            new StatsRecord("claude", new DateOnly(2026, 1, 8), "modelA", "proj", 20, 0, 0, 0),
-            // Week 3 - after the cutoff, must count.
-            new StatsRecord("claude", new DateOnly(2026, 1, 15), "modelA", "proj", 30, 0, 0, 0),
-            // A different provider on a counted day must never bleed into claude's own sum.
-            new StatsRecord("codex", new DateOnly(2026, 1, 15), "modelB", "proj", 99, 0, 0, 0),
+            // Same day as the window start but an hour earlier: must not count.
+            new StatsRecord("claude", new DateOnly(2026, 10, 14), "modelA", "proj", 10, 0, 0, 0, Hour: 15),
+            // Exactly the start hour: must count.
+            new StatsRecord("claude", new DateOnly(2026, 10, 14), "modelA", "proj", 20, 0, 0, 0, Hour: 16),
+            // A later hour of the start day.
+            new StatsRecord("claude", new DateOnly(2026, 10, 14), "modelA", "proj", 5, 0, 0, 0, Hour: 23),
+            // A later day, early hour: must count whatever the hour.
+            new StatsRecord("claude", new DateOnly(2026, 10, 15), "modelA", "proj", 30, 0, 0, 0, Hour: 0),
+            // An earlier day: must not count.
+            new StatsRecord("claude", new DateOnly(2026, 10, 13), "modelA", "proj", 1000, 0, 0, 0, Hour: 20),
+            // A different provider must never bleed into claude's own sum.
+            new StatsRecord("codex", new DateOnly(2026, 10, 15), "modelB", "proj", 99, 0, 0, 0, Hour: 3),
         ]);
 
-        var sum = store.SumTokensSince("claude", new DateOnly(2026, 1, 8));
+        var sum = store.SumTokensSince("claude", new DateTime(2026, 10, 14, 16, 0, 0, DateTimeKind.Local));
 
-        Assert.Equal(20 + 30, sum);
+        Assert.Equal(20 + 5 + 30, sum);
     }
 
     [Fact]
@@ -926,7 +930,7 @@ public class StatsIndexTests
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-sum-since-empty");
         var store = new StatsStore(dataDir);
 
-        Assert.Equal(0, store.SumTokensSince("claude", new DateOnly(2026, 1, 1)));
+        Assert.Equal(0, store.SumTokensSince("claude", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Local)));
     }
 
     [Fact]

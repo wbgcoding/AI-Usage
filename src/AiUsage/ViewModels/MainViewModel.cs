@@ -55,15 +55,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// one-second <see cref="Tick"/> would just be wasted SQLite work.</summary>
     private static readonly TimeSpan WeekTokensQueryInterval = TimeSpan.FromMinutes(5);
 
-    /// <summary>Test seam for the weekly token query; null uses the store's own.</summary>
-    internal Func<string, DateOnly, long?>? WeekTokensQuery { get; set; }
+    /// <summary>Test seam for the weekly token query (provider id, local window start); null uses the
+    /// store's own.</summary>
+    internal Func<string, DateTime, long?>? WeekTokensQuery { get; set; }
 
     /// <summary>Per real provider id (not per account - two Claude accounts would otherwise double
-    /// the query for numbers <see cref="Stats.StatsStore"/> cannot even tell apart by account), the
-    /// last time <see cref="RefreshWeekTokens"/> actually queried. Empty at construction, so the very
-    /// first <see cref="Tick"/> queries every eligible provider right away instead of waiting out the
-    /// first interval.</summary>
-    private readonly Dictionary<string, DateTimeOffset> _lastWeekTokensQueryAt = new();
+    /// the query for numbers <see cref="Stats.StatsStore"/> cannot even tell apart by account) and
+    /// weekly window start, the last time <see cref="RefreshWeekTokens"/> actually queried. Empty at
+    /// construction, so the very first <see cref="Tick"/> queries every eligible provider right away
+    /// instead of waiting out the first interval; a new window start is a new key and so asks at
+    /// once.</summary>
+    private readonly Dictionary<(string ProviderId, DateTimeOffset Start), DateTimeOffset> _lastWeekTokensQueryAt = new();
 
     // A fetch completing in a handful of milliseconds must still show its "working" indicator long
     // enough to be seen rather than flicker - each started fetch is timestamped here,
@@ -869,12 +871,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _scheduler.RefreshNetworkFailed(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
 
     /// <summary>Queries <see cref="_statsStore"/> for every tile whose real provider <see
-    /// cref="ProviderCoverage.HasLocalTokenData"/> says has a local token index, at most once per
-    /// <see cref="WeekTokensQueryInterval"/> per real provider - a no-op entirely when no store was
-    /// wired up (see the test-seam constructor). The query itself runs on the thread pool, same
-    /// "read off the UI thread, only the landed result comes back to it" split as <see
-    /// cref="RefreshTileHistory"/>; two accounts of the same provider share one query and one
-    /// answer, since <see cref="Stats.StatsStore"/> indexes by provider id, not by account.</summary>
+    /// cref="ProviderCoverage.HasLocalTokenData"/> says has a local token index: the tokens since the
+    /// start of that tile's own 7-day window (<see cref="ProviderTileViewModel.WeeklyWindowStart"/>).
+    /// A tile without a known window start shows no figure. A query repeats at most once per <see
+    /// cref="WeekTokensQueryInterval"/> per real provider and window start, but a changed start (the
+    /// window reset) asks at once. A no-op entirely when no store was wired up (see the test-seam
+    /// constructor). The query itself runs on the thread pool, same "read off the UI thread, only
+    /// the landed result comes back to it" split as <see cref="RefreshTileHistory"/>; accounts of
+    /// the same provider with the same start share one query and one answer, since <see
+    /// cref="Stats.StatsStore"/> indexes by provider id, not by account.</summary>
     internal void RefreshWeekTokens(DateTimeOffset now)
     {
         if (_statsStore is not { } store)
@@ -882,27 +887,42 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         var query = WeekTokensQuery ?? store.SumTokensSince;
 
-        var localNow = now.LocalDateTime;
-        var weekStart = StatsAggregator.WeekStart(DateOnly.FromDateTime(localNow));
-
-        foreach (var providerId in Tiles.Select(t => t.RealProviderId).Distinct())
+        var wanted = new HashSet<(string ProviderId, DateTimeOffset Start)>();
+        foreach (var tile in Tiles)
         {
-            if (!ProviderCoverage.HasLocalTokenData(providerId))
+            if (!ProviderCoverage.HasLocalTokenData(tile.RealProviderId))
                 continue;
-            if (_lastWeekTokensQueryAt.TryGetValue(providerId, out var last) && now - last < WeekTokensQueryInterval)
+            if (tile.WeeklyWindowStart is not { } start)
+            {
+                tile.WeekTokens = null;
+                continue;
+            }
+
+            wanted.Add((tile.RealProviderId, start));
+        }
+
+        // Windows that are gone (a reset passed) leave the cache, so it never grows week by week.
+        foreach (var key in _lastWeekTokensQueryAt.Keys.Where(key => !wanted.Contains(key)).ToList())
+            _lastWeekTokensQueryAt.Remove(key);
+
+        foreach (var key in wanted)
+        {
+            var (providerId, start) = key;
+            if (_lastWeekTokensQueryAt.TryGetValue(key, out var last) && now - last < WeekTokensQueryInterval)
                 continue;
 
-            _lastWeekTokensQueryAt[providerId] = now;
+            _lastWeekTokensQueryAt[key] = now;
+            var localStart = start.LocalDateTime;
 
             Task.Run(() =>
             {
                 // Null: the index could not be read, so the figure already shown stays.
-                if (query(providerId, weekStart) is not { } tokens)
+                if (query(providerId, localStart) is not { } tokens)
                     return;
 
                 void Apply()
                 {
-                    foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId))
+                    foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId && t.WeeklyWindowStart == start))
                         tile.WeekTokens = tokens;
                 }
 

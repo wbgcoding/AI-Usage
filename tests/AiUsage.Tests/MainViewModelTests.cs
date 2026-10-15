@@ -175,10 +175,27 @@ public class MainViewModelTests : IDisposable
         return vm;
     }
 
+    private static readonly DateTimeOffset WeeklyReset = new(2026, 1, 8, 14, 0, 0, TimeSpan.Zero);
+
+    private static ProviderSnapshot WeeklySnapshot(string providerId, DateTimeOffset? weeklyReset, int? windowMinutes = 10080) =>
+        new(providerId,
+            [
+                new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, Now.AddHours(2), 300),
+                new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, weeklyReset, windowMinutes),
+            ],
+            "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null);
+
+    private static void ApplyWeekly(IEnumerable<ProviderTileViewModel> tiles, DateTimeOffset? weeklyReset)
+    {
+        foreach (var tile in tiles)
+            tile.Apply(WeeklySnapshot(tile.RealProviderId, weeklyReset), Now);
+    }
+
     [Fact]
     public async Task A_finished_index_run_makes_the_next_tick_ask_for_the_week_tokens_again()
     {
         var vm = BuildWithStats(out var tiles);
+        ApplyWeekly(tiles, WeeklyReset);
         var calls = 0;
         vm.WeekTokensQuery = (_, _) => Interlocked.Increment(ref calls);
 
@@ -198,6 +215,7 @@ public class MainViewModelTests : IDisposable
     public async Task A_week_token_query_that_fails_keeps_the_figure_shown()
     {
         var vm = BuildWithStats(out var tiles);
+        ApplyWeekly(tiles, WeeklyReset);
         long? answer = 500;
         vm.WeekTokensQuery = (_, _) => answer;
         vm.RefreshWeekTokens(Now);
@@ -214,6 +232,82 @@ public class MainViewModelTests : IDisposable
         vm.OnStatsIndexCompleted();
         vm.RefreshWeekTokens(Now.AddSeconds(2));
         await TestWait.UntilAsync(() => tiles.All(tile => tile.WeekTokens == 700));
+    }
+
+    [Fact]
+    public async Task The_week_token_query_starts_at_the_providers_weekly_window_start()
+    {
+        var vm = BuildWithStats(out var tiles);
+        var reset = new DateTimeOffset(2026, 10, 21, 14, 0, 0, TimeSpan.Zero);
+        ApplyWeekly(tiles, reset);
+        var starts = new System.Collections.Concurrent.ConcurrentBag<DateTime>();
+        vm.WeekTokensQuery = (_, start) =>
+        {
+            starts.Add(start);
+            return 1;
+        };
+
+        vm.RefreshWeekTokens(Now);
+
+        await TestWait.UntilAsync(() => starts.Count == tiles.Count);
+        Assert.All(starts, start => Assert.Equal(reset.AddDays(-7).LocalDateTime, start));
+    }
+
+    [Fact]
+    public async Task A_window_length_from_the_provider_moves_the_week_token_start()
+    {
+        var vm = BuildWithStats(out var tiles);
+        foreach (var tile in tiles)
+            tile.Apply(WeeklySnapshot(tile.RealProviderId, WeeklyReset, windowMinutes: null), Now);
+        var starts = new System.Collections.Concurrent.ConcurrentBag<DateTime>();
+        vm.WeekTokensQuery = (_, start) =>
+        {
+            starts.Add(start);
+            return 1;
+        };
+
+        vm.RefreshWeekTokens(Now);
+
+        await TestWait.UntilAsync(() => starts.Count == tiles.Count);
+        Assert.All(starts, start => Assert.Equal(WeeklyReset.AddDays(-7).LocalDateTime, start));
+    }
+
+    [Fact]
+    public async Task Without_a_known_weekly_reset_there_is_no_week_token_figure_and_no_query()
+    {
+        var vm = BuildWithStats(out var tiles);
+        ApplyWeekly(tiles, null);
+        foreach (var tile in tiles)
+            tile.WeekTokens = 123;
+        var calls = 0;
+        vm.WeekTokensQuery = (_, _) => Interlocked.Increment(ref calls);
+
+        vm.RefreshWeekTokens(Now);
+        await Task.Delay(150);
+
+        Assert.Equal(0, Volatile.Read(ref calls));
+        Assert.All(tiles, tile => Assert.Null(tile.WeekTokens));
+    }
+
+    [Fact]
+    public async Task A_weekly_reset_that_moves_forward_asks_for_the_week_tokens_at_once()
+    {
+        var vm = BuildWithStats(out var tiles);
+        ApplyWeekly(tiles, WeeklyReset);
+        var starts = new System.Collections.Concurrent.ConcurrentBag<DateTime>();
+        vm.WeekTokensQuery = (_, start) =>
+        {
+            starts.Add(start);
+            return 1;
+        };
+        vm.RefreshWeekTokens(Now);
+        await TestWait.UntilAsync(() => starts.Count == tiles.Count);
+
+        ApplyWeekly(tiles, WeeklyReset.AddDays(7));
+        vm.RefreshWeekTokens(Now.AddSeconds(1));
+
+        await TestWait.UntilAsync(() => starts.Count == tiles.Count * 2);
+        Assert.Contains(WeeklyReset.LocalDateTime, starts);
     }
 
     // A provider that is signed out or unreachable after a restart still shows the numbers it last had.

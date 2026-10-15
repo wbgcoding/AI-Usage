@@ -1979,6 +1979,31 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
+    public void WeeklyWindowStartIsTheResetMinusTheWindowLengthAndNullWithoutAReset()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
+        Assert.Null(tile.WeeklyWindowStart);
+
+        var reset = new DateTimeOffset(2026, 10, 21, 14, 0, 0, TimeSpan.Zero);
+        tile.Apply(new ProviderSnapshot("claude",
+            [
+                new UsageWindow("Other_Label", WindowKind.Weekly, 20, reset, 4320),
+                new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, reset.AddDays(1), null),
+            ], "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null), Now);
+        Assert.Equal(reset.AddDays(1).AddDays(-7), tile.WeeklyWindowStart);
+
+        tile.Apply(new ProviderSnapshot("claude",
+            [new UsageWindow("Other_Label", WindowKind.Weekly, 20, reset, 4320)],
+            "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null), Now);
+        Assert.Equal(reset.AddMinutes(-4320), tile.WeeklyWindowStart);
+
+        tile.Apply(new ProviderSnapshot("claude",
+            [new UsageWindow("Window_Weekly", WindowKind.Weekly, 20, null, 10080)],
+            "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null), Now);
+        Assert.Null(tile.WeeklyWindowStart);
+    }
+
+    [Fact]
     public void WeekTokensSurviveRebuiltAndUpdatedRows()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };

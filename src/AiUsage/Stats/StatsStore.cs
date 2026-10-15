@@ -1988,12 +1988,13 @@ public sealed class StatsStore
         }
     }
 
-    /// <summary>The sum of every token column across every row for <paramref name="providerId"/> on
-    /// or after <paramref name="from"/>, computed directly in SQL rather than through <see
-    /// cref="LoadAll"/> - a caller that only wants one provider's running weekly total should never
-    /// pay for pulling and summing every row of every provider first. Null when the index could not
-    /// be read, which is not the same as no tokens.</summary>
-    public long? SumTokensSince(string providerId, DateOnly from)
+    /// <summary>The sum of every token column across every row for <paramref name="providerId"/> from
+    /// the local hour containing <paramref name="localStart"/> onward (the index keeps a local day
+    /// plus hour), computed directly in SQL rather than through <see cref="LoadAll"/> - a caller that
+    /// only wants one provider's running window total should never pay for pulling and summing every
+    /// row of every provider first. Null when the index could not be read, which is not the same as
+    /// no tokens.</summary>
+    public long? SumTokensSince(string providerId, DateTime localStart)
     {
         try
         {
@@ -2004,10 +2005,11 @@ public sealed class StatsStore
             using var command = connection.CreateCommand();
             command.CommandText = """
                 SELECT SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens)
-                FROM usage WHERE provider = $provider AND day >= $from
+                FROM usage WHERE provider = $provider AND (day > $day OR (day = $day AND hour >= $hour))
                 """;
             command.Parameters.AddWithValue("$provider", providerId);
-            command.Parameters.AddWithValue("$from", from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$day", localStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$hour", localStart.Hour);
             var result = command.ExecuteScalar();
             return result is null or DBNull ? 0 : Convert.ToInt64(result, CultureInfo.InvariantCulture);
         }
