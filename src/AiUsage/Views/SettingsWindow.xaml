@@ -415,22 +415,18 @@
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                TextWrapping="Wrap"
                                Visibility="{Binding WindowLayerIsDesktop, Converter={StaticResource BoolToVis}}"/>
-                    <!-- Side by side in two equal columns; a label wraps inside its own column instead
-                         of a box dropping to the next line in a narrow window. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" IsChecked="{Binding HideOnFullscreen}" VerticalAlignment="Top" Margin="0,4,12,4"
+                    <!-- Side by side: the first label stays on one line while the row has room, then
+                         wraps so the second keeps a readable width; neither is ever cut off. -->
+                    <controls:NaturalFirstRowPanel>
+                        <CheckBox x:Name="HideOnFullscreenCheck" IsChecked="{Binding HideOnFullscreen}" VerticalAlignment="Top" Margin="0,4,12,4"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}" TextWrapping="Wrap"/>
                         </CheckBox>
-                        <CheckBox Grid.Column="1" IsChecked="{Binding Main.ClickThrough}" VerticalAlignment="Top" Margin="0,4"
+                        <CheckBox x:Name="ClickThroughCheck" IsChecked="{Binding Main.ClickThrough}" VerticalAlignment="Top" Margin="0,4"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" TextWrapping="Wrap"/>
                         </CheckBox>
-                    </Grid>
+                    </controls:NaturalFirstRowPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThroughHint]}"
                                Style="{StaticResource Gap.Top4}"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Warn}"

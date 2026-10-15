@@ -39,6 +39,85 @@ public class SettingsWindowLayoutTests
         });
     }
 
+    private static UIElement Lay(SettingsWindow window, double width)
+    {
+        var root = (UIElement)window.Content;
+        root.Measure(new Size(width, 900));
+        root.Arrange(new Rect(0, 0, width, 900));
+        root.UpdateLayout();
+        return root;
+    }
+
+    [Fact]
+    public void Size_sits_left_of_the_Mica_option_in_one_row()
+    {
+        RunOnSta(window =>
+        {
+            // Mica is hidden for the test theme; show it so its place in the row can be measured.
+            window.MicaCheck.Visibility = Visibility.Visible;
+            var root = Lay(window, 560);
+
+            var zoom = window.ZoomCombo.TranslatePoint(new Point(0, 0), root);
+            var mica = window.MicaCheck.TranslatePoint(new Point(0, 0), root);
+            Assert.True(mica.X > zoom.X + window.ZoomCombo.ActualWidth, "Mica must sit right of the size picker");
+            var zoomBottom = zoom.Y + window.ZoomCombo.ActualHeight;
+            var micaBottom = mica.Y + window.MicaCheck.ActualHeight;
+            Assert.InRange(micaBottom, zoomBottom - 5, zoomBottom);
+        });
+    }
+
+    [Fact]
+    public void Without_Mica_the_size_picker_keeps_its_place()
+    {
+        RunOnSta(window =>
+        {
+            var root = Lay(window, 560);
+            var shown = window.ZoomCombo.TranslatePoint(new Point(0, 0), root);
+
+            window.MicaCheck.Visibility = Visibility.Visible;
+            var root2 = Lay(window, 560);
+
+            Assert.Equal(shown, window.ZoomCombo.TranslatePoint(new Point(0, 0), root2));
+        });
+    }
+
+    [Fact]
+    public void Order_is_as_wide_as_Arrangement()
+    {
+        RunOnSta(window =>
+        {
+            var root = Lay(window, 560);
+            var layoutRight = window.LayoutCombo.TranslatePoint(new Point(window.LayoutCombo.ActualWidth, 0), root).X;
+            var orderRight = window.TileOrderCombo.TranslatePoint(new Point(window.TileOrderCombo.ActualWidth, 0), root).X;
+            var layoutLeft = window.LayoutCombo.TranslatePoint(new Point(0, 0), root).X;
+            var orderLeft = window.TileOrderCombo.TranslatePoint(new Point(0, 0), root).X;
+
+            Assert.Equal(layoutRight, orderRight, 0.5);
+            Assert.Equal(layoutLeft, orderLeft, 0.5);
+        });
+    }
+
+    [Fact]
+    public void The_fullscreen_label_stays_on_one_line_at_the_default_width_and_wraps_without_clipping_at_the_minimum()
+    {
+        RunOnSta(window =>
+        {
+            var root = Lay(window, 560);
+            var label = (TextBlock)window.HideOnFullscreenCheck.Content;
+            var oneLine = label.FontFamily.LineSpacing * label.FontSize;
+            Assert.True(label.ActualHeight <= oneLine * 1.3, $"label height {label.ActualHeight} vs one line {oneLine}");
+
+            root = Lay(window, 480);
+            var viewport = window.ContentScroll.ViewportWidth;
+            foreach (var box in new[] { window.HideOnFullscreenCheck, window.ClickThroughCheck })
+            {
+                var right = box.TranslatePoint(new Point(box.ActualWidth, 0), window.ContentScroll).X;
+                Assert.True(right <= viewport + 0.5, $"{box.Name} reaches {right} but the viewport is {viewport}");
+                Assert.True(box.ActualWidth >= 90, $"{box.Name} is only {box.ActualWidth} wide");
+            }
+        });
+    }
+
     private static void RunOnSta(Action<SettingsWindow> check)
     {
         Exception? failure = null;
