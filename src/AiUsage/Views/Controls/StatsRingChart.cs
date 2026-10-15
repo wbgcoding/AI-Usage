@@ -254,6 +254,19 @@ public sealed class StatsRingChart : FrameworkElement
         return (diameter, diameter + LegendGap);
     }
 
+    private const double MinRingHeight = 132;
+    private const double MaxRingHeight = 240;
+    private const double LegendAllowance = 150;
+
+    /// <summary>The control's height: the ring grows with the width the tile gives it (the legend keeps
+    /// its allowance), within a fixed range. It depends on the width only, so switching the provider or
+    /// the data never resizes it; only a legend with more rows than fit can push it higher.</summary>
+    internal static double HeightFor(double width, int sliceCount) =>
+        Math.Max(Math.Clamp(width - LegendAllowance, MinRingHeight, MaxRingHeight), sliceCount * LegendRowHeight);
+
+    protected override Size MeasureOverride(Size availableSize) =>
+        new(double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width, HeightFor(availableSize.Width, Slices.Count));
+
     /// <summary>True when a click on a slice or a legend entry means something.</summary>
     public static readonly DependencyProperty IsActivatableProperty = DependencyProperty.Register(
         nameof(IsActivatable), typeof(bool), typeof(StatsRingChart),

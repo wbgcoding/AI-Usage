@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
@@ -37,6 +38,10 @@ public partial class StatsWindow : Window
     private readonly SettingsStore? _settingsStore;
     private double _rememberedScrollOffset;
     private bool _reloadingFromSettings;
+
+    // True once the window has really been shown. A window built ahead of time and never shown must not
+    // write its XAML default size over the remembered one when it is discarded.
+    private bool _opened;
     private readonly StatsLayoutPresenter _layoutPresenter;
     private readonly StatsSectionDragController _dragController;
     private readonly Dictionary<Controls.CollapsibleSection, ContextMenu> _sectionMenus = [];
@@ -91,15 +96,10 @@ public partial class StatsWindow : Window
         Loaded += StatsWindow_Loaded;
         Closed += StatsWindow_Closed;
 
-        // Opening this window is also the trigger for a fresh walk over whatever landed since the
-        // app started or since the last one - StartInBackground is a no op while one is already
-        // running, so this never piles up overlapping walks. StatsIndexerService.IndexCompleted then
-        // fires on its own background thread, so the reload is marshalled back here.
+        // StatsIndexerService.IndexCompleted fires on its own background thread, so the reload is
+        // marshalled back here. The walk itself starts when the window is really shown.
         if (StatsIndexerService.Shared is { } indexer)
-        {
             indexer.IndexCompleted += OnIndexCompleted;
-            indexer.StartInBackground();
-        }
 
         MonthGrid.ProviderDisplayNames = Stats.StatsViewModel.ProviderDisplayNames;
         // The grid reaches back as far as its scroller's width fits; the view model only re-slices in
@@ -413,6 +413,43 @@ public partial class StatsWindow : Window
         }
     }
 
+    /// <summary>Builds what can be built without showing the window: the prepared data and a first
+    /// layout pass, so that showing it later only has to render. Run at idle, never on the open path.</summary>
+    internal void PrepareOffscreen()
+    {
+        _viewModel.TryShowSnapshot();
+        if (Content is UIElement root && !double.IsNaN(Width) && !double.IsNaN(Height))
+        {
+            root.Measure(new Size(Width, Height));
+            root.Arrange(new Rect(0, 0, Width, Height));
+            root.UpdateLayout();
+        }
+    }
+
+    private long _openStartedAt;
+    private double _openDataMs;
+
+    /// <summary>Starts the clock for the one log line a real open writes: from the click to the first
+    /// rendered frame. Without a start there is nothing to log (windows built by tests).</summary>
+    internal void BeginOpenMeasurement(long startTimestamp)
+    {
+        _openStartedAt = startTimestamp;
+        ContentRendered += StatsWindow_FirstRendered;
+    }
+
+    private void StatsWindow_FirstRendered(object? sender, EventArgs e)
+    {
+        ContentRendered -= StatsWindow_FirstRendered;
+        var total = Stopwatch.GetElapsedTime(_openStartedAt).TotalMilliseconds;
+        LogService.Shared.LogInfo(FormatOpenLog(total, _openDataMs));
+    }
+
+    /// <summary>The line written to the log for every open. Layout is everything that is not data:
+    /// building or preparing the window, laying it out and drawing the first frame.</summary>
+    internal static string FormatOpenLog(double totalMs, double dataMs) =>
+        string.Create(CultureInfo.InvariantCulture,
+            $"Statistics window: shown in {totalMs:F0} ms (data {dataMs:F0} ms, layout {Math.Max(0, totalMs - dataMs):F0} ms)");
+
     /// <summary>Applies the remembered size, if any, once the window has a real position to test a
     /// monitor's work area against - the constructor still only knows the XAML default.</summary>
     private void StatsWindow_Loaded(object sender, RoutedEventArgs e)
@@ -420,7 +457,17 @@ public partial class StatsWindow : Window
         // The view model reads nothing on construction. With the indexer's prepared data the window is
         // filled at once and the read below only checks whether anything moved; without it this is the
         // one initial load.
-        _ = _viewModel.TryShowSnapshot() ? RecomputeLoggedAsync(showLoading: false) : RecomputeLoggedAsync();
+        _opened = true;
+
+        // Opening this window is also the trigger for a fresh walk over whatever landed since the
+        // app started or since the last one - StartInBackground is a no op while one is already
+        // running, so this never piles up overlapping walks.
+        StatsIndexerService.Shared?.StartInBackground();
+
+        var dataStart = Stopwatch.GetTimestamp();
+        var hadSnapshot = _viewModel.TryShowSnapshot();
+        _openDataMs = Stopwatch.GetElapsedTime(dataStart).TotalMilliseconds;
+        _ = hadSnapshot ? RecomputeLoggedAsync(showLoading: false) : RecomputeLoggedAsync();
 
         var placement = WindowPlacementService.Shared;
         var rememberedPosition = placement?.RememberedStatsWindowPosition;
@@ -471,7 +518,7 @@ public partial class StatsWindow : Window
 
     private void StatsWindow_Closed(object? sender, EventArgs e)
     {
-        if (WindowPlacementService.Shared is { } placement)
+        if (_opened && WindowPlacementService.Shared is { } placement)
         {
             placement.RememberedStatsWindowSize = (Width, Height);
             if (!double.IsNaN(Left) && !double.IsNaN(Top))
@@ -496,6 +543,9 @@ public partial class StatsWindow : Window
     private void OnIndexCompleted(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(() =>
         {
+            // A window built ahead of time takes the then-current data when it is shown.
+            if (!_opened)
+                return;
             if (!_viewModel.TryShowSnapshot())
                 _ = RecomputeLoggedAsync(showLoading: false);
         });

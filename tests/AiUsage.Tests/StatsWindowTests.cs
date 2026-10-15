@@ -805,16 +805,21 @@ public class StatsWindowTests
         RunInWindow(null, (window, root) =>
         {
             Assert.Equal(limitProviders, ((StatsViewModel)window.DataContext).LimitGroups.Count);
+            var heights = new List<double>();
             foreach (var height in new[] { 800.0, 1400.0 })
             {
                 root.Measure(new Size(1100, height));
                 root.Arrange(new Rect(0, 0, 1100, height));
                 root.UpdateLayout();
 
-                Assert.Equal(132, window.ProviderRing.ActualHeight);
-                Assert.Equal(132, window.ModelRing.ActualHeight);
-                Assert.Equal(132, window.EffortRing.ActualHeight);
+                foreach (var ring in new[] { window.ProviderRing, window.ModelRing, window.EffortRing })
+                    Assert.Equal(StatsRingChart.HeightFor(ring.ActualWidth, ring.Slices.Count), ring.ActualHeight);
+                Assert.Equal(window.ProviderRing.ActualHeight, window.ModelRing.ActualHeight);
+                Assert.Equal(window.ProviderRing.ActualHeight, window.EffortRing.ActualHeight);
+                heights.Add(window.ProviderRing.ActualHeight);
             }
+
+            Assert.Equal(heights[0], heights[1]);
         }, configureViewModel: viewModel =>
         {
             viewModel.LoadRecords = () => records;
@@ -1020,6 +1025,38 @@ public class StatsWindowTests
             Assert.True(((MenuItem)menu.Items[0]).IsEnabled);
             Assert.True(((MenuItem)menu.Items[3]).IsEnabled);
         });
+    }
+
+    [Fact]
+    public void Every_open_writes_one_log_line_with_total_data_and_layout_time()
+    {
+        var line = StatsWindow.FormatOpenLog(412.4, 38.6);
+
+        Assert.Equal("Statistics window: shown in 412 ms (data 39 ms, layout 374 ms)", line);
+        Assert.Matches(@"^Statistics window: shown in \d+ ms \(data \d+ ms, layout \d+ ms\)$", StatsWindow.FormatOpenLog(0.2, 5));
+    }
+
+    [Fact]
+    public void A_window_built_ahead_and_closed_unshown_leaves_the_remembered_size_alone()
+    {
+        var previous = WindowPlacementService.Shared;
+        var settings = new AppSettings();
+        WindowPlacementService.Shared = new WindowPlacementService(settings);
+        try
+        {
+            WindowPlacementService.Shared.RememberedStatsWindowSize = (1234, 876);
+            RunInWindow(null, (window, _) =>
+            {
+                window.PrepareOffscreen();
+                window.Close();
+            });
+
+            Assert.Equal((1234d, 876d), WindowPlacementService.Shared.RememberedStatsWindowSize);
+        }
+        finally
+        {
+            WindowPlacementService.Shared = previous;
+        }
     }
 
     [Fact]

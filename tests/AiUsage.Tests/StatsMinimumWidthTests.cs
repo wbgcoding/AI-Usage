@@ -123,6 +123,16 @@ public class StatsMinimumWidthTests
         Assert.Equal(legendX, actualLegendX, 6);
     }
 
+    [Theory]
+    [InlineData(200, 4, 132)]
+    [InlineData(282, 4, 132)]
+    [InlineData(330, 4, 180)]
+    [InlineData(390, 4, 240)]
+    [InlineData(900, 4, 240)]
+    [InlineData(330, 20, 360)]
+    public void The_ring_grows_with_the_width_and_never_below_what_the_legend_rows_need(double width, int slices, double height) =>
+        Assert.Equal(height, StatsRingChart.HeightFor(width, slices), 6);
+
     [Fact]
     public void A_click_finds_the_ring_slice_and_the_legend_row_in_the_new_layout()
     {

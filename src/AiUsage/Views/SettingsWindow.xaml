@@ -184,13 +184,7 @@
                                ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
                                TitleText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Title]}"
                                CloseRequested="TitleBarControl_CloseRequested"/>
-            <!-- HorizontalScrollBarVisibility stays at its Disabled default here, which is what
-                 pins the content to the window's own width: a scroll region that could scroll
-                 sideways would measure every wrapping label below at unlimited width, so the label
-                 would report the width of its longest single line and be cut off instead. -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          Padding="{StaticResource Space.M}">
-        <Grid>
+        <Grid Margin="12,12,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="150"/>
                 <ColumnDefinition Width="*"/>
@@ -217,7 +211,13 @@
                  comes out to whichever of the two is taller: the sidebar for a short category, the
                  category itself for a tall one. See SettingsWindow.xaml.cs for why switching also
                  has to re-assert SizeToContent explicitly. -->
-            <Grid Grid.Column="1">
+            <!-- HorizontalScrollBarVisibility stays at its Disabled default here, which is what
+                 pins the content to this column's own width: a scroll region that could scroll
+                 sideways would measure every wrapping label below at unlimited width, so the label
+                 would report the width of its longest single line and be cut off instead. Only
+                 this column scrolls; the sidebar stays put. -->
+            <ScrollViewer x:Name="ContentScroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
+            <Grid>
         <StackPanel>
             <StackPanel.Style>
                 <Style TargetType="StackPanel">
@@ -289,16 +289,26 @@
                         </Grid>
                     </Grid>
 
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
-                              IsChecked="{Binding MicaEnabled}"
-                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
-                              Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
-
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ComboBox ItemsSource="{Binding ZoomChoices}"
-                              SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
-                              HorizontalAlignment="Left"/>
+                    <!-- Size and the Mica backdrop share one row: two short controls. Without the
+                         Mica option the right column stays empty and nothing moves. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
+                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}"
+                                      SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
+                                      HorizontalAlignment="Left"/>
+                        </StackPanel>
+                        <CheckBox x:Name="MicaCheck" Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
+                                  IsChecked="{Binding MicaEnabled}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
+                                  VerticalAlignment="Bottom" Margin="0,0,0,4"
+                                  Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
                     <!-- Arrangement and tile density sit side by side: two short pickers that belong to
@@ -308,9 +318,13 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}" Style="{StaticResource FieldLabel.Tight}"/>
-                            <ComboBox ItemsSource="{Binding LayoutChoices}"
+                            <ComboBox x:Name="LayoutCombo" ItemsSource="{Binding LayoutChoices}"
                                       SelectedItem="{Binding SelectedLayoutChoice, Mode=TwoWay}"
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}"
                                       HorizontalAlignment="Stretch"/>
@@ -323,13 +337,14 @@
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="TileOrderCombo" ItemsSource="{Binding TileOrderChoices}"
+                                      SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
                     </Grid>
-
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox ItemsSource="{Binding TileOrderChoices}"
-                              SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
-                              HorizontalAlignment="Stretch"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
@@ -400,22 +415,18 @@
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                TextWrapping="Wrap"
                                Visibility="{Binding WindowLayerIsDesktop, Converter={StaticResource BoolToVis}}"/>
-                    <!-- Side by side in two equal columns; a label wraps inside its own column instead
-                         of a box dropping to the next line in a narrow window. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" IsChecked="{Binding HideOnFullscreen}" VerticalAlignment="Top" Margin="0,4,12,4"
+                    <!-- Side by side: the first label stays on one line while the row has room, then
+                         wraps so the second keeps a readable width; neither is ever cut off. -->
+                    <controls:NaturalFirstRowPanel>
+                        <CheckBox x:Name="HideOnFullscreenCheck" IsChecked="{Binding HideOnFullscreen}" VerticalAlignment="Top" Margin="0,4,12,4"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}" TextWrapping="Wrap"/>
                         </CheckBox>
-                        <CheckBox Grid.Column="1" IsChecked="{Binding Main.ClickThrough}" VerticalAlignment="Top" Margin="0,4"
+                        <CheckBox x:Name="ClickThroughCheck" IsChecked="{Binding Main.ClickThrough}" VerticalAlignment="Top" Margin="0,4"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" TextWrapping="Wrap"/>
                         </CheckBox>
-                    </Grid>
+                    </controls:NaturalFirstRowPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThroughHint]}"
                                Style="{StaticResource Gap.Top4}"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Warn}"
@@ -472,6 +483,26 @@
                     <Slider Minimum="1" Maximum="60" Value="{Binding RemoteRefreshMinutes, Mode=TwoWay}"
                             ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.RemoteInterval]}"
                             AutomationProperties.Name="{Binding RemoteIntervalLabelText}"/>
+
+                    <!-- Per account: how often at most it is read. One row of provider name + picker,
+                         wrapping when the window is narrow. -->
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ItemsControl x:Name="ProviderRefreshList" ItemsSource="{Binding Main.Tiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,16,4">
+                                    <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox ItemsSource="{Binding RefreshChoices}"
+                                              SelectedItem="{Binding SelectedRefreshChoice, Mode=TwoWay}"
+                                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ProviderRefresh]}"
+                                              AutomationProperties.Name="{Binding HeaderDisplayName}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
                     <CheckBox IsChecked="{Binding SaveEnergyOnBattery}" Style="{StaticResource CheckBox.GapM}"
                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.SaveEnergy]}"
@@ -704,7 +735,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.Other]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Threshold.OtherWindowLabel}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
                                                         <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.OtherEnabled}"
                                                                   AutomationProperties.Name="{Binding Threshold.OtherEnabledFullLabel}"/>
                                                     </Grid>
@@ -777,18 +808,6 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                    </Grid>
-                                    <Grid Style="{StaticResource Gap.Top4}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}"
-                                                   VerticalAlignment="Center" Margin="0,0,8,0" TextWrapping="Wrap"/>
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding RefreshChoices}"
-                                                  SelectedItem="{Binding SelectedRefreshChoice, Mode=TwoWay}"
-                                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ProviderRefresh]}"
-                                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}"/>
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding WindowToggles}" Style="{StaticResource Gap.Top4}">
                                         <ItemsControl.ItemsPanel>
@@ -1063,8 +1082,8 @@
             </Border>
         </StackPanel>
             </Grid>
-        </Grid>
             </ScrollViewer>
+        </Grid>
         </DockPanel>
     </Border>
     <Thumb Style="{StaticResource ResizeGrip}" Margin="{StaticResource Space.S}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
