@@ -479,6 +479,10 @@
   <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Aktualisiert sich beim nächsten Codex-Start. Für Live-Werte im Web anmelden.</value></data>
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Im Web anmelden</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Reihenfolge</value></data>
+  <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Färbt die Balken dieses Anbieters nach dem Anteil der Token je Modell oder je Haupt- und Unteragent im jeweiligen Zeitfenster.</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Nach Auslastung</value></data>
+  <data name="Settings.BarColor" xml:space="preserve"><value>Balkenfarbe</value></data>
+  <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} Token seit dem letzten Reset dieses Zeitfensters</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Eigene</value></data>
   <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>Nach Auslastung</value></data>
   <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>

@@ -480,6 +480,10 @@
   <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Updates the next time Codex runs. For live values, sign in on the web.</value></data>
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Sign in on the web</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Order</value></data>
+  <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Colors this provider's bars by each model's or the main and subagents' share of the tokens in that window.</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>By usage level</value></data>
+  <data name="Settings.BarColor" xml:space="preserve"><value>Bar color</value></data>
+  <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokens since this window last reset</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Custom</value></data>
   <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>By usage</value></data>
   <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>
