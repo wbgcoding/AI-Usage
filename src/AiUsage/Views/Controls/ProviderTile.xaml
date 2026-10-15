@@ -434,6 +434,7 @@
                                                 ShowAxes="{Binding ShowDiagram}"
                                                 FiveHourLabel="{Binding FiveHourLabelText}"
                                                 WeeklyLabel="{Binding WeeklyLabelText}"
+                                                PreviousWeekLabel="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.PreviousWeek]}"
                                                 AutomationProperties.Name="{Binding ChartSummaryText}"/>
                     </Border>
                 </StackPanel>

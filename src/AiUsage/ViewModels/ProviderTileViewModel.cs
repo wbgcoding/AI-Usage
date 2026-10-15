@@ -1506,8 +1506,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
         string? slotOneLabel = null;
         string? slotTwoLabel = null;
-        var slotOneValues = fiveHour;
-        var slotTwoValues = weekly;
+        IReadOnlyList<HistoryChart.ChartPoint> slotOneValues = fiveHour;
+        IReadOnlyList<HistoryChart.ChartPoint> slotTwoValues = weekly;
 
         if (fiveHour.Length == 0 && otherLabels.Count > 0)
         {
@@ -1522,6 +1522,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
                 .Select(p => new HistoryChart.ChartPoint(p.Timestamp, p.Percent)).ToArray();
         }
 
+        (slotOneValues, slotTwoValues) = PadToCommonEnds(slotOneValues, slotTwoValues);
         FiveHourValues = slotOneValues;
         WeeklyValues = slotTwoValues;
         FiveHourLabelText = StatusTextMap.Resolve(slotOneLabel ?? "Window_FiveHour");
@@ -1540,6 +1541,46 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         _forecastWeekly = weekly;
         _forecastNow = rangeEnd;
         RefreshForecasts(fiveHour, weekly, rangeEnd);
+    }
+
+    /// <summary>How far a series may end (or start) away from the other one and still be stretched to
+    /// match it; a larger gap is real (a provider that stopped answering must look stale).</summary>
+    private static readonly TimeSpan SeriesPaddingLimit = TimeSpan.FromMinutes(15);
+
+    /// <summary>Makes two series share their first and last instant: the one whose last point is
+    /// older than the other's latest by at most 15 minutes gets one more point (that instant, its own
+    /// last percent), and the same at the start with its first percent. The two windows are read a
+    /// moment apart, so without this one line ends a few pixels short of the other. A series with
+    /// fewer than two points is left alone (padding would turn a lone reading into a line).</summary>
+    internal static (IReadOnlyList<HistoryChart.ChartPoint> First, IReadOnlyList<HistoryChart.ChartPoint> Second) PadToCommonEnds(
+        IReadOnlyList<HistoryChart.ChartPoint> first, IReadOnlyList<HistoryChart.ChartPoint> second)
+    {
+        if (first.Count == 0 || second.Count == 0)
+            return (first, second);
+
+        var end = first[^1].At > second[^1].At ? first[^1].At : second[^1].At;
+        var start = first[0].At < second[0].At ? first[0].At : second[0].At;
+        return (Pad(first, start, end), Pad(second, start, end));
+
+        static IReadOnlyList<HistoryChart.ChartPoint> Pad(
+            IReadOnlyList<HistoryChart.ChartPoint> series, DateTimeOffset start, DateTimeOffset end)
+        {
+            if (series.Count < 2)
+                return series;
+
+            var padStart = series[0].At > start && series[0].At - start <= SeriesPaddingLimit;
+            var padEnd = series[^1].At < end && end - series[^1].At <= SeriesPaddingLimit;
+            if (!padStart && !padEnd)
+                return series;
+
+            var padded = new List<HistoryChart.ChartPoint>(series.Count + 2);
+            if (padStart)
+                padded.Add(new HistoryChart.ChartPoint(start, series[0].Percent));
+            padded.AddRange(series);
+            if (padEnd)
+                padded.Add(new HistoryChart.ChartPoint(end, series[^1].Percent));
+            return padded;
+        }
     }
 
     // The five-hour and weekly series of the last history read, so a row rebuild or a density switch

@@ -4,6 +4,7 @@ using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.ViewModels;
 using Xunit;
+using ChartPoint = AiUsage.Views.Controls.HistoryChart.ChartPoint;
 
 namespace AiUsage.Tests;
 
@@ -582,6 +583,80 @@ public class ProviderTileViewModelTests
         Assert.Equal(expected, tile.HasChartData);
         Assert.Equal(expected, tile.ShowChartBox);
         Assert.Equal(!expected, tile.ShowChartHint);
+    }
+
+    private static ChartPoint[] Series(DateTimeOffset first, DateTimeOffset last, double firstPercent = 10, double lastPercent = 20) =>
+        [new ChartPoint(first, firstPercent), new ChartPoint(first.AddMinutes(1), 15), new ChartPoint(last, lastPercent)];
+
+    [Fact]
+    public void PaddingMakesTheEarlierEndingSeriesReachTheLaterOneWithinFifteenMinutes()
+    {
+        var weekly = Series(Now.AddHours(-3), Now, lastPercent: 5);
+        var fiveHour = Series(Now.AddHours(-3), Now.AddMinutes(-15), lastPercent: 7);
+
+        var (paddedFive, paddedWeekly) = ProviderTileViewModel.PadToCommonEnds(fiveHour, weekly);
+
+        Assert.Equal(new ChartPoint(Now, 7), paddedFive[^1]);
+        Assert.Equal(fiveHour.Length + 1, paddedFive.Count);
+        Assert.Same(weekly, paddedWeekly);
+    }
+
+    [Fact]
+    public void PaddingLeavesAGapOfMoreThanFifteenMinutesAlone()
+    {
+        var weekly = Series(Now.AddHours(-3), Now);
+        var fiveHour = Series(Now.AddHours(-3), Now.AddMinutes(-15).AddSeconds(-1));
+
+        var (paddedFive, paddedWeekly) = ProviderTileViewModel.PadToCommonEnds(fiveHour, weekly);
+
+        Assert.Same(fiveHour, paddedFive);
+        Assert.Same(weekly, paddedWeekly);
+    }
+
+    [Fact]
+    public void PaddingAlsoReachesBackToTheEarlierFirstPointWithinFifteenMinutes()
+    {
+        var fiveHour = Series(Now.AddHours(-3).AddMinutes(15), Now, firstPercent: 4);
+        var weekly = Series(Now.AddHours(-3), Now);
+
+        var (paddedFive, _) = ProviderTileViewModel.PadToCommonEnds(fiveHour, weekly);
+
+        Assert.Equal(new ChartPoint(Now.AddHours(-3), 4), paddedFive[0]);
+
+        var tooLate = Series(Now.AddHours(-3).AddMinutes(15).AddSeconds(1), Now);
+        var (unchanged, _) = ProviderTileViewModel.PadToCommonEnds(tooLate, weekly);
+        Assert.Same(tooLate, unchanged);
+    }
+
+    [Fact]
+    public void PaddingNeverInventsALineForASeriesWithASingleOrNoPoint()
+    {
+        var weekly = Series(Now.AddHours(-3), Now);
+        ChartPoint[] single = [new(Now.AddMinutes(-5), 10)];
+
+        var (paddedSingle, _) = ProviderTileViewModel.PadToCommonEnds(single, weekly);
+        Assert.Same(single, paddedSingle);
+
+        var (paddedEmpty, _) = ProviderTileViewModel.PadToCommonEnds([], weekly);
+        Assert.Empty(paddedEmpty);
+    }
+
+    [Fact]
+    public void UpdateHistoryHandsTheChartSeriesThatEndAtTheSameInstant()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10), Now);
+        var points = new[]
+        {
+            new HistoryPoint(1, Now.AddHours(-2), WindowKind.FiveHour, 0, null),
+            new HistoryPoint(1, Now.AddSeconds(-61), WindowKind.FiveHour, 0, null),
+            new HistoryPoint(1, Now.AddHours(-2), WindowKind.Weekly, 0, null),
+            new HistoryPoint(1, Now, WindowKind.Weekly, 0, null),
+        };
+
+        tile.UpdateHistory(points, [], Now.AddDays(-1), Now);
+
+        Assert.Equal(tile.WeeklyValues[^1].At, tile.FiveHourValues[^1].At);
     }
 
     [Fact]

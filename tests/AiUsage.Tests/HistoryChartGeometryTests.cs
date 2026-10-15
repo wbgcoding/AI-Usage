@@ -339,4 +339,63 @@ public class HistoryChartGeometryTests
         Assert.Null(HistoryChart.LegendLeft(203, 40, 40, 100));
         Assert.Null(HistoryChart.LegendLeft(120, 40, 40, 100));
     }
+
+    [Fact]
+    public void LegendAddsThePreviousWeekLastOnlyWhileItIsDrawnAndNamed()
+    {
+        Assert.Equal(
+            [(WindowKind.FiveHour, "5h"), (WindowKind.Weekly, "Week"), (HistoryChart.PreviousWeekLegendKind, "Last week")],
+            HistoryChart.LegendEntries(true, true, "5h", "Week", hasPreviousWeek: true, previousWeekLabel: "Last week"));
+        Assert.Equal(
+            [(WindowKind.FiveHour, "5h"), (WindowKind.Weekly, "Week")],
+            HistoryChart.LegendEntries(true, true, "5h", "Week", hasPreviousWeek: false, previousWeekLabel: "Last week"));
+        Assert.Equal(
+            [(WindowKind.FiveHour, "5h"), (WindowKind.Weekly, "Week")],
+            HistoryChart.LegendEntries(true, true, "5h", "Week", hasPreviousWeek: true, previousWeekLabel: ""));
+    }
+
+    [Fact]
+    public void LegendDropsThePreviousWeekFirstWhenAllThreeDoNotFit()
+    {
+        // Captions 40 wide: a 300 wide strip fits 100 (two entries) but not 160 (three).
+        double[] two = [20, 20];
+        double[] three = [20, 20, 40];
+        var all = HistoryChart.LegendFit(300, 40, 40, three, lastIsPreviousWeek: true);
+        Assert.Equal(3, all?.Count);
+
+        var narrow = HistoryChart.LegendFit(210, 40, 40, three, lastIsPreviousWeek: true);
+        Assert.Equal(2, narrow?.Count);
+        Assert.Equal(HistoryChart.LegendLeft(210, 40, 40, HistoryChart.LegendWidth(two)), narrow?.Left);
+
+        Assert.Null(HistoryChart.LegendFit(100, 40, 40, three, lastIsPreviousWeek: true));
+        // Without a previous-week entry nothing is dropped.
+        Assert.Null(HistoryChart.LegendFit(210, 40, 40, three, lastIsPreviousWeek: false));
+    }
+
+    [Fact]
+    public void TheFiveHourLineIsDrawnAfterTheWeeklyOne()
+    {
+        var order = HistoryChart.SeriesDrawOrder;
+
+        Assert.True(order.ToList().IndexOf(WindowKind.FiveHour) > order.ToList().IndexOf(WindowKind.Weekly));
+    }
+
+    [Fact]
+    public void ThePreviousWeekPenIsThinAndDottedNotTheFiveHourDash()
+    {
+        Assert.Equal(1.0, HistoryChart.PreviousWeekThickness);
+        Assert.Equal([1.0, 3.0], HistoryChart.PreviousWeekDashes);
+        Assert.NotEqual(HistoryChart.FiveHourDashes, HistoryChart.PreviousWeekDashes);
+    }
+
+    [Fact]
+    public void AZeroPercentStrokeStaysInsideThePlot()
+    {
+        const double plotHeight = 52;
+
+        Assert.Equal(plotHeight - 0.75, HistoryChart.StrokeY(0, plotHeight, 1.5));
+        Assert.Equal(plotHeight - 0.5, HistoryChart.StrokeY(0, plotHeight, 1.0));
+        Assert.Equal(plotHeight / 2, HistoryChart.StrokeY(50, plotHeight, 1.5));
+        Assert.Equal(0, HistoryChart.StrokeY(100, plotHeight, 1.5));
+    }
 }
