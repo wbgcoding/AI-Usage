@@ -415,11 +415,11 @@
   <data name="Settings.AttentionMaxAge" xml:space="preserve"><value>Show the waiting mark for</value></data>
   <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>After this long without an answer, the tile stops marking the provider as waiting. On off, nothing is marked.</value></data>
   <data name="Settings.AttentionMaxAge.Off" xml:space="preserve"><value>Off</value></data>
-  <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 hour</value></data>
-  <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 hours</value></data>
-  <data name="Settings.AttentionMaxAge.4h" xml:space="preserve"><value>4 hours</value></data>
-  <data name="Settings.AttentionMaxAge.8h" xml:space="preserve"><value>8 hours</value></data>
-  <data name="Settings.AttentionMaxAge.24h" xml:space="preserve"><value>24 hours</value></data>
+  <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 h</value></data>
+  <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 h</value></data>
+  <data name="Settings.AttentionMaxAge.4h" xml:space="preserve"><value>4 h</value></data>
+  <data name="Settings.AttentionMaxAge.8h" xml:space="preserve"><value>8 h</value></data>
+  <data name="Settings.AttentionMaxAge.24h" xml:space="preserve"><value>24 h</value></data>
   <data name="Settings.AttentionPerProvider" xml:space="preserve"><value>Show the waiting mark on</value></data>
   <data name="Tip.Settings.AttentionPerProvider" xml:space="preserve"><value>Marks this provider's tile when an agent is waiting for your answer.</value></data>
   <data name="Window.CopilotChat" xml:space="preserve"><value>Chat</value></data>
@@ -483,9 +483,8 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>The update could not finish. Your program file is now at {0}. Rename it back to AI-Usage.exe to start the app again.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>The installer did not start. If you closed the administrator prompt, try again.</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warn before a limit will likely be reached</value></data>
-  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>about {0} hours before</value></data>
-  <data name="Settings.ForecastLead.Hour" xml:space="preserve"><value>about 1 hour before</value></data>
-  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>about {0} minutes before</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
+  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Warning lead time</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} will likely be full in about {2} (now {3}%)</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Allow notifications on every day</value></data>

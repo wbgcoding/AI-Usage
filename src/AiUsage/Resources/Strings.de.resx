@@ -414,11 +414,11 @@
   <data name="Settings.AttentionMaxAge" xml:space="preserve"><value>Wartemarke anzeigen für</value></data>
   <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>So lange ohne Antwort markiert die Kachel den Anbieter als wartend. Auf Aus wird nichts markiert.</value></data>
   <data name="Settings.AttentionMaxAge.Off" xml:space="preserve"><value>Aus</value></data>
-  <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 Stunde</value></data>
-  <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 Stunden</value></data>
-  <data name="Settings.AttentionMaxAge.4h" xml:space="preserve"><value>4 Stunden</value></data>
-  <data name="Settings.AttentionMaxAge.8h" xml:space="preserve"><value>8 Stunden</value></data>
-  <data name="Settings.AttentionMaxAge.24h" xml:space="preserve"><value>24 Stunden</value></data>
+  <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 h</value></data>
+  <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 h</value></data>
+  <data name="Settings.AttentionMaxAge.4h" xml:space="preserve"><value>4 h</value></data>
+  <data name="Settings.AttentionMaxAge.8h" xml:space="preserve"><value>8 h</value></data>
+  <data name="Settings.AttentionMaxAge.24h" xml:space="preserve"><value>24 h</value></data>
   <data name="Settings.AttentionPerProvider" xml:space="preserve"><value>Wartemarke zeigen bei</value></data>
   <data name="Tip.Settings.AttentionPerProvider" xml:space="preserve"><value>Markiert die Kachel dieses Anbieters, wenn ein Agent auf eine Antwort von dir wartet.</value></data>
   <data name="Window.CopilotChat" xml:space="preserve"><value>Chat</value></data>
@@ -482,9 +482,8 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update ließ sich nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuch es noch einmal.</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, bevor ein Limit voraussichtlich erreicht ist</value></data>
-  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>etwa {0} Stunden vorher</value></data>
-  <data name="Settings.ForecastLead.Hour" xml:space="preserve"><value>etwa 1 Stunde vorher</value></data>
-  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>etwa {0} Minuten vorher</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
+  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Vorlauf der Warnung</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Meldungen an allen Tagen zulassen</value></data>

@@ -167,7 +167,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     ];
 
     /// <summary>The "warning lead time" picker under the forecast check box: one row per <see
-    /// cref="AppSettings.ForecastLeadChoices"/> value, labelled in minutes, one hour or hours.</summary>
+    /// cref="AppSettings.ForecastLeadChoices"/> value, labelled in minutes or whole hours.</summary>
     public ObservableCollection<Choice<int>> ForecastLeadChoices { get; } = [];
 
     /// <summary>Same shape as <see cref="SelectedAttentionMaxAgeChoice"/>, for the lead picker.</summary>
@@ -189,16 +189,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedForecastLeadChoice));
     }
 
-    /// <summary>"about 15 minutes before", "about 1 hour before", "about 2 hours before".</summary>
+    /// <summary>"15 min", "1 h", "2 h": whole hours in hours, everything else in minutes.</summary>
     private static string ForecastLeadLabel(int minutes)
     {
         var loc = LocalizationService.Instance;
-        return minutes switch
-        {
-            60 => loc["Settings.ForecastLead.Hour"],
-            120 => loc.Format("Settings.ForecastLead.Hours", 2),
-            _ => loc.Format("Settings.ForecastLead.Minutes", minutes),
-        };
+        return minutes % 60 == 0
+            ? loc.Format("Settings.ForecastLead.Hours", minutes / 60)
+            : loc.Format("Settings.ForecastLead.Minutes", minutes);
     }
 
     /// <summary>Builds the rows once and afterwards only rewrites their labels (a language switch).</summary>
