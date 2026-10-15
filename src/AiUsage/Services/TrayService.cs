@@ -88,6 +88,7 @@ public sealed class TrayService : IDisposable
     private readonly MenuItem _settingsItem;
     private readonly MenuItem _statsItem;
     private readonly MenuItem _resetPositionItem;
+    private readonly MenuItem _widgetItem;
     private readonly MenuItem _exitItem;
     private readonly Icon _okIcon;
     private readonly Icon _warnIcon;
@@ -122,6 +123,10 @@ public sealed class TrayService : IDisposable
     // for real.
     private bool _readyForContextMenu;
 
+    /// <summary>Tells whether the widget is on screen right now; read each time the menu opens to
+    /// word the first entry "hide" or "show". Null counts as visible.</summary>
+    public Func<bool>? WidgetVisible { get; set; }
+
     public event EventHandler? ShowHideRequested;
     public event EventHandler? RefreshRequested;
     /// <summary>The pause entry was picked: pauses fetching, or ends a running pause.</summary>
@@ -155,7 +160,7 @@ public sealed class TrayService : IDisposable
         _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
         var loc = LocalizationService.Instance;
-        var parts = CreateMenu(windowLayer, clickThrough, hotkeyShortcutText: null, pausedUntil: null);
+        var parts = CreateMenu(windowLayer, clickThrough, hotkeyShortcutText: null, pausedUntil: null, widgetVisible: true);
         _menu = parts.Menu;
         _showHideItem = parts.ShowHide;
         _refreshItem = parts.Refresh;
@@ -165,6 +170,7 @@ public sealed class TrayService : IDisposable
         _settingsItem = parts.Settings;
         _statsItem = parts.Stats;
         _resetPositionItem = parts.ResetPosition;
+        _widgetItem = parts.Widget;
         _exitItem = parts.Exit;
 
         _windowLayerMenu.Chosen += (_, layer) => WindowLayerChanged?.Invoke(this, layer);
@@ -208,19 +214,20 @@ public sealed class TrayService : IDisposable
     private void RefreshMenuText() =>
         RefreshMenuText(
             new MenuParts(_menu, _showHideItem, _refreshItem, _pauseItem, _windowLayerMenu, _clickThroughItem,
-                _settingsItem, _statsItem, _resetPositionItem, _exitItem),
-            _hotkeyShortcutText, _pausedUntil);
+                _settingsItem, _statsItem, _resetPositionItem, _widgetItem, _exitItem),
+            _hotkeyShortcutText, _pausedUntil, WidgetVisible?.Invoke() ?? true);
 
-    private static void RefreshMenuText(MenuParts parts, string? hotkeyShortcutText, DateTimeOffset? pausedUntil)
+    private static void RefreshMenuText(MenuParts parts, string? hotkeyShortcutText, DateTimeOffset? pausedUntil, bool widgetVisible)
     {
         var loc = LocalizationService.Instance;
-        parts.ShowHide.Header = loc["Tray.ShowHide"];
+        parts.ShowHide.Header = loc[widgetVisible ? "Tray.Hide" : "Tray.Show"];
         parts.ShowHide.InputGestureText = hotkeyShortcutText ?? "";
         parts.Refresh.Header = loc["Action.RefreshNow"];
         parts.Pause.Header = pausedUntil is { } until
             ? loc.Format("Tray.Resume", TrayTooltipBuilder.ShortTime(until))
             : loc["Tray.Pause"];
         parts.WindowLayer.RefreshText();
+        parts.Widget.Header = loc["Tray.Widget"];
         parts.ClickThrough.Header = loc["Tray.ClickThrough"];
         parts.Settings.Header = loc["Tray.Settings"];
         parts.Stats.Header = loc["Tray.Stats"];
@@ -230,16 +237,17 @@ public sealed class TrayService : IDisposable
 
     private sealed record MenuParts(
         ContextMenu Menu, MenuItem ShowHide, MenuItem Refresh, MenuItem Pause, WindowLayerMenu WindowLayer, MenuItem ClickThrough,
-        MenuItem Settings, MenuItem Stats, MenuItem ResetPosition, MenuItem Exit);
+        MenuItem Settings, MenuItem Stats, MenuItem ResetPosition, MenuItem Widget, MenuItem Exit);
 
     /// <summary>The right-click menu with its texts in the current language and the two check marks
     /// set, without any click handler. Separate from the constructor so a tool can draw the menu
     /// without creating a notify icon.</summary>
     internal static ContextMenu BuildMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText,
-        DateTimeOffset? pausedUntil = null) =>
-        CreateMenu(windowLayer, clickThrough, hotkeyShortcutText, pausedUntil).Menu;
+        DateTimeOffset? pausedUntil = null, bool widgetVisible = true) =>
+        CreateMenu(windowLayer, clickThrough, hotkeyShortcutText, pausedUntil, widgetVisible).Menu;
 
-    private static MenuParts CreateMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText, DateTimeOffset? pausedUntil)
+    private static MenuParts CreateMenu(string windowLayer, bool clickThrough, string? hotkeyShortcutText, DateTimeOffset? pausedUntil,
+        bool widgetVisible)
     {
         var parts = new MenuParts(
             new ContextMenu(),
@@ -251,17 +259,20 @@ public sealed class TrayService : IDisposable
             new MenuItem(),
             new MenuItem(),
             new MenuItem(),
+            new MenuItem(),
             new MenuItem());
+        parts.ShowHide.FontWeight = FontWeights.SemiBold;
+        parts.WindowLayer.MoveEntriesTo(parts.Widget);
+        parts.Widget.Items.Add(parts.ClickThrough);
+        parts.Widget.Items.Add(parts.ResetPosition);
         parts.Menu.Items.Add(parts.ShowHide);
+        parts.Menu.Items.Add(parts.Stats);
+        parts.Menu.Items.Add(parts.Settings);
         parts.Menu.Items.Add(parts.Refresh);
         parts.Menu.Items.Add(parts.Pause);
-        parts.Menu.Items.Add(parts.WindowLayer.Header);
-        parts.Menu.Items.Add(parts.ClickThrough);
-        parts.Menu.Items.Add(parts.Settings);
-        parts.Menu.Items.Add(parts.Stats);
-        parts.Menu.Items.Add(parts.ResetPosition);
+        parts.Menu.Items.Add(parts.Widget);
         parts.Menu.Items.Add(parts.Exit);
-        RefreshMenuText(parts, hotkeyShortcutText, pausedUntil);
+        RefreshMenuText(parts, hotkeyShortcutText, pausedUntil, widgetVisible);
         return parts;
     }
 
@@ -298,6 +309,7 @@ public sealed class TrayService : IDisposable
         var toDips = _hwndSource.CompositionTarget.TransformFromDevice;
         var point = toDips.Transform(new Point(x, y));
 
+        RefreshMenuText();
         _menu.Placement = PlacementMode.AbsolutePoint;
         _menu.HorizontalOffset = point.X;
         _menu.VerticalOffset = point.Y;

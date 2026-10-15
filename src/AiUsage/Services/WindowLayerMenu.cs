@@ -30,6 +30,17 @@ internal sealed class WindowLayerMenu
     /// <summary>The parent entry to add to a menu.</summary>
     public MenuItem Header { get; }
 
+    /// <summary>Moves the three level entries out of <see cref="Header"/> and straight into
+    /// <paramref name="parent"/>, for a menu that wants them without the extra nesting level.</summary>
+    public void MoveEntriesTo(MenuItem parent)
+    {
+        foreach (var item in _items.Values)
+        {
+            Header.Items.Remove(item);
+            parent.Items.Add(item);
+        }
+    }
+
     /// <summary>Raised with the chosen level when the user picks an entry.</summary>
     public event EventHandler<string>? Chosen;
 
