@@ -64,6 +64,7 @@
              opens can hold check boxes. While the list is open the button ignores the pointer, so a
              click on it closes the list instead of closing and reopening it. -->
         <Style x:Key="ProviderDropDownButton" TargetType="ToggleButton">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
             <Setter Property="MinWidth" Value="80"/>
             <Setter Property="Margin" Value="16,0,0,0"/>
             <Setter Property="Padding" Value="8,4"/>
@@ -89,9 +90,6 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">

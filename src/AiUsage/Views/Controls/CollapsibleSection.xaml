@@ -12,7 +12,7 @@
          target rather than just the chevron or the title. The hover background is drawn by the
          header bar around the button and the optional header content, see HeaderBarStyle. -->
     <Style x:Key="SectionHeaderButtonStyle" TargetType="Button">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -26,14 +26,7 @@
                                 CornerRadius="{StaticResource Radius.Control}" Padding="{TemplateBinding Padding}">
                             <ContentPresenter/>
                         </Border>
-                        <Border x:Name="Focus" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
-                                BorderBrush="{DynamicResource Accent}" Visibility="Collapsed"/>
                     </Grid>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Focus" Property="Visibility" Value="Visible"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
