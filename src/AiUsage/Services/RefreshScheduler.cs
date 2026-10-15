@@ -243,12 +243,20 @@ public sealed class RefreshScheduler
     public IReadOnlyList<Task> RefreshNow(Func<string, bool>? isHidden = null, bool windowVisible = true,
         Func<string, bool>? isDisconnected = null, CancellationToken ct = default)
     {
+        List<CancellationTokenSource> waits = [];
         lock (_gate)
         {
             var now = _timeProvider.GetUtcNow();
-            foreach (var state in _state.Values.Where(s => !s.InFlight))
-                state.NextDueAt = now;
+            foreach (var state in _state.Values)
+            {
+                if (!state.InFlight)
+                    state.NextDueAt = now;
+                else if (state.RetryWait is { } wait)
+                    waits.Add(wait);
+            }
         }
+        // A provider that only waits for its quiet retry retries now.
+        CancelWaits(waits);
         // A manual refresh is a fetch the person asked for: it reads every source once, even
         // while paused or on the energy saver, and leaves both in place.
         return TickCore(isHidden, windowVisible, isDisconnected, ignoreNetworkSkip: true, ct);
@@ -263,40 +271,80 @@ public sealed class RefreshScheduler
     public IReadOnlyList<Task> RefreshNetworkFailed(Func<string, bool>? isHidden = null, bool windowVisible = true,
         Func<string, bool>? isDisconnected = null, CancellationToken ct = default)
     {
+        List<CancellationTokenSource> waits = [];
         lock (_gate)
         {
             var now = _timeProvider.GetUtcNow();
             foreach (var provider in _providers)
             {
                 var state = _state[provider.AccountKey];
-                if (state.InFlight || state.LastFailureKind != FailureKind.Network)
+                if (state.InFlight)
+                {
+                    // Waiting for its quiet retry: the connection is back, so retry now.
+                    if (state.RetryWait is { } wait)
+                        waits.Add(wait);
+                    continue;
+                }
+                if (state.LastFailureKind != FailureKind.Network)
                     continue;
                 state.NextDueAt = now;
                 state.CurrentInterval = ResolveIntervalLocked(provider);
             }
         }
+        CancelWaits(waits);
         return TickCore(isHidden, windowVisible, isDisconnected, ignoreNetworkSkip: false, ct);
     }
 
     /// <summary>
     /// Forces exactly one provider to fetch now, bypassing its remaining wait once - including its own
-    /// web floor - without touching any other provider's schedule. An unknown or already-in-flight id
-    /// is a no-op, never an exception.
+    /// web floor - without touching any other provider's schedule. An unknown id is a no-op, never an
+    /// exception; so is an in-flight one, except that a provider waiting for its quiet retry retries
+    /// at once.
     /// </summary>
     public IReadOnlyList<Task> RefreshNow(string providerId, CancellationToken ct = default)
     {
         IUsageProvider? provider;
+        CancellationTokenSource? wait;
         lock (_gate)
         {
-            if (!_state.TryGetValue(providerId, out var state) || state.InFlight)
+            if (!_state.TryGetValue(providerId, out var state))
                 return [];
+            wait = state.InFlight ? state.RetryWait : null;
             provider = _providers.FirstOrDefault(p => p.AccountKey == providerId);
-            if (provider is null)
-                return [];
-            state.NextDueAt = _timeProvider.GetUtcNow();
-            state.InFlight = true;
+            if (state.InFlight || provider is null)
+                provider = null;
+            else
+            {
+                state.NextDueAt = _timeProvider.GetUtcNow();
+                state.InFlight = true;
+            }
+        }
+        if (provider is null)
+        {
+            CancelWait(wait);
+            return [];
         }
         return [RunOneAsync(provider, holdNetwork: false, ct)];
+    }
+
+    /// <summary>Ends the pause before a quiet retry early; the run itself keeps going. Never called
+    /// under the lock: cancelling can run the waiting code inline.</summary>
+    private static void CancelWait(CancellationTokenSource? wait)
+    {
+        try
+        {
+            wait?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The wait ended on its own just before.
+        }
+    }
+
+    private static void CancelWaits(List<CancellationTokenSource> waits)
+    {
+        foreach (var wait in waits)
+            CancelWait(wait);
     }
 
     /// <summary>
@@ -462,14 +510,28 @@ public sealed class RefreshScheduler
                     + $"last source {state.LastSource?.ToString() ?? "none"}, retrying once in {(int)_retryDelay.TotalSeconds} s.");
                 // The tile shows no working state while it only waits; it comes back with the retry.
                 FetchEnded?.Invoke(provider.AccountKey);
+                // The pause has its own token, so a refresh the person asks for can end it early
+                // without cancelling the run.
+                using var retryWait = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
+                lock (_gate)
+                    state.RetryWait = retryWait;
                 try
                 {
-                    await Task.Delay(_retryDelay, _timeProvider, timeoutCts.Token);
+                    await Task.Delay(_retryDelay, _timeProvider, retryWait.Token);
+                }
+                catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && retryWait.IsCancellationRequested)
+                {
+                    // Cut short: the retry starts now.
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))
                 {
                     EndOwnerCancelled(provider, state);
                     return;
+                }
+                finally
+                {
+                    lock (_gate)
+                        state.RetryWait = null;
                 }
 
                 RaiseFetchStarted(provider.AccountKey);
@@ -687,6 +749,10 @@ public sealed class RefreshScheduler
         // running, without either RunOneAsync or CancelProvider ever holding _gate across an await.
         public CancellationTokenSource? RunCancellation;
         public Task? RunningTask;
+
+        // The pause before the quiet retry, while one is running; a user refresh cancels it (not the
+        // run) so the retry starts at once.
+        public CancellationTokenSource? RetryWait;
 
         // Set by CancelProvider, reset when the next attempt starts.
         public bool CancelledByOwner;

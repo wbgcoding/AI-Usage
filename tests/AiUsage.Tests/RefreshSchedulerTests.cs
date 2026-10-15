@@ -870,6 +870,47 @@ public class RefreshSchedulerTests
         Assert.Equal(1, provider.FetchCount);
     }
 
+    [Theory]
+    [InlineData("tile")]
+    [InlineData("all")]
+    [InlineData("network")]
+    public async Task A_refresh_during_the_retry_pause_starts_the_retry_at_once(string how)
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var calls = 0;
+        var secondStarted = new TaskCompletionSource();
+        var provider = new FakeProvider("gemini", _ =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+                return Task.FromResult(FailedWith("gemini", FailureKind.Timeout));
+            secondStarted.TrySetResult();
+            return Task.FromResult(Ok("gemini"));
+        });
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMinutes(5), logInfo: _ => { });
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        var run = Task.WhenAll(scheduler.Tick());
+        // The pause is entered a moment after the first failure; a refresh before that is a no-op.
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!secondStarted.Task.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            _ = how switch
+            {
+                "tile" => scheduler.RefreshNow("gemini"),
+                "all" => scheduler.RefreshNow(),
+                _ => scheduler.RefreshNetworkFailed(),
+            };
+            await Task.Delay(10);
+        }
+        await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await run;
+
+        // The run was not cancelled: the retry's answer is reported, with no second run started.
+        Assert.Equal(2, calls);
+        Assert.Equal(ProviderStatus.Ok, Assert.Single(reported).Status);
+    }
+
     private sealed class FakeProvider : IUsageProvider
     {
         private readonly Func<CancellationToken, Task<ProviderSnapshot>>? _fetch;
