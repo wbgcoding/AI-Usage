@@ -111,6 +111,16 @@ public partial class SignInWindow : Window
             // own right-click menu stays - only the developer tools go, the same as the hidden reader
             // session this window shares a profile with.
             Browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            // The email typed at sign-in must not land in the profile's autofill store, and a
+            // permission click here (notifications, location) must not be saved where the hidden
+            // reader session inherits it: every request gets a no that is not remembered.
+            Browser.CoreWebView2.Settings.IsGeneralAutofillEnabled = false;
+            Browser.CoreWebView2.Settings.IsPasswordAutosaveEnabled = false;
+            Browser.CoreWebView2.PermissionRequested += (_, args) =>
+            {
+                args.State = Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Deny;
+                args.SavesInProfile = false;
+            };
             // No provider sign-in needs a file: every download the page starts is cancelled.
             Browser.CoreWebView2.DownloadStarting += (_, args) => args.Cancel = true;
             Browser.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
