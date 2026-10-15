@@ -318,9 +318,13 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}" Style="{StaticResource FieldLabel.Tight}"/>
-                            <ComboBox ItemsSource="{Binding LayoutChoices}"
+                            <ComboBox x:Name="LayoutCombo" ItemsSource="{Binding LayoutChoices}"
                                       SelectedItem="{Binding SelectedLayoutChoice, Mode=TwoWay}"
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}"
                                       HorizontalAlignment="Stretch"/>
@@ -333,13 +337,14 @@
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="TileOrderCombo" ItemsSource="{Binding TileOrderChoices}"
+                                      SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
                     </Grid>
-
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox ItemsSource="{Binding TileOrderChoices}"
-                              SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
-                              HorizontalAlignment="Stretch"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
