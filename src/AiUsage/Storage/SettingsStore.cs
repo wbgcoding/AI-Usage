@@ -274,6 +274,7 @@ public sealed class SettingsStore : IDisposable
         LegacyWindowLabels.Migrate(loaded, MainViewModel.TrayWindowLabelPrefix);
         MigrateWindowLayer(loaded);
         MigrateStatsPerDayView(loaded);
+        MigrateQuietWeekend(loaded);
         ClampToValidRanges(loaded);
         return (loaded, null);
     }
@@ -285,6 +286,19 @@ public sealed class SettingsStore : IDisposable
     {
         settings.WindowLayer = WindowLayers.Normalize(settings.WindowLayer ?? WindowLayers.FromLegacy(settings.LegacyAlwaysOnTop));
         settings.LegacyAlwaysOnTop = null;
+    }
+
+    /// <summary>A file with the old "quiet all weekend" switch on opens with Saturday and Sunday unchecked
+    /// in the weekday list; the old key is cleared so it is never written back.</summary>
+    internal static void MigrateQuietWeekend(AppSettings settings)
+    {
+        if (settings.LegacyQuietWeekend == true)
+        {
+            settings.AllDaysAllowed = false;
+            settings.QuietDays = QuietHours.NormalizeDays([.. settings.QuietDays ?? [], nameof(DayOfWeek.Saturday), nameof(DayOfWeek.Sunday)]);
+        }
+
+        settings.LegacyQuietWeekend = null;
     }
 
     /// <summary>A 1.1.0 file that left the day grouping on its weekday or hour chart opens on that
@@ -672,6 +686,8 @@ public sealed class SettingsStore : IDisposable
         // is not a defined member any more and so loads as "Auto".
         if (settings.TileDensity != "Auto")
             settings.TileDensity = CanonicalEnumName<TileDensity>(settings.TileDensity, "Auto");
+
+        settings.QuietDays = QuietHours.NormalizeDays(settings.QuietDays);
 
         settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
             ? "ByUsage"

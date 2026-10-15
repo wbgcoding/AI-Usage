@@ -688,8 +688,29 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietWeekend]}"
-                              IsChecked="{Binding QuietWeekend}" Style="{StaticResource CheckBox.GapS}"/>
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AllDays]}"
+                              IsChecked="{Binding AllDaysAllowed}" Style="{StaticResource CheckBox.GapS}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.AllDays]}"/>
+                    <!-- Only while "every day" is off: one box per weekday, checked = notifications allowed. -->
+                    <ItemsControl x:Name="QuietDaysList" ItemsSource="{Binding QuietDays}" Focusable="False" Margin="16,0,0,0">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AllDaysAllowed}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAllowed}" Margin="0,4,16,0"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PerProvider]}"
                                FontWeight="SemiBold" Margin="0,16,0,4"/>

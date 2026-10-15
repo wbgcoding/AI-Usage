@@ -157,6 +157,8 @@ internal static class ReviewSurfaces
             var id = "settings." + category.ToLowerInvariant();
             list.Add(new Surface(id, GroupSettings, context => ReviewSettings.RenderCategory(context, id, category), HasMinSize: true));
         }
+        list.Add(new Surface("settings.notifications-days", GroupSettings,
+            context => ReviewSettings.RenderNotificationDays(context, "settings.notifications-days"), HasMinSize: true));
         list.Add(new Surface("settings.system-moving", GroupSettings,
             context => ReviewSettings.RenderMoving(context, "settings.system-moving"), HasMinSize: true));
 

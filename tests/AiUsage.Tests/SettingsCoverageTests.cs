@@ -19,7 +19,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.DefaultThreshold), nameof(AppSettings.DefaultThresholdEnabled), nameof(AppSettings.NotifyOnReset),
         nameof(AppSettings.ForecastAlertEnabled), nameof(AppSettings.LimitReachedAlertEnabled),
         nameof(AppSettings.ShowAttentionMark), nameof(AppSettings.AttentionMaxAgeMinutes), nameof(AppSettings.CheckForUpdates),
-        nameof(AppSettings.SaveEnergyOnBattery), nameof(AppSettings.QuietHoursEnabled), nameof(AppSettings.QuietWeekend),
+        nameof(AppSettings.SaveEnergyOnBattery), nameof(AppSettings.QuietHoursEnabled), nameof(AppSettings.AllDaysAllowed), nameof(AppSettings.QuietDays),
         nameof(AppSettings.QuietHoursStart), nameof(AppSettings.QuietHoursEnd), nameof(AppSettings.HotkeyEnabled),
         nameof(AppSettings.Hotkey), nameof(AppSettings.ClickThrough), nameof(AppSettings.TrayProvider),
         nameof(AppSettings.TrayWindow), nameof(AppSettings.StatsSectionLayout), nameof(AppSettings.StatsSectionsCollapsed),
@@ -36,6 +36,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.ImportedMachines), // histories imported onto this PC
         nameof(AppSettings.LegacyAlwaysOnTop), // read once on load, never written
         nameof(AppSettings.LegacyStatsPerDayView), // read once on load, never written
+        nameof(AppSettings.LegacyQuietWeekend), // read once on load, never written
         nameof(AppSettings.TrayHintShown), // one-time hint already seen on this PC
         nameof(AppSettings.WelcomeShown), // one-time hint already seen on this PC
         nameof(AppSettings.ClickThroughHintShown), // one-time hint already seen on this PC

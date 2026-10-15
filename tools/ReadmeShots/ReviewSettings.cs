@@ -24,6 +24,16 @@ internal static class ReviewSettings
     internal static void RenderCategory(SurfaceContext context, string id, string category) =>
         Render(context, viewModel => viewModel.SelectedCategory = category, context.OutputPath(id));
 
+    /// <summary>The Notifications page with "every day" switched off and Saturday and Sunday unchecked.</summary>
+    internal static void RenderNotificationDays(SurfaceContext context, string id) =>
+        Render(context, viewModel =>
+        {
+            viewModel.SelectedCategory = "Notifications";
+            viewModel.AllDaysAllowed = false;
+            foreach (var day in viewModel.QuietDays.Where(day => day.Day is DayOfWeek.Saturday or DayOfWeek.Sunday))
+                day.IsAllowed = false;
+        }, context.OutputPath(id));
+
     /// <summary>The System page while a data folder move is running (button disabled, status text next
     /// to it).</summary>
     internal static void RenderMoving(SurfaceContext context, string id) =>

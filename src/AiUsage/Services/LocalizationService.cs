@@ -75,6 +75,11 @@ public sealed class LocalizationService : INotifyPropertyChanged
     /// instead of a language parameter of its own.</summary>
     public string ActiveLanguageDisplayName => this[Languages.First(l => l.Resources == _active).LabelKey];
 
+    /// <summary>The culture of the active UI language ("en", "de"), "System" resolved like <see
+    /// cref="SetLanguage"/> does - for the one thing the resource files cannot hold: names the .NET
+    /// calendar already knows (the days of the week).</summary>
+    public CultureInfo ActiveCulture => CultureInfo.GetCultureInfo(Languages.First(l => l.Resources == _active).Code);
+
     // CurrentCulture, not InvariantCulture: numbers and dates embedded into a
     // format string follow the OS regional format, independent of which UI language is active.
     public string Format(string key, params object[] args) => string.Format(CultureInfo.CurrentCulture, this[key], args);

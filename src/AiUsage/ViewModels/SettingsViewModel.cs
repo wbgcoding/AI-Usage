@@ -371,7 +371,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool limitReachedAlertEnabled;
 
     [ObservableProperty]
-    private bool quietWeekend;
+    private bool allDaysAllowed = true;
+
+    /// <summary>Monday to Sunday, one check box each, shown while <see cref="AllDaysAllowed"/> is off.</summary>
+    public ObservableCollection<QuietDayViewModel> QuietDays { get; } = [];
 
     [ObservableProperty]
     private bool showAttentionMark;
@@ -560,7 +563,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         showAttentionMark = settings.ShowAttentionMark;
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
-        quietWeekend = settings.QuietWeekend;
+        allDaysAllowed = settings.AllDaysAllowed;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -591,6 +594,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
 
         RebuildImportedPcs();
+        RebuildQuietDays();
         RebuildProviderRows();
         // An account added or removed while this window is open gets or loses its rows right away.
         Main.Tiles.CollectionChanged += OnTilesChanged;
@@ -745,6 +749,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             choice.RefreshLabel();
         foreach (var choice in AttentionMaxAgeChoices)
             choice.RefreshLabel();
+        foreach (var day in QuietDays)
+            day.RefreshName();
         Main.RefreshProviderIntervalLabels();
         foreach (var row in ThresholdRows)
             row.RefreshLabels();
@@ -1027,10 +1033,30 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
     }
 
-    partial void OnQuietWeekendChanged(bool value)
+    partial void OnAllDaysAllowedChanged(bool value)
     {
-        _settings.QuietWeekend = value;
+        // The day list stays as it is: switching the box back off finds the same days unchecked.
+        _settings.AllDaysAllowed = value;
         _store.RequestSave(_settings);
+    }
+
+    /// <summary>A day check box was ticked or cleared: its name joins or leaves the stored list.</summary>
+    private void OnQuietDayChanged(DayOfWeek day, bool allowed)
+    {
+        var quiet = new HashSet<string>(_settings.QuietDays, StringComparer.OrdinalIgnoreCase);
+        if (allowed)
+            quiet.Remove(day.ToString());
+        else
+            quiet.Add(day.ToString());
+        _settings.QuietDays = QuietHours.NormalizeDays(quiet);
+        _store.RequestSave(_settings);
+    }
+
+    private void RebuildQuietDays()
+    {
+        QuietDays.Clear();
+        foreach (var day in QuietHours.WeekOrder)
+            QuietDays.Add(new QuietDayViewModel(day, !_settings.QuietDays.Contains(day.ToString(), StringComparer.OrdinalIgnoreCase), OnQuietDayChanged));
     }
 
     partial void OnQuietHoursStartTextChanged(string value)
@@ -1789,7 +1815,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
-        _settings.QuietWeekend = source.QuietWeekend;
+        _settings.AllDaysAllowed = source.AllDaysAllowed;
+        _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
         _settings.QuietHoursStart = source.QuietHoursStart;
         _settings.QuietHoursEnd = source.QuietHoursEnd;
         _settings.HotkeyEnabled = source.HotkeyEnabled;
@@ -1872,7 +1899,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
-        QuietWeekend = _settings.QuietWeekend;
+        AllDaysAllowed = _settings.AllDaysAllowed;
+        RebuildQuietDays();
         QuietHoursStartText = _settings.QuietHoursStart;
         QuietHoursEndText = _settings.QuietHoursEnd;
         QuietHoursStartInvalid = false;

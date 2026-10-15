@@ -150,9 +150,20 @@ public sealed class AppSettings
 
     public string QuietHoursEnd { get; set; } = "08:00";
 
-    /// <summary>Whole Saturday and Sunday (local time) without notifications, whatever the daily
-    /// window above says.</summary>
-    public bool QuietWeekend { get; set; }
+    /// <summary>Whether notifications may come on every day. Off: the days in <see cref="QuietDays"/>
+    /// stay completely quiet (local time), whatever the daily window above says. The list is kept while
+    /// this is on, so switching it off again brings the same days back.</summary>
+    public bool AllDaysAllowed { get; set; } = true;
+
+    /// <summary>The <see cref="DayOfWeek"/> names (English, "Monday") without notifications while <see
+    /// cref="AllDaysAllowed"/> is off. <see cref="Storage.SettingsStore"/> tidies it on load.</summary>
+    public List<string> QuietDays { get; set; } = [];
+
+    /// <summary>The old "quiet all weekend" switch, read only to carry it into <see cref="AllDaysAllowed"/>
+    /// and <see cref="QuietDays"/> and then cleared, so it is never written back.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("QuietWeekend")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? LegacyQuietWeekend { get; set; }
 
     /// <summary>True once the one-time "still running in the tray" balloon has been shown.</summary>
     public bool TrayHintShown { get; set; }
