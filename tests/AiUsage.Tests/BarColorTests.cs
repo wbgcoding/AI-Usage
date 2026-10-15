@@ -130,11 +130,11 @@ public class BarColorTests
     [Fact]
     public void Parts_narrower_than_two_pixels_merge_into_the_last_one()
     {
-        // 300 px: 90 %, 8 % (24 px), then 1 % and 1 % (3 px each is wide enough) ...
+        // On 300 px every part is at least 3 px wide, so none merges.
         var wide = WindowShares.Layout([Part(90, 1), Part(8, 2), Part(1, 3), Part(1, 4)], 300);
         Assert.Equal(4, wide.Count);
 
-        // ... but on 100 px the last two are 1 px each and fold into the final part, which keeps its color.
+        // On 100 px the last two are 1 px each and fold into the final part, which keeps its color.
         var narrow = WindowShares.Layout([Part(90, 1), Part(8, 2), Part(1, 3), Part(1, 4)], 100);
 
         Assert.Equal(3, narrow.Count);
