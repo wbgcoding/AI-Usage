@@ -13,10 +13,13 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - One backup file holds your settings, the usage history and the token index. Restoring it replaces everything and restarts the app; your previous state is kept aside until the restore has finished.
 - The token history of a second PC can be imported from its backup. Importing the same backup twice counts nothing twice, and each imported PC can be removed again in the settings.
 - Notifications appear as real Windows notifications with a "Show widget" button, grouped in the notification center and respecting Do Not Disturb.
-- A warning when the forecast says a window fills within 30 minutes, and a notification when a limit is reached. Each has its own switch, and both are on.
-- Notifications can stay quiet all weekend.
+- A warning when the forecast says a window will fill soon, with a lead you choose from 3 minutes to 2 hours (30 minutes by default), and a notification when a limit is reached. Each has its own switch, and both are on.
+- Notifications can stay quiet on the weekdays you pick.
 - A screen reader announces when a window turns yellow, red or full.
-- A short tick on each bar shows how much of the window's time has passed, so you can see at a glance whether you are using it faster than it refills.
+- A short tick on each bar shows how much of the window's time has passed, so you can see at a glance whether you are using it faster than it refills. It appears for every provider and can be switched off in Settings > Display.
+- Each window shows the tokens used since its own last reset; a model window such as Fable counts only that model.
+- A bar can be colored by model or by main agent and subagents instead of by level, split by each one's share of the window (Settings > Display > Tiles, per provider).
+- The token usage window opens almost at once, also right after the app starts.
 - An error tile names what went wrong, keeps the last numbers dimmed in view and links to the provider's status page on server errors and timeouts.
 - Clicking a provider's name shows its details; "Refresh" and "Hide chart" sit in the tile's right-click menu.
 - Tiles can be sorted by how full they are (Settings > Display, off by default).
@@ -43,6 +46,11 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Changed
 
+- Context menus have no separator lines and are ordered by what belongs together; the notification area menu is shorter, with the window options in a "Widget" submenu.
+- Focus rings appear only when you move with the keyboard, not after a mouse click.
+- Tooltips that only repeated the visible name are gone.
+- The pie charts in token usage grow with the window.
+- In Settings the category list stays in place while the page scrolls, and "Fetch at most every" moved to the Fetching page.
 - AI-Usage no longer carries its own copy of .NET, so the downloads shrink from about 136 MB to a fraction of that. It uses the .NET 10 Desktop Runtime installed on your PC: the installer downloads it from Microsoft when it is missing, and a portable copy shows a download link instead of starting. A portable 1.1.0 that updates itself therefore starts only once the runtime is installed. See "Coming from version 1.1.0" in the README.
 - Token usage shows one chart instead of a breakdown and a per day chart; the cache share appears once, in the breakdown.
 - Token usage remembers its period, grouping and position, and opens at 80 % of the screen the first time, never larger than the screen.
@@ -76,6 +84,10 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Fixed
 
+- A Gemini read that timed out briefly showed an error although the next read worked; it is now retried once quietly first.
+- The widget's taskbar button no longer lights up as if it had a message.
+- The threshold line stays hidden on a tile whose notifications are off.
+- The minimize button no longer stays highlighted after restoring the window.
 - Claude output tokens in the token usage window were about a third too low: Claude Code writes each response several times and only the first copy, with a provisional output count, was counted. The final count is used now, and a one-time pass adds the missing tokens from every session file that still exists.
 - A session file is no longer counted twice when the Claude or Codex folder is spelled with different letter case.
 - After an in-app update the installed widget starts again on its own.
