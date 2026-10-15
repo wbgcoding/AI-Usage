@@ -1,4 +1,4 @@
-using AiUsage.Models;
+﻿using AiUsage.Models;
 
 namespace AiUsage.Services;
 
@@ -460,6 +460,8 @@ public sealed class RefreshScheduler
                 _logInfo($"Provider '{provider.AccountKey}': read failed ({snapshot.Error?.Kind}) after "
                     + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, "
                     + $"last source {state.LastSource?.ToString() ?? "none"}, retrying once in {(int)_retryDelay.TotalSeconds} s.");
+                // The tile shows no working state while it only waits; it comes back with the retry.
+                FetchEnded?.Invoke(provider.AccountKey);
                 try
                 {
                     await Task.Delay(_retryDelay, _timeProvider, timeoutCts.Token);
@@ -470,6 +472,7 @@ public sealed class RefreshScheduler
                     return;
                 }
 
+                RaiseFetchStarted(provider.AccountKey);
                 attemptClock = _timeProvider.GetTimestamp();
                 snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, timeoutCts, state, ct);
                 if (snapshot is not null && snapshot.Status == ProviderStatus.Failed)

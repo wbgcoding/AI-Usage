@@ -1,4 +1,4 @@
-using AiUsage.Models;
+﻿using AiUsage.Models;
 using AiUsage.Services;
 
 namespace AiUsage.Tests;
@@ -780,12 +780,18 @@ public class RefreshSchedulerTests
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMilliseconds(30), logInfo: logged.Add);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
+        var events = new List<string>();
+        scheduler.FetchStarted += _ => { lock (events) events.Add("started"); };
+        scheduler.FetchEnded += _ => { lock (events) events.Add("ended"); };
 
         var run = Task.WhenAll(scheduler.Tick());
         await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-        // The retry is running: the tile has been told nothing about the first failure.
+        // The retry is running: the tile has been told nothing about the first failure, and its
+        // working state paused during the wait and came back for the retry.
         Assert.Empty(reported);
+        lock (events)
+            Assert.Equal(["started", "ended", "started"], events);
         releaseSecond.SetResult();
         await run;
 
@@ -858,7 +864,8 @@ public class RefreshSchedulerTests
         await scheduler.CancelProvider("gemini");
         await run;
 
-        Assert.Equal(["gemini"], ended);
+        // Once when the pause starts (the tile stops showing work), once for the cancelled attempt.
+        Assert.Equal(["gemini", "gemini"], ended);
         Assert.Empty(reported);
         Assert.Equal(1, provider.FetchCount);
     }
