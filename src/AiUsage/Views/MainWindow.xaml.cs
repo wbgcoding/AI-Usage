@@ -319,15 +319,41 @@ public partial class MainWindow : Window, IDisposable
     /// which always wants the window forward regardless of its current state. Coming back from not
     /// visible refreshes right away, so the first number on screen again is never minutes stale from
     /// the slower closed-window cadence (<see cref="RefreshScheduler.ResolveInterval"/>).</summary>
-    public void ShowAndActivate()
+    public void ShowAndActivate() => ShowAndActivate(userInitiated: true);
+
+    /// <summary>Shows the widget again. Only a direct user action (<paramref name="userInitiated"/>)
+    /// asks for the foreground and restores a minimized window; an automatic show (a sign-in that
+    /// finished by itself) un-hides it without activating, so a refused request can never light up
+    /// the taskbar button.</summary>
+    private void ShowAndActivate(bool userInitiated)
     {
         var wasHidden = !ViewModel.WindowVisible;
 
         _showingAndActivating = true;
         try
         {
-            Show();
-            WindowState = WindowState.Normal;
+            if (userInitiated)
+            {
+                Show();
+                WindowState = WindowState.Normal;
+            }
+            else
+            {
+                // A minimized widget stays as the user left it.
+                if (WindowState == WindowState.Minimized)
+                    return;
+
+                // ShowActivated is only read by the Show() that makes the window visible.
+                ShowActivated = false;
+                try
+                {
+                    Show();
+                }
+                finally
+                {
+                    ShowActivated = true;
+                }
+            }
         }
         finally
         {
@@ -338,7 +364,13 @@ public partial class MainWindow : Window, IDisposable
         _tickTimer.Interval = ResolveTickInterval(windowVisible: true);
         // Activate once; a refused activation (Windows' own foreground-lock rule) is left exactly
         // where it is - see WindowActivation for why nothing here ever escalates a refusal.
-        WindowActivation.TryActivate(Activate);
+        if (userInitiated)
+            WindowActivation.TryActivate(Activate);
+        else
+        {
+            WindowActivation.RecordAutomaticShow("MainWindow.ShowAndActivate (automatic)");
+            WindowActivation.TryActivateAutomatic(Activate);
+        }
         ViewModel.WindowVisible = true;
 
         if (wasHidden)
@@ -500,7 +532,7 @@ public partial class MainWindow : Window, IDisposable
                 WebSignInFlow.Open(this, ProviderRegistry.WebSessionFor(accountKey), signedIn =>
                 {
                     ViewModel.CompleteSignIn(accountKey, signedIn);
-                    ShowAndActivate();
+                    ShowAndActivate(userInitiated: false);
                 });
             };
         }
@@ -1168,6 +1200,7 @@ public partial class MainWindow : Window, IDisposable
         if (!_hiddenByFullscreen)
             return;
         _hiddenByFullscreen = false;
+        WindowActivation.RecordAutomaticShow("MainWindow fullscreen return");
         NativeWindowStyle.ShowNativeNoActivate(hwndSource.Handle);
     }
 
@@ -1589,7 +1622,7 @@ public partial class MainWindow : Window, IDisposable
             };
         }
         _settingsWindow.Show();
-        _settingsWindow.Activate();
+        WindowActivation.TryActivate(_settingsWindow.Activate);
     }
 
     private void EmptyStateSettings_Click(object sender, RoutedEventArgs e) =>
@@ -1615,7 +1648,7 @@ public partial class MainWindow : Window, IDisposable
             _statsWindow.BeginOpenMeasurement(clicked);
         }
         _statsWindow.Show();
-        _statsWindow.Activate();
+        WindowActivation.TryActivate(_statsWindow.Activate);
     }
 
     private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore())
@@ -1661,6 +1694,7 @@ public partial class MainWindow : Window, IDisposable
             timer.Stop();
             if (step == PrebuildStep.Build)
             {
+                WindowActivation.RecordAutomaticShow("StatsWindow prebuild (built, not shown)");
                 _preparedStatsWindow = CreateStatsWindow();
                 _preparedStatsWindow.PrepareOffscreen();
             }

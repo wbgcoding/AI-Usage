@@ -317,7 +317,7 @@ public sealed class TrayService : IDisposable
         // menu stays open until one of its own entries is picked. Guarded by _readyForContextMenu
         // (see its field comment) so this can never run before a real click was even possible.
         if (_readyForContextMenu)
-            SetForegroundWindow(_hwndSource.Handle);
+            WindowActivation.RecordUserRequest("TrayService.ShowContextMenu", SetForegroundWindow(_hwndSource.Handle));
         _menu.IsOpen = true;
     }
 

@@ -32,9 +32,9 @@ public class MainWindowStatsButtonTests
         Assert.Single(Regex.Matches(source, @"CreateStatsWindow\(\)"), match => match.Index >= methodStart && match.Index < methodEnd);
 
         var showIndex = methodBody.IndexOf("_statsWindow.Show();", StringComparison.Ordinal);
-        var activateIndex = methodBody.IndexOf("_statsWindow.Activate();", StringComparison.Ordinal);
+        var activateIndex = methodBody.IndexOf("WindowActivation.TryActivate(_statsWindow.Activate);", StringComparison.Ordinal);
         Assert.True(showIndex >= 0, "_statsWindow.Show() not found");
-        Assert.True(activateIndex > showIndex, "_statsWindow.Activate() must follow Show()");
+        Assert.True(activateIndex > showIndex, "the activation must follow Show()");
 
         // Both calls must sit outside (after) the if-block that creates the window - inside it, a
         // second call with the field already set would do nothing at all, never focusing anything.
