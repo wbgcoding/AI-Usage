@@ -1028,6 +1028,38 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void Every_open_writes_one_log_line_with_total_data_and_layout_time()
+    {
+        var line = StatsWindow.FormatOpenLog(412.4, 38.6);
+
+        Assert.Equal("Statistics window: shown in 412 ms (data 39 ms, layout 374 ms)", line);
+        Assert.Matches(@"^Statistics window: shown in \d+ ms \(data \d+ ms, layout \d+ ms\)$", StatsWindow.FormatOpenLog(0.2, 5));
+    }
+
+    [Fact]
+    public void A_window_built_ahead_and_closed_unshown_leaves_the_remembered_size_alone()
+    {
+        var previous = WindowPlacementService.Shared;
+        var settings = new AppSettings();
+        WindowPlacementService.Shared = new WindowPlacementService(settings);
+        try
+        {
+            WindowPlacementService.Shared.RememberedStatsWindowSize = (1234, 876);
+            RunInWindow(null, (window, _) =>
+            {
+                window.PrepareOffscreen();
+                window.Close();
+            });
+
+            Assert.Equal((1234d, 876d), WindowPlacementService.Shared.RememberedStatsWindowSize);
+        }
+        finally
+        {
+            WindowPlacementService.Shared = previous;
+        }
+    }
+
+    [Fact]
     public void A_dropped_section_starts_its_slide_where_it_was_let_go()
     {
         RunInWindow(null, (window, _) =>

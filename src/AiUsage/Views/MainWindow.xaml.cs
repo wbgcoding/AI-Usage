@@ -1047,6 +1047,7 @@ public partial class MainWindow : Window, IDisposable
         hwndSource.AddHook(WndProc);
 
         WindowChromeNative.Bootstrap(this, followsOpacity: true);
+        SchedulePreparedStatsWindow();
 
         _desktopLayer = new DesktopLayer(hwndSource.Handle, () => Visibility != Visibility.Visible || _minimizedByUser || _hiddenByFullscreen);
         ApplyWindowLayer(ViewModel.WindowLayer);
@@ -1604,17 +1605,55 @@ public partial class MainWindow : Window, IDisposable
     /// nothing worth keeping alive past its own Closed event either.</summary>
     private void TitleBarControl_StatsRequested(object? sender, EventArgs e)
     {
+        var clicked = Stopwatch.GetTimestamp();
         if (_statsWindow is null)
         {
-            _statsWindow = new StatsWindow(new StatsViewModel(new StatsStore())
-            {
-                ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
-            }, _settings, _settingsStore);
+            _statsWindow = TakePreparedStatsWindow() ?? CreateStatsWindow();
             OwnerWindowResolver.ApplyOwner(_statsWindow, this);
             _statsWindow.Closed += (_, _) => _statsWindow = null;
+            _statsWindow.BeginOpenMeasurement(clicked);
         }
         _statsWindow.Show();
         _statsWindow.Activate();
+    }
+
+    private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore())
+    {
+        ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
+    }, _settings, _settingsStore);
+
+    // The statistics window, built once shortly after startup and kept unshown, so the click only has
+    // to show it. Used once; the next open builds a fresh one (cheap by then: the code is warm).
+    private StatsWindow? _preparedStatsWindow;
+
+    private StatsWindow? TakePreparedStatsWindow()
+    {
+        var window = _preparedStatsWindow;
+        _preparedStatsWindow = null;
+        // Settings may have changed since it was built (an import, a reset): take them up again.
+        window?.ReloadFromSettings();
+        return window;
+    }
+
+    private void SchedulePreparedStatsWindow()
+    {
+        var timer = new DispatcherTimer(DispatcherPriority.ApplicationIdle, Dispatcher) { Interval = TimeSpan.FromSeconds(8) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (_statsWindow is null && _preparedStatsWindow is null)
+            {
+                _preparedStatsWindow = CreateStatsWindow();
+                _preparedStatsWindow.PrepareOffscreen();
+            }
+        };
+        timer.Start();
+        Closed += (_, _) =>
+        {
+            timer.Stop();
+            _preparedStatsWindow?.Close();
+            _preparedStatsWindow = null;
+        };
     }
 
     private void TitleBarControl_MinimizeRequested(object? sender, EventArgs e)

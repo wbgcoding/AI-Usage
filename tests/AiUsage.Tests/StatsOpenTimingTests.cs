@@ -103,6 +103,15 @@ public class StatsOpenTimingTests(ITestOutputHelper output)
             sw.Restart();
             var window = new StatsWindow(vmWindow);
             lines.Add($"window constructor   {Ms(sw),9:F1} ms");
+            var prepared = Environment.GetEnvironmentVariable("AIUSAGE_PERF_PREPARED") == "1";
+            if (prepared)
+            {
+                sw.Restart();
+                window.PrepareOffscreen();
+                lines.Add($"PrepareOffscreen (idle, off the click path) {Ms(sw),9:F1} ms");
+            }
+
+            var click = Stopwatch.StartNew();
             window.ShowActivated = false;
             window.ShowInTaskbar = false;
             window.WindowStartupLocation = WindowStartupLocation.Manual;
@@ -119,6 +128,7 @@ public class StatsOpenTimingTests(ITestOutputHelper output)
             while (!rendered)
                 Dispatcher.CurrentDispatcher.Invoke(DispatcherPriority.Background, () => { });
             lines.Add($"until ContentRendered{Ms(sw),9:F1} ms");
+            lines.Add($"CLICK to rendered ({(prepared ? "prepared window" : "ctor not included; add ctor above")}) {click.Elapsed.TotalMilliseconds,9:F1} ms");
             window.Close();
         }
         finally
