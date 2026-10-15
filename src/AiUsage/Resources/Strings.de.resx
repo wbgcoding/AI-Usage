@@ -489,7 +489,11 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>z. B. Arbeit</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update ließ sich nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuch es noch einmal.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, wenn ein Limit voraussichtlich in weniger als 30 Minuten erreicht ist</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, bevor ein Limit voraussichtlich erreicht ist</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>etwa {0} Stunden vorher</value></data>
+  <data name="Settings.ForecastLead.Hour" xml:space="preserve"><value>etwa 1 Stunde vorher</value></data>
+  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>etwa {0} Minuten vorher</value></data>
+  <data name="Settings.ForecastLead" xml:space="preserve"><value>Vorlauf der Warnung</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
   <data name="Settings.QuietWeekend" xml:space="preserve"><value>Am Wochenende (Samstag und Sonntag) ganz ruhig</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Meldungen an allen Tagen zulassen</value></data>
