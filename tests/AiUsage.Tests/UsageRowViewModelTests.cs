@@ -93,7 +93,7 @@ public class UsageRowViewModelTests
             row.WeekTokens = 1_823_457;
 
             Assert.Equal("1.82 M tokens", row.InlineTokensText);
-            Assert.Equal("1,823,457 tokens this week", row.InlineTokensToolTip);
+            Assert.Equal("1,823,457 tokens since the 7-day window reset", row.InlineTokensToolTip);
 
             var notWeekly = new UsageRowViewModel(other, Now) { WeekTokens = 1_823_457 };
             Assert.Equal("", notWeekly.InlineTokensText);
