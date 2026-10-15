@@ -372,6 +372,10 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowPaceMarker]}"
+                              IsChecked="{Binding ShowPaceMarker}" Style="{StaticResource CheckBox.GapS}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ShowPaceMarker]}"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
                         <ItemsControl.ItemsPanel>

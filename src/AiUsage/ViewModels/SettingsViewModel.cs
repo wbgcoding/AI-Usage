@@ -422,6 +422,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool limitReachedAlertEnabled;
 
     [ObservableProperty]
+    private bool showPaceMarker = true;
+
+    [ObservableProperty]
     private bool allDaysAllowed = true;
 
     /// <summary>Monday to Sunday, one check box each, shown while <see cref="AllDaysAllowed"/> is off.</summary>
@@ -615,6 +618,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         checkForUpdates = settings.CheckForUpdates;
         quietHoursEnabled = settings.QuietHoursEnabled;
         allDaysAllowed = settings.AllDaysAllowed;
+        showPaceMarker = settings.ShowPaceMarker;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -1084,6 +1088,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.QuietHoursEnabled = value;
         _store.RequestSave(_settings);
+    }
+
+    partial void OnShowPaceMarkerChanged(bool value)
+    {
+        _settings.ShowPaceMarker = value;
+        _store.RequestSave(_settings);
+        Main.ApplyShowPaceMarkerToAllTiles(value);
     }
 
     partial void OnAllDaysAllowedChanged(bool value)
@@ -1853,6 +1864,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.MicaEnabled = source.MicaEnabled;
         _settings.ChartRange = source.ChartRange;
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
+        _settings.ShowPaceMarker = source.ShowPaceMarker;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
         _settings.ZoomPercent = WindowZoom.Normalize(source.ZoomPercent);
         _settings.ShowTooltips = source.ShowTooltips;
@@ -1941,6 +1953,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         MicaEnabled = _settings.MicaEnabled;
         Autostart = _settings.Autostart;
         ShowPreviousWeekLine = _settings.ShowPreviousWeekLine;
+        ShowPaceMarker = _settings.ShowPaceMarker;
+        Main.ApplyShowPaceMarkerToAllTiles(_settings.ShowPaceMarker);
         HideOnFullscreen = _settings.HideOnFullscreen;
         ZoomPercent = _settings.ZoomPercent;
         ShowTooltips = _settings.ShowTooltips;

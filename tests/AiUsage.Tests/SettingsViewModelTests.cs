@@ -912,6 +912,47 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal(BarColorModes.Level, tile.SelectedBarColorChoice!.Value);
     }
 
+    private static ProviderSnapshot FiveHourSnapshot(string providerId)
+    {
+        var now = DateTimeOffset.Now;
+        return new ProviderSnapshot(
+            providerId, [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 40, now.AddHours(2), 300)],
+            "Plus", SourceKind.LocalFile, now, now, ProviderStatus.Ok, null);
+    }
+
+    [Fact]
+    public void TheTimeMarkerSwitchHidesTheMarkerOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
+    {
+        var (vm, settings) = Build();
+        foreach (var tile in vm.Main.Tiles)
+            tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
+        Assert.True(vm.ShowPaceMarker);
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotNull(row.PacePercent)));
+
+        vm.ShowPaceMarker = false;
+
+        Assert.False(settings.ShowPaceMarker);
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Null(row.PacePercent)));
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Equal("", row.BarTooltipText)));
+
+        var exportPath = Path.Combine(TempDirectory(), "export-time-marker.json");
+        var (sourceVm, _) = Build(new AppSettings { ShowPaceMarker = false }, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        foreach (var tile in targetVm.Main.Tiles)
+            tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.False(targetSettings.ShowPaceMarker);
+        Assert.False(targetVm.ShowPaceMarker);
+        Assert.All(targetVm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Null(row.PacePercent)));
+
+        targetVm.ResetToDefaults();
+
+        Assert.True(targetSettings.ShowPaceMarker);
+        Assert.All(targetVm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotNull(row.PacePercent)));
+    }
+
     [Fact]
     public void TheForecastLeadPickerOffersTheNineChoicesStoresThePickAndResetGoesBackToThirty()
     {

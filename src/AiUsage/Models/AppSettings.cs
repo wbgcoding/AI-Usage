@@ -79,6 +79,10 @@ public sealed class AppSettings
     /// a week ago is usually the more useful reading, not an opt-in extra.</summary>
     public bool ShowPreviousWeekLine { get; set; } = true;
 
+    /// <summary>Whether each bar shows the short tick for how much of its time window has passed.
+    /// Defaults on, also for a file written before the setting existed.</summary>
+    public bool ShowPaceMarker { get; set; } = true;
+
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs
     /// OnStartup), not per element. Defaults on. No longer offered in the Settings window; kept so a

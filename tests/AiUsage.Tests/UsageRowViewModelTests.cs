@@ -478,8 +478,16 @@ public class UsageRowViewModelTests
     [Fact]
     public void PacePercent_is_null_without_a_window_length()
     {
-        Assert.Null(RowAtPace(50, null, Now.AddHours(2)).PacePercent);
+        // A 5-hour window needs no figure from the provider (it lasts five hours), an unnamed other one does.
+        var unknownLength = new UsageWindow("Some limit", WindowKind.Other, 50, Now.AddHours(2), null);
+        Assert.Null(new UsageRowViewModel(unknownLength, Now).PacePercent);
         Assert.Null(RowAtPace(50, 300, null).PacePercent);
+    }
+
+    [Fact]
+    public void PacePercent_falls_back_to_the_length_the_window_kind_has()
+    {
+        Assert.Equal(60, RowAtPace(50, null, Now.AddHours(2)).PacePercent!.Value, 6);
     }
 
     [Fact]

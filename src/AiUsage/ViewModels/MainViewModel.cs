@@ -596,6 +596,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ChartHidden = providerSettings?.ChartHidden ?? false,
             AttentionDisabled = providerSettings?.AttentionDisabled ?? false,
             BarColorMode = providerSettings?.BarColorMode ?? BarColorModes.Level,
+            ShowPaceMarker = _settings.ShowPaceMarker,
             HiddenWindows = [.. providerSettings?.HiddenWindows ?? []],
             AccountName = providerSettings?.AccountName ?? "",
             RefreshMinutes = providerSettings?.RefreshMinutes,
@@ -1651,6 +1652,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         foreach (var tile in Tiles)
             tile.ApplyThresholds(ResolvedThresholds(tile.ProviderId));
+    }
+
+    /// <summary>Settings window's "show the time marker" check box calls this so every bar's marker
+    /// and its tooltip line come or go at once instead of at the next fetch.</summary>
+    internal void ApplyShowPaceMarkerToAllTiles(bool value)
+    {
+        foreach (var tile in Tiles)
+            tile.ApplyShowPaceMarker(value);
     }
 
     /// <summary>Settings window's "mark a waiting tile" check box calls this so every tile's marker

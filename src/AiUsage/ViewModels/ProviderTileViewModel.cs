@@ -592,6 +592,25 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     // brings its figure back at once.
     private readonly Dictionary<WindowTokenKey, long> _windowTokens = new();
 
+    private bool _showPaceMarker = true;
+
+    /// <summary>The global time marker switch (see <see cref="AppSettings.ShowPaceMarker"/>), handed to
+    /// every row this tile builds.</summary>
+    internal bool ShowPaceMarker
+    {
+        get => _showPaceMarker;
+        set => ApplyShowPaceMarker(value);
+    }
+
+    /// <summary>Shows or hides the time marker on every row at once, without a fetch.</summary>
+    internal void ApplyShowPaceMarker(bool show)
+    {
+        _showPaceMarker = show;
+        var now = DateTimeOffset.Now;
+        foreach (var row in Rows)
+            row.SetShowPace(show, now);
+    }
+
     /// <summary>Hands a row slice's answer to every row showing that slice.</summary>
     internal void SetWindowTokens(WindowTokenKey key, long? tokens)
     {
@@ -1366,7 +1385,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         {
             Rows.Clear();
             foreach (var window in visibleWindows)
-                Rows.Add(new UsageRowViewModel(window, now, Density, ThresholdPercentFor(window.Kind, thresholds)));
+                Rows.Add(new UsageRowViewModel(window, now, Density, ThresholdPercentFor(window.Kind, thresholds), RealProviderId, _showPaceMarker));
         }
 
         for (var i = 0; i < Rows.Count; i++)

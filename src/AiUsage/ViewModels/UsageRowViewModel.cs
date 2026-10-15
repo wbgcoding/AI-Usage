@@ -18,9 +18,17 @@ public partial class UsageRowViewModel : ObservableObject
 {
     private DateTimeOffset? _resetsAt;
 
-    /// <summary>Length of this window in minutes, null when the provider does not say - the other half
-    /// (next to <see cref="_resetsAt"/>) of what <see cref="PacePercent"/> is computed from.</summary>
+    /// <summary>Length of this window in minutes (see <see cref="WindowLengths.MinutesFor"/>), null when
+    /// it is unknown - the other half (next to <see cref="_resetsAt"/>) of what <see cref="PacePercent"/>
+    /// is computed from.</summary>
     private int? _windowMinutes;
+
+    /// <summary>Which provider the window belongs to (the real one, never an account key), for the window
+    /// length: a Copilot or Cursor window is monthly, a Claude model window weekly.</summary>
+    private readonly string _providerId;
+
+    /// <summary>The global "show the time marker" setting. Off keeps <see cref="PacePercent"/> null.</summary>
+    private bool _showPace = true;
 
     /// <summary>The tile's own density, mirrored here only because <see cref="ClockText"/> depends on
     /// it (Full only) - this row never decides its own density, it is always handed in by <see
@@ -136,25 +144,18 @@ public partial class UsageRowViewModel : ObservableObject
         if (!ProviderCoverage.HasLocalTokenData(providerId) || window.ResetsAt is not { } resetsAt)
             return null;
 
+        // Only the two main windows and a Claude model window count tokens; any other window kind
+        // (a monthly quota, say) has no slice of the index.
         string? model = null;
-        int? defaultMinutes;
-        switch (window.Kind)
+        if (window.Kind == WindowKind.Other)
         {
-            case WindowKind.FiveHour:
-                defaultMinutes = 5 * 60;
-                break;
-            case WindowKind.Weekly:
-                defaultMinutes = 7 * 24 * 60;
-                break;
-            case WindowKind.Other when providerId == StatsIndexer.ClaudeProviderId && window.Label.Length > 0:
-                defaultMinutes = 7 * 24 * 60;
-                model = window.Label.ToLowerInvariant();
-                break;
-            default:
+            if (providerId != StatsIndexer.ClaudeProviderId || window.Label.Length == 0)
                 return null;
+            model = window.Label.ToLowerInvariant();
         }
 
-        var minutes = window.WindowMinutes is > 0 ? window.WindowMinutes.Value : defaultMinutes.Value;
+        if (WindowLengths.MinutesFor(window, providerId) is not { } minutes)
+            return null;
         return new WindowTokenKey(resetsAt - TimeSpan.FromMinutes(minutes), model);
     }
 
@@ -256,10 +257,17 @@ public partial class UsageRowViewModel : ObservableObject
 
     private double? ComputePacePercent(DateTimeOffset now)
     {
-        if (_resetsAt is not { } reset || _windowMinutes is null or <= 0)
+        if (!_showPace || _resetsAt is not { } reset || _windowMinutes is null or <= 0)
             return null;
         var pace = 100 * (1 - (reset - now).TotalMinutes / _windowMinutes.Value);
         return pace is > 0 and < 100 ? pace : null;
+    }
+
+    /// <summary>The global time marker switch changed: the marker and its tooltip line appear or go at once.</summary>
+    internal void SetShowPace(bool show, DateTimeOffset now)
+    {
+        _showPace = show;
+        UpdatePace(now);
     }
 
     /// <summary>Recomputes <see cref="PacePercent"/> and raises the dependent properties only when the
@@ -335,13 +343,16 @@ public partial class UsageRowViewModel : ObservableObject
         StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(UsedPercent).ToString(CultureInfo.CurrentCulture));
 
     public UsageRowViewModel(
-        UsageWindow window, DateTimeOffset now, TileDensity density = TileDensity.Full, double? thresholdPercent = null)
+        UsageWindow window, DateTimeOffset now, TileDensity density = TileDensity.Full, double? thresholdPercent = null,
+        string providerId = "", bool showPace = true)
     {
         LabelText = StatusTextMap.Resolve(window.Label);
         Label = window.Label;
         Kind = window.Kind;
+        _providerId = providerId;
+        _showPace = showPace;
         _resetsAt = window.ResetsAt;
-        _windowMinutes = window.WindowMinutes;
+        _windowMinutes = WindowLengths.MinutesFor(window, providerId);
         _density = density;
         _allowance = window.Allowance;
         PacePercent = ComputePacePercent(now);
@@ -439,7 +450,7 @@ public partial class UsageRowViewModel : ObservableObject
         OnPropertyChanged(nameof(BarAccessibleName));
         OnPropertyChanged(nameof(MiniAccessibleName));
         _resetsAt = window.ResetsAt;
-        _windowMinutes = window.WindowMinutes;
+        _windowMinutes = WindowLengths.MinutesFor(window, _providerId);
         SetDensity(density);
         _allowance = window.Allowance;
         PacePercent = ComputePacePercent(now);
