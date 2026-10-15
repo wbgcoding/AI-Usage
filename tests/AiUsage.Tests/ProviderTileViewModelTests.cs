@@ -31,13 +31,13 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
-    public void TheTileMenuStartsWithRefreshThenASeparator()
+    public void TheTileMenuStartsWithRefreshThenTheUsagePage()
     {
         var text = File.ReadAllText(ProviderTileXamlPath());
 
         var match = Regex.Match(
-            text, @"<ContextMenu>\s*<MenuItem Header=""[^""]*Action\.RefreshNow\][^>]*Command=""\{Binding RefreshCommand\}""\s*/>\s*<Separator/>", RegexOptions.Singleline);
-        Assert.True(match.Success, "ProviderTile.xaml: the tile menu does not start with the refresh item and a separator.");
+            text, @"<ContextMenu>\s*<MenuItem Header=""[^""]*Action\.RefreshNow\][^>]*Command=""\{Binding RefreshCommand\}""\s*/>\s*<MenuItem Header=""[^""]*Tile\.Menu\.OpenUsagePage\]", RegexOptions.Singleline);
+        Assert.True(match.Success, "ProviderTile.xaml: the tile menu does not start with the refresh item and the usage page.");
     }
 
     [Fact]

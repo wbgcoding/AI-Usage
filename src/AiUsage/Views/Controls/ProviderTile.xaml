@@ -212,16 +212,15 @@
             <ContextMenu>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
                           Command="{Binding RefreshCommand}"/>
-                <Separator/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Menu.OpenUsagePage]}"
                           Command="{Binding OpenUsagePageCommand}"/>
                 <MenuItem Header="{Binding DetailsMenuHeader}"
                           Command="{Binding ToggleDetailsCommand}"
                           Visibility="{Binding HasDiagnostics, Converter={StaticResource BoolToVis}}"/>
-                <MenuItem Header="{Binding ChartMenuHeader}" Command="{Binding ToggleChartCommand}"
-                          Visibility="{Binding ShowChartMenuItem, Converter={StaticResource BoolToVis}}"/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.CopyDetails]}"
                           Command="{Binding CopyDetailsCommand}"/>
+                <MenuItem Header="{Binding ChartMenuHeader}" Command="{Binding ToggleChartCommand}"
+                          Visibility="{Binding ShowChartMenuItem, Converter={StaticResource BoolToVis}}"/>
                 <MenuItem x:Name="HelpMenuItem" Click="HelpMenuItem_Click"
                           Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Menu.Help]}">
                     <MenuItem.Style>

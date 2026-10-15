@@ -157,8 +157,8 @@ public partial class TitleBar : UserControl
     public TitleBar()
     {
         InitializeComponent();
-        // Before "Close", the last entry of the menu.
-        WindowMenu.Items.Insert(WindowMenu.Items.Count - 1, _windowLayerMenu.Header);
+        // Right after "Refresh", the first entry of the menu.
+        WindowMenu.Items.Insert(1, _windowLayerMenu.Header);
         _windowLayerMenu.Chosen += (_, layer) => WindowLayerRequested?.Invoke(this, layer);
         RefreshWindowMenuCollapseHeader();
         RefreshButtonTooltips();
@@ -245,9 +245,7 @@ public partial class TitleBar : UserControl
     {
         if (RefreshMenuItem is null)
             return;
-        var visibility = ShowRefresh ? Visibility.Visible : Visibility.Collapsed;
-        RefreshMenuItem.Visibility = visibility;
-        RefreshMenuSeparator.Visibility = visibility;
+        RefreshMenuItem.Visibility = ShowRefresh ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke(this, EventArgs.Empty);

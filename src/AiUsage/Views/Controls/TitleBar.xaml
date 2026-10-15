@@ -70,11 +70,10 @@
                 <MenuItem x:Name="RefreshMenuItem" InputGestureText="F5"
                           Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Action.RefreshNow]}"
                           Click="RefreshMenuItem_Click"/>
-                <Separator x:Name="RefreshMenuSeparator"/>
+                <!-- The window level submenu is inserted after the refresh entry from code (WindowLayerMenu). -->
+                <MenuItem x:Name="CollapseMenuItem" Click="CollapseMenuItem_Click"/>
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Minimize]}"
                           Click="MinimizeButton_Click"/>
-                <MenuItem x:Name="CollapseMenuItem" Click="CollapseMenuItem_Click"/>
-                <!-- The window level submenu is inserted here from code (WindowLayerMenu). -->
                 <MenuItem Header="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[TitleBar.Close]}"
                           Click="CloseButton_Click"/>
             </ContextMenu>

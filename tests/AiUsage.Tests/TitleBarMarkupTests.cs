@@ -22,7 +22,6 @@ public class TitleBarMarkupTests
         Assert.Equal("RefreshMenuItem", (string?)first.Attribute(Xaml + "Name"));
         Assert.Equal("F5", (string?)first.Attribute("InputGestureText"));
         Assert.Contains("Action.RefreshNow", (string?)first.Attribute("Header"), StringComparison.Ordinal);
-        Assert.Equal(Presentation + "Separator", menu.Elements().Skip(1).First().Name);
     }
 
     [Fact]

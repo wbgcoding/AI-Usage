@@ -1012,13 +1012,13 @@ public class StatsWindowTests
 
             Assert.False(((MenuItem)menu.Items[0]).IsEnabled);
             Assert.True(((MenuItem)menu.Items[1]).IsEnabled);
-            Assert.False(((MenuItem)menu.Items[3]).IsEnabled);
+            Assert.False(((MenuItem)menu.Items[2]).IsEnabled);
 
             window.MoveSection(window.MonthGridSection, up: false);
             window.RefreshContextMenu(window.MonthGridSection);
 
             Assert.True(((MenuItem)menu.Items[0]).IsEnabled);
-            Assert.True(((MenuItem)menu.Items[3]).IsEnabled);
+            Assert.True(((MenuItem)menu.Items[2]).IsEnabled);
         });
     }
 
