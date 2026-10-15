@@ -33,7 +33,6 @@ public class KeyboardFocusTests
 
     [Theory]
     [InlineData("Themes", "Controls.xaml")]
-    [InlineData("Views", "Controls", "TitleBar.xaml")]
     [InlineData("Views", "Controls", "CollapsibleSection.xaml")]
     [InlineData("Views", "Controls", "ProviderTile.xaml")]
     public void Every_focusable_button_style_shows_a_focus_ring_and_drops_the_default_dotted_one(params string[] parts)

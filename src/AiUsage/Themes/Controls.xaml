@@ -13,6 +13,19 @@
          so keyboard users still see where they are; the check box and the radio button draw it
          outside the glyph with a gap, because a checked glyph is Accent-filled and a ring on it
          would vanish. -->
+    <!-- Focus rings are FocusVisualStyles, not template triggers: WPF draws one only after keyboard
+         navigation, so a mouse click never leaves a ring behind. -->
+    <Style x:Key="FocusRing.TitleBar">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border Margin="4" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="RadioButton">
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>

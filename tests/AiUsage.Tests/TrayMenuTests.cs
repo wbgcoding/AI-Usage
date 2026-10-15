@@ -6,6 +6,7 @@ using AiUsage.Services;
 namespace AiUsage.Tests;
 
 /// <summary>The tray menu: seven top-level entries, no separator lines, the window controls in one submenu.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class TrayMenuTests
 {
     private static string Text(string key) => LocalizationService.Instance[key];

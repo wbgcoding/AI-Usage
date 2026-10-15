@@ -5,6 +5,7 @@ using AiUsage.Views.Controls;
 namespace AiUsage.Tests;
 
 /// <summary>The right-click menus carry no separator lines and list related entries together.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class ContextMenuOrderTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
