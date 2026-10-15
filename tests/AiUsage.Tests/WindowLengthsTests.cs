@@ -185,4 +185,10 @@ public class WindowLengthsTests
         Assert.Null(UsageRowViewModel.TokenKeyFor(Window("Window_Month", WindowKind.Other, TimeSpan.FromDays(3)), "codex"));
         Assert.Null(UsageRowViewModel.TokenKeyFor(Window("Window_CopilotPremium", WindowKind.Other, TimeSpan.FromDays(3)), "copilot"));
     }
+
+    [Fact]
+    public void A_reached_claude_limit_of_an_unknown_kind_names_no_model_and_counts_no_slice()
+    {
+        Assert.Null(UsageRowViewModel.TokenKeyFor(Window("Window_LimitReached", WindowKind.Other, TimeSpan.FromDays(3)), "claude"));
+    }
 }

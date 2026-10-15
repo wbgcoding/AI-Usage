@@ -145,11 +145,13 @@ public partial class UsageRowViewModel : ObservableObject
             return null;
 
         // Only the two main windows and a Claude model window count tokens; any other window kind
-        // (a monthly quota, say) has no slice of the index.
+        // (a monthly quota, say) has no slice of the index. A label that is one of our own text keys
+        // (the reached limit read from the session log) names no model, so it has no slice either.
         string? model = null;
         if (window.Kind == WindowKind.Other)
         {
-            if (providerId != StatsIndexer.ClaudeProviderId || window.Label.Length == 0)
+            if (providerId != StatsIndexer.ClaudeProviderId || window.Label.Length == 0
+                || window.Label.StartsWith("Window_", StringComparison.Ordinal))
                 return null;
             model = window.Label.ToLowerInvariant();
         }
