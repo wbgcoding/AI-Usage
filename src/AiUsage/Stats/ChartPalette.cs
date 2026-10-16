@@ -1,5 +1,6 @@
 using System.Text;
 using System.Windows.Media;
+using AiUsage.Services;
 
 namespace AiUsage.Stats;
 
@@ -54,7 +55,7 @@ public static class ChartPalette
         if (!string.IsNullOrEmpty(providerId) && ProviderColors.TryGetValue(providerId, out var color))
             return color;
 
-        return FromHsl(UnknownHue(providerId ?? ""), 0.55, 0.55);
+        return AccentColors.FromHsl(UnknownHue(providerId ?? ""), 0.55, 0.55);
     }
 
     /// <summary>The color that names one model within <paramref name="providerId"/>'s own share: the
@@ -74,7 +75,7 @@ public static class ChartPalette
             return baseColor;
 
         var hsl = ToHsl(baseColor);
-        return FromHsl(hsl.H, hsl.S, ModelLightness(hsl.L, rankWithinProvider));
+        return AccentColors.FromHsl(hsl.H, hsl.S, ModelLightness(hsl.L, rankWithinProvider));
     }
 
     private const double ModelLightnessStep = 0.08;
@@ -178,7 +179,7 @@ public static class ChartPalette
     /// project color (whatever it was derived from: an icon, a color word, or a stable hash) is
     /// normalised into, so a project never reads brighter, darker or more saturated than the
     /// providers and models drawn right next to it.</summary>
-    internal static Color NormalizeToPaletteBand(double hue) => FromHsl(hue, 0.55, 0.55);
+    internal static Color NormalizeToPaletteBand(double hue) => AccentColors.FromHsl(hue, 0.55, 0.55);
 
     /// <summary>FNV-1a over the UTF-8 bytes - a stable checksum across runs and machines, unlike
     /// <see cref="string.GetHashCode()"/>, which .NET deliberately randomizes per process.</summary>
@@ -223,46 +224,5 @@ public static class ChartPalette
                 ? (b - r) / d + 2
                 : (r - g) / d + 4;
         return new Hsl(h * 60.0, s, l);
-    }
-
-    private static Color FromHsl(double h, double s, double l)
-    {
-        h = ((h % 360.0) + 360.0) % 360.0;
-        s = Math.Clamp(s, 0, 1);
-        l = Math.Clamp(l, 0, 1);
-
-        if (s <= 0)
-        {
-            var gray = ToByteChannel(l);
-            return Color.FromRgb(gray, gray, gray);
-        }
-
-        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        var p = 2 * l - q;
-        var r = HueToRgb(p, q, h / 360.0 + 1.0 / 3.0);
-        var g = HueToRgb(p, q, h / 360.0);
-        var b = HueToRgb(p, q, h / 360.0 - 1.0 / 3.0);
-        return Color.FromRgb(ToByteChannel(r), ToByteChannel(g), ToByteChannel(b));
-    }
-
-    /// <summary>A 0..1 color channel rounded to its nearest byte - round-half-up, not the framework's
-    /// own banker's-rounding default, though the difference never matters here since an exact half
-    /// (a channel of precisely 0.5, 1.5, ... 254.5 out of 255) essentially never occurs from an HSL
-    /// conversion.</summary>
-    private static byte ToByteChannel(double channel) => (byte)Math.Clamp(channel * 255.0 + 0.5, 0, 255);
-
-    private static double HueToRgb(double p, double q, double t)
-    {
-        if (t < 0)
-            t += 1;
-        if (t > 1)
-            t -= 1;
-        if (t < 1.0 / 6.0)
-            return p + (q - p) * 6 * t;
-        if (t < 1.0 / 2.0)
-            return q;
-        if (t < 2.0 / 3.0)
-            return p + (q - p) * (2.0 / 3.0 - t) * 6;
-        return p;
     }
 }

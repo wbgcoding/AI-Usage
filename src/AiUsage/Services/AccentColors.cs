@@ -93,23 +93,46 @@ internal static class AccentColors
         return (hue < 0 ? hue + 360 : hue, saturation, lightness);
     }
 
-    public static Color FromHsl(double hue, double saturation, double lightness)
+    /// <summary>Hue wraps around 360 and saturation and lightness are clamped, so any input gives a valid color.</summary>
+    public static Color FromHsl(double h, double s, double l)
     {
-        var chroma = (1 - Math.Abs(2 * lightness - 1)) * saturation;
-        var sector = hue / 60.0;
-        var x = chroma * (1 - Math.Abs(sector % 2 - 1));
-        var (r, g, b) = (int)Math.Floor(sector) switch
+        h = ((h % 360.0) + 360.0) % 360.0;
+        s = Math.Clamp(s, 0, 1);
+        l = Math.Clamp(l, 0, 1);
+
+        if (s <= 0)
         {
-            0 => (chroma, x, 0.0),
-            1 => (x, chroma, 0.0),
-            2 => (0.0, chroma, x),
-            3 => (0.0, x, chroma),
-            4 => (x, 0.0, chroma),
-            _ => (chroma, 0.0, x),
-        };
-        var m = lightness - chroma / 2;
-        static byte ToByte(double v) => (byte)Math.Clamp(v * 255 + 0.5, 0, 255);
-        return Color.FromRgb(ToByte(r + m), ToByte(g + m), ToByte(b + m));
+            var gray = ToByteChannel(l);
+            return Color.FromRgb(gray, gray, gray);
+        }
+
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        var r = HueToRgb(p, q, h / 360.0 + 1.0 / 3.0);
+        var g = HueToRgb(p, q, h / 360.0);
+        var b = HueToRgb(p, q, h / 360.0 - 1.0 / 3.0);
+        return Color.FromRgb(ToByteChannel(r), ToByteChannel(g), ToByteChannel(b));
+    }
+
+    /// <summary>A 0..1 color channel rounded to its nearest byte - round-half-up, not the framework's
+    /// own banker's-rounding default, though the difference never matters here since an exact half
+    /// (a channel of precisely 0.5, 1.5, ... 254.5 out of 255) essentially never occurs from an HSL
+    /// conversion.</summary>
+    private static byte ToByteChannel(double channel) => (byte)Math.Clamp(channel * 255.0 + 0.5, 0, 255);
+
+    private static double HueToRgb(double p, double q, double t)
+    {
+        if (t < 0)
+            t += 1;
+        if (t > 1)
+            t -= 1;
+        if (t < 1.0 / 6.0)
+            return p + (q - p) * 6 * t;
+        if (t < 1.0 / 2.0)
+            return q;
+        if (t < 2.0 / 3.0)
+            return p + (q - p) * (2.0 / 3.0 - t) * 6;
+        return p;
     }
 
     [DllImport("dwmapi.dll")]
