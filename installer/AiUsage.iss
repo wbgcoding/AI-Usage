@@ -754,6 +754,121 @@ begin
        SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+{ The data folder the app was moved to in Settings: the full path in location.txt of the default data
+  folder, or '' when there is none or it is not a plain absolute path. Never the default folders
+  themselves, never a drive root. }
+function MovedDataDir(const PointerFile, DataDir, LocalDir: String): String;
+var
+  Raw: AnsiString;
+  Path: String;
+  I: Integer;
+begin
+  Result := '';
+  if not LoadStringFromFile(PointerFile, Raw) then
+    Exit;
+  Path := Trim(String(UTF8Decode(Raw)));
+  if Length(Path) < 4 then
+    Exit;
+  for I := 1 to Length(Path) do
+    if (Path[I] < ' ') or (Pos(Path[I], '*?"<>|') > 0) then
+      Exit;
+  if not (((Path[2] = ':') and (Path[3] = '\')) or ((Path[1] = '\') and (Path[2] = '\'))) then
+    Exit;
+  Path := RemoveBackslash(Path);
+  if (CompareText(Path, RemoveBackslash(DataDir)) = 0) or (CompareText(Path, RemoveBackslash(LocalDir)) = 0) then
+    Exit;
+  Result := Path;
+end;
+
+{ Deletes one file by its exact name (a link is removed itself, never followed). }
+procedure DeleteOwnFile(const Folder, Name: String);
+begin
+  if FileExists(AddBackslash(Folder) + Name) then
+    DeleteFile(AddBackslash(Folder) + Name);
+end;
+
+{ Deletes the files of Folder matching Pattern (the app's own naming schemes only). }
+procedure DeleteOwnFiles(const Folder, Pattern: String);
+var
+  FindRec: TFindRec;
+  Names: TStringList;
+  I: Integer;
+begin
+  Names := TStringList.Create;
+  try
+    if FindFirst(AddBackslash(Folder) + Pattern, FindRec) then
+    begin
+      try
+        repeat
+          if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then
+            Names.Add(FindRec.Name);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+    for I := 0 to Names.Count - 1 do
+      DeleteFile(AddBackslash(Folder) + Names[I]);
+  finally
+    Names.Free;
+  end;
+end;
+
+{ Deletes the folders of Folder matching Pattern with everything inside; real folders only, no link. }
+procedure DeleteOwnFolders(const Folder, Pattern: String);
+var
+  FindRec: TFindRec;
+  Names: TStringList;
+  I: Integer;
+begin
+  Names := TStringList.Create;
+  try
+    if FindFirst(AddBackslash(Folder) + Pattern, FindRec) then
+    begin
+      try
+        repeat
+          if ((FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0)
+             and ((FindRec.Attributes and FILE_ATTRIBUTE_REPARSE_POINT) = 0) then
+            Names.Add(FindRec.Name);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+    for I := 0 to Names.Count - 1 do
+      DelTree(AddBackslash(Folder) + Names[I], True, True, True);
+  finally
+    Names.Free;
+  end;
+end;
+
+{ Removes from a moved data folder only what the app itself writes there, by name, then the folder
+  itself if nothing else is left in it. Files of the user, and the folder with them, stay. }
+procedure RemoveOwnDataEntries(const Folder: String);
+begin
+  if not DirExists(Folder) then
+    Exit;
+  DeleteOwnFile(Folder, 'settings.json');
+  DeleteOwnFile(Folder, 'settings.json.bak');
+  DeleteOwnFile(Folder, 'notifications.json');
+  DeleteOwnFile(Folder, 'status.json');
+  DeleteOwnFile(Folder, 'project-colors.json');
+  DeleteOwnFile(Folder, 'stats-snapshot.json');
+  DeleteOwnFile(Folder, 'stats.db');
+  DeleteOwnFile(Folder, 'stats.db-wal');
+  DeleteOwnFile(Folder, 'stats.db-shm');
+  DeleteOwnFile(Folder, 'stats.db-journal');
+  DeleteOwnFile(Folder, 'restore-pending.txt');
+  DeleteOwnFile(Folder, 'restore-journal.json');
+  DeleteOwnFile(Folder, 'location.txt');
+  DeleteOwnFiles(Folder, 'history-*.jsonl');
+  DeleteOwnFiles(Folder, 'stats.v*.bak');
+  DeleteOwnFolders(Folder, 'logs');
+  DeleteOwnFolders(Folder, 'restore-staging');
+  DeleteOwnFolders(Folder, 'before-restore-*');
+  RemoveDir(Folder);
+end;
+
 { Settings and history in %APPDATA% are the user's and are left behind by default, as Windows apps
   normally do - offered as an explicit, deselectable choice on uninstall
   rather than removed silently. Guarded on "not UninstallSilent": a message box that showed
@@ -761,7 +876,7 @@ end;
   the exact failure mode /SUPPRESSMSGBOXES does not prevent. }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  DataDir, LocalDir: String;
+  DataDir, LocalDir, MovedDir: String;
 begin
   if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
   begin
@@ -770,9 +885,13 @@ begin
     if DirExists(DataDir) or DirExists(LocalDir) then
       if SuppressibleMsgBox(CustomMessage('RemoveDataQuestion'), mbConfirmation, MB_YESNO, IDNO) = IDYES then
       begin
+        { A data folder moved in Settings is named by location.txt, which goes away with DataDir. }
+        MovedDir := MovedDataDir(AddBackslash(DataDir) + 'location.txt', DataDir, LocalDir);
         DelTree(DataDir, True, True, True);
         { The browser profiles of the web providers (cookies, tokens) and the setup logs. }
         DelTree(LocalDir, True, True, True);
+        if MovedDir <> '' then
+          RemoveOwnDataEntries(MovedDir);
       end;
   end;
 end;

@@ -280,7 +280,7 @@ public sealed class StatsStore
                 TryExecute(connection, "DETACH DATABASE imported_source");
             }
         }
-        catch (SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
             return null;
         }
@@ -309,7 +309,7 @@ public sealed class StatsStore
                 found.Add(reader.GetString(0));
             return found;
         }
-        catch (SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
             return [];
         }
@@ -347,7 +347,7 @@ public sealed class StatsStore
                 throw;
             }
         }
-        catch (SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
             return false;
         }

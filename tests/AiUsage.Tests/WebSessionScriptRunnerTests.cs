@@ -352,6 +352,34 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task A_host_that_fails_to_close_after_the_idle_span_does_not_fail_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost { DisposeFails = starts == 1 };
+            current.CompleteNavigate(true);
+            return current;
+        }, timeProvider: clock);
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+
+        clock.Advance(TimeSpan.FromMinutes(15));
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("second");
+        var result = await secondCall;
+
+        Assert.Equal(2, starts);
+        Assert.Equal("second", result);
+    }
+
+    [Fact]
     public async Task A_fetch_within_the_idle_span_keeps_the_same_host()
     {
         var starts = 0;
@@ -1064,6 +1092,9 @@ public class WebSessionScriptRunnerTests
 
         public bool Disposed { get; private set; }
 
+        /// <summary>Closing the host throws, like a browser control whose process already died.</summary>
+        public bool DisposeFails { get; init; }
+
         public Exception? ThrowOnExecute { get; init; }
 
         public event Action? ProcessFailed;
@@ -1122,6 +1153,8 @@ public class WebSessionScriptRunnerTests
             if (DisposeDelay > TimeSpan.Zero)
                 await Task.Delay(DisposeDelay);
             Disposed = true;
+            if (DisposeFails)
+                throw new InvalidOperationException("close failed");
         }
     }
 }

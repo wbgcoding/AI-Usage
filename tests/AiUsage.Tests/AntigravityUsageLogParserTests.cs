@@ -286,6 +286,20 @@ public class AntigravityUsageLogParserTests
     }
 
     [Fact]
+    public void A_conversation_file_is_opened_with_its_own_schema_not_trusted()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("antigravity-untrusted-schema");
+        var path = Path.Combine(directory, "conversation.db");
+        AntigravityFixtures.CreateDatabase(path, Start);
+
+        using var connection = AntigravityUsageLogParser.OpenForeignDatabase(path);
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA trusted_schema";
+
+        Assert.Equal(0L, command.ExecuteScalar());
+    }
+
+    [Fact]
     public void A_call_whose_step_has_no_time_falls_back_to_the_conversation_start()
     {
         using var directory = TestPaths.CreateDisposableDirectory("antigravity-fallback");

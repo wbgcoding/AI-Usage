@@ -465,6 +465,42 @@ public class StatsWindowTests
         Assert.False(hasTableSection);
     }
 
+    /// <summary>Waits for a command the way the window's thread does: every continuation after a
+    /// background read is queued back to this thread and run here.</summary>
+    private static void PumpUntilDone(Func<Task> start)
+    {
+        var queue = new System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)>();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new QueueContext(queue));
+        try
+        {
+            var task = start();
+            _ = task.ContinueWith(_ => queue.CompleteAdding(), TaskScheduler.Default);
+            foreach (var (callback, state) in queue.GetConsumingEnumerable())
+                callback(state);
+            task.GetAwaiter().GetResult();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    private sealed class QueueContext(System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> queue) : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            try
+            {
+                queue.Add((d, state));
+            }
+            catch (InvalidOperationException)
+            {
+                // the command has finished; nothing waits for this callback any more
+            }
+        }
+    }
+
     private static (int SessionCount, int RealizedSessionRows, bool HasTableSection) WalkLargeData(List<string> lines)
     {
         typeof(Application).GetField("_appCreatedInThisAppDomain", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
@@ -484,14 +520,14 @@ public class StatsWindowTests
             var window = new StatsWindow(viewModel);
             var root = (UIElement)window.Content;
             viewModel.Recompute();
-            viewModel.SetRangeCommand.ExecuteAsync("All").GetAwaiter().GetResult();
+            PumpUntilDone(() => viewModel.SetRangeCommand.ExecuteAsync("All"));
 
             // Day is the starting grouping, so it is measured last, coming back from Session.
             var order = Enum.GetValues<StatsGrouping>().Where(g => g != StatsGrouping.Day).Append(StatsGrouping.Day);
             foreach (var grouping in order)
             {
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                viewModel.SetGroupingCommand.ExecuteAsync(grouping).GetAwaiter().GetResult();
+                PumpUntilDone(() => viewModel.SetGroupingCommand.ExecuteAsync(grouping));
                 var rebuilt = watch.ElapsedMilliseconds;
                 root.Measure(new Size(1100, 800));
                 root.Arrange(new Rect(0, 0, 1100, 800));
@@ -510,7 +546,7 @@ public class StatsWindowTests
             long Timed(Func<Task> pick)
             {
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                pick().GetAwaiter().GetResult();
+                PumpUntilDone(pick);
                 root.Measure(new Size(1100, 800));
                 root.Arrange(new Rect(0, 0, 1100, 800));
                 root.UpdateLayout();
@@ -524,7 +560,7 @@ public class StatsWindowTests
                     lines.Add($"{range}/{grouping}: {Timed(() => viewModel.SetGroupingCommand.ExecuteAsync(grouping))} ms");
             }
 
-            viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session).GetAwaiter().GetResult();
+            PumpUntilDone(() => viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session));
             root.Measure(new Size(1100, 800));
             root.Arrange(new Rect(0, 0, 1100, 800));
             root.UpdateLayout();

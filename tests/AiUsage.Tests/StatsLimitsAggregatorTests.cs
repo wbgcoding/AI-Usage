@@ -306,3 +306,106 @@ public class StatsViewModelLimitsTests
         Assert.False(group.HasNote);
     }
 }
+
+/// <summary>No quota history file is read on the window's own thread: the limits section and the
+/// tokens-per-percent estimate get their points from the background part of a rebuild.</summary>
+public class StatsViewModelHistoryThreadTests
+{
+    /// <summary>Runs <paramref name="body"/> on a thread of its own with a synchronization context, the
+    /// way the window's thread keeps every continuation after an await.</summary>
+    private static void RunOnWindowThread(Func<int, Task> body)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            var queue = new System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback, object?)>();
+            var context = new PumpContext(queue);
+            SynchronizationContext.SetSynchronizationContext(context);
+            var id = Environment.CurrentManagedThreadId;
+            var task = body(id);
+            task.ContinueWith(_ => queue.CompleteAdding(), TaskScheduler.Default);
+            foreach (var (callback, state) in queue.GetConsumingEnumerable())
+                callback(state);
+            try
+            {
+                task.GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.Start();
+        thread.Join();
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private sealed class PumpContext(System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback, object?)> queue) : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            try
+            {
+                queue.Add((d, state));
+            }
+            catch (InvalidOperationException)
+            {
+                // the pump has finished; nothing is waiting for this callback any more
+            }
+        }
+    }
+
+    private static StatsViewModel CreateWithWeeklyHistory(DisposableTestDirectory directory, List<int> readThreads)
+    {
+        var reset = DateTimeOffset.Now.AddDays(2);
+        var store = new StatsStore(directory);
+        store.AddDelta([new StatsRecord("claude", DateOnly.FromDateTime(DateTime.Now), "modelA", "projA", 100, 0, 0, 0, 1)]);
+        return new StatsViewModel(store)
+        {
+            LoadHistory = (id, _, _) =>
+            {
+                lock (readThreads)
+                    readThreads.Add(Environment.CurrentManagedThreadId);
+                return id == "claude" ? [new HistoryPoint(1, DateTimeOffset.Now.AddHours(-3), WindowKind.Weekly, 50, reset)] : [];
+            },
+        };
+    }
+
+    [Fact]
+    public void A_rebuild_after_a_read_takes_its_quota_history_off_the_window_thread()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("stats-limits-thread");
+        var readThreads = new List<int>();
+        RunOnWindowThread(async windowThread =>
+        {
+            var viewModel = CreateWithWeeklyHistory(directory, readThreads);
+
+            await viewModel.RecomputeAsync();
+
+            Assert.NotEmpty(readThreads);
+            Assert.DoesNotContain(windowThread, readThreads);
+            Assert.Single(viewModel.LimitGroups);
+        });
+    }
+
+    [Fact]
+    public void Picking_another_range_takes_its_quota_history_off_the_window_thread_too()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("stats-limits-thread-range");
+        var readThreads = new List<int>();
+        RunOnWindowThread(async windowThread =>
+        {
+            var viewModel = CreateWithWeeklyHistory(directory, readThreads);
+            await viewModel.RecomputeAsync();
+            lock (readThreads)
+                readThreads.Clear();
+
+            await viewModel.SetRangeCommand.ExecuteAsync("All");
+
+            Assert.NotEmpty(readThreads);
+            Assert.DoesNotContain(windowThread, readThreads);
+            Assert.Single(viewModel.LimitGroups);
+        });
+    }
+}

@@ -162,6 +162,25 @@ public sealed class StatsMachineImportTests : IDisposable
         Assert.Equal(1000, Total(own, ""));
     }
 
+    /// <summary>A store whose data folder cannot be created: a plain file sits where the folder should be.</summary>
+    private StatsStore StoreBehindAFile()
+    {
+        var file = Path.Combine(Temp(), "not-a-folder");
+        File.WriteAllText(file, "x");
+        return new StatsStore(Path.Combine(file, "data"));
+    }
+
+    [Fact]
+    public void A_data_folder_that_cannot_be_opened_lists_nothing_and_refuses_import_and_removal()
+    {
+        var broken = StoreBehindAFile();
+        var foreign = ForeignIndexFile();
+
+        Assert.Empty(broken.ListMachines());
+        Assert.Null(broken.ImportMachine(foreign, Foreign, Own));
+        Assert.False(broken.RemoveMachine(Foreign));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not-a-guid")]

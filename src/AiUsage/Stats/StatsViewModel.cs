@@ -39,6 +39,7 @@ public sealed partial class StatsViewModel : ObservableObject
 {
     private readonly StatsStore _store;
     private readonly HistoryStore _history;
+    private readonly string _projectColorsDirectory;
     private readonly Func<string, string?> _askForSavePath;
     private readonly Action<string> _showMessage;
 
@@ -813,6 +814,37 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors = new Dictionary<string, System.Windows.Media.Color>();
 
+    private const string ProjectColorsFileName = "project-colors.json";
+
+    /// <summary>Where the project color cache lives: the machine-local cache folder, or the folder of a
+    /// store that is pinned to one (a test).</summary>
+    internal static string ProjectColorsDirectoryFor(string? fixedDirectory) => fixedDirectory ?? StartupProfile.CacheDirectory;
+
+    /// <summary>The project color cache lists local folder paths, so it lives in the machine-local cache
+    /// folder. A copy an earlier version kept in the roaming data folder moves there once; a file
+    /// already in the cache wins and the old one is just removed. Best effort, never throws.</summary>
+    internal static void MoveLegacyProjectColors(string legacyPath, string cachePath)
+    {
+        try
+        {
+            if (!File.Exists(legacyPath))
+                return;
+
+            if (File.Exists(cachePath))
+            {
+                File.Delete(legacyPath);
+                return;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+            File.Move(legacyPath, cachePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            // The cache is rebuilt from the folders themselves.
+        }
+    }
+
     /// <summary>The actual work behind <see cref="RefreshProjectColors"/> - a plain <c>await</c>
     /// rather than <see cref="TaskScheduler.FromCurrentSynchronizationContext"/>, since the latter
     /// throws outright on any thread with no real <see cref="SynchronizationContext"/> installed (a
@@ -827,11 +859,16 @@ public sealed partial class StatsViewModel : ObservableObject
         if (folders.Count == 0)
             return;
 
-        var cacheFilePath = Path.Combine(AppPaths.DataDirectory, "project-colors.json");
+        var cacheFilePath = Path.Combine(_projectColorsDirectory, ProjectColorsFileName);
+        var legacyFilePath = Path.Combine(AppPaths.DataDirectory, ProjectColorsFileName);
         IReadOnlyDictionary<string, ProjectColorInfo> resolved;
         try
         {
-            resolved = await Task.Run(() => ProjectColorResolve(folders, cacheFilePath));
+            resolved = await Task.Run(() =>
+            {
+                MoveLegacyProjectColors(legacyFilePath, cacheFilePath);
+                return ProjectColorResolve(folders, cacheFilePath);
+            });
         }
         catch (Exception)
         {
@@ -912,6 +949,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         _store = store;
         _history = history ?? (store.FixedDirectory is { } directory ? new HistoryStore(directory, now: null) : new HistoryStore());
+        _projectColorsDirectory = ProjectColorsDirectoryFor(store.FixedDirectory);
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
@@ -1169,14 +1207,30 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>A period or grouping pick: the records are already in memory once a load has finished
     /// (only a window open or an index update changes them), so the rebuild reuses them instead of
     /// reading the whole store again. Before that first load it is the normal read.</summary>
-    private Task RecomputeForSelectionAsync()
+    private async Task RecomputeForSelectionAsync()
     {
         if (!RecordsLoaded)
-            return RecomputeAsync();
+        {
+            await RecomputeAsync();
+            return;
+        }
 
-        RecomputeFrom(_sourceRecords);
-        return Task.CompletedTask;
+        var source = _sourceRecords;
+        var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, source);
+        if (_limitInputs is { } held && held.From == from && held.To == to)
+        {
+            RecomputeFrom(source);
+            return;
+        }
+
+        // A period the quota history was not read for yet: read it on a pool thread first.
+        var generation = ++_selectionGeneration;
+        var inputs = await Task.Run(() => LoadLimitInputs(from, to));
+        if (generation == _selectionGeneration)
+            RecomputeFrom(_sourceRecords, inputs);
     }
+
+    private int _selectionGeneration;
 
     // Set once records read from the store have been shown; _allRecords is empty-but-valid before it.
     private bool _recordsLoaded;
@@ -1198,7 +1252,7 @@ public sealed partial class StatsViewModel : ObservableObject
     public string EmptyChartText => LocalizationService.Instance[RecordsLoaded ? "Stats.Chart.Empty" : "StatsWindow.Loading"];
 
     /// <summary>The same rebuild as <see cref="Recompute"/>, with the one part that can take real
-    /// time - reading every stored record - moved off the window's own thread, so picking the whole
+    /// time - reading every stored record and the quota history - moved off the window's own thread, so picking the whole
     /// history keeps the window drawing and answering instead of standing still until it is done.
     /// Everything that touches a bound property still runs on the calling thread afterwards. The
     /// loading state only shows once the run has taken longer than <see cref="LoadingDelay"/>, and
@@ -1212,13 +1266,20 @@ public sealed partial class StatsViewModel : ObservableObject
             _ = ShowLoadingAfterDelayAsync(generation, delayCancellation.Token);
         try
         {
-            var (all, sessions) = await Task.Run(() => (LoadRecords(), LoadSessions()));
+            var (range, customFrom, customTo) = (SelectedRange, _customFrom, _customTo);
+            var (all, sessions, inputs) = await Task.Run(() =>
+            {
+                var records = LoadRecords();
+                var loadedSessions = LoadSessions();
+                var (from, to) = LimitPeriod(range, customFrom, customTo, records);
+                return (records, loadedSessions, LoadLimitInputs(from, to));
+            });
             if (generation == _recomputeGeneration)
             {
                 if (showLoading || !RecordsLoaded || !MatchesShown(all, sessions))
                 {
                     _allSessions = sessions;
-                    RecomputeFrom(all);
+                    RecomputeFrom(all, inputs);
                 }
 
                 RecordsLoaded = true;
@@ -1260,6 +1321,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// grouping change.</summary>
     public void Recompute()
     {
+        _limitInputs = null;
         _allSessions = LoadSessions();
         RecomputeFrom(LoadRecords());
         RecordsLoaded = true;
@@ -1268,10 +1330,10 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The rebuild itself, on records already read - the one half <see
     /// cref="RecomputeAsync"/> keeps on the window's own thread.</summary>
-    private void RecomputeFrom(IReadOnlyList<StatsRecord> source)
+    private void RecomputeFrom(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
     {
         var started = Stopwatch.GetTimestamp();
-        RebuildFrom(source);
+        RebuildFrom(source, inputs);
         ReportRebuildDuration(Stopwatch.GetElapsedTime(started));
     }
 
@@ -1292,9 +1354,11 @@ public sealed partial class StatsViewModel : ObservableObject
             CultureInfo.InvariantCulture, $"stats view {SelectedGrouping}/{SelectedRange}: {(long)elapsed.TotalMilliseconds} ms"));
     }
 
-    private void RebuildFrom(IReadOnlyList<StatsRecord> source)
+    private void RebuildFrom(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
     {
         _sourceRecords = source;
+        if (inputs is not null)
+            _limitInputs = inputs;
         OnPropertyChanged(nameof(ImportedFromText));
         OnPropertyChanged(nameof(HasImportedFrom));
         var all = ApplyFilters(source);
@@ -1564,17 +1628,51 @@ public sealed partial class StatsViewModel : ObservableObject
         ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc["Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
     }
 
+    /// <summary>The quota history a rebuild draws, read ahead of it: every provider's points for one
+    /// period (the limits section) and the recent points of the two providers with a
+    /// tokens-per-percent estimate.</summary>
+    private sealed record LimitInputs(
+        DateOnly From, DateOnly To,
+        IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Series,
+        IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Weekly);
+
+    private LimitInputs? _limitInputs;
+
+    private static (DateTimeOffset Start, DateTimeOffset End) LimitWindow(DateOnly from, DateOnly to) =>
+        (from == DateOnly.MinValue ? DateTimeOffset.MinValue : new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue)),
+         new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue)));
+
+    /// <summary>The first and last day a rebuild for this range would cover.</summary>
+    private static (DateOnly From, DateOnly To) LimitPeriod(
+        string range, DateOnly customFrom, DateOnly customTo, IReadOnlyList<StatsRecord> source)
+    {
+        var period = ResolvePeriod(range, DateOnly.FromDateTime(DateTime.Now), customFrom, customTo, EarliestRecordDay(source));
+        return (period.From, period.To);
+    }
+
+    /// <summary>Reads the history files; meant for a pool thread.</summary>
+    private LimitInputs LoadLimitInputs(DateOnly from, DateOnly to)
+    {
+        var (start, end) = LimitWindow(from, to);
+        var load = LoadHistory;
+        var series = ProviderCoverage.AllProviderIds.ToDictionary(id => id, id => load(id, start, end));
+        var now = DateTimeOffset.Now;
+        var weekly = new[] { StatsIndexer.ClaudeProviderId, StatsIndexer.CodexProviderId }
+            .ToDictionary(id => id, id => load(id, now.AddDays(-StatsTokensPerPercent.LookbackDays), now));
+        return new LimitInputs(from, to, series, weekly);
+    }
+
     /// <summary>The limits section: the quota history of the shown providers (the filtered one, else
     /// every provider) between the first and last day of the range, summed per window, grouped by
     /// provider.</summary>
     private List<StatsLimitGroupViewModel> BuildLimitGroups(DateOnly from, DateOnly to, LocalizationService loc)
     {
-        var start = from == DateOnly.MinValue
-            ? DateTimeOffset.MinValue
-            : new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue));
-        var end = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        var (start, end) = LimitWindow(from, to);
         IEnumerable<string> providerIds = HasProviderFilter ? _selectedProviders : ProviderCoverage.AllProviderIds;
-        var series = providerIds.Select(id => (id, LoadHistory(id, start, end))).ToList();
+        var held = _limitInputs is { } inputs && inputs.From == from && inputs.To == to ? inputs : null;
+        var series = providerIds
+            .Select(id => (id, held is not null && held.Series.TryGetValue(id, out var points) ? points : LoadHistory(id, start, end)))
+            .ToList();
         return StatsLimitsAggregator.Build(series)
             .GroupBy(row => row.ProviderId)
             .Select(group =>
@@ -1641,7 +1739,10 @@ public sealed partial class StatsViewModel : ObservableObject
         var now = DateTimeOffset.Now;
         var since = DateOnly.FromDateTime(DateTime.Now.AddDays(-StatsTokensPerPercent.LookbackDays));
         var records = _sourceRecords.Where(record => record.Provider == providerId && record.Day >= since).ToList();
-        var weekly = LoadHistory(providerId, now.AddDays(-StatsTokensPerPercent.LookbackDays), now)
+        var weeklyPoints = _limitInputs is { } inputs && inputs.Weekly.TryGetValue(providerId, out var held)
+            ? held
+            : LoadHistory(providerId, now.AddDays(-StatsTokensPerPercent.LookbackDays), now);
+        var weekly = weeklyPoints
             .Where(point => point.Window == WindowKind.Weekly && StatsLimitsAggregator.LabelKeyOf(point) == "Window_Weekly")
             .ToList();
         var result = StatsTokensPerPercent.Estimate(StatsTokensPerPercent.BuildIntervals(records, weekly));
