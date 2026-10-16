@@ -9,23 +9,11 @@ internal static class CompleteLineReader
     /// caller could use it at all. Must never reject a line the caller would have acted on.</summary>
     internal delegate bool LinePrefilter(ReadOnlySpan<byte> line);
 
-    /// <summary>Reads every complete line between <paramref name="startOffset"/> and <paramref
-    /// name="stream"/>'s length at the moment this call began, in fixed chunks so memory stays
-    /// bounded regardless of file size. A final line with no trailing newline yet - the writer paused
-    /// mid line - is normally left unread rather than guessed at: the returned offset lands exactly
-    /// on the byte after the last newline actually seen, never mid line, and any growth appended
-    /// after this call started is never looked at (that belongs to the next run). When <paramref
-    /// name="acceptTrailingLineWithoutNewline"/> is true (the file's write time is already past
-    /// the settling window), that final unterminated line is trusted to be complete instead and
-    /// handed to <paramref name="onLine"/> like any other, with the returned offset advanced past it
-    /// - otherwise a session file whose writer stopped appending to it forever would leave that last
-    /// line uncounted for good. Checked once per line rather than once per file, so cancelling mid
-    /// walk does not have to wait out one huge file's entire remaining read; a cancelled file earns
-    /// this run's read nothing, since it never reaches the caller's own write of the new offset - the
-    /// next run simply reads it again from where it last actually finished. A line the optional
-    /// <paramref name="prefilter"/> rejects is consumed like any other but never decoded or
-    /// delivered; <paramref name="onFiltered"/> is told about it instead. <paramref name="endLimit"/>, when
-    /// given, ends the read at that offset instead of the stream's length.</summary>
+    /// <summary>Reads complete lines from <paramref name="startOffset"/> to the stream's length at call
+    /// time in fixed chunks and returns the offset after the last newline. A trailing unterminated
+    /// line counts only when <paramref name="acceptTrailingLineWithoutNewline"/>; cancellation is
+    /// checked per line. <paramref name="endLimit"/> caps the read; lines the <paramref
+    /// name="prefilter"/> rejects go to <paramref name="onFiltered"/>.</summary>
     internal static long Read(
         FileStream stream, long startOffset, bool acceptTrailingLineWithoutNewline, int maxRecordBytes, Action onOversized,
         Action<string> onLine, CancellationToken cancellationToken, LinePrefilter? prefilter = null, Action? onFiltered = null,

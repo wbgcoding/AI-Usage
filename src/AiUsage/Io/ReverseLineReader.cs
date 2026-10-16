@@ -7,8 +7,7 @@ namespace AiUsage.Io;
 /// where only the last few lines matter. Reads in 64 KB blocks from the end, tolerates an incomplete
 /// trailing line (a file caught mid-write) and both "\n" and "\r\n" endings. A single line longer than
 /// <see cref="MaxLineBytes"/> - a shape none of this project's parsers recognise anyway - is skipped
-/// instead of being copied block by block, which is what made a pathological file (one giant line, or
-/// none at all) cost quadratic time and unbounded memory.
+/// instead of being copied block by block, so one huge line costs linear time and bounded memory.
 /// </summary>
 public static class ReverseLineReader
 {
