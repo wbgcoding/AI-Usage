@@ -40,7 +40,7 @@ internal static class AuthenticodeSignature
         try
         {
 #pragma warning disable SYSLIB0057 // No replacement reads the signer of a signed file; WinVerifyTrust above has already proven the signature.
-            var certificate = X509Certificate.CreateFromSignedFile(path);
+            using var certificate = X509Certificate.CreateFromSignedFile(path);
 #pragma warning restore SYSLIB0057
             using var certificate2 = new X509Certificate2(certificate);
             var names = new List<string>();

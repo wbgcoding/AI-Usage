@@ -402,4 +402,30 @@ public class WebUsageSourceTests
 
         Assert.Null(result.AccountLabel);
     }
+
+    // A hidden session closed under a running read throws a cancellation of its own; only the
+    // caller's own cancellation may leave the source, anything else is a failed read.
+    [Fact]
+    public async Task A_cancellation_the_caller_did_not_ask_for_is_a_failed_read()
+    {
+        var source = Source((_, _) => throw new OperationCanceledException("The hidden session was closed."));
+
+        var result = await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+
+        Assert.Equal(WebUsageOutcome.Failed, result.Outcome);
+    }
+
+    [Fact]
+    public async Task The_callers_own_cancellation_still_propagates()
+    {
+        using var cts = new CancellationTokenSource();
+        var source = Source((_, ct) =>
+        {
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+            return Task.FromResult("");
+        });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.FetchAsync(new AppSettings(), _ => { }, cts.Token));
+    }
 }
