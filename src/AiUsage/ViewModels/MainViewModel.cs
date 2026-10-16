@@ -741,6 +741,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (displayText is not null)
                 choice.Label = displayText;
         }
+        Update.RefreshLocalizedText();
         OnPropertyChanged(nameof(EyeButtonAccessibleName));
         OnPropertyChanged(nameof(NewerVersionWarningText));
     }

@@ -74,6 +74,9 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
 
     public void Dismiss() => Dismissed = true;
 
+    /// <summary>A language switch: the notice text is built from a resource string.</summary>
+    public void RefreshLocalizedText() => OnPropertyChanged(nameof(NoticeText));
+
     /// <summary>Runs the daily check (see <see cref="UpdateCheck.CheckIfDueAsync"/>) and refreshes
     /// the notice from what it found. Returns the release the feed answered with, null when the
     /// check was off, not due or failed.</summary>

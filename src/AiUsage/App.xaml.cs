@@ -250,6 +250,12 @@ public partial class App : Application, IDisposable
             if (ShouldShowMainWindow(Dispatcher.HasShutdownStarted))
                 _mainWindow.Show();
         }
+        else
+        {
+            // The view model starts out as "window visible"; left that way, a tray-only start polls
+            // at the open-window pace and the first show from the tray skips its catch-up refresh.
+            _mainWindow.ViewModel.WindowVisible = false;
+        }
 
         // The one visible trace of a restore: where the previous data went, or that nothing changed.
         if (_restoreOutcome != RestoreOutcome.NoPending)

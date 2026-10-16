@@ -172,6 +172,18 @@ public class UpdateNoticeTests
         Assert.Equal(UpdateOutcome.DownloadFailed, (await notNewer.InstallAsync(CancellationToken.None)).Outcome);
         Assert.Empty(host.Ran);
     }
+
+    [Fact]
+    public void A_language_switch_rebuilds_the_notice_text()
+    {
+        var update = new UpdateNoticeViewModel(new AppSettings { KnownLatestTag = "v9.0.0" }, _ => { });
+        var changed = new List<string?>();
+        update.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        update.RefreshLocalizedText();
+
+        Assert.Contains(nameof(UpdateNoticeViewModel.NoticeText), changed);
+    }
 }
 
 public class UpdateSigningKeyGuardTests
