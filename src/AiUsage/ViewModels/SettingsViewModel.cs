@@ -1444,6 +1444,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             AppPaths.SetOverride(destination);
+            AppPaths.EnsureDataMarker();
             _store.Redirect(destination);
             Main.RedirectHistoryStore(destination);
             _historyStore.Redirect(destination);

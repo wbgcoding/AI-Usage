@@ -116,6 +116,8 @@ public partial class App : Application, IDisposable
             }
         }
 
+        AppPaths.EnsureDataMarker();
+
         // A restore asked for in the previous run happens here: this process owns the single-instance
         // lock and the previous copy is gone, so no data file is open anywhere yet.
         _restoreOutcome = BackupService.ApplyPendingRestore(AppPaths.DataDirectory, DateTime.Now, _logService.LogInfo, out _restoredFrom);

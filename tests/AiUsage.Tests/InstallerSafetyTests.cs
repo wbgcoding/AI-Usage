@@ -56,27 +56,60 @@ public class InstallerSafetyTests
     [Fact]
     public void The_uninstall_reads_the_moved_data_folder_before_deleting_and_removes_only_the_apps_own_entries()
     {
-        var iss = Read("installer", "AiUsage.iss");
+        var iss = Read("installer", "AiUsage.iss").Replace("\r\n", "\n");
 
         var pointer = iss.IndexOf("MovedDir := MovedDataDir(", StringComparison.Ordinal);
         var deleteDefault = iss.IndexOf("DelTree(DataDir, True, True, True);", StringComparison.Ordinal);
         Assert.True(pointer > 0 && pointer < deleteDefault, "the pointer file must be read before the default folder is deleted");
         Assert.Contains("RemoveOwnDataEntries(MovedDir);", iss);
 
-        // The moved folder is never deleted as a whole tree; the folder itself goes only when empty.
+        // The moved folder is never deleted as a tree, and nothing is deleted without the marker.
         Assert.DoesNotContain("DelTree(MovedDir", iss);
-        Assert.DoesNotContain("DelTree(Folder,", iss);
-        Assert.DoesNotContain("DelTree(AddBackslash(Folder),", iss);
-        var start = iss.IndexOf("procedure RemoveOwnDataEntries", StringComparison.Ordinal);
-        Assert.True(start > 0);
-        var body = iss[start..iss.IndexOf("\nend;", start, StringComparison.Ordinal)];
-        Assert.Contains("RemoveDir(Folder);", body);
-        foreach (var name in new[] { "settings.json", "stats.db", "stats.db-wal", "stats.db-shm", "notifications.json", "status.json", "project-colors.json", "location" + ".txt" })
-            Assert.Contains($"DeleteOwnFile(Folder, '{name}');", body);
-        Assert.Contains("DeleteOwnFiles(Folder, 'history-*.jsonl');", body);
-        Assert.Contains("DeleteOwnFolders(Folder, 'logs');", body);
-        Assert.DoesNotContain("'*'", body);
-        Assert.DoesNotContain("'*.*'", body);
+        Assert.DoesNotContain("DelTree(Folder", iss);
+        Assert.DoesNotContain("DelTree(Sub", iss);
+        Assert.DoesNotContain("DeleteOwnFiles(Folder, '', ", iss);
+        Assert.Contains("DataMarkerFile = '" + AiUsage.Storage.AppPaths.DataMarkerFileName + "';", iss);
+        var entries = Body(iss, "procedure RemoveOwnDataEntries");
+        var guard = entries.IndexOf("HasDataMarker(Folder)", StringComparison.Ordinal);
+        Assert.True(guard > 0 && guard < entries.IndexOf("RemoveOwnEntries(Folder, False);", StringComparison.Ordinal));
+        // The marker goes after the contents, the folder itself last and only when empty.
+        Assert.True(entries.IndexOf("DeleteOwnFile(Folder, DataMarkerFile);", StringComparison.Ordinal)
+            < entries.IndexOf("RemoveDir(Folder);", StringComparison.Ordinal));
+
+        var files = Body(iss, "procedure DeleteOwnDataFiles");
+        foreach (var name in new[] { "settings.json", "settings.json.bak", "stats.db", "stats.db-wal", "stats.db-shm", "stats.db-journal", "notifications.json", "status.json", "project-colors.json", "location" + ".txt", "toast-icon.png" })
+            Assert.Contains($"DeleteOwnFile(Folder, '{name}');", files);
+        Assert.Contains("DeleteOwnFiles(Folder, 'history-', '.jsonl', NameChars, '', 1, 100);", files);
+
+        // Sub-folders are emptied by the app's own file names and then removed, never walked recursively.
+        var sub = Body(iss, "procedure RemoveOwnSubFolder");
+        Assert.Contains("DeleteOwnFile(Sub, 'app.log');", sub);
+        Assert.Contains("RemoveDir(Sub);", sub);
+        var all = Body(iss, "procedure RemoveOwnEntries");
+        foreach (var folder in new[] { "logs", "restore-staging", "cache", "before-restore-*", "second-instance" })
+            Assert.Contains($"'{folder}'", all);
+    }
+
+    [Fact]
+    public void The_uninstall_refuses_a_pointer_to_a_root_the_profile_or_the_system_folders()
+    {
+        var iss = Read("installer", "AiUsage.iss").Replace("\r\n", "\n");
+        var pointer = Body(iss, "function MovedDataDir");
+
+        Assert.Contains("ExpandFileName(Path)", pointer);
+        Assert.Contains("ExtractFileDrive(Path)", pointer);
+        Assert.Contains("GetEnv('USERPROFILE')", pointer);
+        Assert.Contains("ExpandConstant('{win}')", pointer);
+        Assert.Contains("GetEnv('ProgramFiles')", pointer);
+        Assert.Contains("IsSameOrUnder(DataDir, Path)", pointer);
+    }
+
+    private static string Body(string iss, string header)
+    {
+        var start = iss.IndexOf(header, StringComparison.Ordinal);
+        Assert.True(start > 0, header);
+        var end = iss.IndexOf("\nend;", start, StringComparison.Ordinal);
+        return iss[start..end];
     }
 
     [Fact]

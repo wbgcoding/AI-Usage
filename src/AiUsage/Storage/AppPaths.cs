@@ -249,6 +249,38 @@ public static class AppPaths
 
     public static string LogsDirectory => Path.Combine(DataDirectory, "logs");
 
+    /// <summary>Written into a data folder that is not the default one. The uninstaller removes the
+    /// app's files from a moved folder only when this file is there, so a pointer into a folder the
+    /// app never used cannot make it delete anything.</summary>
+    public const string DataMarkerFileName = "ai-usage-data.marker";
+
+    private const string DataMarkerText = "AI-Usage data folder. The uninstaller removes the app's own files here when you choose to remove its data.";
+
+    /// <summary>Writes the marker into <see cref="DataDirectory"/> when that is a folder the user chose.
+    /// Best effort: a folder that cannot be written simply has none, and the uninstaller then leaves it alone.</summary>
+    public static void EnsureDataMarker() => EnsureDataMarker(
+        DataDirectory, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Path.GetTempPath());
+
+    /// <summary>Exposed so a test can name fake roots.</summary>
+    internal static void EnsureDataMarker(string dataDirectory, string appDataRoot, string tempRoot)
+    {
+        try
+        {
+            if (ClassifyDataDirectory(dataDirectory, appDataRoot, tempRoot) != DataFolderKind.Chosen)
+                return;
+
+            var marker = Path.Combine(dataDirectory, DataMarkerFileName);
+            if (File.Exists(marker))
+                return;
+
+            Directory.CreateDirectory(dataDirectory);
+            File.WriteAllText(marker, DataMarkerText, Io.AppEncoding.Utf8NoBom);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+        }
+    }
+
     public static string HistoryFile(string accountKey) =>
         Path.Combine(DataDirectory, $"history-{SanitizeAccountKeyForFileName(accountKey)}.jsonl");
 

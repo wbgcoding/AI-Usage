@@ -315,6 +315,50 @@ public class AppPathsTests : IDisposable
         Assert.Null(withWorkingPointer);
     }
 
+    [Fact]
+    public void A_chosen_data_folder_gets_the_marker_the_uninstaller_looks_for()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        var chosen = Path.Combine(TempDirectory(), "my-data");
+
+        AppPaths.EnsureDataMarker(chosen, appDataRoot, tempRoot);
+        AppPaths.EnsureDataMarker(chosen, appDataRoot, tempRoot);
+
+        Assert.Equal("ai-usage-data.marker", AppPaths.DataMarkerFileName);
+        var marker = Path.Combine(chosen, AppPaths.DataMarkerFileName);
+        Assert.True(File.Exists(marker));
+        Assert.StartsWith("AI-Usage data folder", File.ReadAllText(marker), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_default_and_the_fallback_folder_get_no_marker()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        var defaultFolder = Directory.CreateDirectory(Path.Combine(appDataRoot, "AI-Usage")).FullName;
+        var fallbackFolder = Directory.CreateDirectory(Path.Combine(tempRoot, "AI-Usage")).FullName;
+
+        AppPaths.EnsureDataMarker(defaultFolder, appDataRoot, tempRoot);
+        AppPaths.EnsureDataMarker(fallbackFolder, appDataRoot, tempRoot);
+
+        Assert.False(File.Exists(Path.Combine(defaultFolder, AppPaths.DataMarkerFileName)));
+        Assert.False(File.Exists(Path.Combine(fallbackFolder, AppPaths.DataMarkerFileName)));
+    }
+
+    [Fact]
+    public void A_folder_that_cannot_be_written_is_left_without_a_marker_and_without_an_error()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        var blocker = Path.Combine(TempDirectory(), "file");
+        File.WriteAllText(blocker, "x");
+
+        AppPaths.EnsureDataMarker(Path.Combine(blocker, "data"), appDataRoot, tempRoot);
+
+        Assert.False(Directory.Exists(Path.Combine(blocker, "data")));
+    }
+
     private readonly List<DisposableTestDirectory> _tempDirectories = [];
 
     private string TempDirectory()
