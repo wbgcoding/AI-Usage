@@ -112,7 +112,9 @@ public sealed class StatsStore
             using var version = connection.CreateCommand();
             version.CommandText = "SELECT MAX(version) FROM schema_version";
             var value = version.ExecuteScalar();
-            return value is null or DBNull ? null : (int)Math.Min(int.MaxValue, Convert.ToInt64(value, CultureInfo.InvariantCulture));
+            // Only an integer is a version; a file from elsewhere (a backup zip is never trusted) can
+            // hold text, a real or a blob there, which Convert would throw on past every caller's catch.
+            return value is long number ? (int)Math.Clamp(number, int.MinValue, int.MaxValue) : null;
         }
         catch (SqliteException)
         {
@@ -702,6 +704,19 @@ public sealed class StatsStore
         if (originalVersion is null or < 4)
             Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{SessionsBackfilledKey}', '1')");
 
+        // Builds before this one required a cache-write total Codex never writes, so every Codex file
+        // was walked to its end without counting a line. Such a file still has all four running
+        // totals at zero and is read again from the start, once - only while this PC has no Codex
+        // usage at all, so nothing that was counted can be counted a second time.
+        Execute(connection, $"""
+            DELETE FROM source_file WHERE provider = 'codex'
+                AND cumulative_input_tokens = 0 AND cumulative_output_tokens = 0
+                AND cumulative_cache_creation_tokens = 0 AND cumulative_cache_read_tokens = 0
+                AND NOT EXISTS (SELECT 1 FROM usage WHERE provider = 'codex' AND machine = '')
+                AND NOT EXISTS (SELECT 1 FROM meta WHERE key = '{CodexRereadKey}');
+            INSERT OR IGNORE INTO meta (key, value) VALUES ('{CodexRereadKey}', '1');
+            """);
+
         using (var writeVersion = connection.CreateCommand())
         {
             writeVersion.CommandText = "INSERT OR REPLACE INTO schema_version (id, version) VALUES (1, $version)";
@@ -713,6 +728,7 @@ public sealed class StatsStore
     }
 
     private const string SessionsBackfilledKey = "sessions_backfilled";
+    private const string CodexRereadKey = "codex_uncounted_files_reread";
 
     private static void Execute(SqliteConnection connection, string sql)
     {

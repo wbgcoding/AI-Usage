@@ -113,8 +113,8 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         if (customFrom is { } first && customTo is { } last)
         {
-            _customFrom = first <= last ? first : last;
-            _customTo = first <= last ? last : first;
+            _customFrom = ClampCustomDay(first <= last ? first : last);
+            _customTo = ClampCustomDay(first <= last ? last : first);
         }
 
         if (RangeChoices.Any(choice => choice.Value == range) && (range != CustomRange || (customFrom is not null && customTo is not null)))
@@ -167,8 +167,10 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Applies a custom range of the two days, whichever way round they come.</summary>
     internal async Task SetCustomRange(DateOnly from, DateOnly to)
     {
-        _customFrom = from;
-        _customTo = to;
+        // A date typed into the picker can be anything down to the year 1, where the previous period
+        // (from.AddDays(-1)) throws and the chart would draw a bar for every day since.
+        _customFrom = ClampCustomDay(from);
+        _customTo = ClampCustomDay(to);
         SelectedDay = null;
         SelectedRange = CustomRange;
         UpdateCustomChoiceLabel();
@@ -300,7 +302,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
-    /// day: only for a whole history that spans more than a year. Up to 366 days every day gets its
+    /// day: only for a whole history or a custom range that spans more than a year. Up to 366 days every day gets its
     /// own column, the 12 month range included. The table under the day grouping stays per day
     /// regardless.</summary>
     [ObservableProperty]
@@ -1136,7 +1138,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // up. The earliest day actually stored is the first one worth drawing.
         var gapFillFrom = GapFillStart(from, inRange, to);
 
-        var weeklyPerDay = SelectedRange == "All" && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
+        var weeklyPerDay = SelectedRange is "All" or CustomRange && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
         IsWeeklyPerDay = weeklyPerDay;
 
         // The table under the day grouping stays per day; only the bars are bundled per week.
@@ -1598,6 +1600,12 @@ public sealed partial class StatsViewModel : ObservableObject
                 return SameLengthBefore(RangeStart(range, today), today);
         }
     }
+
+    internal static readonly DateOnly EarliestCustomDay = new(2000, 1, 1);
+    internal static readonly DateOnly LatestCustomDay = new(2099, 12, 31);
+
+    internal static DateOnly ClampCustomDay(DateOnly day) =>
+        day < EarliestCustomDay ? EarliestCustomDay : day > LatestCustomDay ? LatestCustomDay : day;
 
     private static StatsPeriod SameLengthBefore(DateOnly from, DateOnly to)
     {

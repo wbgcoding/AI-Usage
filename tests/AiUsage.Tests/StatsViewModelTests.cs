@@ -1705,4 +1705,12 @@ public class StatsViewModelCaptionTests
         Assert.True(viewModel.IsBarChart);
         Assert.True(viewModel.ShowPlainTable);
     }
+
+    [Fact]
+    public void A_custom_day_is_kept_within_a_range_the_charts_can_draw()
+    {
+        Assert.Equal(StatsViewModel.EarliestCustomDay, StatsViewModel.ClampCustomDay(DateOnly.MinValue));
+        Assert.Equal(StatsViewModel.LatestCustomDay, StatsViewModel.ClampCustomDay(DateOnly.MaxValue));
+        Assert.Equal(new DateOnly(2026, 9, 1), StatsViewModel.ClampCustomDay(new DateOnly(2026, 9, 1)));
+    }
 }

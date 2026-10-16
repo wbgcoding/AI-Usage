@@ -112,14 +112,17 @@ public sealed class CodexUsageLogParser
                     timestampProperty.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var timestamp))
                 return false;
 
-            // A line missing any of the four running totals says nothing reliable: reading the gap
-            // as zero would make the next complete line count its whole total as new. Such a line
-            // is skipped and the previous totals stay.
+            // A line missing any of the three running totals Codex writes says nothing reliable:
+            // reading the gap as zero would make the next complete line count its whole total as new.
+            // Such a line is skipped and the previous totals stay.
             if (!TryGetLong(total, "input_tokens", out var input)
                 || !TryGetLong(total, "output_tokens", out var output)
-                || !TryGetLong(total, "cache_write_input_tokens", out var cacheCreation)
                 || !TryGetLong(total, "cached_input_tokens", out var cacheRead))
                 return false;
+
+            // Codex's own rollouts carry no cache-write total at all; requiring it dropped every real
+            // line. Where it is missing the previous total stands, so it adds nothing either way.
+            var cacheCreation = TryGetLong(total, "cache_write_input_tokens", out var cacheWrite) ? cacheWrite : _cumulativeCacheCreation;
 
             // Codex resets its running totals not only across files but also mid file, after a
             // context compaction - each of the four counters is checked against its own previous
