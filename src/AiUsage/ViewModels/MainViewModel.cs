@@ -125,8 +125,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ForecastRaised?.Invoke(notification);
     }
 
-    // What the forecast alert needs from the latest usable snapshot of each provider; the history
-    // series it also needs arrives later, when the tile's history read completes (UI thread only).
     /// <summary>The "limit reached (100 %)" alert, forwarded like <see cref="NotificationRaised"/>
     /// (quiet hours included).</summary>
     public event Action<LimitReachedNotification>? LimitReachedRaised;
@@ -137,6 +135,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             LimitReachedRaised?.Invoke(notification);
     }
 
+    // What the forecast alert needs from the latest usable snapshot of each provider; the history
+    // series it also needs arrives later, when the tile's history read completes (UI thread only).
     private sealed record ForecastInput(string DisplayName, IReadOnlyList<UsageWindow> Windows);
 
     private readonly Dictionary<string, ForecastInput> _forecastInputs = [];
