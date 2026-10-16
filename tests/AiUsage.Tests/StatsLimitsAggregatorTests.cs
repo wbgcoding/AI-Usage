@@ -222,8 +222,13 @@ public class StatsViewModelLimitsTests
         DateTimeOffset? to = null;
         Create((_, start, end) =>
         {
-            from = start;
-            to = end;
+            // The weekly look-back is read too, up to now; the range itself reaches the end of its last day.
+            if (to is null || end > to)
+            {
+                from = start;
+                to = end;
+            }
+
             return [];
         });
 
