@@ -582,8 +582,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     private bool showWeekly = true;
 
     /// <summary>The index slices the visible rows show (see <see cref="UsageRowViewModel.TokenKeyFor"/>),
-    /// each once, in row order - what <see cref="ViewModels.MainViewModel"/> asks <see
-    /// cref="Stats.StatsStore.SumTokensSince"/> for.</summary>
+    /// each once, in row order - what <see cref="ViewModels.MainViewModel"/> asks the index for: <see
+    /// cref="Stats.StatsStore.SumTokensSince"/>, or <see cref="Stats.StatsStore.SumTokensByModelSince"/>
+    /// while this tile colors its bars by token share.</summary>
     internal IReadOnlyList<WindowTokenKey> WindowTokenKeys => _windowTokenKeys;
 
     // Rebuilt whenever the rows' slices are assigned (ApplyRows): the one-second tick reads it, so it
