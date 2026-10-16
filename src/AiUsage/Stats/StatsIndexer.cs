@@ -980,6 +980,7 @@ public sealed class StatsIndexer
             return byAge != 0 ? byAge : string.CompareOrdinal(a.State.Path, b.State.Path);
         });
 
+        var unreadable = false;
         foreach (var (state, _, start) in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -991,9 +992,14 @@ public sealed class StatsIndexer
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A file that vanished or is locked has nothing to give.
+                // A file that vanished has nothing to give; one that is locked is read again later.
+                unreadable |= !IsGone(ex);
             }
         }
+
+        // The correction is final: with a readable-later file missing from it, it would stay wrong.
+        if (unreadable)
+            return;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
         var sessions = new StatsSessionAccumulator();
@@ -1011,7 +1017,8 @@ public sealed class StatsIndexer
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // A file that vanished or is locked has nothing to give.
+                    // A file that vanished has nothing to give; one that is locked is read again later.
+                    unreadable |= !IsGone(ex);
                 }
                 finally
                 {
@@ -1019,7 +1026,7 @@ public sealed class StatsIndexer
                 }
             }
 
-            if (owners.Failed)
+            if (unreadable || owners.Failed)
                 return;
         }
 

@@ -111,4 +111,38 @@ public class StatsBackfillRetryTests
         Assert.True(store.IsClaudeCopyBackfillDone());
         Assert.Single(store.LoadSessions());
     }
+
+    [Fact]
+    public void A_locked_transcript_keeps_the_owner_pass_open_and_the_copies_are_taken_out_on_the_retry()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-owner-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-owner-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-owner-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        string[] history =
+        [
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467),
+            Line("2026-01-01T10:00:02Z", "m2", 50, 20),
+        ];
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old, history);
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        var resumed = WriteTranscript(claudeRoot, "sess-2.jsonl", New, [.. history, Line("2026-01-01T12:00:00Z", "m3", 7, 3, "sess-2")]);
+        Run(dbPath, "DELETE FROM claude_message");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerKey}';");
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        using (Lock(resumed))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+        var rows = store.LoadAll();
+        Assert.Equal((157L, 490L), (rows.Sum(row => row.InputTokens), rows.Sum(row => row.OutputTokens)));
+    }
 }
