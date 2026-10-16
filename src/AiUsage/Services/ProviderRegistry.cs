@@ -245,7 +245,7 @@ public static class ProviderRegistry
         var webSource = new WebUsageSource(
             descriptor, new GeminiUsageEndpoint(), runner.ExecuteScriptAsync, logService == null ? null : logService.LogInfo);
         var provider = accountKey == GeminiWebSession.ProviderId
-            ? new GeminiProvider(settings, store.RequestSave, webSource)
+            ? new GeminiProvider(settings, store.RequestSave, webSource, () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes))
             : GeminiProvider.ForWebOnlyAccount(accountKey, settings, store.RequestSave, webSource);
         return (provider, runner);
     }

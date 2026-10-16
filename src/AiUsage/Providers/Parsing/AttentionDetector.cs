@@ -2,7 +2,7 @@ namespace AiUsage.Providers.Parsing;
 
 /// <summary>What the newest record in a provider's session file represents - the shapes <see
 /// cref="AttentionDetector"/> needs to decide whether an agent is waiting on the user. A per-provider
-/// reader (Claude, Codex - the two that write a readable, append-only session file) reduces its own
+/// reader (Claude, Codex and Gemini, whose tools keep a readable session record) reduces its own
 /// file format down to this one small vocabulary before calling <see cref="AttentionDetector.IsWaiting"/>.</summary>
 public enum SessionRecordKind
 {
@@ -37,9 +37,9 @@ public static class AttentionDetector
     /// parked on a prompt.</summary>
     public static readonly TimeSpan DefaultMaxAge = TimeSpan.FromHours(2);
 
-    /// <summary>The providers that read a session file and so can tell whether an agent is waiting
+    /// <summary>The providers that read a session record and so can tell whether an agent is waiting
     /// at all; every other provider never reports it, so the settings offer no switch for them.</summary>
-    public static readonly IReadOnlyList<string> SupportedProviderIds = ["claude", "codex"];
+    public static readonly IReadOnlyList<string> SupportedProviderIds = ["claude", "codex", "gemini"];
 
     public static bool CanDetect(string providerId) => SupportedProviderIds.Contains(providerId);
 

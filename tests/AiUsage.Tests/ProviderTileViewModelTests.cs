@@ -1967,7 +1967,7 @@ public class ProviderTileViewModelTests
     [Theory]
     [InlineData("claude", true)]
     [InlineData("codex", true)]
-    [InlineData("gemini", false)]
+    [InlineData("gemini", true)]
     [InlineData("copilot", false)]
     [InlineData("cursor", false)]
     public void OnlyProvidersThatReadASessionFileOfferTheAttentionSwitch(string providerId, bool supported)
@@ -1977,11 +1977,11 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
-    public void GeminiAndCopilotNeverMarkTheTileEvenWithTheSettingOn()
+    public void CopilotNeverMarksTheTileEvenWithTheSettingOn()
     {
-        // Neither provider ever sets IsWaitingForUser on its own snapshot - they have no session
-        // file to read one from - so the tile stays unmarked whatever the setting says.
-        var tile = new ProviderTileViewModel("gemini", "Gemini");
+        // Copilot never sets IsWaitingForUser on its own snapshot - it has no session file to read
+        // one from - so the tile stays unmarked whatever the setting says.
+        var tile = new ProviderTileViewModel("copilot", "Copilot");
 
         tile.Apply(Snapshot(ProviderStatus.Ok), Now, showAttentionMark: true);
 

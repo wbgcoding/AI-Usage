@@ -23,16 +23,22 @@ public sealed class GeminiProvider : IUsageProvider
     private readonly AppSettings? _settings;
     private readonly string _accountKey;
     private readonly Func<string?> _readAccountLabel;
+    private readonly Func<TimeSpan> _attentionMaxAge;
+    private readonly IReadOnlyList<string> _conversationRoots;
 
-    public GeminiProvider() : this(AntigravityLocalLogin.FetchAsync, now: null)
+    public GeminiProvider() : this(AntigravityLocalLogin.FetchAsync, now: null, conversationRoots: AntigravityTurnReader.DefaultRoots())
     {
     }
 
     /// <summary>Real construction once a web session exists: <paramref name="webSource"/> reads the
     /// account's own usage endpoint, <paramref name="settings"/>/<paramref name="saveSettings"/>
-    /// carry the discovered path across ticks (see <see cref="AppSettings.WebUsagePaths"/>).</summary>
-    public GeminiProvider(AppSettings settings, Action<AppSettings> saveSettings, WebUsageSource webSource)
-        : this(AntigravityLocalLogin.FetchAsync, now: null, webSource, settings, saveSettings)
+    /// carry the discovered path across ticks (see <see cref="AppSettings.WebUsagePaths"/>).
+    /// <paramref name="attentionMaxAge"/> is a delegate so a change to <see
+    /// cref="AppSettings.AttentionMaxAgeMinutes"/> applies on the very next read; it defaults to
+    /// <see cref="AttentionDetector.DefaultMaxAge"/>.</summary>
+    public GeminiProvider(AppSettings settings, Action<AppSettings> saveSettings, WebUsageSource webSource, Func<TimeSpan>? attentionMaxAge = null)
+        : this(AntigravityLocalLogin.FetchAsync, now: null, webSource, settings, saveSettings,
+            attentionMaxAge: attentionMaxAge, conversationRoots: AntigravityTurnReader.DefaultRoots())
     {
     }
 
@@ -46,7 +52,9 @@ public sealed class GeminiProvider : IUsageProvider
 
     /// <summary>Test seam: a canned usage result and a fixed clock instead of the real credential
     /// store and network. <paramref name="fetch"/> null means this account has no local Antigravity
-    /// read at all (see <see cref="ForWebOnlyAccount"/>).</summary>
+    /// read at all (see <see cref="ForWebOnlyAccount"/>). <paramref name="conversationRoots"/> are the
+    /// folders searched for the newest conversation: none by default, so a test never reads the
+    /// tool's real folders.</summary>
     internal GeminiProvider(
         Func<CancellationToken, Task<AntigravityUsage>>? fetch,
         Func<DateTimeOffset>? now,
@@ -54,13 +62,18 @@ public sealed class GeminiProvider : IUsageProvider
         AppSettings? settings = null,
         Action<AppSettings>? saveSettings = null,
         string? accountKey = null,
-        Func<string?>? readAccountLabel = null)
+        Func<string?>? readAccountLabel = null,
+        Func<TimeSpan>? attentionMaxAge = null,
+        IReadOnlyList<string>? conversationRoots = null)
     {
         _read = fetch;
         _now = now ?? (() => DateTimeOffset.Now);
         _webSource = webSource;
         _settings = settings;
         _accountKey = accountKey ?? Id;
+        _attentionMaxAge = attentionMaxAge ?? (() => AttentionDetector.DefaultMaxAge);
+        // Only the primary account owns the tool's own conversations, like its sign-in.
+        _conversationRoots = fetch is not null ? conversationRoots ?? [] : [];
         if (webSource is not null && settings is not null && saveSettings is not null)
             _webReader = new ThrottledWebReader(_accountKey, webSource, settings, saveSettings, showsReportedPlan: false, pausesAfterFailedDiscovery: true);
         // Only the primary account owns the CLI's own sign-in, so only it may take that account's
@@ -114,6 +127,20 @@ public sealed class GeminiProvider : IUsageProvider
     /// beat fewer, newer beats older), never merged. Without a web session that is a single result -
     /// wrapping it still routes it through the same rule every other provider follows.</summary>
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
+    {
+        var snapshot = await FetchSourcesAsync(ct);
+        if (_read is null)
+            return snapshot;
+
+        // The conversation files answer whatever the sources above did: the mark must not depend on
+        // a sign-in or a network read that happened to fail this tick.
+        var roots = _conversationRoots;
+        var (kind, timestamp) = await Task.Run(() => AntigravityTurnReader.ReadNewestTurn(roots), ct);
+        var waiting = AttentionDetector.IsWaiting(kind, timestamp, snapshot.FetchedAt, _attentionMaxAge());
+        return snapshot with { IsWaitingForUser = waiting, WaitingSince = waiting ? timestamp : null };
+    }
+
+    private async Task<ProviderSnapshot> FetchSourcesAsync(CancellationToken ct)
     {
         var fetchedAt = _now();
 
