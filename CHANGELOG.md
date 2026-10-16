@@ -68,6 +68,21 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The token usage window no longer clips text in its smallest size, and its charts use the "Terminal" theme's font.
 - Dates use the same month abbreviations everywhere.
 - The 1.1.0 weekday or hour chart choice carries over into the new groupings.
+- Token usage counts Codex again: real Codex logs carry no cache write total, and every line without one was skipped. Codex logs read so far without a single counted line are read once more.
+- Codex reads its sessions from `CODEX_HOME` when that is set.
+- Started into the notification area, the widget fetches at the slower hidden-window pace, and the first time it is shown it fetches right away.
+- A quick double click on "Add account" for Copilot no longer adds the same GitHub account twice.
+- Dragging the top edge of the widget stops at the content and the screen height like the bottom edge, instead of sliding the window off the screen.
+- A settings file with an empty entry in the hidden windows no longer stops the app from starting, and a backup with a damaged token index is refused instead of closing the app.
+- The widget no longer hides itself as if a full-screen app were running when no window has the focus.
+- The update notice, the chart legend of a tile and the percentages in the top projects follow a language and number format change at once.
+- Hovering or clicking the value labels of a token usage chart no longer picks the first column.
+- A custom token usage range far in the past no longer freezes the window or throws, and ranges longer than a year are drawn per week.
+- The history export names each window, so several Cursor bars can be told apart.
+- An account name cut to its maximum length no longer ends in half an emoji.
+- Settings and history are flushed to disk before they replace the old file, so a power cut cannot leave an empty file behind.
+- After an in-app update the app starts again even when it closed before the setup looked for it, and uninstalling removes the desktop shortcut of a per-machine install.
+- The portable setup no longer writes a setup log to the PC, and `build.bat` no longer stops at the installer step when Inno Setup is installed under "Program Files (x86)".
 
 ### Security
 
