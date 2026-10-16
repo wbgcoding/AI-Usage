@@ -381,9 +381,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int zoomPercent;
 
-    /// <summary>The zoom steps for the Size picker, labelled like "125 %".</summary>
+    /// <summary>The zoom steps for the Size picker, labelled in the active language's percent
+    /// convention; <see cref="OnLocalizationChanged"/> relabels them on a language switch.</summary>
     public ObservableCollection<Choice<int>> ZoomChoices { get; } =
-        new(WindowZoom.AllowedPercents.Select(percent => Choice.WithFixedLabel(percent + " %", percent)));
+        new(WindowZoom.AllowedPercents.Select(percent => Choice.WithFixedLabel(ZoomLabel(percent), percent)));
+
+    private static string ZoomLabel(int percent) =>
+        StatusTextMap.FormatPercent(percent.ToString(CultureInfo.CurrentCulture));
 
     /// <summary>Same shape as <see cref="SelectedLayoutChoice"/>, for the Size ComboBox.</summary>
     public Choice<int>? SelectedZoomChoice
@@ -805,6 +809,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         foreach (var day in QuietDays)
             day.RefreshName();
         RefreshForecastLeadChoices();
+        foreach (var choice in ZoomChoices)
+            choice.Label = ZoomLabel(choice.Value);
         Main.RefreshProviderIntervalLabels();
         foreach (var row in ThresholdRows)
             row.RefreshLabels();

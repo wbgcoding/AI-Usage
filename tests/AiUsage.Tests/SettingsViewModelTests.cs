@@ -390,6 +390,25 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ZoomLabelsFollowTheLanguagesPercentConvention()
+    {
+        var (vm, _) = Build();
+
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            Assert.Equal(["90%", "100%", "125%", "150%"], vm.ZoomChoices.Select(c => c.Label));
+
+            LocalizationService.Instance.SetLanguage("de");
+            Assert.Equal(["90 %", "100 %", "125 %", "150 %"], vm.ZoomChoices.Select(c => c.Label));
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
     public void LevelExplainerShowsBothLevels()
     {
         var (vm, _) = Build();
