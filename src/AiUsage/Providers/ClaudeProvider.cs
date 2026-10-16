@@ -39,9 +39,8 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>The primary account reads its usage through the sign-in Claude Code already holds on
     /// this machine (see <see cref="ClaudeCodeLogin"/>) rather than the app's own web session -
     /// <paramref name="localLogin"/> is that read. The local rate-limit scan below still runs first,
-    /// so a hit rate limit shows even when signed out. <paramref name="settings"/> is optional so
-    /// every existing local-login test seam keeps compiling unchanged; production passes it so
-    /// <see cref="MinRefreshInterval"/> can honour the settings floor for this read too (see
+    /// so a hit rate limit shows even when signed out. <paramref name="settings"/> is optional for
+    /// tests; production passes it so <see cref="MinRefreshInterval"/> can honour the settings floor for this read too (see
     /// <see cref="Services.ProviderRegistry.CreateAll"/>).</summary>
     internal ClaudeProvider(
         string accountKey, Func<CancellationToken, Task<ClaudeCodeUsage>> localLogin, AppSettings? settings = null,
@@ -78,8 +77,7 @@ public sealed class ClaudeProvider : IUsageProvider
 
     /// <summary>Test seam: a fixture directory and a fixed clock instead of ~/.claude/projects and
     /// DateTimeOffset.Now - defaults to the one account every install starts with (see <see
-    /// cref="AppSettings.CreateDefaultAccounts"/>), same as every existing caller that predates the
-    /// account-key concept and so never names one.</summary>
+    /// cref="AppSettings.CreateDefaultAccounts"/>).</summary>
     internal ClaudeProvider(
         string projectsRoot, Func<DateTimeOffset>? now,
         WebUsageSource? webSource = null, AppSettings? settings = null, Action<AppSettings>? saveSettings = null,
@@ -102,8 +100,7 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary><paramref name="attentionMaxAge"/> is a delegate rather than a snapshot value so a
     /// change to <see cref="AppSettings.AttentionMaxAgeMinutes"/> takes effect on this provider's very
     /// next read instead of only after a restart; it defaults to a fixed <see
-    /// cref="AttentionDetector.DefaultMaxAge"/> (today's two hours) so every existing construction
-    /// keeps compiling unchanged. <see cref="Services.ProviderRegistry"/> is the one caller that ever
+    /// cref="AttentionDetector.DefaultMaxAge"/>. <see cref="Services.ProviderRegistry"/> is the one caller that ever
     /// passes a delegate reading the user's own configured value.</summary>
     private ClaudeProvider(
         IReadOnlyList<string> projectsRoots, Func<DateTimeOffset>? now,

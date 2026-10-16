@@ -18,7 +18,7 @@ public interface IWebUsageEndpoint
     string Fetch(string path);
 
     /// <summary>The same read, leaving out the extra requests whose answers are already held (see
-    /// <see cref="CachedAccountExtras"/>). Providers without such extras read exactly as before.</summary>
+    /// <see cref="CachedAccountExtras"/>). The default ignores the cache.</summary>
     string Fetch(string path, CachedAccountExtras cached) => Fetch(path);
 
     /// <summary>True only for one of this provider's own usage paths - the gate every cached or

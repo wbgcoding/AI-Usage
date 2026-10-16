@@ -40,8 +40,7 @@ internal static class CodexDiscoveryScript
     /// <summary>The snippet both scripts start with: the site's own web app authenticates its
     /// backend calls with a short-lived key it reads from its session route, and that route is also
     /// the only honest answer to "is this session signed in at all" - cookies alone answer every
-    /// usage address with 401, which is what left the tile saying "failed" with the account clearly
-    /// signed in. The key goes on these requests and nowhere else: never stored, never logged, never
+    /// usage address with 401. The key goes on these requests and nowhere else: never stored, never logged, never
     /// part of an answer this script returns. The session route itself carries no usage data and no
     /// message content, so reading it can never cost the account anything. A session route that did
     /// not answer (rate limit, server error, a page that is not JSON) makes the read failed or

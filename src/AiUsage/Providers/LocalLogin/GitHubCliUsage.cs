@@ -41,7 +41,7 @@ internal static class GitHubCliUsage
     public static bool IsCliInstalled() => FindOnPath("gh.exe") is not null;
 
     /// <summary>The primary account's own read (<paramref name="login"/> null) asks <c>gh</c> as its
-    /// own currently active user, exactly as before. A further account's read
+    /// own currently active user. A further account's read
     /// (<paramref name="login"/> set, from <see cref="ListSignedInUsersAsync"/>'s own list) first
     /// asks <c>gh auth token --user &lt;login&gt;</c> for that specific user's token, kept only in
     /// memory for the one request below, then reads the same endpoint with it - never logged, never

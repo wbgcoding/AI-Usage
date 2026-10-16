@@ -107,9 +107,8 @@ internal static class CursorDiscoveryScript
                     const me = await meRes.json();
                     const sub = me && me.sub;
                     // An account endpoint that answers without an account id is a session that is not
-                    // signed in, not a broken read: the signed-out site answers this route with an
-                    // empty body rather than a 401. Reporting it as a plain failure is what left the
-                    // tile saying "failed" with no way to sign in.
+                    // signed in, not a broken read: the signed-out site answers with an empty body
+                    // rather than a 401, so it reads as not signed in, not as a failure.
                     if (typeof sub !== 'string' || !/^{{AccountIdPattern}}$/.test(sub)) return {status: 'not_signed_in', attempts: attempts};
                     const email = (me && typeof me.email === 'string') ? me.email : null;
                     let sawAuthFailure = false;

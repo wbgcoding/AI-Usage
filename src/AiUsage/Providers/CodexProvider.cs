@@ -68,8 +68,7 @@ public sealed partial class CodexProvider : IUsageProvider
     /// <paramref name="attentionMaxAge"/> is a delegate rather than a snapshot value so a change to
     /// <see cref="AppSettings.AttentionMaxAgeMinutes"/> takes effect on this provider's very next read
     /// instead of only after a restart; it defaults to a fixed <see
-    /// cref="AttentionDetector.DefaultMaxAge"/> (today's two hours) so every existing construction
-    /// keeps compiling unchanged. <see cref="Services.ProviderRegistry"/> is the one caller that ever
+    /// cref="AttentionDetector.DefaultMaxAge"/>. <see cref="Services.ProviderRegistry"/> is the one caller that ever
     /// passes a delegate reading the user's own configured value.</summary>
     public CodexProvider(AppSettings settings, Action<AppSettings> saveSettings, WebUsageSource webSource, Func<TimeSpan>? attentionMaxAge = null)
         : this(CodexPaths.Sessions, now: null, webSource, settings, saveSettings, attentionMaxAge)

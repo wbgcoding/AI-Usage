@@ -91,7 +91,7 @@ public static class SessionTurnReader
                         // not produced its final answer, so this is not "waiting" either way.
                         : (SessionRecordKind.ToolCall, timestamp);
 
-            // type == "user"
+            // Otherwise a user record.
             return blockTypes.Contains("tool_result")
                 ? (SessionRecordKind.ToolCall, timestamp)
                 : (SessionRecordKind.UserTurn, timestamp);

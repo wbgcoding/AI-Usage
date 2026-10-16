@@ -90,9 +90,7 @@ public sealed class GeminiProvider : IUsageProvider
 
     public string DisplayName => "Gemini";
 
-    // Sign-in through the app's own browser session becomes possible only once that session's
-    // provider actually exists - a build without one still routes through the Antigravity CLI's own
-    // login, outside the app, exactly as before.
+    // In-app sign-in needs the web session; without it sign-in stays with the Antigravity CLI.
     public bool SupportsInAppSignIn => _webSource is not null;
 
     /// <summary>A sign-in just finished: the cached answer from before it (usually "not signed in")
