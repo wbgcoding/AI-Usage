@@ -12,7 +12,7 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>AI-Usage</AssemblyName>
     <RootNamespace>AiUsage</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Product>AI-Usage</Product>
     <AssemblyTitle>AI-Usage</AssemblyTitle>
     <Description>Shows the remaining usage limits of your AI coding assistants at a glance.</Description>

@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-16
 
 Backups, history from a second PC, real Windows notifications and a much deeper token usage window, a far smaller download, and a long list of fixes from a full review of the app.
 
@@ -43,7 +43,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Token usage: Gemini usage from the Antigravity CLI is counted too.
 - Token usage: periods "This month", "Last month" and a custom range with a calendar.
 - A portable exe for ARM64, `AI-Usage-arm64.exe`, joins the downloads.
-- Settings > Providers: each account can read at most every 5, 10, 15, 30 or 60 minutes, or follow the default. The slider under Refresh now applies to every provider read over the internet; a browser session is never read more often than every 5 minutes.
+- Settings > Refresh: each account can read at most every 5, 10, 15, 30 or 60 minutes, or follow the default. The slider under Refresh now applies to every provider read over the internet; a browser session is never read more often than every 5 minutes.
 - Picking a data folder on a network drive, a removable drive or in a cloud sync folder asks first, since the token index can be damaged there. When the chosen folder is not available at start, the data folder row says so.
 
 ### Changed
@@ -57,7 +57,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Focus rings appear only when you move with the keyboard, not after a mouse click.
 - Tooltips that only repeated the visible name are gone.
 - The pie charts in token usage grow with the window.
-- In Settings the category list stays in place while the page scrolls, and "Fetch at most every" moved to the Fetching page.
+- In Settings the category list stays in place while the page scrolls, and "Read at most every" moved to the Refresh page.
 - AI-Usage no longer carries its own copy of .NET, so the downloads shrink from about 136 MB to a fraction of that. It uses the .NET 10 Desktop Runtime installed on your PC: the installer downloads it from Microsoft when it is missing, and a portable copy shows a download link instead of starting. A portable 1.1.0 that updates itself therefore starts only once the runtime is installed. See "Coming from version 1.1.0" in the README.
 - Token usage shows one chart instead of a breakdown and a per day chart; the cache share appears once, in the breakdown.
 - Token usage remembers its period, grouping and position, and opens at 80 % of the screen the first time, never larger than the screen.
@@ -187,7 +187,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The history export names each window, so several Cursor bars can be told apart.
 - An account name cut to its maximum length no longer ends in half an emoji.
 - Uninstalling removes the desktop shortcut of a per-machine install.
-- The portable setup no longer writes a setup log to the PC, and `build.bat` no longer stops at the installer step when Inno Setup is installed under "Program Files (x86)".
+- The portable setup no longer writes a setup log to the PC.
 
 ### Security
 

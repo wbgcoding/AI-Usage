@@ -80,21 +80,33 @@ browser.
   ("resets in 2h 14m"), plus its tokens and a "full in about 3h" forecast when there is room
 - A warning sign next to a quota that runs low, so the level never depends on colour alone
 - A tray icon that shows the busiest quota, or the one agent and window you pick
-- Threshold alerts per agent and window, plus a notice once a window is free again
+- A short tick on each bar shows how much of the window's time has passed, so you see at once
+  whether you use it faster than it refills
+- Bars colored by level, or split by model or by main agent and subagents
+- A waiting mark on Claude, Codex and Gemini when the agent has finished and waits for your reply
+- Real Windows notifications: threshold alerts per agent and window, a warning a set time before a
+  window fills (3 minutes to 2 hours), a notice when a limit is reached and when it is free again.
+  They respect Do Not Disturb and can stay quiet on the weekdays you pick
 - History per agent over 24 hours, 7 days, 30 days, a year or everything, kept locally for up to
   ten years
-- Error messages that name the cause (no answer in time, HTTP code, no connection) and offer to
-  sign in again when a sign-in has expired
+- Error messages that name the cause (no answer in time, HTTP code, no connection), keep the last
+  numbers in view and link to the agent's status page on outages
+- Your own name per account, such as "Work", on the tile, in the tooltip and in notifications
 
 **Made for your desktop**
 - Tiles below each other or side by side; the window sizes itself and switches between the full
   and the small layout so nothing is cut off
-- Always on top, click-through overlay mode and adjustable opacity
-- Themes: System (follows Windows light and dark live), Nebula, Terminal, Dark and Light, plus high
-  contrast
-- Autostart, timed refresh, settings export and import, update check
+- Always on top, on the desktop behind all windows, click-through overlay mode and adjustable
+  opacity; hides itself while a game, video or presentation runs in full screen
+- Widget size 90 to 150 % on top of the Windows scaling
+- Themes: System (follows Windows light and dark and your accent color live, optional Mica
+  background), Nebula, Terminal, Dark and Light, plus high contrast
+- Autostart, timed refresh, update check, and "Pause for 1 hour" in the tray menu
+- One backup file for settings, history and the token index; restore it on a new PC, or import the
+  token history of a second PC next to your own
 - Light on your PC: while the screen is locked the widget slows down and catches up once you are
-  back; the hidden sign-in browser is released after 15 idle minutes
+  back; on battery it fetches half as often; the hidden sign-in browser is released after 15 idle
+  minutes
 - Remove an account in one step: its sign-in in AI-Usage goes, and its history too if you tick it
 - English and German
 
@@ -107,12 +119,20 @@ dashboard for any period you pick: 7 days, 30 days, a year or everything.
 - **Your history at a glance:** an activity grid with one square per day, colored by the agent that
   led that day. It reaches back as far as the window is wide, at least twelve months. Click a day
   to open its details: agents, models, projects and hours.
+- **Any period:** 7 days, 30 days, this month, last month, a year, everything or a custom range
+  picked in a calendar.
 - **Key figures:** total tokens, average per day and per active day, the busiest day and the change
   against the previous period.
 - **Breakdowns:** input, output and cache tokens, grouped by day, week, model, project or effort
-  level, plus the share per agent, model and effort level.
-- **Your projects:** the folders that used the most tokens, with their share of the total.
-- **Patterns:** usage per day, per weekday or per hour.
+  level, colored by agent, model or main agent and subagents, with a 7 day average line; plus the
+  share per agent, model and effort level and the share spent by Claude subagents.
+- **Filters:** pick an agent, or click a model or project to filter every section by it.
+- **Your projects and sessions:** the folders that used the most tokens with their share of the
+  total, and a list of your largest sessions.
+- **Patterns:** usage per day, per weekday, per hour and as a weekday by hour grid.
+- **Limits:** how often you hit each agent's limit, with the highest value and the average peak,
+  and an estimate of how many tokens one percent of a window holds for each model, from your own
+  usage.
 - **CSV export** for your own spreadsheets.
 - **Your layout:** drag a section by its heading above, below or beside another one, or move it
   with Alt+Up and Alt+Down. The layout is remembered and can be reset.
