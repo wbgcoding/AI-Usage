@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -90,15 +88,7 @@ public partial class CrashWindow : Window
 
     private void OpenLogFolder_Click(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            Directory.CreateDirectory(_logFolder);
-            Process.Start(new ProcessStartInfo(_logFolder) { UseShellExecute = true });
-        }
-        catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException)
-        {
-            // Folder not creatable, or no shell handler registered for it - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpenFolder(_logFolder);
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

@@ -290,11 +290,11 @@ internal static class MicaBackdrop
         MatchChromeToBackdrop(window, transparent);
         if (transparent)
         {
-            window.Resources[WindowKey] = Frozen(Colors.Transparent);
+            window.Resources[WindowKey] = ThemeService.Frozen(Colors.Transparent);
             // The title bar shows the backdrop itself, like the title bar of a Windows 11 app.
-            window.Resources[TitleBarKey] = Frozen(Colors.Transparent);
+            window.Resources[TitleBarKey] = ThemeService.Frozen(Colors.Transparent);
             if (Application.Current?.Resources[SurfaceKey] is SolidColorBrush surface)
-                window.Resources[SurfaceKey] = Frozen(CardColor(surface.Color));
+                window.Resources[SurfaceKey] = ThemeService.Frozen(CardColor(surface.Color));
             if (source.CompositionTarget is { } target)
                 target.BackgroundColor = Colors.Transparent;
         }
@@ -318,12 +318,5 @@ internal static class MicaBackdrop
     {
         if (backdrop && WindowChrome.GetWindowChrome(window) is { IsFrozen: false } chrome)
             chrome.GlassFrameThickness = new Thickness(-1);
-    }
-
-    private static SolidColorBrush Frozen(Color color)
-    {
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
     }
 }

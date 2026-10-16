@@ -29,6 +29,9 @@ public class ThemeTokenTests
         ["Level.Ok"] = typeof(SolidColorBrush),
         ["Level.Warn"] = typeof(SolidColorBrush),
         ["Level.Crit"] = typeof(SolidColorBrush),
+        ["Chart.Cache.New"] = typeof(SolidColorBrush),
+        ["Chart.Cache.Write"] = typeof(SolidColorBrush),
+        ["Chart.Cache.Output"] = typeof(SolidColorBrush),
         ["Shadow"] = typeof(Color),
         ["Font.Ui"] = typeof(FontFamily),
         ["Font.Numeric"] = typeof(FontFamily),
@@ -69,7 +72,7 @@ public class ThemeTokenTests
 
     [Theory]
     [MemberData(nameof(Themes))]
-    public void Every_theme_defines_no_more_and_no_less_than_the_twenty_six_tokens(string fileName)
+    public void Every_theme_defines_exactly_the_expected_tokens(string fileName)
     {
         var dictionary = Load(fileName);
 

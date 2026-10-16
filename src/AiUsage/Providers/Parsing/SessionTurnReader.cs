@@ -59,7 +59,8 @@ public static class SessionTurnReader
             using var document = JsonDocument.Parse(line);
             var root = document.RootElement;
 
-            if (!TryGetString(root, "type", out var type) || (type != "user" && type != "assistant"))
+            var type = JsonReading.TryGetString(root, "type");
+            if (type is not ("user" or "assistant"))
                 return null;
             if (!TryGetTimestamp(root, out var timestamp))
                 return null;
@@ -77,7 +78,7 @@ public static class SessionTurnReader
             var blockTypes = new HashSet<string>(StringComparer.Ordinal);
             foreach (var block in content.EnumerateArray())
             {
-                if (block.ValueKind == JsonValueKind.Object && TryGetString(block, "type", out var blockType))
+                if (block.ValueKind == JsonValueKind.Object && JsonReading.TryGetString(block, "type") is { } blockType)
                     blockTypes.Add(blockType);
             }
 
@@ -115,18 +116,18 @@ public static class SessionTurnReader
             using var document = JsonDocument.Parse(line);
             var root = document.RootElement;
 
-            if (!TryGetString(root, "type", out var type) || type != "response_item")
+            if (JsonReading.TryGetString(root, "type") != "response_item")
                 return null;
             if (!TryGetTimestamp(root, out var timestamp))
                 return null;
             if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
                 return null;
-            if (!TryGetString(payload, "type", out var payloadType))
+            if (JsonReading.TryGetString(payload, "type") is not { } payloadType)
                 return null;
 
             if (payloadType == "message")
             {
-                if (!TryGetString(payload, "role", out var role))
+                if (JsonReading.TryGetString(payload, "role") is not { } role)
                     return null;
                 return role switch
                 {
@@ -145,22 +146,9 @@ public static class SessionTurnReader
         }
     }
 
-    private static bool TryGetString(JsonElement element, string propertyName, out string value)
-    {
-        if (element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
-            && property.GetString() is { } text)
-        {
-            value = text;
-            return true;
-        }
-
-        value = "";
-        return false;
-    }
-
     private static bool TryGetTimestamp(JsonElement root, out DateTimeOffset timestamp)
     {
-        if (TryGetString(root, "timestamp", out var text) && SessionLineAge.TryParse(text, out timestamp))
+        if (JsonReading.TryGetString(root, "timestamp") is { } text && SessionLineAge.TryParse(text, out timestamp))
             return true;
 
         timestamp = default;

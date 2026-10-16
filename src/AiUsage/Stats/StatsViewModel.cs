@@ -928,7 +928,7 @@ public sealed partial class StatsViewModel : ObservableObject
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
-        _askForSavePath = askForSavePath ?? ShowRealSaveDialog;
+        _askForSavePath = askForSavePath ?? CsvSaveDialog.Show;
         _showMessage = showMessage ?? (message => Views.ConfirmWindow.ShowInfo(null, message));
 
         RangeChoices.Add(new Choice<string>("Chart.Range.Week", "Week"));
@@ -1532,7 +1532,7 @@ public sealed partial class StatsViewModel : ObservableObject
         SubagentTokensRaw = subagentShare.SubagentTokens;
         ClaudeTokensRaw = subagentShare.ClaudeTokens;
         SubagentShareText = subagentShare.HasClaudeTokens
-            ? StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(subagentShare.Percent).ToString(CultureInfo.CurrentCulture))
+            ? StatusTextMap.FormatUsagePercent(subagentShare.Percent)
             : "";
         SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
 
@@ -1665,7 +1665,7 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     private static string FormatLimitPercent(double percent) =>
-        StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(percent).ToString(CultureInfo.CurrentCulture));
+        StatusTextMap.FormatUsagePercent(percent);
 
     /// <summary>How many pooled models the "Other" ring slice names in its hover text.</summary>
     private const int OtherModelsTooltipNames = 8;
@@ -2100,16 +2100,5 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             _showMessage(loc["StatsWindow.ExportFailed"]);
         }
-    }
-
-    private static string? ShowRealSaveDialog(string suggestedFileName)
-    {
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            FileName = suggestedFileName,
-            Filter = LocalizationService.Instance["Dialog.Filter.Csv"],
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 }

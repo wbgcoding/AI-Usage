@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace AiUsage.Services;
@@ -131,4 +132,8 @@ public static class StatusTextMap
     /// <summary>A formatted number with the percent sign in the active language's own convention
     /// ("42%" in English, "42 %" in German). Callers format and round the number themselves.</summary>
     public static string FormatPercent(string number) => LocalizationService.Instance.Format("Number.Percent", number);
+
+    /// <summary><see cref="UsagePercent"/> rounded and shown with <see cref="FormatPercent"/>.</summary>
+    public static string FormatUsagePercent(double percent) =>
+        FormatPercent(UsagePercent(percent).ToString(CultureInfo.CurrentCulture));
 }

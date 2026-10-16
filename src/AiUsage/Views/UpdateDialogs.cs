@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using AiUsage.Services;
@@ -67,13 +65,6 @@ internal static class UpdateDialogs
     public static void OpenReleasePage(string? url)
     {
         var target = UpdateCheck.IsReleasePageUrl(url) ? url! : AppInfo.ArchiveUrl + "/releases";
-        try
-        {
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(target);
     }
 }

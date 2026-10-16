@@ -23,6 +23,13 @@ internal static class Win32
         public string DeviceName;
     }
 
+    internal const int GwlExStyle = -20;
+    internal const long WsExTransparent = 0x20;
+    internal const int SwShowNoActivate = 4;
+    internal const uint EventSystemForeground = 0x0003;
+    internal const uint WineventOutOfContext = 0x0000;
+    internal const uint MonitorDefaultToNearest = 2;
+
     internal delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
 
     [DllImport("user32.dll")]

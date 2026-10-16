@@ -13,8 +13,6 @@ namespace AiUsage.Services;
 /// </summary>
 internal static class NativeWindowStyle
 {
-    private const int GwlExStyle = -20;
-    private const long WsExTransparent = 0x20;
     private const int DwmwaWindowCornerPreference = 33;
     private const int DwmwcRound = 2;
 
@@ -38,7 +36,7 @@ internal static class NativeWindowStyle
     /// both change in one write. Pure.</summary>
     public static long ClickThroughExStyle(long currentExStyle, bool clickThrough, int percent)
     {
-        var withFlag = clickThrough ? currentExStyle | WsExTransparent : currentExStyle & ~WsExTransparent;
+        var withFlag = clickThrough ? currentExStyle | Win32.WsExTransparent : currentExStyle & ~Win32.WsExTransparent;
         return WindowOpacity.RequiredExStyle(withFlag, percent);
     }
 
@@ -48,10 +46,10 @@ internal static class NativeWindowStyle
     /// the final opacity from the start.</summary>
     public static void SetClickThrough(IntPtr hwnd, bool clickThrough)
     {
-        var current = Win32.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+        var current = Win32.GetWindowLongPtr(hwnd, Win32.GwlExStyle).ToInt64();
         var updated = ClickThroughExStyle(current, clickThrough, WindowOpacity.CurrentPercent);
         if (updated != current)
-            Win32.SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
+            Win32.SetWindowLongPtr(hwnd, Win32.GwlExStyle, new IntPtr(updated));
 
         WindowOpacity.Apply(hwnd, WindowOpacity.CurrentPercent);
         if (updated != current)
@@ -60,14 +58,13 @@ internal static class NativeWindowStyle
 
 
     private const int SwHide = 0;
-    private const int SwShowNoActivate = 4;
 
     /// <summary>Hides the native window without touching what WPF knows about it, so the shown or
     /// hidden state the person chose, the tray and the saved placement stay as they were.</summary>
     public static void HideNative(IntPtr hwnd) => Win32.ShowWindow(hwnd, SwHide);
 
     /// <summary>Shows the native window again without taking the focus from whatever is in front.</summary>
-    public static void ShowNativeNoActivate(IntPtr hwnd) => Win32.ShowWindow(hwnd, SwShowNoActivate);
+    public static void ShowNativeNoActivate(IntPtr hwnd) => Win32.ShowWindow(hwnd, Win32.SwShowNoActivate);
 
     /// <summary>Asks the window manager to round a window's corners; the window itself is opaque, so
     /// no painted card has to fake them. No-op (square window) on Windows 10, which has no such attribute; the build

@@ -252,7 +252,7 @@ public partial class UsageRowViewModel : ObservableObject
     private IEnumerable<string> SegmentLines => BarSegments.Select(segment => Loc.Format(
         "Tile.BarSegment",
         segment.Label,
-        StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(segment.SharePercent).ToString(CultureInfo.CurrentCulture))));
+        StatusTextMap.FormatUsagePercent(segment.SharePercent)));
 
     /// <summary>The bar's tooltip: the allowance line, then the pace line, then one line per colored
     /// part; empty (no tooltip) when all are.</summary>
@@ -351,7 +351,7 @@ public partial class UsageRowViewModel : ObservableObject
     private long? InlineTokens => WindowTokens ?? TokenCount;
 
     private string RoundedPercentText() =>
-        StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(UsedPercent).ToString(CultureInfo.CurrentCulture));
+        StatusTextMap.FormatUsagePercent(UsedPercent);
 
     public UsageRowViewModel(
         UsageWindow window, DateTimeOffset now, TileDensity density = TileDensity.Full, double? thresholdPercent = null,

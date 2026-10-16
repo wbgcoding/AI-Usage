@@ -18,9 +18,6 @@ internal readonly record struct ScreenRect(int Left, int Top, int Right, int Bot
 /// every mouse move on the system.</summary>
 internal sealed class FullscreenWatcher : IDisposable
 {
-    private const uint EventSystemForeground = 0x0003;
-    private const uint WineventOutOfContext = 0x0000;
-    private const uint MonitorDefaultToNearest = 2;
     private const int QunsRunningD3dFullScreen = 3;
     private const int QunsPresentationMode = 4;
     private const int GwlStyle = -16;
@@ -61,7 +58,7 @@ internal sealed class FullscreenWatcher : IDisposable
             _enabled = value;
             if (value)
             {
-                _foregroundHook = Win32.SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _callback, 0, 0, WineventOutOfContext);
+                _foregroundHook = Win32.SetWinEventHook(Win32.EventSystemForeground, Win32.EventSystemForeground, IntPtr.Zero, _callback, 0, 0, Win32.WineventOutOfContext);
                 _poll.Start();
                 Evaluate();
                 return;
@@ -125,7 +122,7 @@ internal sealed class FullscreenWatcher : IDisposable
     /// <summary>The whole monitor (taskbar included) the widget is on.</summary>
     private ScreenRect MonitorBounds()
     {
-        var monitor = Win32.MonitorFromWindow(_widgetHwnd, MonitorDefaultToNearest);
+        var monitor = Win32.MonitorFromWindow(_widgetHwnd, Win32.MonitorDefaultToNearest);
         var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
         return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info)
             ? new ScreenRect(info.Monitor.Left, info.Monitor.Top, info.Monitor.Right, info.Monitor.Bottom)

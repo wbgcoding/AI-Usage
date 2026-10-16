@@ -182,7 +182,7 @@
                                        StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                        Closed="CustomRangePopup_Closed">
                                     <Border x:Name="CustomRangePanel" Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}"
-                                            BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="12">
+                                            BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="{StaticResource Space.M}">
                                         <StackPanel MinWidth="180">
                                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Range.From]}"
                                                        Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"/>
@@ -255,7 +255,7 @@
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.Head]}">
                                 <StackPanel>
                                 <Border Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="8">
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}">
                                     <ScrollViewer x:Name="MonthGridScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                                         <controls:StatsMonthGrid x:Name="MonthGrid" Days="{Binding MonthGridDays}"
                                                                   RangeStart="{Binding MonthGridRangeStart}" RangeEnd="{Binding MonthGridRangeEnd}"
@@ -294,10 +294,13 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding SelectedDayHeadText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                         <Button Grid.Column="1" x:Name="CloseDayDetailButton" Style="{StaticResource AiUsageQuietButton}"
-                                                Padding="8,4" Content="×" VerticalAlignment="Center"
+                                                Padding="8,4" VerticalAlignment="Center"
                                                 Command="{Binding CloseDayDetailCommand}"
                                                 ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.Close]}"
-                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.Close]}"/>
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.Close]}">
+                                            <Path Width="10" Height="10" Stretch="Uniform" Data="{StaticResource Icon.Close}"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
                                     </Grid>
                                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.NoUsage]}"
                                                Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Small}"
@@ -570,7 +573,7 @@
                                 </Border>
 
                                 <!-- The session grouping lists the largest sessions as horizontal bars. -->
-                                <Border Margin="0,4,0,0" Padding="8"
+                                <Border Margin="0,4,0,0" Padding="{StaticResource Space.S}"
                                         Visibility="{Binding IsSessionGrouping, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
@@ -666,7 +669,7 @@
                                 </StackPanel>
 
                                 <!-- The weekday by hour grouping draws a grid instead of columns. -->
-                                <Border Margin="0,12,0,0" Padding="8"
+                                <Border Margin="0,12,0,0" Padding="{StaticResource Space.S}"
                                         Visibility="{Binding IsHeatmap, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
@@ -707,7 +710,7 @@
                                 <TextBlock Margin="0,12,0,4" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}"
                                            Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.CacheShare]}"
                                            ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.CacheShare]}"/>
-                                <Border MinHeight="70" Padding="8"
+                                <Border MinHeight="70" Padding="{StaticResource Space.S}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsCacheShareBar x:Name="CacheShareBar" Values="{Binding CacheShareValues}"
@@ -723,7 +726,7 @@
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByProvider]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ProviderRing" Margin="8" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ProviderShareSlices}"
+                                    <controls:StatsRingChart x:Name="ProviderRing" Margin="{StaticResource Space.S}" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ProviderShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
@@ -738,7 +741,7 @@
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByModel]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ModelRing" Margin="8" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
+                                    <controls:StatsRingChart x:Name="ModelRing" Margin="{StaticResource Space.S}" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
                                                               SliceActivated="ModelRing_SliceActivated"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
@@ -753,7 +756,7 @@
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByEffort]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="EffortRing" Margin="8" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding EffortShareSlices}"
+                                    <controls:StatsRingChart x:Name="EffortRing" Margin="{StaticResource Space.S}" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding EffortShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
@@ -775,7 +778,7 @@
                                               Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}"
                                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}"/>
                                 </controls:CollapsibleSection.HeaderContent>
-                                <Border Padding="12"
+                                <Border Padding="{StaticResource Space.M}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <Grid>
@@ -896,7 +899,7 @@
                             <controls:CollapsibleSection x:Name="ProjectsSection" SectionKey="projects"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.TopProjects]}"
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.TopProjects]}">
-                                <Border Padding="8"
+                                <Border Padding="{StaticResource Space.S}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsHorizontalBarChart x:Name="TopProjectsChart" Rows="{Binding TopProjectRows}"
@@ -938,7 +941,7 @@
             </DockPanel>
         </Border>
         <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeTop_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Height="3" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNWSE" DragDelta="ResizeTopLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>

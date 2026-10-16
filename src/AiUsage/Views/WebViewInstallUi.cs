@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Windows;
 using AiUsage.Services;
 using AiUsage.Web;
@@ -33,13 +31,6 @@ internal sealed class WebViewInstallUi(Window owner) : IWebViewInstallUi
         if (!openPage)
             return;
 
-        try
-        {
-            Process.Start(new ProcessStartInfo(WebViewAvailability.DownloadPageUrl) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(WebViewAvailability.DownloadPageUrl);
     }
 }

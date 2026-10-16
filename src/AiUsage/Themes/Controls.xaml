@@ -403,7 +403,7 @@
                             <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-2" AllowsTransparency="True" Focusable="False"
                                    PopupAnimation="None" IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
                                 <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                        CornerRadius="{StaticResource Radius.Control}" Padding="4">
+                                        CornerRadius="{StaticResource Radius.Control}" Padding="{StaticResource Space.Xs}">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
                                 </Border>
                             </Popup>
@@ -436,7 +436,7 @@
     <Style TargetType="ToolTip">
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="HasDropShadow" Value="False"/>
@@ -581,7 +581,7 @@
                                  The border alone separates the list from what is behind it, the same
                                  trade the window frame (WindowChrome below) already made. -->
                             <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                    CornerRadius="{StaticResource Radius.Control}" Padding="4"
+                                    CornerRadius="{StaticResource Radius.Control}" Padding="{StaticResource Space.Xs}"
                                     MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
                                     <ItemsPresenter/>
@@ -758,7 +758,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Root" Background="Transparent" CornerRadius="{StaticResource Radius.S}" Padding="4">
+                    <Border x:Name="Root" Background="Transparent" CornerRadius="{StaticResource Radius.S}" Padding="{StaticResource Space.Xs}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
@@ -884,7 +884,7 @@
                     </ControlTemplate.Resources>
                     <Grid x:Name="PART_Root">
                         <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                CornerRadius="{StaticResource Radius.Control}" Padding="8">
+                                CornerRadius="{StaticResource Radius.Control}" Padding="{StaticResource Space.S}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>

@@ -17,11 +17,7 @@ internal sealed class DesktopLayer : IDisposable
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoActivate = 0x0010;
-    private const uint EventSystemForeground = 0x0003;
-    private const uint WineventOutOfContext = 0x0000;
     private const uint WineventSkipOwnProcess = 0x0002;
-    private const int SwShowNoActivate = 4;
-    private const int GwlExStyle = -20;
     private const long WsExTopmost = 0x8;
     private static readonly IntPtr HwndBottom = new(1);
     private static readonly IntPtr HwndTop = IntPtr.Zero;
@@ -61,8 +57,8 @@ internal sealed class DesktopLayer : IDisposable
         {
             if (_native)
             {
-                _hook = Win32.SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _foregroundCallback,
-                    0, 0, WineventOutOfContext | WineventSkipOwnProcess);
+                _hook = Win32.SetWinEventHook(Win32.EventSystemForeground, Win32.EventSystemForeground, IntPtr.Zero, _foregroundCallback,
+                    0, 0, Win32.WineventOutOfContext | WineventSkipOwnProcess);
                 PlaceOnDesktop();
             }
             return;
@@ -153,7 +149,7 @@ internal sealed class DesktopLayer : IDisposable
         {
             var visible = IsWindowVisible(hwnd);
             var desktop = visible && IsDesktopWindowClass(Win32.ClassNameOf(hwnd));
-            var topmost = (Win32.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64() & WsExTopmost) != 0;
+            var topmost = (Win32.GetWindowLongPtr(hwnd, Win32.GwlExStyle).ToInt64() & WsExTopmost) != 0;
             stack.Add(new StackEntry(hwnd, desktop, topmost));
             return !(desktop && hwnd != _hwnd);
         }, IntPtr.Zero);
@@ -198,7 +194,7 @@ internal sealed class DesktopLayer : IDisposable
         if (!ShouldReshow(Active, _leaveAlone(), IsIconic(_hwnd), IsWindowVisible(_hwnd)))
             return;
 
-        Win32.ShowWindow(_hwnd, SwShowNoActivate);
+        NativeWindowStyle.ShowNativeNoActivate(_hwnd);
         PlaceOnDesktop();
     }
 

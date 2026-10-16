@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using AiUsage.Services;
@@ -74,14 +73,7 @@ public partial class SignInWindow : Window
     /// opens, for the case where the runtime disappeared between that check and here.</summary>
     private void OpenDownloadPage_Click(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo(WebViewAvailability.DownloadPageUrl) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(WebViewAvailability.DownloadPageUrl);
     }
 
     /// <summary>Without this, the CoreWebView2 keeps this window alive through its own event

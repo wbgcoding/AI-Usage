@@ -39,11 +39,11 @@ public static class CodexRateLimitParser
             using var document = JsonDocument.Parse(line);
             var root = document.RootElement;
 
-            if (!TryGetString(root, "type", out var type) || type != "event_msg")
+            if (TryGetString(root, "type") != "event_msg")
                 return false;
             if (!root.TryGetProperty("payload", out var payload))
                 return false;
-            if (!TryGetString(payload, "type", out var payloadType) || payloadType != "token_count")
+            if (TryGetString(payload, "type") != "token_count")
                 return false;
             if (!payload.TryGetProperty("rate_limits", out var rateLimits)
                 || rateLimits.ValueKind != JsonValueKind.Object)
@@ -56,7 +56,7 @@ public static class CodexRateLimitParser
             if (primary is null && secondary is null)
                 return false;
 
-            if (!TryGetString(root, "timestamp", out var timestampText)
+            if (TryGetString(root, "timestamp") is not { } timestampText
                 || !SessionLineAge.TryParse(timestampText, out var timestamp))
                 return false;
 
@@ -72,7 +72,7 @@ public static class CodexRateLimitParser
                 SecondaryUsedPercent: secondaryUsedPercent,
                 SecondaryWindowMinutes: TryGetInt32(secondary, "window_minutes"),
                 SecondaryResetsAt: TryGetUnixSeconds(secondary, "resets_at"),
-                PlanType: TryGetString(rateLimits, "plan_type", out var planType) ? planType : null,
+                PlanType: TryGetString(rateLimits, "plan_type"),
                 Timestamp: timestamp,
                 TotalTokens: TryGetTotalTokens(payload));
             return true;
@@ -81,18 +81,6 @@ public static class CodexRateLimitParser
         {
             return false;
         }
-    }
-
-    private static bool TryGetString(JsonElement element, string propertyName, out string? value)
-    {
-        if (element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
-        {
-            value = property.GetString();
-            return value is not null;
-        }
-
-        value = null;
-        return false;
     }
 
     // "info" is null on some lines (e.g. no usage measured yet); "total_token_usage" can be an

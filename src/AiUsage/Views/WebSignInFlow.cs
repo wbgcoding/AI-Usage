@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System.ComponentModel;
+using System.Windows;
+using AiUsage.Providers.LocalLogin;
 using AiUsage.Services;
 using AiUsage.Web;
 
@@ -33,5 +35,28 @@ internal static class WebSignInFlow
             window.Loaded += (_, _) => WindowActivation.TryActivate(window.Activate);
         }
         window.ShowDialog();
+    }
+
+    /// <summary>For a Copilot tile whose GitHub CLI is missing: the same themed offer
+    /// <see cref="Open"/> makes for a missing WebView2 runtime, here for the CLI Copilot reads through
+    /// instead. Returns true when the tile was handled that way and the caller must not reconnect.</summary>
+    public static bool OfferGitHubCliIfMissing(Window owner, string realProviderId)
+    {
+        if (realProviderId != "copilot" || GitHubCliUsage.IsCliInstalled())
+            return false;
+
+        var loc = LocalizationService.Instance;
+        var openDownloadPage = ConfirmWindow.Show(
+            owner,
+            loc["State.GitHubCliMissing.Head"],
+            loc["State.GitHubCliMissing.Reason"],
+            loc["State.GitHubCliMissing.Action"],
+            loc["Action.Cancel"]);
+
+        if (!openDownloadPage)
+            return true;
+
+        ShellOpen.TryOpen(GitHubCliUsage.DownloadUrl);
+        return true;
     }
 }

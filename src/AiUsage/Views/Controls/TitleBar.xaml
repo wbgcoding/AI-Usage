@@ -27,7 +27,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
             <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -104,7 +104,7 @@
             <Popup x:Name="EyePopup" PlacementTarget="{Binding ElementName=EyeButton}" Placement="Bottom" StaysOpen="False"
                    AllowsTransparency="True" Focusable="True" Opened="EyePopup_Opened" Closed="EyePopup_Closed" KeyDown="EyePopup_KeyDown"
                    DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                <Grid Margin="16">
+                <Grid Margin="{StaticResource Space.L}">
                 <Border x:Name="EyePopupContent" Focusable="True" FocusVisualStyle="{x:Null}" Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                         CornerRadius="{StaticResource Radius.Control}" Padding="{StaticResource Space.S}" MinWidth="190">
                     <Border.Effect>
