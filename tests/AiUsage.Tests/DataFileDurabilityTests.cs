@@ -26,6 +26,47 @@ public class DataFileDurabilityTests
     }
 
     [Fact]
+    public void AtomicFile_writers_to_one_path_never_share_a_temp_file()
+    {
+        var directory = TestPaths.CreateDirectory("atomic-parallel");
+        var path = Path.Combine(directory, "data.json");
+        var failures = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+
+        Parallel.For(0, 8, writer =>
+        {
+            for (var round = 0; round < 40; round++)
+            {
+                try
+                {
+                    AtomicFile.WriteAllBytes(path, [.. System.Text.Encoding.UTF8.GetBytes($"writer {writer} round {round}")], moveAttempts: 50);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    failures.Add(ex);
+                }
+            }
+        });
+
+        Assert.Empty(failures);
+        Assert.StartsWith("writer ", File.ReadAllText(path), StringComparison.Ordinal);
+        // The platform may leave its own ~RF files behind a contended replace; only this writer's names count.
+        Assert.Empty(Directory.GetFiles(directory, "data.json.*.tmp"));
+    }
+
+    [Fact]
+    public void AtomicFile_removes_its_temp_file_when_the_move_fails()
+    {
+        var directory = TestPaths.CreateDirectory("atomic-failure");
+        var path = Path.Combine(directory, "data.json");
+        // The target is a folder, so writing the temp file works and the move cannot.
+        Directory.CreateDirectory(path);
+
+        Assert.ThrowsAny<Exception>(() => AtomicFile.WriteAllBytes(path, [.. "new"u8]));
+
+        Assert.Empty(Directory.GetFiles(directory, "*.tmp"));
+    }
+
+    [Fact]
     public void AtomicFile_commits_the_temp_file_to_the_device_before_the_move()
     {
         var source = SourceScan.Read("src", "AiUsage", "Io", "AtomicFile.cs");
