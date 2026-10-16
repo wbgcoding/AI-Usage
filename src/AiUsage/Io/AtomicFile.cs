@@ -11,7 +11,14 @@ public static class AtomicFile
     public static void WriteAllBytes(string path, byte[] bytes)
     {
         var tempPath = $"{path}.{Environment.ProcessId}.tmp";
-        File.WriteAllBytes(tempPath, bytes);
+        using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            stream.Write(bytes);
+            // The rename is journaled but the content is not: without this, a power loss right after
+            // the move can leave the target empty instead of holding either version.
+            stream.Flush(flushToDisk: true);
+        }
+
         File.Move(tempPath, path, overwrite: true);
     }
 }
