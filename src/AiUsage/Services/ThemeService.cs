@@ -93,8 +93,8 @@ public static class ThemeService
 
     /// <summary>Test seam: swap into an injected dictionary collection via an injected loader and HC check.
     /// <see cref="AppTheme.System"/> resolves as if Windows were on its own light theme - none of the
-    /// existing callers of this four-argument overload ever request <see cref="AppTheme.System"/>, so
-    /// this default never actually matters to them.</summary>
+    /// callers of this overload ever request <see cref="AppTheme.System"/>, so this default never
+    /// matters to them.</summary>
     internal static void Apply(AppTheme theme, Collection<ResourceDictionary> mergedDictionaries, Func<Uri, ResourceDictionary> load, Func<bool> isHighContrast) =>
         Apply(theme, mergedDictionaries, load, isHighContrast, () => true);
 

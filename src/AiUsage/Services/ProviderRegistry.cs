@@ -7,11 +7,10 @@ using AiUsage.Web;
 namespace AiUsage.Services;
 
 /// <summary>
-/// The one place that creates every provider. Adding a provider is one line here plus the class
-/// itself - nothing else in the app knows a provider by name. <see cref="AppSettings.Accounts"/> is
-/// the one source of truth for how many Claude accounts exist - every entry in it gets its own
-/// <see cref="ClaudeProvider"/> instance and its own web session, so this file never has to compare
-/// against a provider id by name to know how many to build.
+/// The one place that creates every provider. A new provider also needs entries in
+/// <see cref="AppSettings.KnownProviderIds"/>, <see cref="ProviderLinks"/> and <see cref="Stats.ChartPalette"/>.
+/// <see cref="AppSettings.Accounts"/> decides how many Claude accounts exist: every entry gets its
+/// own <see cref="ClaudeProvider"/> instance and its own web session.
 /// </summary>
 public static class ProviderRegistry
 {
@@ -53,48 +52,27 @@ public static class ProviderRegistry
     }
 
     /// <summary>Codex's own session: the account page the sign-in window opens, the hosts its login
-    /// may pass through, and its own browser profile subfolder. The foreign hosts are there for the
-    /// same reason accounts.google.com is on Claude's list - the provider's own login leaves its site
-    /// for whichever identity provider the user picked and comes back, and without them that whole
-    /// path is indistinguishable from a session hijack attempt and gets blocked outright. Subdomains
-    /// are covered by the host match itself (see <see cref="Web.SignInNavigationPolicy"/>), so the
-    /// list names each site once.</summary>
+    /// may pass through, and its own browser profile subfolder. The login leaves chatgpt.com for the
+    /// identity provider the user picked, so those hosts are listed; subdomains are covered by the
+    /// host match (see <see cref="Web.SignInNavigationPolicy"/>).</summary>
     internal static readonly WebSessionDescriptor CodexWebSession = new(
         ProviderId: "codex",
         BaseUrl: "https://chatgpt.com/codex/settings/usage",
-        // The login form itself, not the usage page above and not the chat front door either:
-        // signed out, the deep link answers with a not-found page carrying nothing but a sign-in
-        // button, and the front door answers with its landing page, where the user still has to find
-        // the log-in button themselves. This address is the one the site's own sign-in link points
-        // at, so the login request carries the parameters the identity service expects - an address
-        // on the identity service alone, without them, is not a form anyone can sign in on.
+        // The login form itself: signed out, the usage page answers with a not-found page and the
+        // front door with a landing page. This is the address the site's own sign-in link points at,
+        // so the request carries the parameters the identity service expects.
         SignInUrl: "https://chatgpt.com/auth/login",
-        // The Google login hands a two-factor confirmation on to further hosts of its own
-        // (gds.google.com, myaccount.google.com) and only then returns, and each one not on this list
-        // is a cancelled navigation that leaves the user on a page that never finishes. The last step
-        // confirms the account on accounts.youtube.com before handing the session back, and being
-        // turned away there ends the sign-in one step before the end. They are named one by one, not as
-        // the whole google.com and youtube.com: those would admit user-content hosts such as
-        // sites.google.com into the sign-in window. A Google host not named here is turned away with
-        // the blocked notice, where the person can allow that one host by hand. Only whole pages need
-        // naming here - the check runs on top-level navigations, never on a page's own scripts,
-        // styles or frames.
+        // Google's two-factor step passes through gds.google.com, myaccount.google.com and
+        // accounts.youtube.com before returning. They are named one by one, not as whole domains,
+        // which would admit user-content hosts such as sites.google.com. Only top-level navigations
+        // are checked, so scripts, styles and frames need no entry.
         AllowedHosts: ["chatgpt.com", "openai.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts, "appleid.apple.com", "login.microsoftonline.com"],
         ProfileFolderName: "codex");
 
-    /// <summary>Cursor's own session: its own usage page, its own front door (never derived from the
-    /// usage page - gluing "login" onto a usage deep link produced a not-found page on the other
-    /// web-backed provider, so this stays a separate field there and here), and its own browser
-    /// profile subfolder. The foreign hosts are there for the same reason accounts.google.com is on
-    /// Claude's list: Cursor's own sign-in leaves cursor.com before returning, and without them that
-    /// whole path looks like a session hijack and is blocked outright. workos.com is the identity
-    /// service behind Cursor's own login - the sign-in calls api.workos.com partway through and
-    /// stopped dead there. Google is named by its sign-in hosts (see
-    /// <see cref="Web.SignInNavigationPolicy.GoogleSignInHosts"/>), GitHub by its own host only (its
-    /// sign-in and two-factor pages all sit on github.com itself), and cursor.sh as the whole site
-    /// because the login itself sits on one host of that site (authenticate.cursor.sh) while the
-    /// authorize step uses another (authenticator.cursor.sh), and naming only one of the two is what
-    /// blocked the sign-in halfway through.</summary>
+    /// <summary>Cursor's session. The sign-in address is its own field, never derived from the usage
+    /// page. The login leaves cursor.com: workos.com is its identity service, cursor.sh covers
+    /// authenticate. and authenticator., Google is named by its sign-in hosts (see
+    /// <see cref="Web.SignInNavigationPolicy.GoogleSignInHosts"/>) and GitHub by github.com.</summary>
     internal static readonly WebSessionDescriptor CursorWebSession = new(
         ProviderId: "cursor",
         BaseUrl: "https://cursor.com/dashboard/usage",
