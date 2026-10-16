@@ -1426,7 +1426,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
             {
                 // The copy did not fully land - the pointer below is never written, so this process (and
-                // the next launch) keeps using the old folder exactly as before, whatever partial state
+                // the next launch) keeps using the old folder, whatever partial state
                 // is now sitting in the destination the user picked.
                 _showMessage(LocalizationService.Instance["Settings.DataFolderRefused"]);
                 return;

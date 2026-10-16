@@ -364,10 +364,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The picker's rows beyond Auto/FiveHour/Weekly: one per distinct Other-row label the
     /// chosen provider (or, on automatic provider, any tile) has reported, display text = that row's
-    /// own resolved name - replaces the old single "Sonstiges" entry, which could not tell two
-    /// different Other rows (Cursor's model breakdown, for instance) apart. A stored value of the
-    /// old "Other" (from a settings file predating this) falls back to automatic, same as any other
-    /// value the current tiles no longer report.</summary>
+    /// own resolved name, so two Other rows (Cursor's model breakdown, for instance) can be told apart.
+    /// A stored kind no current tile reports falls back to automatic.</summary>
     private void RebuildTrayWindowChoices()
     {
         var pinned = Tiles.FirstOrDefault(t => t.ProviderId == _settings.TrayProvider);
@@ -506,8 +504,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// null uses the real clock - a test injects a fake one to make the IsFetching minimum-visible-
     /// duration (see <see cref="MinFetchingDuration"/>) deterministic. <paramref name="statsStore"/>
     /// null leaves the window token figures permanently off (no real store, so <see
-    /// cref="RefreshWindowTokens"/> never runs) - the shape every existing test keeps compiling with;
-    /// production wires up a real one (see the two constructors above).</summary>
+    /// cref="RefreshWindowTokens"/> never runs); production wires up a real one (see the two
+    /// constructors above).</summary>
     internal MainViewModel(
         SettingsStore settingsStore, AppSettings settings, IReadOnlyList<IUsageProvider> providers,
         HistoryStore historyStore, IAsyncDisposable? claudeRunner = null, LogService? logService = null,
@@ -519,11 +517,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             _webRunners[AppSettings.CreateDefaultAccounts().Keys.Single()] = claudeRunner;
         _settingsStore = settingsStore;
         _settings = settings;
-        // Dispatches on the account key's own base provider id ("codex#2" -> "codex"), never a literal
-        // equality check against one fixed key - the same generalisation ProviderRegistry.WebSessionFor
-        // itself went through, so a further Codex/Cursor/Gemini account (not only Claude's) builds
-        // through this same seam. Copilot never reaches this delegate: it has no web session at all,
-        // so MainViewModel.AddAccount routes it to AddCopilotAccountAsync instead.
+        // Dispatches on the base provider id ("codex#2" -> "codex"). Copilot has no web session and
+        // goes through AddCopilotAccountAsync.
         CreateWebAccount = accountKey => ProviderRegistry.BaseProviderId(accountKey) switch
         {
             "codex" => ProviderRegistry.CreateCodexAccount(accountKey, _settings, _settingsStore, _logService),
@@ -1001,13 +996,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>One tile's hidden flag, for <see cref="RefreshScheduler.ResolveInterval"/> - a plain
-    /// method rather than a lambda at each call site so it stays the same delegate instance either
-    /// way (not that the scheduler compares them, but there is no reason to allocate a new one twice
-    /// a second).</summary>
+    /// method rather than a lambda at each call site, so the same delegate instance is reused.</summary>
     // TryGetValue, not the plain indexer: a fetch already in flight for an account just removed via
-    // RemoveAccount still asks this once more before the scheduler drops it (see
-    // RefreshScheduler.RemoveProvider) - an unknown key must never throw here, "not hidden" is a
-    // harmless answer for the one remaining tick it can ever be asked for.
+    // TryGetValue: a removed account may be asked once more before the scheduler drops it.
     internal bool IsTileHidden(string providerId) => _tilesById.TryGetValue(providerId, out var tile) && tile.IsHidden;
 
     /// <summary>One account's disconnected flag (<see cref="ProviderSettings.Disconnected"/>), for

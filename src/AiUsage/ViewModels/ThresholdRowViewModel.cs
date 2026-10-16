@@ -122,8 +122,7 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
         otherEnabled = thresholds.OtherEnabled;
     }
 
-    /// <summary>What a screen reader reads for this row's list item, which has no name of its own
-    /// and therefore falls back to this - the type name until now.</summary>
+    /// <summary>The screen-reader name of this row's list item (WPF otherwise reads the type name).</summary>
     public override string ToString() => HeaderDisplayName;
 
     partial void OnUseCustomChanged(bool value)

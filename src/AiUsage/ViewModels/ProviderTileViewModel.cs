@@ -245,15 +245,14 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>" · name" for the quieter run after <see cref="TitleName"/>; empty without an own name.</summary>
     public string TitleAccountSuffix => HasOwnAccountName ? $" · {_accountName}" : "";
 
-    /// <summary>"Claude (Work)" with an own name, else the same header text as before; used by the
+    /// <summary>"Claude (Work)" with an own name, else <see cref="HeaderDisplayName"/>; used by the
     /// tray tooltip.</summary>
     public string TrayName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : HeaderDisplayName;
 
     /// <summary>"Claude (Work)" with an own name, else the plain provider name; used by notifications.</summary>
     public string NotificationName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : DisplayName;
 
-    /// <summary>What a screen reader reads for the tile's list item, which has no name of its own
-    /// and therefore falls back to this - the type name until now.</summary>
+    /// <summary>The screen-reader name of the tile's list item (WPF otherwise reads the type name).</summary>
     public override string ToString() => HeaderDisplayName;
 
     /// <summary>The digit after <see cref="ProviderId"/>'s "#", used by <see cref="HeaderDisplayName"/>'s
@@ -1192,8 +1191,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     }
 
     /// <summary><paramref name="thresholds"/> is optional (defaults to null, meaning "no marker on
-    /// any row") purely so every existing caller that has no thresholds handy keeps compiling
-    /// unchanged; a caller that does hold the provider's <see cref="ThresholdSettings"/> passes them
+    /// any row"); a caller that holds the provider's <see cref="ThresholdSettings"/> passes them
     /// here to light up the bar's own threshold marker. <paramref name="showAttentionMark"/> mirrors
     /// <see cref="Models.AppSettings.ShowAttentionMark"/> - false forces <see
     /// cref="IsWaitingForUser"/> to false regardless of what <paramref name="snapshot"/> itself says.
@@ -1201,7 +1199,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// re-apply of the very same snapshot - every real caller (a fetch actually landing) leaves it at
     /// its default true. <paramref name="refreshInterval"/> is the poll cadence <see
     /// cref="LastUpdatedToolTip"/> compares the data's age against to decide whether it names that
-    /// age - null (every existing caller that has none handy) leaves the tooltip empty.</summary>
+    /// age - null leaves the tooltip empty.</summary>
     public void Apply(
         ProviderSnapshot snapshot, DateTimeOffset now, ThresholdSettings? thresholds = null,
         bool showAttentionMark = true, bool advanceSilenceClock = true, TimeSpan? refreshInterval = null,

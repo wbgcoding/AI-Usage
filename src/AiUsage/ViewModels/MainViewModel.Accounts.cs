@@ -345,19 +345,9 @@ public sealed partial class MainViewModel
         }
     }
 
-    /// <summary>
-    /// Tears down the live browser session before deleting its profile folder, instead of deleting
-    /// underneath a runner that still has it open - the disposal must finish first, or the delete
-    /// usually only partially clears the folder and the tile keeps showing numbers through the
-    /// still-live session. Returns false when the folder still could not be fully cleared, so the
-    /// caller can tell the user rather than claim success silently.
-    ///
-    /// Rebuilds the provider and its runner in the same step (same as <see cref="AddAccount"/>
-    /// does for a brand new one), rather than merely removing the old runner: the old runner is
-    /// permanently disabled once disposed (see <see cref="WebSessionScriptRunner"/>) so leaving the
-    /// provider's already-captured delegate pointed at it would make the tile stay "not signed in"
-    /// forever even after a fresh, successful sign-in on the same tile.
-    /// </summary>
+    /// <summary>Disposes the live session, then deletes its profile, then rebuilds provider and runner
+    /// (a disposed <see cref="WebSessionScriptRunner"/> stays disabled). False when the folder could
+    /// not be fully cleared.</summary>
     internal async Task<bool> SignOutAsync(string accountKey)
     {
         // An account that is gone or on its way out must not get a runner, a provider or a profile
@@ -455,7 +445,7 @@ public sealed partial class MainViewModel
     /// resumes the account's reads: until then a signed-out account stays unread, so no local source
     /// can put numbers or a chart on a tile whose sign-in the user is still in the middle of. A
     /// window closed part-way changes nothing for that account. Every account refreshes afterwards
-    /// either way, as before.</summary>
+    /// either way.</summary>
     public void CompleteSignIn(string accountKey, bool signedIn)
     {
         if (!IsLiveAccount(accountKey))
