@@ -54,6 +54,32 @@ public class InstallerSafetyTests
     }
 
     [Fact]
+    public void The_uninstall_reads_the_moved_data_folder_before_deleting_and_removes_only_the_apps_own_entries()
+    {
+        var iss = Read("installer", "AiUsage.iss");
+
+        var pointer = iss.IndexOf("MovedDir := MovedDataDir(", StringComparison.Ordinal);
+        var deleteDefault = iss.IndexOf("DelTree(DataDir, True, True, True);", StringComparison.Ordinal);
+        Assert.True(pointer > 0 && pointer < deleteDefault, "the pointer file must be read before the default folder is deleted");
+        Assert.Contains("RemoveOwnDataEntries(MovedDir);", iss);
+
+        // The moved folder is never deleted as a whole tree; the folder itself goes only when empty.
+        Assert.DoesNotContain("DelTree(MovedDir", iss);
+        Assert.DoesNotContain("DelTree(Folder,", iss);
+        Assert.DoesNotContain("DelTree(AddBackslash(Folder),", iss);
+        var start = iss.IndexOf("procedure RemoveOwnDataEntries", StringComparison.Ordinal);
+        Assert.True(start > 0);
+        var body = iss[start..iss.IndexOf("\nend;", start, StringComparison.Ordinal)];
+        Assert.Contains("RemoveDir(Folder);", body);
+        foreach (var name in new[] { "settings.json", "stats.db", "stats.db-wal", "stats.db-shm", "notifications.json", "status.json", "project-colors.json", "location" + ".txt" })
+            Assert.Contains($"DeleteOwnFile(Folder, '{name}');", body);
+        Assert.Contains("DeleteOwnFiles(Folder, 'history-*.jsonl');", body);
+        Assert.Contains("DeleteOwnFolders(Folder, 'logs');", body);
+        Assert.DoesNotContain("'*'", body);
+        Assert.DoesNotContain("'*.*'", body);
+    }
+
+    [Fact]
     public void The_readme_describes_the_uninstall_question()
     {
         var readme = Read("README.md");
