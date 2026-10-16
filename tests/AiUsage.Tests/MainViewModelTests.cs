@@ -1695,8 +1695,68 @@ public class MainViewModelTests : IDisposable
         Assert.False(freshClaude!.WasFetched);
     }
 
-    // Copilot (and the primary Claude account) read a sign-in another tool holds and have no web
-    // runner: signing out used to swap their provider for a freshly built web-only Claude account.
+    private static ProviderSnapshot NotSignedInSnapshot(string id) => new(
+        id, [], null, SourceKind.None, DateTimeOffset.Now, null, ProviderStatus.NotSignedIn,
+        new ProviderError("State.NotSignedIn.WebSession"));
+
+    // After a restart the tile starts from the history's last reading; a read that then answers
+    // "not signed in" must not empty it: the numbers stay, dimmed, with the hint and the sign-in button.
+    [Fact]
+    public void A_not_signed_in_read_after_a_restart_keeps_the_last_recorded_numbers_dimmed_with_the_hint()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var historyStore = new HistoryStore(TempDirectory(), () => DateTimeOffset.Now);
+        historyStore.Append("claude", WindowKind.FiveHour, 74, DateTimeOffset.Now.AddHours(2), label: "Window_FiveHour");
+        var providers = new List<IUsageProvider> { new FakeProvider("codex"), new SignInFakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, historyStore);
+        var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+
+        vm.OnSnapshotReady(NotSignedInSnapshot("claude"));
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.True(tile.DimLastValues);
+        Assert.False(tile.ShowPlaceholder);
+        Assert.Equal(74, tile.Rows.Single().UsedPercent);
+        Assert.Contains(LocalizationService.Instance["State.NotSignedIn.WebSession"], tile.FailureNoticeText);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public void A_not_signed_in_read_with_no_earlier_numbers_stays_the_plain_sign_in_tile()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var providers = new List<IUsageProvider> { new FakeProvider("codex"), new SignInFakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => DateTimeOffset.Now));
+        var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+
+        vm.OnSnapshotReady(NotSignedInSnapshot("claude"));
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.True(tile.ShowPlaceholder);
+        Assert.Empty(tile.Rows);
+        Assert.True(tile.ShowSignIn);
+    }
+
+    [Fact]
+    public async Task A_sign_out_from_the_app_empties_a_tile_that_showed_numbers()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        vm.SignOutWebView = _ => SignOutResult.Removed;
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, DateTimeOffset.Now, DateTimeOffset.Now, ProviderStatus.Ok, null));
+        var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+        Assert.Single(tile.Rows);
+
+        await vm.SignOutAsync("claude");
+
+        Assert.False(tile.IsShowingLastValues);
+        Assert.Empty(tile.Rows);
+        Assert.True(tile.ShowPlaceholder);
+    }
+
+    // Copilot reads a sign-in another tool holds and has no web runner: signing out used to swap its
+    // provider for a freshly built web-only Claude account.
     [Fact]
     public async Task SignOutAsync_keeps_the_provider_of_an_account_without_a_web_session()
     {
@@ -2371,6 +2431,17 @@ public class MainViewModelTests : IDisposable
             LastFetch = Task.FromResult(snapshot);
             return LastFetch;
         }
+    }
+
+    private sealed class SignInFakeProvider(string id) : IUsageProvider
+    {
+        public string Id { get; } = id;
+        public string DisplayName => Id;
+        public bool RunsOnUiThread => true;
+        public bool SupportsInAppSignIn => true;
+        public bool SupportsSignOut => true;
+
+        public Task<ProviderSnapshot> FetchAsync(CancellationToken ct) => Task.FromResult(NotSignedInSnapshot(Id));
     }
 
     private sealed class TwoWindowFakeProvider(string id) : IUsageProvider

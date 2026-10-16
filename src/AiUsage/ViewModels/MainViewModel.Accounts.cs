@@ -424,7 +424,7 @@ public sealed partial class MainViewModel
         if (_tilesById.TryGetValue(accountKey, out var tile))
         {
             var now = DateTimeOffset.Now;
-            tile.Apply(new ProviderSnapshot(accountKey, [], null, SourceKind.None, now, null, ProviderStatus.NotSignedIn, null), now);
+            tile.Apply(new ProviderSnapshot(accountKey, [], null, SourceKind.None, now, null, ProviderStatus.NotSignedIn, null), now, keepLastValues: false);
             // The status file must not keep the numbers of an account that is no longer connected.
             _statusReadings[accountKey] = (ProviderStatus.NotSignedIn, []);
             // Nor may a chart refresh before the next read raise a forecast on its old numbers.
