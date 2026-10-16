@@ -1319,4 +1319,117 @@ public class StatsIndexTests
         "{\"type\":\"assistant\",\"timestamp\":\"" + timestamp + "\",\"message\":{\"model\":\"" + model +
         "\",\"usage\":{\"input_tokens\":" + input + ",\"output_tokens\":" + output +
         ",\"cache_creation_input_tokens\":" + cacheCreation + ",\"cache_read_input_tokens\":" + cacheRead + "}}}";
+
+    // Codex's own rollouts write no cache-write total; requiring one dropped every real line.
+    [Fact]
+    public void CodexUsageLogParser_counts_a_real_line_without_a_cache_write_total()
+    {
+        const string first = """
+            {"timestamp":"2026-09-01T09:30:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1200,"cached_input_tokens":200,"output_tokens":90,"reasoning_output_tokens":10,"total_tokens":1290}}}}
+            """;
+        const string second = """
+            {"timestamp":"2026-09-01T09:31:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1500,"cached_input_tokens":300,"output_tokens":100,"reasoning_output_tokens":10,"total_tokens":1600}}}}
+            """;
+
+        var parser = new CodexUsageLogParser();
+        Assert.True(parser.TryParseLine(first, out var one));
+        Assert.Equal(1000, one.InputTokens);
+        Assert.Equal(90, one.OutputTokens);
+        Assert.Equal(200, one.CacheReadTokens);
+        Assert.Equal(0, one.CacheCreationTokens);
+
+        Assert.True(parser.TryParseLine(second, out var two));
+        Assert.Equal(200, two.InputTokens);
+        Assert.Equal(10, two.OutputTokens);
+        Assert.Equal(100, two.CacheReadTokens);
+    }
+
+    [Fact]
+    public void CodexUsageLogParser_keeps_the_previous_cache_write_total_when_a_line_lacks_it()
+    {
+        const string withField = """
+            {"timestamp":"2026-09-01T09:30:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":0,"cache_write_input_tokens":40,"output_tokens":10}}}}
+            """;
+        const string without = """
+            {"timestamp":"2026-09-01T09:31:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":150,"cached_input_tokens":0,"output_tokens":20}}}}
+            """;
+        const string withAgain = """
+            {"timestamp":"2026-09-01T09:32:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":160,"cached_input_tokens":0,"cache_write_input_tokens":45,"output_tokens":25}}}}
+            """;
+
+        var parser = new CodexUsageLogParser();
+        Assert.True(parser.TryParseLine(withField, out _));
+        Assert.True(parser.TryParseLine(without, out var gap));
+        Assert.Equal(0, gap.CacheCreationTokens);
+        Assert.True(parser.TryParseLine(withAgain, out var after));
+        Assert.Equal(5, after.CacheCreationTokens); // 45 - 40, never the whole 45 again
+    }
+
+    // Files an older build walked without counting a line (all four totals still zero) are read
+    // again once; a file that did count something, and any Claude file, keep their place. The v4 and
+    // v5 migration tests above cover an index that holds Codex usage, where nothing is read again.
+    [Fact]
+    public void Opening_an_older_index_rereads_Codex_files_that_counted_nothing_once()
+    {
+        using var source = TestPaths.CreateDisposableDirectory("stats-codex-reread-src");
+        var store = new StatsStore(source);
+        store.SetSourceFile(new StatsSourceFileState("codex-uncounted", "codex", 500, 500, DateTime.UtcNow));
+        store.SetSourceFile(new StatsSourceFileState("codex-counted", "codex", 500, 500, DateTime.UtcNow, CumulativeInputTokens: 10));
+        store.SetSourceFile(new StatsSourceFileState("claude-file", "claude", 500, 500, DateTime.UtcNow));
+        SqliteConnection.ClearAllPools();
+        var sourceDb = Path.Combine(source, "stats.db");
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = sourceDb, Pooling = false }.ToString()))
+        {
+            connection.Open();
+            using var forget = connection.CreateCommand();
+            forget.CommandText = "DELETE FROM meta WHERE key = 'codex_uncounted_files_reread'";
+            forget.ExecuteNonQuery();
+        }
+
+        // A copy at a new path, so this process opens it as an older build's file.
+        using var target = TestPaths.CreateDisposableDirectory("stats-codex-reread");
+        File.Copy(sourceDb, Path.Combine(target, "stats.db"));
+        var reopened = new StatsStore(target);
+
+        Assert.Null(reopened.GetSourceFile("codex-uncounted"));
+        Assert.Equal(500, reopened.GetSourceFile("codex-counted")!.Offset);
+        Assert.Equal(500, reopened.GetSourceFile("claude-file")!.Offset);
+
+        // Once only: a file walked by this build keeps its place on every later open.
+        reopened.SetSourceFile(new StatsSourceFileState("codex-new", "codex", 300, 300, DateTime.UtcNow));
+        SqliteConnection.ClearAllPools();
+        using var again = TestPaths.CreateDisposableDirectory("stats-codex-reread-again");
+        File.Copy(Path.Combine(target, "stats.db"), Path.Combine(again, "stats.db"));
+        Assert.Equal(300, new StatsStore(again).GetSourceFile("codex-new")!.Offset);
+    }
+
+    [Fact]
+    public void A_file_shorter_than_its_read_offset_when_opened_is_not_read_from_the_start()
+    {
+        var state = new StatsSourceFileState("file-a", "codex", 8000, 8000, DateTime.UtcNow);
+
+        Assert.True(StatsIndexer.IsShorterThanRead(state, 5000));
+        Assert.False(StatsIndexer.IsShorterThanRead(state, 8000));
+        Assert.False(StatsIndexer.IsShorterThanRead(state, 10000));
+        Assert.False(StatsIndexer.IsShorterThanRead(null, 0));
+    }
+
+    [Theory]
+    [InlineData("'x'")]
+    [InlineData("1e300")]
+    [InlineData("x'00'")]
+    public void A_schema_version_that_is_no_integer_reads_as_unknown_instead_of_throwing(string value)
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("stats-bad-version");
+        var path = Path.Combine(directory, "stats.db");
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString()))
+        {
+            connection.Open();
+            using var create = connection.CreateCommand();
+            create.CommandText = $"CREATE TABLE schema_version (version); INSERT INTO schema_version VALUES ({value});";
+            create.ExecuteNonQuery();
+        }
+
+        Assert.Null(StatsStore.TryReadSchemaVersion(path));
+    }
 }

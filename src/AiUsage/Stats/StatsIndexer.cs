@@ -347,6 +347,14 @@ public sealed class StatsIndexer
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             openLength = stream.Length;
+            if (IsShorterThanRead(existing, openLength))
+            {
+                // Replaced or cut between the stat above and this open: handled like a shrunk file
+                // rather than read again from the start (the reader falls back to 0 past the end).
+                _store.SetSourceFile(existing with { Offset = openLength, Size = openLength, WriteTimeUtc = info.LastWriteTimeUtc });
+                return (false, 0, 0);
+            }
+
             consumedOffset = CompleteLineReader.Read(stream, offset, acceptTrailingLineWithoutNewline, MaxRecordBytes, LogOversizedRecord, line =>
             {
                 if (ClaudeUsageLogParser.TryParse(line, out var usageEvent))
@@ -447,6 +455,14 @@ public sealed class StatsIndexer
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             openLength = stream.Length;
+            if (IsShorterThanRead(existing, openLength))
+            {
+                // Replaced or cut between the stat above and this open: handled like a shrunk file
+                // rather than read again from the start (the reader falls back to 0 past the end).
+                _store.SetSourceFile(existing with { Offset = openLength, Size = openLength, WriteTimeUtc = info.LastWriteTimeUtc });
+                return (false, 0, 0);
+            }
+
             consumedOffset = CompleteLineReader.Read(stream, offset, acceptTrailingLineWithoutNewline, MaxRecordBytes, LogOversizedRecord, line =>
             {
                 if (parser.TryParseLine(line, out var usageEvent))
@@ -767,6 +783,11 @@ public sealed class StatsIndexer
             return true;
         return _store.TryGetSourceFile(path, out state);
     }
+
+    /// <summary>True when the opened file is shorter than what was already read of it - checked on the
+    /// open stream, since the file can change after it was listed.</summary>
+    internal static bool IsShorterThanRead([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] StatsSourceFileState? existing, long openLength) =>
+        existing is not null && openLength < existing.Offset;
 
     private static FileInfo? TryStat(string path)
     {
