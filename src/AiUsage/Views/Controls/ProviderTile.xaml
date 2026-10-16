@@ -435,7 +435,8 @@
 
                 <StackPanel x:Name="PlaceholderPanel" Grid.Row="0" Visibility="{Binding ShowPlaceholder, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="{Binding HeadlineText}" FontFamily="{DynamicResource Font.Ui}"
-                               FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"/>
+                               FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
+                               TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding ReasonText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Text.Secondary}"/>
                     <Button Content="{Binding StatusLinkText}" Command="{Binding OpenStatusPageCommand}"
@@ -465,7 +466,8 @@
                                controls:TrimmedToolTip.Enabled="True"/>
                     <TextBlock Grid.Column="1" Text="{Binding HeadlineText}" FontFamily="{DynamicResource Font.Ui}"
                                FontSize="{StaticResource Font.Size.Small}" Margin="8,0,0,0" VerticalAlignment="Center"
-                               Foreground="{DynamicResource Text.Secondary}"
+                               Foreground="{DynamicResource Text.Secondary}" TextTrimming="CharacterEllipsis"
+                               controls:TrimmedToolTip.Enabled="True"
                                Visibility="{Binding ShowMiniHeadline, Converter={StaticResource BoolToVis}}"/>
                     <ItemsControl Grid.Column="2" ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource MiniRowTemplate}"
                                   Visibility="{Binding ShowMiniRows, Converter={StaticResource BoolToVis}}"
