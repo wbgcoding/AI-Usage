@@ -55,8 +55,8 @@ public static class AppPaths
         }
     }
 
-    /// <summary>How a folder is a poor home for the token index, which runs with write-ahead files:
-    /// a network share or a drive that can go away, and a folder a sync client uploads half written.</summary>
+    /// <summary>How a folder is a poor home for the token index, which keeps a rollback journal
+    /// beside it: a network share or a drive that can go away, and a folder a sync client uploads half written.</summary>
     public enum FolderRisk { None, Unc, NetworkDrive, RemovableDrive, CloudSync }
 
     private static readonly string[] CloudSyncFolderNames = ["Dropbox", "Google Drive", "My Drive", "iCloudDrive"];

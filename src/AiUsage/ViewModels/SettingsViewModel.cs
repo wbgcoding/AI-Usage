@@ -1399,8 +1399,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // A share, a drive that can go away or a sync folder: the index runs with write-ahead files
-        // there, so the user decides knowingly; declining keeps the folder in use.
+        // A share, a drive that can go away or a sync folder: the index keeps a rollback journal beside
+        // it there, so the user decides knowingly; declining keeps the folder in use.
         if (AppPaths.ClassifyFolderRisk(destination) != AppPaths.FolderRisk.None && !_confirmRiskyFolder(destination))
             return;
 
