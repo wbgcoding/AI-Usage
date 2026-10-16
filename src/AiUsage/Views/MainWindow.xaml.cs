@@ -1358,9 +1358,11 @@ public partial class MainWindow : Window, IDisposable
             _heightIsAutomatic = false;
             ViewModel.HeightAutomatic = false;
         }
-        // Same stale-ceiling fix as GrowDown - see its own comment.
-        MaxHeight = CurrentArea().Height;
-        var newHeight = Math.Max(MinHeight, Height - dy);
+        // Same stale-ceiling fix and the same limits as GrowDown - see its own comment. Top moves
+        // only by what the height actually changed, so a capped drag never slides the window away.
+        var workAreaHeight = CurrentArea().Height;
+        MaxHeight = workAreaHeight;
+        var newHeight = WindowPlacementService.GrowManualHeight(Height, -dy, MinHeight, workAreaHeight, MeasureTallestContentHeight(), _zoom);
         Top += Height - newHeight;
         Height = newHeight;
     }

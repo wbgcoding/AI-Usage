@@ -1916,4 +1916,12 @@ public class StatsWindowProjectBarColorTests
 
         Assert.Same(muted, brushes[0]);
     }
+
+    // Left of the bars lie the value axis labels: hovering or clicking them is no bar.
+    [Fact]
+    public void NearestBarIndexFindsNoBarLeftOfTheChartArea()
+    {
+        Assert.Equal(-1, StatsBarChart.NearestBarIndex(x: -5, width: 200, barCount: 4));
+        Assert.Equal(0, StatsBarChart.NearestBarIndex(x: 0, width: 200, barCount: 4));
+    }
 }

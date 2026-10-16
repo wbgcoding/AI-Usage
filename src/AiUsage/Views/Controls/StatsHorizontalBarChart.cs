@@ -770,7 +770,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         }
 
         var figureText = new FormattedText(
-            $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatsBarChart.PercentLabel(row.Percent, culture)}",
+            $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatsBarChart.PercentLabel(row.Percent, CultureInfo.CurrentCulture)}",
             culture, FlowDirection.LeftToRight, regular, 11, TextBrush, dpi);
         var figureX = Math.Max(textX, width - figureText.Width);
         drawingContext.DrawText(figureText, new Point(figureX, y + (textAreaHeight - figureText.Height) / 2));

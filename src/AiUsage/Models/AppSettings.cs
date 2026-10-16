@@ -382,7 +382,12 @@ public sealed class ProviderSettings
     public static string NormalizeAccountName(string? name)
     {
         var trimmed = (name ?? "").Trim();
-        return trimmed.Length > MaxAccountNameLength ? trimmed[..MaxAccountNameLength].TrimEnd() : trimmed;
+        if (trimmed.Length <= MaxAccountNameLength)
+            return trimmed;
+
+        // Never half of a character made of two code units (an emoji): that half is no character.
+        var cut = char.IsHighSurrogate(trimmed[MaxAccountNameLength - 1]) ? MaxAccountNameLength - 1 : MaxAccountNameLength;
+        return trimmed[..cut].TrimEnd();
     }
 
     /// <summary>The minutes this account may be read at most every, or null to follow <see

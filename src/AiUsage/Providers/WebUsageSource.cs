@@ -480,7 +480,9 @@ public sealed class WebUsageSource
         {
             envelopeJson = await _executeScript(script, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // Only the caller's own cancellation propagates: a hidden session closed under a running read
+        // throws one of its own, which is a failed read like any other.
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return (null, (WebUsageResult.Failed, null));
         }

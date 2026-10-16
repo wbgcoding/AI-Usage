@@ -785,6 +785,19 @@ public sealed class StatsStore
         if (originalVersion is null or <= 4)
             Execute(connection, $"INSERT OR IGNORE INTO meta (key, value) VALUES ('{ClaudeOwnerPassKey}', '1')");
 
+        // Builds before this one required a cache-write total that older Codex versions never write, so
+        // every file of theirs was walked to its end without counting a line. Such a file still has all four running
+        // totals at zero and is read again from the start, once - only while this PC has no Codex
+        // usage at all, so nothing that was counted can be counted a second time.
+        Execute(connection, $"""
+            DELETE FROM source_file WHERE provider = 'codex'
+                AND cumulative_input_tokens = 0 AND cumulative_output_tokens = 0
+                AND cumulative_cache_creation_tokens = 0 AND cumulative_cache_read_tokens = 0
+                AND NOT EXISTS (SELECT 1 FROM usage WHERE provider = 'codex' AND machine = '')
+                AND NOT EXISTS (SELECT 1 FROM meta WHERE key = '{CodexRereadKey}');
+            INSERT OR IGNORE INTO meta (key, value) VALUES ('{CodexRereadKey}', '1');
+            """);
+
         using (var writeVersion = connection.CreateCommand())
         {
             writeVersion.CommandText = "INSERT OR REPLACE INTO schema_version (id, version) VALUES (1, $version)";
@@ -821,6 +834,7 @@ public sealed class StatsStore
         info.Parameters.AddWithValue("$name", column);
         return info.ExecuteScalar() is not null;
     }
+    private const string CodexRereadKey = "codex_uncounted_files_reread";
 
     private static void Execute(SqliteConnection connection, string sql)
     {

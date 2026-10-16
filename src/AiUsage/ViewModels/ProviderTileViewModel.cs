@@ -1188,7 +1188,15 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(LastSuccessAgeText));
         foreach (var choice in BarColorChoices)
             choice.RefreshLabel();
+        // The chart's legend and hover caption are otherwise only rebuilt with the next history load.
+        FiveHourLabelText = StatusTextMap.Resolve(_slotOneLabelKey);
+        WeeklyLabelText = StatusTextMap.Resolve(_slotTwoLabelKey);
+        OnPropertyChanged(nameof(ChartSummaryText));
     }
+
+    // The keys the chart's two slot captions were resolved from, kept for a language switch.
+    private string _slotOneLabelKey = "Window_FiveHour";
+    private string _slotTwoLabelKey = "Window_Weekly";
 
     /// <summary><paramref name="thresholds"/> is optional (defaults to null, meaning "no marker on
     /// any row"); a caller that holds the provider's <see cref="ThresholdSettings"/> passes them
@@ -1687,8 +1695,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         (slotOneValues, slotTwoValues) = PadToCommonEnds(slotOneValues, slotTwoValues);
         FiveHourValues = slotOneValues;
         WeeklyValues = slotTwoValues;
-        FiveHourLabelText = StatusTextMap.Resolve(slotOneLabel ?? "Window_FiveHour");
-        WeeklyLabelText = StatusTextMap.Resolve(slotTwoLabel ?? "Window_Weekly");
+        _slotOneLabelKey = slotOneLabel ?? "Window_FiveHour";
+        _slotTwoLabelKey = slotTwoLabel ?? "Window_Weekly";
+        FiveHourLabelText = StatusTextMap.Resolve(_slotOneLabelKey);
+        WeeklyLabelText = StatusTextMap.Resolve(_slotTwoLabelKey);
         RangeStart = rangeStart;
         RangeEnd = rangeEnd;
         // Mirrors the weekly series when it has anything to show, otherwise the five-hour one -

@@ -36,8 +36,11 @@ internal static class LegacyWindowLabels
     {
         foreach (var (accountKey, provider) in settings.Providers)
         {
+            // A hand-edited or damaged file can hold a null entry ("hiddenWindows": [null]); it names no
+            // window and would otherwise throw in the lookup below, on every start.
             if (provider.HiddenWindows is { Count: > 0 } hidden)
-                provider.HiddenWindows = hidden.Select(label => Migrate(accountKey, label)).Distinct(StringComparer.Ordinal).ToList();
+                provider.HiddenWindows = hidden.Where(label => label is not null).Select(label => Migrate(accountKey, label))
+                    .Distinct(StringComparer.Ordinal).ToList();
         }
 
         // A "Label:Chat" choice belongs to Copilot only when the icon follows a Copilot account or the

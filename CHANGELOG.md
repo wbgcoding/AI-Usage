@@ -174,6 +174,20 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - A Claude response that Claude Code copies into a resumed session is counted once; tokens already counted twice are taken off once from the session files that still exist (the token index is backed up first).
 - The Claude limit of a long-running session is found again in very large project folders.
 - Moving the data folder refuses a folder that already holds AI-Usage data, so it can never overwrite another copy's data; moving back to the default folder asks before it replaces the older copy there.
+- Token usage also counts logs of older Codex versions, which carry no cache write total; such logs read so far without a single counted line are read once more.
+- Codex reads its sessions from `CODEX_HOME` when that is set.
+- Started into the notification area, the widget fetches at the slower hidden-window pace, and the first time it is shown it fetches right away.
+- A quick double click on "Add account" for Copilot no longer adds the same GitHub account twice.
+- Dragging the top edge of the widget stops at the content and the screen height like the bottom edge, instead of sliding the window off the screen.
+- A settings file with an empty entry in the hidden windows no longer stops the app from starting, and a backup with a damaged token index is refused instead of closing the app.
+- The widget no longer hides itself as if a full-screen app were running when no window has the focus.
+- The update notice, the chart legend of a tile and the percentages in the top projects follow a language and number format change at once.
+- Hovering or clicking the value labels of a token usage chart no longer picks the first column.
+- A custom token usage range longer than a year is drawn per week, like the whole history.
+- The history export names each window, so several Cursor bars can be told apart.
+- An account name cut to its maximum length no longer ends in half an emoji.
+- Uninstalling removes the desktop shortcut of a per-machine install.
+- The portable setup no longer writes a setup log to the PC, and `build.bat` no longer stops at the installer step when Inno Setup is installed under "Program Files (x86)".
 
 ### Security
 

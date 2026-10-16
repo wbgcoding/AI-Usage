@@ -594,6 +594,19 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public async Task CustomRangeSwitchesToWeeklyBarsOnlyBeyondAYear()
+    {
+        var viewModel = ViewModelWithRecordFrom("stats-vm-custom-weekly", 400, "Month");
+        var today = DateOnly.FromDateTime(DateTime.Now);
+
+        await viewModel.SetCustomRange(today.AddDays(-365), today);
+        Assert.False(viewModel.IsWeeklyPerDay);
+
+        await viewModel.SetCustomRange(today.AddDays(-400), today);
+        Assert.True(viewModel.IsWeeklyPerDay);
+    }
+
+    [Fact]
     public void AllRangeDailySeriesCoversTheWholePeriodSum()
     {
         var viewModel = ViewModelWithRecordFrom("stats-vm-series-all", 9, "All");

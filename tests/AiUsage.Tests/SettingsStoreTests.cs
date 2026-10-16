@@ -1509,4 +1509,28 @@ public class SettingsStoreTests : IDisposable
             }
         }
     }
+
+    [Fact]
+    public void Load_drops_a_null_hidden_window_instead_of_failing_to_start()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(Path.Combine(directory, "settings.json"),
+            """{"schemaVersion":1,"providers":{"copilot":{"hiddenWindows":[null,"Chat"]}}}""");
+        using var store = new SettingsStore(directory);
+
+        var loaded = store.Load();
+
+        Assert.Equal(["Window_CopilotChat"], loaded.Providers["copilot"].HiddenWindows);
+    }
+
+    [Fact]
+    public void An_account_name_is_never_cut_in_the_middle_of_an_emoji()
+    {
+        var name = new string('a', ProviderSettings.MaxAccountNameLength - 1) + "\U0001F600";
+
+        var normalized = ProviderSettings.NormalizeAccountName(name);
+
+        Assert.Equal(new string('a', ProviderSettings.MaxAccountNameLength - 1), normalized);
+        Assert.Equal("Work", ProviderSettings.NormalizeAccountName("  Work  "));
+    }
 }

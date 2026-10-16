@@ -387,13 +387,7 @@ public sealed class StatsIndexer
             // same usage twice. The file is left unread and only its remembered size and write time
             // move to what is on disk now, so a later append is picked up from the new end.
             // The owner pass, when still to run, must not read that unread part either.
-            if (!_claimsActive && !_store.SetClaudeOwnerSkip(existing.Path, info.Length))
-            {
-                NoteStored(false);
-                return (false, 0, 0);
-            }
-
-            NoteStored(_store.SetSourceFile(existing with { Offset = info.Length, Size = info.Length, WriteTimeUtc = info.LastWriteTimeUtc }));
+            KeepShrunkClaudeFile(existing, info.Length, info.LastWriteTimeUtc);
             return (false, 0, 0);
         }
 
@@ -425,6 +419,14 @@ public sealed class StatsIndexer
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             openLength = stream.Length;
+            if (IsShorterThanRead(existing, openLength))
+            {
+                // Replaced or cut between the stat above and this open: handled like a shrunk file
+                // rather than read again from the start (the reader falls back to 0 past the end).
+                KeepShrunkClaudeFile(existing, openLength, info.LastWriteTimeUtc);
+                return (false, 0, 0);
+            }
+
             consumedOffset = CompleteLineReader.Read(stream, offset, acceptTrailingLineWithoutNewline, MaxRecordBytes, LogOversizedRecord, line =>
             {
                 if (ClaudeUsageLogParser.TryParse(line, out var usageEvent))
@@ -632,6 +634,14 @@ public sealed class StatsIndexer
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             openLength = stream.Length;
+            if (IsShorterThanRead(existing, openLength))
+            {
+                // Replaced or cut between the stat above and this open: handled like a shrunk file
+                // rather than read again from the start (the reader falls back to 0 past the end).
+                NoteStored(_store.SetSourceFile(existing with { Offset = openLength, Size = openLength, WriteTimeUtc = info.LastWriteTimeUtc }));
+                return (false, 0, 0);
+            }
+
             consumedOffset = CompleteLineReader.Read(stream, offset, acceptTrailingLineWithoutNewline, MaxRecordBytes, LogOversizedRecord, line =>
             {
                 if (parser.TryParseLine(line, out var usageEvent))
@@ -1342,6 +1352,24 @@ public sealed class StatsIndexer
             return true;
         return _store.TryGetSourceFile(path, out state);
     }
+
+    /// <summary>A Claude file that shrank is left unread: only its remembered size and write time move,
+    /// and the owner pass, when still to run, is told to skip the part never read.</summary>
+    private void KeepShrunkClaudeFile(StatsSourceFileState existing, long length, DateTime writeTimeUtc)
+    {
+        if (!_claimsActive && !_store.SetClaudeOwnerSkip(existing.Path, length))
+        {
+            NoteStored(false);
+            return;
+        }
+
+        NoteStored(_store.SetSourceFile(existing with { Offset = length, Size = length, WriteTimeUtc = writeTimeUtc }));
+    }
+
+    /// <summary>True when the opened file is shorter than what was already read of it - checked on the
+    /// open stream, since the file can change after it was listed.</summary>
+    internal static bool IsShorterThanRead([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] StatsSourceFileState? existing, long openLength) =>
+        existing is not null && openLength < existing.Offset;
 
     private static FileInfo? TryStat(string path)
     {

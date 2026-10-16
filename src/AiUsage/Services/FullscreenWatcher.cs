@@ -82,7 +82,9 @@ internal sealed class FullscreenWatcher : IDisposable
         if (foregroundIsOwn || IsShellWindowClass(className))
             return false;
 
-        return !hasCaption && foreground.Covers(monitor);
+        // An empty monitor rectangle (no foreground window, or the monitor lookup failed) is no screen
+        // to cover - the empty foreground rectangle would otherwise "cover" it.
+        return !hasCaption && monitor.Right > monitor.Left && monitor.Bottom > monitor.Top && foreground.Covers(monitor);
     }
 
     /// <summary>The desktop and the taskbar: they fill the screen without being a full-screen app.</summary>

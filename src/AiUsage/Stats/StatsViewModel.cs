@@ -337,9 +337,9 @@ public sealed partial class StatsViewModel : ObservableObject
     private StatsGrouping selectedGrouping = StatsGrouping.Day;
 
     /// <summary>True when the day grouping draws one column per calendar week instead of one per
-    /// day: only for a whole history that spans more than a year. Up to 366 days every day gets its
-    /// own column, the 12 month range included. The exported rows under the day grouping stay per
-    /// day regardless.</summary>
+    /// day: only for a whole history or a custom range that spans more than a year. Up to 366 days
+    /// every day gets its own column, the 12 month range included. The exported rows under the day
+    /// grouping stay per day regardless.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChartTooltip))]
     private bool isWeeklyPerDay;
@@ -1388,7 +1388,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // since year 1.
         var gapFillFrom = GapFillStart(from, inRange, to);
 
-        var weeklyPerDay = SelectedRange == "All" && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
+        var weeklyPerDay = SelectedRange is "All" or CustomRange && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
         IsWeeklyPerDay = weeklyPerDay;
 
         // The exported rows under the day grouping stay per day; only the bars are bundled per week.

@@ -113,4 +113,11 @@ public class FullscreenWatcherTests
 
         Assert.False(reload.Load().HideOnFullscreen);
     }
+
+    // Without a foreground window both rectangles are empty, and an empty one used to "cover" the other.
+    [Fact]
+    public void Without_a_foreground_window_or_a_monitor_nothing_is_full_screen()
+    {
+        Assert.False(FullscreenWatcher.IsFullscreen(false, null, false, default, default, AcceptsNotifications));
+    }
 }

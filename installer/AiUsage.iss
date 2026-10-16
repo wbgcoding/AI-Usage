@@ -215,7 +215,9 @@ Filename: "{code:GetAppExePath}"; Flags: nowait runasoriginaluser; \
 ; Same hive limitation as autostart above: on a per-machine install approved by a different
 ; administrator account, the shortcut was written to the installing user's desktop, which an
 ; elevated uninstall running under that administrator's own account cannot see. Not worked around.
-Type: files; Name: "{autodesktop}\{#AppName}.lnk"
+; {userdesktop}, not {autodesktop}: on a per-machine install the latter is the Public desktop, where
+; the app never writes its shortcut.
+Type: files; Name: "{userdesktop}\{#AppName}.lnk"
 
 [Registry]
 ; Creates nothing - the app writes the value itself (see [Run]). This entry exists only so
@@ -716,7 +718,8 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   LogFolder, DestFile: String;
 begin
-  if CurStep = ssDone then
+  { Portable mode promises that nothing else is written to this PC. }
+  if (CurStep = ssDone) and not IsPortableMode then
   begin
     LogFolder := ExpandConstant('{localappdata}\{#AppName}\setup');
     if ForceDirectories(LogFolder) and FileExists(ExpandConstant('{log}')) then

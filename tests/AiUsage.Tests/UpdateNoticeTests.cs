@@ -198,6 +198,18 @@ public class UpdateNoticeTests
         Assert.Contains("Path=[Update.Downloading]", xaml, StringComparison.Ordinal);
         Assert.Contains("Binding Update.IsInstalling, Converter={StaticResource BoolToVis}", xaml, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void A_language_switch_rebuilds_the_notice_text()
+    {
+        var update = new UpdateNoticeViewModel(new AppSettings { KnownLatestTag = "v9.0.0" }, _ => { });
+        var changed = new List<string?>();
+        update.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        update.RefreshLocalizedText();
+
+        Assert.Contains(nameof(UpdateNoticeViewModel.NoticeText), changed);
+    }
 }
 
 public class UpdateSigningKeyGuardTests
