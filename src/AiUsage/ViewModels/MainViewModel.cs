@@ -305,8 +305,20 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         foreach (var tile in Tiles)
             TrayProviderChoices.Add(Choice.WithFixedLabel(tile.HeaderDisplayName, tile.ProviderId));
 
-        var stored = TrayProviderChoices.Any(c => c.Value == _settings.TrayProvider) ? _settings.TrayProvider : TrayProviderAuto;
-        Choice.Select(TrayProviderChoices, stored);
+        // A provider no tile answers to (an import, a hand edit) is stored as automatic, so the window
+        // list and the tray icon follow the choice that is shown, and a later account that reuses the
+        // key does not silently become the tray provider.
+        if (TrayProviderChoices.All(c => c.Value != _settings.TrayProvider))
+        {
+            _settings.TrayProvider = TrayProviderAuto;
+            _settings.TrayWindow = TrayProviderAuto;
+            _settingsStore.RequestSave(_settings);
+            OnPropertyChanged(nameof(TrayProvider));
+            OnPropertyChanged(nameof(TrayWindowEnabled));
+            OnPropertyChanged(nameof(TrayWindow));
+        }
+
+        Choice.Select(TrayProviderChoices, _settings.TrayProvider);
         OnPropertyChanged(nameof(SelectedTrayProviderChoice));
         RebuildTrayWindowChoices();
     }
