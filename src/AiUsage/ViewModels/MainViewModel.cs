@@ -968,9 +968,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 {
                     foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId))
                     {
-                        tile.SetWindowTokens(slice, tokens);
-                        if (shares is not null)
-                            tile.SetWindowShares(slice, shares);
+                        tile.SetWindowAnswer(slice, tokens, shares);
                     }
                 }
 

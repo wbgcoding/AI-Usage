@@ -624,6 +624,17 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         PushWindowTokensToRows();
     }
 
+    /// <summary>Hands a slice's answer to every row showing it in one push: the token figure and, when
+    /// the query also produced them, the per model and agent rows. Shares left null keep what the
+    /// tile already holds.</summary>
+    internal void SetWindowAnswer(WindowTokenKey key, long tokens, IReadOnlyList<WindowShareRow>? shares)
+    {
+        _windowTokens[key] = tokens;
+        if (shares is not null)
+            _windowShares[key] = shares;
+        PushWindowTokensToRows();
+    }
+
     private void PushWindowTokensToRows()
     {
         var loc = LocalizationService.Instance;

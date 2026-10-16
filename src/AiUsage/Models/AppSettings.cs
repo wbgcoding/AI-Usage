@@ -463,18 +463,22 @@ public static class BarColorModes
 
     /// <summary>The modes a provider offers, level first. Model needs a local token index; Agent also
     /// needs the index to tell main agent from subagent apart, which only Claude's session files do.</summary>
-    public static IReadOnlyList<string> OfferedFor(string realProviderId)
-    {
-        var modes = new List<string> { Level };
-        if (Stats.ProviderCoverage.HasLocalTokenData(realProviderId))
+    public static IReadOnlyList<string> OfferedFor(string realProviderId) =>
+        OfferedCache.GetOrAdd(realProviderId, static id =>
         {
-            if (realProviderId == Stats.StatsIndexer.ClaudeProviderId)
-                modes.Add(Agent);
-            modes.Add(Model);
-        }
+            var modes = new List<string> { Level };
+            if (Stats.ProviderCoverage.HasLocalTokenData(id))
+            {
+                if (id == Stats.StatsIndexer.ClaudeProviderId)
+                    modes.Add(Agent);
+                modes.Add(Model);
+            }
 
-        return modes;
-    }
+            return modes.ToArray();
+        });
+
+    // The answer depends on the provider id alone and is asked for on every bar refresh.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string[]> OfferedCache = new();
 
     /// <summary>The canonical spelling of <paramref name="mode"/> (case-insensitive), or Level when it is
     /// unknown or <paramref name="realProviderId"/> does not offer it.</summary>
