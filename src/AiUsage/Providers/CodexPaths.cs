@@ -16,5 +16,11 @@ internal static class CodexPaths
 
     public static string Sessions => Path.Combine(Root, "sessions");
 
+    /// <summary>The live folder as the About page names it: a shorthand, never the user's own path.</summary>
+    public static string SessionsDisplay => DisplaySessions(Environment.GetEnvironmentVariable("CODEX_HOME"), Directory.Exists);
+
+    internal static string DisplaySessions(string? codexHome, Func<string, bool> folderExists) =>
+        !string.IsNullOrWhiteSpace(codexHome) && folderExists(codexHome.Trim()) ? "%CODEX_HOME%/sessions" : "~/.codex/sessions";
+
     public static string ArchivedSessions => Path.Combine(Root, "archived_sessions");
 }

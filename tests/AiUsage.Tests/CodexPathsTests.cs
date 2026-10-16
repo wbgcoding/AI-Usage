@@ -27,4 +27,12 @@ public class CodexPathsTests
     {
         Assert.Equal(Path.Combine(Profile, ".codex"), CodexPaths.ResolveRoot(@"D:\gone", Profile, _ => false));
     }
+
+    [Fact]
+    public void The_shown_folder_follows_CODEX_HOME_without_naming_its_path()
+    {
+        Assert.Equal("%CODEX_HOME%/sessions", CodexPaths.DisplaySessions(@"D:\codex", _ => true));
+        Assert.Equal("~/.codex/sessions", CodexPaths.DisplaySessions(@"D:\gone", _ => false));
+        Assert.Equal("~/.codex/sessions", CodexPaths.DisplaySessions(null, _ => true));
+    }
 }

@@ -115,8 +115,8 @@ public sealed partial class CodexProvider : IUsageProvider
 
     public IReadOnlyList<string> ReadLocations => (_sessionsRoot.Length > 0, _webSource is not null) switch
     {
-        (true, false) => ["~/.codex/sessions"],
-        (true, true) => ["~/.codex/sessions", LocalizationService.Instance["About.ReadLocationWebSession"]],
+        (true, false) => [CodexPaths.SessionsDisplay],
+        (true, true) => [CodexPaths.SessionsDisplay, LocalizationService.Instance["About.ReadLocationWebSession"]],
         _ => [LocalizationService.Instance["About.ReadLocationWebSession"]],
     };
 
