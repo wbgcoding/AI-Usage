@@ -91,6 +91,18 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Fixed
 
+- When Claude reports a reached limit, the tile keeps every bar (5 hours, 7 days and the rest); only the full window shows 100 % with its reset. The single "Limit reached" bar appears only when no usage source answers.
+- The welcome window scrolls when it is taller than the screen at high display scaling, so its button stays reachable.
+- Token statistics no longer skip a session for good or count it twice when a session file was locked for a moment while it was read; a file that stays unreadable is skipped after five tries.
+- Statistics and the Gemini waiting mark read the same three Antigravity folders.
+- Starting the app a second time just as the first copy closes no longer leaves no copy running.
+- The history chart keeps every point and its time order after the clock was set back.
+- Importing settings from another PC keeps this PC's extra accounts; a tray choice naming a tile that no longer exists falls back to Auto.
+- The settings and token usage windows read the other-PC list and the quota history in the background, and a missing data drive shows a message instead of an error window.
+- Uninstalling with "remove data" also cleans a data folder moved in the settings, removing only the app's own files there and leaving anything else in that folder alone.
+- The status file is written safely to disk, so a power cut cannot leave it empty.
+- Zoom levels read "125%" in English and "125 %" in German.
+- High contrast: the cache share bar uses system colors.
 - The sign-in window closes by itself once you are signed in, also on sites such as claude.ai that switch to the app without reloading the page.
 - A brief server error (such as HTTP 503) is retried once quietly before the tile shows it; the last numbers stay in view meanwhile.
 - Signing out of an account no longer leaves its old numbers on the tile.
@@ -167,6 +179,9 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 - The sign-in window no longer saves form entries or passwords and grants no site permissions that a later hidden read would inherit.
 - The prepared statistics file is kept in the machine-local cache folder, so the list of your sessions and projects no longer roams with the profile.
+- Project colors (keyed by your local project folders) also move to the machine-local cache and no longer roam or go into backups.
+- The log no longer records the text of an invalid account entry from a hand-edited settings file.
+- Antigravity conversation databases are opened so that nothing declared inside the file can run.
 - Every update downloads into its own new folder and is checked from the same bytes it installs. A portable copy accepts only a portable file of its own architecture, an installed copy only a setup, and an older or equal version is refused.
 - An installation for all users starts the verified setup with administrator rights directly, and the previous program file is kept until the new one has started.
 - Dialogs on a provider's page can no longer block the hidden browser, and the sign-in window shows the address of any page that is not the provider's own.
