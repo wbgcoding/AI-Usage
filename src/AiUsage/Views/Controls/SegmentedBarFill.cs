@@ -46,6 +46,42 @@ public sealed class SegmentedBarFill : FrameworkElement
         return Math.Min(trackWidth, Math.Max(MinFilledWidth, trackWidth * Math.Clamp(usedPercent, 0, 100) / 100.0));
     }
 
+    // The palette is a handful of colors and a bar renders often: brushes are frozen once per color,
+    // and the clip is kept while the size stays the same.
+    private static readonly Dictionary<Color, SolidColorBrush> Brushes = [];
+
+    private RectangleGeometry? _clip;
+    private double _clipWidth;
+    private double _clipHeight;
+
+    private static SolidColorBrush BrushFor(Color color)
+    {
+        lock (Brushes)
+        {
+            if (!Brushes.TryGetValue(color, out var brush))
+            {
+                brush = new SolidColorBrush(color);
+                brush.Freeze();
+                Brushes[color] = brush;
+            }
+
+            return brush;
+        }
+    }
+
+    private RectangleGeometry ClipFor(double width, double height)
+    {
+        if (_clip is null || _clipWidth != width || _clipHeight != height)
+        {
+            _clip = new RectangleGeometry(new Rect(0, 0, width, height), CornerRadius, CornerRadius);
+            _clip.Freeze();
+            _clipWidth = width;
+            _clipHeight = height;
+        }
+
+        return _clip;
+    }
+
     protected override void OnRender(DrawingContext drawingContext)
     {
         var filled = FilledWidth(UsedPercent, ActualWidth);
@@ -53,14 +89,12 @@ public sealed class SegmentedBarFill : FrameworkElement
             return;
 
         var placed = WindowShares.Layout(Segments, filled);
-        drawingContext.PushClip(new RectangleGeometry(new Rect(0, 0, filled, ActualHeight), CornerRadius, CornerRadius));
+        drawingContext.PushClip(ClipFor(filled, ActualHeight));
         // Each part runs on to the right end and the next one paints over it: no seam of background
         // color shows between two parts whose edge falls inside a pixel.
         foreach (var part in placed)
         {
-            var brush = new SolidColorBrush(part.Color);
-            brush.Freeze();
-            drawingContext.DrawRectangle(brush, null, new Rect(part.Left, 0, filled - part.Left, ActualHeight));
+            drawingContext.DrawRectangle(BrushFor(part.Color), null, new Rect(part.Left, 0, filled - part.Left, ActualHeight));
         }
 
         drawingContext.Pop();
