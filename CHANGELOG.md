@@ -91,6 +91,8 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Fixed
 
+- The sign-in window closes by itself once you are signed in, also on sites such as claude.ai that switch to the app without reloading the page.
+- A brief server error (such as HTTP 503) is retried once quietly before the tile shows it; the last numbers stay in view meanwhile.
 - Signing out of an account no longer leaves its old numbers on the tile.
 - The Claude sign-in button no longer does nothing when Claude Code holds no sign-in.
 - The token usage window no longer stalls when it opens: it is prepared again after each close and no longer rebuilds its charts a second time on open.
