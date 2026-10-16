@@ -64,7 +64,7 @@ public sealed class StatsIndexer
         : this(store, DefaultClaudeProjectsRoots(), DefaultCodexSessionsRoot, DefaultCodexArchivedRoot, () => DateTime.UtcNow)
     {
         Log = logService;
-        AntigravityRoots = DefaultAntigravityRoots();
+        AntigravityRoots = Providers.Parsing.AntigravityTurnReader.DefaultRoots();
     }
 
     /// <summary>Test seam: fake roots instead of the real <c>~/.claude/projects</c> and
@@ -120,14 +120,6 @@ public sealed class StatsIndexer
     /// <summary>Same as the default, from a given variable value and profile folder.</summary>
     internal static List<string> ClaudeProjectsRootsFor(string? configDirValue, string userProfile) =>
         ClaudeConfigRoot.ExistingProjectsRoots(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
-
-    /// <summary>The conversation folders of the Antigravity command line tool and, when present, of the
-    /// Antigravity IDE, under <c>~/.gemini</c>.</summary>
-    private static List<string> DefaultAntigravityRoots()
-    {
-        var gemini = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini");
-        return [Path.Combine(gemini, "antigravity-cli", "conversations"), Path.Combine(gemini, "antigravity-ide", "conversations")];
-    }
 
     private static string DefaultCodexSessionsRoot => Providers.CodexPaths.Sessions;
 
