@@ -177,11 +177,19 @@ public static class ProviderRegistry
     {
         var descriptor = WebSessionFor(accountKey);
         var runner = new WebSessionScriptRunner(descriptor);
-        var provider = new ClaudeProvider(
-            accountKey, settings, store.RequestSave,
-            new WebUsageSource(descriptor, new ClaudeUsageEndpoint(), runner.ExecuteScriptAsync),
-            () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes));
-        return (provider, runner);
+        return (BuildClaudeProvider(accountKey, settings, store.RequestSave, runner), runner);
+    }
+
+    /// <summary>The primary account ("claude") reads Claude Code's own sign-in first and the app's
+    /// web session when that sign-in has no token; a further account is the web session only.</summary>
+    private static ClaudeProvider BuildClaudeProvider(
+        string accountKey, AppSettings settings, Action<AppSettings> saveSettings, WebSessionScriptRunner runner)
+    {
+        var webSource = new WebUsageSource(WebSessionFor(accountKey), new ClaudeUsageEndpoint(), runner.ExecuteScriptAsync);
+        Func<TimeSpan> attentionMaxAge = () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes);
+        return accountKey == ClaudeWebSession.ProviderId
+            ? new ClaudeProvider(accountKey, settings, saveSettings, webSource, ClaudeCodeLogin.FetchAsync, attentionMaxAge)
+            : new ClaudeProvider(accountKey, settings, saveSettings, webSource, attentionMaxAge);
     }
 
     /// <summary>Codex's provider and its own web-session runner. <paramref name="accountKey"/>'s
@@ -243,13 +251,13 @@ public static class ProviderRegistry
     }
 
     /// <summary>The primary account's own provider, built the one way <see cref="CreateAll"/> builds
-    /// it (the local Claude Code sign-in, never a web session) - shared with
-    /// <see cref="Views.SettingsWindow"/>'s read-locations panel, so the panel never names the web
-    /// session, which the running primary account does not read through.</summary>
+    /// it (Claude Code's sign-in first, the web session as the fallback) - shared with
+    /// <see cref="Views.SettingsWindow"/>'s read-locations panel, so the panel names both sources.
+    /// Nothing here is ever read: the runner behind the web source is never started.</summary>
     internal static IUsageProvider CreatePrimaryClaudeAccount(AppSettings? settings = null) =>
-        new ClaudeProvider(
-            AppSettings.CreateDefaultAccounts().Keys.Single(), ClaudeCodeLogin.FetchAsync, settings,
-            settings is null ? null : () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes));
+        BuildClaudeProvider(
+            AppSettings.CreateDefaultAccounts().Keys.Single(), settings ?? new AppSettings(), _ => { },
+            new WebSessionScriptRunner(WebSessionFor(AppSettings.CreateDefaultAccounts().Keys.Single())));
 
     /// <summary>Copilot's own primary provider and, for every account key <see
     /// cref="AppSettings.CopilotAccountLogins"/> names, a further one reading as that already
@@ -268,21 +276,14 @@ public static class ProviderRegistry
     {
         var providers = new List<IUsageProvider>();
         var runners = new Dictionary<string, WebSessionScriptRunner>();
-        var primaryKey = AppSettings.CreateDefaultAccounts().Keys.Single();
 
         foreach (var (accountKey, providerId) in settings.Accounts)
         {
             if (providerId != "claude")
                 continue; // a further account of another provider - built below instead
 
-            // The primary account reads through the sign-in Claude Code already holds on this machine
-            // (no web session, so no runner); a further account keeps the app's own web session.
-            if (accountKey == primaryKey)
-            {
-                providers.Add(CreatePrimaryClaudeAccount(settings));
-                continue;
-            }
-
+            // The primary account reads Claude Code's sign-in first and the app's web session when
+            // that has no token; a further account reads the web session only. Both own a runner.
             var (provider, runner) = CreateClaudeAccount(accountKey, settings, store);
             providers.Add(provider);
             runners[accountKey] = runner;

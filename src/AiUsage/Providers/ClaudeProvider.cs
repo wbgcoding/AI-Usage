@@ -10,8 +10,8 @@ namespace AiUsage.Providers;
 /// One Claude account. The primary account reads the local session transcripts (there is no running
 /// percentage locally, only the last already-triggered rate limit's reset time while it is still in
 /// the future, and that is certain, so it wins) and the sign-in Claude Code already holds on this
-/// machine; the app's own web session is a further candidate, only asked when the cheaper ones leave
-/// it worth a round trip. A further account has no local files and reads through its own web session
+/// machine; the app's own web session is a further candidate (it answers on its own when Claude Code
+/// holds no token), only asked when the cheaper ones leave it worth a round trip. A further account has no local files and reads through its own web session
 /// only. A chooser picks between the candidates; the sources are never mixed into one window list.
 /// </summary>
 public sealed class ClaudeProvider : IUsageProvider
@@ -62,6 +62,17 @@ public sealed class ClaudeProvider : IUsageProvider
         // No projects root: Claude Code's local transcripts belong to the account Claude Code is signed
         // in with, never to a further web account, so a limit found there must not show on this tile.
         : this(projectsRoots: [], now: null, webSource, settings, saveSettings, accountKey, localLogin: null, attentionMaxAge)
+    {
+    }
+
+    /// <summary>The primary account: the local transcripts (rate-limit scan, waiting mark) and the
+    /// sign-in Claude Code holds are read first, and the app's own web session answers when that
+    /// sign-in has no usable token. <paramref name="localLogin"/> is the Claude Code read; the rest is
+    /// the same as for the web-only constructor above.</summary>
+    internal ClaudeProvider(
+        string accountKey, AppSettings settings, Action<AppSettings> saveSettings, WebUsageSource webSource,
+        Func<CancellationToken, Task<ClaudeCodeUsage>> localLogin, Func<TimeSpan>? attentionMaxAge = null)
+        : this(DefaultProjectsRoots(), now: null, webSource, settings, saveSettings, accountKey, localLogin, attentionMaxAge)
     {
     }
 
@@ -124,11 +135,10 @@ public sealed class ClaudeProvider : IUsageProvider
 
     public string DisplayName => "Claude";
 
-    // Only a further account reads through a web session the app owns (see Web/WebViewHost.cs). The
-    // primary account reads the sign-in Claude Code already holds, so a browser sign-in into a
-    // profile nothing reads would only pretend to fix it; it can still be disconnected and resumed.
-    // Whatever this says, the app never starts a provider program and never touches foreign
-    // credentials.
+    // Any account with a web session the app owns (see Web/WebViewHost.cs) can sign in through it,
+    // the primary one included: it reads Claude Code's sign-in first and falls back to that session
+    // when Claude Code holds no token. Whatever this says, the app never starts a provider program
+    // and never touches foreign credentials.
     public bool SupportsInAppSignIn => _webSource is not null;
 
     public bool SupportsSignOut => _webSource is not null || _localLogin is not null;
@@ -167,14 +177,16 @@ public sealed class ClaudeProvider : IUsageProvider
     {
         get
         {
-            var source = _localLogin is null
-                ? LocalizationService.Instance["About.ReadLocationWebSession"]
-                : LocalizationService.Instance["About.ReadLocationClaudeCode"];
+            var sources = new List<string>();
+            if (_localLogin is not null)
+                sources.Add(LocalizationService.Instance["About.ReadLocationClaudeCode"]);
+            if (_localLogin is null || _webSource is not null)
+                sources.Add(LocalizationService.Instance["About.ReadLocationWebSession"]);
             if (_projectsRoots.Count == 0)
-                return [source];
+                return sources;
 
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return [.. _projectsRoots.Select(root => DisplayPath(root, home)), source];
+            return [.. _projectsRoots.Select(root => DisplayPath(root, home)), .. sources];
         }
     }
 
@@ -307,7 +319,13 @@ public sealed class ClaudeProvider : IUsageProvider
 
         if (candidates.Count > 0)
         {
-            var chosen = SnapshotChooser.Pick(candidates) with { IsWaitingForUser = isWaitingForUser, WaitingSince = waitingSince };
+            var picked = SnapshotChooser.Pick(candidates);
+            // Neither source is signed in: the button opens the web sign-in, so the tile says that
+            // instead of pointing at Claude Code. The local reason word stays for the diagnostics.
+            if (picked.Status == ProviderStatus.NotSignedIn && _localLogin is not null
+                && candidates.Skip(1).FirstOrDefault(c => c.Status == ProviderStatus.NotSignedIn) is { } webNotSignedIn)
+                picked = webNotSignedIn with { SkipReasonWord = picked.SkipReasonWord };
+            var chosen = picked with { IsWaitingForUser = isWaitingForUser, WaitingSince = waitingSince };
             return AttachSessionTokens(chosen, sessionTokens, sessionLastEventAt, fetchedAt);
         }
 

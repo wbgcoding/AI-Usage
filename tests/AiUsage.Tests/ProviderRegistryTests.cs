@@ -26,10 +26,9 @@ public class ProviderRegistryTests : IDisposable
         Assert.Equal(ids.Distinct().Count(), ids.Count);
         Assert.Equal(
             new[] { "claude", "codex", "cursor", "gemini", "copilot" }.OrderBy(id => id), ids.OrderBy(id => id));
-        // The primary Claude account reads through Claude Code's own sign-in, so it has no web-session
-        // runner; Codex, Cursor and Gemini each own one from the start (their live numbers come through
-        // the app's own session), and a further Claude account adds its own.
-        Assert.Equal(["codex", "cursor", "gemini"], runners.Keys.OrderBy(key => key));
+        // Claude (Claude Code's sign-in first, the web session as the fallback), Codex, Cursor and Gemini
+        // each own a web-session runner from the start, and a further Claude account adds its own.
+        Assert.Equal(["claude", "codex", "cursor", "gemini"], runners.Keys.OrderBy(key => key));
     }
 
     /// <summary>Cursor sits behind Codex and before Gemini in every provider list - proven here
@@ -278,16 +277,17 @@ public class ProviderRegistryTests : IDisposable
     }
 
     /// <summary>The About window's read-locations panel builds Claude through this same helper
-    /// instead of a throwaway default-constructed instance, so it must name the same source the
-    /// running primary account actually reads through: the local Claude Code sign-in, never the web
-    /// session a further account would use.</summary>
+    /// instead of a throwaway default-constructed instance, so it must name every source the
+    /// running primary account actually reads through: the local Claude Code sign-in and the web
+    /// session behind it.</summary>
     [Fact]
-    public void CreatePrimaryClaudeAccount_names_the_claude_code_sign_in_not_the_web_session()
+    public void CreatePrimaryClaudeAccount_names_the_claude_code_sign_in_and_the_web_session()
     {
         var provider = ProviderRegistry.CreatePrimaryClaudeAccount();
 
         Assert.Contains(LocalizationService.Instance["About.ReadLocationClaudeCode"], provider.ReadLocations);
-        Assert.DoesNotContain(LocalizationService.Instance["About.ReadLocationWebSession"], provider.ReadLocations);
+        Assert.Contains(LocalizationService.Instance["About.ReadLocationWebSession"], provider.ReadLocations);
+        Assert.True(provider.SupportsInAppSignIn);
     }
 
     /// <summary>A second Claude account gets its own provider instance, its own web-session runner,
@@ -308,11 +308,11 @@ public class ProviderRegistryTests : IDisposable
         var accountKeys = claudeProviders.Select(p => p.AccountKey).OrderBy(key => key).ToList();
         Assert.Equal(["claude", "claude#2"], accountKeys);
 
-        // Of the Claude accounts only the further one keeps a web-session runner; the primary reads
-        // through Claude Code. Codex, Cursor and Gemini each own one of their own, independent of how
-        // many Claude accounts exist.
-        Assert.Equal(["claude#2", "codex", "cursor", "gemini"], runners.Keys.OrderBy(key => key));
-        Assert.False(runners.ContainsKey("claude"));
+        // Every Claude account keeps a web-session runner: the primary reads Claude Code first and
+        // falls back to its web session, a further one is the web session only. Codex, Cursor and
+        // Gemini each own one of their own, independent of how many Claude accounts exist.
+        Assert.Equal(["claude", "claude#2", "codex", "cursor", "gemini"], runners.Keys.OrderBy(key => key));
+        Assert.All(claudeProviders, p => Assert.True(p.SupportsInAppSignIn));
 
         var historyPaths = accountKeys.Select(AppPaths.HistoryFile).Distinct().ToList();
         Assert.Equal(2, historyPaths.Count);

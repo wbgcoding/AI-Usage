@@ -261,6 +261,87 @@ public class ClaudeProviderTests : IDisposable
         Assert.Equal("State.NotSignedIn.WebSession", snapshot.Error?.ReasonKey);
     }
 
+    private const string WebOkEnvelope =
+        "{\"status\":\"ok\",\"path\":\"/api/organizations/abc/usage\",\"body\":\"{\\\"five_hour\\\":{\\\"utilization\\\":55,\\\"resets_at\\\":1788624000}}\"}";
+
+    private static ClaudeProvider PrimaryWithBothSources(
+        Func<CancellationToken, Task<ClaudeCodeUsage>> localLogin, string webEnvelope) =>
+        new(projectsRoot: Path.Combine(FixturesDirectory, "does-not-exist"), now: () => Now,
+            new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult(webEnvelope)),
+            new AppSettings(), _ => { }, localLogin);
+
+    [Fact]
+    public void The_primary_account_with_both_sources_signs_in_through_the_web_session_and_names_both()
+    {
+        var provider = new ClaudeProvider(
+            "claude", new AppSettings(), _ => { },
+            new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult(WebOkEnvelope)), SignedInLocalLogin());
+
+        Assert.True(provider.SupportsInAppSignIn);
+        Assert.True(provider.SupportsSignOut);
+        Assert.True(provider.HasLocalSource);
+        Assert.Contains(LocalizationService.Instance["About.ReadLocationClaudeCode"], provider.ReadLocations);
+        Assert.Contains(LocalizationService.Instance["About.ReadLocationWebSession"], provider.ReadLocations);
+    }
+
+    [Fact]
+    public async Task The_web_session_answers_when_claude_code_holds_no_token()
+    {
+        var provider = PrimaryWithBothSources(
+            _ => Task.FromResult(new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NoToken)),
+            WebOkEnvelope);
+
+        AiUsage.Services.NetworkStatus.Probe = () => true;
+        try
+        {
+            var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+            Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+            Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
+            Assert.Equal(55, snapshot.Windows.Single().UsedPercent);
+        }
+        finally
+        {
+            AiUsage.Services.NetworkStatus.Probe = System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable;
+        }
+    }
+
+    [Fact]
+    public async Task A_fresh_claude_code_read_wins_and_the_web_session_is_not_asked()
+    {
+        var provider = new ClaudeProvider(
+            projectsRoot: Path.Combine(FixturesDirectory, "does-not-exist"), now: () => Now,
+            new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called")),
+            new AppSettings(), _ => { }, SignedInLocalLogin());
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.LocalLogin, snapshot.SourceKind);
+        Assert.Equal(42, snapshot.Windows.First(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+    }
+
+    [Fact]
+    public async Task With_neither_source_signed_in_the_tile_asks_for_the_web_sign_in_and_keeps_the_local_reason_word()
+    {
+        var provider = PrimaryWithBothSources(
+            _ => Task.FromResult(new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NoToken)),
+            """{"status":"not_signed_in"}""");
+
+        AiUsage.Services.NetworkStatus.Probe = () => true;
+        try
+        {
+            var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+            Assert.Equal(ProviderStatus.NotSignedIn, snapshot.Status);
+            Assert.Equal("State.NotSignedIn.WebSession", snapshot.Error?.ReasonKey);
+            Assert.Equal("no_token", snapshot.SkipReasonWord);
+        }
+        finally
+        {
+            AiUsage.Services.NetworkStatus.Probe = System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable;
+        }
+    }
+
     [Fact]
     public async Task An_expired_local_token_names_the_expired_key_not_the_generic_one()
     {

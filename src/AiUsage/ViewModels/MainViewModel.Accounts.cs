@@ -395,9 +395,9 @@ public sealed partial class MainViewModel
         {
             // Only a web-backed account gets a fresh provider, and it gets one even when the teardown
             // above failed halfway: its old runner is gone either way, and a provider left on it
-            // could never read again. An account that reads another tool's sign-in (Copilot, the
-            // primary Claude account) keeps its own provider: rebuilding it turned it into a
-            // web-only Claude account until the next start.
+            // could never read again. The primary Claude account is rebuilt the same way and keeps
+            // reading Claude Code's sign-in first; an account without any web session (Copilot) keeps
+            // its own provider.
             // Unless a removal overtook this sign-out meanwhile: that account must stay gone.
             if (hadWebSession && IsLiveAccount(accountKey))
             {
