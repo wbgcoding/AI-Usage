@@ -680,8 +680,7 @@ public sealed class SettingsStore : IDisposable
         settings.Theme = CanonicalEnumName<AppTheme>(settings.Theme, nameof(AppTheme.Nebula));
 
         // "Auto" is not an AppTheme-style enum member - it is the sentinel meaning "no manual override".
-        // A stage that no longer exists (a settings file written before the Compact stage was dropped)
-        // is not a defined member any more and so loads as "Auto".
+        // A value that is not a defined member (such as a dropped stage) loads as "Auto".
         if (settings.TileDensity != "Auto")
             settings.TileDensity = CanonicalEnumName<TileDensity>(settings.TileDensity, "Auto");
 

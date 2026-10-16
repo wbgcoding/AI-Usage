@@ -252,24 +252,10 @@ public static class AppPaths
     public static string HistoryFile(string accountKey) =>
         Path.Combine(DataDirectory, $"history-{SanitizeAccountKeyForFileName(accountKey)}.jsonl");
 
-    /// <summary>Turns an account key into a safe file/folder name fragment - "#" (the separator a
-    /// further account's key uses, see <see cref="Models.AppSettings.Accounts"/>) becomes "-", so
-    /// "claude#2" becomes "claude-2". Every other character outside letters, digits, "-" and "_"
-    /// becomes "-" as well, so a hand-edited key can never carry a path separator or "..". The one place <see cref="HistoryFile"/>, <see
-    /// cref="HistoryStore"/> and the web-session profile folder (see
-    /// <see cref="Services.ProviderRegistry.WebSessionFor"/>) all go through, so an account's file
-    /// name is never computed two different ways.
-    ///
-    /// Never returns a name with no letter or digit in it: every real account key carries its
-    /// provider id ("claude", "claude#2", ...), so that only happens for a hand-edited or corrupted
-    /// key that is empty, or built entirely from characters the loop above replaces. Two different
-    /// keys of that kind (an empty key and one made only of forbidden characters, or two keys made of
-    /// different forbidden characters) would otherwise sanitize down to the exact same name - most
-    /// dangerously, an empty key sanitizes to an empty name, and <see
-    /// cref="Web.WebViewHost.ResolveUserDataFolder"/> combining an empty name onto the shared root
-    /// folder returns that root folder itself. A short, stable hash of the untouched key is appended
-    /// in that case, keeping every one of these distinct and never empty, without changing anything
-    /// for an ordinary key.</summary>
+    /// <summary>An account key as a file name fragment: anything outside letters, digits, '-' and '_'
+    /// becomes '-' ("claude#2" -> "claude-2"). A result with no letter or digit gets a short hash of
+    /// the key appended, so it is never empty and two such keys never collide. History files and web
+    /// profile folders all go through here.</summary>
     public static string SanitizeAccountKeyForFileName(string accountKey)
     {
         var sanitized = string.Concat(accountKey.Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '-'));
@@ -288,13 +274,9 @@ public static class AppPaths
     internal static void SetOverride(string directory) => _overrideDirectory = directory;
 
     /// <summary>Test seam only: undoes <see cref="SetOverride"/> so one test's completed "move my
-    /// data" does not leak into whichever test happens to run in this process next. Falls back to
-    /// <see cref="_overrideFloorForTests"/>, never to null: <see cref="DataDirectory"/> is a
-    /// process-wide static shared with every other test in the run, so leaving it null here would let
-    /// whichever test next happens to be the first one anywhere in the process to read
-    /// <see cref="DataDirectory"/> fall through to <see cref="LazyDataDirectory"/> and resolve the real
-    /// profile folder - observed in practice as stray "Ignored a data-folder pointer..." lines
-    /// appearing in the real app.log purely from running the test suite.</summary>
+    /// data" does not leak into the next test. Falls back to
+    /// <see cref="_overrideFloorForTests"/>, never to null, so a test never resolves the real profile
+    /// folder.</summary>
     internal static void ClearOverrideForTests() => _overrideDirectory = _overrideFloorForTests;
 
     /// <summary>Test seam only: installs the one safety net an entire test run relies on - see
