@@ -487,9 +487,8 @@ public sealed class HistoryChart : FrameworkElement
             var py = MapY(point.Percent, plotHeight);
             dc.DrawEllipse(dotBrush, null, new Point(px, py), 1.5, 1.5);
 
-            var percentText = StatusTextMap.UsagePercent(point.Percent).ToString(CultureInfo.CurrentCulture);
             var timeText = HoverTime(point.At, range);
-            lines[i] = $"{label}: {StatusTextMap.FormatPercent(percentText)} · {timeText}";
+            lines[i] = $"{label}: {StatusTextMap.FormatUsagePercent(point.Percent)} · {timeText}";
         }
 
         DrawCaptionBox(dc, string.Join("\n", lines), hover.X, width, plotHeight);

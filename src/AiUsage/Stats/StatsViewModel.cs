@@ -1532,7 +1532,7 @@ public sealed partial class StatsViewModel : ObservableObject
         SubagentTokensRaw = subagentShare.SubagentTokens;
         ClaudeTokensRaw = subagentShare.ClaudeTokens;
         SubagentShareText = subagentShare.HasClaudeTokens
-            ? StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(subagentShare.Percent).ToString(CultureInfo.CurrentCulture))
+            ? StatusTextMap.FormatUsagePercent(subagentShare.Percent)
             : "";
         SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
 
@@ -1665,7 +1665,7 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     private static string FormatLimitPercent(double percent) =>
-        StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(percent).ToString(CultureInfo.CurrentCulture));
+        StatusTextMap.FormatUsagePercent(percent);
 
     /// <summary>How many pooled models the "Other" ring slice names in its hover text.</summary>
     private const int OtherModelsTooltipNames = 8;

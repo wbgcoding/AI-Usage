@@ -83,5 +83,5 @@ public static class TrayTooltipBuilder
     }
 
     private static string FormatPercent(double? percent) =>
-        percent is { } value ? StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(value).ToString(CultureInfo.CurrentCulture)) : "–";
+        percent is { } value ? StatusTextMap.FormatUsagePercent(value) : "–";
 }
