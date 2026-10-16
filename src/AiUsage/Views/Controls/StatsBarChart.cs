@@ -438,12 +438,13 @@ public sealed class StatsBarChart : FrameworkElement
 
     /// <summary>The bar index under pixel <paramref name="x"/> of a chart area <paramref
     /// name="width"/> wide holding <paramref name="barCount"/> equal slots (the same slot width <see
-    /// cref="Columns"/> itself divides the area into) - clamped to a valid index rather than -1, since
-    /// every pixel column belongs to exactly one slot. Pure so hover hit testing is unit testable
-    /// without a visual tree or a live mouse.</summary>
+    /// cref="Columns"/> itself divides the area into) - clamped to a valid index, since every pixel
+    /// column of the area belongs to exactly one slot. A negative x lies left of the area, over the
+    /// value axis labels, and is no bar (-1). Pure so hover hit testing is unit testable without a
+    /// visual tree or a live mouse.</summary>
     internal static int NearestBarIndex(double x, double width, int barCount)
     {
-        if (barCount <= 0 || width <= 0)
+        if (barCount <= 0 || width <= 0 || x < 0)
             return -1;
 
         var slot = width / barCount;

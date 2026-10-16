@@ -434,7 +434,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <see cref="MainViewModel"/> does, same split as every other provider-card control that binds
     /// to <see cref="MainViewModel.Tiles"/> directly.</summary>
     [RelayCommand]
-    private void AddAccount(string providerId) => Main.AddAccountCommand.Execute(providerId);
+    private void AddAccount(string providerId)
+    {
+        // Execute alone skips the async command's own "still running" check, and a Copilot add waits
+        // on the GitHub CLI first - a quick second click would add the same login twice.
+        if (Main.AddAccountCommand.CanExecute(providerId))
+            Main.AddAccountCommand.Execute(providerId);
+    }
 
     /// <summary>Asks whether to remove an account and whether its recorded history goes too. The
     /// Settings window sets the real confirm dialog; without one nothing is confirmed, so a missing

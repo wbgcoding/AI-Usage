@@ -710,7 +710,7 @@ public class SettingsViewModelTests : IDisposable
         vm.ExportHistoryCommand.Execute(null);
 
         Assert.True(File.Exists(exportPath));
-        Assert.StartsWith("provider,window,timestamp_utc,percent,resets_at_utc,tokens\r\n", File.ReadAllText(exportPath));
+        Assert.StartsWith("provider,window,timestamp_utc,percent,resets_at_utc,tokens,label\r\n", File.ReadAllText(exportPath));
     }
 
     [Fact]
@@ -1768,5 +1768,24 @@ public class SettingsViewModelTests : IDisposable
 
         Assert.Equal(OwnPc, settings.MachineId);
         Assert.Equal(OtherPc, Assert.Single(settings.ImportedMachines).Id);
+    }
+
+    // The Copilot add waits on the GitHub CLI first; a second click meanwhile added the same login twice.
+    [Fact]
+    public async Task A_second_add_account_click_while_the_first_still_runs_adds_nothing()
+    {
+        var (vm, _) = Build();
+        var accounts = new TaskCompletionSource<IReadOnlyList<AiUsage.Providers.LocalLogin.GitHubAccount>>();
+        vm.Main.GetGitHubAccountsAsync = _ => accounts.Task;
+        var before = vm.Main.Tiles.Count;
+
+        vm.AddAccountCommand.Execute("copilot");
+        vm.AddAccountCommand.Execute("copilot");
+        accounts.SetResult([new("github.com", "second-user", Active: false)]);
+        if (vm.Main.AddAccountCommand.ExecutionTask is { } running)
+            await running;
+
+        Assert.Equal(before + 1, vm.Main.Tiles.Count);
+        vm.Dispose();
     }
 }
