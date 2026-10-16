@@ -1092,20 +1092,19 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void SaveNow_writes_through_a_temp_file_that_carries_this_processs_id()
+    public void SaveNow_leaves_no_temp_file_behind_when_the_move_fails()
     {
         var directory = TempDirectory();
         var settingsPath = Path.Combine(directory, "settings.json");
         // The final path is itself a directory, so writing the temp file still succeeds but the
-        // closing File.Move fails - leaving the process-id-qualified temp file behind to inspect,
-        // the same abandoned-file shape a process killed at that exact moment would leave.
+        // closing move fails.
         Directory.CreateDirectory(settingsPath);
         var store = new SettingsStore(directory);
 
         var saved = store.SaveNow(new AppSettings());
 
         Assert.False(saved);
-        Assert.True(File.Exists($"{settingsPath}.{Environment.ProcessId}.tmp"));
+        Assert.Empty(Directory.GetFiles(directory, "*.tmp"));
     }
 
     [Fact]

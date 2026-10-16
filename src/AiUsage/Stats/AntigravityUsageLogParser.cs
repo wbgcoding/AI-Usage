@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using AiUsage.Providers.Parsing;
 using Microsoft.Data.Sqlite;
 
 namespace AiUsage.Stats;
@@ -179,35 +180,6 @@ public static class AntigravityUsageLogParser
         return "";
     }
 
-    /// <summary>Opens a conversation file the way <see cref="ReadConversation"/> reads it: read-only, no
-    /// pooled connection, a one second lock wait, and with nothing the file declares (generated
-    /// columns, views, triggers) allowed to run with the app's rights.</summary>
-    internal static SqliteConnection OpenForeignDatabase(string path)
-    {
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = path,
-            Mode = SqliteOpenMode.ReadOnly,
-            Pooling = false,
-            DefaultTimeout = 1,
-        }.ToString();
-
-        var connection = new SqliteConnection(connectionString);
-        try
-        {
-            connection.Open();
-            using var pragma = connection.CreateCommand();
-            pragma.CommandText = "PRAGMA trusted_schema = OFF";
-            pragma.ExecuteNonQuery();
-            return connection;
-        }
-        catch
-        {
-            connection.Dispose();
-            throw;
-        }
-    }
-
     /// <summary>Reads the model calls of the conversation file at <paramref name="path"/> whose row
     /// index is at least <paramref name="fromIndex"/>, at most <see cref="MaxRowsPerRead"/> rows per
     /// call. The file is opened read-only without a pooled connection and with a one second lock wait,
@@ -219,7 +191,7 @@ public static class AntigravityUsageLogParser
     public static ReadResult ReadConversation(
         string path, long fromIndex, DateTime fileWriteTimeUtc, DateTime? utcNow = null, CancellationToken cancellationToken = default)
     {
-        using var connection = OpenForeignDatabase(path);
+        using var connection = ForeignDatabase.Open(path);
         var clock = Stopwatch.StartNew();
 
         // A view or virtual table could generate rows without end; only plain tables are read.

@@ -1298,6 +1298,7 @@ public class SettingsViewModelTests : IDisposable
             Assert.True(File.Exists(Path.Combine(destinationDirectory, "settings.json.bak")));
             Assert.True(File.Exists(Path.Combine(destinationDirectory, "history-codex.jsonl")));
             Assert.True(File.Exists(Path.Combine(destinationDirectory, "history-claude.jsonl")));
+            Assert.True(File.Exists(Path.Combine(destinationDirectory, AppPaths.DataMarkerFileName)));
             // Nothing is ever deleted from the old folder.
             Assert.True(File.Exists(Path.Combine(sourceDirectory, "settings.json")));
             Assert.True(File.Exists(Path.Combine(sourceDirectory, "history-codex.jsonl")));

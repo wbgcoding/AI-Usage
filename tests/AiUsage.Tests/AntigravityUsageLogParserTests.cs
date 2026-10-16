@@ -1,3 +1,4 @@
+using AiUsage.Providers.Parsing;
 using System.Security.Cryptography;
 using System.Text;
 using AiUsage.Stats;
@@ -292,7 +293,7 @@ public class AntigravityUsageLogParserTests
         var path = Path.Combine(directory, "conversation.db");
         AntigravityFixtures.CreateDatabase(path, Start);
 
-        using var connection = AntigravityUsageLogParser.OpenForeignDatabase(path);
+        using var connection = ForeignDatabase.Open(path);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA trusted_schema";
 

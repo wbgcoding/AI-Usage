@@ -729,6 +729,60 @@ public class HistoryStoreTests : IDisposable
         Assert.Equal([1.0, 2.0, 3.0], during.Select(p => p.Percent));
     }
 
+    private static string[] LinesWithInRangePointsAfterAClockStepBack() =>
+    [
+        Line(Now.AddHours(-2), "FiveHour", 1),
+        Line(Now.AddHours(-1), "FiveHour", 2),
+        Line(Now.AddMinutes(-30), "FiveHour", 3),
+        // The clock was set back, and the points appended afterwards are still inside the range.
+        Line(Now.AddHours(-2.5), "FiveHour", 4),
+        Line(Now.AddHours(-2.4), "FiveHour", 5),
+    ];
+
+    [Fact]
+    public void Load_returns_the_points_in_time_order_after_a_clock_step_back()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "history-codex.jsonl"), LinesWithInRangePointsAfterAClockStepBack());
+        var store = new HistoryStore(directory, () => Now);
+
+        var points = store.Load("codex", TimeSpan.FromHours(3));
+
+        Assert.Equal([4.0, 5.0, 1.0, 2.0, 3.0], points.Select(p => p.Percent));
+        Assert.Equal(points.OrderBy(p => p.Timestamp).Select(p => p.Percent), points.Select(p => p.Percent));
+    }
+
+    [Fact]
+    public void The_unlocked_read_returns_the_points_in_time_order_after_a_clock_step_back()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "history-codex.jsonl"), LinesWithInRangePointsAfterAClockStepBack());
+        var store = new HistoryStore(directory, () => Now);
+        IReadOnlyList<HistoryPoint>? during = null;
+        store.InsideRewriteLockForTest = provider => during = store.Load(provider, TimeSpan.FromHours(3));
+
+        store.Prune("codex", retentionDays: 30);
+
+        Assert.NotNull(during);
+        Assert.Equal([4.0, 5.0, 1.0, 2.0, 3.0], during.Select(p => p.Percent));
+    }
+
+    [Fact]
+    public void Points_with_the_same_time_keep_their_file_order()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "history-codex.jsonl"),
+        [
+            Line(Now.AddHours(-1), "FiveHour", 1),
+            Line(Now.AddMinutes(-30), "FiveHour", 2),
+            Line(Now.AddMinutes(-30), "FiveHour", 3),
+            Line(Now.AddMinutes(-40), "FiveHour", 4),
+        ]);
+        var store = new HistoryStore(directory, () => Now);
+
+        Assert.Equal([1.0, 4.0, 2.0, 3.0], store.Load("codex", TimeSpan.FromHours(3)).Select(p => p.Percent));
+    }
+
     private readonly List<DisposableTestDirectory> _tempDirectories = [];
 
     private string TempDirectory()

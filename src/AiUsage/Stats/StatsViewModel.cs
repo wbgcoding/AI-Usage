@@ -1217,19 +1217,22 @@ public sealed partial class StatsViewModel : ObservableObject
 
         var source = _sourceRecords;
         var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, source);
-        if (_limitInputs is { } held && held.From == from && held.To == to)
+        if (HeldFor(from, to) is { } held && IsFresh(held))
         {
             RecomputeFrom(source);
             return;
         }
 
-        // A period the quota history was not read for yet: read it on a pool thread first.
+        // A period the quota history was not read for yet (or not lately): read it on a pool thread
+        // first. A pick, an index snapshot or any rebuild that follows supersedes this load.
         var generation = ++_selectionGeneration;
         var inputs = await Task.Run(() => LoadLimitInputs(from, to));
-        if (generation == _selectionGeneration)
-            RecomputeFrom(_sourceRecords, inputs);
+        if (generation == _selectionGeneration && ReferenceEquals(source, _sourceRecords))
+            RecomputeFrom(source, inputs);
     }
 
+    // Bumped by every selection change and every rebuild (which is what replaces the source): a
+    // history load still on its way publishes only if nothing happened since it started.
     private int _selectionGeneration;
 
     // Set once records read from the store have been shown; _allRecords is empty-but-valid before it.
@@ -1281,6 +1284,8 @@ public sealed partial class StatsViewModel : ObservableObject
                     _allSessions = sessions;
                     RecomputeFrom(all, inputs);
                 }
+                else
+                    AdoptFreshInputs(inputs);
 
                 RecordsLoaded = true;
             }
@@ -1321,9 +1326,10 @@ public sealed partial class StatsViewModel : ObservableObject
     /// grouping change.</summary>
     public void Recompute()
     {
-        _limitInputs = null;
         _allSessions = LoadSessions();
-        RecomputeFrom(LoadRecords());
+        var records = LoadRecords();
+        var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, records);
+        RecomputeFrom(records, LoadLimitInputs(from, to));
         RecordsLoaded = true;
         IsLoading = false;
     }
@@ -1357,8 +1363,9 @@ public sealed partial class StatsViewModel : ObservableObject
     private void RebuildFrom(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
     {
         _sourceRecords = source;
+        ++_selectionGeneration;
         if (inputs is not null)
-            _limitInputs = inputs;
+            AdoptLimitInputs(inputs);
         OnPropertyChanged(nameof(ImportedFromText));
         OnPropertyChanged(nameof(HasImportedFrom));
         var all = ApplyFilters(source);
@@ -1531,7 +1538,14 @@ public sealed partial class StatsViewModel : ObservableObject
             })
             .ToList();
 
-        LimitGroups = BuildLimitGroups(from, to, loc);
+        // The quota history is never read here: the inputs held for this period are used, and a period
+        // without fresh ones is read on a pool thread and filled in when it arrives.
+        _shownPeriod = (from, to);
+        var held = HeldFor(from, to);
+        if (held is not null)
+            LimitGroups = BuildLimitGroups(held, loc);
+        if (held is null || !IsFresh(held))
+            ScheduleLimitRefresh(source, from, to);
 
         // The two donut charts - provider stays in the fixed StackedProviderOrder (same color
         // convention the stacked charts already use), model is sorted by size with everything past
@@ -1634,9 +1648,76 @@ public sealed partial class StatsViewModel : ObservableObject
     private sealed record LimitInputs(
         DateOnly From, DateOnly To,
         IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Series,
-        IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Weekly);
+        IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Weekly,
+        DateTime LoadedUtc)
+    {
+        public bool SameDataAs(LimitInputs other) =>
+            From == other.From && To == other.To && SameLists(Series, other.Series) && SameLists(Weekly, other.Weekly);
+
+        private static bool SameLists(
+            IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> a, IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> b) =>
+            a.Count == b.Count && a.All(pair => b.TryGetValue(pair.Key, out var other) && pair.Value.SequenceEqual(other));
+    }
 
     private LimitInputs? _limitInputs;
+
+    // The period the last rebuild drew, for inputs that arrive later.
+    private (DateOnly From, DateOnly To) _shownPeriod;
+
+    /// <summary>How long quota history already read counts as current when a period is picked again.</summary>
+    internal TimeSpan HeldInputsMaxAge { get; set; } = TimeSpan.FromSeconds(60);
+
+    private LimitInputs? HeldFor(DateOnly from, DateOnly to) =>
+        _limitInputs is { } held && held.From == from && held.To == to ? held : null;
+
+    private bool IsFresh(LimitInputs inputs) => DateTime.UtcNow - inputs.LoadedUtc < HeldInputsMaxAge;
+
+    private void AdoptLimitInputs(LimitInputs inputs)
+    {
+        _limitInputs = inputs;
+        _perPercent.Clear();
+    }
+
+    /// <summary>A read made for a rebuild that was then skipped as unchanged: its inputs are newer than
+    /// the held ones, so they replace them, and the limits are redrawn only when the history moved.</summary>
+    private void AdoptFreshInputs(LimitInputs inputs)
+    {
+        if (inputs.From != _shownPeriod.From || inputs.To != _shownPeriod.To)
+            return;
+
+        var changed = _limitInputs is not { } held || !held.SameDataAs(inputs);
+        AdoptLimitInputs(inputs);
+        if (changed)
+            LimitGroups = BuildLimitGroups(inputs, LocalizationService.Instance);
+    }
+
+    /// <summary>Reads the quota history of a period on a pool thread and, if nothing has been rebuilt
+    /// or picked meanwhile, redraws the limits section with it.</summary>
+    private void ScheduleLimitRefresh(IReadOnlyList<StatsRecord> source, DateOnly from, DateOnly to) =>
+        _limitRefresh = RefreshLimitsAsync(source, from, to, _selectionGeneration);
+
+    private Task _limitRefresh = Task.CompletedTask;
+
+    /// <summary>The refresh started by the last rebuild, for a test to wait on.</summary>
+    internal Task LimitRefreshForTest => _limitRefresh;
+
+    private async Task RefreshLimitsAsync(IReadOnlyList<StatsRecord> source, DateOnly from, DateOnly to, int generation)
+    {
+        try
+        {
+            var inputs = await Task.Run(() => LoadLimitInputs(from, to));
+            if (generation != _selectionGeneration || !ReferenceEquals(source, _sourceRecords))
+                return;
+
+            AdoptLimitInputs(inputs);
+            LimitGroups = BuildLimitGroups(inputs, LocalizationService.Instance);
+        }
+        catch (Exception ex)
+        {
+            // Nothing awaits this task: a failed read leaves the limits as they were.
+            LogService.Shared.LogError($"Stats limits could not be read ({ex.GetType().Name}): {ex.Message}");
+        }
+    }
 
     private static (DateTimeOffset Start, DateTimeOffset End) LimitWindow(DateOnly from, DateOnly to) =>
         (from == DateOnly.MinValue ? DateTimeOffset.MinValue : new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue)),
@@ -1659,19 +1740,17 @@ public sealed partial class StatsViewModel : ObservableObject
         var now = DateTimeOffset.Now;
         var weekly = new[] { StatsIndexer.ClaudeProviderId, StatsIndexer.CodexProviderId }
             .ToDictionary(id => id, id => load(id, now.AddDays(-StatsTokensPerPercent.LookbackDays), now));
-        return new LimitInputs(from, to, series, weekly);
+        return new LimitInputs(from, to, series, weekly, DateTime.UtcNow);
     }
 
     /// <summary>The limits section: the quota history of the shown providers (the filtered one, else
     /// every provider) between the first and last day of the range, summed per window, grouped by
     /// provider.</summary>
-    private List<StatsLimitGroupViewModel> BuildLimitGroups(DateOnly from, DateOnly to, LocalizationService loc)
+    private List<StatsLimitGroupViewModel> BuildLimitGroups(LimitInputs held, LocalizationService loc)
     {
-        var (start, end) = LimitWindow(from, to);
         IEnumerable<string> providerIds = HasProviderFilter ? _selectedProviders : ProviderCoverage.AllProviderIds;
-        var held = _limitInputs is { } inputs && inputs.From == from && inputs.To == to ? inputs : null;
         var series = providerIds
-            .Select(id => (id, held is not null && held.Series.TryGetValue(id, out var points) ? points : LoadHistory(id, start, end)))
+            .Select(id => (id, held.Series.TryGetValue(id, out var points) ? points : []))
             .ToList();
         return StatsLimitsAggregator.Build(series)
             .GroupBy(row => row.ProviderId)
@@ -1736,12 +1815,9 @@ public sealed partial class StatsViewModel : ObservableObject
         if (_perPercent.TryGetValue(providerId, out var cached))
             return cached;
 
-        var now = DateTimeOffset.Now;
         var since = DateOnly.FromDateTime(DateTime.Now.AddDays(-StatsTokensPerPercent.LookbackDays));
         var records = _sourceRecords.Where(record => record.Provider == providerId && record.Day >= since).ToList();
-        var weeklyPoints = _limitInputs is { } inputs && inputs.Weekly.TryGetValue(providerId, out var held)
-            ? held
-            : LoadHistory(providerId, now.AddDays(-StatsTokensPerPercent.LookbackDays), now);
+        IReadOnlyList<HistoryPoint> weeklyPoints = _limitInputs is { } inputs && inputs.Weekly.TryGetValue(providerId, out var held) ? held : [];
         var weekly = weeklyPoints
             .Where(point => point.Window == WindowKind.Weekly && StatsLimitsAggregator.LabelKeyOf(point) == "Window_Weekly")
             .ToList();

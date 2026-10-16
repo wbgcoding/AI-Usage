@@ -754,13 +754,41 @@ begin
        SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+const
+  { Written by the app into a data folder the user moved the data to; see AppPaths.DataMarkerFileName. }
+  DataMarkerFile = 'ai-usage-data.marker';
+  DataMarkerStart = 'AI-Usage data folder';
+  NameChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
+  TempChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.';
+
+{ True when Path is Root itself or lies inside it. }
+function IsSameOrUnder(const Path, Root: String): Boolean;
+var
+  Prefix: String;
+begin
+  Result := False;
+  if Root = '' then
+    Exit;
+  Prefix := AddBackslash(RemoveBackslash(Root));
+  Result := CompareText(Copy(AddBackslash(Path), 1, Length(Prefix)), Prefix) = 0;
+end;
+
+{ The path without any trailing backslash, drive roots included ('C:\' becomes 'C:'). }
+function TrimBackslashes(const Path: String): String;
+begin
+  Result := Path;
+  while (Length(Result) > 0) and (Result[Length(Result)] = '\') do
+    Delete(Result, Length(Result), 1);
+end;
+
 { The data folder the app was moved to in Settings: the full path in location.txt of the default data
-  folder, or '' when there is none or it is not a plain absolute path. Never the default folders
-  themselves, never a drive root. }
+  folder, or '' when there is none or it is not a plain absolute path. Never a drive or share root,
+  a folder that holds the default data folders, the user profile folder itself, nor anything inside
+  Windows or Program Files. }
 function MovedDataDir(const PointerFile, DataDir, LocalDir: String): String;
 var
   Raw: AnsiString;
-  Path: String;
+  Path, Profile: String;
   I: Integer;
 begin
   Result := '';
@@ -774,10 +802,27 @@ begin
       Exit;
   if not (((Path[2] = ':') and (Path[3] = '\')) or ((Path[1] = '\') and (Path[2] = '\'))) then
     Exit;
-  Path := RemoveBackslash(Path);
-  if (CompareText(Path, RemoveBackslash(DataDir)) = 0) or (CompareText(Path, RemoveBackslash(LocalDir)) = 0) then
+  Path := TrimBackslashes(ExpandFileName(Path));
+  if (Length(Path) < 4) or (CompareText(Path, ExtractFileDrive(Path)) = 0) then
+    Exit;
+  if IsSameOrUnder(DataDir, Path) or IsSameOrUnder(LocalDir, Path) then
+    Exit;
+  Profile := TrimBackslashes(GetEnv('USERPROFILE'));
+  if (Profile <> '') and (CompareText(Path, Profile) = 0) then
+    Exit;
+  if IsSameOrUnder(Path, ExpandConstant('{win}')) or IsSameOrUnder(Path, GetEnv('ProgramFiles'))
+     or IsSameOrUnder(Path, GetEnv('ProgramFiles(x86)')) or IsSameOrUnder(Path, GetEnv('ProgramW6432')) then
     Exit;
   Result := Path;
+end;
+
+{ True when the folder carries the marker the app wrote: only then is anything in it the app's to remove. }
+function HasDataMarker(const Folder: String): Boolean;
+var
+  Raw: AnsiString;
+begin
+  Result := LoadStringFromFile(AddBackslash(Folder) + DataMarkerFile, Raw)
+    and (Pos(DataMarkerStart, String(Raw)) = 1);
 end;
 
 { Deletes one file by its exact name (a link is removed itself, never followed). }
@@ -787,67 +832,82 @@ begin
     DeleteFile(AddBackslash(Folder) + Name);
 end;
 
-{ Deletes the files of Folder matching Pattern (the app's own naming schemes only). }
-procedure DeleteOwnFiles(const Folder, Pattern: String);
+{ The names in Folder matching Pattern: files, or real folders (never a link) when Dirs is set. }
+function ListEntries(const Folder, Pattern: String; Dirs: Boolean): TStringList;
 var
   FindRec: TFindRec;
-  Names: TStringList;
+  IsDir, IsLink: Boolean;
+begin
+  Result := TStringList.Create;
+  if FindFirst(AddBackslash(Folder) + Pattern, FindRec) then
+  begin
+    try
+      repeat
+        IsDir := (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0;
+        IsLink := (FindRec.Attributes and FILE_ATTRIBUTE_REPARSE_POINT) <> 0;
+        if Dirs then
+        begin
+          if IsDir and not IsLink then
+            Result.Add(FindRec.Name);
+        end
+        else if not IsDir then
+          Result.Add(FindRec.Name);
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
+{ True when every character of Text is one of Allowed and its length is within the bounds. }
+function ConsistsOf(const Text, Allowed: String; MinLen, MaxLen: Integer): Boolean;
+var
   I: Integer;
 begin
-  Names := TStringList.Create;
+  Result := (Length(Text) >= MinLen) and (Length(Text) <= MaxLen);
+  if Result then
+    for I := 1 to Length(Text) do
+      if Pos(Text[I], Allowed) = 0 then
+        Result := False;
+end;
+
+{ Deletes the files of Folder named Prefix + something + Suffix where the something is made of the
+  allowed characters only and, when given, holding Contains (the app's own naming schemes, never a file of
+  the user's that merely looks alike). }
+procedure DeleteOwnFiles(const Folder, Prefix, Suffix, Allowed, Contains: String; MinLen, MaxLen: Integer);
+var
+  Names: TStringList;
+  Name, Middle: String;
+  I: Integer;
+begin
+  Names := ListEntries(Folder, Prefix + '*' + Suffix, False);
   try
-    if FindFirst(AddBackslash(Folder) + Pattern, FindRec) then
+    for I := 0 to Names.Count - 1 do
     begin
-      try
-        repeat
-          if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then
-            Names.Add(FindRec.Name);
-        until not FindNext(FindRec);
-      finally
-        FindClose(FindRec);
+      Name := Names[I];
+      if (Length(Name) >= Length(Prefix) + Length(Suffix))
+         and (CompareText(Copy(Name, 1, Length(Prefix)), Prefix) = 0)
+         and (CompareText(Copy(Name, Length(Name) - Length(Suffix) + 1, Length(Suffix)), Suffix) = 0) then
+      begin
+        Middle := Copy(Name, Length(Prefix) + 1, Length(Name) - Length(Prefix) - Length(Suffix));
+        if ConsistsOf(Middle, Allowed, MinLen, MaxLen) and ((Contains = '') or (Pos(Contains, Middle) > 0)) then
+          DeleteFile(AddBackslash(Folder) + Name);
       end;
     end;
-    for I := 0 to Names.Count - 1 do
-      DeleteFile(AddBackslash(Folder) + Names[I]);
   finally
     Names.Free;
   end;
 end;
 
-{ Deletes the folders of Folder matching Pattern with everything inside; real folders only, no link. }
-procedure DeleteOwnFolders(const Folder, Pattern: String);
-var
-  FindRec: TFindRec;
-  Names: TStringList;
-  I: Integer;
+{ A file the app writes through a temporary name beside it: Name.<something>.tmp. }
+procedure DeleteOwnTemps(const Folder, Name: String);
 begin
-  Names := TStringList.Create;
-  try
-    if FindFirst(AddBackslash(Folder) + Pattern, FindRec) then
-    begin
-      try
-        repeat
-          if ((FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0)
-             and ((FindRec.Attributes and FILE_ATTRIBUTE_REPARSE_POINT) = 0) then
-            Names.Add(FindRec.Name);
-        until not FindNext(FindRec);
-      finally
-        FindClose(FindRec);
-      end;
-    end;
-    for I := 0 to Names.Count - 1 do
-      DelTree(AddBackslash(Folder) + Names[I], True, True, True);
-  finally
-    Names.Free;
-  end;
+  DeleteOwnFiles(Folder, Name + '.', '.tmp', TempChars, '', 1, 40);
 end;
 
-{ Removes from a moved data folder only what the app itself writes there, by name, then the folder
-  itself if nothing else is left in it. Files of the user, and the folder with them, stay. }
-procedure RemoveOwnDataEntries(const Folder: String);
+{ Every file the app writes into a data folder (or a set-aside, staging or second-instance folder of it). }
+procedure DeleteOwnDataFiles(const Folder: String);
 begin
-  if not DirExists(Folder) then
-    Exit;
   DeleteOwnFile(Folder, 'settings.json');
   DeleteOwnFile(Folder, 'settings.json.bak');
   DeleteOwnFile(Folder, 'notifications.json');
@@ -861,11 +921,121 @@ begin
   DeleteOwnFile(Folder, 'restore-pending.txt');
   DeleteOwnFile(Folder, 'restore-journal.json');
   DeleteOwnFile(Folder, 'location.txt');
-  DeleteOwnFiles(Folder, 'history-*.jsonl');
-  DeleteOwnFiles(Folder, 'stats.v*.bak');
-  DeleteOwnFolders(Folder, 'logs');
-  DeleteOwnFolders(Folder, 'restore-staging');
-  DeleteOwnFolders(Folder, 'before-restore-*');
+  DeleteOwnFile(Folder, 'toast-icon.png');
+  DeleteOwnTemps(Folder, 'settings.json');
+  DeleteOwnTemps(Folder, 'notifications.json');
+  DeleteOwnTemps(Folder, 'status.json');
+  DeleteOwnTemps(Folder, 'project-colors.json');
+  DeleteOwnTemps(Folder, 'restore-pending.txt');
+  DeleteOwnTemps(Folder, 'restore-journal.json');
+  DeleteOwnFiles(Folder, 'history-', '.jsonl', NameChars, '', 1, 100);
+  DeleteOwnFiles(Folder, 'history-', '.tmp', TempChars, '.jsonl.', 8, 150);
+  DeleteOwnFiles(Folder, 'stats.v', '.bak', '0123456789', '', 1, 3);
+  DeleteOwnFiles(Folder, 'stats.v', '.bak.tmp', '0123456789', '', 1, 3);
+end;
+
+{ True for before-restore-yyyymmdd-hhmmss and before-restore-yyyymmdd-hhmmss-n (n up to three digits). }
+function IsSetAsideName(const Name: String): Boolean;
+var
+  Rest: String;
+begin
+  Result := False;
+  if CompareText(Copy(Name, 1, 15), 'before-restore-') <> 0 then
+    Exit;
+  Rest := Copy(Name, 16, Length(Name));
+  if (Length(Rest) < 15) or (Rest[9] <> '-') then
+    Exit;
+  if not (ConsistsOf(Copy(Rest, 1, 8), '0123456789', 8, 8) and ConsistsOf(Copy(Rest, 10, 6), '0123456789', 6, 6)) then
+    Exit;
+  if Length(Rest) = 15 then
+    Result := True
+  else
+    Result := (Rest[16] = '-') and ConsistsOf(Copy(Rest, 17, 3), '0123456789', 1, 3);
+end;
+
+{ Empties a sub-folder of what the app wrote there, then removes it if nothing else is left in it. }
+procedure RemoveOwnSubFolder(const Folder, Name: String);
+var
+  Sub: String;
+  Names: TStringList;
+  Found: Boolean;
+begin
+  Names := ListEntries(Folder, Name, True);
+  try
+    Found := Names.Count > 0;
+  finally
+    Names.Free;
+  end;
+  if not Found then
+    Exit;
+  Sub := AddBackslash(Folder) + Name;
+  if Name = 'logs' then
+  begin
+    DeleteOwnFile(Sub, 'app.log');
+    DeleteOwnFiles(Sub, 'app.', '.log', '0123456789', '', 1, 3);
+  end
+  else if Name = 'cache' then
+  begin
+    DeleteOwnFiles(Sub, 'antigravity-', '.vscdb', TempChars, '', 1, 100);
+    DeleteOwnFiles(Sub, 'antigravity-', '.vscdb-wal', TempChars, '', 1, 100);
+    DeleteOwnFiles(Sub, 'antigravity-', '.vscdb-shm', TempChars, '', 1, 100);
+    DeleteOwnFiles(Sub, 'antigravity-', '.vscdb-journal', TempChars, '', 1, 100);
+  end
+  else
+  begin
+    DeleteOwnDataFiles(Sub);
+    DeleteOwnFile(Sub, DataMarkerFile);
+  end;
+  RemoveDir(Sub);
+end;
+
+{ Removes from a data folder only what the app itself writes there: its exact file names, the files of
+  its own naming schemes inside its own sub-folders, then each emptied sub-folder. Never a recursive
+  delete; whatever else lies there stays. The second-instance folder inside it holds the same kinds. }
+procedure RemoveOwnEntries(const Folder: String; Nested: Boolean);
+var
+  Names: TStringList;
+  I: Integer;
+  Second: String;
+begin
+  DeleteOwnDataFiles(Folder);
+  RemoveOwnSubFolder(Folder, 'logs');
+  RemoveOwnSubFolder(Folder, 'restore-staging');
+  RemoveOwnSubFolder(Folder, 'cache');
+  Names := ListEntries(Folder, 'before-restore-*', True);
+  try
+    for I := 0 to Names.Count - 1 do
+      if IsSetAsideName(Names[I]) then
+        RemoveOwnSubFolder(Folder, Names[I]);
+  finally
+    Names.Free;
+  end;
+  if not Nested then
+  begin
+    Second := AddBackslash(Folder) + 'second-instance';
+    Names := ListEntries(Folder, 'second-instance', True);
+    try
+      if Names.Count > 0 then
+      begin
+        RemoveOwnEntries(Second, True);
+        DeleteOwnFile(Second, DataMarkerFile);
+        RemoveDir(Second);
+      end;
+    finally
+      Names.Free;
+    end;
+  end;
+end;
+
+{ A data folder the user moved the data to. Touched only when it carries the marker the app wrote into it;
+  the marker goes last, then the folder itself if nothing else is left. Files of the user, and the folder
+  with them, stay. }
+procedure RemoveOwnDataEntries(const Folder: String);
+begin
+  if not DirExists(Folder) or not HasDataMarker(Folder) then
+    Exit;
+  RemoveOwnEntries(Folder, False);
+  DeleteOwnFile(Folder, DataMarkerFile);
   RemoveDir(Folder);
 end;
 
@@ -876,7 +1046,7 @@ end;
   the exact failure mode /SUPPRESSMSGBOXES does not prevent. }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  DataDir, LocalDir, MovedDir: String;
+  DataDir, LocalDir, MovedDir, SecondDir: String;
 begin
   if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
   begin
@@ -887,11 +1057,14 @@ begin
       begin
         { A data folder moved in Settings is named by location.txt, which goes away with DataDir. }
         MovedDir := MovedDataDir(AddBackslash(DataDir) + 'location.txt', DataDir, LocalDir);
+        SecondDir := MovedDataDir(AddBackslash(DataDir) + 'second-instance\location.txt', DataDir, LocalDir);
         DelTree(DataDir, True, True, True);
         { The browser profiles of the web providers (cookies, tokens) and the setup logs. }
         DelTree(LocalDir, True, True, True);
         if MovedDir <> '' then
           RemoveOwnDataEntries(MovedDir);
+        if (SecondDir <> '') and (CompareText(SecondDir, MovedDir) <> 0) then
+          RemoveOwnDataEntries(SecondDir);
       end;
   end;
 end;

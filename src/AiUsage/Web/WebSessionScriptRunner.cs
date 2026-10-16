@@ -421,9 +421,18 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         }
         catch
         {
-            await host.DisposeAsync();
             _host = null;
             _ready = null;
+            try
+            {
+                await host.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                // The start's own failure is what the caller gets, not the failure of closing its host.
+                LogService.Shared.LogError($"Disposing the hidden browser of a failed start failed ({ex.GetType().Name}).");
+            }
+
             throw;
         }
     }
@@ -462,7 +471,15 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         {
             var host = _host;
             _host = null;
-            await host.DisposeAsync();
+            try
+            {
+                await host.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                // The caller goes on to delete the profile folder; a browser that cannot close must not stop that.
+                LogService.Shared.LogError($"Disposing the hidden browser failed ({ex.GetType().Name}).");
+            }
         }
     }
 }

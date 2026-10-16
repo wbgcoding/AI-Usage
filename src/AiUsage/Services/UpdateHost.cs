@@ -181,9 +181,20 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     private const string RelaunchSwitch = " /RELAUNCH=1";
 
-    private static bool SameFolder(string? recorded, string directory) =>
-        !string.IsNullOrWhiteSpace(recorded)
-        && Storage.AppPaths.SameDirectory(recorded.Trim(), directory);
+    private static bool SameFolder(string? recorded, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(recorded)) return false;
+        var path = recorded.Trim();
+        try
+        {
+            // A relative value would resolve against the current folder and can name the wrong install.
+            return Path.IsPathFullyQualified(path) && Storage.AppPaths.SameDirectory(path, directory);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
 
     private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{9FF5FEED-5C44-428A-97A9-028E7614B137}_is1";
 

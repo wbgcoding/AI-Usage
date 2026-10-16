@@ -251,6 +251,47 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task A_host_that_fails_to_close_after_a_failed_start_keeps_the_start_failure_and_the_next_call_starts_fresh()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost { DisposeFails = starts == 1 };
+            current.CompleteNavigate(starts > 1);
+            return current;
+        });
+
+        // The failure of the start reaches the caller, not the failure of closing the half-built host.
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.DoesNotContain("close failed", failure.Message, StringComparison.Ordinal);
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("answer");
+
+        Assert.Equal("answer", await secondCall);
+        Assert.Equal(2, starts);
+    }
+
+    [Fact]
+    public async Task Disposing_the_runner_does_not_throw_when_the_host_fails_to_close()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost { DisposeFails = true };
+            current.CompleteNavigate(true);
+            return current;
+        });
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("answer");
+        await call;
+
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
     public async Task A_script_that_times_out_disposes_the_host_and_starts_a_fresh_one_for_the_next_call()
     {
         var starts = 0;

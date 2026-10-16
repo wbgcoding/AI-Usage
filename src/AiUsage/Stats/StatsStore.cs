@@ -1454,8 +1454,77 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>Replaces every claim with the given ones in one transaction: the files in the order
+    /// given (the first to hold a response owns it). Used by the one-time owner pass, which runs
+    /// before the walk writes any claim, so a claim found here is a leftover of an earlier unfinished
+    /// pass. False when nothing was written.</summary>
+    public bool ReplaceClaudeClaims(IReadOnlyList<(string Path, IReadOnlyCollection<long> Hashes)> claims)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return false;
+
+            using var transaction = connection.BeginTransaction();
+            using (var clear = connection.CreateCommand())
+            {
+                clear.Transaction = transaction;
+                clear.CommandText = "DELETE FROM claude_message";
+                clear.ExecuteNonQuery();
+            }
+
+            foreach (var (path, hashes) in claims)
+                ClaimClaudeHashesWithinTransaction(connection, transaction, path, hashes);
+            transaction.Commit();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>How many runs in a row the one-time pass <paramref name="pass"/> has now waited for an
+    /// unreadable file, this one included; null when the count cannot be stored.</summary>
+    public int? NoteBlockedRun(string pass)
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using var transaction = connection.BeginTransaction();
+            using var read = connection.CreateCommand();
+            read.Transaction = transaction;
+            read.CommandText = "SELECT value FROM meta WHERE key = $key";
+            read.Parameters.AddWithValue("$key", BlockedRunsPrefix + pass);
+            var runs = int.TryParse(read.ExecuteScalar() as string, NumberStyles.Integer, CultureInfo.InvariantCulture, out var before) ? before + 1 : 1;
+            using var write = connection.CreateCommand();
+            write.Transaction = transaction;
+            write.CommandText = "INSERT OR REPLACE INTO meta (key, value) VALUES ($key, $value)";
+            write.Parameters.AddWithValue("$key", BlockedRunsPrefix + pass);
+            write.Parameters.AddWithValue("$value", runs.ToString(CultureInfo.InvariantCulture));
+            write.ExecuteNonQuery();
+            transaction.Commit();
+            return runs;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
+    // One meta row per one-time pass that waited for an unreadable file: the number of runs so far.
+    private const string BlockedRunsPrefix = "pass_blocked_runs|";
+
     private static void ClaimClaudeKeysWithinTransaction(
-        SqliteConnection connection, SqliteTransaction transaction, string path, IReadOnlyCollection<string> keys)
+        SqliteConnection connection, SqliteTransaction transaction, string path, IReadOnlyCollection<string> keys) =>
+        ClaimClaudeHashesWithinTransaction(connection, transaction, path, keys.Select(ClaudeKeyHash));
+
+    private static void ClaimClaudeHashesWithinTransaction(
+        SqliteConnection connection, SqliteTransaction transaction, string path, IEnumerable<long> hashes)
     {
         // Rows are never pruned: a resumed copy of a transcript that is gone must still be recognised.
         using (var add = connection.CreateCommand())
@@ -1481,9 +1550,9 @@ public sealed class StatsStore
         var hash = AddParameter(command, "$hash", SqliteType.Integer);
         command.Parameters.AddWithValue("$file", file);
         command.Prepare();
-        foreach (var value in keys)
+        foreach (var value in hashes)
         {
-            hash.Value = ClaudeKeyHash(value);
+            hash.Value = value;
             command.ExecuteNonQuery();
         }
     }
