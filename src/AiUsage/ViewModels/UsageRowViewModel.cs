@@ -249,8 +249,10 @@ public partial class UsageRowViewModel : ObservableObject
     }
 
     /// <summary>"Opus 4.8 · 62 %" for each colored part of the bar, one line each.</summary>
-    private IEnumerable<string> SegmentLines => BarSegments.Select(segment =>
-        $"{segment.Label} · {StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(segment.SharePercent).ToString(CultureInfo.CurrentCulture))}");
+    private IEnumerable<string> SegmentLines => BarSegments.Select(segment => Loc.Format(
+        "Tile.BarSegment",
+        segment.Label,
+        StatusTextMap.FormatPercent(StatusTextMap.UsagePercent(segment.SharePercent).ToString(CultureInfo.CurrentCulture))));
 
     /// <summary>The bar's tooltip: the allowance line, then the pace line, then one line per colored
     /// part; empty (no tooltip) when all are.</summary>

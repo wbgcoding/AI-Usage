@@ -1,8 +1,10 @@
 using System.Text.Json;
 using System.Windows.Media;
 using AiUsage.Models;
+using AiUsage.Services;
 using AiUsage.Stats;
 using AiUsage.Storage;
+using AiUsage.ViewModels;
 using Xunit;
 
 namespace AiUsage.Tests;
@@ -100,6 +102,19 @@ public class BarColorTests
         // Bar order still follows this window's own sizes.
         Assert.Equal(["Sonnet 5", "Opus 4.8"], shared.Select(part => part.Label));
         Assert.NotEqual(own.Single(part => part.Label == "Opus 4.8").Color, shared.Single(part => part.Label == "Opus 4.8").Color);
+    }
+
+    [Fact]
+    public void The_bar_tooltip_builds_each_part_line_from_the_resource_pattern()
+    {
+        var row = new UsageRowViewModel(
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 40, null, 300), DateTimeOffset.Now, TileDensity.Full, null, "claude", true);
+        row.SetBarSegments(WindowShares.Build(BarColorModes.Model, "claude", ClaudeRows, Main, Sub));
+
+        var lines = row.BarTooltipText.Split(Environment.NewLine);
+
+        Assert.StartsWith(LocalizationService.Instance.Format("Tile.BarSegment", "Opus 4.8", "").TrimEnd(), lines[0]);
+        Assert.Contains("72", lines[0]);
     }
 
     [Fact]

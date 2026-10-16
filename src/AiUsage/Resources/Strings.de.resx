@@ -167,6 +167,7 @@
   <data name="Tile.Hide" xml:space="preserve"><value>Diesen Anbieter ausblenden</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Diesen Anbieter einblenden</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Quelle: {0}</value></data>
+  <data name="Tile.BarSegment" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="Eye.Menu" xml:space="preserve"><value>Anbieter und Darstellung</value></data>
   <data name="Eye.HiddenCount" xml:space="preserve"><value>{0} ausgeblendet</value></data>
   <data name="Eye.MoveUp" xml:space="preserve"><value>Nach oben</value></data>
