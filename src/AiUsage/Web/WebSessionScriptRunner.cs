@@ -181,7 +181,14 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
             var idleHost = _host;
             _host = null;
             _ready = null;
-            await idleHost.DisposeAsync();
+            try
+            {
+                await idleHost.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.Shared.LogError($"Disposing the idle hidden browser failed ({ex.GetType().Name}).");
+            }
         }
 
         _lastActivityAt = _timeProvider.GetUtcNow();
