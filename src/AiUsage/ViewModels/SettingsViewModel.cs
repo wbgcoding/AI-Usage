@@ -1501,14 +1501,29 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public bool HasImportedPcs => ImportedPcs.Count > 0;
 
+    internal Task ImportedPcsLoadTask { get; private set; } = Task.CompletedTask;
+
+    private int _importedPcsSequence;
+
+    /// <summary>Starts the list over; the index is read on a pool thread (it can wait on the indexer's
+    /// write lock or sit on a drive that is gone), so the rows fill in a moment after the window shows.</summary>
     private void RebuildImportedPcs()
     {
+        ImportedPcsLoadTask = RebuildImportedPcsAsync();
+    }
+
+    private async Task RebuildImportedPcsAsync()
+    {
+        var sequence = ++_importedPcsSequence;
+        // Every label the index holds rows for, whoever put it there, plus the entries kept in the settings.
+        var ids = _readsMachineList ? await Task.Run(() => _statsStore.ListMachines().ToList()) : [];
+        if (sequence != _importedPcsSequence)
+            return;
+
         var names = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var machine in _settings.ImportedMachines)
             names.TryAdd(machine.Id, machine.Name);
 
-        // Every label the index holds rows for, whoever put it there, plus the entries kept in the settings.
-        var ids = _readsMachineList ? _statsStore.ListMachines().ToList() : [];
         foreach (var id in names.Keys)
         {
             if (!ids.Contains(id, StringComparer.Ordinal))
@@ -1716,16 +1731,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             var (outcome, days, id, name) = await Task.Run(() =>
             {
-                using var source = BackupService.OpenForImport(path, out _);
-                if (source is null)
-                    return (ImportOutcome.Refused, 0, "", "");
-                if (string.Equals(source.Manifest.MachineId, ownId, StringComparison.OrdinalIgnoreCase))
-                    return (ImportOutcome.SamePc, 0, "", "");
+                try
+                {
+                    using var source = BackupService.OpenForImport(path, out _);
+                    if (source is null)
+                        return (ImportOutcome.Refused, 0, "", "");
+                    if (string.Equals(source.Manifest.MachineId, ownId, StringComparison.OrdinalIgnoreCase))
+                        return (ImportOutcome.SamePc, 0, "", "");
 
-                var imported = _statsStore.ImportMachine(source.StatsDatabasePath, source.Manifest.MachineId, ownId);
-                return imported is { } count
-                    ? (ImportOutcome.Imported, count, source.Manifest.MachineId, source.Manifest.MachineName)
-                    : (ImportOutcome.Refused, 0, "", "");
+                    var imported = _statsStore.ImportMachine(source.StatsDatabasePath, source.Manifest.MachineId, ownId);
+                    return imported is { } count
+                        ? (ImportOutcome.Imported, count, source.Manifest.MachineId, source.Manifest.MachineName)
+                        : (ImportOutcome.Refused, 0, "", "");
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    return (ImportOutcome.Refused, 0, "", "");
+                }
             });
 
             var loc = LocalizationService.Instance;
@@ -1738,7 +1760,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                     _settings.ImportedMachines.RemoveAll(machine => machine.Id == id);
                     _settings.ImportedMachines.Add(new ImportedMachine { Id = id, Name = name, Imported = DateTimeOffset.Now });
                     _store.RequestSave(_settings);
-                    RebuildImportedPcs();
+                    await RebuildImportedPcsAsync();
                     Stats.StatsIndexerService.Shared?.RefreshSnapshotInBackground();
                     _showMessage(loc.Format("Settings.Backup.Imported", days, name));
                     break;
@@ -1764,7 +1786,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IsDataWorkBusy = true;
         try
         {
-            removed = await Task.Run(() => _removeMachine(machineId));
+            removed = await Task.Run(() =>
+            {
+                try
+                {
+                    return _removeMachine(machineId);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    return false;
+                }
+            });
         }
         finally
         {
@@ -1779,7 +1811,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         _settings.ImportedMachines.RemoveAll(machine => machine.Id == machineId);
         _store.RequestSave(_settings);
-        RebuildImportedPcs();
+        await RebuildImportedPcsAsync();
         Stats.StatsIndexerService.Shared?.RefreshSnapshotInBackground();
     }
 

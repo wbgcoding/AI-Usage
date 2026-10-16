@@ -112,6 +112,7 @@ public class SettingsViewModelTests : IDisposable
     private static List<string?> RecordChanges(SettingsViewModel vm)
     {
         vm.HistorySizeLoadTask.GetAwaiter().GetResult();
+        vm.ImportedPcsLoadTask.GetAwaiter().GetResult();
         var changed = new List<string?>();
         vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
         return changed;
@@ -2431,6 +2432,7 @@ public class SettingsViewModelTests : IDisposable
                 return stats.RemoveMachine(id);
             });
 
+        await vm.ImportedPcsLoadTask;
         var running = vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
 
         Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
@@ -2461,6 +2463,7 @@ public class SettingsViewModelTests : IDisposable
             showMessage: messages.Add, statsStore: new Stats.StatsStore(data),
             removeMachine: _ => false);
 
+        await vm.ImportedPcsLoadTask;
         await vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
 
         Assert.Equal([Loc("Settings.ExportFailed")], messages);
@@ -2527,6 +2530,7 @@ public class SettingsViewModelTests : IDisposable
         var data = SeededDataFolder(OwnPc, 1000, machine: OtherPc);
         var stats = new Stats.StatsStore(data);
         var (vm, _) = Build(dataDirectory: data, statsStore: stats);
+        await vm.ImportedPcsLoadTask;
 
         Assert.Equal(new ImportedPcRow(OtherPc, Loc("Settings.Machine.Unknown")), Assert.Single(vm.ImportedPcs));
 
@@ -2572,6 +2576,56 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal([Loc("Settings.Backup.SamePc")], messages);
         Assert.Empty(settings.ImportedMachines);
         IndexPools.Release(data);
+    }
+
+    private Stats.StatsStore StatsStoreBehindAFile()
+    {
+        var file = Path.Combine(TempDirectory(), "not-a-folder");
+        File.WriteAllText(file, "x");
+        return new Stats.StatsStore(Path.Combine(file, "data"));
+    }
+
+    [Fact]
+    public async Task Opening_the_window_with_an_unreachable_index_folder_keeps_the_kept_PCs_and_does_not_throw()
+    {
+        var settings = new AppSettings { MachineId = OwnPc, ImportedMachines = [new() { Id = OtherPc, Name = "Work PC" }] };
+
+        var (vm, _) = Build(settings, statsStore: StatsStoreBehindAFile());
+        await vm.ImportedPcsLoadTask;
+
+        Assert.Equal(new ImportedPcRow(OtherPc, "Work PC"), Assert.Single(vm.ImportedPcs));
+    }
+
+    [Fact]
+    public async Task Importing_into_an_unreachable_index_folder_shows_the_refusal()
+    {
+        var data = SeededDataFolder(OwnPc, 1000);
+        var zip = Path.Combine(TempDirectory(), "other.zip");
+        BackupService.Create(SeededDataFolder(OtherPc, 77), zip, "1", OtherPc, "Work PC", DateTimeOffset.UtcNow, TempDirectory());
+        var messages = new List<string>();
+        var (vm, settings) = Build(new AppSettings { MachineId = OwnPc }, dataDirectory: data, askForBackupOpenPath: () => zip,
+            showMessage: messages.Add, statsStore: StatsStoreBehindAFile());
+
+        await vm.ImportPcCommand.ExecuteAsync(null);
+
+        Assert.Equal([Loc("Settings.Backup.Refused")], messages);
+        Assert.Empty(settings.ImportedMachines);
+        Assert.True(vm.ImportPcCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Removing_a_PC_while_the_index_folder_is_unreachable_shows_the_error_text_instead_of_throwing()
+    {
+        var messages = new List<string>();
+        var settings = new AppSettings { MachineId = OwnPc, ImportedMachines = [new() { Id = OtherPc, Name = "Work PC" }] };
+        var (vm, _) = Build(settings, showMessage: messages.Add, statsStore: StatsStoreBehindAFile());
+        await vm.ImportedPcsLoadTask;
+
+        await vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
+
+        Assert.Equal([Loc("Settings.ExportFailed")], messages);
+        Assert.Single(vm.ImportedPcs);
+        Assert.True(vm.RemoveImportedPcCommand.CanExecute(OtherPc));
     }
 
     [Fact]
