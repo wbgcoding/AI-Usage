@@ -720,7 +720,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAllowed}" Margin="0,4,16,0"/>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAllowed}" Margin="0,4,16,4"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
