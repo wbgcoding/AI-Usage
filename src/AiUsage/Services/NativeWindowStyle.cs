@@ -97,6 +97,13 @@ internal static class NativeWindowStyle
     internal static int SetDwmAttribute(IntPtr hwnd, int attribute, int value) =>
         DwmSetWindowAttribute(hwnd, attribute, ref value, sizeof(int));
 
+    private const int DwmwaCloak = 13;
+
+    /// <summary>Keeps a window off the screen while it stays shown for everything else (layout,
+    /// rendering, focus), or puts it back. A window cloaked from its creation until its first frame
+    /// is drawn appears complete instead of as an empty frame. Returns the HRESULT.</summary>
+    internal static int SetCloaked(IntPtr hwnd, bool cloaked) => SetDwmAttribute(hwnd, DwmwaCloak, cloaked ? 1 : 0);
+
     /// <summary>Extends the window frame over the whole client area (the sheet of glass a system
     /// backdrop is drawn on), or takes the extension away again. Returns the HRESULT.</summary>
     internal static int ExtendFrameIntoClientArea(IntPtr hwnd, bool intoWholeWindow)

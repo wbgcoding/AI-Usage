@@ -93,6 +93,7 @@ public partial class StatsWindow : Window
         _viewModel.TakeSnapshot = () => StatsIndexerService.Shared?.Latest;
 
         PreviewKeyDown += Window_PreviewKeyDown;
+        SourceInitialized += (_, _) => HideUntilFirstFrame();
         Loaded += StatsWindow_Loaded;
         Closed += StatsWindow_Closed;
 
@@ -442,6 +443,29 @@ public partial class StatsWindow : Window
         var size = WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight);
         Width = size.Width;
         Height = size.Height;
+    }
+
+    /// <summary>How long the window stays hidden at most when no first frame is reported.</summary>
+    internal static readonly TimeSpan RevealFallback = TimeSpan.FromSeconds(1);
+
+    /// <summary>Keeps the new window off the screen until its first frame is drawn, so it appears with
+    /// its content instead of as an empty frame that fills a moment later.</summary>
+    private void HideUntilFirstFrame()
+    {
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (NativeWindowStyle.SetCloaked(handle, true) != 0)
+            return;
+
+        var fallback = new DispatcherTimer(DispatcherPriority.Normal, Dispatcher) { Interval = RevealFallback };
+        void Reveal(object? sender, EventArgs e)
+        {
+            ContentRendered -= Reveal;
+            fallback.Stop();
+            NativeWindowStyle.SetCloaked(handle, false);
+        }
+        ContentRendered += Reveal;
+        fallback.Tick += Reveal;
+        fallback.Start();
     }
 
     private long _openStartedAt;

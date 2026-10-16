@@ -106,6 +106,19 @@ public class StartupCacheTests : IDisposable
     }
 
     [Fact]
+    public void The_statistics_window_stays_hidden_until_its_first_frame()
+    {
+        Assert.True(StatsWindow.RevealFallback <= TimeSpan.FromSeconds(1));
+        var source = Source("Views", "StatsWindow.xaml.cs");
+        Assert.Contains("SourceInitialized += (_, _) => HideUntilFirstFrame();", source);
+        var start = source.IndexOf("private void HideUntilFirstFrame()", StringComparison.Ordinal);
+        var body = source[start..source.IndexOf("private long _openStartedAt;", start, StringComparison.Ordinal)];
+        Assert.Contains("SetCloaked(handle, true)", body);
+        Assert.Contains("ContentRendered += Reveal;", body);
+        Assert.Contains("fallback.Tick += Reveal;", body);
+    }
+
+    [Fact]
     public void The_prepared_statistics_window_takes_its_opening_size_before_the_first_layout()
     {
         var source = Source("Views", "StatsWindow.xaml.cs");
