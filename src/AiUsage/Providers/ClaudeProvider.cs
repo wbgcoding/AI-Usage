@@ -162,6 +162,10 @@ public sealed class ClaudeProvider : IUsageProvider
     /// cref="SettingsRanges.MinRemoteRefreshMinutes"/>. No settings at all (the local-only test seam,
     /// which reaches neither remote path) falls back to five minutes when a local login exists, or the
     /// scheduler's per-tick default (null) otherwise.</summary>
+    // True while the Claude Code sign-in gives the numbers: then only its plain request is paid, and
+    // the web session's floor does not apply.
+    private volatile bool _localLoginAnsweredLast;
+
     public TimeSpan? MinRefreshInterval
     {
         get
@@ -169,7 +173,7 @@ public sealed class ClaudeProvider : IUsageProvider
             if (_settings is null)
                 return _localLogin is not null ? ProviderRegistry.RemoteReadFloor : null;
 
-            return ProviderRegistry.ReadInterval(_settings, _accountKey, belowFloorAllowed: _webSource is null);
+            return ProviderRegistry.ReadInterval(_settings, _accountKey, belowFloorAllowed: _webSource is null || _localLoginAnsweredLast);
         }
     }
 
@@ -325,6 +329,7 @@ public sealed class ClaudeProvider : IUsageProvider
             if (picked.Status == ProviderStatus.NotSignedIn && _localLogin is not null
                 && candidates.Skip(1).FirstOrDefault(c => c.Status == ProviderStatus.NotSignedIn) is { } webNotSignedIn)
                 picked = webNotSignedIn with { SkipReasonWord = picked.SkipReasonWord };
+            _localLoginAnsweredLast = picked.SourceKind == SourceKind.LocalLogin && picked.Status == ProviderStatus.Ok;
             var chosen = picked with { IsWaitingForUser = isWaitingForUser, WaitingSince = waitingSince };
             return AttachSessionTokens(chosen, sessionTokens, sessionLastEventAt, fetchedAt);
         }

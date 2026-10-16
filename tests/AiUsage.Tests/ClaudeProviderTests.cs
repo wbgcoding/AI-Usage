@@ -73,6 +73,23 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task The_primary_account_drops_the_web_floor_while_the_claude_code_sign_in_answers()
+    {
+        var settings = new AppSettings { RemoteRefreshMinutes = 1 };
+        var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called"));
+        var window = new UsageWindow("5h", WindowKind.FiveHour, 10, DateTimeOffset.Now.AddHours(2), 300);
+        var provider = new ClaudeProvider(
+            "claude", settings, _ => { }, webSource,
+            _ => Task.FromResult(new ClaudeCodeUsage(LocalLoginOutcome.Ok, [window], ClaudeCodeLoginReason.Ok)));
+
+        Assert.Equal(TimeSpan.FromMinutes(5), provider.MinRefreshInterval);
+
+        await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(TimeSpan.FromMinutes(1), provider.MinRefreshInterval);
+    }
+
+    [Fact]
     public void A_ten_minute_setting_matches_for_local_login_and_web_session_alike()
     {
         var settings = new AppSettings { RemoteRefreshMinutes = 10 };
