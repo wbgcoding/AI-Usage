@@ -467,7 +467,7 @@ public sealed class RefreshScheduler
         // cancelled synchronously, the WaitAsync continuation can run inline and reach this method's
         // end before the linked cancellation has been passed on - a "using" disposal at that point
         // unregistered the link, and the provider's own token was never cancelled at all.
-        var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         try
         {
             // A disconnected account (the Settings.SignOut action) is read through no source at all - not
@@ -494,12 +494,12 @@ public sealed class RefreshScheduler
 
             lock (_gate)
             {
-                state.RunCancellation = timeoutCts;
+                state.RunCancellation = runCts;
                 state.CancelledByOwner = false;
             }
 
             var attemptClock = _timeProvider.GetTimestamp();
-            var snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, timeoutCts, state, ct);
+            var snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, runCts, state, ct);
             if (snapshot is not null && IsTransientFailure(snapshot))
             {
                 // A timeout is usually gone a moment later: the tile keeps its last
@@ -512,14 +512,14 @@ public sealed class RefreshScheduler
                 FetchEnded?.Invoke(provider.AccountKey);
                 // The pause has its own token, so a refresh the person asks for can end it early
                 // without cancelling the run.
-                using var retryWait = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
+                using var retryWait = CancellationTokenSource.CreateLinkedTokenSource(runCts.Token);
                 lock (_gate)
                     state.RetryWait = retryWait;
                 try
                 {
                     await Task.Delay(_retryDelay, _timeProvider, retryWait.Token);
                 }
-                catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && retryWait.IsCancellationRequested)
+                catch (OperationCanceledException) when (!runCts.IsCancellationRequested && retryWait.IsCancellationRequested)
                 {
                     // Cut short: the retry starts now.
                 }
@@ -537,7 +537,7 @@ public sealed class RefreshScheduler
                 RaiseFetchStarted(provider.AccountKey);
                 attemptClock = _timeProvider.GetTimestamp();
                 // The retry is its own attempt: a failure it ends in is stamped with its own start.
-                snapshot = await FetchAttemptAsync(provider, _timeProvider.GetUtcNow(), holdNetwork, timeout, timeoutCts, state, ct);
+                snapshot = await FetchAttemptAsync(provider, _timeProvider.GetUtcNow(), holdNetwork, timeout, runCts, state, ct);
                 if (snapshot is not null && snapshot.Status == ProviderStatus.Failed)
                     _logInfo($"Provider '{provider.AccountKey}': retry failed too ({snapshot.Error?.Kind}) after "
                         + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, reporting the failure.");
@@ -586,10 +586,10 @@ public sealed class RefreshScheduler
                 state.RunCancellation = null;
             }
 
-            // Whatever is still running under this token (an abandoned, timed-out fetch, or one the
+            // Whatever is still running under this run (an abandoned attempt, or one the
             // caller cancelled) is told to stop before the source goes away.
-            timeoutCts.Cancel();
-            timeoutCts.Dispose();
+            runCts.Cancel();
+            runCts.Dispose();
         }
     }
 
