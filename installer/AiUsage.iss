@@ -215,7 +215,9 @@ Filename: "{code:GetAppExePath}"; Flags: nowait runasoriginaluser; \
 ; Same hive limitation as autostart above: on a per-machine install approved by a different
 ; administrator account, the shortcut was written to the installing user's desktop, which an
 ; elevated uninstall running under that administrator's own account cannot see. Not worked around.
-Type: files; Name: "{autodesktop}\{#AppName}.lnk"
+; {userdesktop}, not {autodesktop}: on a per-machine install the latter is the Public desktop, where
+; the app never writes its shortcut.
+Type: files; Name: "{userdesktop}\{#AppName}.lnk"
 
 [Registry]
 ; Creates nothing - the app writes the value itself (see [Run]). This entry exists only so
@@ -650,9 +652,24 @@ end;
 
 { The auto-relaunch Check in [Run] reads this - only relevant to the standard (non-portable),
   silent path where no "launch now" checkbox was ever shown. }
+function HasSwitch(const Name: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), Name) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+{ /RELAUNCH comes from the app's own in-app update: the app has usually ended before the window
+  lookup in InitializeSetup runs, so that lookup alone would leave the tray icon gone. }
 function WasAppRunning: Boolean;
 begin
-  Result := AppWasRunning;
+  Result := AppWasRunning or HasSwitch('/RELAUNCH');
 end;
 
 { Deletes every file in Folder matching "setup-*.log" beyond the newest KeepCount, sorted by name
@@ -692,7 +709,8 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   LogFolder, DestFile: String;
 begin
-  if CurStep = ssDone then
+  { Portable mode promises that nothing else is written to this PC. }
+  if (CurStep = ssDone) and not IsPortableMode then
   begin
     LogFolder := ExpandConstant('{localappdata}\{#AppName}\setup');
     if ForceDirectories(LogFolder) and FileExists(ExpandConstant('{log}')) then

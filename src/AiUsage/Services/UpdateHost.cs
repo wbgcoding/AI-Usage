@@ -152,7 +152,10 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     /// <summary>The setup's command line. The setup does not reuse the previous install scope on its
     /// own, so the scope of the running copy is passed along. The uninstall entries the setup wrote
     /// say which scope owns this folder (it works for a folder the user picked); only when neither
-    /// names it does a copy under Program Files count as per-machine and any other as per-user.</summary>
+    /// names it does a copy under Program Files count as per-machine and any other as per-user. A
+    /// per-user setup also gets <see cref="RelaunchSwitch"/>: this copy has usually ended by the time the
+    /// setup looks for its window, so the setup would not know to start the new version again. A
+    /// per-machine setup runs elevated from the start and would start it elevated, so it gets none.</summary>
     internal static string BuildSetupArguments(string? exePath) => BuildSetupArguments(exePath,
     [
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
@@ -167,15 +170,20 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
             if (SameFolder(readInstallLocation(true), directory))
                 return "/SILENT /ALLUSERS";
             if (SameFolder(readInstallLocation(false), directory))
-                return "/SILENT /CURRENTUSER";
+                return PerUserArguments;
         }
 
         var perMachine = directory is not null && programFilesRoots
             .Where(root => !string.IsNullOrEmpty(root))
             .Any(root => (directory + Path.DirectorySeparatorChar).StartsWith(
                 root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-        return perMachine ? "/SILENT /ALLUSERS" : "/SILENT /CURRENTUSER";
+        return perMachine ? "/SILENT /ALLUSERS" : PerUserArguments;
     }
+
+    /// <summary>Read by the setup script (WasAppRunning): start the app again once the update is done.</summary>
+    internal const string RelaunchSwitch = "/RELAUNCH";
+
+    private const string PerUserArguments = "/SILENT /CURRENTUSER " + RelaunchSwitch;
 
     private static bool SameFolder(string? recorded, string directory) =>
         !string.IsNullOrWhiteSpace(recorded)
