@@ -497,9 +497,8 @@ public sealed class HistoryChart : FrameworkElement
 
     private void DrawCaptionBox(DrawingContext dc, string text, double anchorX, double width, double height)
     {
-        var fontFamily = (System.Windows.Media.FontFamily)(TryFindResource("Font.Ui") ?? new System.Windows.Media.FontFamily("Segoe UI"));
         var textBrush = (Brush)(TryFindResource("Text.Primary") ?? System.Windows.SystemColors.WindowTextBrush);
-        var typeface = new Typeface(fontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        var typeface = ChartFonts.UiTypeface(this);
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, typeface, 10, textBrush, dpi);
 
@@ -588,9 +587,8 @@ public sealed class HistoryChart : FrameworkElement
             return;
 
         var plotHeight = PlotHeight(height, ShowAxes);
-        var fontFamily = (System.Windows.Media.FontFamily)(TryFindResource("Font.Ui") ?? new System.Windows.Media.FontFamily("Segoe UI"));
         var textBrush = (Brush)(TryFindResource("Text.Muted") ?? System.Windows.SystemColors.GrayTextBrush);
-        var typeface = new Typeface(fontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        var typeface = ChartFonts.UiTypeface(this);
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
 
         FormattedText MakeText(string text) =>
@@ -788,13 +786,12 @@ public sealed class HistoryChart : FrameworkElement
         if (string.IsNullOrEmpty(EmptyText))
             return;
 
-        var fontFamily = (System.Windows.Media.FontFamily)(TryFindResource("Font.Ui") ?? new System.Windows.Media.FontFamily("Segoe UI"));
         var textBrush = (Brush)(TryFindResource("Text.Muted") ?? System.Windows.SystemColors.GrayTextBrush);
         var text = new FormattedText(
             EmptyText,
             CultureInfo.CurrentUICulture,
             System.Windows.FlowDirection.LeftToRight,
-            new Typeface(fontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal),
+            ChartFonts.UiTypeface(this),
             11,
             textBrush,
             VisualTreeHelper.GetDpi(this).PixelsPerDip)
