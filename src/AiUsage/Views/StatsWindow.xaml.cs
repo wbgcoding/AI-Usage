@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
@@ -95,6 +96,7 @@ public partial class StatsWindow : Window
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += (_, _) => HideUntilFirstFrame();
         Loaded += StatsWindow_Loaded;
+        IsVisibleChanged += StatsWindow_IsVisibleChanged;
         Closed += StatsWindow_Closed;
 
         // StatsIndexerService.IndexCompleted fires on its own background thread, so the reload is
@@ -527,7 +529,14 @@ public partial class StatsWindow : Window
     internal void BeginOpenMeasurement(long startTimestamp)
     {
         _openStartedAt = startTimestamp;
-        ContentRendered += StatsWindow_FirstRendered;
+        if (!_opened)
+        {
+            ContentRendered += StatsWindow_FirstRendered;
+            return;
+        }
+
+        // A hidden window shown again draws no new first frame: the first idle moment after showing is the end.
+        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, () => StatsWindow_FirstRendered(null, EventArgs.Empty));
     }
 
     private void StatsWindow_FirstRendered(object? sender, EventArgs e)
@@ -609,23 +618,69 @@ public partial class StatsWindow : Window
         _settingsStore.RequestSave(_settings);
     }
 
-    private void StatsWindow_Closed(object? sender, EventArgs e)
+    /// <summary>Set by the widget: closing only hides the window, so the next open shows the window
+    /// already drawn instead of building and laying out a new one. <see cref="CloseForGood"/> and the
+    /// app's own exit still close it.</summary>
+    internal bool HideOnClose { get; set; }
+
+    private bool _closingForGood;
+
+    internal void CloseForGood()
     {
-        if (_opened && WindowPlacementService.Shared is { } placement)
+        _closingForGood = true;
+        Close();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        base.OnClosing(e);
+        if (e.Cancel || !HideOnClose || _closingForGood || Dispatcher.HasShutdownStarted
+            || Application.Current?.Dispatcher.HasShutdownStarted == true)
+            return;
+
+        e.Cancel = true;
+        _dragController.Cancel();
+        KeepForNextOpen();
+        Hide();
+    }
+
+    /// <summary>A hidden window shown again: the same fresh look at the data a first open takes.</summary>
+    private void StatsWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is not true || !_opened)
+            return;
+
+        StatsIndexerService.Shared?.StartInBackground();
+        var dataStart = Stopwatch.GetTimestamp();
+        var hadSnapshot = _viewModel.TryShowSnapshot();
+        _openDataMs = Stopwatch.GetElapsedTime(dataStart).TotalMilliseconds;
+        _ = hadSnapshot ? RecomputeLoggedAsync(showLoading: false) : RecomputeLoggedAsync();
+    }
+
+    /// <summary>The size and place for the next open and the data for the next start.</summary>
+    private void KeepForNextOpen()
+    {
+        if (!_opened)
+            return;
+
+        if (WindowPlacementService.Shared is { } placement)
         {
             placement.RememberedStatsWindowSize = (Width, Height);
             if (!double.IsNaN(Left) && !double.IsNaN(Top))
                 placement.RememberedStatsWindowPosition = (Left, Top);
         }
 
+        // Only a window that was shown has seen the data worth keeping for the next start; a
+        // prepared one closing at exit leaves that to the app's own exit. Off the UI thread.
         if (StatsIndexerService.Shared is { } indexer)
-        {
+            _ = Task.Run(indexer.SavePersistedSnapshot);
+    }
+
+    private void StatsWindow_Closed(object? sender, EventArgs e)
+    {
+        KeepForNextOpen();
+        if (StatsIndexerService.Shared is { } indexer)
             indexer.IndexCompleted -= OnIndexCompleted;
-            // Only a window that was shown has seen the data worth keeping for the next start; a
-            // prepared one closing at exit leaves that to the app's own exit. Off the UI thread.
-            if (_opened)
-                _ = Task.Run(indexer.SavePersistedSnapshot);
-        }
 
         _dragController.Cancel();
         _layoutPresenter.Detach();

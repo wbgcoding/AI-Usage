@@ -1644,6 +1644,7 @@ public partial class MainWindow : Window, IDisposable
         {
             _statsWindow = TakePreparedStatsWindow() ?? CreatePreparedStatsWindow();
             _statsWindow.DeferSectionsBelowTheFold();
+            _statsWindow.HideOnClose = true;
             OwnerWindowResolver.ApplyOwner(_statsWindow, this);
             _statsWindow.Closed += (_, _) =>
             {
@@ -1652,6 +1653,10 @@ public partial class MainWindow : Window, IDisposable
                 if (new WindowInteropHelper(this).Handle != IntPtr.Zero)
                     _prebuildTimer?.Start();
             };
+            _statsWindow.BeginOpenMeasurement(clicked);
+        }
+        else if (!_statsWindow.IsVisible)
+        {
             _statsWindow.BeginOpenMeasurement(clicked);
         }
         _statsWindow.Show();
@@ -1719,6 +1724,7 @@ public partial class MainWindow : Window, IDisposable
         {
             timer.Stop();
             _preparedStatsWindow?.Close();
+            _statsWindow?.CloseForGood();
             _preparedStatsWindow = null;
         };
     }

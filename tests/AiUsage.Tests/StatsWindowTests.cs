@@ -1060,6 +1060,33 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void Closing_a_window_kept_for_reuse_only_hides_it_until_it_is_closed_for_good()
+    {
+        RunInWindow(null, (window, _) =>
+        {
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -30000;
+            window.Top = -30000;
+            window.HideOnClose = true;
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            window.Show();
+            window.Close();
+            Assert.False(window.IsVisible);
+            Assert.False(closed);
+
+            window.Show();
+            Assert.True(window.IsVisible);
+
+            window.CloseForGood();
+            Assert.True(closed);
+        });
+    }
+
+    [Fact]
     public void A_dropped_section_starts_its_slide_where_it_was_let_go()
     {
         RunInWindow(null, (window, _) =>
