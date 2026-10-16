@@ -294,10 +294,13 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding SelectedDayHeadText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                         <Button Grid.Column="1" x:Name="CloseDayDetailButton" Style="{StaticResource AiUsageQuietButton}"
-                                                Padding="8,4" Content="×" VerticalAlignment="Center"
+                                                Padding="8,4" VerticalAlignment="Center"
                                                 Command="{Binding CloseDayDetailCommand}"
                                                 ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.Close]}"
-                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.Close]}"/>
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.Close]}">
+                                            <Path Width="10" Height="10" Stretch="Uniform" Data="{StaticResource Icon.Close}"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
                                     </Grid>
                                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.DayDetail.NoUsage]}"
                                                Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Small}"
@@ -938,7 +941,7 @@
             </DockPanel>
         </Border>
         <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeTop_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Height="3" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted"/>
+        <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNWSE" DragDelta="ResizeTopLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
