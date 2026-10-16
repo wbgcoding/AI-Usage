@@ -132,9 +132,18 @@ public sealed class StatsIndexer
     // owner pass has run).
     private bool _claimsActive;
 
+    /// <summary>How many runs in a row a one-time pass waits for an unreadable file before it gives
+    /// that file up and completes without it: a file locked for good must not stop indexing.</summary>
+    internal const int MaxBlockedRuns = 5;
+
+    // Per pass, this run: whether it still waits (decided once, so a pass that is called twice in
+    // one run counts as one blocked run).
+    private readonly Dictionary<string, bool> _passHeld = [];
+
     public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default)
     {
         _failedWrites = 0;
+        _passHeld.Clear();
         var claudeFilesSeen = 0;
         var claudeFilesRead = 0;
         var claudeLinesParsed = 0L;
@@ -148,13 +157,27 @@ public sealed class StatsIndexer
         // Before the walk: the walk counts a response's fullest copy from the first line it reads, so
         // a pass that ran after it would add the same tokens to files the walk just read for the
         // first time. The passes it depends on come first so none of them undoes another.
-        BackfillSessionsOnce(known, cancellationToken);
-        BackfillSubagentUsageOnce(known, cancellationToken);
-        BackfillClaudeCopiesOnce(known, cancellationToken);
+        var passOpen = BackfillSessionsOnce(known, cancellationToken);
+        passOpen |= BackfillSubagentUsageOnce(known, cancellationToken);
+        var copiesOpen = BackfillClaudeCopiesOnce(known, cancellationToken);
+        passOpen |= copiesOpen;
 
         // The passes above count every copy of a response; this one subtracts the copies a second
-        // transcript counted.
-        BackfillClaudeOwnersOnce(known, cancellationToken);
+        // transcript counted, so it waits while the copies pass does (and counts that as its own
+        // blocked run, so both give up together).
+        if (!copiesOpen)
+            passOpen |= BackfillClaudeOwnersOnce(known, cancellationToken);
+        else if (!_store.IsClaudeOwnerPassDone())
+            HoldPass("owners");
+
+        // A pass that waits for an unreadable file reads the content up to the offsets stored now; a
+        // walk in between would move them past content it counted differently and the pass would
+        // count that again.
+        if (passOpen)
+        {
+            Log?.LogInfo("Statistics: indexing waits for a session file that cannot be read yet.");
+            return default;
+        }
 
         // Until that pass has run, owners are neither read nor written, so the pass later handles
         // this content like any older content.
@@ -717,15 +740,15 @@ public sealed class StatsIndexer
     /// part through the normal walk that follows. A file that is gone or shorter than its marker (it
     /// was replaced) stays out. Nothing is marked done when the pass is cancelled or cannot be
     /// written, so the next walk repeats it.</summary>
-    private void BackfillSessionsOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    private bool BackfillSessionsOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         if (_store.IsSessionBackfillDone())
-            return;
+            return false;
 
         // No remembered file while usage rows exist: the snapshot is not trustworthy, so the pass is
         // not run and not marked done (it would never be offered again).
         if (known.Count == 0 && _store.HasUsageRows())
-            return;
+            return false;
 
         // Once the owner pass has run, a response another transcript owns is not counted here either
         // (this pass can follow a walk that already skipped those copies). Before it, the content
@@ -733,7 +756,7 @@ public sealed class StatsIndexer
         var claims = _store.IsClaudeOwnerPassConfirmedDone();
         using var owners = claims ? _store.OpenClaudeOwners() : null;
         if (owners is null && claims)
-            return;
+            return false;
 
         var sessions = new StatsSessionAccumulator();
         var unreadable = false;
@@ -761,10 +784,11 @@ public sealed class StatsIndexer
             }
         }
 
-        if (unreadable || owners is { Failed: true })
-            return;
+        if (owners is { Failed: true } || (unreadable && HoldPass("sessions")))
+            return unreadable;
 
         _store.ReplaceSessionsAndMarkBackfilled(sessions.ToDeltas());
+        return false;
     }
 
     /// <summary>The one-time pass for usage rows written before the subagent flag existed: they all
@@ -772,13 +796,13 @@ public sealed class StatsIndexer
     /// subagent lines are summed per usage key, and the store moves exactly those tokens over to the
     /// flagged rows (never more than the unflagged row holds). Nothing is marked done when the pass is
     /// cancelled or cannot be written, so the next walk repeats it.</summary>
-    private void BackfillSubagentUsageOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    private bool BackfillSubagentUsageOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         if (_store.IsSubagentUsageBackfillDone())
-            return;
+            return false;
 
         if (known.Count == 0 && _store.HasUsageRows())
-            return;
+            return false;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort), StatsRecord>();
         var unreadable = false;
@@ -799,11 +823,12 @@ public sealed class StatsIndexer
             }
         }
 
-        if (unreadable)
-            return;
+        if (unreadable && HoldPass("subagents"))
+            return true;
 
         if (_store.MoveSubagentUsageAndMarkBackfilled([.. totals.Values]) is { } moved)
             Log?.LogInfo($"Statistics: {moved} tokens of earlier usage were assigned to subagents.");
+        return false;
     }
 
     private void SumClaudeSubagentTokens(
@@ -848,13 +873,13 @@ public sealed class StatsIndexer
     /// last response are stored too, so the walk carries on from them. A file Claude Code has already
     /// deleted cannot be corrected. Nothing is marked done when the pass is cancelled or cannot be
     /// written, so the next walk repeats it.</summary>
-    private void BackfillClaudeCopiesOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    private bool BackfillClaudeCopiesOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         if (_store.IsClaudeCopyBackfillDone())
-            return;
+            return false;
 
         if (known.Count == 0 && _store.HasUsageRows())
-            return;
+            return false;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
         var sessions = new StatsSessionAccumulator();
@@ -877,11 +902,12 @@ public sealed class StatsIndexer
             }
         }
 
-        if (unreadable)
-            return;
+        if (unreadable && HoldPass("copies"))
+            return true;
 
         if (_store.ApplyClaudeCopyBackfill([.. totals.Values], sessions.ToDeltas(), lastMessages) is { } added)
             Log?.LogInfo($"Statistics: {added} output tokens of earlier Claude responses were added.");
+        return false;
     }
 
     private void SumClaudeCopyExcess(
@@ -933,22 +959,23 @@ public sealed class StatsIndexer
     /// to their stored offsets, oldest first, and the first one to hold a response owns it. Whatever any
     /// other file counted of that response (its first copy plus what later copies added) is then taken
     /// out of the usage rows and session totals it was added to. A file Claude Code has already
-    /// deleted cannot be corrected and stays as it is. The owners are written first and idempotently,
-    /// the subtraction in one transaction with the done mark, so a cancelled or failed pass is simply
-    /// repeated.</summary>
-    private void BackfillClaudeOwnersOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    /// deleted cannot be corrected and stays as it is. Every file is read before any owner is written,
+    /// and the owners replace whatever an earlier pass left, in one transaction: a file that could not
+    /// be read leaves nothing behind. The subtraction follows in one transaction with the done mark,
+    /// so a cancelled or failed pass is simply repeated.</summary>
+    private bool BackfillClaudeOwnersOnce(Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         if (_store.IsClaudeOwnerPassDone())
-            return;
+            return false;
 
         // An empty snapshot may be a failed read: ask again, and leave the pass for the next walk
         // when that fails too (HasUsageRows answers false on an error, so it cannot tell). With no
         // Claude file remembered there is nothing to correct and the pass is marked done below.
         if (known.Count == 0 && !_store.TryLoadSourceFiles(out known))
-            return;
+            return false;
 
         if (_store.LoadClaudeOwnerSkips() is not { } skips)
-            return;
+            return false;
 
         // The original transcript is the oldest file: a copy of its history is made later. A file
         // whose offset moved without a read is read from where its counted content starts. Known
@@ -973,14 +1000,15 @@ public sealed class StatsIndexer
         });
 
         var unreadable = false;
+        var claims = new List<(string Path, IReadOnlyCollection<long> Hashes)>();
         foreach (var (state, _, start) in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 var keys = ReadClaudeKeys(state, start, cancellationToken);
-                if (keys.Count > 0 && !_store.ClaimClaudeKeys(state.Path, keys))
-                    return;
+                if (keys.Count > 0)
+                    claims.Add((state.Path, [.. keys.Select(StatsStore.ClaudeKeyHash)]));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -990,15 +1018,18 @@ public sealed class StatsIndexer
         }
 
         // The correction is final: with a readable-later file missing from it, it would stay wrong.
-        if (unreadable)
-            return;
+        if (unreadable && HoldPass("owners"))
+            return true;
+
+        if (!_store.ReplaceClaudeClaims(claims))
+            return false;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
         var sessions = new StatsSessionAccumulator();
         using (var owners = _store.OpenClaudeOwners())
         {
             if (owners is null)
-                return;
+                return false;
 
             foreach (var (state, _, start) in files)
             {
@@ -1018,17 +1049,37 @@ public sealed class StatsIndexer
                 }
             }
 
-            if (unreadable || owners.Failed)
-                return;
+            if (owners.Failed)
+                return false;
         }
 
+        if (unreadable && HoldPass("owners"))
+            return true;
+
         if (_store.ApplyClaudeOwnerCorrection([.. totals.Values], sessions.ToDeltas()) is not { } correction)
-            return;
+            return false;
 
         if (correction.Removed > 0)
             Log?.LogInfo($"Statistics: {correction.Removed} tokens of Claude responses counted twice were taken out.");
         if (correction.Skipped > 0)
             Log?.LogInfo($"Statistics: {correction.Skipped} corrections were skipped because their hour no longer holds that many tokens.");
+        return false;
+    }
+
+    /// <summary>True while the one-time pass <paramref name="pass"/> should wait for a file it could
+    /// not read; false from the <see cref="MaxBlockedRuns"/>th blocked run in a row on, when the file
+    /// is given up. A count that cannot be stored keeps waiting. Decided once per run.</summary>
+    private bool HoldPass(string pass)
+    {
+        if (_passHeld.TryGetValue(pass, out var held))
+            return held;
+
+        var runs = _store.NoteBlockedRun(pass);
+        held = runs is not { } count || count < MaxBlockedRuns;
+        if (!held)
+            Log?.LogInfo($"Statistics: a session file stayed unreadable for {MaxBlockedRuns} runs; the one-time correction goes on without it.");
+        _passHeld[pass] = held;
+        return held;
     }
 
     private static bool IsGone(Exception ex) => ex is FileNotFoundException or DirectoryNotFoundException;
