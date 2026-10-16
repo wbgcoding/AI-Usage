@@ -225,15 +225,56 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
-    public async Task A_local_rejection_wins_over_the_web_source_even_when_both_are_available()
+    public async Task A_local_rejection_fills_its_window_and_keeps_every_other_web_window()
     {
         var directory = SeedDirectory("claude-429.jsonl");
-        var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called"));
+        var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult(
+            """{"status":"ok","path":"/api/organizations/abc/usage","body":"{\"five_hour\":{\"utilization\":97,\"resets_at\":1788624000},\"seven_day\":{\"utilization\":40,\"resets_at\":1789000000}}"}"""));
         var provider = new ClaudeProvider(directory, () => Now, webSource, new AppSettings(), _ => { });
 
         var snapshot = await provider.FetchAsync(CancellationToken.None);
 
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal(2, snapshot.Windows.Count);
+        var fiveHour = snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour);
+        Assert.Equal(100, fiveHour.UsedPercent);
+        Assert.Equal(DateTimeOffset.Parse("2026-09-05T13:00:00Z"), fiveHour.ResetsAt);
+        Assert.Equal(40, snapshot.Windows.Single(w => w.Kind == WindowKind.Weekly).UsedPercent);
+    }
+
+    [Fact]
+    public async Task A_local_rejection_keeps_the_local_login_windows_beside_the_full_bar()
+    {
+        var windows = new[]
+        {
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 80, null, 300),
+            new UsageWindow("Window_Weekly", WindowKind.Weekly, 35, null, 10080),
+        };
+        var provider = new ClaudeProvider(
+            projectsRoot: SeedDirectory("claude-429.jsonl"), now: () => Now,
+            localLogin: _ => Task.FromResult(new ClaudeCodeUsage(LocalLoginOutcome.Ok, windows)));
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.LocalLogin, snapshot.SourceKind);
+        Assert.Equal([WindowKind.FiveHour, WindowKind.Weekly], snapshot.Windows.Select(w => w.Kind));
+        Assert.Equal(100, snapshot.Windows[0].UsedPercent);
+        Assert.Equal(DateTimeOffset.Parse("2026-09-05T13:00:00Z"), snapshot.Windows[0].ResetsAt);
+        Assert.Equal(35, snapshot.Windows[1].UsedPercent);
+    }
+
+    [Fact]
+    public async Task A_local_rejection_alone_still_shows_its_full_bar_when_no_source_answers()
+    {
+        var provider = new ClaudeProvider(
+            projectsRoot: SeedDirectory("claude-429.jsonl"), now: () => Now,
+            localLogin: _ => Task.FromResult(ClaudeCodeUsage.NotSignedIn));
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
         Assert.Equal(SourceKind.LocalFile, snapshot.SourceKind);
+        Assert.Equal(100, snapshot.Windows.Single().UsedPercent);
     }
 
     [Fact]

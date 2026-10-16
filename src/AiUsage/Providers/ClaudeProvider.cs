@@ -267,9 +267,9 @@ public sealed class ClaudeProvider : IUsageProvider
             sessionLastEventAt = null;
         }
 
-        if (limit is not null)
-        {
-            var window = new UsageWindow(
+        UsageWindow? limitWindow = limit is null
+            ? null
+            : new UsageWindow(
                 label: "Window_LimitReached",
                 kind: MapWindowKind(limit.RateLimitType),
                 usedPercent: 100,
@@ -277,28 +277,15 @@ public sealed class ClaudeProvider : IUsageProvider
                 windowMinutes: null,
                 tokens: sessionTokens is { } total ? new TokenUsage(total) : null);
 
-            var limitLabel = _localLogin is not null ? await Task.Run(_readAccountLabel, ct) : null;
-            return new ProviderSnapshot(
-                ProviderId: AccountKey,
-                Windows: [window],
-                PlanType: null,
-                SourceKind: SourceKind.LocalFile,
-                FetchedAt: fetchedAt,
-                DataTimestamp: fetchedAt,
-                Status: ProviderStatus.Ok,
-                Error: null,
-                AccountLabel: limitLabel,
-                IsWaitingForUser: isWaitingForUser,
-                WaitingSince: waitingSince);
-        }
-
         // Every configured source builds its own candidate; SnapshotChooser picks between them
         // instead of the first source winning, so a signed-out local login never hides a perfectly
         // usable web session underneath it.
         var candidates = new List<ProviderSnapshot>();
         // Both remaining sources reach the network; a held fetch has only the transcripts above to go on.
         if (FetchContext.NetworkHeld)
-            return NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+            return limitWindow is not null
+                ? await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct)
+                : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
 
         if (_localLogin is not null)
             candidates.Add(await BuildLocalLoginSnapshot(fetchedAt, ct));
@@ -328,10 +315,51 @@ public sealed class ClaudeProvider : IUsageProvider
                 picked = webNotSignedIn with { SkipReasonWord = picked.SkipReasonWord };
             _localLoginAnsweredLast = picked.SourceKind == SourceKind.LocalLogin && picked.Status == ProviderStatus.Ok;
             var chosen = picked with { IsWaitingForUser = isWaitingForUser, WaitingSince = waitingSince };
+            if (limitWindow is not null)
+            {
+                if (chosen is not { Status: ProviderStatus.Ok, Windows.Count: > 0 })
+                    return await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct);
+                chosen = chosen with { Windows = WithLimitApplied(chosen.Windows, limitWindow) };
+            }
+
             return AttachSessionTokens(chosen, sessionTokens, sessionLastEventAt, fetchedAt);
         }
 
-        return NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+        return limitWindow is not null
+            ? await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct)
+            : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+    }
+
+    /// <summary>The rejection Claude Code logged is newer than any usage reading, so the matching
+    /// window shows full with the logged reset; every other window keeps its own reading.</summary>
+    internal static IReadOnlyList<UsageWindow> WithLimitApplied(IReadOnlyList<UsageWindow> windows, UsageWindow limit)
+    {
+        if (limit.Kind == WindowKind.Other || !windows.Any(w => w.Kind == limit.Kind))
+            return [limit, .. windows];
+
+        return [.. windows.Select(w => w.Kind != limit.Kind
+            ? w
+            : new UsageWindow(w.Label, w.Kind, 100, limit.ResetsAt ?? w.ResetsAt, w.WindowMinutes, w.Tokens ?? limit.Tokens, w.Allowance))];
+    }
+
+    /// <summary>Only the logged rejection is known: one full bar, so a hit limit shows even while
+    /// no usage source answers.</summary>
+    private async Task<ProviderSnapshot> LimitOnlySnapshot(
+        UsageWindow limitWindow, DateTimeOffset fetchedAt, bool isWaitingForUser, DateTimeOffset? waitingSince, CancellationToken ct)
+    {
+        var limitLabel = _localLogin is not null ? await Task.Run(_readAccountLabel, ct) : null;
+        return new ProviderSnapshot(
+            ProviderId: AccountKey,
+            Windows: [limitWindow],
+            PlanType: null,
+            SourceKind: SourceKind.LocalFile,
+            FetchedAt: fetchedAt,
+            DataTimestamp: fetchedAt,
+            Status: ProviderStatus.Ok,
+            Error: null,
+            AccountLabel: limitLabel,
+            IsWaitingForUser: isWaitingForUser,
+            WaitingSince: waitingSince);
     }
 
     private ProviderSnapshot NoLocalDataSnapshot(DateTimeOffset fetchedAt, bool isWaitingForUser, DateTimeOffset? waitingSince)
