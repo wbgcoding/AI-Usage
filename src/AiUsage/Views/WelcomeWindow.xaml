@@ -21,71 +21,79 @@
             <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top" ShowEyeMenu="False" ShowRefresh="False"
                                ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
                                CloseRequested="TitleBarControl_CloseRequested"/>
-            <StackPanel Margin="{StaticResource Space.Xl}">
-                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Title]}"
-                           FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
-                           Foreground="{DynamicResource Text.Primary}"/>
-                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItDoes]}"
-                           Margin="0,12,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
-                           Foreground="{DynamicResource Text.Secondary}"/>
-                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItReads]}"
-                           Margin="0,8,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
-                           Foreground="{DynamicResource Text.Secondary}"/>
-                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItNever]}"
-                           Margin="0,8,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
-                           Foreground="{DynamicResource Text.Secondary}"/>
-                <ItemsControl x:Name="ProviderList" Margin="0,16,0,0" Focusable="False">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                                    <TextBlock Text="{Binding Tile.DisplayName}" FontWeight="SemiBold"
-                                               FontSize="{StaticResource Font.Size.Body}"
-                                               Foreground="{DynamicResource Text.Primary}"/>
-                                    <TextBlock Text="{Binding Tile.HeadlineText}" TextWrapping="Wrap"
-                                               FontSize="{StaticResource Font.Size.Small}"
-                                               Foreground="{DynamicResource Text.Secondary}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsFound}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding Hint}" TextWrapping="Wrap"
-                                               FontSize="{StaticResource Font.Size.Small}"
-                                               Foreground="{DynamicResource Text.Muted}"
-                                               Visibility="{Binding HasHint, Converter={StaticResource BoolToVis}}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                                            Visibility="{Binding IsFound, Converter={StaticResource BoolToVis}}">
-                                    <Path Data="M1,5 L4.5,8.5 L11,1.5" Stroke="{DynamicResource Level.Ok}" StrokeThickness="2"
-                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                          Width="12" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Found]}"
-                                               FontSize="{StaticResource Font.Size.Body}"
-                                               Foreground="{DynamicResource Text.Secondary}"/>
-                                </StackPanel>
-                                <Button Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="12,4"
-                                        VerticalAlignment="Center"
-                                        Content="{Binding Tile.ActionLabelText}" Command="{Binding Tile.RunActionCommand}"
-                                        Visibility="{Binding ShowSignIn, Converter={StaticResource BoolToVis}}"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Button x:Name="StartButton" Style="{StaticResource AiUsageButton}" Padding="16,4"
-                        HorizontalAlignment="Right" Margin="0,24,0,0" IsDefault="True"
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="24,24,24,0">
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Title]}"
+                                   FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Text.Primary}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItDoes]}"
+                                   Margin="0,12,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
+                                   Foreground="{DynamicResource Text.Secondary}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItReads]}"
+                                   Margin="0,8,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
+                                   Foreground="{DynamicResource Text.Secondary}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.WhatItNever]}"
+                                   Margin="0,8,0,0" TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Body}"
+                                   Foreground="{DynamicResource Text.Secondary}"/>
+                        <ItemsControl x:Name="ProviderList" Margin="0,16,0,0" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding Tile.DisplayName}" FontWeight="SemiBold"
+                                                       FontSize="{StaticResource Font.Size.Body}"
+                                                       Foreground="{DynamicResource Text.Primary}"/>
+                                            <TextBlock Text="{Binding Tile.HeadlineText}" TextWrapping="Wrap"
+                                                       FontSize="{StaticResource Font.Size.Small}"
+                                                       Foreground="{DynamicResource Text.Secondary}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFound}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Hint}" TextWrapping="Wrap"
+                                                       FontSize="{StaticResource Font.Size.Small}"
+                                                       Foreground="{DynamicResource Text.Muted}"
+                                                       Visibility="{Binding HasHint, Converter={StaticResource BoolToVis}}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                                    Visibility="{Binding IsFound, Converter={StaticResource BoolToVis}}">
+                                            <Path Data="M1,5 L4.5,8.5 L11,1.5" Stroke="{DynamicResource Level.Ok}" StrokeThickness="2"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                  Width="12" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Found]}"
+                                                       FontSize="{StaticResource Font.Size.Body}"
+                                                       Foreground="{DynamicResource Text.Secondary}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="12,4"
+                                                VerticalAlignment="Center"
+                                                Content="{Binding Tile.ActionLabelText}" Command="{Binding Tile.RunActionCommand}"
+                                                Visibility="{Binding ShowSignIn, Converter={StaticResource BoolToVis}}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+                <Button x:Name="StartButton" Grid.Row="1" Style="{StaticResource AiUsageButton}" Padding="16,4"
+                        HorizontalAlignment="Right" Margin="24" IsDefault="True"
                         Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Start]}"
                         Click="StartButton_Click"/>
-            </StackPanel>
+            </Grid>
         </DockPanel>
     </Border>
 </Window>

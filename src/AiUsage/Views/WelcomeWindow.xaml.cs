@@ -45,6 +45,9 @@ public partial class WelcomeWindow : Window
         var primary = WindowPlacementService.PrimaryOf(monitors);
 
         var resolved = WindowPlacementService.CenterOnCursorMonitor(cursorX, cursorY, ActualWidth, ActualHeight, monitors, primary);
+        // At high scaling the text can be taller than the screen: the window then stops at the work
+        // area and the provider list scrolls, so the start button stays reachable.
+        MaxHeight = resolved.Height;
         Left = resolved.Left;
         Top = resolved.Top;
     }
