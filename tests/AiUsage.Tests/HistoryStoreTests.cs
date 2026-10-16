@@ -694,6 +694,41 @@ public class HistoryStoreTests : IDisposable
         Assert.Equal([1.0, 42.0], store.Load("codex", TimeSpan.FromDays(1)).Select(p => p.Percent));
     }
 
+    private static string[] LinesAfterAClockStepBack() =>
+    [
+        Line(Now.AddHours(-2), "FiveHour", 1),
+        Line(Now.AddHours(-1), "FiveHour", 2),
+        Line(Now.AddMinutes(-30), "FiveHour", 3),
+        // The clock was set back: the points appended afterwards carry older times.
+        Line(Now.AddHours(-10), "FiveHour", 4),
+        Line(Now.AddHours(-9), "FiveHour", 5),
+    ];
+
+    [Fact]
+    public void Load_finds_the_points_in_range_behind_points_a_clock_step_back_appended()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "history-codex.jsonl"), LinesAfterAClockStepBack());
+        var store = new HistoryStore(directory, () => Now);
+
+        Assert.Equal([1.0, 2.0, 3.0], store.Load("codex", TimeSpan.FromHours(3)).Select(p => p.Percent));
+    }
+
+    [Fact]
+    public void The_unlocked_read_during_a_rewrite_finds_the_points_behind_a_clock_step_back_too()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "history-codex.jsonl"), LinesAfterAClockStepBack());
+        var store = new HistoryStore(directory, () => Now);
+        IReadOnlyList<HistoryPoint>? during = null;
+        store.InsideRewriteLockForTest = provider => during = store.Load(provider, TimeSpan.FromHours(3));
+
+        store.Prune("codex", retentionDays: 30);
+
+        Assert.NotNull(during);
+        Assert.Equal([1.0, 2.0, 3.0], during.Select(p => p.Percent));
+    }
+
     private readonly List<DisposableTestDirectory> _tempDirectories = [];
 
     private string TempDirectory()
