@@ -26,10 +26,10 @@ public class MainWindowStatsButtonTests
         var methodBody = source[methodStart..methodEnd];
 
         Assert.Contains("_statsWindow is null", methodBody, StringComparison.Ordinal);
-        // The one creation sits in CreateStatsWindow, which the guard (directly or through the
-        // prepared window taken first) is the only caller of on the open path.
-        Assert.Contains("CreateStatsWindow()", methodBody, StringComparison.Ordinal);
-        Assert.Single(Regex.Matches(source, @"CreateStatsWindow\(\)"), match => match.Index >= methodStart && match.Index < methodEnd);
+        // The one creation sits in CreateStatsWindow, reached on the open path only through
+        // CreatePreparedStatsWindow inside the guard (when no window was prepared ahead).
+        Assert.Contains("CreatePreparedStatsWindow()", methodBody, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(source, @"CreatePreparedStatsWindow\(\)"), match => match.Index >= methodStart && match.Index < methodEnd);
 
         var showIndex = methodBody.IndexOf("_statsWindow.Show();", StringComparison.Ordinal);
         var activateIndex = methodBody.IndexOf("WindowActivation.TryActivate(_statsWindow.Activate);", StringComparison.Ordinal);

@@ -69,6 +69,18 @@ public class CollapsibleSection : ContentControl
         DependencyProperty.Register(nameof(IsExpanded), typeof(bool), typeof(CollapsibleSection),
             new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnIsExpandedChanged));
 
+    /// <summary>While true the body is left out of layout and rendering even when expanded: a window
+    /// that opens with sections below the visible area shows its first frame without them and fills
+    /// them in right after.</summary>
+    public static readonly DependencyProperty IsBodyDeferredProperty =
+        DependencyProperty.Register(nameof(IsBodyDeferred), typeof(bool), typeof(CollapsibleSection), new FrameworkPropertyMetadata(false));
+
+    public bool IsBodyDeferred
+    {
+        get => (bool)GetValue(IsBodyDeferredProperty);
+        set => SetValue(IsBodyDeferredProperty, value);
+    }
+
     /// <summary>Raised whenever <see cref="IsExpanded"/> changes, whether from the header click or
     /// set from code - <see cref="Views.StatsWindow"/> listens to persist the new state.</summary>
     public event EventHandler? IsExpandedChanged;

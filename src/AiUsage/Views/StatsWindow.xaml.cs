@@ -445,6 +445,57 @@ public partial class StatsWindow : Window
         Height = size.Height;
     }
 
+    private readonly List<CollapsibleSection> _deferredBodies = [];
+    private bool _revealStarted;
+
+    /// <summary>Leaves the bodies of the sections that start below the visible area out of the first
+    /// frame, so opening lays out and draws only what is on screen. Needs a laid-out window (<see
+    /// cref="PrepareOffscreen"/>); the bodies come back one per frame once the window is drawn.</summary>
+    internal void DeferSectionsBelowTheFold()
+    {
+        var visibleHeight = ContentScroller.ViewportHeight;
+        if (visibleHeight <= 0)
+            return;
+
+        foreach (var section in Sections)
+        {
+            if (section.Visibility != Visibility.Visible || !section.IsExpanded || section.IsBodyDeferred)
+                continue;
+            if (section.TranslatePoint(default, ContentScroller).Y < visibleHeight)
+                continue;
+
+            section.IsBodyDeferred = true;
+            _deferredBodies.Add(section);
+        }
+
+        if (_deferredBodies.Count == 0)
+            return;
+
+        ContentRendered += (_, _) => StartRevealingSections();
+        Loaded += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.Background, StartRevealingSections);
+    }
+
+    private void StartRevealingSections()
+    {
+        if (_revealStarted)
+            return;
+        _revealStarted = true;
+        RevealNextSection();
+    }
+
+    /// <summary>One section per dispatcher round at background priority: each gets its own frame and
+    /// input stays answered in between.</summary>
+    private void RevealNextSection()
+    {
+        if (_deferredBodies.Count == 0)
+            return;
+
+        var section = _deferredBodies[0];
+        _deferredBodies.RemoveAt(0);
+        section.IsBodyDeferred = false;
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, RevealNextSection);
+    }
+
     /// <summary>How long the window stays hidden at most when no first frame is reported.</summary>
     internal static readonly TimeSpan RevealFallback = TimeSpan.FromSeconds(1);
 

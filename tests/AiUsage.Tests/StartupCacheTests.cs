@@ -106,6 +106,21 @@ public class StartupCacheTests : IDisposable
     }
 
     [Fact]
+    public void Opening_the_statistics_window_leaves_sections_below_the_visible_area_for_after_the_first_frame()
+    {
+        var main = Source("Views", "MainWindow.xaml.cs");
+        var start = main.IndexOf("private void TitleBarControl_StatsRequested", StringComparison.Ordinal);
+        var body = main[start..main.IndexOf("private StatsWindow CreateStatsWindow()", start, StringComparison.Ordinal)];
+        Assert.Contains("CreatePreparedStatsWindow()", body);
+        Assert.Contains("DeferSectionsBelowTheFold();", body);
+        Assert.True(body.IndexOf("DeferSectionsBelowTheFold();", StringComparison.Ordinal) < body.IndexOf(".Show();", StringComparison.Ordinal));
+
+        var stats = Source("Views", "StatsWindow.xaml.cs");
+        Assert.Contains("ContentRendered += (_, _) => StartRevealingSections();", stats);
+        Assert.Contains("Dispatcher.BeginInvoke(DispatcherPriority.Background, RevealNextSection);", stats);
+    }
+
+    [Fact]
     public void The_statistics_window_stays_hidden_until_its_first_frame()
     {
         Assert.True(StatsWindow.RevealFallback <= TimeSpan.FromSeconds(1));

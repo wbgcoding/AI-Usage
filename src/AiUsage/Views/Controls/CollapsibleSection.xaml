@@ -110,6 +110,11 @@
                         <ContentPresenter x:Name="PART_ContentHost" Margin="0,4,0,0"
                                            Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}"/>
                     </DockPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsBodyDeferred" Value="True">
+                            <Setter TargetName="PART_ContentHost" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

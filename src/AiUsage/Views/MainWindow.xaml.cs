@@ -1642,7 +1642,8 @@ public partial class MainWindow : Window, IDisposable
         var clicked = Stopwatch.GetTimestamp();
         if (_statsWindow is null)
         {
-            _statsWindow = TakePreparedStatsWindow() ?? CreateStatsWindow();
+            _statsWindow = TakePreparedStatsWindow() ?? CreatePreparedStatsWindow();
+            _statsWindow.DeferSectionsBelowTheFold();
             OwnerWindowResolver.ApplyOwner(_statsWindow, this);
             _statsWindow.Closed += (_, _) =>
             {
@@ -1661,6 +1662,13 @@ public partial class MainWindow : Window, IDisposable
     {
         ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
     }, _settings, _settingsStore);
+
+    private StatsWindow CreatePreparedStatsWindow()
+    {
+        var window = CreateStatsWindow();
+        window.PrepareOffscreen();
+        return window;
+    }
 
     // The statistics window, built shortly after startup and again after each close, kept unshown so
     // the click only has to show it.
@@ -1702,8 +1710,7 @@ public partial class MainWindow : Window, IDisposable
             if (step == PrebuildStep.Build)
             {
                 WindowActivation.RecordAutomaticShow("StatsWindow prebuild (built, not shown)");
-                _preparedStatsWindow = CreateStatsWindow();
-                _preparedStatsWindow.PrepareOffscreen();
+                _preparedStatsWindow = CreatePreparedStatsWindow();
             }
         };
         // Started at the first idle moment after the window exists, not at its construction.
