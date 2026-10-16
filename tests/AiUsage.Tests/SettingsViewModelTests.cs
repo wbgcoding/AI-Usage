@@ -1097,6 +1097,35 @@ public class SettingsViewModelTests : IDisposable
         Assert.DoesNotContain(settings.Providers.Values, provider => provider.Order < 0);
     }
 
+    private static List<FakeProvider> ProvidersWithSecondClaude() =>
+        [new("codex"), new("claude"), new("claude", "claude#2"), new("gemini"), new("copilot")];
+
+    [Fact]
+    public void ImportingKeepsThisPcsExtraAccountSettingsAndDropsTheOtherPcsAccountKeys()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Accounts["claude#3"] = "claude";
+        sourceSettings.Providers["claude#3"] = new ProviderSettings { AccountName = "Foreign", Order = 0 };
+        sourceSettings.Providers["codex"].Thresholds.FiveHour = 55;
+        var exportPath = Path.Combine(TempDirectory(), "export-foreign-account.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var targetSettings = new AppSettings();
+        targetSettings.Accounts["claude#2"] = "claude";
+        targetSettings.Providers["claude#2"] = new ProviderSettings { AccountName = "Work" };
+        var (targetVm, _) = Build(targetSettings, providers: ProvidersWithSecondClaude(), askForSettingsImportPath: () => exportPath);
+
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.Equal(55, targetSettings.Providers["codex"].Thresholds.FiveHour);
+        Assert.Equal("Work", targetSettings.Providers["claude#2"].AccountName);
+        Assert.Equal("Work", targetVm.Main.Tiles.Single(t => t.ProviderId == "claude#2").AccountName);
+        Assert.DoesNotContain("claude#3", targetSettings.Providers.Keys);
+        Assert.Equal(["claude", "claude#2"], targetSettings.Accounts.Keys.OrderBy(key => key, StringComparer.Ordinal));
+        Assert.DoesNotContain(targetSettings.Providers.Values, provider => provider.Order < 0);
+    }
+
     [Fact]
     public void ImportingAnotherTileOrderReordersTheTilesAtOnce()
     {

@@ -816,6 +816,23 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_logs_that_an_invalid_account_key_was_dropped_but_never_the_key_text()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(Path.Combine(directory, "settings.json"),
+            """{"schemaVersion":1,"accounts":{"claude":"claude","secret-account-text":"claude"}}""");
+        var logService = new LogService(TempDirectory(), fileName: "test.log");
+        using var store = new SettingsStore(directory, logService: logService);
+
+        var settings = store.Load();
+
+        Assert.DoesNotContain("secret-account-text", settings.Accounts.Keys);
+        var logText = File.ReadAllText(logService.CurrentFile);
+        Assert.Contains("invalid key", logText);
+        Assert.DoesNotContain("secret", logText);
+    }
+
+    [Fact]
     public void A_colliding_account_key_does_not_give_the_registry_two_providers_with_one_key()
     {
         var (settings, _) = SettingsStore.Validate(MixedAccountsJson);

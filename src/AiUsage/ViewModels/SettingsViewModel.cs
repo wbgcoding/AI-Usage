@@ -590,7 +590,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _removeMachine = removeMachine ?? _statsStore.RemoveMachine;
         // The list of other PCs reads the index; a settings store of its own folder (a test) never touches the real one.
         _readsMachineList = statsStore is not null
-            || string.Equals(Path.GetFullPath(store.DataDirectory), Path.GetFullPath(AppPaths.DataDirectory), StringComparison.OrdinalIgnoreCase);
+            || AppPaths.SameDirectory(store.DataDirectory, AppPaths.DataDirectory);
         if (fetchLatestRelease is not null)
             main.Update.FetchLatestRelease = fetchLatestRelease;
 
@@ -1340,7 +1340,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        ApplyLoaded(loaded);
+        ApplyLoaded(loaded, keepLocalAccountSettings: true);
         _showMessage(LocalizationService.Instance["Settings.ImportDone"]);
     }
 
@@ -1365,10 +1365,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
-    private static bool SameFolder(string a, string b) => string.Equals(
-        Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),
-        Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)), StringComparison.OrdinalIgnoreCase);
-
     private static string? ShowRealFolderDialog()
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = AppPaths.DataDirectory };
@@ -1392,14 +1388,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
 
         var source = _store.DataDirectory;
-        if (string.Equals(Path.GetFullPath(destination), Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase))
+        if (AppPaths.SameDirectory(destination, source))
             return; // already there
 
         // The copy overwrites stats.db and settings.json, so a folder that already holds a copy's data
         // is refused (the running everyday copy's included), except this copy's own default folder:
         // the old copy stays behind there after a move away, and moving back has to be possible.
         var holdsMessage = LocalizationService.Instance["Settings.DataFolderHoldsData"];
-        if (AppPaths.IsSecondInstance && SameFolder(destination, AppPaths.EverydayDataDirectory()))
+        if (AppPaths.IsSecondInstance && AppPaths.SameDirectory(destination, AppPaths.EverydayDataDirectory()))
         {
             _showMessage(holdsMessage);
             return;
@@ -1407,7 +1403,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (File.Exists(Path.Combine(destination, "stats.db")) || File.Exists(Path.Combine(destination, "settings.json")))
         {
-            if (!SameFolder(destination, OwnDefaultDataDirectory()))
+            if (!AppPaths.SameDirectory(destination, OwnDefaultDataDirectory()))
             {
                 _showMessage(holdsMessage);
                 return;
@@ -1836,9 +1832,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// default or from another machine is the one value that is certainly wrong for this one, so the
     /// running window always keeps its own place and size.
     /// </summary>
-    private void ApplyLoaded(AppSettings source)
+    private void ApplyLoaded(AppSettings source, bool keepLocalAccountSettings = false)
     {
-        ApplyLoadedCore(source);
+        ApplyLoadedCore(source, keepLocalAccountSettings);
         SettingsReplaced?.Invoke(this, EventArgs.Empty);
     }
 
@@ -1846,7 +1842,42 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// window that shows some of them can read them again.</summary>
     public event EventHandler? SettingsReplaced;
 
-    private void ApplyLoadedCore(AppSettings source)
+    /// <summary>The per-provider settings of <paramref name="incoming"/> as they apply on this PC: an
+    /// extra account key of another PC means nothing here and is dropped, and an account of this PC the
+    /// incoming file does not know gets its own earlier settings back (an import) or fresh ones (a reset),
+    /// never none, so the account keeps its name, thresholds and refresh choice.</summary>
+    private Dictionary<string, ProviderSettings> ProvidersForThisMachine(
+        Dictionary<string, ProviderSettings>? incoming, Dictionary<string, ProviderSettings> previous, bool keepLocalAccountSettings)
+    {
+        var result = new Dictionary<string, ProviderSettings>();
+        foreach (var (key, value) in incoming ?? AppSettings.CreateDefaultProviders())
+        {
+            if (key.Contains('#') && !_settings.Accounts.ContainsKey(key))
+                continue;
+            result[key] = value;
+        }
+
+        foreach (var accountKey in _settings.Accounts.Keys)
+        {
+            if (result.ContainsKey(accountKey))
+                continue;
+
+            if (keepLocalAccountSettings && previous.TryGetValue(accountKey, out var local))
+            {
+                // The imported orders are numbered without it: its place is worked out again.
+                local.Order = -1;
+                result[accountKey] = local;
+            }
+            else
+            {
+                result[accountKey] = new ProviderSettings();
+            }
+        }
+
+        return result;
+    }
+
+    private void ApplyLoadedCore(AppSettings source, bool keepLocalAccountSettings)
     {
         _settings.RefreshSeconds = source.RefreshSeconds;
         _settings.RemoteRefreshMinutes = source.RemoteRefreshMinutes;
@@ -1897,7 +1928,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.StatsCustomFrom = source.StatsCustomFrom;
         _settings.StatsCustomTo = source.StatsCustomTo;
         var previousProviders = _settings.Providers;
-        _settings.Providers = source.Providers ?? AppSettings.CreateDefaultProviders();
+        _settings.Providers = ProvidersForThisMachine(source.Providers, previousProviders, keepLocalAccountSettings);
         // A sign-out belongs to this machine (its browser profile is already gone), so neither a reset
         // nor an import may quietly resume reading an account the user disconnected here, or
         // disconnect one that is connected here.

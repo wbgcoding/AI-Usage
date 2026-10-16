@@ -64,7 +64,7 @@ public sealed class StatsIndexer
         : this(store, DefaultClaudeProjectsRoots(), DefaultCodexSessionsRoot, DefaultCodexArchivedRoot, () => DateTime.UtcNow)
     {
         Log = logService;
-        AntigravityRoots = DefaultAntigravityRoots();
+        AntigravityRoots = Providers.Parsing.AntigravityTurnReader.DefaultRoots();
     }
 
     /// <summary>Test seam: fake roots instead of the real <c>~/.claude/projects</c> and
@@ -121,14 +121,6 @@ public sealed class StatsIndexer
     internal static List<string> ClaudeProjectsRootsFor(string? configDirValue, string userProfile) =>
         ClaudeConfigRoot.ExistingProjectsRoots(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
 
-    /// <summary>The conversation folders of the Antigravity command line tool and, when present, of the
-    /// Antigravity IDE, under <c>~/.gemini</c>.</summary>
-    private static List<string> DefaultAntigravityRoots()
-    {
-        var gemini = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini");
-        return [Path.Combine(gemini, "antigravity-cli", "conversations"), Path.Combine(gemini, "antigravity-ide", "conversations")];
-    }
-
     private static string DefaultCodexSessionsRoot => Providers.CodexPaths.Sessions;
 
     private static string DefaultCodexArchivedRoot => Providers.CodexPaths.ArchivedSessions;
@@ -156,12 +148,9 @@ public sealed class StatsIndexer
         // Before the walk: the walk counts a response's fullest copy from the first line it reads, so
         // a pass that ran after it would add the same tokens to files the walk just read for the
         // first time. The passes it depends on come first so none of them undoes another.
-        if (!_store.IsClaudeCopyBackfillDone())
-        {
-            BackfillSessionsOnce(known, cancellationToken);
-            BackfillSubagentUsageOnce(known, cancellationToken);
-            BackfillClaudeCopiesOnce(known, cancellationToken);
-        }
+        BackfillSessionsOnce(known, cancellationToken);
+        BackfillSubagentUsageOnce(known, cancellationToken);
+        BackfillClaudeCopiesOnce(known, cancellationToken);
 
         // After the passes above, which count a file's responses the old way; this one then removes
         // what a second transcript counted of the same responses.
@@ -747,6 +736,7 @@ public sealed class StatsIndexer
             return;
 
         var sessions = new StatsSessionAccumulator();
+        var unreadable = false;
         foreach (var state in known.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -762,7 +752,8 @@ public sealed class StatsIndexer
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A file that vanished or is locked has no session data to give.
+                // A file that vanished has no session data to give; one that is locked is read again later.
+                unreadable |= !IsGone(ex);
             }
             finally
             {
@@ -770,7 +761,7 @@ public sealed class StatsIndexer
             }
         }
 
-        if (owners is { Failed: true })
+        if (unreadable || owners is { Failed: true })
             return;
 
         _store.ReplaceSessionsAndMarkBackfilled(sessions.ToDeltas());
@@ -790,6 +781,7 @@ public sealed class StatsIndexer
             return;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort), StatsRecord>();
+        var unreadable = false;
         foreach (var state in known.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -802,9 +794,13 @@ public sealed class StatsIndexer
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A file that vanished or is locked has nothing to give.
+                // A file that vanished has nothing to give; one that is locked is read again later.
+                unreadable |= !IsGone(ex);
             }
         }
+
+        if (unreadable)
+            return;
 
         if (_store.MoveSubagentUsageAndMarkBackfilled([.. totals.Values]) is { } moved)
             Log?.LogInfo($"Statistics: {moved} tokens of earlier usage were assigned to subagents.");
@@ -863,6 +859,7 @@ public sealed class StatsIndexer
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
         var sessions = new StatsSessionAccumulator();
         var lastMessages = new List<(string Path, string MessageKey, ClaudeCopyTokens Counted)>();
+        var unreadable = false;
         foreach (var state in known.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -875,9 +872,13 @@ public sealed class StatsIndexer
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A file that vanished or is locked has nothing to give.
+                // A file that vanished has nothing to give; one that is locked is read again later.
+                unreadable |= !IsGone(ex);
             }
         }
+
+        if (unreadable)
+            return;
 
         if (_store.ApplyClaudeCopyBackfill([.. totals.Values], sessions.ToDeltas(), lastMessages) is { } added)
             Log?.LogInfo($"Statistics: {added} output tokens of earlier Claude responses were added.");
@@ -971,6 +972,7 @@ public sealed class StatsIndexer
             return byAge != 0 ? byAge : string.CompareOrdinal(a.State.Path, b.State.Path);
         });
 
+        var unreadable = false;
         foreach (var (state, _, start) in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -982,9 +984,14 @@ public sealed class StatsIndexer
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A file that vanished or is locked has nothing to give.
+                // A file that vanished has nothing to give; one that is locked is read again later.
+                unreadable |= !IsGone(ex);
             }
         }
+
+        // The correction is final: with a readable-later file missing from it, it would stay wrong.
+        if (unreadable)
+            return;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
         var sessions = new StatsSessionAccumulator();
@@ -1002,7 +1009,8 @@ public sealed class StatsIndexer
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // A file that vanished or is locked has nothing to give.
+                    // A file that vanished has nothing to give; one that is locked is read again later.
+                    unreadable |= !IsGone(ex);
                 }
                 finally
                 {
@@ -1010,7 +1018,7 @@ public sealed class StatsIndexer
                 }
             }
 
-            if (owners.Failed)
+            if (unreadable || owners.Failed)
                 return;
         }
 
@@ -1022,6 +1030,8 @@ public sealed class StatsIndexer
         if (correction.Skipped > 0)
             Log?.LogInfo($"Statistics: {correction.Skipped} corrections were skipped because their hour no longer holds that many tokens.");
     }
+
+    private static bool IsGone(Exception ex) => ex is FileNotFoundException or DirectoryNotFoundException;
 
     private HashSet<string> ReadClaudeKeys(StatsSourceFileState state, long start, CancellationToken cancellationToken)
     {

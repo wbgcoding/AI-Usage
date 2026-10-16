@@ -160,54 +160,15 @@ public sealed class StatusFileWriter : IDisposable
 
     /// <summary>Writes <paramref name="json"/> to a temp file beside <paramref name="path"/> and moves
     /// it into place, so a program reading the file sees the old document or the new one, never a
-    /// part of either.</summary>
+    /// part of either. A program that is reading the file right now can make the swap fail for a few
+    /// milliseconds, so the swap is tried again briefly before giving up on this update.</summary>
     internal static void WriteAtomic(string path, string json)
     {
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(directory))
             Directory.CreateDirectory(directory);
 
-        var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(tempPath, json, AppEncoding.Utf8NoBom);
-            MoveIntoPlace(tempPath, path);
-        }
-        catch
-        {
-            try
-            {
-                File.Delete(tempPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Left for the next start's cleanup of the app's own temp files.
-            }
-
-            throw;
-        }
-    }
-
-    /// <summary>A program that is reading the file right now can make the swap fail for a few
-    /// milliseconds (Windows refuses to replace a file that is open without delete sharing), so the
-    /// swap is tried again briefly before giving up on this update.</summary>
-    private static void MoveIntoPlace(string tempPath, string path)
-    {
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                if (File.Exists(path))
-                    File.Replace(tempPath, path, null);
-                else
-                    File.Move(tempPath, path);
-                return;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < MoveAttempts)
-            {
-                Thread.Sleep(MoveRetryDelay);
-            }
-        }
+        AtomicFile.WriteAllBytes(path, AppEncoding.Utf8NoBom.GetBytes(json), MoveAttempts, MoveRetryDelay);
     }
 
     private const int MoveAttempts = 20;

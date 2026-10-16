@@ -251,6 +251,34 @@ public sealed class StatusFileTests : IDisposable
     }
 
     [Fact]
+    public void TheDocumentIsWrittenThroughTheSharedAtomicWriter()
+    {
+        var source = SourceScan.Read("src", "AiUsage", "Services", "StatusFileWriter.cs");
+
+        Assert.Contains("AtomicFile.WriteAllBytes(", source);
+        Assert.DoesNotContain("File.WriteAllText(", source);
+    }
+
+    [Fact]
+    public void AReaderThatHoldsTheFileForAMomentOnlyDelaysTheSwap()
+    {
+        var path = StatusFileWriter.PathIn(_directory.Path);
+        StatusFileWriter.WriteAtomic(path, "old");
+        var holder = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(60);
+            holder.Dispose();
+        });
+
+        StatusFileWriter.WriteAtomic(path, "new");
+
+        release.Wait();
+        Assert.Equal("new", File.ReadAllText(path));
+        Assert.Empty(Directory.GetFiles(_directory.Path, "*.tmp"));
+    }
+
+    [Fact]
     public void SchedulingSeveralTimesWritesOnlyTheNewestDocument()
     {
         var path = StatusFileWriter.PathIn(_directory.Path);

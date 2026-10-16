@@ -109,9 +109,8 @@ public partial class App : Application, IDisposable
         else
         {
             _singleInstance = new SingleInstanceService();
-            if (!_singleInstance.AcquireOwnership(e.Args))
+            if (!_singleInstance.AcquireOrRequestShow(e.Args))
             {
-                SingleInstanceService.RequestShow();
                 Shutdown();
                 return;
             }

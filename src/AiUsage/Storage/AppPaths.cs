@@ -154,15 +154,17 @@ public static class AppPaths
     /// </summary>
     internal static DataFolderKind ClassifyDataDirectory(string dataDirectory, string appDataRoot, string tempRoot)
     {
-        if (PathsEqual(dataDirectory, Path.Combine(tempRoot, AppFolderName)))
+        if (SameDirectory(dataDirectory, Path.Combine(tempRoot, AppFolderName)))
             return DataFolderKind.Fallback;
-        if (PathsEqual(dataDirectory, Path.Combine(appDataRoot, AppFolderName)))
+        if (SameDirectory(dataDirectory, Path.Combine(appDataRoot, AppFolderName)))
             return DataFolderKind.Default;
         return DataFolderKind.Chosen;
     }
 
-    private static bool PathsEqual(string a, string b) =>
-        string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+    /// <summary>True when both name the same folder: full paths, no case, a trailing separator ignored.</summary>
+    internal static bool SameDirectory(string a, string b) => string.Equals(
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>True when <paramref name="path"/> is <paramref name="root"/> itself or lies inside
     /// it - boundary-safe, so a sibling folder that merely shares the root as a string prefix

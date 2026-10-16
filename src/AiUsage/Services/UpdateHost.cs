@@ -183,7 +183,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     private static bool SameFolder(string? recorded, string directory) =>
         !string.IsNullOrWhiteSpace(recorded)
-        && string.Equals(recorded.Trim().TrimEnd(Path.DirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+        && Storage.AppPaths.SameDirectory(recorded.Trim(), directory);
 
     private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{9FF5FEED-5C44-428A-97A9-028E7614B137}_is1";
 

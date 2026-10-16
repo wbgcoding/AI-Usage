@@ -1551,6 +1551,22 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ATrayProviderThatNamesNoTileIsStoredAsAutomatic()
+    {
+        var settings = SettingsWithVisibility();
+        settings.TrayProvider = "cursor#2";
+        settings.TrayWindow = "Weekly";
+
+        var (vm, _, _) = Build(settings);
+
+        Assert.Equal(MainViewModel.TrayProviderAuto, settings.TrayProvider);
+        Assert.Equal(MainViewModel.TrayProviderAuto, settings.TrayWindow);
+        Assert.False(vm.TrayWindowEnabled);
+        Assert.Null(vm.EffectiveTrayWindow);
+        Assert.Same(vm.TrayProviderChoices[0], vm.SelectedTrayProviderChoice);
+    }
+
+    [Fact]
     public void TheWindowListIsOfferedOnlyForAChosenProvider()
     {
         var settings = SettingsWithVisibility();

@@ -297,13 +297,20 @@ public class HistoryStore
                 length = stream.Length;
 
             var points = new List<HistoryPoint>();
+            var older = 0;
             foreach (var line in ReverseLineReader.ReadLinesReversed(path, upToLength: length))
             {
                 var point = ParseLineOrNull(line, providerId);
                 if (point is null)
                     continue;
                 if (point.Timestamp < from)
-                    break;
+                {
+                    if (++older >= OutOfOrderLookahead)
+                        break;
+                    continue;
+                }
+
+                older = 0;
                 if (point.Timestamp <= to)
                     points.Add(point);
             }
@@ -372,6 +379,11 @@ public class HistoryStore
             : cache.Points;
     }
 
+    /// <summary>How many points in a row older than the range a backward scan passes before it stops:
+    /// a clock set back leaves older times behind newer ones at the end of the file, so the first old
+    /// point is not yet the end of the range.</summary>
+    private const int OutOfOrderLookahead = 1000;
+
     private List<HistoryPoint> ScanFromEnd(
         ProviderState state, string providerId, string path, DateTimeOffset from, long length, DateTime writeUtc)
     {
@@ -394,6 +406,7 @@ public class HistoryStore
         HistoryPoint? tailPoint = null;
         long tailBytes = 0;
         var first = true;
+        var older = 0;
         foreach (var line in ReverseLineReader.ReadLinesReversed(path, upToLength: length))
         {
             var isTail = first && !endsWithNewline;
@@ -407,8 +420,13 @@ public class HistoryStore
                 continue; // a corrupt single line is skipped, never treated as "out of range"
 
             if (point.Timestamp < from)
-                break;
+            {
+                if (++older >= OutOfOrderLookahead)
+                    break;
+                continue;
+            }
 
+            older = 0;
             if (isTail)
                 tailPoint = point;
             else
