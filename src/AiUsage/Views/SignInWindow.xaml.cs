@@ -265,8 +265,15 @@ public partial class SignInWindow : Window
         },
     };
 
-    private void CoreWebView2_SourceChanged(object? sender, CoreWebView2SourceChangedEventArgs e) =>
+    /// <summary>Keeps the title on the current host, and judges an in-page route change (no new
+    /// document, so no NavigationCompleted follows) the same way as a finished navigation: single-page
+    /// sites such as claude.ai move from their login form to the app by script alone.</summary>
+    private void CoreWebView2_SourceChanged(object? sender, CoreWebView2SourceChangedEventArgs e)
+    {
         TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _providerHost);
+        if (!e.IsNewDocument)
+            EvaluateLanding(isSuccess: true);
+    }
 
     /// <summary>Whether a turned-away navigation is worth a notice of its own. A page the user was
     /// trying to reach is; the blank page a redirected pop-up loads before its real address, and a
@@ -427,10 +434,15 @@ public partial class SignInWindow : Window
                 : Visibility.Collapsed;
         }
 
-        if (Browser.CoreWebView2?.Source is not { } source)
+        EvaluateLanding(e.IsSuccess);
+    }
+
+    private void EvaluateLanding(bool isSuccess)
+    {
+        if (_closed || Browser.CoreWebView2?.Source is not { } source
+            || !Uri.TryCreate(source, UriKind.Absolute, out var uri))
             return;
 
-        var uri = new Uri(source);
         if (uri.Host != _providerHost)
             _sawForeignHost = true;
 
@@ -444,7 +456,7 @@ public partial class SignInWindow : Window
         // Only closes once the flow has actually been ON the login/OAuth path at least once -
         // otherwise the very first navigation to the provider's own start page (before the user has
         // done anything) would close the window instantly.
-        if (_sawLoginPage && e.IsSuccess && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
+        if (_sawLoginPage && isSuccess && !SignedIn && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
         {
             SignedIn = true;
             if (IsAlreadySignedIn(_sawLoginPage, _sawForeignHost, DateTimeOffset.UtcNow - _openedAt))

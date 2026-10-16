@@ -144,6 +144,20 @@ public class SignInWindowTests
         Assert.Contains("BlockedPanel.Visibility = Visibility.Collapsed;", dismiss, StringComparison.Ordinal);
     }
 
+    /// <summary>A single-page site moves from its login form to the app without a new document, so no
+    /// NavigationCompleted fires: the in-page route change must reach the same close check.</summary>
+    [Fact]
+    public void AnInPageRouteChangeIsJudgedLikeAFinishedNavigation()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "src", "AiUsage", "Views", "SignInWindow.xaml.cs"));
+
+        var changed = Body(source, "private void CoreWebView2_SourceChanged(");
+        Assert.Contains("if (!e.IsNewDocument)", changed, StringComparison.Ordinal);
+        Assert.Contains("EvaluateLanding(isSuccess: true);", changed, StringComparison.Ordinal);
+        Assert.Contains("EvaluateLanding(e.IsSuccess);", source, StringComparison.Ordinal);
+    }
+
     /// <summary>The notice's safe choice ("Got it") comes first and carries the prominent style; the
     /// way past the allow-list ("Load the page anyway") follows as the quiet secondary button. Read
     /// from the window's XAML, since the window itself cannot be instantiated here.</summary>
