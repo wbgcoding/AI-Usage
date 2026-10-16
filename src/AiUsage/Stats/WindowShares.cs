@@ -14,14 +14,29 @@ public readonly record struct BarSegment(string Label, double SharePercent, Colo
 
 /// <summary>Turns a window's token rows into the colored parts of a bar, with the very colors the
 /// statistics window uses: a model gets <see cref="ChartPalette.ForModel"/> by its rank among the
-/// models of that window (largest first, like the model ring), main agent and subagent the first two
-/// <see cref="ChartPalette.Categorical"/> colors (like the agent stack).</summary>
+/// models of one ranking (largest first, like the model ring), main agent and subagent the first two
+/// <see cref="ChartPalette.Categorical"/> colors (like the agent stack). A tile passes the ranking of its
+/// widest window for all its bars, so a model keeps one color on every bar of the tile.</summary>
 public static class WindowShares
 {
+    /// <summary>The model names of <paramref name="rows"/> (as shown), largest first: the order that
+    /// gives them their colors.</summary>
+    public static IReadOnlyList<string> RankModels(IReadOnlyList<WindowShareRow> rows) =>
+        rows.GroupBy(row => ModelDisplayNames.Resolve(row.Model))
+            .Select(group => (Label: group.Key, Tokens: group.Sum(row => row.Tokens)))
+            .OrderByDescending(entry => entry.Tokens)
+            .ThenBy(entry => entry.Label, StringComparer.Ordinal)
+            .Select(entry => entry.Label)
+            .ToList();
+
     /// <summary>The parts for <paramref name="mode"/> (Agent or Model), largest share first; empty for
-    /// the level mode, a mode the provider does not offer, or no tokens at all.</summary>
+    /// the level mode, a mode the provider does not offer, or no tokens at all. In Model mode the colors
+    /// follow <paramref name="modelOrder"/> (see <see cref="RankModels"/>) when given: a model it lacks
+    /// comes after the ranked ones, by its own size. Without it the models are ranked within
+    /// <paramref name="rows"/>.</summary>
     public static IReadOnlyList<BarSegment> Build(
-        string mode, string realProviderId, IReadOnlyList<WindowShareRow> rows, string mainLabel, string subagentLabel)
+        string mode, string realProviderId, IReadOnlyList<WindowShareRow> rows, string mainLabel, string subagentLabel,
+        IReadOnlyList<string>? modelOrder = null)
     {
         var total = rows.Sum(row => row.Tokens);
         if (total <= 0 || BarColorModes.Normalize(mode, realProviderId) != mode)
@@ -29,12 +44,20 @@ public static class WindowShares
 
         if (mode == BarColorModes.Model)
         {
-            return rows
+            var ownOrder = RankModels(rows);
+            var order = modelOrder ?? ownOrder;
+            var tokensByLabel = rows
                 .GroupBy(row => ModelDisplayNames.Resolve(row.Model))
-                .Select(group => (Label: group.Key, Tokens: group.Sum(row => row.Tokens)))
-                .OrderByDescending(entry => entry.Tokens)
-                .ThenBy(entry => entry.Label, StringComparer.Ordinal)
-                .Select((entry, rank) => new BarSegment(entry.Label, entry.Tokens * 100.0 / total, ChartPalette.ForModel(realProviderId, rank)))
+                .ToDictionary(group => group.Key, group => group.Sum(row => row.Tokens));
+            var unranked = 0;
+            return ownOrder
+                .Select(label =>
+                {
+                    var rank = IndexOf(order, label);
+                    if (rank < 0)
+                        rank = order.Count + unranked++;
+                    return new BarSegment(label, tokensByLabel[label] * 100.0 / total, ChartPalette.ForModel(realProviderId, rank));
+                })
                 .ToList();
         }
 
@@ -50,6 +73,17 @@ public static class WindowShares
         }
 
         return [];
+    }
+
+    private static int IndexOf(IReadOnlyList<string> list, string value)
+    {
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i] == value)
+                return i;
+        }
+
+        return -1;
     }
 
     /// <summary>A part laid out on the bar: where it starts and how wide it is, in pixels.</summary>

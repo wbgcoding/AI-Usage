@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using AiUsage.Models;
 using AiUsage.Services;
+using AiUsage.Stats;
 using AiUsage.ViewModels;
 using Xunit;
 using ChartPoint = AiUsage.Views.Controls.HistoryChart.ChartPoint;
@@ -2110,6 +2111,25 @@ public class ProviderTileViewModelTests
 
         Assert.NotEqual("", weekly.InlineTokensText);
         Assert.Equal("", fiveHour.InlineTokensText);
+    }
+
+    [Fact]
+    public void Every_bar_of_a_tile_colors_a_model_by_the_ranking_of_its_widest_window()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { Density = TileDensity.Full };
+        tile.Apply(WeeklySnapshot(), Now);
+        tile.BarColorMode = BarColorModes.Model;
+        var fiveHour = tile.Rows.Single(r => r.Kind == WindowKind.FiveHour);
+        var weekly = tile.Rows.Single(r => r.Kind == WindowKind.Weekly);
+
+        // Sonnet leads the five hour slice, Opus the week.
+        tile.SetWindowAnswer(fiveHour.TokenKey!.Value, 1000, [new("claude-sonnet-5", false, 900), new("claude-opus-4-8", false, 100)]);
+        tile.SetWindowAnswer(weekly.TokenKey!.Value, 10_000, [new("claude-opus-4-8", false, 7000), new("claude-sonnet-5", false, 3000)]);
+
+        System.Windows.Media.Color ColorOf(UsageRowViewModel row, string label) => row.BarSegments.Single(part => part.Label == label).Color;
+        Assert.Equal(ColorOf(weekly, "Opus 4.8"), ColorOf(fiveHour, "Opus 4.8"));
+        Assert.Equal(ColorOf(weekly, "Sonnet 5"), ColorOf(fiveHour, "Sonnet 5"));
+        Assert.Equal(ChartPalette.ForModel("claude", 0), ColorOf(fiveHour, "Opus 4.8"));
     }
 
     [Fact]

@@ -84,6 +84,36 @@ public class BarColorTests
     }
 
     [Fact]
+    public void A_given_ranking_colors_a_model_the_same_on_every_bar()
+    {
+        // In the short window Sonnet leads; the ranking of the wide window puts Opus first.
+        WindowShareRow[] shortWindow = [new("claude-sonnet-5", false, 900), new("claude-opus-4-8", false, 100)];
+        var wideRanking = WindowShares.RankModels(ClaudeRows);
+
+        var own = WindowShares.Build(BarColorModes.Model, "claude", shortWindow, Main, Sub);
+        var shared = WindowShares.Build(BarColorModes.Model, "claude", shortWindow, Main, Sub, wideRanking);
+
+        var opusRank = wideRanking.ToList().IndexOf("Opus 4.8");
+        var sonnetRank = wideRanking.ToList().IndexOf("Sonnet 5");
+        Assert.Equal(ChartPalette.ForModel("claude", opusRank), shared.Single(part => part.Label == "Opus 4.8").Color);
+        Assert.Equal(ChartPalette.ForModel("claude", sonnetRank), shared.Single(part => part.Label == "Sonnet 5").Color);
+        // Bar order still follows this window's own sizes.
+        Assert.Equal(["Sonnet 5", "Opus 4.8"], shared.Select(part => part.Label));
+        Assert.NotEqual(own.Single(part => part.Label == "Opus 4.8").Color, shared.Single(part => part.Label == "Opus 4.8").Color);
+    }
+
+    [Fact]
+    public void A_model_missing_from_the_ranking_comes_after_the_ranked_ones()
+    {
+        WindowShareRow[] rows = [new("claude-fable-9", false, 500), new("claude-opus-4-8", false, 100)];
+
+        var parts = WindowShares.Build(BarColorModes.Model, "claude", rows, Main, Sub, ["Opus 4.8"]);
+
+        Assert.Equal(ChartPalette.ForModel("claude", 0), parts.Single(part => part.Label == "Opus 4.8").Color);
+        Assert.Equal(ChartPalette.ForModel("claude", 1), parts.Single(part => part.Label != "Opus 4.8").Color);
+    }
+
+    [Fact]
     public void Agent_parts_split_main_and_subagents_in_the_colors_of_the_agent_stack()
     {
         var parts = WindowShares.Build(BarColorModes.Agent, "claude", ClaudeRows, Main, Sub);

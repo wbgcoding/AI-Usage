@@ -639,13 +639,36 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     private void PushWindowTokensToRows()
     {
         var loc = LocalizationService.Instance;
+        var modelOrder = BarColorMode == BarColorModes.Model ? ModelRankingOfWidestSlice() : null;
         foreach (var row in Rows)
         {
             row.WindowTokens = row.TokenKey is { } key && _windowTokens.TryGetValue(key, out var tokens) ? tokens : null;
             row.SetBarSegments(row.TokenKey is { } shareKey && _windowShares.TryGetValue(shareKey, out var shares)
-                ? WindowShares.Build(BarColorMode, RealProviderId, shares, loc["Stats.Agent.Main"], loc["Stats.SubagentShare"])
+                ? WindowShares.Build(BarColorMode, RealProviderId, shares, loc["Stats.Agent.Main"], loc["Stats.SubagentShare"], modelOrder)
                 : []);
         }
+    }
+
+    /// <summary>The models ranked over this tile's widest window slice (the weekly one when it has one),
+    /// so every bar of the tile colors a model the same. A slice that counts one model only (a model
+    /// window) never decides it. Null while no slice has its rows yet.</summary>
+    private IReadOnlyList<string>? ModelRankingOfWidestSlice()
+    {
+        WindowTokenKey? widest = null;
+        var widestIsWeekly = false;
+        foreach (var row in Rows)
+        {
+            if (row.TokenKey is not { ModelContains: null } key || !_windowShares.ContainsKey(key))
+                continue;
+            var weekly = row.Kind == WindowKind.Weekly;
+            if (widest is null || (weekly && !widestIsWeekly) || (weekly == widestIsWeekly && key.Start < widest.Value.Start))
+            {
+                widest = key;
+                widestIsWeekly = weekly;
+            }
+        }
+
+        return widest is { } chosen ? WindowShares.RankModels(_windowShares[chosen]) : null;
     }
 
     // The per model and agent token rows of each slice, asked for only while this tile colors its bars
