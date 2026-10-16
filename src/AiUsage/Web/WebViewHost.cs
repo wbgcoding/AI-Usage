@@ -223,12 +223,7 @@ public sealed class WebViewHost : IAsyncDisposable
         }
     }
 
-    private static bool IsSharedRootFolder(string path) => PathsEqual(path, RootFolder());
-
-    private static bool PathsEqual(string a, string b) => string.Equals(
-        Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-        Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-        StringComparison.OrdinalIgnoreCase);
+    private static bool IsSharedRootFolder(string path) => AppPaths.SameDirectory(path, RootFolder());
 
     /// <summary>
     /// CoreWebView2Environment exposes no public Dispose/Close - its underlying browser process

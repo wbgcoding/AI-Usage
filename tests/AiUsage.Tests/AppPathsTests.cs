@@ -206,6 +206,28 @@ public class AppPathsTests : IDisposable
     }
 
     [Fact]
+    public void ClassifyDataDirectory_ignores_a_trailing_separator_on_the_pointed_folder()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+
+        Assert.Equal(AppPaths.DataFolderKind.Default,
+            AppPaths.ClassifyDataDirectory(Path.Combine(appDataRoot, "AI-Usage") + Path.DirectorySeparatorChar, appDataRoot, tempRoot));
+        Assert.Equal(AppPaths.DataFolderKind.Fallback,
+            AppPaths.ClassifyDataDirectory(Path.Combine(tempRoot, "AI-Usage") + Path.AltDirectorySeparatorChar, appDataRoot, tempRoot));
+    }
+
+    [Fact]
+    public void SameDirectory_compares_full_paths_without_case_or_a_trailing_separator()
+    {
+        var folder = TempDirectory();
+
+        Assert.True(AppPaths.SameDirectory(folder, folder + Path.DirectorySeparatorChar));
+        Assert.True(AppPaths.SameDirectory(folder.ToUpperInvariant(), Path.Combine(folder, "sub", "..")));
+        Assert.False(AppPaths.SameDirectory(folder, folder + "2"));
+    }
+
+    [Fact]
     public void ClassifyDataDirectory_treats_anything_else_as_a_chosen_folder()
     {
         var appDataRoot = TempDirectory();
