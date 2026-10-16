@@ -7,12 +7,10 @@ namespace AiUsage.Providers;
 /// the newest matching file directly inside it (appending to a file does not touch its folder's
 /// stamp, so the folder time alone would bury a long-running session). Every entry a listing
 /// returns counts against the touched-entry budget, the ranking listings included, and no deeper
-/// level is walked once it is spent. Ranking itself has its own, larger budget of listed entries
-/// per scan: the children of a level are listed in folder write time order (newest first) only
-/// while it lasts; the rest keep their folder time as rank and are listed only if the walk reaches
-/// them. So one scan lists at most about that many entries for ranking, however many folders and
-/// files the tree holds. Files read from disk are capped by the touched-entry number. It keeps only the newest
-/// <c>maxFiles</c> files and returns them newest first (by <c>LastWriteTimeUtc</c>). A small
+/// level is walked once it is spent. Ranking has its own, larger budget: a level's children are
+/// listed in folder write time order only while it lasts, the rest keep their folder time as rank.
+/// It keeps only the newest <c>maxFiles</c> files and returns them newest first (by
+/// <c>LastWriteTimeUtc</c>). A small
 /// process-wide memory of the last result per root and pattern is checked first, so a file found
 /// once is still found when the walk budget no longer reaches its folder.
 /// </summary>

@@ -484,7 +484,7 @@ public sealed partial class CodexProvider : IUsageProvider
     /// <summary>
     /// Guards a local session-file snapshot against a single implausible reading within the same
     /// reset window (<see cref="PlausibilityJumpThreshold"/> points or more) - a second, independent
-    /// line of defence alongside the now-structural <see cref="IsUsageLimitRejection"/>: whatever
+    /// line of defence alongside the structural <see cref="IsUsageLimitRejection"/>: whatever
     /// future shape a false rejection marker takes, a real five-hour percentage does not jump 40+
     /// points and then straight back within a couple of readings. A jump this size is held back -
     /// shown and stored as the previous, still-current value - while the new one is remembered. The

@@ -18,7 +18,7 @@ OUT = REPO_ROOT / ".github" / "images" / "banner.png"
 FONTS = Path("C:/Windows/Fonts")
 
 WIDTH, HEIGHT = 1280, 420
-# Vertical shift of the whole layout, which was first drawn on a 640 pixel tall canvas.
+# Vertical offset of the whole layout.
 SHIFT = -110
 # Nebula theme: Bg.Base, Bg.Raised, Border, Accent, Text.Primary, Text.Secondary.
 BACKGROUND = (23, 18, 31)
