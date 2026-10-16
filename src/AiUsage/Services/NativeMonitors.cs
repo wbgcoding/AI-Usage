@@ -46,12 +46,10 @@ internal static class NativeMonitors
     {
         if (window == IntPtr.Zero)
             return null;
-        var monitor = Win32.MonitorFromWindow(window, MonitorDefaultToNearest);
+        var monitor = Win32.MonitorFromWindow(window, Win32.MonitorDefaultToNearest);
         var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
         return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info) ? info.DeviceName : null;
     }
-
-    private const uint MonitorDefaultToNearest = 2;
 
     /// <summary>The cursor in the same per-monitor units <see cref="WorkAreas"/> reports, so the two can
     /// be compared directly to find the monitor under the cursor.</summary>
@@ -59,7 +57,7 @@ internal static class NativeMonitors
     {
         if (!GetCursorPos(out var point))
             return (0, 0);
-        var scale = ScaleOf(MonitorFromPoint(point, MonitorDefaultToNearest));
+        var scale = ScaleOf(MonitorFromPoint(point, Win32.MonitorDefaultToNearest));
         return (point.X / scale, point.Y / scale);
     }
 
@@ -67,7 +65,7 @@ internal static class NativeMonitors
     /// pixels (the unit <c>PointToScreen</c> reports), or null when it cannot be told.</summary>
     public static double? WorkAreaTopAt(double screenX, double screenY)
     {
-        var monitor = MonitorFromPoint(new Point { X = (int)screenX, Y = (int)screenY }, MonitorDefaultToNearest);
+        var monitor = MonitorFromPoint(new Point { X = (int)screenX, Y = (int)screenY }, Win32.MonitorDefaultToNearest);
         var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
         return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info) ? info.WorkArea.Top : null;
     }

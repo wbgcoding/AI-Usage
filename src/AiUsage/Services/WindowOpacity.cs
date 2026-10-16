@@ -13,9 +13,7 @@ namespace AiUsage.Services;
 /// </summary>
 public static class WindowOpacity
 {
-    private const int GwlExStyle = -20;
     private const long WsExLayered = 0x80000;
-    private const long WsExTransparent = 0x20;
     private const uint RdwInvalidate = 0x1;
     private const uint RdwErase = 0x4;
     private const uint RdwAllChildren = 0x80;
@@ -59,7 +57,7 @@ public static class WindowOpacity
     /// the flag arithmetic is unit-testable without a real HWND.</summary>
     public static long RequiredExStyle(long currentExStyle, int percent)
     {
-        var needsLayer = percent < 100 || (currentExStyle & WsExTransparent) != 0;
+        var needsLayer = percent < 100 || (currentExStyle & Win32.WsExTransparent) != 0;
         return needsLayer ? currentExStyle | WsExLayered : currentExStyle & ~WsExLayered;
     }
 
@@ -69,7 +67,7 @@ public static class WindowOpacity
     public static bool IsOwnLayeringChange(long oldExStyle, long newExStyle)
     {
         var changed = oldExStyle ^ newExStyle;
-        return (changed & WsExLayered) != 0 && (changed & ~(WsExLayered | WsExTransparent)) == 0;
+        return (changed & WsExLayered) != 0 && (changed & ~(WsExLayered | Win32.WsExTransparent)) == 0;
     }
 
     /// <summary>Window hook that keeps the layered bit this class needs. A WPF window without
@@ -81,7 +79,7 @@ public static class WindowOpacity
     /// layering flip at all; every other style bit passes unchanged.</summary>
     public static IntPtr HideLayeringFromRenderer(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if ((msg != WmStyleChanged && msg != WmStyleChanging) || wParam.ToInt64() != GwlExStyle || lParam == IntPtr.Zero)
+        if ((msg != WmStyleChanged && msg != WmStyleChanging) || wParam.ToInt64() != Win32.GwlExStyle || lParam == IntPtr.Zero)
             return IntPtr.Zero;
 
         var styles = Marshal.PtrToStructure<StyleStruct>(lParam);
@@ -118,10 +116,10 @@ public static class WindowOpacity
     /// change is followed by a full redraw.</summary>
     public static void Apply(IntPtr hwnd, int percent)
     {
-        var current = Win32.GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+        var current = Win32.GetWindowLongPtr(hwnd, Win32.GwlExStyle).ToInt64();
         var updated = RequiredExStyle(current, percent);
         if (updated != current)
-            Win32.SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
+            Win32.SetWindowLongPtr(hwnd, Win32.GwlExStyle, new IntPtr(updated));
 
         if ((updated & WsExLayered) != 0)
             NativeMethods.SetLayeredWindowAttributes(hwnd, 0, AlphaFromPercent(percent), LwaAlpha);
