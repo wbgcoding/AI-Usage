@@ -144,7 +144,7 @@ public class ShipCleanTests
     // assembled into a full tooltip line in a test assertion, the same dash flanked by a space and
     // the "middle dot" segment separator - both shapes are stripped out before this runs, and
     // widening scope to include the test project is what makes the second shape reachable at all.
-    private static readonly Regex LongDash = new("[–—]", RegexOptions.Compiled);
+    private static readonly Regex LongDash = new("[\u2013\u2014]", RegexOptions.Compiled);
 
     private static readonly Regex PlaceholderDash = new(
         "\"–\"|(?<=\\s)–(?=\\s·)", RegexOptions.Compiled);
