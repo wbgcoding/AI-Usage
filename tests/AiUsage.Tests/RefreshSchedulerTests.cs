@@ -27,6 +27,46 @@ public class RefreshSchedulerTests
     }
 
     [Fact]
+    public async Task A_FetchEnded_subscriber_that_throws_before_the_quiet_retry_is_logged_and_the_retry_still_runs()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("gemini", _ => Task.FromResult(FailedWith("gemini", FailureKind.Timeout)));
+        var logged = new List<string>();
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
+            retryDelay: TimeSpan.Zero, logInfo: _ => { }, log: logged.Add);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.FetchEnded += _ => throw new InvalidOperationException("boom in subscriber");
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(2, provider.FetchCount);
+        Assert.Single(reported);
+        Assert.Contains(logged, line => line.Contains(nameof(InvalidOperationException), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_FetchEnded_subscriber_that_throws_after_an_owner_cancel_is_logged_and_the_run_ends_normally()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("claude", async ct =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return Ok("claude");
+        });
+        var logged = new List<string>();
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
+            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30), retryDelay: TimeSpan.Zero, log: logged.Add);
+        scheduler.FetchEnded += _ => throw new InvalidOperationException("boom in subscriber");
+
+        var started = scheduler.Tick();
+        await scheduler.CancelProvider("claude");
+        await Task.WhenAll(started);
+
+        Assert.Contains(logged, line => line.Contains(nameof(InvalidOperationException), StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_clock_moved_back_delays_the_next_fetch_by_one_interval_at_most()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));

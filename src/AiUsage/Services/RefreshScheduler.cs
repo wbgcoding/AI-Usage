@@ -424,7 +424,7 @@ public sealed class RefreshScheduler
     {
         lock (_gate)
             state.NextDueAt = _timeProvider.GetUtcNow() + state.CurrentInterval;
-        FetchEnded?.Invoke(provider.AccountKey);
+        RaiseFetchEnded(provider.AccountKey);
     }
 
     private bool OwnerCancelled(ProviderState state)
@@ -509,7 +509,7 @@ public sealed class RefreshScheduler
                     + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, "
                     + $"last source {state.LastSource?.ToString() ?? "none"}, retrying once in {(int)_retryDelay.TotalSeconds} s.");
                 // The tile shows no working state while it only waits; it comes back with the retry.
-                FetchEnded?.Invoke(provider.AccountKey);
+                RaiseFetchEnded(provider.AccountKey);
                 // The pause has its own token, so a refresh the person asks for can end it early
                 // without cancelling the run.
                 using var retryWait = CancellationTokenSource.CreateLinkedTokenSource(runCts.Token);
@@ -680,6 +680,8 @@ public sealed class RefreshScheduler
     private void RaiseSnapshotReady(ProviderSnapshot snapshot) => RaiseEach(SnapshotReady, handler => handler(snapshot));
 
     private void RaiseFetchStarted(string accountKey) => RaiseEach(FetchStarted, handler => handler(accountKey));
+
+    private void RaiseFetchEnded(string accountKey) => RaiseEach(FetchEnded, handler => handler(accountKey));
 
     /// <summary>Calls each subscriber on its own: one that throws is logged and neither skips the
     /// others nor loses the snapshot or the fetch it was told about.</summary>
