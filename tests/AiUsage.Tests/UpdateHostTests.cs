@@ -22,15 +22,15 @@ public class UpdateHostTests
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var exe = Path.Combine(local, "Programs", "AI-Usage", "AI-Usage.exe");
 
-        Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(exe));
-        Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(exe, Roots));
+        Assert.Equal("/SILENT /CURRENTUSER /RELAUNCH", UpdateHost.BuildSetupArguments(exe));
+        Assert.Equal("/SILENT /CURRENTUSER /RELAUNCH", UpdateHost.BuildSetupArguments(exe, Roots));
     }
 
     [Fact]
     public void A_folder_that_only_shares_the_Program_Files_prefix_is_per_user()
     {
-        Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(@"C:\Program Files Extra\AI-Usage\AI-Usage.exe", Roots));
-        Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(null, Roots));
+        Assert.Equal("/SILENT /CURRENTUSER /RELAUNCH", UpdateHost.BuildSetupArguments(@"C:\Program Files Extra\AI-Usage\AI-Usage.exe", Roots));
+        Assert.Equal("/SILENT /CURRENTUSER /RELAUNCH", UpdateHost.BuildSetupArguments(null, Roots));
     }
 
     [Fact]
@@ -46,14 +46,14 @@ public class UpdateHostTests
     {
         var exe = @"C:\Program Files\Own\AI-Usage.exe";
 
-        Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(exe, Roots, perMachine => perMachine ? null : @"C:\Program Files\Own"));
+        Assert.Equal("/SILENT /CURRENTUSER /RELAUNCH", UpdateHost.BuildSetupArguments(exe, Roots, perMachine => perMachine ? null : @"C:\Program Files\Own"));
     }
 
     [Fact]
     public void Without_a_registry_entry_the_Program_Files_prefix_decides()
     {
         Assert.Equal("/SILENT /ALLUSERS", UpdateHost.BuildSetupArguments(@"C:\Program Files\AI-Usage\AI-Usage.exe", Roots, _ => null));
-        Assert.Equal("/SILENT /CURRENTUSER", UpdateHost.BuildSetupArguments(@"D:\Tools\AI-Usage\AI-Usage.exe", Roots, _ => null));
+        Assert.Equal("/SILENT /CURRENTUSER /RELAUNCH", UpdateHost.BuildSetupArguments(@"D:\Tools\AI-Usage\AI-Usage.exe", Roots, _ => null));
     }
 
     private static byte[] PeFile(ushort machine, int peOffset = 0x80, int length = 0x200)

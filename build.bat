@@ -78,13 +78,13 @@ rem after a "for /f" command-substitution loop like the one above it (a known cm
 rem GOTO :error, used everywhere else in this file, is unaffected and keeps working normally.
 if exist "%STAGE%" rmdir /s /q "%STAGE%"
 if exist "%STAGE%" (
-    echo ERROR: could not clear %STAGE%
+    echo ERROR: could not clear "%STAGE%"
     echo        Something is still using it - close any running app or Explorer window there.
     goto :error
 )
 mkdir "%STAGE%"
 if errorlevel 1 (
-    echo ERROR: could not create %STAGE%
+    echo ERROR: could not create "%STAGE%"
     goto :error
 )
 
@@ -98,7 +98,7 @@ if exist "%DIST%" (
     mkdir "%DIST%"
 )
 if not exist "%DIST%" (
-    echo ERROR: could not create %DIST%
+    echo ERROR: could not create "%DIST%"
     goto :error
 )
 for %%f in ("%DIST%\AI-Usage.exe" "%DIST%\SHA256SUMS.txt") do (
@@ -171,7 +171,8 @@ if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%P
 if not defined ISCC (
     echo WARNING: Inno Setup ^(ISCC.exe^) not found - skipping the installer.
 ) else (
-    echo Using %ISCC%
+    rem Quoted: the default "Program Files (x86)" path ends this block early at its ")" otherwise.
+    echo Using "%ISCC%"
     "%ISCC%" /DAppVersion=%VERSION% "%ROOT%installer\AiUsage.iss"
     if errorlevel 1 goto :error
 )
