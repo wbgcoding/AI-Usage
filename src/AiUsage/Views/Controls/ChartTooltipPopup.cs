@@ -21,7 +21,11 @@ public sealed class ChartTooltipPopup
 
     public ChartTooltipPopup()
     {
-        _textBlock = new TextBlock { FontSize = 10 };
+        _textBlock = new TextBlock();
+        // The popup sits outside every themed tree: the references resolve against the application
+        // resources, so the text follows the theme's font like the rest of the app.
+        _textBlock.SetResourceReference(TextBlock.FontSizeProperty, "Font.Size.Micro");
+        _textBlock.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Ui");
         _border = new Border
         {
             BorderThickness = new Thickness(1),
