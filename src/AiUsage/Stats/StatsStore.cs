@@ -2004,18 +2004,10 @@ public sealed class StatsStore
                 return null;
 
             using var command = connection.CreateCommand();
-            command.CommandText = """
+            command.CommandText = $"""
                 SELECT SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens)
-                FROM usage WHERE provider = $provider AND (day > $day OR (day = $day AND hour >= $hour))
-                """ + (modelContains is { Length: > 0 } ? " AND lower(model) LIKE $model ESCAPE '\\'" : "");
-            if (modelContains is { Length: > 0 })
-            {
-                var escaped = modelContains.ToLowerInvariant().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
-                command.Parameters.AddWithValue("$model", "%" + escaped + "%");
-            }
-            command.Parameters.AddWithValue("$provider", providerId);
-            command.Parameters.AddWithValue("$day", localStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-            command.Parameters.AddWithValue("$hour", localStart.Hour);
+                FROM usage WHERE {WindowSliceFilter(command, providerId, localStart, modelContains)}
+                """;
             var result = command.ExecuteScalar();
             return result is null or DBNull ? 0 : Convert.ToInt64(result, CultureInfo.InvariantCulture);
         }
@@ -2023,6 +2015,25 @@ public sealed class StatsStore
         {
             return null;
         }
+    }
+
+    /// <summary>The WHERE condition of one window slice, with its parameters added to
+    /// <paramref name="command"/>: a provider, everything from the local hour of
+    /// <paramref name="localStart"/> on, and optionally the models whose name contains
+    /// <paramref name="modelContains"/> (case-insensitive, literal). One place for both token sums,
+    /// which must always agree.</summary>
+    private static string WindowSliceFilter(SqliteCommand command, string providerId, DateTime localStart, string? modelContains)
+    {
+        command.Parameters.AddWithValue("$provider", providerId);
+        command.Parameters.AddWithValue("$day", localStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        command.Parameters.AddWithValue("$hour", localStart.Hour);
+        var filter = "provider = $provider AND (day > $day OR (day = $day AND hour >= $hour))";
+        if (modelContains is not { Length: > 0 })
+            return filter;
+
+        var escaped = modelContains.ToLowerInvariant().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        command.Parameters.AddWithValue("$model", "%" + escaped + "%");
+        return filter + " AND lower(model) LIKE $model ESCAPE '\\'";
     }
 
     /// <summary>The same window slice as <see cref="SumTokensSince"/>, kept apart by model and by main
@@ -2038,18 +2049,10 @@ public sealed class StatsStore
                 return null;
 
             using var command = connection.CreateCommand();
-            command.CommandText = """
+            command.CommandText = $"""
                 SELECT model, subagent, SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens)
-                FROM usage WHERE provider = $provider AND (day > $day OR (day = $day AND hour >= $hour))
-                """ + (modelContains is { Length: > 0 } ? " AND lower(model) LIKE $model ESCAPE '\\'" : "") + " GROUP BY model, subagent";
-            if (modelContains is { Length: > 0 })
-            {
-                var escaped = modelContains.ToLowerInvariant().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
-                command.Parameters.AddWithValue("$model", "%" + escaped + "%");
-            }
-            command.Parameters.AddWithValue("$provider", providerId);
-            command.Parameters.AddWithValue("$day", localStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-            command.Parameters.AddWithValue("$hour", localStart.Hour);
+                FROM usage WHERE {WindowSliceFilter(command, providerId, localStart, modelContains)} GROUP BY model, subagent
+                """;
 
             var rows = new List<WindowShareRow>();
             using var reader = command.ExecuteReader();
