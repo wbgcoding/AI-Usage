@@ -423,6 +423,8 @@ public sealed class StatsIndexer
             {
                 // Replaced or cut between the stat above and this open: handled like a shrunk file
                 // rather than read again from the start (the reader falls back to 0 past the end).
+                // The owner read ends first: an open read would block the write.
+                owners?.EndRead();
                 KeepShrunkClaudeFile(existing, openLength, info.LastWriteTimeUtc);
                 return (false, 0, 0);
             }
