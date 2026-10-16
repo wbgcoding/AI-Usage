@@ -652,11 +652,9 @@ public sealed class SettingsStore : IDisposable
             && number >= 2;
     }
 
-    private void LogDroppedAccount(string key)
-    {
-        var shown = PathSanitizer.Sanitize(key);
-        _logService?.LogInfo($"Settings: ignored an account entry with an invalid key '{(shown.Length > 40 ? shown[..40] : shown)}'.");
-    }
+    // The key text is never logged: a hand-edited file can hold anything in it.
+    private void LogDroppedAccount(string key) =>
+        _logService?.LogInfo("Settings: ignored an account entry with an invalid key.");
 
     /// <summary>
     /// A hand-edited or older settings.json can carry a value outside what the UI would ever
