@@ -870,6 +870,34 @@ public class RefreshSchedulerTests
         Assert.Equal(1, provider.FetchCount);
     }
 
+    [Fact]
+    public async Task A_retry_that_fails_too_is_stamped_with_the_time_the_retry_started()
+    {
+        var start = DateTimeOffset.Parse("2026-09-05T12:00:00Z");
+        var clock = new FakeTimeProvider(start);
+        var provider = new FakeProvider("gemini", _ => new TaskCompletionSource<ProviderSnapshot>().Task);
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
+            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50),
+            retryDelay: TimeSpan.FromMilliseconds(10), logInfo: _ => { });
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+        var advanced = false;
+        // The first attempt ends and the pause begins: the clock moves on while the person waits.
+        scheduler.FetchEnded += _ =>
+        {
+            if (!advanced)
+            {
+                advanced = true;
+                clock.Advance(TimeSpan.FromSeconds(20));
+            }
+        };
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(2, provider.FetchCount);
+        Assert.Equal(start.AddSeconds(20), Assert.Single(reported).FetchedAt);
+    }
+
     [Theory]
     [InlineData("tile")]
     [InlineData("all")]

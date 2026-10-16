@@ -536,7 +536,8 @@ public sealed class RefreshScheduler
 
                 RaiseFetchStarted(provider.AccountKey);
                 attemptClock = _timeProvider.GetTimestamp();
-                snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, timeoutCts, state, ct);
+                // The retry is its own attempt: a failure it ends in is stamped with its own start.
+                snapshot = await FetchAttemptAsync(provider, _timeProvider.GetUtcNow(), holdNetwork, timeout, timeoutCts, state, ct);
                 if (snapshot is not null && snapshot.Status == ProviderStatus.Failed)
                     _logInfo($"Provider '{provider.AccountKey}': retry failed too ({snapshot.Error?.Kind}) after "
                         + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, reporting the failure.");
