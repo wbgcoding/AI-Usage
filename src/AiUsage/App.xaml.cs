@@ -328,7 +328,19 @@ public partial class App : Application, IDisposable
         _statsIndexerReindexTimer?.Stop();
         if (ReferenceEquals(StatsIndexerService.Shared, _statsIndexerService))
             StatsIndexerService.Shared = null;
-        _statsIndexerService?.SavePersistedSnapshot();
+        if (_statsIndexerService is { } indexer)
+        {
+            // Serializing the whole index can take a while: it runs off the UI thread and exit waits
+            // for it only briefly. The file is a cache, so a save cut short costs nothing.
+            try
+            {
+                Task.Run(indexer.SavePersistedSnapshot).Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException)
+            {
+                // Saving failed; the next run rebuilds from the index.
+            }
+        }
         _statsIndexerService?.Dispose();
         _settingsStore?.Dispose();
         _singleInstance?.Dispose();
