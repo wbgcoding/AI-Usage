@@ -728,6 +728,56 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public async Task Project_colors_are_cached_in_the_machine_local_cache_folder()
+    {
+        Assert.Equal(StartupProfile.CacheDirectory, StatsViewModel.ProjectColorsDirectoryFor(null));
+
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-colors-cache");
+        var store = new StatsStore(dataDir);
+        store.AddDelta([new StatsRecord("claude", DateOnly.FromDateTime(DateTime.Now), "modelA", "C:/Projects/One", 500, 0, 0, 0)]);
+        string? cachePath = null;
+        var viewModel = new StatsViewModel(store)
+        {
+            ProjectColorResolve = (folders, path) =>
+            {
+                cachePath = path;
+                return folders.ToDictionary(folder => folder, _ => new ProjectColorInfo(System.Windows.Media.Color.FromRgb(1, 2, 3), null));
+            },
+        };
+
+        viewModel.Recompute();
+        await viewModel.LastProjectColorRefresh;
+
+        // A store pinned to a folder (every test) keeps the cache there, never in the real profile.
+        Assert.Equal(Path.Combine(dataDir, "project-colors.json"), cachePath);
+    }
+
+    [Fact]
+    public void A_project_color_file_in_the_roaming_data_folder_moves_to_the_cache_once()
+    {
+        using var legacy = TestPaths.CreateDisposableDirectory("stats-colors-legacy");
+        using var cache = TestPaths.CreateDisposableDirectory("stats-colors-cache");
+        var legacyFile = Path.Combine(legacy, "project-colors.json");
+        var cacheFile = Path.Combine(cache, "inner", "project-colors.json");
+        File.WriteAllText(legacyFile, "old");
+
+        StatsViewModel.MoveLegacyProjectColors(legacyFile, cacheFile);
+
+        Assert.False(File.Exists(legacyFile));
+        Assert.Equal("old", File.ReadAllText(cacheFile));
+
+        // A file already in the cache wins; the stale one in the data folder is only removed.
+        File.WriteAllText(legacyFile, "older");
+        StatsViewModel.MoveLegacyProjectColors(legacyFile, cacheFile);
+
+        Assert.False(File.Exists(legacyFile));
+        Assert.Equal("old", File.ReadAllText(cacheFile));
+
+        // Nothing to move is not an error either.
+        StatsViewModel.MoveLegacyProjectColors(legacyFile, cacheFile);
+    }
+
+    [Fact]
     public void A_day_picked_from_the_widget_survives_the_rebuild_that_follows()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-requested-day");

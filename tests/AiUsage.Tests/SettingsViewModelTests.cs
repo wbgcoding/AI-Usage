@@ -102,6 +102,8 @@ public class SettingsViewModelTests : IDisposable
             confirmRestore: confirmRestore ?? (_ => false),
             restartApp: restartApp ?? (() => false),
             statsStore: statsStore ?? new Stats.StatsStore(dataDirectory ?? TempDirectory()));
+        // The list of other PCs fills in from a pool thread; a test that records changes must not race it.
+        vm.ImportedPcsLoadTask.GetAwaiter().GetResult();
         return (vm, settings);
     }
 
@@ -1631,7 +1633,6 @@ public class SettingsViewModelTests : IDisposable
         var sourceDirectory = TempDirectory();
         var day = new DateOnly(2026, 9, 1);
         new Stats.StatsStore(sourceDirectory).AddDelta([new Stats.StatsRecord("codex", day, "modelA", "projA", 1234, 0, 0, 0)]);
-        File.WriteAllText(Path.Combine(sourceDirectory, "project-colors.json"), "{}");
         var destinationDirectory = MoveTarget();
         var settings = new AppSettings();
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
@@ -1658,7 +1659,6 @@ public class SettingsViewModelTests : IDisposable
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
 
             Assert.Equal(1234, new Stats.StatsStore(destinationDirectory).LoadAll().Single().InputTokens);
-            Assert.True(File.Exists(Path.Combine(destinationDirectory, "project-colors.json")));
             followingStore.AddDelta([new Stats.StatsRecord("codex", day, "modelA", "projA", 1, 0, 0, 0)]);
             Assert.Equal(1235, new Stats.StatsStore(destinationDirectory).LoadAll().Single().InputTokens);
             Assert.Equal(1234, new Stats.StatsStore(sourceDirectory).LoadAll().Single().InputTokens);

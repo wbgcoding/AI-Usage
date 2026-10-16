@@ -1478,7 +1478,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         CopyIfExists(Path.Combine(source, "notifications.json"), Path.Combine(destination, "notifications.json"));
         foreach (var historyFile in Directory.EnumerateFiles(source, "history-*.jsonl"))
             CopyIfExists(historyFile, Path.Combine(destination, Path.GetFileName(historyFile)));
-        CopyIfExists(Path.Combine(source, "project-colors.json"), Path.Combine(destination, "project-colors.json"));
     }
 
     private static void CopyIfExists(string sourcePath, string destinationPath)

@@ -39,6 +39,7 @@ public sealed partial class StatsViewModel : ObservableObject
 {
     private readonly StatsStore _store;
     private readonly HistoryStore _history;
+    private readonly string _projectColorsDirectory;
     private readonly Func<string, string?> _askForSavePath;
     private readonly Action<string> _showMessage;
 
@@ -813,6 +814,37 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors = new Dictionary<string, System.Windows.Media.Color>();
 
+    private const string ProjectColorsFileName = "project-colors.json";
+
+    /// <summary>Where the project color cache lives: the machine-local cache folder, or the folder of a
+    /// store that is pinned to one (a test).</summary>
+    internal static string ProjectColorsDirectoryFor(string? fixedDirectory) => fixedDirectory ?? StartupProfile.CacheDirectory;
+
+    /// <summary>The project color cache lists local folder paths, so it lives in the machine-local cache
+    /// folder. A copy an earlier version kept in the roaming data folder moves there once; a file
+    /// already in the cache wins and the old one is just removed. Best effort, never throws.</summary>
+    internal static void MoveLegacyProjectColors(string legacyPath, string cachePath)
+    {
+        try
+        {
+            if (!File.Exists(legacyPath))
+                return;
+
+            if (File.Exists(cachePath))
+            {
+                File.Delete(legacyPath);
+                return;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+            File.Move(legacyPath, cachePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            // The cache is rebuilt from the folders themselves.
+        }
+    }
+
     /// <summary>The actual work behind <see cref="RefreshProjectColors"/> - a plain <c>await</c>
     /// rather than <see cref="TaskScheduler.FromCurrentSynchronizationContext"/>, since the latter
     /// throws outright on any thread with no real <see cref="SynchronizationContext"/> installed (a
@@ -827,11 +859,16 @@ public sealed partial class StatsViewModel : ObservableObject
         if (folders.Count == 0)
             return;
 
-        var cacheFilePath = Path.Combine(AppPaths.DataDirectory, "project-colors.json");
+        var cacheFilePath = Path.Combine(_projectColorsDirectory, ProjectColorsFileName);
+        var legacyFilePath = Path.Combine(AppPaths.DataDirectory, ProjectColorsFileName);
         IReadOnlyDictionary<string, ProjectColorInfo> resolved;
         try
         {
-            resolved = await Task.Run(() => ProjectColorResolve(folders, cacheFilePath));
+            resolved = await Task.Run(() =>
+            {
+                MoveLegacyProjectColors(legacyFilePath, cacheFilePath);
+                return ProjectColorResolve(folders, cacheFilePath);
+            });
         }
         catch (Exception)
         {
@@ -912,6 +949,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         _store = store;
         _history = history ?? (store.FixedDirectory is { } directory ? new HistoryStore(directory, now: null) : new HistoryStore());
+        _projectColorsDirectory = ProjectColorsDirectoryFor(store.FixedDirectory);
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
@@ -1188,8 +1226,8 @@ public sealed partial class StatsViewModel : ObservableObject
         // A period the quota history was not read for yet: read it on a pool thread first.
         var generation = ++_selectionGeneration;
         var inputs = await Task.Run(() => LoadLimitInputs(from, to));
-        if (generation == _selectionGeneration && ReferenceEquals(source, _sourceRecords))
-            RecomputeFrom(source, inputs);
+        if (generation == _selectionGeneration)
+            RecomputeFrom(_sourceRecords, inputs);
     }
 
     private int _selectionGeneration;
