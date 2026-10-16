@@ -39,8 +39,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     /// a day with no usage at all) and every provider that contributed to it, largest first. <see
     /// cref="Total"/> already sums every provider, not just the leader's own share; <see
     /// cref="ByProvider"/> is what the hover tooltip lists to show that sum broken down.
-    /// <see cref="LeaderProviderId"/> and <see cref="ByProvider"/> both default so the handful of
-    /// existing call sites in tests that construct a bare total keep compiling.</summary>
+    /// </summary>
     public readonly record struct DayValue(DateOnly Day, long Total, string LeaderProviderId = "", IReadOnlyList<ProviderTotal>? ByProvider = null);
 
     public static readonly DependencyProperty DaysProperty = DependencyProperty.Register(

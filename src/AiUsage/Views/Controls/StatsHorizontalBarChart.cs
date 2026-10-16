@@ -48,12 +48,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<StatsProjectRow>)e.NewValue));
     }
 
-    /// <summary>Opts a row-per-project chart into 852's richer row (icon or color dot, bold name,
+    /// <summary>Opts a row-per-project chart into the richer row (icon or color dot, bold name,
     /// muted middle-trimmed path, right-aligned value and share, a thin colored bar under the row)
-    /// and its own popup tooltip - the "top projects" panel's own <c>TopProjectsChart</c> sets this,
-    /// the day-detail panel's plainer model/project mini-lists never do, so they keep the original
-    /// single-line row and plain <see cref="System.Windows.FrameworkElement.ToolTip"/> string exactly
-    /// as before.</summary>
+    /// and its own popup tooltip. The "top projects" panel's <c>TopProjectsChart</c> sets this; the
+    /// day-detail mini-lists keep the single-line row and a plain
+    /// <see cref="System.Windows.FrameworkElement.ToolTip"/> string.</summary>
     public static readonly DependencyProperty ShowProjectDetailsProperty = DependencyProperty.Register(
         nameof(ShowProjectDetails), typeof(bool), typeof(StatsHorizontalBarChart),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure, OnShowProjectDetailsChanged));

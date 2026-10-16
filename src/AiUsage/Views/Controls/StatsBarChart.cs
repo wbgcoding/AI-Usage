@@ -34,7 +34,7 @@ public sealed class StatsBarChart : FrameworkElement
     /// carry meaning for an ungrouped (single-segment) bar whose own color should not follow the
     /// uniform theme accent - the model, effort and project groupings each fill them in, the view
     /// resolving them into an actual <see cref="BarBrushes"/> entry through <c>ChartPalette</c>; every
-    /// other bar leaves them at their default and is colored the old way instead. <see cref="ExtraTooltipLine"/>
+    /// other bar uses the series brushes. <see cref="ExtraTooltipLine"/>
     /// is one more tooltip line below the total, for a bar that bundles several entries.</summary>
     public readonly record struct Bar(
         string Label, IReadOnlyList<long> StackedValues, string ColorProviderId = "", int ColorRank = 0, string? ExtraTooltipLine = null);

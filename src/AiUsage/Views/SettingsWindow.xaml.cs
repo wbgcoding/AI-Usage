@@ -141,18 +141,9 @@ public partial class SettingsWindow : Window
         WindowPlacementService.ClampIntoArea(this, current);
     }
 
-    /// <summary>The window has no dedicated height thumb, but <c>WindowChrome</c>'s
-    /// <c>ResizeBorderThickness</c> still lets the user drag-resize it natively from the top or
-    /// bottom edge - and the moment they do, WPF genuinely overwrites <see cref="Window.SizeToContent"/>
-    /// with <see cref="SizeToContent.Manual"/> (readable back off the property, not just an internal
-    /// flag). Left alone, every later category switch would then keep the height that drag left
-    /// behind instead of fitting the newly selected category.
-    /// <para>The guard matters as much as the reset: toggling <c>Manual</c> then back to <c>Height</c>
-    /// unconditionally - even when nothing was ever dragged - froze the window at whatever height the
-    /// PREVIOUS category left it at, because the toggle captured that still-stale height as "Manual"
-    /// before the switch's own layout pass had shrunk anything. Only actually reassert it when a
-    /// drag really did leave the property sitting on <c>Manual</c>; otherwise WPF's own
-    /// <c>SizeToContent="Height"</c> already recomputes correctly on its own.</para></summary>
+    /// <summary>A drag on the top or bottom edge sets <see cref="Window.SizeToContent"/> to Manual;
+    /// reset it to Height only then, so the next category fits again. Toggling it unconditionally
+    /// captures the previous category's height.</summary>
     private void CategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (SizeToContent != SizeToContent.Height)

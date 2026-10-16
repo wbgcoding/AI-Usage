@@ -6,12 +6,9 @@ using System.Windows.Media;
 namespace AiUsage.Views.Controls;
 
 /// <summary>
-/// The one hover tooltip every self-drawn chart in the statistics window now shows through - a real
-/// WPF <see cref="Popup"/> (<see cref="Popup.AllowsTransparency"/> true) rather than text painted
-/// straight into the host control's own <c>OnRender</c>. A drawn tooltip could never leave its own
-/// control's clip rectangle, so a top-row cell in <see cref="StatsMonthGrid"/> or an edge bar in <see
-/// cref="StatsBarChart"/> always clipped it at the control's, and so the window's, own border. A
-/// popup is its own top-level window and is under no such limit.
+/// The hover tooltip of every self-drawn chart in the statistics window - a real WPF
+/// <see cref="Popup"/> (<see cref="Popup.AllowsTransparency"/> true). A popup is its own window, so
+/// it is not clipped by the chart or the window border.
 /// </summary>
 public sealed class ChartTooltipPopup
 {
@@ -46,7 +43,7 @@ public sealed class ChartTooltipPopup
     /// <summary>Whether the tooltip fits above <paramref name="anchorScreenTop"/> without its own top
     /// edge crossing <paramref name="screenTop"/> - the flip point between "above the pointer" (the
     /// ordinary case) and "below" (an anchor too close to the top of the screen, not just the host
-    /// window, since the popup itself is now free to leave the window). Pure so the flip logic is unit
+    /// window, since the popup itself may leave the window). Pure so the flip logic is unit
     /// testable without a live window.</summary>
     internal static bool FitsAbove(double anchorScreenTop, double tooltipHeight, double screenTop) =>
         anchorScreenTop - tooltipHeight >= screenTop;

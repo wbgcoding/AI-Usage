@@ -548,11 +548,7 @@
                                 </ItemsControl>
                                 </Grid>
 
-                                <!-- The explorer chart belongs to this same breakdown: it used to sit
-                                     outside this section entirely, as a bare sibling Border, so
-                                     collapsing "Breakdown" left it showing regardless -
-                                     nested in this section's own Content, it now hides and reappears
-                                     with everything else here. -->
+                                <!-- The explorer chart sits inside this section so collapsing "Breakdown" hides it too. -->
                                 <Border Height="140" Margin="0,4,0,0"
                                         Visibility="{Binding IsBarChart, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"

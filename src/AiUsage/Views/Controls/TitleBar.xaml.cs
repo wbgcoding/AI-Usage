@@ -82,7 +82,7 @@ public partial class TitleBar : UserControl
     /// <summary>The eye popup's badge count and accessible name read <c>HiddenCount</c> and
     /// <c>EyeButtonAccessibleName</c> off this property instead of the inherited DataContext:
     /// <c>SettingsWindow</c> reuses this control with a <c>SettingsViewModel</c> DataContext that has
-    /// neither member, which produced a binding error on every Settings-window open. Set from
+    /// neither member. Set from
     /// <c>MainWindow.xaml</c> only (<c>EyeSource="{Binding}"</c>); <c>SettingsWindow</c> leaves it
     /// null and the eye button stays hidden there anyway (<see cref="ShowEyeMenu"/>).</summary>
     public static readonly DependencyProperty EyeSourceProperty =
