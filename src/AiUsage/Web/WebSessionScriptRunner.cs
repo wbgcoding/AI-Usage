@@ -698,20 +698,9 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
 
     public async Task<string> ExecuteScriptAsync(string script, CancellationToken ct)
     {
-        // Belt and suspenders on top of the navigation gate above: the usage script itself never
-        // runs against anything but this provider's own base host, so a session that ended up
-        // somewhere else answers honestly instead of handing back whatever that other origin's
-        // script produced. It is sent back to the base page, so the next fetch can succeed again
-        // instead of every later call answering "blocked" for the rest of the process.
-        //
-        // Which of the two honest answers it is depends on where the session actually ended up: a
-        // host on this provider's own sign-in list is the provider itself sending a session it does
-        // not recognise to its login page, which is "not signed in" and offers the user a sign-in
-        // button. Anything else really is a session steered somewhere it was never meant to go.
-        //
-        // The same check runs once more inside the page, in front of the script itself (see
-        // WrapWithOriginGuard): this one only saves the round trip, that one cannot be overtaken by a
-        // navigation that lands between the check and the script.
+        // Runs only on the provider's base host. A host on the sign-in list means signed out; any
+        // other host is blocked. Either way the page goes back to the base URL. WrapWithOriginGuard
+        // repeats the check inside the page.
         var core = _webView?.CoreWebView2;
         if (core is null || _disposed)
             throw new OperationCanceledException("The hidden browser was closed.");
