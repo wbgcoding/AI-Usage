@@ -105,20 +105,7 @@ public readonly record struct StatsHeadlineFigures(
 /// caller can put the bars back in clock order whatever the label looks like.</summary>
 public readonly record struct StatsShareSlice(string Label, long Total, double Percent, string ProviderId = "", int Hour = -1);
 
-/// <summary>One row of the "top projects" panel: <see cref="ShortLabel"/> is what the bar draws (the
-/// project's own last folder segment, further trimmed if still long), <see cref="FullPath"/> is the
-/// untrimmed value the tooltip names it by. <see cref="FirstActivity"/>/<see cref="LastActivity"/>
-/// are this project's own earliest and latest day within whatever period the caller passed in, not
-/// the project's lifetime - the same period-scoping every other panel on this window already uses.
-/// <see cref="InputTokens"/>/<see cref="OutputTokens"/>/<see cref="CachedTokens"/> (cache write plus
-/// cache read combined into one figure) and <see cref="ProviderIds"/>/<see cref="MainModel"/> (the
-/// model with this project's own largest total) exist only for the detailed hover tooltip <see
-/// cref="Views.Controls.StatsHorizontalBarChart"/> builds for the "top projects" panel - every other
-/// caller of this same row shape (the day-detail panel's own model/project breakdown) leaves them at
-/// their defaults and never reads them back. <see cref="Color"/>/<see cref="IconPath"/> are filled in
-/// after the fact, by <see cref="StatsViewModel"/> merging in <see cref="ProjectColorResolver"/>'s own
-/// result - never by this aggregator itself, which has no folder to read an icon from and stays pure.
-/// </summary>
+/// <summary>One "top projects" row. First/LastActivity are scoped to the requested period; the token split, ProviderIds and MainModel feed only the hover tooltip; Color and IconPath are filled in by StatsViewModel.</summary>
 public readonly record struct StatsProjectRow(
     string ShortLabel, string FullPath, long Total, double Percent, DateOnly FirstActivity, DateOnly LastActivity,
     long InputTokens = 0, long OutputTokens = 0, long CachedTokens = 0,
@@ -174,7 +161,7 @@ public static class StatsAggregator
     /// <summary><paramref name="rangeStart"/>/<paramref name="rangeEnd"/> only ever affect Day and Week
     /// grouping: every calendar day (or ISO week) across that span gets a row, even one with no records at
     /// all, so a gap in the underlying data draws as an empty slot rather than vanishing from the
-    /// axis. Left null (the default), Day grouping falls back to its old behaviour - one row per day
+    /// axis. Left null (the default), Day grouping has one row per day
     /// that actually has records, nothing filled in. <paramref name="noProjectLabel"/> names the
     /// Project grouping's row for records with no project at all, the same pooling <see
     /// cref="TopProjects"/> does.</summary>

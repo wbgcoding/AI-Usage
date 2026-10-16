@@ -19,25 +19,7 @@ namespace AiUsage.Stats;
 /// </summary>
 public sealed class StatsStore
 {
-    // Schema v2 adds the `hour` column to the usage table's own primary key. Schema v3 changes what
-    // a Claude record's `project` column holds (the real path instead of the sanitised folder name).
-    // Schema v4 adds the `effort` column to the usage table's own primary key AND switches the
-    // day/hour bucket itself from UTC to local time - the same reindex covers both, since a
-    // local-time rebucket needs every row rebuilt anyway. Schema v5 adds source_file.last_message_key
-    // so a Claude response written several times is counted once. A database opened below v4 has
-    // its usage/source_file tables dropped and rebuilt (see EnsureSchema) since the older rows carry
-    // nothing to migrate from; v4 migrates in place. Schema v6 gives schema_version a single-row
-    // constraint (id = 1) so two first opens can never leave two version rows; every row stays.
-    // Schema v7 adds the `machine` and `subagent` columns to the usage table's own primary key (a
-    // table rebuild that keeps every row; Claude rows filed under the project "subagents" are marked
-    // as subagent rows) and the session tables; the sessions of rows already stored are filled in
-    // once from the source files that still exist (see StatsIndexer). Schema v8 adds the counted
-    // token columns to source_file (a Claude response written several times counts its fullest
-    // copy); every row stays, and the part earlier builds missed is added once from the source files
-    // that still exist. Schema v9 adds the claude_message table (which source file counted each Claude
-    // response first, so a copy of it in a resumed or forked transcript is not counted again; keyed by
-    // a 64-bit hash of the message key, the file as a number from claude_file); every row stays, and
-    // the copies already counted twice are subtracted once from the source files that still exist.
+    // Bumped with every schema change; EnsureSchema migrates v4 and newer in place and rebuilds anything older.
     internal const int SchemaVersion = 9;
 
     // Null for the production store, which follows AppPaths.DataDirectory on every open, so a moved

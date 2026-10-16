@@ -670,20 +670,7 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private string selectedDayHeadText = "";
 
-    /// <summary>The day-detail panel's own four charts, already shaped for display the same way <see
-    /// cref="Rows"/> already is - built from <see cref="StatsAggregator.DayDetail"/>'s raw totals in
-    /// <see cref="ToggleSelectedDay"/>, never bound directly, so the view stays a plain binding.
-    /// <see cref="ProviderIds"/>/<see cref="ProviderValues"/> feed a stacked share bar (<see
-    /// cref="Views.Controls.StatsCacheShareBar"/> reused for a provider breakdown instead of the cache
-    /// kinds it was built for) - the raw ids so the code-behind can resolve each one's own <see
-    /// cref="ChartPalette.ForProvider"/> brush, largest first. <see cref="ModelRows"/> and <see
-    /// cref="ProjectRows"/> reuse the "top projects" horizontal bar chart's own row shape, largest
-    /// first, with <see cref="StatsProjectRow.FirstActivity"/>/<see cref="StatsProjectRow.LastActivity"/>
-    /// both pinned to the selected day itself (single-day, so there is no real range). <see
-    /// cref="HourBars"/> is the one exception to "largest first": a bar chart's X axis has to read left
-    /// to right as hour 0 through 23, not by size - <see cref="StatsAggregator.DayDetail"/>'s own
-    /// <c>ByHour</c> sorts by size like the other three, so this re-sorts it by each slice's hour
-    /// number.</summary>
+    /// <summary>The day-detail panel's four charts, largest first except <c>HourBars</c>, which run 0 to 23.</summary>
     public readonly record struct DayDetailView(
         IReadOnlyList<string> ProviderIds,
         IReadOnlyList<long> ProviderValues,
@@ -1326,10 +1313,8 @@ public sealed partial class StatsViewModel : ObservableObject
         // built from the previous records.
         RebuildSelectedDayDetail();
 
-        // Which day the gap-filled by-day rows start at. Not "from": the whole history has no lower
-        // bound at all, so filling every empty day from there would build one bar per day since the
-        // year 1 - about 740,000 of them, which is what made the window stop answering and then give
-        // up. The earliest day actually stored is the first one worth drawing.
+        // Starts at the earliest stored day: from an open lower bound it would build one bar per day
+        // since year 1.
         var gapFillFrom = GapFillStart(from, inRange, to);
 
         var weeklyPerDay = SelectedRange == "All" && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;

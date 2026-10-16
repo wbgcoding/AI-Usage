@@ -152,12 +152,12 @@ public sealed class StatsIndexer
         BackfillSubagentUsageOnce(known, cancellationToken);
         BackfillClaudeCopiesOnce(known, cancellationToken);
 
-        // After the passes above, which count a file's responses the old way; this one then removes
-        // what a second transcript counted of the same responses.
+        // The passes above count every copy of a response; this one subtracts the copies a second
+        // transcript counted.
         BackfillClaudeOwnersOnce(known, cancellationToken);
 
-        // Until that pass has run, the walk counts exactly like the builds before it: it neither reads
-        // nor writes claims, so the pass later handles this content like any older content.
+        // Until that pass has run, owners are neither read nor written, so the pass later handles
+        // this content like any older content.
         _claimsActive = _store.IsClaudeOwnerPassConfirmedDone();
 
         var claudeFiles = new List<FileInfo>();
