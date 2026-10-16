@@ -11,7 +11,7 @@ namespace AiUsage.Services;
 /// </summary>
 public static class HistoryExport
 {
-    private const string Header = "provider,window,timestamp_utc,percent,resets_at_utc,tokens";
+    private const string Header = "provider,window,timestamp_utc,percent,resets_at_utc,tokens,label";
 
     public static string ToCsv(IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> byProvider)
     {
@@ -28,7 +28,9 @@ public static class HistoryExport
                     .Append(point.Timestamp.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)).Append(',')
                     .Append(point.Percent.ToString(CultureInfo.InvariantCulture)).Append(',')
                     .Append(point.ResetsAt is { } resetsAt ? resetsAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) : "").Append(',')
-                    .Append(point.Tokens?.ToString(CultureInfo.InvariantCulture) ?? "")
+                    .Append(point.Tokens?.ToString(CultureInfo.InvariantCulture) ?? "").Append(',')
+                    // Tells several "Other" series of one provider apart (Cursor's per-model bars).
+                    .Append(CsvField.Escape(point.Label ?? ""))
                     .Append("\r\n");
             }
         }

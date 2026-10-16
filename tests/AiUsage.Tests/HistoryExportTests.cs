@@ -13,7 +13,7 @@ public class HistoryExportTests
     [Fact]
     public void ToCsv_writes_the_header_row_first() =>
         Assert.StartsWith(
-            "provider,window,timestamp_utc,percent,resets_at_utc,tokens\r\n",
+            "provider,window,timestamp_utc,percent,resets_at_utc,tokens,label\r\n",
             HistoryExport.ToCsv(new Dictionary<string, IReadOnlyList<HistoryPoint>>()));
 
     [Fact]
@@ -26,7 +26,7 @@ public class HistoryExportTests
 
         var row = HistoryExport.ToCsv(byProvider).Split("\r\n")[1];
 
-        Assert.Equal("codex,FiveHour,2026-03-15T14:30:00.0000000Z,42.5,2026-03-15T16:30:00.0000000Z,12345", row);
+        Assert.Equal("codex,FiveHour,2026-03-15T14:30:00.0000000Z,42.5,2026-03-15T16:30:00.0000000Z,12345,", row);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class HistoryExportTests
         var csv = HistoryExport.ToCsv(byProvider);
         var row = csv.Split("\r\n")[1];
 
-        Assert.Equal("codex,Weekly,2026-03-15T14:30:00.0000000Z,10,,", row);
+        Assert.Equal("codex,Weekly,2026-03-15T14:30:00.0000000Z,10,,,", row);
         Assert.DoesNotContain("null", csv);
     }
 
@@ -78,5 +78,23 @@ public class HistoryExportTests
         var row = HistoryExport.ToCsv(byProvider).Split("\r\n")[1];
 
         Assert.StartsWith("\"'=cmd\"\"x\",Weekly,", row);
+    }
+
+    [Fact]
+    public void ToCsv_writes_the_window_label_so_two_other_series_stay_apart()
+    {
+        var byProvider = new Dictionary<string, IReadOnlyList<HistoryPoint>>
+        {
+            ["cursor"] =
+            [
+                new HistoryPoint(1, Timestamp, WindowKind.Other, 10, null, Label: "Window_CursorModels"),
+                new HistoryPoint(1, Timestamp, WindowKind.Other, 20, null, Label: "Window_CursorGrok"),
+            ],
+        };
+
+        var rows = HistoryExport.ToCsv(byProvider).Split("\r\n");
+
+        Assert.EndsWith(",Window_CursorModels", rows[1]);
+        Assert.EndsWith(",Window_CursorGrok", rows[2]);
     }
 }
