@@ -46,6 +46,10 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Changed
 
+- The notification pickers show plain values such as "30 min" and "2 h".
+- The forecast warning allows for the time until the next read, so a short lead is never skipped between two reads.
+- Long provider names and window labels show their full text as a tooltip, but only when they are cut off.
+- A model keeps the same color on every bar of a tile.
 - Context menus have no separator lines and are ordered by what belongs together; the notification area menu is shorter, with the window options in a "Widget" submenu.
 - Focus rings appear only when you move with the keyboard, not after a mouse click.
 - Tooltips that only repeated the visible name are gone.
@@ -84,6 +88,11 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Fixed
 
+- The token usage window no longer stalls when it opens: it is prepared again after each close and no longer rebuilds its charts a second time on open.
+- A refresh during the short pause before a timed-out read is retried now starts the retry at once instead of doing nothing.
+- A token figure no longer blanks for a moment when a reset time shifts by a second around the full minute.
+- Closing the app no longer waits on saving the prepared statistics.
+- Chart tooltips use the theme's font.
 - A Gemini read that timed out briefly showed an error although the next read worked; it is now retried once quietly first.
 - The widget's taskbar button no longer lights up as if it had a message.
 - The threshold line stays hidden on a tile whose notifications are off.
@@ -149,6 +158,8 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Security
 
+- The sign-in window no longer saves form entries or passwords and grants no site permissions that a later hidden read would inherit.
+- The prepared statistics file is kept in the machine-local cache folder, so the list of your sessions and projects no longer roams with the profile.
 - Every update downloads into its own new folder and is checked from the same bytes it installs. A portable copy accepts only a portable file of its own architecture, an installed copy only a setup, and an older or equal version is refused.
 - An installation for all users starts the verified setup with administrator rights directly, and the previous program file is kept until the new one has started.
 - Dialogs on a provider's page can no longer block the hidden browser, and the sign-in window shows the address of any page that is not the provider's own.
