@@ -500,9 +500,9 @@ public sealed class RefreshScheduler
 
             var attemptClock = _timeProvider.GetTimestamp();
             var snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, runCts, state, ct);
-            if (snapshot is not null && IsTransientFailure(snapshot))
+            if (snapshot is not null && IsWorthARetry(snapshot))
             {
-                // A timeout is usually gone a moment later: the tile keeps its last
+                // A timeout or a server's own error (503 and the like) is usually gone a moment later: the tile keeps its last
                 // numbers (nothing is reported yet) and the same source is read once more. Only a second
                 // failure in a row is shown. The pause runs under the same cancellation an owner can use.
                 _logInfo($"Provider '{provider.AccountKey}': read failed ({snapshot.Error?.Kind}) after "
@@ -593,8 +593,14 @@ public sealed class RefreshScheduler
         }
     }
 
-    /// <summary>A failure that is worth one quiet retry: no answer in time. A lost connection (Network)
-    /// is left to its own recovery, which reads the failed providers again once the network is back.</summary>
+    /// <summary>A failure that is worth one quiet retry: no answer in time, or the server answered with
+    /// a 5xx of its own (overloaded, briefly unavailable). A lost connection (Network) is left to its own
+    /// recovery, which reads the failed providers again once the network is back.</summary>
+    private static bool IsWorthARetry(ProviderSnapshot snapshot) =>
+        IsTransientFailure(snapshot)
+        || snapshot.Status == ProviderStatus.Failed && snapshot.Error?.Kind == FailureKind.ServerError;
+
+    /// <summary>A timeout: once retried and still shown, the next try follows the normal cadence.</summary>
     private static bool IsTransientFailure(ProviderSnapshot snapshot) =>
         snapshot.Status == ProviderStatus.Failed && snapshot.Error?.Kind == FailureKind.Timeout;
 

@@ -829,10 +829,28 @@ public class RefreshSchedulerTests
     }
 
     [Fact]
-    public async Task A_failure_of_another_kind_is_reported_at_once_without_a_retry()
+    public async Task A_server_error_is_retried_once_quietly_and_a_second_one_is_reported_with_back_off()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
         var provider = new FakeProvider("gemini") { NextResult = FailedWith("gemini", FailureKind.ServerError) };
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMilliseconds(10), logInfo: _ => { });
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(2, provider.FetchCount);
+        Assert.Equal(FailureKind.ServerError, Assert.Single(reported).Error?.Kind);
+        // Unlike a timeout the server's own error still backs off: not due after the plain interval.
+        clock.Advance(BaseInterval);
+        Assert.Empty(scheduler.Tick());
+    }
+
+    [Fact]
+    public async Task A_failure_of_another_kind_is_reported_at_once_without_a_retry()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("gemini") { NextResult = FailedWith("gemini", FailureKind.RateLimited) };
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock, retryDelay: TimeSpan.FromMilliseconds(10), logInfo: _ => { });
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
