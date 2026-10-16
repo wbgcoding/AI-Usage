@@ -10,6 +10,8 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Added
 
+- The waiting mark also works for Gemini: the tile marks it when your latest Antigravity conversation ends with a finished answer you have not replied to yet.
+- The main Claude account can sign in through claude.ai in the app; Claude Code's own sign-in still comes first while it has numbers.
 - One backup file holds your settings, the usage history and the token index. Restoring it replaces everything and restarts the app; your previous state is kept aside until the restore has finished.
 - The token history of a second PC can be imported from its backup. Importing the same backup twice counts nothing twice, and each imported PC can be removed again in the settings.
 - Notifications appear as real Windows notifications with a "Show widget" button, grouped in the notification center and respecting Do Not Disturb.
@@ -46,6 +48,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Changed
 
+- The token usage window appears complete instead of as an empty frame first, draws the visible part first and opens again at once after being closed.
 - The notification pickers show plain values such as "30 min" and "2 h".
 - The forecast warning allows for the time until the next read, so a short lead is never skipped between two reads.
 - Long provider names and window labels show their full text as a tooltip, but only when they are cut off.
@@ -88,6 +91,8 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Fixed
 
+- Signing out of an account no longer leaves its old numbers on the tile.
+- The Claude sign-in button no longer does nothing when Claude Code holds no sign-in.
 - The token usage window no longer stalls when it opens: it is prepared again after each close and no longer rebuilds its charts a second time on open.
 - A refresh during the short pause before a timed-out read is retried now starts the retry at once instead of doing nothing.
 - A token figure no longer blanks for a moment when a reset time shifts by a second around the full minute.
