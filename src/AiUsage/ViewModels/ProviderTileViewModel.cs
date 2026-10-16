@@ -584,8 +584,11 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The index slices the visible rows show (see <see cref="UsageRowViewModel.TokenKeyFor"/>),
     /// each once, in row order - what <see cref="ViewModels.MainViewModel"/> asks <see
     /// cref="Stats.StatsStore.SumTokensSince"/> for.</summary>
-    internal IReadOnlyList<WindowTokenKey> WindowTokenKeys =>
-        Rows.Select(row => row.TokenKey).OfType<WindowTokenKey>().Distinct().ToList();
+    internal IReadOnlyList<WindowTokenKey> WindowTokenKeys => _windowTokenKeys;
+
+    // Rebuilt whenever the rows' slices are assigned (ApplyRows): the one-second tick reads it, so it
+    // is not recomputed per call.
+    private IReadOnlyList<WindowTokenKey> _windowTokenKeys = [];
 
     // The answers to those queries, per slice: set from outside, never computed here (same split as
     // IsFetching). Kept for every window of the last snapshot, so a window hidden and shown again
@@ -1390,6 +1393,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
         for (var i = 0; i < Rows.Count; i++)
             Rows[i].TokenKey = UsageRowViewModel.TokenKeyFor(visibleWindows[i], RealProviderId);
+        _windowTokenKeys = Rows.Select(row => row.TokenKey).OfType<WindowTokenKey>().Distinct().ToList();
 
         // A window that is gone from the snapshot (its reset moved on) takes its old answer along.
         var current = windows.Select(window => UsageRowViewModel.TokenKeyFor(window, RealProviderId)).OfType<WindowTokenKey>().ToHashSet();

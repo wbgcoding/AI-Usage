@@ -71,6 +71,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// once.</summary>
     private readonly Dictionary<(string ProviderId, WindowTokenKey Slice), DateTimeOffset> _lastWindowTokensQueryAt = new();
 
+    // Scratch sets of RefreshWindowTokens, kept so the per-second tick does not allocate them.
+    private readonly HashSet<(string ProviderId, WindowTokenKey Slice)> _wantedWindowSlices = [];
+    private readonly HashSet<(string ProviderId, WindowTokenKey Slice)> _wantedWindowSlicesWithShares = [];
+
     // A fetch completing in a handful of milliseconds must still show its "working" indicator long
     // enough to be seen rather than flicker - each started fetch is timestamped here,
     // and IsFetching is only actually cleared once MinFetchingDuration has passed since. A provider
@@ -898,21 +902,37 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         var query = WindowTokensQuery ?? store.SumTokensSince;
 
-        var wanted = new HashSet<(string ProviderId, WindowTokenKey Slice)>();
-        var wantedWithShares = new HashSet<(string ProviderId, WindowTokenKey Slice)>();
-        foreach (var tile in Tiles.Where(tile => !tile.IsHidden))
+        // This runs every second: the sets are reused and nothing is allocated while nothing is due.
+        var wanted = _wantedWindowSlices;
+        var wantedWithShares = _wantedWindowSlicesWithShares;
+        wanted.Clear();
+        wantedWithShares.Clear();
+        for (var t = 0; t < Tiles.Count; t++)
         {
-            foreach (var key in tile.WindowTokenKeys)
+            var tile = Tiles[t];
+            if (tile.IsHidden)
+                continue;
+            var keys = tile.WindowTokenKeys;
+            for (var k = 0; k < keys.Count; k++)
             {
-                wanted.Add((tile.RealProviderId, key));
+                wanted.Add((tile.RealProviderId, keys[k]));
                 if (tile.WantsWindowShares)
-                    wantedWithShares.Add((tile.RealProviderId, key));
+                    wantedWithShares.Add((tile.RealProviderId, keys[k]));
             }
         }
 
         // Windows that are gone (a reset passed) leave the cache, so it never grows week by week.
-        foreach (var key in _lastWindowTokensQueryAt.Keys.Where(key => !wanted.Contains(key)).ToList())
-            _lastWindowTokensQueryAt.Remove(key);
+        List<(string ProviderId, WindowTokenKey Slice)>? gone = null;
+        foreach (var key in _lastWindowTokensQueryAt.Keys)
+        {
+            if (!wanted.Contains(key))
+                (gone ??= []).Add(key);
+        }
+        if (gone is not null)
+        {
+            foreach (var key in gone)
+                _lastWindowTokensQueryAt.Remove(key);
+        }
 
         foreach (var key in wanted)
         {
