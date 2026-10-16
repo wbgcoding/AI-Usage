@@ -163,7 +163,7 @@ public static class ThemeService
         dictionary[AccentHoverKey] = Frozen(AccentColors.Hover(accent, lighten: dark));
     }
 
-    private static SolidColorBrush Frozen(Color color)
+    internal static SolidColorBrush Frozen(Color color)
     {
         var brush = new SolidColorBrush(color);
         brush.Freeze();
