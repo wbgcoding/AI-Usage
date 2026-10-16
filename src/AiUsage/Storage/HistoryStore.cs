@@ -273,7 +273,7 @@ public class HistoryStore
             {
                 var all = LoadPoints(state, providerId, path, from);
                 // A new list every time: callers get to keep and change theirs.
-                return all.Where(point => point.Timestamp >= from && point.Timestamp <= until).ToList();
+                return InTimeOrder(all.Where(point => point.Timestamp >= from && point.Timestamp <= until).ToList());
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -316,12 +316,25 @@ public class HistoryStore
             }
 
             points.Reverse();
-            return points;
+            return InTimeOrder(points);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return [];
         }
+    }
+
+    /// <summary>The points ordered by time. File order is time order except after a clock set back; a
+    /// stable sort then keeps equal times in file order. The list itself when it is in order already.</summary>
+    private static List<HistoryPoint> InTimeOrder(List<HistoryPoint> points)
+    {
+        for (var i = 1; i < points.Count; i++)
+        {
+            if (points[i].Timestamp < points[i - 1].Timestamp)
+                return [.. points.OrderBy(point => point.Timestamp)];
+        }
+
+        return points;
     }
 
     /// <summary>The valid points of the file from <paramref name="from"/> on, in file order, kept in
@@ -381,7 +394,8 @@ public class HistoryStore
 
     /// <summary>How many points in a row older than the range a backward scan passes before it stops:
     /// a clock set back leaves older times behind newer ones at the end of the file, so the first old
-    /// point is not yet the end of the range.</summary>
+    /// point is not yet the end of the range. This is a limit: a clock set back followed by more than
+    /// this many older points hides the in-range points that lie before them in the file.</summary>
     private const int OutOfOrderLookahead = 1000;
 
     private List<HistoryPoint> ScanFromEnd(
