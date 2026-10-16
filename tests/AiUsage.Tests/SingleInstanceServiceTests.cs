@@ -103,6 +103,35 @@ public class SingleInstanceServiceTests
     }
 
     [Fact]
+    public void A_start_whose_owner_left_before_it_could_be_signalled_takes_over_instead_of_exiting()
+    {
+        var name = UniqueMutexName();
+        var first = new SingleInstanceService(name);
+        using var second = new SingleInstanceService(name);
+        Assert.True(first.AcquireOwnership([]));
+
+        // The owner is gone by the time the show request looks for it.
+        var handedOver = second.AcquireOrRequestShow([], allowNewInstance: false, () =>
+        {
+            first.Dispose();
+            return false;
+        }, TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(50));
+
+        Assert.True(handedOver);
+    }
+
+    [Fact]
+    public void A_start_that_signalled_a_running_owner_hands_over_and_exits()
+    {
+        var name = UniqueMutexName();
+        using var first = new SingleInstanceService(name);
+        using var second = new SingleInstanceService(name);
+        Assert.True(first.AcquireOwnership([]));
+
+        Assert.False(second.AcquireOrRequestShow([], allowNewInstance: false, () => true, TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(50)));
+    }
+
+    [Fact]
     public async Task A_show_request_that_arrives_before_the_handler_is_registered_is_not_lost()
     {
         var eventName = $"Local\\AI-Usage-Test-Show-{Guid.NewGuid():N}";

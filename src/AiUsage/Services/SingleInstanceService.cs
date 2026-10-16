@@ -126,21 +126,47 @@ public sealed class SingleInstanceService(
             _showEvent, (_, _) => onShowRequested(), state: null, Timeout.Infinite, executeOnlyOnce: false);
     }
 
-    /// <summary>Called by a second instance that lost <see cref="AcquireOwnership"/>: asks the
-    /// owning instance to bring its window forward, then this instance exits.</summary>
-    public static void RequestShow() => RequestShow(ShowEventName);
+    /// <summary>Called by a second instance that lost <see cref="AcquireOwnership(string[])"/>: asks the
+    /// owning instance to bring its window forward. False when no owner could be signalled.</summary>
+    public static bool RequestShow() => RequestShow(ShowEventName);
 
     /// <summary>Test seam: a per-test event name instead of the fixed production one, so a test
     /// signalling it never collides with a real running instance of the app or with another test
     /// running in parallel - the same reason the constructor's own mutex name is already
     /// overridable.</summary>
-    internal static void RequestShow(string eventName)
+    internal static bool RequestShow(string eventName)
     {
-        if (EventWaitHandle.TryOpenExisting(eventName, out var handle))
-        {
-            using var _ = handle;
-            handle.Set();
-        }
+        if (!EventWaitHandle.TryOpenExisting(eventName, out var handle))
+            return false;
+
+        using (handle)
+            return handle.Set();
+    }
+
+    /// <summary>The start of every ordinary copy: true when this process is the one instance, false
+    /// when the running owner was asked to show its window.</summary>
+    public bool AcquireOrRequestShow(string[] args) =>
+        AcquireOrRequestShow(args, NewInstanceAllowed, () => RequestShow(), OwnerGoneRetryWindow);
+
+    /// <summary>How long a start keeps asking for the lock when the owner it found left before it
+    /// could be signalled.</summary>
+    internal static readonly TimeSpan OwnerGoneRetryWindow = TimeSpan.FromSeconds(3);
+
+    internal bool AcquireOrRequestShow(
+        string[] args, bool allowNewInstance, Func<bool> requestShow, TimeSpan retryFor, TimeSpan? step = null)
+    {
+        var retry = UpdateHost.IsAfterUpdateStart(args) ? AfterUpdateRetryWindow : TimeSpan.Zero;
+        if (AcquireOwnership(args, allowNewInstance, retry, step))
+            return true;
+
+        if (requestShow())
+            return false;
+
+        // No owner answered: it left between the failed lock and the signal. The failed attempt's
+        // handle is given back first, or the lock would look taken for as long as it is held.
+        _mutex?.Dispose();
+        _mutex = null;
+        return AcquireOwnership(args, allowNewInstance, retryFor, step);
     }
 
     public void Dispose()
