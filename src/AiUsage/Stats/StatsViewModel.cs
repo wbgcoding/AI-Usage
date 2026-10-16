@@ -928,7 +928,7 @@ public sealed partial class StatsViewModel : ObservableObject
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
-        _askForSavePath = askForSavePath ?? ShowRealSaveDialog;
+        _askForSavePath = askForSavePath ?? CsvSaveDialog.Show;
         _showMessage = showMessage ?? (message => Views.ConfirmWindow.ShowInfo(null, message));
 
         RangeChoices.Add(new Choice<string>("Chart.Range.Week", "Week"));
@@ -2100,16 +2100,5 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             _showMessage(loc["StatsWindow.ExportFailed"]);
         }
-    }
-
-    private static string? ShowRealSaveDialog(string suggestedFileName)
-    {
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            FileName = suggestedFileName,
-            Filter = LocalizationService.Instance["Dialog.Filter.Csv"],
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 }

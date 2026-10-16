@@ -573,7 +573,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _enableAutostart = enableAutostart;
         _disableAutostart = disableAutostart;
         _applyLanguage = applyLanguage;
-        _askForSavePath = askForSavePath ?? ShowRealSaveDialog;
+        _askForSavePath = askForSavePath ?? CsvSaveDialog.Show;
         _askForSettingsExportPath = askForSettingsExportPath ?? ShowRealSettingsSaveDialog;
         _askForSettingsImportPath = askForSettingsImportPath ?? ShowRealSettingsOpenDialog;
         _showMessage = showMessage ?? (message => Views.ConfirmWindow.ShowInfo(null, message));
@@ -1275,17 +1275,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool isDataWorkBusy;
 
     private bool CanRunDataWork() => !IsDataWorkBusy;
-
-    private static string? ShowRealSaveDialog(string suggestedFileName)
-    {
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            FileName = suggestedFileName,
-            Filter = LocalizationService.Instance["Dialog.Filter.Csv"],
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
-    }
 
     /// <summary>Every current setting, written the same way the store itself would, to a path the
     /// user picks - never the window's own position/size (see <see cref="ApplyLoaded"/>'s doc), since
