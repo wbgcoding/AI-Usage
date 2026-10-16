@@ -93,6 +93,22 @@ public class NotificationRowTests
         new(tile.ProviderId, tile.HeaderDisplayName, new ProviderSettings(), () => { }, tile);
 
     [Fact]
+    public void The_spoken_labels_join_their_parts_with_the_resource_pattern()
+    {
+        var loc = AiUsage.Services.LocalizationService.Instance;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var threshold = RowFor(tile).Threshold;
+
+        Assert.Equal(loc.Format("Format.LabelValue", loc["Window.FiveHour"], threshold.FiveHourLabel), threshold.FiveHourFullLabel);
+        Assert.Equal(loc.Format("Format.LabelValue", tile.HeaderDisplayName + " " + loc["Window.Weekly"], loc["Settings.On"]), threshold.WeeklyEnabledFullLabel);
+        Assert.Equal(loc.Format("Format.LabelValue", tile.HeaderDisplayName, loc["Settings.OwnThreshold"]), threshold.OwnThresholdFullLabel);
+        Assert.Equal(loc.Format("Format.LabelValue", tile.HeaderDisplayName, tile.LastSuccessAgeText), tile.LastSuccessLine);
+        Assert.Equal(loc.Format("Format.LabelValue", "Claude", "1.2M"), new AiUsage.Stats.StatsProviderRowViewModel("Claude", "1.2M", "1,200,000").LabelValueText);
+        Assert.Contains(": ", loc.Format("Format.LabelValue", "a", "b"));
+        Assert.Contains(" / ", loc.Format("Format.Pair", "a", "b"));
+    }
+
+    [Fact]
     public void The_own_threshold_row_names_the_real_other_window()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");

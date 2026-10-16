@@ -273,6 +273,11 @@ public sealed partial class StatsViewModel : ObservableObject
     public bool HasAnyFilter => HasModelFilter || HasProjectFilter;
 
     /// <summary>The filter chip's text, for example "Model: Opus 4.5".</summary>
+    /// <summary>The session table's combined "Project / Model" column header.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Bound from XAML, which needs an instance property.")]
+    public string SessionProjectModelHeader => LocalizationService.Instance.Format(
+        "Format.Pair", LocalizationService.Instance["Stats.Col.Project"], LocalizationService.Instance["Stats.Col.Model"]);
+
     public string ModelFilterText => LocalizationService.Instance.Format("Stats.Filter.Model", SelectedModelFilter);
 
     public string ProjectFilterText => LocalizationService.Instance.Format(
@@ -1785,6 +1790,7 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(ProviderButtonText));
         OnPropertyChanged(nameof(ModelFilterText));
         OnPropertyChanged(nameof(ProjectFilterText));
+        OnPropertyChanged(nameof(SessionProjectModelHeader));
         UpdateCustomChoiceLabel();
         OnPropertyChanged(nameof(ChartTooltip));
         OnPropertyChanged(nameof(EmptyChartText));

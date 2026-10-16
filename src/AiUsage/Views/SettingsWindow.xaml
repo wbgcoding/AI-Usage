@@ -550,7 +550,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Margin="0,0,16,0"><Run Text="{Binding HeaderDisplayName, Mode=OneWay}"/><Run Text=": "/><Run Text="{Binding LastSuccessAgeText, Mode=OneWay}"/></TextBlock>
+                                <TextBlock Margin="0,0,16,0" Text="{Binding LastSuccessLine, Mode=OneWay}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

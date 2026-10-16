@@ -530,10 +530,7 @@
                                         <Style TargetType="ContentPresenter">
                                             <Setter Property="AutomationProperties.Name">
                                                 <Setter.Value>
-                                                    <MultiBinding StringFormat="{}{0}: {1}">
-                                                        <Binding Path="DisplayName"/>
-                                                        <Binding Path="ValueText"/>
-                                                    </MultiBinding>
+                                                    <Binding Path="LabelValueText"/>
                                                 </Setter.Value>
                                             </Setter>
                                         </Style>
@@ -541,7 +538,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Margin="0,0,16,0" ToolTip="{Binding ExactText}" Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}">
-                                                <Run Text="{Binding DisplayName, Mode=OneWay}"/><Run Text=": "/><Run Text="{Binding ValueText, Mode=OneWay}"/>
+                                                <Run Text="{Binding LabelValueText, Mode=OneWay}"/>
                                             </TextBlock>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -603,7 +600,7 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Project], Mode=OneWay}"/><Run Text=" / "/><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Model], Mode=OneWay}"/>
+                                            <Run Text="{Binding SessionProjectModelHeader, Mode=OneWay}"/>
                                         </TextBlock>
                                         <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Start]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"

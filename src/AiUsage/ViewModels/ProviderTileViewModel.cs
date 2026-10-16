@@ -816,6 +816,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// switch can re-raise it and the age keeps moving.</summary>
     public string LastSuccessAgeText => AgeText.Describe(LastSuccessAt);
 
+    /// <summary>"Claude: 3 min ago" - the line the Settings window lists per provider.</summary>
+    public string LastSuccessLine => LocalizationService.Instance.Format("Format.LabelValue", HeaderDisplayName, LastSuccessAgeText);
+
     /// <summary>When the last snapshot that carried data was fetched (set alongside <see
     /// cref="LastSuccessAt"/>): the header age counts from here, so it reads as how fresh the
     /// reading attempt is, not how old the provider's own data point is.</summary>
@@ -1633,6 +1636,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         }
 
         base.OnPropertyChanged(e);
+        if (e.PropertyName is nameof(HeaderDisplayName) or nameof(LastSuccessAgeText))
+            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(LastSuccessLine)));
     }
 
     /// <summary>A density switch (from the eye-menu, or the automatic-height stepper) is the only

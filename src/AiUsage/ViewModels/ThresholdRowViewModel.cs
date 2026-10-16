@@ -69,9 +69,9 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
     private static string PercentLabel(double percent) =>
         StatusTextMap.FormatPercent(percent.ToString("0", CultureInfo.CurrentCulture));
 
-    public string FiveHourFullLabel => $"{Loc["Window.FiveHour"]}: {FiveHourLabel}";
-    public string WeeklyFullLabel => $"{Loc["Window.Weekly"]}: {WeeklyLabel}";
-    public string OtherFullLabel => $"{OtherWindowLabel}: {OtherLabel}";
+    public string FiveHourFullLabel => Loc.Format("Format.LabelValue", Loc["Window.FiveHour"], FiveHourLabel);
+    public string WeeklyFullLabel => Loc.Format("Format.LabelValue", Loc["Window.Weekly"], WeeklyLabel);
+    public string OtherFullLabel => Loc.Format("Format.LabelValue", OtherWindowLabel, OtherLabel);
 
     /// <summary>What the third row is called: the real name of the provider's Other window(s) once a
     /// snapshot has told, the generic word until then.</summary>
@@ -80,11 +80,11 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
     /// <summary>Names what each window's own Ein/Aus check box actually toggles, including which
     /// provider's row it lives in - without this a screen reader announces four bare "Ein" boxes
     /// (the checkbox's own Content text) with no way to tell them apart.</summary>
-    public string FiveHourEnabledFullLabel => $"{HeaderDisplayName} {Loc["Window.FiveHour"]}: {Loc["Settings.On"]}";
-    public string WeeklyEnabledFullLabel => $"{HeaderDisplayName} {Loc["Window.Weekly"]}: {Loc["Settings.On"]}";
-    public string OtherEnabledFullLabel => $"{HeaderDisplayName} {OtherWindowLabel}: {Loc["Settings.On"]}";
+    public string FiveHourEnabledFullLabel => Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {Loc["Window.FiveHour"]}", Loc["Settings.On"]);
+    public string WeeklyEnabledFullLabel => Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {Loc["Window.Weekly"]}", Loc["Settings.On"]);
+    public string OtherEnabledFullLabel => Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {OtherWindowLabel}", Loc["Settings.On"]);
 
-    public string OwnThresholdFullLabel => $"{HeaderDisplayName}: {Loc["Settings.OwnThreshold"]}";
+    public string OwnThresholdFullLabel => Loc.Format("Format.LabelValue", HeaderDisplayName, Loc["Settings.OwnThreshold"]);
 
     private static LocalizationService Loc => LocalizationService.Instance;
 

@@ -168,6 +168,8 @@
   <data name="Tile.Show" xml:space="preserve"><value>Show this provider</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Source: {0}</value></data>
   <data name="Tile.BarSegment" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Format.LabelValue" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="Format.Pair" xml:space="preserve"><value>{0} / {1}</value></data>
   <data name="Eye.Menu" xml:space="preserve"><value>Providers and layout</value></data>
   <data name="Eye.HiddenCount" xml:space="preserve"><value>{0} hidden</value></data>
   <data name="Eye.MoveUp" xml:space="preserve"><value>Move up</value></data>
