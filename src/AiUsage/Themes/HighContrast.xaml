@@ -24,6 +24,10 @@
     <SolidColorBrush x:Key="Level.Ok" Color="{x:Static SystemColors.WindowTextColor}"/>
     <SolidColorBrush x:Key="Level.Warn" Color="{x:Static SystemColors.HotTrackColor}"/>
     <SolidColorBrush x:Key="Level.Crit" Color="{x:Static SystemColors.HighlightColor}"/>
+    <!-- Cache share bar segments (cache read uses Accent): four system colors that stay apart. -->
+    <SolidColorBrush x:Key="Chart.Cache.New" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Chart.Cache.Write" Color="{x:Static SystemColors.HotTrackColor}"/>
+    <SolidColorBrush x:Key="Chart.Cache.Output" Color="{x:Static SystemColors.GrayTextColor}"/>
     <!-- A gradient is wrong in high-contrast mode, and a system color cannot be lightened at
          design time - these mirror the flat Level.* colors above as plain solid brushes so a
          theme swap never leaves a dangling DynamicResource in UsageBar.xaml. -->

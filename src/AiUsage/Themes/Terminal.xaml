@@ -20,6 +20,10 @@
     <SolidColorBrush x:Key="Level.Ok" Color="#39FF6A"/>
     <SolidColorBrush x:Key="Level.Warn" Color="#F5D90A"/>
     <SolidColorBrush x:Key="Level.Crit" Color="#FF4136"/>
+    <!-- Cache share bar segments (cache read uses Accent). -->
+    <SolidColorBrush x:Key="Chart.Cache.New" Color="#59A14F"/>
+    <SolidColorBrush x:Key="Chart.Cache.Write" Color="#F28E2B"/>
+    <SolidColorBrush x:Key="Chart.Cache.Output" Color="#B072A1"/>
     <!-- Usage bar fill: same flat level color at the left, 15% lighter at the right. -->
     <LinearGradientBrush x:Key="Level.Ok.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
         <GradientStop Color="#39FF6A" Offset="0"/>

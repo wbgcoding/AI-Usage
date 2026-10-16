@@ -816,21 +816,20 @@ public partial class StatsWindow : Window
     {
         var accent = (System.Windows.Media.Brush)FindResource("Accent");
 
-        // Order of the segments: new input, cache write, cache read, output. Three fixed hues that
-        // stay apart on every theme, with cache read (the largest share in practice) in the theme's
-        // own accent; none of them is a provider or model color or a danger/warning color.
-        CacheShareBar.SegmentBrushes = [FrozenBrush(0x59, 0xA1, 0x4F), FrozenBrush(0xF2, 0x8E, 0x2B), accent, FrozenBrush(0xB0, 0x72, 0xA1)];
+        // Order of the segments: new input, cache write, cache read, output. Theme tokens (system
+        // colors in high contrast) that stay apart on every theme, with cache read (the largest share
+        // in practice) in the theme's own accent.
+        CacheShareBar.SegmentBrushes =
+        [
+            (System.Windows.Media.Brush)FindResource("Chart.Cache.New"),
+            (System.Windows.Media.Brush)FindResource("Chart.Cache.Write"),
+            accent,
+            (System.Windows.Media.Brush)FindResource("Chart.Cache.Output"),
+        ];
 
         TopProjectsChart.BarBrush = accent;
 
         DayHourChart.SeriesBrushes = [accent];
-    }
-
-    private static SolidColorBrush FrozenBrush(byte red, byte green, byte blue)
-    {
-        var brush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(red, green, blue));
-        brush.Freeze();
-        return brush;
     }
 
     /// <summary>The day-detail panel's own provider share bar - recomputed on every <see
