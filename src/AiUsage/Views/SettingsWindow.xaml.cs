@@ -1,6 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -357,26 +355,12 @@ public partial class SettingsWindow : Window
 
     private void AboutOpenArchive_Click(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo(AppInfo.ArchiveUrl) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(AppInfo.ArchiveUrl);
     }
 
     private void AboutHelp_Click(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo(AppInfo.HelpUrl) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(AppInfo.HelpUrl);
     }
 
     private void AboutCopyAll_Click(object sender, RoutedEventArgs e) =>
@@ -595,13 +579,6 @@ public partial class SettingsWindow : Window
 
     private static void AboutOpenUrl(Uri url)
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo(url.OriginalString) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(url.OriginalString);
     }
 }

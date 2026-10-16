@@ -1165,14 +1165,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     private static void OpenInBrowser(Uri uri)
     {
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-        {
-            // Nothing sensible to recover into - opening a browser tab is best-effort.
-        }
+        ShellOpen.TryOpen(uri.AbsoluteUri);
     }
 
     /// <summary>Re-derives every localized text field from the last snapshot, for an

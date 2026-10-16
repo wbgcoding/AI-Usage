@@ -1205,15 +1205,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private static void OpenLogsFolder()
     {
-        try
-        {
-            Directory.CreateDirectory(AppPaths.LogsDirectory);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppPaths.LogsDirectory) { UseShellExecute = true });
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-        {
-            // Nothing sensible to recover into - opening a folder is best-effort.
-        }
+        ShellOpen.TryOpenFolder(AppPaths.LogsDirectory);
     }
 
     /// <summary>Same body as <see cref="OpenLogsFolder"/>, against the data folder itself - settings,
@@ -1222,15 +1214,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private static void OpenDataFolder()
     {
-        try
-        {
-            Directory.CreateDirectory(AppPaths.DataDirectory);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppPaths.DataDirectory) { UseShellExecute = true });
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-        {
-            // Nothing sensible to recover into - opening a folder is best-effort.
-        }
+        ShellOpen.TryOpenFolder(AppPaths.DataDirectory);
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
+using AiUsage.Services;
 
 namespace AiUsage.Views.Controls;
 
@@ -17,13 +16,7 @@ public partial class ProviderTile : UserControl
     /// <summary>Opens the project's FAQ in the browser; with no default browser there is nothing to recover into.</summary>
     private void HelpMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo(AiUsage.Services.AppInfo.HelpUrl) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-        }
+        ShellOpen.TryOpen(AppInfo.HelpUrl);
     }
 
     /// <summary>The chart's own ClipToBounds is a square, so the weekly fill would poke out past the

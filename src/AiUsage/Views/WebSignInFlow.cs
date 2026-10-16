@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Diagnostics;
 using System.Windows;
 using AiUsage.Providers.LocalLogin;
 using AiUsage.Services;
@@ -57,14 +56,7 @@ internal static class WebSignInFlow
         if (!openDownloadPage)
             return true;
 
-        try
-        {
-            Process.Start(new ProcessStartInfo(GitHubCliUsage.DownloadUrl) { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
+        ShellOpen.TryOpen(GitHubCliUsage.DownloadUrl);
         return true;
     }
 }
