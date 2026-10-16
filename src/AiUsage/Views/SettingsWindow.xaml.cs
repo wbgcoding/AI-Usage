@@ -264,11 +264,8 @@ public partial class SettingsWindow : Window
             {
                 // Copilot or the primary Claude account: no web session of its own - see
                 // MainWindow.WireSignIn's own branch for an account read through another tool.
-                if (tile.RealProviderId == "copilot" && !GitHubCliUsage.IsCliInstalled())
-                {
-                    ShowGitHubCliMissingNotice();
+                if (WebSignInFlow.OfferGitHubCliIfMissing(this, tile.RealProviderId))
                     return;
-                }
                 _viewModel.Main.Reconnect(tile.ProviderId);
                 return;
             }
@@ -280,31 +277,6 @@ public partial class SettingsWindow : Window
         {
             StopSpin(spinner);
             button.IsEnabled = true;
-        }
-    }
-
-    /// <summary>Same themed offer <see cref="WebSignInFlow"/> makes for a missing WebView2 runtime,
-    /// for the GitHub CLI Copilot reads through instead.</summary>
-    private void ShowGitHubCliMissingNotice()
-    {
-        var loc = LocalizationService.Instance;
-        var openDownloadPage = ConfirmWindow.Show(
-            this,
-            loc["State.GitHubCliMissing.Head"],
-            loc["State.GitHubCliMissing.Reason"],
-            loc["State.GitHubCliMissing.Action"],
-            loc["Action.Cancel"]);
-
-        if (!openDownloadPage)
-            return;
-
-        try
-        {
-            Process.Start(new ProcessStartInfo("https://cli.github.com/") { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
         }
     }
 

@@ -544,11 +544,8 @@ public partial class MainWindow : Window, IDisposable
             // Never runs "gh auth login" itself - the CLI missing tool's own sign-in stays the user's.
             tile.ActionRequested += (_, _) =>
             {
-                if (tile.RealProviderId == "copilot" && !GitHubCliUsage.IsCliInstalled())
-                {
-                    ShowGitHubCliMissingNotice();
+                if (WebSignInFlow.OfferGitHubCliIfMissing(this, tile.RealProviderId))
                     return;
-                }
                 ViewModel.Reconnect(accountKey);
             };
         }
@@ -559,31 +556,6 @@ public partial class MainWindow : Window, IDisposable
             if (!signedOut)
                 ViewModel.ShowSignOutIncomplete(accountKey);
         };
-    }
-
-    /// <summary>Same themed offer <see cref="WebSignInFlow"/> makes for a missing WebView2 runtime,
-    /// for the GitHub CLI Copilot reads through instead.</summary>
-    private void ShowGitHubCliMissingNotice()
-    {
-        var loc = LocalizationService.Instance;
-        var openDownloadPage = ConfirmWindow.Show(
-            this,
-            loc["State.GitHubCliMissing.Head"],
-            loc["State.GitHubCliMissing.Reason"],
-            loc["State.GitHubCliMissing.Action"],
-            loc["Action.Cancel"]);
-
-        if (!openDownloadPage)
-            return;
-
-        try
-        {
-            Process.Start(new ProcessStartInfo("https://cli.github.com/") { UseShellExecute = true });
-        }
-        catch (Win32Exception)
-        {
-            // No default browser registered - nothing sensible to recover into.
-        }
     }
 
     /// <summary>1 s keeps the countdowns and the tray tooltip current while the window is on screen;

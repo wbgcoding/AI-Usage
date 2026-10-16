@@ -30,6 +30,9 @@ internal sealed record GitHubAccount(string Host, string Login, bool Active);
 /// </summary>
 internal static class GitHubCliUsage
 {
+    /// <summary>The CLI's own download page, offered when it is missing.</summary>
+    public const string DownloadUrl = "https://cli.github.com/";
+
     public static Task<CopilotFetch> FetchAsync(CancellationToken ct) => FetchAsync(login: null, ct);
 
     /// <summary>Whether <c>gh.exe</c> is on PATH at all - the same check <see cref="FetchAsync"/>
