@@ -85,7 +85,7 @@ public sealed class AppSettings
 
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs
-    /// OnStartup), not per element. Defaults on. No longer offered in the Settings window; kept so a
+    /// OnStartup), not per element. Defaults on. Not offered in the Settings window; a
     /// hand-edited settings.json can still switch tooltips off.</summary>
     public bool ShowTooltips { get; set; } = true;
 
@@ -296,8 +296,7 @@ public sealed class AppSettings
     /// <see cref="Services.ProviderRegistry.CreateCopilotAccount"/>) - Copilot's own accounts have no
     /// browser profile or web session of their own, only this one extra fact: which of the GitHub
     /// CLI's already signed-in users this account asks <c>gh</c> to read as. The primary account
-    /// ("copilot") is never in here - it always reads as the CLI's own active user, exactly as
-    /// before.</summary>
+    /// ("copilot") is never in here - it always reads as the CLI's own active user.</summary>
     public Dictionary<string, string> CopilotAccountLogins { get; set; } = [];
 
     public static Dictionary<string, ProviderSettings> CreateDefaultProviders() =>
@@ -405,10 +404,9 @@ public sealed class ProviderSettings
     /// way; only the row disappears.</summary>
     public bool ShowFiveHour { get; set; } = true;
 
-    /// <summary>Covers the weekly row only. An <see cref="WindowKind.Other"/> row is no longer a
-    /// refinement of this one - each is governed on its own by <see cref="HiddenWindows"/>, since a
-    /// provider can report several distinct Other rows (Cursor's model breakdown, for instance) that
-    /// a user may want to hide one at a time.</summary>
+    /// <summary>Covers the weekly row only. Each <see cref="WindowKind.Other"/> row is governed on its
+    /// own by <see cref="HiddenWindows"/>, since a provider can report several (Cursor's model
+    /// breakdown) that a user may want to hide one at a time.</summary>
     public bool ShowWeekly { get; set; } = true;
 
     /// <summary>Whether this tile leaves out its history chart at Full density. The bars, numbers and

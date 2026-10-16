@@ -20,6 +20,5 @@ public sealed record HistoryPoint(
     // The window's own resource key (see UsageWindow.Label), e.g. "Window_CursorModels" - lets more
     // than one WindowKind.Other series for the same provider be told apart (Cursor's per-model bars,
     // its Grok Bot bar); null for a line without it, or for a provider that never has more than one
-    // window of that kind. Pre-release, no migration: an old line without it
-    // still reads, it simply carries no label.
+    // window of that kind. A line without it still reads, with no label.
     [property: JsonPropertyName("l")] string? Label = null);
