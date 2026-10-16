@@ -13,6 +13,13 @@ internal static class JsonReading
             ? value
             : null;
 
+    /// <summary>Null also for a JSON string that is somehow null; an empty string stays "".</summary>
+    internal static string? TryGetString(JsonElement? element, string propertyName) =>
+        element is { } parent && parent.TryGetProperty(propertyName, out var property)
+        && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+
     internal static double? TryGetDouble(JsonElement? element, string propertyName) =>
         element is { } parent && parent.TryGetProperty(propertyName, out var property)
         && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)

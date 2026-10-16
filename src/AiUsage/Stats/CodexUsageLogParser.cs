@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using AiUsage.Providers.Parsing;
 
 namespace AiUsage.Stats;
 
@@ -77,7 +78,7 @@ public sealed class CodexUsageLogParser
             if (root.ValueKind != JsonValueKind.Object)
                 return false;
 
-            var type = GetString(root, "type");
+            var type = JsonReading.TryGetString(root, "type");
 
             if (type == "turn_context")
             {
@@ -88,9 +89,9 @@ public sealed class CodexUsageLogParser
 
                     // "effort" is preferred; "reasoning_effort" is the older field name for the same
                     // value, checked only when "effort" itself is missing from this particular line.
-                    if (GetString(turnPayload, "effort") is { Length: > 0 } effort)
+                    if (JsonReading.TryGetString(turnPayload, "effort") is { Length: > 0 } effort)
                         _effort = effort;
-                    else if (GetString(turnPayload, "reasoning_effort") is { Length: > 0 } reasoningEffort)
+                    else if (JsonReading.TryGetString(turnPayload, "reasoning_effort") is { Length: > 0 } reasoningEffort)
                         _effort = reasoningEffort;
                 }
                 return false;
@@ -100,7 +101,7 @@ public sealed class CodexUsageLogParser
                 return false;
             if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
                 return false;
-            if (GetString(payload, "type") != "token_count")
+            if (JsonReading.TryGetString(payload, "type") != "token_count")
                 return false;
             if (!payload.TryGetProperty("info", out var info) || info.ValueKind != JsonValueKind.Object)
                 return false;
@@ -115,10 +116,10 @@ public sealed class CodexUsageLogParser
             // A line missing any of the four running totals says nothing reliable: reading the gap
             // as zero would make the next complete line count its whole total as new. Such a line
             // is skipped and the previous totals stay.
-            if (!TryGetLong(total, "input_tokens", out var input)
-                || !TryGetLong(total, "output_tokens", out var output)
-                || !TryGetLong(total, "cache_write_input_tokens", out var cacheCreation)
-                || !TryGetLong(total, "cached_input_tokens", out var cacheRead))
+            if (JsonReading.TryGetInt64(total, "input_tokens") is not { } input
+                || JsonReading.TryGetInt64(total, "output_tokens") is not { } output
+                || JsonReading.TryGetInt64(total, "cache_write_input_tokens") is not { } cacheCreation
+                || JsonReading.TryGetInt64(total, "cached_input_tokens") is not { } cacheRead)
                 return false;
 
             // Codex resets its running totals not only across files but also mid file, after a
@@ -169,7 +170,7 @@ public sealed class CodexUsageLogParser
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 return null;
-            if (GetString(root, "type") != "session_meta")
+            if (JsonReading.TryGetString(root, "type") != "session_meta")
                 return null;
             if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
                 return null;
@@ -196,30 +197,19 @@ public sealed class CodexUsageLogParser
         {
             using var document = JsonDocument.Parse(line);
             var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object || GetString(root, "type") != "session_meta")
+            if (root.ValueKind != JsonValueKind.Object || JsonReading.TryGetString(root, "type") != "session_meta")
                 return null;
             if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
                 return null;
 
-            return GetString(payload, "id") is { Length: > 0 } id ? id
-                : GetString(payload, "session_id") is { Length: > 0 } legacy ? legacy
+            return JsonReading.TryGetString(payload, "id") is { Length: > 0 } id ? id
+                : JsonReading.TryGetString(payload, "session_id") is { Length: > 0 } legacy ? legacy
                 : null;
         }
         catch (JsonException)
         {
             return null;
         }
-    }
-
-    private static string? GetString(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
-
-    private static bool TryGetLong(JsonElement parent, string propertyName, out long number)
-    {
-        number = 0;
-        return parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out number);
     }
 
     /// <summary>One counter's delta against its own previous cumulative value - never against any
