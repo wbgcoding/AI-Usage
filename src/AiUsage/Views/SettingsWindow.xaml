@@ -1146,7 +1146,7 @@
         </Grid>
         </DockPanel>
     </Border>
-    <Thumb Style="{StaticResource ResizeGrip}" Margin="{StaticResource Space.S}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
-    <Thumb Style="{StaticResource ResizeGrip}" Margin="{StaticResource Space.S}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
+    <Thumb Style="{StaticResource ResizeGrip}" Margin="0,8" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
+    <Thumb Style="{StaticResource ResizeGrip}" Margin="0,8" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
     </Grid>
 </Window>
