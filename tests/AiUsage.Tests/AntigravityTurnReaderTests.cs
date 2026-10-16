@@ -14,6 +14,16 @@ public class AntigravityTurnReaderTests : IDisposable
     public void Dispose() => _directory.Dispose();
 
     [Fact]
+    public void The_newest_step_is_read_through_the_shared_untrusted_schema_opening()
+    {
+        var source = SourceScan.Read("src", "AiUsage", "Providers", "Parsing", "AntigravityTurnReader.cs");
+
+        var body = SourceScan.Member(source, "private static SessionRecordKind? ReadLastStep");
+        Assert.Contains("ForeignDatabase.Open(path)", body);
+        Assert.DoesNotContain("new SqliteConnection(", body);
+    }
+
+    [Fact]
     public void A_finished_planner_answer_is_an_assistant_turn_stamped_with_the_write_time()
     {
         var root = Root("cli");

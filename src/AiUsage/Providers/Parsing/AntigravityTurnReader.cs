@@ -76,16 +76,7 @@ public static class AntigravityTurnReader
 
     private static SessionRecordKind? ReadLastStep(string path)
     {
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = path,
-            Mode = SqliteOpenMode.ReadOnly,
-            Pooling = false,
-            DefaultTimeout = 1,
-        }.ToString();
-
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var connection = ForeignDatabase.Open(path);
 
         // A view or virtual table could generate rows without end; only a plain table is read.
         using (var check = connection.CreateCommand())
