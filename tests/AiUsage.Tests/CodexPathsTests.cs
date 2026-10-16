@@ -5,7 +5,7 @@ namespace AiUsage.Tests;
 
 public class CodexPathsTests
 {
-    private const string Profile = @"C:\Users\someone";
+    private const string Profile = @"D:\Profiles\someone";
 
     [Fact]
     public void CODEX_HOME_is_where_Codex_keeps_its_sessions_when_it_is_set()
