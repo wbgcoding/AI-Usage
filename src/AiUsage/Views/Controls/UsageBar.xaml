@@ -188,7 +188,7 @@
                  sit beside it only when they fit entirely, so the percent and countdown on the right
                  never have to give way to them. The reset clock goes before the label is trimmed. -->
             <controls:FitOrHidePanel Margin="0,0,8,0">
-                <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"
                            Foreground="{DynamicResource Text.Primary}"/>
                 <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip}" VerticalAlignment="Bottom"

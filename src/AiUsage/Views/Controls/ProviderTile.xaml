@@ -461,7 +461,8 @@
                          numbers off. -->
                     <TextBlock Grid.Column="0" Text="{Binding HeaderDisplayName}" FontFamily="{DynamicResource Font.Ui}"
                                FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
-                               MaxWidth="110" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                               MaxWidth="110" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                               controls:TrimmedToolTip.Enabled="True"/>
                     <TextBlock Grid.Column="1" Text="{Binding HeadlineText}" FontFamily="{DynamicResource Font.Ui}"
                                FontSize="{StaticResource Font.Size.Small}" Margin="8,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource Text.Secondary}"
