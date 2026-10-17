@@ -1647,6 +1647,26 @@ public class StatsRingChartGeometryTests
     }
 
     [Fact]
+    public void CenterCost_is_the_cost_of_the_largest_slice()
+    {
+        StatsRingChart.Slice[] slices =
+        [
+            new("Claude", 90.0, Total: 1_500_000, CostText: "~12,00 \u20AC"),
+            new("Codex", 10.0, Total: 100_000, CostText: "~1,00 \u20AC"),
+        ];
+
+        Assert.Equal("~12,00 \u20AC", StatsRingChart.CenterCost(slices));
+    }
+
+    [Fact]
+    public void CenterCost_is_empty_when_the_cost_is_unknown_or_nothing_qualifies()
+    {
+        Assert.Equal("", StatsRingChart.CenterCost([new("Claude", 100.0, Total: 5)]));
+        Assert.Equal("", StatsRingChart.CenterCost([new("Claude", 100.0, Total: 5, CostText: "")]));
+        Assert.Equal("", StatsRingChart.CenterCost([]));
+    }
+
+    [Fact]
     public void BuildLargestShareAccessibleText_fills_the_format_with_name_and_value()
     {
         StatsRingChart.Slice[] slices = [new("Claude", 100.0, Total: 2_000_000)];

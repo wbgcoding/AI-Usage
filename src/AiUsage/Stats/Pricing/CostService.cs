@@ -122,6 +122,13 @@ public sealed class CostService
 
     public string Text(IEnumerable<StatsRecord> records) => Text(Sum(records));
 
+    /// <summary>The short figure for an in-place label: the priced part only, never a star or a question
+    /// mark; empty when off or nothing is priced. The tooltip names what was left out.</summary>
+    public string Label(CostSummary summary) =>
+        Enabled && summary.AnyPriced
+            ? CostFormatter.Format(summary.Usd, EffectiveCurrency, Rate.UsdPerEur, _culture())
+            : "";
+
     /// <summary>The "no price known for ..." tooltip line, or null when every model is priced.</summary>
     public static string? UnpricedLine(CostSummary summary) => summary.HasUnpriced
         ? LocalizationService.Instance.Format("Stats.Cost.Unpriced", string.Join(", ", summary.UnpricedModels))

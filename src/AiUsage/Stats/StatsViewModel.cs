@@ -1693,7 +1693,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 var name = ProviderDisplayNames.GetValueOrDefault(slice.Label, slice.Label);
                 return new Views.Controls.StatsRingChart.Slice(
                     name, slice.Percent, ProviderId: slice.Label, Total: slice.Total,
-                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(providerCosts, slice.Label)));
+                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(providerCosts, slice.Label)),
+                    CostText: costView.LabelFor(providerCosts, slice.Label));
             })
             .ToList();
 
@@ -1711,7 +1712,10 @@ public sealed partial class StatsViewModel : ObservableObject
                 Tooltip: RingTooltip(
                     slice.Label, slice, loc, slice.IsPooled ? pooledModels : null,
                     slice.IsPooled ? costView.Line(SumOf(modelCosts, pooledModels.Select(member => member.Label))) : costView.LineFor(modelCosts, slice.Label),
-                    member => costView.TextFor(modelCosts, member))))
+                    member => costView.TextFor(modelCosts, member)),
+                CostText: slice.IsPooled
+                    ? costView.Label(SumOf(modelCosts, pooledModels.Select(member => member.Label)))
+                    : costView.LabelFor(modelCosts, slice.Label)))
             .ToList();
 
         // The "share per effort level" ring, beside the model ring. ProviderId here carries the raw
@@ -1725,7 +1729,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 var name = ResolveEffortLabel(slice.Label);
                 return new Views.Controls.StatsRingChart.Slice(
                     name, slice.Percent, ProviderId: slice.Label, Total: slice.Total,
-                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(effortCosts, slice.Label)));
+                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(effortCosts, slice.Label)),
+                    CostText: costView.LabelFor(effortCosts, slice.Label));
             })
             .ToList();
 

@@ -50,6 +50,13 @@ internal sealed class StatsCostView(CostService? service)
         return result;
     }
 
+    /// <summary>The short in-place figure of <paramref name="summary"/>: no star, empty when nothing is priced.</summary>
+    public string Label(CostSummary summary) => _service?.Label(summary) ?? "";
+
+    /// <summary>The in-place figure of one bucket of <see cref="ByKey"/>, empty when unknown.</summary>
+    public string LabelFor(Dictionary<string, CostSummary> byKey, string key) =>
+        byKey.TryGetValue(key, out var summary) ? Label(summary) : "";
+
     /// <summary>The tooltip line of one bucket of <see cref="ByKey"/>, or null.</summary>
     public string? LineFor(Dictionary<string, CostSummary> byKey, string key) =>
         byKey.TryGetValue(key, out var summary) ? Line(summary) : null;

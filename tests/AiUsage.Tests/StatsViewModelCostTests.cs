@@ -156,6 +156,27 @@ public class StatsViewModelCostTests
     }
 
     [Fact]
+    public void The_ring_slices_carry_a_short_cost_without_a_star_and_none_for_an_unpriced_model()
+    {
+        var viewModel = Create(Service());
+
+        Assert.Equal("~$3.00", Assert.Single(viewModel.ProviderShareSlices, slice => slice.ProviderId == "claude").CostText);
+        Assert.Contains(viewModel.ModelShareSlices, slice => slice.CostText == "~$3.00");
+        Assert.Contains(viewModel.ModelShareSlices, slice => string.IsNullOrEmpty(slice.CostText));
+        Assert.All(viewModel.ModelShareSlices, slice => Assert.DoesNotContain("*", slice.CostText ?? ""));
+    }
+
+    [Fact]
+    public void The_ring_slices_carry_no_cost_when_the_estimate_is_off()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        Assert.All(viewModel.ProviderShareSlices, slice => Assert.True(string.IsNullOrEmpty(slice.CostText)));
+        Assert.All(viewModel.ModelShareSlices, slice => Assert.True(string.IsNullOrEmpty(slice.CostText)));
+        Assert.All(viewModel.EffortShareSlices, slice => Assert.True(string.IsNullOrEmpty(slice.CostText)));
+    }
+
+    [Fact]
     public void Nothing_is_added_to_the_rings_or_the_month_grid_when_the_estimate_is_off()
     {
         var viewModel = Create(Service(enabled: false));
