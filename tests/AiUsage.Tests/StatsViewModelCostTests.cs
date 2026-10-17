@@ -150,29 +150,77 @@ public class StatsViewModelCostTests
         Assert.Contains(viewModel.Bars, bar => bar.ExtraTooltipLine?.Contains("~$3.00") == true);
     }
 
-    [Fact]
-    public void The_export_has_a_plain_dollar_column_and_empty_for_unknown()
+    private static StatsViewModel CreateForExport(CostService cost, out string path)
     {
-        string? written = null;
-        var path = Path.Combine(TestPaths.CreateDisposableDirectory("stats-cost-csv").Path, "out.csv");
-        var viewModel = Create(Service(), vm => vm.SelectedGrouping = StatsGrouping.Model, _ => path);
-        viewModel.ExportCsvCommand.Execute(null);
-        written = File.ReadAllText(path);
-
-        var lines = written.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Assert.EndsWith(",cost_usd", lines[0]);
-        Assert.Contains(lines, line => line.EndsWith(",3", StringComparison.Ordinal));
-        Assert.Contains(lines, line => line.Contains("mystery", StringComparison.OrdinalIgnoreCase) && line.EndsWith(",", StringComparison.Ordinal));
+        var target = Path.Combine(TestPaths.CreateDisposableDirectory("stats-cost-csv").Path, "out.csv");
+        path = target;
+        return Create(cost, save: _ => target);
     }
 
     [Fact]
-    public void The_export_has_no_cost_column_when_the_estimate_is_off()
+    public void The_export_is_one_csv_with_every_section_and_the_same_column_count_per_row()
     {
-        var path = Path.Combine(TestPaths.CreateDisposableDirectory("stats-cost-csv-off").Path, "out.csv");
-        var viewModel = Create(Service(enabled: false), vm => vm.SelectedGrouping = StatsGrouping.Model, _ => path);
+        var viewModel = CreateForExport(Service(), out var path);
         viewModel.ExportCsvCommand.Execute(null);
-        var lines = File.ReadAllText(path).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Assert.DoesNotContain("cost_usd", lines[0]);
+
+        var bytes = File.ReadAllBytes(path);
+        Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, bytes.Take(3).ToArray());
+        var rows = StatsExportTests.Parse(File.ReadAllText(path));
+        Assert.All(rows, cells => Assert.Equal(17, cells.Count));
+        var sections = rows.Skip(1).Select(cells => cells[0]).ToHashSet();
+        foreach (var section in new[]
+            { "total", "by_provider", "by_model", "by_project", "by_effort", "by_day", "by_hour", "by_weekday_hour",
+              "top_projects", "cache_split", "figures", "rows" })
+            Assert.Contains(section, sections);
+    }
+
+    [Fact]
+    public void The_days_of_the_export_add_up_to_the_total()
+    {
+        var viewModel = CreateForExport(Service(), out var path);
+        viewModel.ExportCsvCommand.Execute(null);
+
+        var rows = StatsExportTests.Parse(File.ReadAllText(path)).Skip(1).ToList();
+        var total = long.Parse(rows.Single(cells => cells[0] == "total")[13]);
+        Assert.Equal(1_001_000, total);
+        Assert.Equal(total, rows.Where(cells => cells[0] == "by_day").Sum(cells => long.Parse(cells[13])));
+        Assert.Equal(total, rows.Where(cells => cells[0] == "by_model").Sum(cells => long.Parse(cells[13])));
+        Assert.Equal(total, rows.Where(cells => cells[0] == "rows").Sum(cells => long.Parse(cells[13])));
+    }
+
+    [Fact]
+    public void The_export_has_a_dollar_amount_and_the_shown_amount_and_leaves_an_unpriced_model_empty()
+    {
+        var viewModel = CreateForExport(Service(), out var path);
+        viewModel.ExportCsvCommand.Execute(null);
+
+        var rows = StatsExportTests.Parse(File.ReadAllText(path)).Skip(1).ToList();
+        var priced = rows.Single(cells => cells[0] == "by_model" && cells[5] == "claude-sonnet-4-5");
+        Assert.Equal("3", priced[14]);
+        Assert.Equal("3", priced[15]);
+        Assert.Equal("USD", priced[16]);
+        var mystery = rows.Single(cells => cells[0] == "by_model" && cells[5] == "mystery-model");
+        Assert.Equal(new[] { "", "", "" }, mystery.Skip(14).ToArray());
+    }
+
+    [Fact]
+    public void The_export_leaves_the_cost_columns_empty_when_the_estimate_is_off()
+    {
+        var viewModel = CreateForExport(Service(enabled: false), out var path);
+        viewModel.ExportCsvCommand.Execute(null);
+
+        var rows = StatsExportTests.Parse(File.ReadAllText(path)).Skip(1).ToList();
+        Assert.All(rows, cells => Assert.Equal(new[] { "", "", "" }, cells.Skip(14).ToArray()));
+    }
+
+    [Fact]
+    public void The_rows_section_keeps_the_raw_project_and_adds_the_merged_one()
+    {
+        var viewModel = CreateForExport(Service(), out var path);
+        viewModel.ExportCsvCommand.Execute(null);
+
+        var rows = StatsExportTests.Parse(File.ReadAllText(path)).Where(cells => cells[0] == "rows").ToList();
+        Assert.Contains(rows, cells => cells[6] == "projA" && cells[7] == "projA");
     }
 
     [Fact]

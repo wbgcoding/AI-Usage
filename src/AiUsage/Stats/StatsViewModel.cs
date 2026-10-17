@@ -1295,6 +1295,12 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Every stored session, kept from the last load for the session grouping.</summary>
     private IReadOnlyList<StatsSessionRecord> _allSessions = [];
 
+    /// <summary>What the last rebuild computed beyond the filtered rows, kept for the CSV export.</summary>
+    private sealed record ExportScope(
+        DateOnly From, DateOnly To, IReadOnlyList<StatsRecord> Previous, StatsHeadlineFigures Figures, int PeriodDayCount);
+
+    private ExportScope? _exportScope;
+
     /// <summary>A period or grouping pick: the records are already in memory once a load has finished
     /// (only a window open or an index update changes them), so the rebuild reuses them instead of
     /// reading the whole store again. Before that first load it is the normal read.</summary>
@@ -1793,6 +1799,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var figures = StatsAggregator.ComputeHeadlineFigures(
             inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
         ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc);
+        _exportScope = new ExportScope(from, to, previous, figures, periodDayCount);
         var totalCost = costView.Sum(inRange);
         TotalCostText = costView.Text(totalCost);
         TotalCostTooltip = costView.Line(totalCost) ?? "";
@@ -1936,7 +1943,8 @@ public sealed partial class StatsViewModel : ObservableObject
                         loc.Format("Stats.Limits.Detail", highest, averagePeak),
                         Math.Clamp(row.Highest, 0, 100),
                         Math.Clamp(row.AveragePeak, 0, 100),
-                        row.ReachedCount);
+                        row.ReachedCount,
+                        row.WindowLabelKey);
                 }).ToList();
                 var (note, tip) = PerPercentNote(group.Key, loc);
                 return new StatsLimitGroupViewModel(
@@ -2486,9 +2494,9 @@ public sealed partial class StatsViewModel : ObservableObject
         _ => DateOnly.MinValue,
     };
 
-    /// <summary>Writes exactly the rows of the current grouping - same rows, same order - to a CSV file the
-    /// user picks, reusing <see cref="StatsExport"/>'s writer. Cancelling the dialog does
-    /// nothing; a write failure shows the app's own error text, never a raw exception message.</summary>
+    /// <summary>Writes everything the window computed for its current range and provider selection to one
+    /// CSV file the user picks (see <see cref="StatsExport"/>). Cancelling the dialog does nothing; a write
+    /// failure shows the app's own error text, never a raw exception message.</summary>
     [RelayCommand]
     private void ExportCsv()
     {
@@ -2497,16 +2505,36 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
 
         var loc = LocalizationService.Instance;
-        var labelHeader = GroupingChoices.First(choice => choice.Value == SelectedGrouping).Label;
-        var csv = StatsExport.ToCsv(Rows, labelHeader, loc["StatsWindow.ColumnTotal"], withCost: new StatsCostView(_cost).Active);
-
         try
         {
-            File.WriteAllText(path, csv, AppEncoding.Utf8NoBom);
+            File.WriteAllText(path, StatsExport.ToCsv(BuildExportRows()), StatsExport.FileEncoding);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _showMessage(loc["StatsWindow.ExportFailed"]);
         }
+    }
+
+    internal IReadOnlyList<StatsExportRow> BuildExportRows()
+    {
+        var scope = _exportScope;
+        var from = scope?.From ?? DateOnly.MinValue;
+        var to = scope?.To ?? DateOnly.MaxValue;
+        var raw = _sourceRecords
+            .Where(record => record.Day >= from && record.Day <= to
+                && (!HasProviderFilter || _selectedProviders.Contains(record.Provider))
+                && (!HasModelFilter || ModelDisplayNames.Resolve(record.Model) == SelectedModelFilter)
+                && (!HasProjectFilter || MatchesProject(Aliases.Resolve(record.Project))))
+            .ToList();
+        return StatsExportBuilder.Build(new StatsExportData(
+            _currentPeriodRecords,
+            scope?.Previous ?? [],
+            raw,
+            StatsAggregator.SessionsInRange(ApplyFilters(_allSessions), from, to),
+            scope?.Figures ?? default,
+            scope?.PeriodDayCount ?? 1,
+            LimitGroups,
+            Aliases,
+            new StatsCostView(_cost)));
     }
 }

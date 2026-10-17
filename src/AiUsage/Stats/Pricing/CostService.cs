@@ -154,6 +154,18 @@ public sealed class CostService
     public static string UsdForExport(CostSummary summary) =>
         summary.AnyPriced ? summary.Usd.ToString("0.######", CultureInfo.InvariantCulture) : "";
 
+    /// <summary>The cost for the export: dollars, the same amount in the shown currency (a euro figure needs
+    /// the rate, else the dollars show) and that currency's code. All empty when no price is known.</summary>
+    public (string Usd, string Cost, string Currency) ExportFigures(CostSummary summary)
+    {
+        if (!summary.AnyPriced)
+            return ("", "", "");
+
+        var euro = EffectiveCurrency == CostCurrency.Eur && Rate.UsdPerEur is > 0;
+        var shown = euro ? summary.Usd / Rate.UsdPerEur!.Value : summary.Usd;
+        return (UsdForExport(summary), shown.ToString("0.######", CultureInfo.InvariantCulture), euro ? "EUR" : "USD");
+    }
+
     /// <summary>Called after the switch or the currency changed: open statistics redraw, then whatever
     /// is now needed (the rate after a change to euro) is loaded in the background.</summary>
     internal void NotifySettingsChanged()

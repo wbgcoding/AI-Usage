@@ -200,11 +200,16 @@
                                     </Border>
                                 </Popup>
                             </StackPanel>
-                            <Button x:Name="ResetLayoutButton" Grid.Column="1" Style="{StaticResource AiUsageQuietButton}"
-                                    VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click"
-                                    Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"
-                                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Layout.Reset]}"
-                                    AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="ResetLayoutButton" Style="{StaticResource AiUsageQuietButton}"
+                                        VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click" Margin="0,0,8,0"
+                                        Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"
+                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Layout.Reset]}"
+                                        AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"/>
+                                <Button x:Name="ExportCsvButton" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.ExportCsv]}"
+                                        Command="{Binding ExportCsvCommand}" Style="{StaticResource AiUsageQuietButton}"
+                                        Padding="8,4" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </Grid>
 
                         <TextBlock Text="{Binding ImportedFromText}" TextWrapping="Wrap" Margin="0,0,0,12"
@@ -488,12 +493,9 @@
                                     HeaderToolTip="{Binding ChartTooltip}">
                                 <!-- The grouping only drives this chart and the table at the bottom, so its
                                      picker sits on this section's own header rather than the window's.
-                                     The CSV export follows that grouping, so its button sits next to it. -->
+                                     -->
                                 <controls:CollapsibleSection.HeaderContent>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="ExportCsvButton" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.ExportCsv]}"
-                                                Command="{Binding ExportCsvCommand}" Style="{StaticResource AiUsageQuietButton}"
-                                                Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"
                                                    VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
                                                    Foreground="{DynamicResource Text.Secondary}"/>

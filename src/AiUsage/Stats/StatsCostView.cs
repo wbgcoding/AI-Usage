@@ -88,6 +88,14 @@ internal sealed class StatsCostView(CostService? service)
     public string TextFor(Dictionary<string, CostSummary> byKey, string key) =>
         byKey.TryGetValue(key, out var summary) ? Text(summary) : "";
 
+    /// <summary>The cost of the rows by token kind; empty when the estimate is off.</summary>
+    public CostSplit Split(IEnumerable<StatsRecord> records) => _service?.Split(records) ?? CostSplit.Empty;
+
+    /// <summary>The dollars, the amount in the shown currency and its code for the export; all empty when
+    /// unknown or the estimate is off.</summary>
+    public (string Usd, string Cost, string Currency) ForExport(CostSummary summary) =>
+        _service?.ExportFigures(summary) ?? ("", "", "");
+
     /// <summary>A cost figure as plain dollars for the export, empty when unknown.</summary>
     public static string UsdForExport(CostSummary summary) => CostService.UsdForExport(summary);
 }
