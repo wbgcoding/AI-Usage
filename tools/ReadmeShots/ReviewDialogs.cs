@@ -124,12 +124,13 @@ internal static class ReviewDialogs
     internal static void RenderRestoreConfirm(string outputPath)
     {
         var loc = LocalizationService.Instance;
-        var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Settings.Backup.RestoreConfirm", SampleSetAsideFolder),
+        var preview = loc.Format("Settings.Backup.Preview", "10/10/2026 12:00", "3/2/2026", "9/20/2026", 3);
+        var window = new ConfirmWindow(AppInfo.ProductName, preview + "\n\n" + loc.Format("Settings.Backup.RestoreConfirm", SampleSetAsideFolder),
             loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
-    internal static void RenderRestoreNotice(string outputPath)
+internal static void RenderRestoreNotice(string outputPath)
     {
         var loc = LocalizationService.Instance;
         var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Backup.Restored", SampleSetAsideFolder), loc["Action.Ok"], "");

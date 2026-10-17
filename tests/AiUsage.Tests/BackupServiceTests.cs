@@ -1156,4 +1156,64 @@ public sealed class BackupServiceTests : IDisposable
 
         Assert.True(new FileInfo(destination).Length <= 1024 * 1024 + 81920);
     }
+
+    // ---- summary ---------------------------------------------------------------------------
+
+    private static string HistoryLine(DateTimeOffset at) =>
+        JsonSerializer.Serialize(new HistoryPoint(1, at, WindowKind.FiveHour, 40, null)) + "\n";
+
+    [Fact]
+    public void An_accepted_backup_summarises_its_creation_time_and_the_range_of_its_history()
+    {
+        var folder = Temp();
+        var early = new DateTimeOffset(2026, 3, 2, 8, 0, 0, TimeSpan.Zero);
+        var late = new DateTimeOffset(2026, 9, 20, 18, 30, 0, TimeSpan.Zero);
+        var zip = MakeZip(folder, z =>
+        {
+            AddText(z, "history-claude.jsonl", HistoryLine(early.AddDays(5)) + "not json\n" + HistoryLine(late));
+            AddText(z, "history-codex.jsonl", HistoryLine(early) + HistoryLine(early.AddDays(40)));
+        });
+
+        var summary = BackupService.Inspect(zip, Temp()).Summary;
+
+        Assert.NotNull(summary);
+        Assert.Equal(Now, summary.Created);
+        Assert.Equal(early, summary.HistoryFrom);
+        Assert.Equal(late, summary.HistoryTo);
+        Assert.Equal(2, summary.AccountsWithHistory);
+    }
+
+    [Fact]
+    public void A_history_file_without_a_readable_point_does_not_count_as_an_account()
+    {
+        var at = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
+        var zip = MakeZip(Temp(), z =>
+        {
+            AddText(z, "history-claude.jsonl", "");
+            AddText(z, "history-codex.jsonl", "{}\nnot json\n");
+            AddText(z, "history-cursor.jsonl", HistoryLine(at));
+        });
+
+        var summary = BackupService.Inspect(zip, Temp()).Summary;
+
+        Assert.NotNull(summary);
+        Assert.Equal(1, summary.AccountsWithHistory);
+        Assert.Equal(at, summary.HistoryFrom);
+        Assert.Equal(at, summary.HistoryTo);
+    }
+
+    [Fact]
+    public void A_backup_without_history_has_no_range_and_a_refused_one_has_no_summary()
+    {
+        var plain = BackupService.Inspect(MakeZip(Temp(), _ => { }), Temp()).Summary;
+        Assert.NotNull(plain);
+        Assert.Equal(Now, plain.Created);
+        Assert.Null(plain.HistoryFrom);
+        Assert.Null(plain.HistoryTo);
+        Assert.Equal(0, plain.AccountsWithHistory);
+
+        var junk = Path.Combine(Temp(), "notes.zip");
+        File.WriteAllText(junk, "not a zip");
+        Assert.Null(BackupService.Inspect(junk, Temp()).Summary);
+    }
 }

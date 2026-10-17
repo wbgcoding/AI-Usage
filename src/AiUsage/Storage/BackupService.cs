@@ -26,8 +26,12 @@ public enum BackupRefusal
 /// <summary>The identity card inside a backup (<c>manifest.json</c>).</summary>
 public sealed record BackupManifest(int Format, string AppVersion, string MachineId, string MachineName, DateTimeOffset Created);
 
+/// <summary>What a backup holds, for the line shown before a restore: when it was made and which span of
+/// history it carries (null range when it carries none).</summary>
+public sealed record BackupSummary(DateTimeOffset Created, DateTimeOffset? HistoryFrom, DateTimeOffset? HistoryTo, int AccountsWithHistory);
+
 /// <summary>The result of looking inside a backup without changing anything.</summary>
-public sealed record BackupInspection(BackupRefusal Refusal, BackupManifest? Manifest)
+public sealed record BackupInspection(BackupRefusal Refusal, BackupManifest? Manifest, BackupSummary? Summary = null)
 {
     public bool IsAccepted => Refusal == BackupRefusal.None;
 }
@@ -524,7 +528,7 @@ public static class BackupService
         {
             using var backup = OpenedBackup.Open(zipPath);
             CheckContent(backup, scratch);
-            return new BackupInspection(BackupRefusal.None, backup.Manifest);
+            return new BackupInspection(BackupRefusal.None, backup.Manifest, Summarise(backup));
         }
         catch (RefusedException ex)
         {
@@ -541,7 +545,35 @@ public static class BackupService
         }
     }
 
-    /// <summary>The checks that need the entries' content: the settings file and the token index.</summary>
+    /// <summary>Reads the history entries of an already checked backup for their time range and the
+    /// number of accounts that have at least one readable point; unreadable lines are skipped.</summary>
+    private static BackupSummary Summarise(OpenedBackup backup)
+    {
+        DateTimeOffset? from = null, to = null;
+        var accounts = 0;
+        foreach (var name in backup.DataNames.Where(n => HistoryName.IsMatch(n)))
+        {
+            var providerId = name["history-".Length..^".jsonl".Length];
+            var any = false;
+            using var lines = new StringReader(backup.ReadText(name));
+            while (lines.ReadLine() is { } line)
+            {
+                if (HistoryStore.ParseLine(line, providerId).Point is not { } point)
+                    continue;
+                any = true;
+                if (from is null || point.Timestamp < from)
+                    from = point.Timestamp;
+                if (to is null || point.Timestamp > to)
+                    to = point.Timestamp;
+            }
+
+            if (any)
+                accounts++;
+        }
+
+        return new BackupSummary(backup.Manifest.Created, from, to, accounts);
+    }
+
     /// <summary>Checks every entry of <paramref name="backup"/> and returns where its token index was
     /// unpacked for the schema check (null when it carries none), so a caller needing the index
     /// itself takes this copy instead of unpacking it a second time.</summary>

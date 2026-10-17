@@ -611,4 +611,7 @@
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Token-Index wöchentlich sichern</value></data>
   <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Die letzten drei Kopien liegen im Datenordner unter stats-backups. Ein beschädigter Index wird daraus wiederhergestellt.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Sitzungsprotokolle werden gelesen: {0} von {1} Dateien</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Sicherung vom {0}. Verlauf von {1} bis {2} für {3} Konten.</value></data>
+  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Sicherung vom {0}. Verlauf von {1} bis {2} für 1 Konto.</value></data>
+  <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Sicherung vom {0}. Ohne Verlauf.</value></data>
 </root>

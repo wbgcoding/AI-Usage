@@ -612,4 +612,7 @@
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Back up the token index weekly</value></data>
   <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>The last three copies are kept in the data folder under stats-backups. A damaged index is restored from them.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Reading session logs: {0} of {1} files</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Backup from {0}. History from {1} to {2} for {3} accounts.</value></data>
+  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Backup from {0}. History from {1} to {2} for 1 account.</value></data>
+  <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Backup from {0}. No history.</value></data>
 </root>
