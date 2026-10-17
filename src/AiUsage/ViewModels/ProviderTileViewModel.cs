@@ -417,6 +417,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(IsStale))]
     [NotifyPropertyChangedFor(nameof(HasNumbers))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
+    [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
@@ -469,6 +470,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     public bool ShowFailureNotice => IsShowingLastValues && !IsMini;
 
+    /// <summary>Whether the last read that landed saw the provider's answer change shape (see
+    /// <see cref="ProviderSnapshot.ReadChanged"/>). Kept across a held-over answer, which parsed nothing.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
+    private bool readChanged;
+
+    /// <summary>The small line under the windows saying the values may be incomplete; Full and Compact
+    /// only, and only while numbers are on show.</summary>
+    public bool ShowReadChangeNotice => ReadChanged && ShowRows;
+
     /// <summary>The status page link under the failure line that sits above the last values.</summary>
     public bool ShowFailureLink => ShowFailureNotice && ShowStatusLink;
 
@@ -497,6 +508,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(IsMini))]
     [NotifyPropertyChangedFor(nameof(ShowHeader))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
+    [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
@@ -1181,6 +1193,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             OpenInBrowser(uri);
     }
 
+    /// <summary>Opens the current log file next to the read-change hint, best-effort.</summary>
+    [RelayCommand]
+    private static void OpenLog() => ShellOpen.TryOpen(LogService.Shared.CurrentFile);
+
     private static void OpenInBrowser(Uri uri)
     {
         ShellOpen.TryOpen(uri.AbsoluteUri);
@@ -1249,6 +1265,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         _keptFailure = null;
         IsShowingLastValues = false;
         FailureNoticeText = "";
+        if (!snapshot.HeldOver)
+            ReadChanged = snapshot.ReadChanged;
         _lastSnapshot = snapshot;
         _lastThresholds = thresholds;
         if (!staleSignedOut)

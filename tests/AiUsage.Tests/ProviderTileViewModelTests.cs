@@ -462,6 +462,69 @@ public class ProviderTileViewModelTests
         Assert.True(tile.ShowSignIn);
     }
 
+    [Fact]
+    public void A_read_that_saw_a_change_shows_the_notice_and_the_next_clean_read_clears_it()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        Assert.False(tile.ShowReadChangeNotice);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { ReadChanged = true }, Now);
+        Assert.True(tile.ShowReadChangeNotice);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 12), Now);
+        Assert.False(tile.ShowReadChangeNotice);
+    }
+
+    [Fact]
+    public void A_held_over_answer_keeps_the_notice_as_it_was()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { ReadChanged = true }, Now);
+
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { HeldOver = true }, Now);
+
+        Assert.True(tile.ShowReadChangeNotice);
+    }
+
+    [Fact]
+    public void A_failed_read_with_the_last_values_on_show_keeps_the_notice()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { ReadChanged = true }, Now);
+
+        tile.Apply(FailedSnapshot(FailureKind.ServerError, 500), Now);
+
+        Assert.True(tile.IsShowingLastValues);
+        Assert.True(tile.ShowReadChangeNotice);
+    }
+
+    [Fact]
+    public void The_notice_is_hidden_in_the_mini_tile_and_comes_back_with_the_density()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(ProviderStatus.Ok, 10) with { ReadChanged = true }, Now);
+        var raised = new List<string?>();
+        tile.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        tile.Density = TileDensity.Mini;
+        Assert.False(tile.ShowReadChangeNotice);
+        Assert.Contains(nameof(ProviderTileViewModel.ShowReadChangeNotice), raised);
+
+        tile.Density = TileDensity.Full;
+        Assert.True(tile.ShowReadChangeNotice);
+    }
+
+    [Fact]
+    public void The_notice_line_is_wired_to_its_texts_and_the_log_command_in_the_tile()
+    {
+        var text = File.ReadAllText(ProviderTileXamlPath());
+
+        Assert.Contains("ShowReadChangeNotice", text);
+        Assert.Contains("Tile.ReadChange.Notice", text);
+        Assert.Contains("Command=\"{Binding OpenLogCommand}\"", text);
+        Assert.NotNull(typeof(ProviderTileViewModel).GetProperty(nameof(ProviderTileViewModel.OpenLogCommand)));
+    }
+
     private static ProviderSnapshot Snapshot(ProviderStatus status, double percent = 0, ProviderError? error = null, SourceKind sourceKind = SourceKind.LocalFile) =>
         new(
             ProviderId: "claude",

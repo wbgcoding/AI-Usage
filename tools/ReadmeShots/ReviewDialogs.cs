@@ -50,6 +50,19 @@ internal static class ReviewDialogs
             now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
     }
 
+    internal static void RenderReadChangeTile(SurfaceContext context, string id)
+    {
+        var now = DateTimeOffset.Now;
+        var windows = new[]
+        {
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, now.AddHours(2), 300),
+            new UsageWindow("Window_Weekly", WindowKind.Weekly, 18, now.AddDays(3), 10080),
+        };
+        RenderTile(
+            new ProviderSnapshot("claude", windows, "Pro", SourceKind.WebSession, now, now, ProviderStatus.Ok, null, ReadChanged: true),
+            now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
+    }
+
     internal static void RenderCrash(string outputPath)
     {
         // A few lines of sample details: the box keeps its minimum height and grows with them.

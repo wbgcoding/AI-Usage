@@ -48,4 +48,83 @@ public class ReadChangeLogTests
 
         Assert.Single(capture.Lines);
     }
+
+    [Fact]
+    public void A_read_scope_sees_a_write_also_when_the_line_was_already_logged()
+    {
+        using var capture = ReadChangeLog.BeginCapture();
+        ReadChangeLog.Report("Example", "again");
+
+        using var scope = ReadChangeLog.BeginReadScope();
+        Assert.False(scope.Noted);
+        ReadChangeLog.Report("Example", "again");
+
+        Assert.True(scope.Noted);
+        Assert.Single(capture.Lines);
+    }
+
+    [Fact]
+    public void A_general_note_a_provider_note_already_covers_still_counts_for_the_scope()
+    {
+        using var capture = ReadChangeLog.BeginCapture();
+        ReadChangeLog.Report("Example", "specific");
+
+        using var scope = ReadChangeLog.BeginReadScope();
+        ReadChangeLog.ReportGeneral("Example", "general");
+
+        Assert.True(scope.Noted);
+    }
+
+    [Fact]
+    public void Without_a_read_scope_a_write_breaks_nothing()
+    {
+        using var capture = ReadChangeLog.BeginCapture();
+
+        ReadChangeLog.Report("Example", "no scope");
+
+        Assert.Single(capture.Lines);
+    }
+
+    [Fact]
+    public async Task A_read_scope_follows_its_flow_into_started_tasks_and_stays_clean_without_a_write()
+    {
+        using var scope = ReadChangeLog.BeginReadScope();
+        await Task.Run(() => { });
+        Assert.False(scope.Noted);
+
+        await Task.Run(() => ReadChangeLog.Report("Example", "inside a task"));
+
+        Assert.True(scope.Noted);
+    }
+
+    [Fact]
+    public async Task Parallel_flows_with_their_own_scopes_do_not_leak_into_each_other()
+    {
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(i => Task.Run(async () =>
+        {
+            using var scope = ReadChangeLog.BeginReadScope();
+            await Task.Yield();
+            if (i % 2 == 0)
+                ReadChangeLog.Report("Example", "flow " + i);
+            await Task.Yield();
+            return scope.Noted;
+        })));
+
+        Assert.Equal([true, false, true, false, true, false, true, false], results);
+    }
+
+    [Fact]
+    public void An_inner_scope_gives_the_outer_one_back_when_it_ends()
+    {
+        using var outer = ReadChangeLog.BeginReadScope();
+        using (var inner = ReadChangeLog.BeginReadScope())
+        {
+            ReadChangeLog.Report("Example", "inner");
+            Assert.True(inner.Noted);
+        }
+
+        Assert.False(outer.Noted);
+        ReadChangeLog.Report("Example", "outer");
+        Assert.True(outer.Noted);
+    }
 }

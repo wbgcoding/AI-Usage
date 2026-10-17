@@ -614,4 +614,6 @@
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>Sicherung vom {0}. Verlauf von {1} bis {2} für {3} Konten.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Sicherung vom {0}. Verlauf von {1} bis {2} für 1 Konto.</value></data>
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Sicherung vom {0}. Ohne Verlauf.</value></data>
+  <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Anbieter hat etwas geändert, Werte evtl. unvollständig.</value></data>
+  <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Protokoll öffnen</value></data>
 </root>

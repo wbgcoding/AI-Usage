@@ -555,6 +555,8 @@ public sealed class RefreshScheduler
                 state.CancelledByOwner = false;
             }
 
+            // Watches this read, retry included, for change notes, up to and including ReportReadChanges.
+            using var readScope = ReadChangeLog.BeginReadScope();
             var attemptClock = _timeProvider.GetTimestamp();
             var snapshot = await FetchAttemptAsync(provider, attemptStartedAt, holdNetwork, timeout, runCts, state, ct);
             if (snapshot is not null && IsWorthARetry(snapshot))
@@ -632,7 +634,7 @@ public sealed class RefreshScheduler
             }
 
             ReportReadChanges(provider.DisplayName, snapshot);
-            RaiseSnapshotReady(snapshot);
+            RaiseSnapshotReady(snapshot with { ReadChanged = readScope.Noted });
         }
         finally
         {
