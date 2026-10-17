@@ -2256,6 +2256,20 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Local_only_raises_no_sign_in_alert_for_the_skipped_web_route()
+    {
+        var (vm, raised) = BuildSignInAlert();
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+
+        vm.Tiles.Single(t => t.ProviderId == "claude").LocalOnly = true;
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
     public void An_ok_read_re_arms_the_sign_in_alert()
     {
         var (vm, raised) = BuildSignInAlert();

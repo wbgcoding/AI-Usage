@@ -1491,7 +1491,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
             if (snapshot.Status == ProviderStatus.Ok)
                 _signInAlerted.Remove(snapshot.ProviderId);
-            else if (repeatedNotSignedIn && hadValues && !IsAccountDisconnected(snapshot.ProviderId)
+            // Local-only skips the web route on purpose: its empty tile is the user's own choice, no alert.
+            else if (repeatedNotSignedIn && hadValues && !tile.LocalOnly && !IsAccountDisconnected(snapshot.ProviderId)
                 && GetOrCreateProviderSettings(snapshot.ProviderId).NotificationsEnabled
                 && !QuietHours.IsQuiet(_settings, now) && _signInAlerted.Add(snapshot.ProviderId))
                 SignInExpiredRaised?.Invoke(new SignInExpiredNotification(snapshot.ProviderId, displayName, tile.SupportsInAppSignIn));
