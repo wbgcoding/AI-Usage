@@ -30,6 +30,16 @@ public static class CodexRateLimitParser
 {
     public static bool TryParse(string line, out CodexRateLimits? result) => TryParse(line, out result, notes: null);
 
+    /// <summary>The change notes of one line alone (see the <c>TryParse</c> overload
+    /// that collects them): empty for a line that looks as expected and for every line that is no
+    /// rate-limit event at all.</summary>
+    public static IReadOnlyList<string> ChangeNotes(string line)
+    {
+        var notes = new List<string>();
+        _ = TryParse(line, out _, notes);
+        return notes;
+    }
+
     /// <summary>Same parse; <paramref name="notes"/> additionally collects what in a rate-limit block
     /// no longer matches what this parser was written for (an unknown window, a window without
     /// <c>used_percent</c>, an unusual window length - see <see cref="CodexWindowKinds.CollectNotes"/>),

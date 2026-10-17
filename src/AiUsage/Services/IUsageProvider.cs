@@ -5,6 +5,18 @@ namespace AiUsage.Services;
 /// <summary>
 /// One provider (Codex, Claude, Gemini, Copilot, ...). A new provider needs only a class implementing
 /// this plus a registry entry.
+/// <para>
+/// Whatever a provider reads is foreign and changes without notice. An implementation reports every
+/// answer that no longer matches what its read was written for (a new model or quota id, a renamed or
+/// unknown field, an unknown window, a changed shape, a moved address) through
+/// <see cref="ReadChangeLog.Report"/>, with a note that names ids, keys, fields, windows or HTTP
+/// status codes only (never a usage figure, a token, an account detail, a path or a response body).
+/// A pure parser exposes a <c>ChangeNotes</c> function for its provider or endpoint to report; the
+/// shared checks of <see cref="RefreshScheduler"/> additionally cover a moved endpoint, a success
+/// without a window and an answer nothing could be read from
+/// (<see cref="ProviderSnapshot.UnreadableAnswer"/>, set by the provider when a source answered and
+/// the answer yielded nothing - never for a network failure, a sign-out or a held fetch).
+/// </para>
 /// </summary>
 public interface IUsageProvider
 {

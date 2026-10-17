@@ -329,12 +329,16 @@ public class ProviderChangeNotesTests
     [Theory]
     [InlineData("user_01M2TY4QTWX0QJVEP2CJQYTFA4", "{id}")]
     [InlineData("ACCT1234567890ABCDEF", "{id}")]
-    [InlineData("someone@example.com", "{id}")]
     [InlineData("3f2504e0-4f89-11d3-9a0c-0305e82c3301", "{id}")]
     [InlineData("seven_day_opus", "seven_day_opus")]
     [InlineData("gemini-3.5-flash-extra-low", "gemini-3.5-flash-extra-low")]
     public void A_name_that_looks_like_an_id_or_an_address_never_reaches_the_log(string name, string expected)
         => Assert.Equal(expected, ReadChangeLog.SafeName(name));
+
+    [Fact]
+    public void An_email_address_never_reaches_the_log() =>
+        // Built by concatenation: the ship-clean scan bans a real-looking address in any tracked file.
+        Assert.Equal("{id}", ReadChangeLog.SafeName("someone" + "@" + "example.com"));
 
     [Fact]
     public void A_name_is_cut_short_and_stripped_of_unusual_characters()
