@@ -439,6 +439,7 @@ public partial class MainWindow : Window, IDisposable
 
         ShowAndActivate();
         SaveWindowSettings();
+        RememberSetupPlace();
     }
 
     /// <summary>Mirrors the tile list into the tray icon's colour and tooltip - only
@@ -1040,8 +1041,13 @@ public partial class MainWindow : Window, IDisposable
     private void ApplyRememberedPlacement()
     {
         var monitors = _monitorAreas.Areas;
-        var primary = monitors.FirstOrDefault(m => m.DeviceName == _settings.Window.MonitorDeviceName, WindowPlacementService.PrimaryOf(monitors));
-        var desired = new WindowRect(_settings.Window.Left, _settings.Window.Top, Current.Width, Current.Height ?? MinHeight);
+        // The place left on this very display setup wins over the one single remembered position.
+        _lastSetupKey = WindowPlacementService.SetupKey(monitors);
+        var place = WindowPlacementService.FindSetup(_settings.Window, _lastSetupKey);
+        var device = place?.MonitorDeviceName ?? _settings.Window.MonitorDeviceName;
+        var primary = monitors.FirstOrDefault(m => m.DeviceName == device, WindowPlacementService.PrimaryOf(monitors));
+        var desired = new WindowRect(
+            place?.Left ?? _settings.Window.Left, place?.Top ?? _settings.Window.Top, Current.Width, Current.Height ?? MinHeight);
 
         var resolved = WindowPlacementService.ResolvePosition(desired, monitors, primary);
         Left = resolved.Left;
@@ -1351,6 +1357,7 @@ public partial class MainWindow : Window, IDisposable
             if (_replaceAfterDrag.DragEnded())
                 ReplaceOnScreen();
             SaveWindowSettings();
+            RememberSetupPlace();
         }
 
         return IntPtr.Zero;
@@ -1861,6 +1868,7 @@ public partial class MainWindow : Window, IDisposable
         Current.Height = Height;
 
         SaveWindowSettings();
+        RememberSetupPlace();
     }
 
     // ShutdownMode is OnExplicitShutdown (App.xaml): closing the window now just hides it into the

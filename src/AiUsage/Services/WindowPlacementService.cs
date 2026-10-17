@@ -1,3 +1,4 @@
+using System.Globalization;
 using AiUsage.Models;
 using AiUsage.Storage;
 
@@ -132,6 +133,30 @@ public class WindowPlacementService
 
         return best is { } nearest ? ClampIntoArea(desired, nearest) : CenterOn(primary, desired.Width, desired.Height);
     }
+
+    /// <summary>Names a display setup: every monitor as <c>Name@Left,Top,WxH</c> (whole numbers),
+    /// sorted by name so the enumeration order does not matter, joined with "|".</summary>
+    public static string SetupKey(IReadOnlyList<MonitorArea> monitors) => string.Join(
+        "|",
+        monitors.OrderBy(m => m.DeviceName, StringComparer.Ordinal).Select(m => string.Create(
+            CultureInfo.InvariantCulture,
+            $"{m.DeviceName}@{Whole(m.Left)},{Whole(m.Top)},{Whole(m.Width)}x{Whole(m.Height)}")));
+
+    private static long Whole(double value) => (long)Math.Floor(value + 0.5);
+
+    /// <summary>Stores the place for <paramref name="key"/> at the front of the remembered setups
+    /// (an existing entry for it is replaced), keeping at most <see cref="WindowSettings.MaxSetups"/>.</summary>
+    public static void RememberSetup(WindowSettings window, string key, double left, double top, string device)
+    {
+        window.Setups.RemoveAll(s => s.Setup == key);
+        window.Setups.Insert(0, new WindowSetupPlacement { Setup = key, Left = left, Top = top, MonitorDeviceName = device });
+        if (window.Setups.Count > WindowSettings.MaxSetups)
+            window.Setups.RemoveRange(WindowSettings.MaxSetups, window.Setups.Count - WindowSettings.MaxSetups);
+    }
+
+    /// <summary>The place remembered for <paramref name="key"/>, or null for a setup not seen before.</summary>
+    public static WindowSetupPlacement? FindSetup(WindowSettings window, string key) =>
+        window.Setups.FirstOrDefault(s => s.Setup == key);
 
     /// <summary>The main display among <paramref name="monitors"/>: the one Windows marks as primary,
     /// else the first listed (a list built without that information), else an empty area.</summary>

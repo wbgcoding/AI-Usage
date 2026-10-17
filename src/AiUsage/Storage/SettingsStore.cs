@@ -746,6 +746,17 @@ public sealed class SettingsStore : IDisposable
         window.SettingsWidth = ClampDimension(window.SettingsWidth, 480);
         window.Left = double.IsFinite(window.Left) ? window.Left : 100;
         window.Top = double.IsFinite(window.Top) ? window.Top : 100;
+        window.Setups = (window.Setups ?? [])
+            .Where(s => s is { Setup.Length: > 0 })
+            .Take(WindowSettings.MaxSetups)
+            .Select(s => new WindowSetupPlacement
+            {
+                Setup = s.Setup,
+                Left = double.IsFinite(s.Left) ? s.Left : 100,
+                Top = double.IsFinite(s.Top) ? s.Top : 100,
+                MonitorDeviceName = s.MonitorDeviceName ?? "",
+            })
+            .ToList();
     }
 
     private static void ClampLayoutSizes(LayoutSizes sizes)

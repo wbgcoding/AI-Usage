@@ -1533,4 +1533,46 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(new string('a', ProviderSettings.MaxAccountNameLength - 1), normalized);
         Assert.Equal("Work", ProviderSettings.NormalizeAccountName("  Work  "));
     }
+
+    [Fact]
+    public void A_settings_file_without_window_setups_loads_with_an_empty_list()
+    {
+        var landed = SettingsStore.Validate("""{"window": {"left": 10, "top": 20}}""").Settings!;
+
+        Assert.Empty(landed.Window.Setups);
+    }
+
+    [Fact]
+    public void An_explicit_null_window_setups_list_loads_as_an_empty_one()
+    {
+        var landed = SettingsStore.Validate("""{"window": {"setups": null}}""").Settings!;
+
+        Assert.Empty(landed.Window.Setups);
+    }
+
+    [Fact]
+    public void Five_stored_window_setups_load_as_the_first_three()
+    {
+        var entries = string.Join(",", Enumerable.Range(1, 5).Select(i =>
+            $$"""{"setup": "k{{i}}", "left": {{i}}, "top": {{i}}, "monitorDeviceName": "m"}"""));
+
+        var landed = SettingsStore.Validate("""{"window": {"setups": [""" + entries + "]}}").Settings!;
+
+        Assert.Equal(["k1", "k2", "k3"], landed.Window.Setups.Select(s => s.Setup));
+    }
+
+    [Fact]
+    public void Window_setups_without_a_key_or_with_broken_numbers_are_dropped_on_load()
+    {
+        var landed = SettingsStore.Validate("""
+            {"window": {"setups": [
+                null,
+                {"setup": "", "left": 1, "top": 2},
+                {"setup": "ok", "left": 5, "top": 6, "monitorDeviceName": null}
+            ]}}
+            """).Settings!;
+
+        var entry = Assert.Single(landed.Window.Setups);
+        Assert.Equal(("ok", 5d, 6d, ""), (entry.Setup, entry.Left, entry.Top, entry.MonitorDeviceName));
+    }
 }
