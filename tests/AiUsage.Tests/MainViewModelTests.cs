@@ -918,13 +918,14 @@ public class MainViewModelTests : IDisposable
         Assert.All(providers.Where(p => p.Id != "codex"), p => Assert.False(p.WasFetched));
     }
 
-    private sealed class SkippableWebFakeProvider(string accountKey, string id = "claude") : IUsageProvider
+    private sealed class SkippableWebFakeProvider(string accountKey, string id = "claude", AppSettings? settings = null) : IUsageProvider
     {
         public string Id { get; } = id;
         public string AccountKey { get; } = accountKey;
         public string DisplayName => Id;
         public bool RunsOnUiThread => true;
-        public bool SupportsInAppSignIn { get; set; } = true;
+        // Follows the persisted switch like the real providers: the web sign-in goes while local-only is on.
+        public bool SupportsInAppSignIn => !(settings is not null && settings.Providers.TryGetValue(AccountKey, out var own) && own.LocalOnly);
         public bool CanSkipWebSession => true;
         public int FetchCount { get; private set; }
 
@@ -940,24 +941,26 @@ public class MainViewModelTests : IDisposable
     {
         var settings = new AppSettings();
         settings.Providers["claude"] = new ProviderSettings { Visible = true };
-        var provider = new SkippableWebFakeProvider("claude");
-        var other = new SkippableWebFakeProvider("codex", "codex");
+        var provider = new SkippableWebFakeProvider("claude", settings: settings);
+        var other = new SkippableWebFakeProvider("codex", "codex", settings);
         var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, new List<IUsageProvider> { provider, other }, new HistoryStore(TempDirectory(), () => Now));
         var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
         Assert.True(tile.CanSkipWebSession);
         Assert.False(tile.LocalOnly);
+        Assert.True(tile.SupportsInAppSignIn);
         var before = provider.FetchCount;
         var otherBefore = other.FetchCount;
 
         tile.LocalOnly = true;
 
         Assert.True(settings.Providers["claude"].LocalOnly);
+        Assert.False(tile.SupportsInAppSignIn);
         Assert.Equal(before + 1, provider.FetchCount);
         Assert.Equal(otherBefore, other.FetchCount);
 
-        provider.SupportsInAppSignIn = true;
         tile.LocalOnly = false;
         Assert.False(settings.Providers["claude"].LocalOnly);
+        Assert.True(tile.SupportsInAppSignIn);
         Assert.Equal(before + 2, provider.FetchCount);
     }
 

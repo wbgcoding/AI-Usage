@@ -106,6 +106,17 @@ public class ClaudeProviderTests : IDisposable
     // The primary account reads Claude Code's own sign-in: a browser sign-in would land in a profile
     // nothing reads, so it offers none, but it can still be disconnected and resumed.
     [Fact]
+    public void Only_the_primary_account_can_skip_the_web_session()
+    {
+        var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called"));
+        var primary = new ClaudeProvider("claude", new AppSettings(), _ => { }, webSource, _ => Task.FromResult(ClaudeCodeUsage.NotSignedIn));
+        var further = new ClaudeProvider("claude#2", new AppSettings(), _ => { }, webSource);
+
+        Assert.True(primary.CanSkipWebSession);
+        Assert.False(further.CanSkipWebSession);
+    }
+
+    [Fact]
     public void The_primary_account_offers_sign_out_but_no_browser_sign_in()
     {
         var primary = new ClaudeProvider("claude", _ => Task.FromResult(ClaudeCodeUsage.NotSignedIn));

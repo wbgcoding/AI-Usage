@@ -408,6 +408,19 @@ public class GeminiProviderTests : IDisposable
     }
 
     [Fact]
+    public void A_further_web_only_account_cannot_skip_the_web_session()
+    {
+        var descriptor = new WebSessionDescriptor(
+            ProviderId: "gemini", BaseUrl: "https://gemini.google.com/usage",
+            SignInUrl: "https://gemini.google.com", AllowedHosts: ["google.com"], ProfileFolderName: "gemini#2");
+        var source = new WebUsageSource(descriptor, new GeminiUsageEndpoint(), (_, _) => throw new InvalidOperationException("must not be called"));
+
+        var further = GeminiProvider.ForWebOnlyAccount("gemini#2", new AppSettings(), _ => { }, source);
+
+        Assert.False(further.CanSkipWebSession);
+    }
+
+    [Fact]
     public async Task Local_only_never_runs_the_web_read_and_turning_it_off_resumes_it()
     {
         NetworkStatus.Probe = () => true;

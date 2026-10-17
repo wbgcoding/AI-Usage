@@ -617,6 +617,19 @@ public class CodexProviderTests : IDisposable
     }
 
     [Fact]
+    public void A_further_web_only_account_cannot_skip_the_web_session()
+    {
+        var descriptor = new WebSessionDescriptor(
+            ProviderId: "codex", BaseUrl: "https://chatgpt.com/codex/settings/usage",
+            SignInUrl: "https://chatgpt.com/", AllowedHosts: ["chatgpt.com"], ProfileFolderName: "codex#2");
+        var source = new WebUsageSource(descriptor, new CodexUsageEndpoint(() => DateTimeOffset.Parse("2026-09-18T20:00:00Z")), (_, _) => throw new InvalidOperationException("must not be called"));
+
+        var further = CodexProvider.ForWebOnlyAccount("codex#2", new AppSettings(), _ => { }, source);
+
+        Assert.False(further.CanSkipWebSession);
+    }
+
+    [Fact]
     public async Task Local_only_never_runs_the_web_read_and_turning_it_off_resumes_it()
     {
         var settings = new AppSettings();
