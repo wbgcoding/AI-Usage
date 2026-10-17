@@ -89,15 +89,17 @@ internal static class ClaudeDiscoveryScript
                     if (typeof uuid !== 'string' || !/^[0-9a-fA-F-]{36}$/.test(uuid)) return {status: 'failed'};
                     const candidates = [{{candidates}}].map(p => p.replace('{0}', uuid));
                     const results = [];
+                    let sawRateLimit = false;
                     for (const path of candidates) {
                         const res = await fetch(path, {method: 'GET', credentials: 'include'});
+                        if (res.status === 429) { sawRateLimit = true; continue; }
                         if (!res.ok) continue;
                         const ct = res.headers.get('content-type') || '';
                         const text = await res.text();
                         if (ct.includes('json')) results.push({path: path, body: text});
                     }
                     if (results.length > 0) return {status: 'ok', results: results, plan: planOf(org)};
-                    return {status: 'failed'};
+                    return {status: sawRateLimit ? 'blocked' : 'failed'};
                 } catch (e) {
                     return {status: 'failed'};
                 }

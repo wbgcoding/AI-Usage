@@ -16,6 +16,17 @@ public class PathSanitizerTests
     }
 
     [Fact]
+    public void Sanitize_replaces_the_short_form_of_the_user_profile_path()
+    {
+        var text = @"cannot open C:\Users\SOMEPE~1\AppData\Local\Temp\AI-Usage\update and MAXIMI~1 alone";
+
+        var result = PathSanitizer.Sanitize(
+            text, userProfile: @"C:\Users\SomePerson", userName: "SomePerson", shortProfile: @"C:\Users\SOMEPE~1");
+
+        Assert.Equal(@"cannot open <user>\AppData\Local\Temp\AI-Usage\update and MAXIMI~1 alone", result);
+    }
+
+    [Fact]
     public void Sanitize_replaces_the_account_name_wherever_it_appears_on_its_own()
     {
         var text = "logged in as SomePerson via token xyz";

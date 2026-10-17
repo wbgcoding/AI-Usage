@@ -101,6 +101,7 @@ public class InstallerSafetyTests
         Assert.Contains("GetEnv('USERPROFILE')", pointer);
         Assert.Contains("ExpandConstant('{win}')", pointer);
         Assert.Contains("GetEnv('ProgramFiles')", pointer);
+        Assert.Contains("ExpandConstant('{commonappdata}')", pointer);
         Assert.Contains("IsSameOrUnder(DataDir, Path)", pointer);
     }
 
@@ -129,7 +130,7 @@ public class InstallerSafetyTests
         Assert.Contains("AppWasRunning := IsAppWindowOpen;", iss);
         Assert.Contains("Pos('HwndWrapper[{#AppName}', Copy(ClassName, 1, Len)) = 1", iss);
         // Every window of that title is looked at, not just the first one Windows finds.
-        Assert.Contains("FindWindowExA(0, Wnd, 0, '{#AppName}')", iss);
+        Assert.Contains("FindWindowExW(0, Wnd, 0, '{#AppName}')", iss);
         Assert.DoesNotContain("AppWasRunning := FindWindowA", iss);
     }
 }

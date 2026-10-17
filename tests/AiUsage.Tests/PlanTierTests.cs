@@ -13,6 +13,8 @@ public class PlanTierTests
     [InlineData("max default_claude_max_5x", "Max 5x")]
     [InlineData("max default_claude_max_20x", "Max 20x")]
     [InlineData("default_claude_max_5x", "Max 5x")]
+    [InlineData("claude_max5x", "Max 5x")]
+    [InlineData("claude_max20x", "Max 20x")]
     [InlineData("pro", "Pro")]
     [InlineData("claude_pro chat", "Pro")]
     [InlineData("plus", "Plus")]

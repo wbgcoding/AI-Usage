@@ -52,10 +52,19 @@ internal static class AuthenticodeSignature
         try
         {
 #pragma warning disable SYSLIB0057 // No replacement reads the signer of a signed file; WinVerifyTrust above has already proven the signature.
-            var certificate = X509Certificate.CreateFromSignedFile(path);
+            using var certificate = X509Certificate.CreateFromSignedFile(path);
 #pragma warning restore SYSLIB0057
             using var signer = new X509Certificate2(certificate);
-            return ChainRootThumbprint(signer, trustedRoots: null, EmbeddedCertificates(path));
+            var embedded = EmbeddedCertificates(path);
+            try
+            {
+                return ChainRootThumbprint(signer, trustedRoots: null, embedded);
+            }
+            finally
+            {
+                foreach (var extra in embedded)
+                    extra.Dispose();
+            }
         }
         catch (System.Security.Cryptography.CryptographicException)
         {

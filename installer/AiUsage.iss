@@ -209,7 +209,11 @@ Filename: "{code:GetAppExePath}"; Description: "{cm:LaunchAfter}"; \
 ; to offer the checkbox above, and only when the app was actually closed as part of this run
 ; (WasAppRunning, captured before CloseApplications acted).
 Filename: "{code:GetAppExePath}"; Flags: nowait runasoriginaluser; \
-    Check: WasAppRunning and WizardSilent and not IsPortableMode
+    Check: WasAppRunning and WizardSilent and not IsPortableMode and not IsAdmin
+; A setup the app itself started elevated has no original user to fall back to, so runasoriginaluser
+; would bring the app back with the admin token. The shell starts it with the signed-in user's own.
+Filename: "{win}\explorer.exe"; Parameters: """{code:GetAppExePath}"""; Flags: nowait; \
+    Check: WasAppRunning and WizardSilent and not IsPortableMode and IsAdmin
 
 [UninstallDelete]
 ; Same hive limitation as autostart above: on a per-machine install approved by a different
@@ -225,6 +229,9 @@ Type: files; Name: "{userdesktop}\{#AppName}.lnk"
 ; runasoriginaluser flag, so it would look at the elevating account's hive rather than the user's.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; \
     ValueName: "AI-Usage"; Flags: uninsdeletevalue; Check: not IsPortableMode
+; Task Manager records a disabled autostart entry here; the app clears it itself when re-enabled.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"; ValueType: none; \
+    ValueName: "AI-Usage"; Flags: dontcreatekey uninsdeletevalue; Check: not IsPortableMode
 ; The app registers its notification identity itself on the first alert; this entry only removes it.
 Root: HKCU; Subkey: "Software\Classes\AppUserModelId\BGCoding.AI-Usage"; ValueType: none; \
     Flags: dontcreatekey uninsdeletekey; Check: not IsPortableMode
@@ -268,8 +275,9 @@ var
   RuntimePage: TOutputMsgWizardPage;
   RuntimeProgress: TOutputMarqueeProgressWizardPage;
 
-function FindWindowExA(hParent: LongInt; hChildAfter: HWND; lpClassName: LongInt; lpWindowName: String): HWND;
-  external 'FindWindowExA@user32.dll stdcall';
+{ The W form: Inno passes a String as UTF-16, which the A form would read as a one-letter title. }
+function FindWindowExW(hParent: LongInt; hChildAfter: HWND; lpClassName: LongInt; lpWindowName: String): HWND;
+  external 'FindWindowExW@user32.dll stdcall';
 
 function GetClassNameW(Wnd: HWND; ClassName: String; MaxCount: Integer): Integer;
   external 'GetClassNameW@user32.dll stdcall';
@@ -533,13 +541,13 @@ var
   Len: Integer;
 begin
   Result := False;
-  Wnd := FindWindowExA(0, 0, 0, '{#AppName}');
+  Wnd := FindWindowExW(0, 0, 0, '{#AppName}');
   while (Wnd <> 0) and not Result do
   begin
     SetLength(ClassName, 256);
     Len := GetClassNameW(Wnd, ClassName, 256);
     Result := (Len > 0) and (Pos('HwndWrapper[{#AppName}', Copy(ClassName, 1, Len)) = 1);
-    Wnd := FindWindowExA(0, Wnd, 0, '{#AppName}');
+    Wnd := FindWindowExW(0, Wnd, 0, '{#AppName}');
   end;
 end;
 
@@ -556,9 +564,9 @@ begin
   AllowSetForegroundWindow(ASFW_ANY);
 
   { The one moment "was the app running" can still be answered honestly - CloseApplications acts
-    between here and CurStepChanged. A plain window-title lookup (the app's own title, matching
-    SingleInstanceService's lookup) rather than a process check, so a portable copy running from
-    an unrelated folder does not falsely arm the relaunch. }
+    between here and CurStepChanged. A window lookup (the app's own title and WPF host) rather than
+    a process check, so a portable copy running from an unrelated folder does not falsely arm the
+    relaunch. }
   AppWasRunning := IsAppWindowOpen;
 
   { An equal version continues as a repair, an offered version that is newer is the ordinary
@@ -787,7 +795,8 @@ end;
 { The data folder the app was moved to in Settings: the full path in location.txt of the default data
   folder, or '' when there is none or it is not a plain absolute path. Never a drive or share root,
   a folder that holds the default data folders, the user profile folder itself, nor anything inside
-  Windows or Program Files. }
+  Windows, Program Files or ProgramData: an elevated uninstall must not delete files there that
+  another account could have planted the marker beside. }
 function MovedDataDir(const PointerFile, DataDir, LocalDir: String): String;
 var
   Raw: AnsiString;
@@ -814,7 +823,8 @@ begin
   if (Profile <> '') and (CompareText(Path, Profile) = 0) then
     Exit;
   if IsSameOrUnder(Path, ExpandConstant('{win}')) or IsSameOrUnder(Path, GetEnv('ProgramFiles'))
-     or IsSameOrUnder(Path, GetEnv('ProgramFiles(x86)')) or IsSameOrUnder(Path, GetEnv('ProgramW6432')) then
+     or IsSameOrUnder(Path, GetEnv('ProgramFiles(x86)')) or IsSameOrUnder(Path, GetEnv('ProgramW6432'))
+     or IsSameOrUnder(Path, ExpandConstant('{commonappdata}')) then
     Exit;
   Result := Path;
 end;

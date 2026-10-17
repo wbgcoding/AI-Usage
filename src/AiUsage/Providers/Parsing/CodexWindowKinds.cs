@@ -29,5 +29,13 @@ internal static class CodexWindowKinds
         return earlier == kind ? byPosition : kind;
     }
 
+    /// <summary>No usage window runs longer than about a year.</summary>
+    private const long MaxWindowMinutes = 400L * 24 * 60;
+
+    /// <summary>A reported length as a positive minute count no longer than a year, otherwise unknown -
+    /// an absurd length would push the window's start before the first representable instant.</summary>
+    internal static int? PlausibleMinutesOrNull(long? minutes) =>
+        minutes is > 0 and <= MaxWindowMinutes ? (int)minutes.Value : null;
+
     internal static string LabelFor(WindowKind kind) => kind == WindowKind.Weekly ? "Window_Weekly" : "Window_FiveHour";
 }

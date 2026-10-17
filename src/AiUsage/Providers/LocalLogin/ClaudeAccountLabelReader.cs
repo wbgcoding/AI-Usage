@@ -31,29 +31,49 @@ internal static class ClaudeAccountLabelReader
 
     public static string? Read() => Read(DefaultPath());
 
+    // Claude Code keeps its whole project history in the same file, often several megabytes; an
+    // unchanged file is not parsed again just to find the same address.
+    private static readonly Lock Gate = new();
+    private static (string Path, long Length, DateTime LastWriteUtc, string? Label)? _last;
+
     /// <summary>Test seam: a fixture path instead of the real profile folder.</summary>
     internal static string? Read(string path)
     {
         try
         {
-            if (!File.Exists(path))
+            var info = new FileInfo(path);
+            if (!info.Exists)
                 return null;
 
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var document = JsonDocument.Parse(stream);
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-                return null;
-            if (!document.RootElement.TryGetProperty("oauthAccount", out var account) || account.ValueKind != JsonValueKind.Object)
-                return null;
-            if (!account.TryGetProperty("emailAddress", out var emailEl) || emailEl.ValueKind != JsonValueKind.String)
-                return null;
+            lock (Gate)
+            {
+                if (_last is { } last && last.Path == path && last.Length == info.Length && last.LastWriteUtc == info.LastWriteTimeUtc)
+                    return last.Label;
+            }
 
-            var email = emailEl.GetString();
-            return AccountLabels.LooksLikeEmail(email) ? email : null;
+            var label = ReadLabel(path);
+            lock (Gate)
+                _last = (path, info.Length, info.LastWriteTimeUtc, label);
+            return label;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentOutOfRangeException)
         {
             return null;
         }
+    }
+
+    private static string? ReadLabel(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var document = JsonDocument.Parse(stream);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            return null;
+        if (!document.RootElement.TryGetProperty("oauthAccount", out var account) || account.ValueKind != JsonValueKind.Object)
+            return null;
+        if (!account.TryGetProperty("emailAddress", out var emailEl) || emailEl.ValueKind != JsonValueKind.String)
+            return null;
+
+        var email = emailEl.GetString();
+        return AccountLabels.LooksLikeEmail(email) ? email : null;
     }
 }

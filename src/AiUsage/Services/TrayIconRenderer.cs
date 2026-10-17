@@ -22,8 +22,8 @@ public static class TrayIconRenderer
     private static readonly Color WarnColor = Color.FromArgb(0xB4, 0x53, 0x09);
     private static readonly Color CritColor = Color.FromArgb(0xBE, 0x12, 0x3C);
 
-    /// <summary>The fixed background colour for a level - not itself a theme lookup, see the class
-    /// doc.</summary>
+    /// <summary>The fixed background colour for a level - not a theme lookup, so the icon reads the
+    /// same on every taskbar.</summary>
     internal static Color BackgroundColor(UsageLevel level) => level switch
     {
         UsageLevel.Crit => CritColor,

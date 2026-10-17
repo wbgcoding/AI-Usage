@@ -114,13 +114,6 @@ public sealed class CursorProvider : IUsageProvider
         _ => ProviderSnapshots.Unavailable(AccountKey, fetchedAt),
     };
 
-    private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) => new(
-        ProviderId: AccountKey,
-        Windows: [],
-        PlanType: null,
-        SourceKind: SourceKind.None,
-        FetchedAt: fetchedAt,
-        DataTimestamp: null,
-        Status: status,
-        Error: error);
+    private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) =>
+        ProviderSnapshots.Empty(AccountKey, fetchedAt, status, error);
 }

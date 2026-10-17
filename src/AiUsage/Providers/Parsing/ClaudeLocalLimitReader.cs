@@ -73,7 +73,9 @@ public static class ClaudeLocalLimitReader
         try
         {
             var files = LocalFileScan.NewestFiles(projectsRoot, "*.jsonl", MaxDepth, MaxFilesToCheck);
-            newestFilePath = files.Count > 0 ? files[0].FullName : null;
+            // A running subagent writes its own transcript next to the session's; the session is the
+            // one the tile describes, so its token sum and waiting state never flip to the subagent's.
+            newestFilePath = files.FirstOrDefault(f => !Stats.ClaudeUsageLogParser.IsSubagentFile(f.FullName))?.FullName;
             PruneCache(projectsRoot, files);
 
             var newestPerType = new Dictionary<string, ClaudeQuotaLimit>(StringComparer.Ordinal);

@@ -82,9 +82,7 @@ public sealed class CopilotProvider : IUsageProvider
 
         var result = await _read(ct);
 
-        // Copilot has exactly one source (the GitHub CLI's own sign-in), so the chooser has nothing
-        // to pick between - wrapping the single result still routes it through the same rule every
-        // other provider follows, rather than a source-specific exception.
+        // One source only (the GitHub CLI's own sign-in), so there is nothing to choose between.
         return BuildSnapshot(result, fetchedAt);
     }
 
@@ -127,13 +125,6 @@ public sealed class CopilotProvider : IUsageProvider
         }
     }
 
-    private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) => new(
-        ProviderId: AccountKey,
-        Windows: [],
-        PlanType: null,
-        SourceKind: SourceKind.None,
-        FetchedAt: fetchedAt,
-        DataTimestamp: null,
-        Status: status,
-        Error: error);
+    private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) =>
+        ProviderSnapshots.Empty(AccountKey, fetchedAt, status, error);
 }

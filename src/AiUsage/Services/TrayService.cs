@@ -11,8 +11,8 @@ namespace AiUsage.Services;
 /// Tray icon and its context menu, built directly on <c>Shell_NotifyIcon</c> (shell32) instead of
 /// a UI framework's own wrapper - a hidden message window receives the shell callback, and the
 /// right-click menu is a plain WPF <see cref="ContextMenu"/> themed the same way as every other
-/// popup in this app. Not unit-testable (a live shell tray icon needs a real desktop
-/// session) - only <see cref="TrayTooltipBuilder"/>'s pure text-building is tested.
+/// popup in this app. The live shell icon itself needs a real desktop session, so the tests cover the
+/// menu, the tooltip text and the rendered icons around it.
 /// </summary>
 public sealed class TrayService : IDisposable
 {
@@ -123,6 +123,13 @@ public sealed class TrayService : IDisposable
     // for real.
     private bool _readyForContextMenu;
 
+    // At sign-in the shell can refuse the icon after its TaskbarCreated broadcast has already gone out,
+    // which would leave an autostarted copy with neither a window nor an icon.
+    private static readonly TimeSpan AddRetryInterval = TimeSpan.FromSeconds(2);
+    private const int MaxAddRetries = 30;
+    private DispatcherTimer? _addRetryTimer;
+    private int _addRetries;
+
     /// <summary>Tells whether the widget is on screen right now; read each time the menu opens to
     /// word the first entry "hide" or "show". Null counts as visible.</summary>
     public Func<bool>? WidgetVisible { get; set; }
@@ -221,7 +228,7 @@ public sealed class TrayService : IDisposable
     {
         var loc = LocalizationService.Instance;
         parts.ShowHide.Header = loc[widgetVisible ? "Tray.Hide" : "Tray.Show"];
-        parts.ShowHide.InputGestureText = hotkeyShortcutText ?? "";
+        parts.ShowHide.InputGestureText = GlobalHotkey.FormatForDisplay(hotkeyShortcutText);
         parts.Refresh.Header = loc["Action.RefreshNow"];
         parts.Pause.Header = pausedUntil is { } until
             ? loc.Format("Tray.Resume", TrayTooltipBuilder.ShortTime(until))
@@ -441,10 +448,45 @@ public sealed class TrayService : IDisposable
 
     private void AddIcon()
     {
+        if (TryAddIcon())
+        {
+            StopAddRetries();
+            return;
+        }
+
+        if (_addRetryTimer is not null)
+            return;
+        _addRetries = 0;
+        _addRetryTimer = new DispatcherTimer(DispatcherPriority.Background, _hwndSource.Dispatcher) { Interval = AddRetryInterval };
+        _addRetryTimer.Tick += (_, _) =>
+        {
+            if (TryAddIcon())
+            {
+                StopAddRetries();
+                return;
+            }
+            if (++_addRetries >= MaxAddRetries)
+            {
+                StopAddRetries();
+                LogService.Shared.LogError("Tray icon: the shell did not accept the icon.");
+            }
+        };
+        _addRetryTimer.Start();
+    }
+
+    /// <summary>Adds the icon, or updates it when the shell already holds one under this id.</summary>
+    private bool TryAddIcon()
+    {
         var data = NewNotifyIconData(NIF_MESSAGE | NIF_ICON | NIF_TIP);
         data.hIcon = (_currentIcon ?? _okIcon).Handle;
         data.szTip = _tooltipText;
-        Shell_NotifyIcon(NIM_ADD, ref data);
+        return Shell_NotifyIcon(NIM_ADD, ref data) || Shell_NotifyIcon(NIM_MODIFY, ref data);
+    }
+
+    private void StopAddRetries()
+    {
+        _addRetryTimer?.Stop();
+        _addRetryTimer = null;
     }
 
     private NOTIFYICONDATA NewNotifyIconData(uint flags) => new()
@@ -478,6 +520,7 @@ public sealed class TrayService : IDisposable
     public void Dispose()
     {
         LocalizationService.Instance.PropertyChanged -= _localizationChanged;
+        StopAddRetries();
 
         var data = NewNotifyIconData(0);
         Shell_NotifyIcon(NIM_DELETE, ref data);

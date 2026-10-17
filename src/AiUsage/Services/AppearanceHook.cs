@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace AiUsage.Services;
 
@@ -20,6 +21,10 @@ internal static class AppearanceHook
         msg == WmDwmColorizationColorChanged
         || (msg == WmSettingChange && string.Equals(settingName, "ImmersiveColorSet", StringComparison.Ordinal));
 
+    // Windows sends several of these notices for one change; the theme is applied once they settle.
+    private static readonly TimeSpan ColorNoticeSettle = TimeSpan.FromMilliseconds(250);
+    private static DispatcherTimer? _pendingApply;
+
     public static void Attach(HwndSource source) => source.AddHook(OnMessage);
 
     private static IntPtr OnMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -32,8 +37,25 @@ internal static class AppearanceHook
 
         var settingName = msg == WmSettingChange && lParam != IntPtr.Zero ? Marshal.PtrToStringUni(lParam) : null;
         if (IsColorNotice(msg, settingName) && ThemeService.CurrentTheme == AppTheme.System)
-            ThemeService.Apply(AppTheme.System);
+            ScheduleApply();
 
         return IntPtr.Zero;
+    }
+
+    private static void ScheduleApply()
+    {
+        if (_pendingApply is null)
+        {
+            _pendingApply = new DispatcherTimer(DispatcherPriority.Background) { Interval = ColorNoticeSettle };
+            _pendingApply.Tick += (_, _) =>
+            {
+                _pendingApply!.Stop();
+                if (ThemeService.CurrentTheme == AppTheme.System)
+                    ThemeService.Apply(AppTheme.System);
+            };
+        }
+
+        _pendingApply.Stop();
+        _pendingApply.Start();
     }
 }

@@ -84,10 +84,19 @@ internal static class AntigravityLocalLogin
             return refreshToken is null ? AntigravityUsage.NotSignedIn : AntigravityUsage.Failed;
         }
 
-        var load = await LocalLoginHttp.SendAsync(
-            HttpMethod.Post, LoadUrl, accessToken,
-            "{\"metadata\":{\"ideType\":\"ANTIGRAVITY\",\"platform\":\"PLATFORM_UNSPECIFIED\",\"pluginType\":\"GEMINI\"}}",
-            UserAgent, ct);
+        var load = await LoadCodeAssistAsync(accessToken, ct);
+        if (load.StatusCode is 401 or 403 && refreshToken is not null)
+        {
+            // A stored or cached token can be revoked well before its expiry; only a refused refresh
+            // means the CLI has signed out.
+            ForgetCachedToken();
+            var (refreshed, refreshRejected) = await RefreshAsync(
+                refreshToken, LocalLoginHttp.PostFormAsync, AntigravityOAuthClient.DiscoverPairs, AntigravityOAuthClient.ForgetPairs, ct);
+            if (refreshed is null)
+                return refreshRejected ? ForgetCachedTokenAndReportSignedOut() : AntigravityUsage.Failed;
+            accessToken = refreshed;
+            load = await LoadCodeAssistAsync(accessToken, ct);
+        }
         if (load.StatusCode is 401 or 403)
             return ForgetCachedTokenAndReportSignedOut();
         if (!load.Ok)
@@ -104,6 +113,12 @@ internal static class AntigravityLocalLogin
         return new AntigravityUsage(LocalLoginOutcome.Ok, quota.Body, planName);
     }
 
+    private static Task<LocalLoginHttp.Response> LoadCodeAssistAsync(string accessToken, CancellationToken ct) =>
+        LocalLoginHttp.SendAsync(
+            HttpMethod.Post, LoadUrl, accessToken,
+            "{\"metadata\":{\"ideType\":\"ANTIGRAVITY\",\"platform\":\"PLATFORM_UNSPECIFIED\",\"pluginType\":\"GEMINI\"}}",
+            UserAgent, ct);
+
     private static AntigravityUsage FailedFor(LocalLoginHttp.Response response) =>
         AntigravityUsage.Failed with { FailureKind = response.FailureKind, HttpStatus = response.StatusCode > 0 ? response.StatusCode : null };
 
@@ -111,13 +126,18 @@ internal static class AntigravityLocalLogin
     /// CLI has already signed in again.</summary>
     private static AntigravityUsage ForgetCachedTokenAndReportSignedOut()
     {
+        ForgetCachedToken();
+        return AntigravityUsage.NotSignedIn;
+    }
+
+    private static void ForgetCachedToken()
+    {
         lock (Gate)
         {
             _cachedRefreshToken = null;
             _cachedAccessToken = null;
             _acceptedPair = null;
         }
-        return AntigravityUsage.NotSignedIn;
     }
 
     /// <summary><c>Rejected</c> is true when the token endpoint refused the refresh token itself

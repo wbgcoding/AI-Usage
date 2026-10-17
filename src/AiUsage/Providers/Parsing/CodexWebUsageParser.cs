@@ -78,11 +78,11 @@ public static class CodexWebUsageParser
         if (block is not { } window || TryGetDouble(window, "used_percent") is not { } usedPercent)
             return;
 
-        // A length that is not a positive, int-sized minute count reads as unknown; the percentage
-        // stays valid on its own.
+        // A length that is not a plausible minute count reads as unknown; the percentage stays valid
+        // on its own.
         long? minutes = TryGetInt32(window, "window_minutes");
         minutes ??= TryGetInt64(window, "limit_window_seconds") is { } seconds ? seconds / 60 : null;
-        var windowMinutes = minutes is > 0 and <= int.MaxValue ? (int?)minutes : null;
+        var windowMinutes = CodexWindowKinds.PlausibleMinutesOrNull(minutes);
 
         // The length decides which bar this is; the position only answers when the length is unknown.
         var kind = CodexWindowKinds.KindFor(windowMinutes, byPosition, windows.Count > 0 ? windows[^1].Kind : null);

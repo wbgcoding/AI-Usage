@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace AiUsage.Providers.LocalLogin;
 
@@ -28,7 +29,7 @@ internal sealed record GitHubAccount(string Host, string Login, bool Active);
 /// machine: <c>gh api copilot_internal/user</c>. The widget never touches the CLI's token - it only
 /// asks the tool the user already trusts, which reads usage numbers only. Never throws.
 /// </summary>
-internal static class GitHubCliUsage
+internal static partial class GitHubCliUsage
 {
     /// <summary>The CLI's own download page, offered when it is missing.</summary>
     public const string DownloadUrl = "https://cli.github.com/";
@@ -103,6 +104,9 @@ internal static class GitHubCliUsage
     internal static IReadOnlyList<GitHubAccount> OnlyGitHubDotCom(IReadOnlyList<GitHubAccount> accounts) =>
         accounts.Where(account => string.Equals(account.Host, GitHubHost, StringComparison.OrdinalIgnoreCase)).ToList();
 
+    [GeneratedRegex(@"Logged in to (?<host>\S+) account (?<login>\S+)", RegexOptions.CultureInvariant)]
+    private static partial Regex LoginLine();
+
     /// <summary>Pure parsing of <c>gh auth status</c>'s own text - one line per account, shaped
     /// "&#160;&#160;✓ Logged in to github.com account octocat (keyring)" (spelled with a leading
     /// checkmark and worded slightly differently across CLI versions, hence the loose match), with the
@@ -112,8 +116,7 @@ internal static class GitHubCliUsage
     {
         var accounts = new List<GitHubAccount>();
         var lines = text.Replace("\r\n", "\n").Split('\n');
-        var loginPattern = new System.Text.RegularExpressions.Regex(
-            @"Logged in to (?<host>\S+) account (?<login>\S+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+        var loginPattern = LoginLine();
 
         for (var i = 0; i < lines.Length; i++)
         {
@@ -189,8 +192,6 @@ internal static class GitHubCliUsage
             if (combineStreams)
                 return (GitHubCliOutcome.Ok, stdout + "\n" + stderr);
 
-            if (process.ExitCode == 0 && stdout.TrimStart().StartsWith('{'))
-                return (GitHubCliOutcome.Ok, stdout);
             if (process.ExitCode == 0)
                 return (GitHubCliOutcome.Ok, stdout.Trim());
 

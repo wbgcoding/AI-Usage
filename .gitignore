@@ -40,3 +40,19 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 *.har
+*.ppk
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+
+# Build logs record the whole environment, signing key variables included
+*.binlog
+
+# IDE state
+.idea/
+*.suo
+
+# Local tool settings and the app's own backups
+.claude/settings.local.json
+ai-usage-backup*.zip

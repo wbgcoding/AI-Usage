@@ -30,6 +30,10 @@ public sealed class ClaudeSessionTokenReader
 
     // Oldest read first, newest last.
     private readonly List<(string Path, FileState State)> _states = [];
+
+    // A read abandoned by a timed-out refresh may still be running when the retry starts; the two must
+    // never update one file's sum at the same time.
+    private readonly Lock _gate = new();
     private FileState? _current;
 
     // A single line longer than this is never a usage line; it is skipped without being buffered.
@@ -54,22 +58,24 @@ public sealed class ClaudeSessionTokenReader
     /// cref="ClaudeUsageLogParser.TryParse"/> and adding its four token counts to that file's running
     /// total - or, on a repeat call against the same file, only the lines appended since the last
     /// call.</summary>
-    public long SumTokens(string sessionFile)
+    public long SumTokens(string sessionFile, CancellationToken ct = default)
+    {
+        lock (_gate)
+            return SumTokensCore(sessionFile, ct);
+    }
+
+    private long SumTokensCore(string sessionFile, CancellationToken ct)
     {
         var length = new FileInfo(sessionFile).Length;
         var state = StateFor(sessionFile);
 
         if (length < state.Offset)
-        {
-            state.Sum = 0;
-            state.Offset = 0;
-            state.LastEventAt = null;
-            state.SeenMessages.Clear();
-        }
+            Reset(state);
 
         var offsetBefore = state.Offset;
-        using (var stream = new FileStream(sessionFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        try
         {
+            using var stream = new FileStream(sessionFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             // Only newline-terminated lines are consumed: the resume offset ends at the last one, so a
             // line the writer has not finished yet is read whole on the next call instead of being
             // cut in two and lost. Growth after the stream was opened is the next call's business.
@@ -83,11 +89,26 @@ public sealed class ClaudeSessionTokenReader
                 if (state.LastEventAt is not { } newest || usage.Timestamp > newest)
                     state.LastEventAt = usage.Timestamp;
                 state.Sum += usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens;
-            }, CancellationToken.None);
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // The lines summed before the cancel are past the stored offset; the file is read whole
+            // next time rather than counted twice.
+            Reset(state);
+            throw;
         }
 
         TotalBytesRead += state.Offset - offsetBefore;
         return state.Sum;
+    }
+
+    private static void Reset(FileState state)
+    {
+        state.Sum = 0;
+        state.Offset = 0;
+        state.LastEventAt = null;
+        state.SeenMessages.Clear();
     }
 
     /// <summary>The state of <paramref name="path"/>, moved to the newest position; a new file takes the

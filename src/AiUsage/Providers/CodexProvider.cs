@@ -54,6 +54,10 @@ public sealed partial class CodexProvider : IUsageProvider
     // current walk, so it never outgrows MaxFilesToCheck.
     private readonly Dictionary<string, (long Length, DateTime WriteTimeUtc)> _filesWithoutUsableLine = new(StringComparer.OrdinalIgnoreCase);
 
+    // A local read abandoned by a timed-out refresh may still be running when the retry starts; the
+    // file memo and the plausibility baseline are only ever updated by one read at a time.
+    private readonly Lock _localReadGate = new();
+
     /// <summary>Session files opened for reading lines over this provider's lifetime - internal so a
     /// test can prove an unchanged file is not read a second time.</summary>
     internal int FilesOpened { get; private set; }
@@ -139,8 +143,8 @@ public sealed partial class CodexProvider : IUsageProvider
     public bool RunsOnUiThread => _webSource is not null;
 
     /// <summary>Both sources are offered to the shared chooser (available beats nothing, more windows
-    /// beat fewer, newer beats older), never merged. Without a web session that is a single result -
-    /// wrapping it still routes it through the same rule every other provider follows.</summary>
+    /// beat fewer, newer beats older), never merged. Without a web session the local read is the
+    /// answer as it stands.</summary>
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
     {
         var fetchedAt = _now();
@@ -220,6 +224,12 @@ public sealed partial class CodexProvider : IUsageProvider
 
     private LocalRead FetchCore(DateTimeOffset fetchedAt, CancellationToken ct)
     {
+        lock (_localReadGate)
+            return FetchCoreLocked(fetchedAt, ct);
+    }
+
+    private LocalRead FetchCoreLocked(DateTimeOffset fetchedAt, CancellationToken ct)
+    {
         var diagnostics = new ProviderDiagnostics().SearchedIn(_sessionsRoot);
         var filesChecked = 0;
         DateTimeOffset? newestFile = null;
@@ -291,6 +301,8 @@ public sealed partial class CodexProvider : IUsageProvider
                     var lineCutoff = fetchedAt - OldestFileToOpen;
                     foreach (var line in ReverseLineReader.ReadLinesReversed(file.FullName))
                     {
+                        ct.ThrowIfCancellationRequested();
+
                         // Newest-first within the file: the first line past the age bound ends it.
                         if (SessionLineAge.IsOlderThan(line, lineCutoff))
                             break;
@@ -319,7 +331,7 @@ public sealed partial class CodexProvider : IUsageProvider
                         }
 
                         foundUsableLine = true;
-                        break; // this file's newest usable event is found - move on to the next file
+                        break;
                     }
 
                     if (!foundUsableLine)
