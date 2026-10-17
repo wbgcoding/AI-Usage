@@ -732,6 +732,7 @@
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsCacheShareBar x:Name="CacheShareBar" Values="{Binding CacheShareValues}"
+                                                                  ToolTip="{Binding CacheShareTooltip}"
                                                                   SegmentLabels="{Binding CacheShareLabels}"
                                                                   TextBrush="{DynamicResource Text.Muted}"
                                                                   EmptyText="{Binding EmptyChartText}"

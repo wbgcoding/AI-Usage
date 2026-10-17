@@ -116,6 +116,11 @@ public sealed class CostService
     public CostSummary Sum(IEnumerable<StatsRecord> records) =>
         Enabled && !Prices.IsEmpty ? CostCalculator.Sum(records, Prices) : CostSummary.Empty;
 
+    /// <summary>The cost of <paramref name="records"/> by token kind; empty when the estimate is off or no
+    /// prices are loaded.</summary>
+    public CostSplit Split(IEnumerable<StatsRecord> records) =>
+        Enabled && !Prices.IsEmpty ? CostCalculator.Split(records, Prices) : CostSplit.Empty;
+
     /// <summary>The text for a cost figure: empty when off or nothing to say.</summary>
     public string Text(CostSummary summary) =>
         Enabled ? CostFormatter.Format(summary, EffectiveCurrency, Rate.UsdPerEur, _culture()) : "";

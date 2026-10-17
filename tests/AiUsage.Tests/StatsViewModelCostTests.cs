@@ -184,6 +184,31 @@ public class StatsViewModelCostTests
     }
 
     [Fact]
+    public void The_cache_share_tooltip_names_tokens_and_cost_per_part_and_the_unpriced_models()
+    {
+        var viewModel = Create(Service());
+
+        var lines = viewModel.CacheShareTooltip.Split('\n');
+        Assert.Equal(5, lines.Length);
+        Assert.EndsWith(" \u00B7 ~$3.00", lines[0]);
+        Assert.StartsWith(viewModel.CacheShareLabels[0] + ": ", lines[0]);
+        Assert.DoesNotContain("\u00B7", lines[1]);
+        Assert.DoesNotContain("\u00B7", lines[2]);
+        Assert.StartsWith(viewModel.CacheShareLabels[3] + ": ", lines[3]);
+        Assert.Contains("mystery-model", lines[4]);
+    }
+
+    [Fact]
+    public void The_cache_share_tooltip_names_only_the_tokens_when_the_estimate_is_off()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        var lines = viewModel.CacheShareTooltip.Split('\n');
+        Assert.Equal(4, lines.Length);
+        Assert.All(lines, line => Assert.DoesNotContain("\u00B7", line));
+    }
+
+    [Fact]
     public void The_ring_slices_carry_no_cost_when_the_estimate_is_off()
     {
         var viewModel = Create(Service(enabled: false));

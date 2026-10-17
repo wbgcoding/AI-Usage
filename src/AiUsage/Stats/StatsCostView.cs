@@ -1,3 +1,4 @@
+using System.Globalization;
 using AiUsage.Services;
 using AiUsage.Stats.Pricing;
 
@@ -17,6 +18,28 @@ internal sealed class StatsCostView(CostService? service)
     public bool Active => _service is not null;
 
     public CostSummary Sum(IEnumerable<StatsRecord> records) => _service?.Sum(records) ?? CostSummary.Empty;
+
+    /// <summary>The cache-share tooltip: one line per part, "label: tokens" and, when the estimate is on,
+    /// the part's cost after it (not for a part without tokens), then the line naming the models without a price. Empty when no tokens.</summary>
+    public string SplitTooltip(IReadOnlyList<string> labels, IReadOnlyList<long> tokens, IEnumerable<StatsRecord> records)
+    {
+        if (tokens.Sum() <= 0)
+            return "";
+
+        var split = _service?.Split(records);
+        var lines = new List<string>(labels.Count + 1);
+        for (var i = 0; i < labels.Count && i < tokens.Count; i++)
+        {
+            var line = labels[i] + ": " + tokens[i].ToString("N0", CultureInfo.CurrentCulture);
+            if (split is { AnyPriced: true } && tokens[i] > 0)
+                line += " \u00B7 " + Label(new CostSummary(split.AsParts[i], true, []));
+            lines.Add(line);
+        }
+
+        if (split is { AnyPriced: true } && CostService.UnpricedLine(new CostSummary(0, true, split.UnpricedModels)) is { } unpriced)
+            lines.Add(unpriced);
+        return string.Join('\n', lines);
+    }
 
     /// <summary>The figure for <paramref name="summary"/>, or empty.</summary>
     public string Text(CostSummary summary) => _service?.Text(summary) ?? "";

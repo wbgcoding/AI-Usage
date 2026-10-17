@@ -66,6 +66,32 @@ public class CostEstimateTests
     }
 
     [Fact]
+    public void Split_prices_each_of_the_four_parts_with_its_own_price_and_adds_up_to_the_sum()
+    {
+        StatsRecord[] rows = [Row("claude-sonnet-4-5", 1_000_000, 100_000, 200_000, 2_000_000), Row("mystery-model", 500, 500)];
+
+        var split = CostCalculator.Split(rows, Prices());
+
+        Assert.Equal(3.0, split.NewInput, 6);
+        Assert.Equal(0.75, split.CacheWrite, 6);
+        Assert.Equal(0.6, split.CacheRead, 6);
+        Assert.Equal(1.5, split.Output, 6);
+        Assert.Equal(CostCalculator.Sum(rows, Prices()).Usd, split.Total, 6);
+        Assert.True(split.AnyPriced);
+        Assert.Equal(["mystery-model"], split.UnpricedModels);
+    }
+
+    [Fact]
+    public void Split_of_only_unpriced_models_is_not_priced()
+    {
+        var split = CostCalculator.Split([Row("mystery-model", 10, 10)], Prices());
+
+        Assert.False(split.AnyPriced);
+        Assert.Equal(0.0, split.Total);
+        Assert.Equal(["mystery-model"], split.UnpricedModels);
+    }
+
+    [Fact]
     public void Sum_of_only_unpriced_models_is_not_priced()
     {
         var summary = CostCalculator.Sum([Row("mystery-model", 10, 10)], Prices());

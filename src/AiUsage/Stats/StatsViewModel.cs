@@ -531,6 +531,10 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<string> cacheShareLabels = [];
 
+    /// <summary>The hover text of the cache-share bar: tokens and API cost per part. Empty without tokens.</summary>
+    [ObservableProperty]
+    private string cacheShareTooltip = "";
+
     /// <summary>The "top projects" panel - already sorted longest first, capped at twelve rows.</summary>
     [ObservableProperty]
     private IReadOnlyList<StatsProjectRow> topProjectRows = [];
@@ -1747,6 +1751,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var cacheShare = StatsAggregator.CacheShare(inRange);
         CacheShareValues = cacheShare.AsValues;
         CacheShareLabels = [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]];
+        CacheShareTooltip = costView.SplitTooltip(CacheShareLabels, CacheShareValues, inRange);
 
         var projectCosts = costView.ByKey(inRange, record => StatsAggregator.ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase);
         TopProjectRows = StatsAggregator.TopProjectsDetailed(
