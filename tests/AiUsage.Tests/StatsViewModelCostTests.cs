@@ -167,6 +167,23 @@ public class StatsViewModelCostTests
     }
 
     [Fact]
+    public void A_top_project_row_carries_a_short_cost_without_a_star_and_none_when_unpriced()
+    {
+        var viewModel = Create(Service());
+
+        Assert.Equal("~$3.00", viewModel.TopProjectRows.Single(row => row.FullPath == "projA").CostText);
+        Assert.True(string.IsNullOrEmpty(viewModel.TopProjectRows.Single(row => row.FullPath == "projB").CostText));
+    }
+
+    [Fact]
+    public void A_top_project_row_carries_no_cost_when_the_estimate_is_off()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        Assert.All(viewModel.TopProjectRows, row => Assert.True(string.IsNullOrEmpty(row.CostText)));
+    }
+
+    [Fact]
     public void The_ring_slices_carry_no_cost_when_the_estimate_is_off()
     {
         var viewModel = Create(Service(enabled: false));

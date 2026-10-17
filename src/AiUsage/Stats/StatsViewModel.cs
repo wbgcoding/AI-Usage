@@ -1750,7 +1750,8 @@ public sealed partial class StatsViewModel : ObservableObject
 
         var projectCosts = costView.ByKey(inRange, record => StatsAggregator.ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase);
         TopProjectRows = StatsAggregator.TopProjectsDetailed(
-            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), FormerPathsLine);
+            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), FormerPathsLine,
+            key => costView.LabelFor(projectCosts, key));
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
         // The weekday by hour grid, in the culture's own week order.

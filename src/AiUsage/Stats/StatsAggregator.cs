@@ -129,7 +129,9 @@ public readonly record struct StatsProjectRow(
     // models); filled in by StatsViewModel, null when no cost is shown.
     string? CostLine = null,
     // "Earlier also at: ..." for a project that moved folders and continues as this one.
-    string? FormerPathsLine = null);
+    string? FormerPathsLine = null,
+    // The short cost beside the token figure ("~2,00 €"); no star, null or empty when unknown.
+    string? CostText = null);
 
 /// <summary>The month grid's own day-detail panel: one day's usage broken four ways, every list
 /// already sorted by total, descending. <see cref="ByHour"/> is the one exception to "only entries
@@ -687,7 +689,7 @@ public static class StatsAggregator
     /// <paramref name="costLineOf"/> turns a project's group key into its cost tooltip lines.</summary>
     public static IReadOnlyList<StatsProjectRow> TopProjectsDetailed(
         IReadOnlyList<StatsRecord> records, int limit, string noProjectLabel, Func<string, string?>? costLineOf = null,
-        Func<string, string?>? formerPathsLineOf = null)
+        Func<string, string?>? formerPathsLineOf = null, Func<string, string?>? costTextOf = null)
     {
         var grandTotal = records.Sum(record => record.TotalTokens);
         return records
@@ -728,7 +730,8 @@ public static class StatsAggregator
                 entry.MainModel,
                 IsNoProject: entry.FullPath == NoProjectKey,
                 CostLine: costLineOf?.Invoke(entry.FullPath),
-                FormerPathsLine: entry.FullPath == NoProjectKey ? null : formerPathsLineOf?.Invoke(entry.FullPath)))
+                FormerPathsLine: entry.FullPath == NoProjectKey ? null : formerPathsLineOf?.Invoke(entry.FullPath),
+                CostText: costTextOf?.Invoke(entry.FullPath)))
             .ToList();
     }
 
