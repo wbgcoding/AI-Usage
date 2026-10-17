@@ -76,6 +76,29 @@ internal static class ProviderSnapshots
         };
     }
 
+    /// <summary>A weekly limit that is used up also blocks the five-hour window, whatever the provider
+    /// reports for it: every five-hour window then stands at 100 % and resets when the (latest)
+    /// full weekly window does. Per-model windows (kind Other) never trigger this.</summary>
+    internal static ProviderSnapshot CarryWeeklyLimit(ProviderSnapshot snapshot)
+    {
+        var full = snapshot.Windows
+            .Where(window => window.Kind == WindowKind.Weekly && window.UsedPercent >= 100)
+            .ToList();
+        if (full.Count == 0 || !snapshot.Windows.Any(window => window.Kind == WindowKind.FiveHour))
+            return snapshot;
+
+        var resetsAt = full.Max(window => window.ResetsAt);
+        return snapshot with
+        {
+            Windows = snapshot.Windows
+                .Select(window => window.Kind == WindowKind.FiveHour
+                    ? new UsageWindow(window.Label, window.Kind, 100, resetsAt, window.WindowMinutes, window.Tokens,
+                        window.Allowance is { } allowance ? allowance with { Used = allowance.Total } : null)
+                    : window)
+                .ToList(),
+        };
+    }
+
     /// <summary>The numbers of a successful web read as one candidate snapshot.</summary>
     internal static ProviderSnapshot FromWeb(
         string accountKey, WebUsageResult web, DateTimeOffset fetchedAt, string? planType) => new(

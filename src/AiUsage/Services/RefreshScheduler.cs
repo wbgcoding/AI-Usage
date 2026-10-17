@@ -1,4 +1,5 @@
 ﻿using AiUsage.Models;
+using AiUsage.Providers;
 
 namespace AiUsage.Services;
 
@@ -752,7 +753,12 @@ public sealed class RefreshScheduler
         }
     }
 
-    private void RaiseSnapshotReady(ProviderSnapshot snapshot) => RaiseEach(SnapshotReady, handler => handler(snapshot));
+    // The one point every provider's snapshot passes before tile, tray and history.
+    private void RaiseSnapshotReady(ProviderSnapshot snapshot)
+    {
+        var carried = ProviderSnapshots.CarryWeeklyLimit(snapshot);
+        RaiseEach(SnapshotReady, handler => handler(carried));
+    }
 
     private void RaiseFetchStarted(string accountKey) => RaiseEach(FetchStarted, handler => handler(accountKey));
 
