@@ -277,8 +277,10 @@ public static class AntigravityUsageLogParser
 
         var stepTimes = new Dictionary<long, DateTimeOffset>();
         long? coveredThrough = null;
+        // The lookup gets its own clock: a row read that spent the shared one would otherwise leave it
+        // a single step per walk.
         if (IsPlainTable(connection, "steps"))
-            (stepTimes, coveredThrough) = LoadStepTimes(connection, calls, clock, stepBudget ?? ReadBudget, cancellationToken);
+            (stepTimes, coveredThrough) = LoadStepTimes(connection, calls, Stopwatch.StartNew(), stepBudget ?? ReadBudget, cancellationToken);
         var settled = (utcNow ?? DateTime.UtcNow) - fileWriteTimeUtc > StepGrace;
         var fallback = start ?? new DateTimeOffset(DateTime.SpecifyKind(fileWriteTimeUtc, DateTimeKind.Utc));
         var events = new List<UsageEvent>(calls.Count);
