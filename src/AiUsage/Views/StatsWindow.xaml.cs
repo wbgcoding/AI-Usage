@@ -156,13 +156,8 @@ public partial class StatsWindow : Window
                 return;
             }
 
-            // Inside the custom range panel itself Escape abandons the panel; inside a date picker's
-            // calendar it is left to the calendar.
-            if (!CustomFromPicker.IsDropDownOpen && !CustomToPicker.IsDropDownOpen
-                && EscapeKey.OpenPopupOf(Keyboard.FocusedElement as DependencyObject ?? e.OriginalSource as DependencyObject) == CustomRangePopup)
+            if (TryClosePopupOnEscape(Keyboard.FocusedElement as DependencyObject ?? e.OriginalSource as DependencyObject))
             {
-                CustomRangePopup.IsOpen = false;
-                RangeCombo.Focus();
                 e.Handled = true;
                 return;
             }
@@ -181,6 +176,26 @@ public partial class StatsWindow : Window
             MoveSection(section, e.SystemKey == Key.Up);
             e.Handled = true;
         }
+    }
+
+    /// <summary>Inside the custom range panel or the provider list Escape closes that popup and puts
+    /// the focus back on the control that opened it; inside a date picker's calendar it is left to the
+    /// calendar. False when <paramref name="focused"/> is in neither popup.</summary>
+    internal bool TryClosePopupOnEscape(DependencyObject? focused)
+    {
+        if (CustomFromPicker.IsDropDownOpen || CustomToPicker.IsDropDownOpen)
+            return false;
+
+        var popup = EscapeKey.OpenPopupOf(focused);
+        if (popup != CustomRangePopup && popup != ProviderPopup)
+            return false;
+
+        popup.IsOpen = false;
+        if (popup == CustomRangePopup)
+            RangeCombo.Focus();
+        else
+            ProviderButton.Focus();
+        return true;
     }
 
     /// <summary>Moves a section one step up or down (see <see cref="StatsLayout.MoveUp"/>), then puts
