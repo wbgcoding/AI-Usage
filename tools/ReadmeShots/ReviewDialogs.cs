@@ -143,7 +143,7 @@ internal static class ReviewDialogs
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
-internal static void RenderRestoreNotice(string outputPath)
+    internal static void RenderRestoreNotice(string outputPath)
     {
         var loc = LocalizationService.Instance;
         var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Backup.Restored", SampleSetAsideFolder), loc["Action.Ok"], "");
