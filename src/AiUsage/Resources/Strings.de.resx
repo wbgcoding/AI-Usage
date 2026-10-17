@@ -389,6 +389,7 @@
   <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Hauptmodell: {0}</value></data>
   <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Aktiv: {0}</value></data>
   <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sitzungen: {0}</value></data>
+  <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>Früher auch unter: {0}</value></data>
   <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0 Uhr</value></data>
   <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6 Uhr</value></data>
   <data name="Stats.Hour.Axis12" xml:space="preserve"><value>12 Uhr</value></data>

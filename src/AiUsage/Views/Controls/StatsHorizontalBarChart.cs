@@ -189,6 +189,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (row.SessionCount is { } sessionCount)
             lines.Add(string.IsNullOrEmpty(sessionsFormat) ? sessionCount.ToString(culture) : string.Format(culture, sessionsFormat, sessionCount));
 
+        if (!string.IsNullOrEmpty(row.FormerPathsLine))
+            lines.Add(row.FormerPathsLine);
+
         if (!string.IsNullOrEmpty(row.CostLine))
             lines.AddRange(row.CostLine.Split('\n'));
 
@@ -276,6 +279,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             StatsBarChart.PercentLabel(row.Percent, culture),
             string.IsNullOrEmpty(activeLabel) ? activeText : $"{activeLabel}: {activeText}",
         };
+        if (!string.IsNullOrEmpty(row.FormerPathsLine))
+            lines.Add(row.FormerPathsLine);
+
         if (!string.IsNullOrEmpty(row.CostLine))
             lines.AddRange(row.CostLine.Split('\n'));
         return lines;

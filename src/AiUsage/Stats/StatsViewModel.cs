@@ -992,6 +992,7 @@ public sealed partial class StatsViewModel : ObservableObject
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
+        BuildAliases = ProjectAliasResolver.Build;
         _askForSavePath = askForSavePath ?? CsvSaveDialog.Show;
         _showMessage = showMessage ?? (message => Views.ConfirmWindow.ShowInfo(null, message));
 
@@ -1113,6 +1114,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Keeps what the active filters let through.</summary>
     private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all)
     {
+        all = Merged(all);
         if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
@@ -1125,6 +1127,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all)
     {
+        all = Merged(all);
         if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
@@ -1209,6 +1212,48 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Reads every stored session - a seam like <see cref="LoadRecords"/>.</summary>
     internal Func<IReadOnlyList<StatsSessionRecord>> LoadSessions { get; set; }
 
+    /// <summary>Works out which project paths are one moved project - a seam like <see cref="LoadRecords"/>;
+    /// the default looks at the file system, so it runs on the load thread.</summary>
+    internal Func<IReadOnlyList<StatsRecord>, IReadOnlyList<StatsSessionRecord>, ProjectAliases> BuildAliases { get; set; }
+
+    /// <summary>The moved projects of the data on screen.</summary>
+    internal ProjectAliases Aliases { get; private set; } = ProjectAliases.None;
+
+    private IReadOnlyList<StatsRecord>? _aliasedFrom;
+    private IReadOnlyList<StatsRecord> _aliased = [];
+    private IReadOnlyList<StatsSessionRecord>? _aliasedSessionsFrom;
+    private IReadOnlyList<StatsSessionRecord> _aliasedSessions = [];
+
+    /// <summary>The records with moved projects merged; the raw list when nothing moved. Kept for the
+    /// list it was built from, so a rebuild without a reload does not copy every row again.</summary>
+    private IReadOnlyList<StatsRecord> Merged(IReadOnlyList<StatsRecord> records)
+    {
+        if (Aliases.IsEmpty)
+            return records;
+
+        if (!ReferenceEquals(_aliasedFrom, records))
+        {
+            _aliased = Aliases.Apply(records);
+            _aliasedFrom = records;
+        }
+
+        return _aliased;
+    }
+
+    private IReadOnlyList<StatsSessionRecord> Merged(IReadOnlyList<StatsSessionRecord> sessions)
+    {
+        if (Aliases.IsEmpty)
+            return sessions;
+
+        if (!ReferenceEquals(_aliasedSessionsFrom, sessions))
+        {
+            _aliasedSessions = Aliases.Apply(sessions);
+            _aliasedSessionsFrom = sessions;
+        }
+
+        return _aliasedSessions;
+    }
+
     /// <summary>The prepared data to open with, if the indexer has some (the window wires its service
     /// in); null means the window has to read the store itself.</summary>
     internal Func<StatsDataSnapshot?> TakeSnapshot { get; set; } = () => null;
@@ -1226,6 +1271,7 @@ public sealed partial class StatsViewModel : ObservableObject
             && !(RecordsLoaded && MatchesShown(snapshot.Records, snapshot.Sessions)))
         {
             _allSessions = snapshot.Sessions;
+            Aliases = snapshot.Aliases ?? ProjectAliases.None;
             RecomputeFrom(snapshot.Records);
         }
 
@@ -1306,18 +1352,20 @@ public sealed partial class StatsViewModel : ObservableObject
         try
         {
             var (range, customFrom, customTo) = (SelectedRange, _customFrom, _customTo);
-            var (all, sessions, inputs) = await Task.Run(() =>
+            var (all, sessions, inputs, aliases) = await Task.Run(() =>
             {
                 var records = LoadRecords();
                 var loadedSessions = LoadSessions();
+                var loadedAliases = BuildAliases(records, loadedSessions);
                 var (from, to) = LimitPeriod(range, customFrom, customTo, records);
-                return (records, loadedSessions, LoadLimitInputs(from, to));
+                return (records, loadedSessions, LoadLimitInputs(from, to), loadedAliases);
             });
             if (generation == _recomputeGeneration)
             {
                 if (showLoading || !RecordsLoaded || !MatchesShown(all, sessions))
                 {
                     _allSessions = sessions;
+                    Aliases = aliases;
                     RecomputeFrom(all, inputs);
                 }
                 else
@@ -1364,6 +1412,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         _allSessions = LoadSessions();
         var records = LoadRecords();
+        Aliases = BuildAliases(records, _allSessions);
         var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, records);
         RecomputeFrom(records, LoadLimitInputs(from, to));
         RecordsLoaded = true;
@@ -1552,7 +1601,10 @@ public sealed partial class StatsViewModel : ObservableObject
                 barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null,
                 barKeys[index].ProviderId == OtherProjectsColorKey
                     ? otherCostLine
-                    : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null),
+                    : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null,
+                barProjectLabels is not null && barKeys[index].ProviderId != OtherProjectsColorKey && ProjectPathOf(row) is { } formerKey
+                    ? FormerPathsLine(formerKey)
+                    : null),
             barProjectLabels is not null ? ProjectPathOf(row) : null)).ToList();
 
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
@@ -1693,7 +1745,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         var projectCosts = costView.ByKey(inRange, record => StatsAggregator.ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase);
         TopProjectRows = StatsAggregator.TopProjectsDetailed(
-            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key));
+            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), FormerPathsLine);
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
         // The weekday by hour grid, in the culture's own week order.
@@ -2050,7 +2102,6 @@ public sealed partial class StatsViewModel : ObservableObject
         return total;
     }
 
-    /// <summary>The non-empty parts as tooltip lines, or null when there are none.</summary>
     /// <summary>The folder path a project row stands for, or null for the pooled "no project" and "other
     /// projects" rows.</summary>
     private static string? ProjectPathOf(StatsGroupedRow row)
@@ -2059,6 +2110,14 @@ public sealed partial class StatsViewModel : ObservableObject
         return key.Length == 0 || key == NoProjectFilterKey ? null : key;
     }
 
+    /// <summary>"Earlier also at: ..." for a project that moved folders and continues as <paramref name="project"/>;
+    /// null when nothing was merged into it.</summary>
+    private string? FormerPathsLine(string project) =>
+        Aliases.FormerPaths(project) is { Count: > 0 } former
+            ? string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Project.Tip.FormerPaths"], string.Join(", ", former))
+            : null;
+
+    /// <summary>The non-empty parts as tooltip lines, or null when there are none.</summary>
     private static string? JoinLines(params string?[] parts)
     {
         var present = parts.Where(part => !string.IsNullOrEmpty(part)).ToList();

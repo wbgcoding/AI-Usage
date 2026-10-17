@@ -7,7 +7,7 @@ public class ProjectLabelsTests
     [Theory]
     [InlineData(@"E:\Claude\AI-Usage", "AI-Usage")]
     [InlineData(@"E:\Claude\AI-Usage\", "AI-Usage")]
-    [InlineData("/home/ben/work/tool/", "tool")]
+    [InlineData("/srv/work/tool/", "tool")]
     [InlineData("plain", "plain")]
     [InlineData(@"C:\", @"C:\")]
     [InlineData("/", "/")]

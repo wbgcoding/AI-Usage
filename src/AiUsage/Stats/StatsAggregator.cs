@@ -127,7 +127,9 @@ public readonly record struct StatsProjectRow(
     bool IsNoProject = false,
     // The cost estimate lines for the hover tooltip ("API cost: ~2,00 €", then the unpriced
     // models); filled in by StatsViewModel, null when no cost is shown.
-    string? CostLine = null);
+    string? CostLine = null,
+    // "Earlier also at: ..." for a project that moved folders and continues as this one.
+    string? FormerPathsLine = null);
 
 /// <summary>The month grid's own day-detail panel: one day's usage broken four ways, every list
 /// already sorted by total, descending. <see cref="ByHour"/> is the one exception to "only entries
@@ -684,7 +686,8 @@ public static class StatsAggregator
     /// display label - what the panel's tooltip needs beyond the bar chart's bare label and total.
     /// <paramref name="costLineOf"/> turns a project's group key into its cost tooltip lines.</summary>
     public static IReadOnlyList<StatsProjectRow> TopProjectsDetailed(
-        IReadOnlyList<StatsRecord> records, int limit, string noProjectLabel, Func<string, string?>? costLineOf = null)
+        IReadOnlyList<StatsRecord> records, int limit, string noProjectLabel, Func<string, string?>? costLineOf = null,
+        Func<string, string?>? formerPathsLineOf = null)
     {
         var grandTotal = records.Sum(record => record.TotalTokens);
         return records
@@ -724,7 +727,8 @@ public static class StatsAggregator
                 entry.ProviderIds,
                 entry.MainModel,
                 IsNoProject: entry.FullPath == NoProjectKey,
-                CostLine: costLineOf?.Invoke(entry.FullPath)))
+                CostLine: costLineOf?.Invoke(entry.FullPath),
+                FormerPathsLine: entry.FullPath == NoProjectKey ? null : formerPathsLineOf?.Invoke(entry.FullPath)))
             .ToList();
     }
 
