@@ -441,8 +441,6 @@ public static class AppPaths
         || (name.StartsWith("stats.v", StringComparison.OrdinalIgnoreCase)
             && name.EndsWith(".bak.tmp", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Internal, not private: <see cref="ViewModels.SettingsViewModel"/>'s own "change data
-    /// folder" flow needs the exact same writability check before it trusts a user-picked folder.</summary>
     /// <summary>Creates <paramref name="path"/> when it does not exist yet, open only to the current
     /// user, SYSTEM and the administrators: a folder made on another drive would otherwise inherit that
     /// drive's defaults, which commonly let every signed-in account read it. An existing folder is
@@ -467,10 +465,12 @@ public static class AppPaths
                 new(System.Security.Principal.WellKnownSidType.LocalSystemSid, null),
                 new(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid, null),
             };
-            if (System.Security.Principal.WindowsIdentity.GetCurrent().User is { } user)
+            using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+            {
+                if (identity.User is not { } user)
+                    return;
                 owners.Insert(0, user);
-            else
-                return;
+            }
 
             foreach (var sid in owners)
             {
@@ -491,6 +491,8 @@ public static class AppPaths
         }
     }
 
+    /// <summary>Internal, not private: <see cref="ViewModels.SettingsViewModel"/>'s own "change data
+    /// folder" flow needs the exact same writability check before it trusts a user-picked folder.</summary>
     internal static bool TryEnsureWritableDirectory(string path)
     {
         try

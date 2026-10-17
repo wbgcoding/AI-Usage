@@ -265,15 +265,17 @@ public sealed class StatusFileTests : IDisposable
         var path = StatusFileWriter.PathIn(_directory.Path);
         StatusFileWriter.WriteAtomic(path, "old");
         var holder = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var release = Task.Run(async () =>
+        // Its own thread, not the pool: a busy test run must not keep the reader holding past the retries.
+        var release = new Thread(() =>
         {
-            await Task.Delay(60);
+            Thread.Sleep(60);
             holder.Dispose();
-        });
+        }) { IsBackground = true };
+        release.Start();
 
         StatusFileWriter.WriteAtomic(path, "new");
 
-        release.Wait();
+        release.Join();
         Assert.Equal("new", File.ReadAllText(path));
         Assert.Empty(Directory.GetFiles(_directory.Path, "*.tmp"));
     }

@@ -199,6 +199,9 @@ public sealed class StatsIndexer
             claudeFoldersSkipped += foldersSkipped;
         }
 
+        // Two configured roots can overlap; a file new to the index is only ever read once per walk.
+        claudeFiles = [.. claudeFiles.DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)];
+
         // A file new to the index is read after the files it may repeat: the first transcript to count
         // a response owns it, and a resumed session copies its parent's history. Once every file is
         // known only appended parts are read and the order no longer matters.
@@ -235,6 +238,7 @@ public sealed class StatsIndexer
             codexFoldersSkipped += archivedFoldersSkipped;
         }
 
+        codexFiles = [.. codexFiles.DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)];
         foreach (var listed in codexFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();

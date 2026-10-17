@@ -329,13 +329,13 @@ public sealed partial class MainViewModel
         return result;
     }
 
-    /// <summary>What the sign-out buttons call from their event handlers: an unexpected failure (a
-    /// browser process that will not shut down cleanly) is logged and reported as an incomplete
-    /// sign-out instead of escaping an async event handler and ending the app.</summary>
     /// <summary>True while a sign-out of <paramref name="accountKey"/> is still clearing its session; a
     /// second request for the same account then has nothing to add.</summary>
     internal bool IsSigningOut(string accountKey) => _signingOutAccounts.Contains(accountKey);
 
+    /// <summary>What the sign-out buttons call from their event handlers: an unexpected failure (a
+    /// browser process that will not shut down cleanly) is logged and reported as an incomplete
+    /// sign-out instead of escaping an async event handler and ending the app.</summary>
     internal async Task<bool> TrySignOutAsync(string accountKey)
     {
         try

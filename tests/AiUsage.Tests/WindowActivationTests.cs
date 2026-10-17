@@ -152,7 +152,7 @@ public class WindowActivationTests : IDisposable
     {
         var source = Source("Views", "MainWindow.xaml.cs");
 
-        Assert.Matches(@"CompleteSignIn\(accountKey, signedIn\);\s*ShowAndActivate\(userInitiated: false\);", source);
+        Assert.Matches(@"CompleteSignIn\(accountKey, signedIn\);[^}]*?if \(!IsWelcomeOpen\(\)\)\s*ShowAndActivate\(userInitiated: false\);", source);
     }
 
     [Fact]

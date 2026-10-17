@@ -74,7 +74,7 @@ public partial class UsageRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(MiniAccessibleName))]
     private UsageLevel level;
 
-    /// <summary>The level in words for a screen reader ("nearly used up", "almost at the limit"),
+    /// <summary>The level in words for a screen reader ("running low", "almost at the limit"),
     /// empty while the window is fine - colour and icon alone must not carry the warning.</summary>
     public string LevelName => Level switch
     {

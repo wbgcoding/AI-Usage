@@ -28,11 +28,11 @@ public readonly record struct ProjectColorInfo(Color Color, string? IconPath);
 /// </summary>
 public static class ProjectColorResolver
 {
-    // Raised whenever the icon search changes what it finds, so colors computed from an older find are
-    // recomputed once.
     /// <summary>The color cache's file name, in the machine-local cache folder.</summary>
     internal const string CacheFileName = "project-colors.json";
 
+    // Raised whenever the icon search changes what it finds, so colors computed from an older find are
+    // recomputed once.
     private const int CacheVersion = 2;
     private const int MaxCachedProjects = 300;
     private const int MaxIconSearchDepth = 6;

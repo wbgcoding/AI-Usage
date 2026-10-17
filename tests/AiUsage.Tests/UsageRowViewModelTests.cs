@@ -371,7 +371,7 @@ public class UsageRowViewModelTests
 
     [Theory]
     [InlineData(50.0, false, "")]
-    [InlineData(70.0, true, "fast aufgebraucht")]
+    [InlineData(70.0, true, "wird knapp")]
     [InlineData(90.0, false, "fast am Limit")]
     public void WarnLevelShowsTheAlertIcon(double percent, bool alertIcon, string levelName)
     {
@@ -391,8 +391,8 @@ public class UsageRowViewModelTests
 
         Assert.Equal(ok.LabelText, ok.BarAccessibleName);
         Assert.Equal($"{ok.LabelText}, 50 % genutzt", ok.MiniAccessibleName);
-        Assert.Equal($"{warn.LabelText}, fast aufgebraucht", warn.BarAccessibleName);
-        Assert.Equal($"{warn.LabelText}, 70 % genutzt, fast aufgebraucht", warn.MiniAccessibleName);
+        Assert.Equal($"{warn.LabelText}, wird knapp", warn.BarAccessibleName);
+        Assert.Equal($"{warn.LabelText}, 70 % genutzt, wird knapp", warn.MiniAccessibleName);
     }
 
     [Fact]

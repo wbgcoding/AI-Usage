@@ -9,8 +9,7 @@ namespace AiUsage.Services;
 /// diagnostic output). The profile path goes first, in its backslash, slash and JSON-escaped
 /// spellings; the bare account name and the profile's own folder name (they differ after an account
 /// rename) are replaced only as whole words, so "Maximum" survives a user called "Max". The 8.3
-/// short form of the profile path (C:\Users\MAXIMI~1, which temp paths can carry) is treated the same
-/// way. The real values are looked up lazily so a test can inject fakes instead.
+/// short form of the profile path, which temp paths can carry, is treated the same way. The real values are looked up lazily so a test can inject fakes instead.
 /// </summary>
 public static class PathSanitizer
 {

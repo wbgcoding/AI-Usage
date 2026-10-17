@@ -512,12 +512,12 @@ public partial class MainWindow : Window, IDisposable
         QueueDensityUpdate();
     }
 
-    /// <summary>Connects one tile's sign-in and sign-out requests to the app's own sign-in window
-    /// and sign-out path; a tile without either has neither button (<see
-    /// cref="ProviderTileViewModel.SupportsSignOut"/>).</summary>
     private static bool IsWelcomeOpen() =>
         Application.Current?.Windows.OfType<WelcomeWindow>().Any(window => window.IsVisible) == true;
 
+    /// <summary>Connects one tile's sign-in and sign-out requests to the app's own sign-in window
+    /// and sign-out path; a tile without either has neither button (<see
+    /// cref="ProviderTileViewModel.SupportsSignOut"/>).</summary>
     private void WireSignIn(ProviderTileViewModel tile)
     {
         if (!tile.SupportsSignOut)
