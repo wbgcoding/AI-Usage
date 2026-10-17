@@ -18,6 +18,8 @@ internal static class SampleProviders
 
         public string DisplayName => sample.DisplayName;
 
+        public bool CanSkipWebSession => sample.Id is "claude" or "codex" or "gemini";
+
         public Task<ProviderSnapshot> FetchAsync(CancellationToken ct) => Task.FromResult(sample.Snapshot);
     }
 
