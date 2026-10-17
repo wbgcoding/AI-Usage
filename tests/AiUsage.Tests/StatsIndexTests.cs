@@ -543,6 +543,31 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void Setting_a_damaged_index_aside_keeps_the_newest_earlier_copies()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-damaged-copies");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var earlier = new[] { "20260101-000000", "20260201-000000", "20260301-000000" }
+            .Select((stamp, i) =>
+            {
+                var path = $"{dbPath}.corrupt-{stamp}";
+                File.WriteAllText(path, "old");
+                File.SetLastWriteTimeUtc(path, new DateTime(2026, 1 + i, 1, 0, 0, 0, DateTimeKind.Utc));
+                return path;
+            })
+            .ToList();
+        File.WriteAllBytes(dbPath, Enumerable.Repeat((byte)'x', 8192).ToArray());
+
+        Assert.False(new StatsStore(dataDir).TryLoadSourceFiles(out _));
+
+        var kept = Directory.GetFiles(dataDir, "stats.db.corrupt-*");
+        Assert.Equal(3, kept.Length);
+        Assert.DoesNotContain(earlier[0], kept);
+        Assert.Contains(earlier[1], kept);
+        Assert.Contains(earlier[2], kept);
+    }
+
+    [Fact]
     public void A_file_that_is_no_database_is_set_aside_and_the_index_starts_over()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-damaged");

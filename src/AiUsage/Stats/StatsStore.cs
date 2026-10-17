@@ -560,6 +560,9 @@ public sealed class StatsStore
     private const int SqliteCorrupt = 11;
     private const int SqliteNotADatabase = 26;
 
+    // Damaged copies kept beside the rebuilt index, the one just set aside included.
+    private const int KeptDamagedCopies = 3;
+
     /// <summary>A damaged index never heals and would leave the statistics empty for good. It is set
     /// aside (one copy is kept for inspection) so the next walk rebuilds it from the session logs.
     /// Best effort: a file another process still holds stays where it is until the next attempt.</summary>
@@ -570,7 +573,10 @@ public sealed class StatsStore
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
-            foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*"))
+            // The index is the only copy of usage whose session logs are gone, so earlier copies are
+            // kept too: only those beyond the newest few are removed.
+            foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
+                         .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
                 File.Delete(older);
             File.Move(fullPath, $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}");
             foreach (var sidecar in new[] { fullPath + "-wal", fullPath + "-shm", fullPath + "-journal" })
