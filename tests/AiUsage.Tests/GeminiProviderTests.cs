@@ -547,4 +547,79 @@ public class GeminiProviderTests : IDisposable
 
         Assert.True(scriptRuns.Count > afterFirst);
     }
+
+    /// <summary>The Antigravity read alone carries only the five-hour bucket, unused right after a
+    /// reset. A web answer with both windows must still win, so that idle 0 % never hides the weekly
+    /// window the usage page shows.</summary>
+    [Fact]
+    public async Task An_unused_five_hour_local_read_never_beats_a_web_answer_with_two_windows()
+    {
+        const string localUnused = """
+            {"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","resetTime":"2026-09-18T23:00:00Z","remainingFraction":1.0}]}]}
+            """;
+        const string webTwoWindows = """
+            {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.09,1,[[1792246090,0]]],[45607,0.06,2,[[1792652890,0]]]],false]"}
+            """;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, localUnused, "Google AI Pro");
+        var provider = ProviderWithWebSession(usage, _ => webTwoWindows, out _);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
+        Assert.Equal(2, snapshot.Windows.Count);
+    }
+
+    /// <summary>gemini.google.com can send the hidden session to Google's traffic check instead of
+    /// loading. That page is for a person, so the read has to come back as "signed out" (the tile then
+    /// offers the sign-in window, where the check can be passed), keep the local numbers, and try again
+    /// on the next tick instead of going quiet for half an hour like a failed read.</summary>
+    [Fact]
+    public async Task A_traffic_check_on_the_start_page_reads_as_signed_out_and_is_retried_next_tick()
+    {
+        NetworkStatus.Probe = () => true;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, QuotaSummary, "Google AI Pro");
+        var now = DateTimeOffset.Parse("2026-09-18T20:00:00Z");
+        var starts = 0;
+        var runner = new WebSessionScriptRunner(() => { starts++; return new TrafficCheckHost(); }, providerId: "gemini", profileExists: () => true);
+        var descriptor = new WebSessionDescriptor(
+            ProviderId: "gemini", BaseUrl: "https://gemini.google.com/usage",
+            SignInUrl: "https://gemini.google.com/", AllowedHosts: ["google.com"], ProfileFolderName: "gemini");
+        var source = new WebUsageSource(descriptor, new GeminiUsageEndpoint(), runner.ExecuteScriptAsync);
+        var provider = new GeminiProvider((_) => Task.FromResult(usage), () => now, source, new AppSettings(), _ => { });
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal(SourceKind.LocalLogin, snapshot.SourceKind);
+        Assert.False(snapshot.WebSessionSignedIn);
+        var afterFirst = starts;
+        Assert.True(afterFirst > 0);
+
+        now = now.AddMinutes(6);
+        await provider.FetchAsync(CancellationToken.None);
+
+        Assert.True(starts > afterFirst);
+        await runner.DisposeAsync();
+    }
+
+    /// <summary>A hidden host whose start page is turned into Google's traffic check.</summary>
+    private sealed class TrafficCheckHost : IHiddenBrowserHost
+    {
+        public int? BrowserProcessId => null;
+
+        public event Action? ProcessFailed { add { } remove { } }
+
+        public Task<bool> NavigateAsync(CancellationToken ct) => Task.FromException<bool>(new WebSessionCheckRequiredException());
+
+        public Task<string> ExecuteScriptAsync(string script, CancellationToken ct) =>
+            throw new InvalidOperationException("No script runs on a host that never loaded.");
+
+        public Task SuspendAsync() => Task.CompletedTask;
+
+        public void Resume()
+        {
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 }

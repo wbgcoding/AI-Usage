@@ -36,6 +36,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     private const string NotSignedInEnvelope = """{"status":"not_signed_in"}""";
 
     private readonly Func<IHiddenBrowserHost> _hostFactory;
+    private bool _checkRequiredLogged;
     private readonly string _providerId;
     private readonly WebReadTimingLog? _timingLog;
     private readonly Action<string>? _writeTimingLine;
@@ -128,7 +129,20 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
         {
             var result = await RunScriptAsync(script, ct);
             LogReadTiming(stopwatch.ElapsedMilliseconds);
+            _checkRequiredLogged = false;
             return result;
+        }
+        catch (WebSessionCheckRequiredException)
+        {
+            // The site wants a person to confirm the session first (Google's traffic check): only the
+            // sign-in window can show that page, and "signed out" is what makes the tile offer it.
+            // One line until a read gets through again, not one per tick.
+            if (!_checkRequiredLogged)
+            {
+                _checkRequiredLogged = true;
+                LogService.Shared.LogInfo($"Hidden session: {_providerId} asks for Google's traffic check; sign in again to pass it.");
+            }
+            return NotSignedInEnvelope;
         }
         finally
         {
@@ -550,6 +564,8 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     // browser: whatever it would build afterwards has no owner left to dispose it.
     private volatile bool _disposed;
     private TaskCompletionSource<bool>? _navigated;
+    // Set when the start navigation was sent to Google's traffic check, which this session never loads.
+    private bool _trafficCheckSeen;
 
     // Read once on the UI thread, where the browser object may be used; the runner reads it later.
     private int? _browserProcessId;
@@ -644,8 +660,20 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         // A redirect chain out of a candidate/discovery response, or anything else this session did
         // not start out to reach, must never be followed with the usage script's own cookies along
         // for the ride - same allow-list the sign-in window uses, so the two never drift apart.
+        var navigated = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _navigated = navigated;
         webView.CoreWebView2.NavigationStarting += (_, e) =>
         {
+            // Google's traffic check is a page for a person, even where the provider's list admits it
+            // for the visible sign-in window: this session cancels it and reports why.
+            if (SignInNavigationPolicy.IsGoogleTrafficCheck(e.Uri))
+            {
+                e.Cancel = true;
+                _trafficCheckSeen = true;
+                navigated.TrySetResult(false);
+                return;
+            }
+
             if (SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts))
                 return;
 
@@ -669,11 +697,12 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         webView.CoreWebView2.PermissionRequested += (_, e) => e.State = Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Deny;
         webView.CoreWebView2.DownloadStarting += (_, e) => e.Cancel = true;
 
-        var navigated = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _navigated = navigated;
         webView.CoreWebView2.NavigationCompleted += (_, e) => navigated.TrySetResult(e.IsSuccess);
         webView.CoreWebView2.Navigate(_baseUrl);
-        return await navigated.Task.WaitAsync(ct);
+        var success = await navigated.Task.WaitAsync(ct);
+        if (!success && _trafficCheckSeen)
+            throw new WebSessionCheckRequiredException();
+        return success;
     }
 
     /// <summary>The log line for a navigation the allow-list turns away, once per host (null when the

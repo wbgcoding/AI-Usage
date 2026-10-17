@@ -250,6 +250,41 @@ public class WebSessionScriptRunnerTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
     }
 
+    // Google's traffic check needs a person, so the read reports "signed out" (the tile then offers the
+    // sign-in window, where the check can be passed) instead of a failure that pauses the reads.
+    [Fact]
+    public async Task A_traffic_check_on_the_start_page_reads_as_signed_out_and_the_next_call_starts_fresh()
+    {
+        var starts = 0;
+        var first = new FakeHiddenBrowserHost();
+        first.FailNavigate(new WebSessionCheckRequiredException());
+        var second = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() => ++starts == 1 ? first : second);
+
+        Assert.Equal("""{"status":"not_signed_in"}""", await runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.True(first.Disposed);
+
+        second.FailNavigate(new WebSessionCheckRequiredException());
+        await runner.ExecuteScriptAsync("script", CancellationToken.None);
+        Assert.Equal(2, starts);
+    }
+
+    // The host cannot be instantiated without a live WebView2, so its wiring is read as text.
+    [Fact]
+    public void The_hidden_session_spots_the_traffic_check_before_the_allow_list_cancels_it()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+        var start = source.IndexOf("public async Task<bool> NavigateAsync(CancellationToken ct)", StringComparison.Ordinal);
+        var end = source.IndexOf("public async Task SuspendAsync()", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var navigate = source[start..end];
+
+        var check = navigate.IndexOf("SignInNavigationPolicy.IsGoogleTrafficCheck(e.Uri)", StringComparison.Ordinal);
+        var allowList = navigate.IndexOf("SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts)", StringComparison.Ordinal);
+        Assert.True(check >= 0 && allowList > check);
+        Assert.Contains("throw new WebSessionCheckRequiredException()", navigate, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_host_that_fails_to_close_after_a_failed_start_keeps_the_start_failure_and_the_next_call_starts_fresh()
     {
@@ -1168,6 +1203,8 @@ public class WebSessionScriptRunnerTests
         public TimeSpan DisposeDelay { get; init; }
 
         public void CompleteNavigate(bool success) => _navigate.TrySetResult(success);
+
+        public void FailNavigate(Exception error) => _navigate.TrySetException(error);
 
         public void CompleteScript(string result) => _script.TrySetResult(result);
 
