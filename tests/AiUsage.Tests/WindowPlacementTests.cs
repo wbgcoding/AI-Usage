@@ -683,4 +683,18 @@ public class WindowChromeNativeTests
         Assert.Equal((7d, 8d), (found.Left, found.Top));
         Assert.Null(WindowPlacementService.FindSetup(window, "other"));
     }
+
+    [Fact]
+    public void SetupJump_happens_only_on_a_display_change_to_a_different_known_setup()
+    {
+        var window = new WindowSettings();
+        WindowPlacementService.RememberSetup(window, "new", 7, 8, "m");
+
+        Assert.NotNull(WindowPlacementService.SetupJump(window, "new", "old", fromDisplayChange: true));
+        // The scale-change path and the deferred replace after a drag never jump.
+        Assert.Null(WindowPlacementService.SetupJump(window, "new", "old", fromDisplayChange: false));
+        // Same setup as before, or one never seen: stay where the window is.
+        Assert.Null(WindowPlacementService.SetupJump(window, "new", "new", fromDisplayChange: true));
+        Assert.Null(WindowPlacementService.SetupJump(window, "unknown", "old", fromDisplayChange: true));
+    }
 }

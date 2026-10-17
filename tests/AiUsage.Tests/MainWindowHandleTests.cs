@@ -25,7 +25,7 @@ public class MainWindowHandleTests
     public void The_display_settings_handler_marshals_to_the_dispatcher()
     {
         Assert.Matches(
-            @"SystemEvents_DisplaySettingsChanged\(object\? sender, EventArgs e\) =>\s+Dispatcher\.BeginInvoke\(ReplaceOnScreen\);",
+            @"SystemEvents_DisplaySettingsChanged\(object\? sender, EventArgs e\) =>\s+Dispatcher\.BeginInvoke\(\(\) => ReplaceOnScreen\(fromDisplayChange: true\)\);",
             Placement);
     }
 

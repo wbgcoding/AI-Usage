@@ -1223,7 +1223,7 @@ public partial class MainWindow : Window, IDisposable
 
         QueueDensityUpdate();
         // Once layout has settled, so the window's real size is known before it is pulled back in.
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ReplaceOnScreen);
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => ReplaceOnScreen());
         SaveWindowSettings();
     }
 

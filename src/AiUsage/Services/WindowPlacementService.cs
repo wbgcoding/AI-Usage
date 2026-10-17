@@ -158,6 +158,12 @@ public class WindowPlacementService
     public static WindowSetupPlacement? FindSetup(WindowSettings window, string key) =>
         window.Setups.FirstOrDefault(s => s.Setup == key);
 
+    /// <summary>The remembered place the window jumps to, or null to stay put. Only a display-settings
+    /// change onto a different, already known setup jumps; a scale change or the replace after a drag
+    /// never does, so a drop is not overridden.</summary>
+    public static WindowSetupPlacement? SetupJump(WindowSettings window, string key, string lastKey, bool fromDisplayChange) =>
+        fromDisplayChange && key != lastKey ? FindSetup(window, key) : null;
+
     /// <summary>The main display among <paramref name="monitors"/>: the one Windows marks as primary,
     /// else the first listed (a list built without that information), else an empty area.</summary>
     public static MonitorArea PrimaryOf(IReadOnlyList<MonitorArea> monitors)
