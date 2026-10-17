@@ -14,13 +14,21 @@ namespace AiUsage.Stats;
 /// </summary>
 public static class StatsExport
 {
-    public static string ToCsv(IReadOnlyList<StatsRowViewModel> rows, string labelHeader, string totalHeader)
+    public static string ToCsv(IReadOnlyList<StatsRowViewModel> rows, string labelHeader, string totalHeader, bool withCost = false)
     {
         var builder = new StringBuilder();
-        builder.Append(CsvField.Escape(labelHeader)).Append(',').Append(CsvField.Escape(totalHeader)).Append("\r\n");
+        builder.Append(CsvField.Escape(labelHeader)).Append(',').Append(CsvField.Escape(totalHeader));
+        if (withCost)
+            builder.Append(",cost_usd");
+        builder.Append("\r\n");
 
         foreach (var row in rows)
-            builder.Append(CsvField.Escape(row.Label)).Append(',').Append(row.TotalTokens.ToString(CultureInfo.InvariantCulture)).Append("\r\n");
+        {
+            builder.Append(CsvField.Escape(row.Label)).Append(',').Append(row.TotalTokens.ToString(CultureInfo.InvariantCulture));
+            if (withCost)
+                builder.Append(',').Append(row.CostUsd);
+            builder.Append("\r\n");
+        }
 
         return builder.ToString();
     }

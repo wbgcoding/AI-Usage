@@ -1668,7 +1668,7 @@ public partial class MainWindow : Window, IDisposable
         WindowActivation.TryActivate(_statsWindow.Activate);
     }
 
-    private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore(), history: ViewModel.HistoryStore)
+    private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore(), history: ViewModel.HistoryStore, cost: ViewModel.Cost)
     {
         ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
     }, _settings, _settingsStore);
@@ -1677,6 +1677,7 @@ public partial class MainWindow : Window, IDisposable
     {
         var window = CreateStatsWindow();
         window.PrepareOffscreen();
+        _ = ViewModel.Cost.RefreshAsync();
         return window;
     }
 

@@ -504,6 +504,18 @@
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>A short line in each bar shows how much of the time window has passed. If the fill reaches past it, usage is running ahead of time.</value></data>
   <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Say when usage is below the time</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>The bar's tooltip says when usage is below the share of the window that has passed. Off leaves out only that sentence; ahead and on pace stay.</value></data>
+  <data name="Stats.Cost.Column" xml:space="preserve"><value>Cost (API)</value></data>
+  <data name="Stats.Cost.Tip" xml:space="preserve"><value>Approximate cost had these tokens been billed at the public API list prices (LiteLLM price list, as of {0}). Subscriptions are billed differently.</value></data>
+  <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* No price known for: {0}. Not counted.</value></data>
+  <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prices not loaded yet.</value></data>
+  <data name="Settings.Group.Stats" xml:space="preserve"><value>Token statistics</value></data>
+  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Show cost estimate</value></data>
+  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Shows what the tokens would cost at public API prices. The price list is loaded once a day from GitHub (LiteLLM).</value></data>
+  <data name="Settings.CostCurrency" xml:space="preserve"><value>Cost currency</value></data>
+  <data name="Settings.CostCurrency.Usd" xml:space="preserve"><value>US dollar</value></data>
+  <data name="Settings.CostCurrency.Eur" xml:space="preserve"><value>Euro</value></data>
+  <data name="Settings.CostCurrency.Auto" xml:space="preserve"><value>Automatic (system region)</value></data>
+  <data name="Tip.Settings.CostCurrency" xml:space="preserve"><value>Prices are in US dollars. For euro the app converts with the European Central Bank's daily reference rate.</value></data>
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, running low</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limit almost reached</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit reached</value></data>
@@ -595,5 +607,5 @@
   <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Default ({0} min)</value></data>
   <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>How often AI-Usage asks this provider at most. Default follows the slider under Refresh.</value></data>
-  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Applies to every provider read over the internet; each provider can override it under Providers. A browser session is never read more often than every 5 minutes.</value></data>
+  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Applies to every provider read over the internet; each provider can override it under Providers.</value></data>
 </root>

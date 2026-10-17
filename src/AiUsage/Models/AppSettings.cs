@@ -29,8 +29,8 @@ public sealed class AppSettings
 
     /// <summary>How often, in minutes, a provider read over the internet is asked at most, unless the
     /// provider has its own value (<see cref="ProviderSettings.RefreshMinutes"/>). Set in Settings under
-    /// Refresh. A browser session is never read more often than every five minutes, whatever this says;
-    /// only Claude's local login route goes down to the value itself.</summary>
+    /// Refresh. Every route follows the value itself, down to one minute; a provider that pushes back is
+    /// slowed down by the scheduler's backoff.</summary>
     public int RemoteRefreshMinutes { get; set; } = 5;
 
     /// <summary>One of <see cref="WindowLayers"/>; null means the file does not say yet (a file from an
@@ -87,6 +87,15 @@ public sealed class AppSettings
     /// passed. Off leaves out only that sentence; the ahead and on-pace ones stay. Defaults on, also for
     /// a file written before the setting existed.</summary>
     public bool ShowPaceBelowHint { get; set; } = true;
+
+    /// <summary>Whether the token statistics show what the tokens would cost at public API list prices.
+    /// Off means no cost figure anywhere and no price download. Defaults on, also for a file written
+    /// before the setting existed.</summary>
+    public bool ShowCostEstimate { get; set; } = true;
+
+    /// <summary>The currency of that estimate. Prices are in US dollars; euro converts with the daily
+    /// reference rate, automatic picks euro when the system region uses it.</summary>
+    public CostCurrency CostCurrency { get; set; } = CostCurrency.Usd;
 
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs

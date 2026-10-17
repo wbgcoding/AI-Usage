@@ -503,6 +503,18 @@
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Ein kurzer Strich im Balken zeigt, wie viel vom Zeitfenster schon vergangen ist. Reicht die Füllung darüber hinaus, verbrauchst du schneller, als die Zeit vergeht.</value></data>
   <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Hinweis zeigen, wenn der Verbrauch unter der Zeit liegt</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Der Tooltip des Balkens sagt, wenn der Verbrauch unter dem schon vergangenen Teil des Zeitfensters liegt. Ausgeschaltet fehlt nur dieser Satz; „darüber“ und „im Plan“ bleiben.</value></data>
+  <data name="Stats.Cost.Column" xml:space="preserve"><value>Kosten (API)</value></data>
+  <data name="Stats.Cost.Tip" xml:space="preserve"><value>Ungefähre Kosten, wenn diese Tokens zu den öffentlichen API-Listenpreisen abgerechnet würden (Preisliste von LiteLLM, Stand {0}). Abos werden anders abgerechnet.</value></data>
+  <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Kein Preis bekannt für: {0}. Nicht mitgezählt.</value></data>
+  <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Preise noch nicht geladen.</value></data>
+  <data name="Settings.Group.Stats" xml:space="preserve"><value>Token-Statistik</value></data>
+  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Kostenbilanz zeigen</value></data>
+  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Zeigt, was die Tokens zu öffentlichen API-Preisen kosten würden. Die Preisliste wird einmal täglich von GitHub (LiteLLM) geladen.</value></data>
+  <data name="Settings.CostCurrency" xml:space="preserve"><value>Währung der Kostenbilanz</value></data>
+  <data name="Settings.CostCurrency.Usd" xml:space="preserve"><value>US-Dollar</value></data>
+  <data name="Settings.CostCurrency.Eur" xml:space="preserve"><value>Euro</value></data>
+  <data name="Settings.CostCurrency.Auto" xml:space="preserve"><value>Automatisch (Systemregion)</value></data>
+  <data name="Tip.Settings.CostCurrency" xml:space="preserve"><value>Die Preise sind in US-Dollar. Bei Euro rechnet die App mit dem täglichen Referenzkurs der Europäischen Zentralbank um.</value></data>
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, wird knapp</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, Limit fast erreicht</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: Limit erreicht</value></data>
@@ -594,5 +606,5 @@
   <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Standard ({0} min)</value></data>
   <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>Wie oft AI-Usage diesen Anbieter höchstens abfragt. Standard folgt dem Regler unter Abruf.</value></data>
-  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Gilt für jeden Abruf übers Internet; unter Anbieter lässt sich das je Anbieter ändern. Eine Browsersitzung wird höchstens alle 5 Minuten gelesen.</value></data>
+  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Gilt für jeden Abruf übers Internet; unter Anbieter lässt sich das je Anbieter ändern.</value></data>
 </root>

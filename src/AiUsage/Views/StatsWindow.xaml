@@ -391,8 +391,11 @@
                                         <TextBlock Text="{Binding TotalFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total], Mode=OneWay}"/>
+                                            <Run Text="{Binding TotalCostText, Mode=OneWay}" ToolTip="{Binding TotalCostTooltip}"/>
+                                        </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="AreaSparkline" Values="{Binding DailyTotalsSeries}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
                                                                         Height="28" Margin="0,4,0,0"/>
@@ -596,6 +599,7 @@
                                             <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
                                             <ColumnDefinition Width="96"/>
                                             <ColumnDefinition Width="88"/>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="SessionCost"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
@@ -610,6 +614,10 @@
                                         <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Tokens]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Cost.Column]}"
+                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                   Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                   Visibility="{Binding HasTotalCost, Converter={StaticResource BoolToVis}}"/>
                                     </Grid>
                                     <ItemsControl x:Name="SessionTable" ItemsSource="{Binding SessionRows}"
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
@@ -646,6 +654,7 @@
                                                         <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
                                                         <ColumnDefinition Width="96"/>
                                                         <ColumnDefinition Width="88"/>
+                                                        <ColumnDefinition Width="Auto" SharedSizeGroup="SessionCost"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Grid.Column="0">
                                                         <TextBlock Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
@@ -658,6 +667,19 @@
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Grid.Column="3" Text="{Binding Tokens}" TextAlignment="Right" Margin="0,0,8,0"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding CostText}" TextAlignment="Right" Margin="0,0,8,0"
+                                                               Foreground="{DynamicResource Text.Secondary}"
+                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding CostText}" Value="">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

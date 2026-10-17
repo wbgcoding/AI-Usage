@@ -5,6 +5,7 @@ using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Services;
 using AiUsage.Stats;
+using AiUsage.Stats.Pricing;
 using AiUsage.Storage;
 using AiUsage.Views.Controls;
 using AiUsage.Web;
@@ -1685,6 +1686,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The one history store of this process. The settings and statistics windows share it, so
     /// a reset or a data-folder move in one is never undone by a rewrite still running in another.</summary>
     internal HistoryStore HistoryStore => _historyStore;
+
+    private CostService? _cost;
+
+    /// <summary>The cost estimate of the token statistics: one instance per process, created on first
+    /// use so nothing is read from disk before the statistics are wanted.</summary>
+    internal CostService Cost => _cost ??= new CostService(() => _settings.ShowCostEstimate, () => _settings.CostCurrency);
+
+    /// <summary>Settings window calls this after the estimate switch or its currency changed, so open
+    /// statistics redraw and a needed download starts.</summary>
+    internal void CostSettingsChanged() => _cost?.NotifySettingsChanged();
 
     /// <summary>Settings window's own "change data folder" flow calls this once it has already
     /// copied every history file across, so the live recording this view model does on every tick

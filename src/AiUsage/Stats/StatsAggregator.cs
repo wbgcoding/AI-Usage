@@ -124,7 +124,10 @@ public readonly record struct StatsProjectRow(
     // A row that brings its own hover text (a session) shows it instead of the project lines.
     string? TooltipText = null,
     // The row that pools the records without a project; its FullPath is the display label.
-    bool IsNoProject = false);
+    bool IsNoProject = false,
+    // The cost estimate lines for the hover tooltip ("Cost (API): ~2,00 €", then the unpriced
+    // models); filled in by StatsViewModel, null when no cost is shown.
+    string? CostLine = null);
 
 /// <summary>The month grid's own day-detail panel: one day's usage broken four ways, every list
 /// already sorted by total, descending. <see cref="ByHour"/> is the one exception to "only entries
@@ -678,8 +681,10 @@ public static class StatsAggregator
 
     /// <summary>The same "top projects" panel as <see cref="TopProjects"/>, carrying the row's own
     /// full project path, share percentage and first/last activity day alongside its already-shortened
-    /// display label - what the panel's tooltip needs beyond the bar chart's bare label and total.</summary>
-    public static IReadOnlyList<StatsProjectRow> TopProjectsDetailed(IReadOnlyList<StatsRecord> records, int limit, string noProjectLabel)
+    /// display label - what the panel's tooltip needs beyond the bar chart's bare label and total.
+    /// <paramref name="costLineOf"/> turns a project's group key into its cost tooltip lines.</summary>
+    public static IReadOnlyList<StatsProjectRow> TopProjectsDetailed(
+        IReadOnlyList<StatsRecord> records, int limit, string noProjectLabel, Func<string, string?>? costLineOf = null)
     {
         var grandTotal = records.Sum(record => record.TotalTokens);
         return records
@@ -718,7 +723,8 @@ public static class StatsAggregator
                 entry.CachedTokens,
                 entry.ProviderIds,
                 entry.MainModel,
-                IsNoProject: entry.FullPath == NoProjectKey))
+                IsNoProject: entry.FullPath == NoProjectKey,
+                CostLine: costLineOf?.Invoke(entry.FullPath)))
             .ToList();
     }
 

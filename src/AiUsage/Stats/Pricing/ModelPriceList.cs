@@ -1,0 +1,313 @@
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using AiUsage.Services;
+
+namespace AiUsage.Stats.Pricing;
+
+/// <summary>The public API list price of one model in US dollars per token. The two cache prices are
+/// null when the list has none; the cost math then falls back to <see cref="Input"/>.</summary>
+public sealed record ModelPrice(double Input, double Output, double? CacheRead, double? CacheCreation);
+
+/// <summary>
+/// The price list behind the cost estimate: a trimmed copy of a public price table that lives in the
+/// machine-local cache folder. The table is foreign text, so it is read defensively: only four price
+/// fields and two labels per entry are looked at, every price must be a finite number in a sane range,
+/// and anything else is dropped. No table ships with the app; before the first download there are no
+/// prices and nothing is estimated.
+/// </summary>
+public sealed class ModelPriceList
+{
+    internal const string CacheFileName = "model-prices.json";
+
+    /// <summary>The list is fetched again once it is older than this.</summary>
+    internal static readonly TimeSpan MaxAge = TimeSpan.FromHours(24);
+
+    /// <summary>A per-token price at or above this is not a real price (that would be 10 dollars per
+    /// 1000 tokens) and the field is dropped.</summary>
+    private const double MaxTokenPrice = 0.01;
+
+    private static readonly string[] MakerPrefixes = ["anthropic/", "openai/", "gemini/", "vertex_ai/"];
+
+    private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private readonly Func<string> _cacheDirectory;
+    private readonly object _gate = new();
+    private readonly Dictionary<string, ModelPrice?> _found = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
+    private Dictionary<string, ModelPrice> _prices = new();
+
+    public ModelPriceList(Func<string> cacheDirectory) => _cacheDirectory = cacheDirectory;
+
+    /// <summary>When the prices were last downloaded; null while there are none.</summary>
+    public DateTimeOffset? FetchedAt { get; private set; }
+
+    public bool IsEmpty
+    {
+        get
+        {
+            lock (_gate)
+                return _prices.Count == 0;
+        }
+    }
+
+    /// <summary>True when there are no prices yet or they are a day old.</summary>
+    public bool IsStale(DateTimeOffset now) => IsEmpty || FetchedAt is not { } at || now - at >= MaxAge;
+
+    /// <summary>Reads the downloaded table. Never throws: text that is not the expected JSON gives an
+    /// empty result. Kept are chat and responses models and entries without a mode; an entry needs a
+    /// valid input and output price, the two cache prices are optional.</summary>
+    public static IReadOnlyDictionary<string, ModelPrice> Parse(string json)
+    {
+        var result = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 8, AllowTrailingCommas = true });
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var entry in document.RootElement.EnumerateObject())
+            {
+                if (entry.Value.ValueKind != JsonValueKind.Object
+                    || string.Equals(entry.Name, "sample_spec", StringComparison.Ordinal)
+                    || entry.Name.Length is 0 or > 200)
+                    continue;
+
+                if (entry.Value.TryGetProperty("mode", out var mode)
+                    && !(mode.ValueKind == JsonValueKind.String && mode.GetString() is "chat" or "responses"))
+                    continue;
+
+                var input = Price(entry.Value, "input_cost_per_token");
+                var output = Price(entry.Value, "output_cost_per_token");
+                if (input is null || output is null)
+                    continue;
+
+                result[entry.Name] = new ModelPrice(
+                    input.Value, output.Value,
+                    Price(entry.Value, "cache_read_input_token_cost"),
+                    Price(entry.Value, "cache_creation_input_token_cost"));
+            }
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
+
+    private static double? Price(JsonElement entry, string name)
+    {
+        if (!entry.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number
+            || !value.TryGetDouble(out var number))
+            return null;
+        return double.IsFinite(number) && number >= 0 && number < MaxTokenPrice ? number : null;
+    }
+
+    /// <summary>Swaps in a new table and, when asked, writes the trimmed cache file.</summary>
+    public void Replace(IReadOnlyDictionary<string, ModelPrice> entries, DateTimeOffset fetchedAt, bool persist = true)
+    {
+        var copy = new Dictionary<string, ModelPrice>(entries, StringComparer.OrdinalIgnoreCase);
+        lock (_gate)
+        {
+            _prices = copy;
+            FetchedAt = fetchedAt;
+            _found.Clear();
+        }
+
+        if (persist)
+            Save(copy, fetchedAt);
+    }
+
+    private void Save(Dictionary<string, ModelPrice> entries, DateTimeOffset fetchedAt)
+    {
+        try
+        {
+            var directory = _cacheDirectory();
+            Directory.CreateDirectory(directory);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("fetchedAt", fetchedAt.ToString("O", CultureInfo.InvariantCulture));
+                writer.WriteStartObject("models");
+                foreach (var (key, price) in entries.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                {
+                    writer.WriteStartObject(key);
+                    writer.WriteNumber("input", price.Input);
+                    writer.WriteNumber("output", price.Output);
+                    if (price.CacheRead is { } read)
+                        writer.WriteNumber("cacheRead", read);
+                    if (price.CacheCreation is { } creation)
+                        writer.WriteNumber("cacheCreation", creation);
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+
+            var path = Path.Combine(directory, CacheFileName);
+            var temporary = path + ".tmp";
+            File.WriteAllBytes(temporary, stream.ToArray());
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            LogService.Shared.Log("WARN", "Model price cache could not be written: " + ex.GetType().Name);
+        }
+    }
+
+    /// <summary>Loads the cache file written by the last download. A missing or damaged file leaves the
+    /// list empty.</summary>
+    public void Load()
+    {
+        try
+        {
+            var path = Path.Combine(_cacheDirectory(), CacheFileName);
+            if (!File.Exists(path))
+                return;
+
+            using var document = JsonDocument.Parse(File.ReadAllText(path, Encoding.UTF8), new JsonDocumentOptions { MaxDepth = 8 });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || !root.TryGetProperty("models", out var models) || models.ValueKind != JsonValueKind.Object
+                || !root.TryGetProperty("fetchedAt", out var stamp) || stamp.ValueKind != JsonValueKind.String
+                || !DateTimeOffset.TryParse(stamp.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var fetchedAt))
+                return;
+
+            var loaded = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in models.EnumerateObject())
+            {
+                if (entry.Value.ValueKind != JsonValueKind.Object)
+                    continue;
+                var input = Price(entry.Value, "input");
+                var output = Price(entry.Value, "output");
+                if (input is null || output is null)
+                    continue;
+                loaded[entry.Name] = new ModelPrice(input.Value, output.Value, Price(entry.Value, "cacheRead"), Price(entry.Value, "cacheCreation"));
+            }
+
+            if (loaded.Count > 0)
+                Replace(loaded, fetchedAt, persist: false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException or InvalidOperationException)
+        {
+            // A damaged cache means no prices until the next download.
+        }
+    }
+
+    /// <summary>The price of <paramref name="model"/>, or null when the list has none. An unknown model
+    /// is reported once per run through the change log; an empty list reports nothing, since then no
+    /// model is known.</summary>
+    public ModelPrice? Find(string model)
+    {
+        Dictionary<string, ModelPrice> prices;
+        lock (_gate)
+        {
+            if (_prices.Count == 0)
+                return null;
+            prices = _prices;
+            if (_found.TryGetValue(model, out var cached))
+                return cached;
+        }
+
+        var price = Lookup(prices, model);
+        var report = false;
+        lock (_gate)
+        {
+            if (ReferenceEquals(prices, _prices))
+                _found[model] = price;
+            if (price is null)
+                report = _reported.Add(model);
+        }
+
+        if (report)
+            ReadChangeLog.Report("Pricing", $"no price known for model '{ReadChangeLog.SafeName(model)}'; its tokens are left out of the cost estimate.");
+        return price;
+    }
+
+    private static ModelPrice? Lookup(Dictionary<string, ModelPrice> prices, string model)
+    {
+        var name = model.Trim();
+        if (name.Length == 0)
+            return null;
+
+        if (Direct(prices, name) is { } direct)
+            return direct;
+
+        var stripped = DateSuffix.Replace(name, "");
+        if (stripped.Length != name.Length && Direct(prices, stripped) is { } undated)
+            return undated;
+
+        return ByPrefix(prices, stripped);
+    }
+
+    private static ModelPrice? Direct(Dictionary<string, ModelPrice> prices, string name)
+    {
+        if (prices.TryGetValue(name, out var exact))
+            return exact;
+        foreach (var prefix in MakerPrefixes)
+            if (prices.TryGetValue(prefix + name, out var prefixed))
+                return prefixed;
+        return null;
+    }
+
+    /// <summary>The longest list key that starts the model name (or, failing that, the shortest key the
+    /// model name starts), within the same maker family so a name never borrows another maker's price.</summary>
+    private static ModelPrice? ByPrefix(Dictionary<string, ModelPrice> prices, string name)
+    {
+        var lowered = name.ToLowerInvariant();
+        var family = Family(lowered);
+        ModelPrice? longest = null;
+        var longestLength = 0;
+        ModelPrice? shortest = null;
+        string? shortestKey = null;
+
+        foreach (var (key, price) in prices)
+        {
+            var bare = StripMaker(key.ToLowerInvariant());
+            if (Family(bare) != family)
+                continue;
+
+            if (bare.Length < lowered.Length && lowered.StartsWith(bare, StringComparison.Ordinal) && IsBoundary(lowered[bare.Length]))
+            {
+                if (bare.Length > longestLength)
+                {
+                    longest = price;
+                    longestLength = bare.Length;
+                }
+            }
+            else if (bare.Length > lowered.Length && bare.StartsWith(lowered, StringComparison.Ordinal) && IsBoundary(bare[lowered.Length]))
+            {
+                if (shortestKey is null || bare.Length < shortestKey.Length
+                    || (bare.Length == shortestKey.Length && string.CompareOrdinal(bare, shortestKey) < 0))
+                {
+                    shortest = price;
+                    shortestKey = bare;
+                }
+            }
+        }
+
+        return longest ?? shortest;
+    }
+
+    private static bool IsBoundary(char c) => c is '-' or '.' or ':' or '@' or '_';
+
+    private static string StripMaker(string key)
+    {
+        var slash = key.LastIndexOf('/');
+        return slash >= 0 ? key[(slash + 1)..] : key;
+    }
+
+    /// <summary>The maker a model name belongs to, from its first word.</summary>
+    private static string Family(string name)
+    {
+        var end = name.IndexOfAny(['-', '.', ':', '_', '@']);
+        var word = end < 0 ? name : name[..end];
+        if (word.StartsWith("gpt", StringComparison.Ordinal) || word.StartsWith("codex", StringComparison.Ordinal)
+            || (word.Length >= 2 && word[0] == 'o' && char.IsAsciiDigit(word[1])) || word.StartsWith("chatgpt", StringComparison.Ordinal))
+            return "openai";
+        return word;
+    }
+}

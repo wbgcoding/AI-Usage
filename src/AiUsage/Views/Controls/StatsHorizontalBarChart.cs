@@ -189,6 +189,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (row.SessionCount is { } sessionCount)
             lines.Add(string.IsNullOrEmpty(sessionsFormat) ? sessionCount.ToString(culture) : string.Format(culture, sessionsFormat, sessionCount));
 
+        if (!string.IsNullOrEmpty(row.CostLine))
+            lines.AddRange(row.CostLine.Split('\n'));
+
         return lines;
     }
 
@@ -266,13 +269,16 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var totalWithUnit = string.IsNullOrEmpty(tokenWord) ? totalText : $"{totalText} {tokenWord}";
         var activeText = StatsTooltipDateFormatter.FormatRange(row.FirstActivity, row.LastActivity, culture);
 
-        return
-        [
+        var lines = new List<string>
+        {
             row.FullPath,
             string.IsNullOrEmpty(totalLabel) ? totalWithUnit : $"{totalLabel}: {totalWithUnit}",
             StatsBarChart.PercentLabel(row.Percent, culture),
             string.IsNullOrEmpty(activeLabel) ? activeText : $"{activeLabel}: {activeText}",
-        ];
+        };
+        if (!string.IsNullOrEmpty(row.CostLine))
+            lines.AddRange(row.CostLine.Split('\n'));
+        return lines;
     }
 
     public static readonly DependencyProperty BarBrushProperty = DependencyProperty.Register(

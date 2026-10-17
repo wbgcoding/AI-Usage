@@ -429,6 +429,36 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool showPaceBelowHint = true;
 
     [ObservableProperty]
+    private bool showCostEstimate = true;
+
+    public ObservableCollection<Choice<CostCurrency>> CostCurrencyChoices { get; } =
+    [
+        new("Settings.CostCurrency.Usd", CostCurrency.Usd),
+        new("Settings.CostCurrency.Eur", CostCurrency.Eur),
+        new("Settings.CostCurrency.Auto", CostCurrency.Auto),
+    ];
+
+    /// <summary>Same shape as <see cref="SelectedTileOrderChoice"/>, for the cost currency ComboBox.</summary>
+    public Choice<CostCurrency>? SelectedCostCurrencyChoice
+    {
+        get => CostCurrencyChoices.FirstOrDefault(c => c.IsSelected);
+        set
+        {
+            if (value is not null && value.Value != _settings.CostCurrency)
+                SetCostCurrency(value.Value);
+        }
+    }
+
+    private void SetCostCurrency(CostCurrency currency)
+    {
+        Choice.Select(CostCurrencyChoices, currency);
+        _settings.CostCurrency = currency;
+        _store.RequestSave(_settings);
+        OnPropertyChanged(nameof(SelectedCostCurrencyChoice));
+        Main.CostSettingsChanged();
+    }
+
+    [ObservableProperty]
     private bool allDaysAllowed = true;
 
     /// <summary>Monday to Sunday, one check box each, shown while <see cref="AllDaysAllowed"/> is off.</summary>
@@ -630,6 +660,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         allDaysAllowed = settings.AllDaysAllowed;
         showPaceMarker = settings.ShowPaceMarker;
         showPaceBelowHint = settings.ShowPaceBelowHint;
+        showCostEstimate = settings.ShowCostEstimate;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -657,6 +688,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Choice.Select(WindowLayerChoices, Main.WindowLayer);
         Main.WindowLayerChanged += OnMainWindowLayerChanged;
         Choice.Select(TileOrderChoices, settings.TileOrderMode);
+        Choice.Select(CostCurrencyChoices, settings.CostCurrency);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
         RefreshForecastLeadChoices();
 
@@ -828,6 +860,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         foreach (var choice in WindowLayerChoices)
             choice.RefreshLabel();
         foreach (var choice in TileOrderChoices)
+            choice.RefreshLabel();
+        foreach (var choice in CostCurrencyChoices)
             choice.RefreshLabel();
         foreach (var choice in AttentionMaxAgeChoices)
             choice.RefreshLabel();
@@ -1130,6 +1164,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ShowPaceBelowHint = value;
         _store.RequestSave(_settings);
         Main.ApplyShowPaceBelowHintToAllTiles(value);
+    }
+
+    partial void OnShowCostEstimateChanged(bool value)
+    {
+        _settings.ShowCostEstimate = value;
+        _store.RequestSave(_settings);
+        Main.CostSettingsChanged();
     }
 
     partial void OnAllDaysAllowedChanged(bool value)
@@ -1939,6 +1980,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
         _settings.ShowPaceMarker = source.ShowPaceMarker;
         _settings.ShowPaceBelowHint = source.ShowPaceBelowHint;
+        _settings.ShowCostEstimate = source.ShowCostEstimate;
+        _settings.CostCurrency = Enum.IsDefined(source.CostCurrency) ? source.CostCurrency : CostCurrency.Usd;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
         _settings.ZoomPercent = WindowZoom.Normalize(source.ZoomPercent);
         _settings.ShowTooltips = source.ShowTooltips;
@@ -2031,6 +2074,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main.ApplyShowPaceMarkerToAllTiles(_settings.ShowPaceMarker);
         ShowPaceBelowHint = _settings.ShowPaceBelowHint;
         Main.ApplyShowPaceBelowHintToAllTiles(_settings.ShowPaceBelowHint);
+        ShowCostEstimate = _settings.ShowCostEstimate;
+        SetCostCurrency(_settings.CostCurrency);
         HideOnFullscreen = _settings.HideOnFullscreen;
         ZoomPercent = _settings.ZoomPercent;
         ShowTooltips = _settings.ShowTooltips;

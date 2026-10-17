@@ -5,9 +5,9 @@ namespace AiUsage.Tests;
 /// <summary>Builds a view model the way the window ends up with it: constructed, then loaded once.</summary>
 internal static class StatsVm
 {
-    public static StatsViewModel Create(StatsStore store, Action<StatsViewModel>? configure = null)
+    public static StatsViewModel Create(StatsStore store, Action<StatsViewModel>? configure = null, AiUsage.Stats.Pricing.CostService? cost = null)
     {
-        var viewModel = new StatsViewModel(store);
+        var viewModel = new StatsViewModel(store, cost: cost);
         viewModel.Recompute();
         configure?.Invoke(viewModel);
         return viewModel;

@@ -40,7 +40,8 @@ public sealed class StatsMonthGrid : FrameworkElement
     /// cref="Total"/> already sums every provider, not just the leader's own share; <see
     /// cref="ByProvider"/> is what the hover tooltip lists to show that sum broken down.
     /// </summary>
-    public readonly record struct DayValue(DateOnly Day, long Total, string LeaderProviderId = "", IReadOnlyList<ProviderTotal>? ByProvider = null);
+    public readonly record struct DayValue(
+        DateOnly Day, long Total, string LeaderProviderId = "", IReadOnlyList<ProviderTotal>? ByProvider = null, string? CostLine = null);
 
     public static readonly DependencyProperty DaysProperty = DependencyProperty.Register(
         nameof(Days), typeof(IReadOnlyList<DayValue>), typeof(StatsMonthGrid),
@@ -421,7 +422,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     /// marks a past day outside the emphasised period: drawn faded, still clickable.</summary>
     internal readonly record struct GridCell(
         DateOnly Day, long Total, string LeaderProviderId, IReadOnlyList<ProviderTotal> ByProvider, bool IsFuture = false,
-        bool IsOutsideHighlight = false);
+        bool IsOutsideHighlight = false, string? CostLine = null);
 
     /// <summary>Builds every week-column from <paramref name="gridStart"/> through the week
     /// containing <paramref name="rangeEnd"/>, seven cells each - each entry here is one column's
@@ -460,7 +461,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
                 var value = byDay.TryGetValue(day, out var found) ? found : new DayValue(day, 0);
                 var outside = (highlightStart is { } start && day < start) || (highlightEnd is { } end && day > end);
-                cells[row] = new GridCell(day, value.Total, value.LeaderProviderId, value.ByProvider ?? [], IsOutsideHighlight: outside);
+                cells[row] = new GridCell(day, value.Total, value.LeaderProviderId, value.ByProvider ?? [], IsOutsideHighlight: outside, CostLine: value.CostLine);
             }
             columns.Add(cells);
         }
@@ -696,7 +697,8 @@ public sealed class StatsMonthGrid : FrameworkElement
         return new Size(width, ContentHeight(layout.Fit) + LegendGapTop + legendRows * LegendRowHeight);
     }
 
-    internal readonly record struct CellHit(Rect Rect, DateOnly Day, long Total, IReadOnlyList<ProviderTotal> ByProvider);
+    internal readonly record struct CellHit(
+        Rect Rect, DateOnly Day, long Total, IReadOnlyList<ProviderTotal> ByProvider, string? CostLine = null);
 
     private readonly List<CellHit> _cellHits = [];
     private CellHit? _hoverCell;
@@ -829,7 +831,7 @@ public sealed class StatsMonthGrid : FrameworkElement
                     dc.DrawRoundedRectangle(null, new Pen(AccentBrush, 1.5), ring, CellCorner + 2, CellCorner + 2);
                 }
 
-                _cellHits.Add(new CellHit(rect, cell.Day, cell.Total, cell.ByProvider));
+                _cellHits.Add(new CellHit(rect, cell.Day, cell.Total, cell.ByProvider, cell.CostLine));
             }
         }
     }
@@ -985,6 +987,8 @@ public sealed class StatsMonthGrid : FrameworkElement
 
         var totalLine = WithUnit(hover.Total);
         lines.Add(string.IsNullOrEmpty(totalLabel) ? totalLine : $"{totalLabel}: {totalLine}");
+        if (!string.IsNullOrEmpty(hover.CostLine))
+            lines.AddRange(hover.CostLine.Split('\n'));
         return lines;
     }
 
@@ -1147,7 +1151,7 @@ public sealed class StatsMonthGrid : FrameworkElement
                     continue;
 
                 var lines = BuildTooltipLines(
-                    new CellHit(default, found.Day, found.Total, found.ByProvider), ProviderDisplayNames, TokenWord, TotalLabel,
+                    new CellHit(default, found.Day, found.Total, found.ByProvider, found.CostLine), ProviderDisplayNames, TokenWord, TotalLabel,
                     NoUsageText, LocalizationService.Instance.DisplayCulture);
                 AutomationProperties.SetName(this, string.Join(". ", lines));
                 return;

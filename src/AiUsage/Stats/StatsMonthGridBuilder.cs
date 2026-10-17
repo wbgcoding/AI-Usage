@@ -39,7 +39,8 @@ public static class StatsMonthGridBuilder
     /// <param name="colorScale">An already computed <see cref="ColorScale"/> of the same records, so a
     /// re-slice on resize does not scan the whole history again.</param>
     public static Result Build(
-        IReadOnlyList<StatsRecord> all, DateOnly today, DateOnly? from = null, IReadOnlyList<long>? colorScale = null)
+        IReadOnlyList<StatsRecord> all, DateOnly today, DateOnly? from = null, IReadOnlyList<long>? colorScale = null,
+        Func<IEnumerable<StatsRecord>, string?>? costLine = null)
     {
         var firstDay = FirstDay(today, from);
         var lastDay = today;
@@ -50,6 +51,11 @@ public static class StatsMonthGridBuilder
                 .GroupBy(record => record.Provider)
                 .ToDictionary(providerGroup => providerGroup.Key, providerGroup => providerGroup.Sum(record => record.TotalTokens)));
 
+        var costByDay = costLine is null
+            ? null
+            : all.Where(record => record.Day >= firstDay && record.Day <= lastDay)
+                .GroupBy(record => record.Day)
+                .ToDictionary(group => group.Key, group => costLine(group));
         var days = new List<Views.Controls.StatsMonthGrid.DayValue>();
         for (var day = firstDay; day <= lastDay; day = day.AddDays(1))
         {
@@ -60,7 +66,9 @@ public static class StatsMonthGridBuilder
                     .ThenBy(entry => entry.Key, StringComparer.Ordinal)
                     .Select(entry => new Views.Controls.StatsMonthGrid.ProviderTotal(entry.Key, entry.Value))
                     .ToList();
-                days.Add(new Views.Controls.StatsMonthGrid.DayValue(day, ordered.Sum(entry => entry.Total), ordered[0].ProviderId, ordered));
+                days.Add(new Views.Controls.StatsMonthGrid.DayValue(
+                    day, ordered.Sum(entry => entry.Total), ordered[0].ProviderId, ordered,
+                    costByDay is not null && costByDay.TryGetValue(day, out var cost) ? cost : null));
             }
             else
             {

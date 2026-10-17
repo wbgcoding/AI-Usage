@@ -975,7 +975,7 @@ public sealed class StatsBarChart : FrameworkElement
         }
 
         if (!string.IsNullOrEmpty(bar.ExtraTooltipLine))
-            lines.Add(bar.ExtraTooltipLine);
+            lines.AddRange(bar.ExtraTooltipLine.Split('\n'));
 
         return lines;
     }
