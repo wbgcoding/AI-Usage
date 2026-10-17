@@ -20,31 +20,31 @@ public class ProjectAliasResolverTests
     [Fact]
     public void A_path_that_is_gone_merges_into_the_one_that_exists()
     {
-        var aliases = Build([@"E:\Claude\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Claude\AI-Usage"));
+        var aliases = Build([@"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Work\AI-Usage"));
 
-        Assert.Equal(@"E:\Claude\AI-Usage", aliases.Resolve(@"C:\a\AI-Usage"));
-        Assert.Equal(@"E:\Claude\AI-Usage", aliases.Resolve(@"E:\Claude\AI-Usage"));
-        Assert.Equal([@"C:\a\AI-Usage"], aliases.FormerPaths(@"E:\Claude\AI-Usage"));
+        Assert.Equal(@"E:\Work\AI-Usage", aliases.Resolve(@"C:\a\AI-Usage"));
+        Assert.Equal(@"E:\Work\AI-Usage", aliases.Resolve(@"E:\Work\AI-Usage"));
+        Assert.Equal([@"C:\a\AI-Usage"], aliases.FormerPaths(@"E:\Work\AI-Usage"));
     }
 
     [Fact]
     public void When_both_exist_the_projects_stay_two()
     {
-        var aliases = Build([@"C:\a\AI-Usage", @"E:\Claude\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Claude\AI-Usage"));
+        var aliases = Build([@"C:\a\AI-Usage", @"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Work\AI-Usage"));
 
         Assert.Equal(@"C:\a\AI-Usage", aliases.Resolve(@"C:\a\AI-Usage"));
-        Assert.Equal(@"E:\Claude\AI-Usage", aliases.Resolve(@"E:\Claude\AI-Usage"));
-        Assert.Empty(aliases.FormerPaths(@"E:\Claude\AI-Usage"));
+        Assert.Equal(@"E:\Work\AI-Usage", aliases.Resolve(@"E:\Work\AI-Usage"));
+        Assert.Empty(aliases.FormerPaths(@"E:\Work\AI-Usage"));
     }
 
     [Fact]
     public void When_none_exists_the_most_recently_used_path_wins()
     {
-        var aliases = Build([], Record(@"C:\a\AI-Usage", dayOffset: 0), Record(@"E:\Claude\AI-Usage", dayOffset: 5), Record(@"D:\b\AI-Usage", dayOffset: 2));
+        var aliases = Build([], Record(@"C:\a\AI-Usage", dayOffset: 0), Record(@"E:\Work\AI-Usage", dayOffset: 5), Record(@"D:\b\AI-Usage", dayOffset: 2));
 
-        Assert.All([@"C:\a\AI-Usage", @"D:\b\AI-Usage", @"E:\Claude\AI-Usage"],
-            path => Assert.Equal(@"E:\Claude\AI-Usage", aliases.Resolve(path)));
-        Assert.Equal(2, aliases.FormerPaths(@"E:\Claude\AI-Usage").Count);
+        Assert.All([@"C:\a\AI-Usage", @"D:\b\AI-Usage", @"E:\Work\AI-Usage"],
+            path => Assert.Equal(@"E:\Work\AI-Usage", aliases.Resolve(path)));
+        Assert.Equal(2, aliases.FormerPaths(@"E:\Work\AI-Usage").Count);
     }
 
     [Fact]
@@ -81,17 +81,17 @@ public class ProjectAliasResolverTests
     [Fact]
     public void The_same_folder_in_another_letter_case_is_one_path_not_two_that_exist()
     {
-        var aliases = Build([@"E:\Claude\AI-Usage"], Record(@"e:\claude\ai-usage"), Record(@"E:\Claude\AI-Usage"), Record(@"C:\gone\AI-Usage"));
+        var aliases = Build([@"E:\Work\AI-Usage"], Record(@"e:\work\ai-usage"), Record(@"E:\Work\AI-Usage"), Record(@"C:\gone\AI-Usage"));
 
-        Assert.Equal(@"E:\Claude\AI-Usage", aliases.Resolve(@"C:\gone\AI-Usage"), ignoreCase: true);
+        Assert.Equal(@"E:\Work\AI-Usage", aliases.Resolve(@"C:\gone\AI-Usage"), ignoreCase: true);
     }
 
     [Fact]
     public void An_agent_work_folder_resolves_by_its_project_root()
     {
-        var aliases = Build([@"E:\Claude\AI-Usage"], Record(@"C:\a\AI-Usage\.tmp\wt-x"), Record(@"E:\Claude\AI-Usage"));
+        var aliases = Build([@"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage\.tmp\wt-x"), Record(@"E:\Work\AI-Usage"));
 
-        Assert.Equal(@"E:\Claude\AI-Usage", aliases.Resolve(@"C:\a\AI-Usage\.tmp\wt-x"));
+        Assert.Equal(@"E:\Work\AI-Usage", aliases.Resolve(@"C:\a\AI-Usage\.tmp\wt-x"));
     }
 
     [Fact]
@@ -108,12 +108,12 @@ public class ProjectAliasResolverTests
     [Fact]
     public void Apply_renames_records_and_sessions_and_keeps_the_rest()
     {
-        var aliases = Build([@"E:\Claude\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Claude\AI-Usage"));
+        var aliases = Build([@"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Work\AI-Usage"));
         var records = new[] { Record(@"C:\a\AI-Usage", tokens: 5), Record(@"Z:\other\Thing", tokens: 7) };
 
         var applied = aliases.Apply(records);
 
-        Assert.Equal([@"E:\Claude\AI-Usage", @"Z:\other\Thing"], applied.Select(record => record.Project));
+        Assert.Equal([@"E:\Work\AI-Usage", @"Z:\other\Thing"], applied.Select(record => record.Project));
         Assert.Equal([5L, 7L], applied.Select(record => record.TotalTokens));
         Assert.Same(records[1], applied[1]);
         Assert.Equal(@"C:\a\AI-Usage", records[0].Project);
