@@ -60,6 +60,13 @@ public interface IUsageProvider
     bool SupportsInAppSignIn => false;
 
     /// <summary>
+    /// True when the account has a web route next to a local source, so the settings can offer to
+    /// skip the web session. Unlike <see cref="SupportsInAppSignIn"/> it stays true while the skip is
+    /// on, so the switch can be turned off again.
+    /// </summary>
+    bool CanSkipWebSession => false;
+
+    /// <summary>
     /// True when this app can disconnect the account even without a web session of its own: it
     /// stops reading a sign-in another tool already holds on this machine (GitHub CLI, Claude Code)
     /// and resumes on "sign in". Every provider with an in-app sign-in supports it too.

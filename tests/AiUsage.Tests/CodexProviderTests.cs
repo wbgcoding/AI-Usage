@@ -592,7 +592,7 @@ public class CodexProviderTests : IDisposable
     /// leaves that folder out on purpose.</summary>
     private CodexProvider ProviderWithWebSession(
         string sessionsRoot, Func<string, string> answerScript, out List<string> scriptRuns,
-        Func<DateTimeOffset>? now = null, bool profileFolderExists = true)
+        Func<DateTimeOffset>? now = null, bool profileFolderExists = true, AppSettings? settings = null)
     {
         var profileRoot = TempDirectory("ai-usage-codex-webview");
         WebViewHost.SetRootOverride(profileRoot);
@@ -613,7 +613,46 @@ public class CodexProviderTests : IDisposable
             return Task.FromResult(answerScript(script));
         });
 
-        return new CodexProvider(sessionsRoot, clock, source, new AppSettings(), _ => { });
+        return new CodexProvider(sessionsRoot, clock, source, settings ?? new AppSettings(), _ => { });
+    }
+
+    [Fact]
+    public async Task Local_only_never_runs_the_web_read_and_turning_it_off_resumes_it()
+    {
+        var settings = new AppSettings();
+        settings.Providers["codex"] = new ProviderSettings { LocalOnly = true };
+        var provider = ProviderWithWebSession(NewSessionsDirectory(), _ => OkEnvelope, out var scriptRuns, settings: settings);
+        Assert.True(provider.CanSkipWebSession);
+        Assert.False(provider.SupportsInAppSignIn);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Empty(scriptRuns);
+        Assert.NotEqual(SourceKind.WebSession, snapshot.SourceKind);
+        Assert.False(snapshot.WebSessionSignedIn ?? false);
+
+        settings.Providers["codex"].LocalOnly = false;
+        Assert.True(provider.SupportsInAppSignIn);
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.NotEmpty(scriptRuns);
+    }
+
+    [Fact]
+    public async Task Local_only_keeps_reading_the_session_files()
+    {
+        var settings = new AppSettings();
+        settings.Providers["codex"] = new ProviderSettings { LocalOnly = true };
+        var directory = NewSessionsDirectory();
+        var resetsAt = UnixSeconds(DateTimeOffset.Parse("2026-09-01T12:00:00Z"));
+        File.WriteAllLines(Path.Combine(directory, "rollout-test.jsonl"),
+            [RateLimitLine(DateTimeOffset.Parse("2026-09-01T09:00:00Z"), primaryPercent: 15, primaryResetsAtUnix: resetsAt)]);
+        var provider = ProviderWithWebSession(directory, _ => OkEnvelope, out var scriptRuns,
+            () => DateTimeOffset.Parse("2026-09-01T09:10:00Z"), settings: settings);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Empty(scriptRuns);
+        Assert.Equal(15, snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
     }
 
     [Fact]

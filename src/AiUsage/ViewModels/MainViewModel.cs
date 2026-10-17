@@ -30,6 +30,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly SettingsStore _settingsStore;
     private readonly HistoryStore _historyStore;
     private readonly RefreshScheduler _scheduler;
+    // Account key -> provider, for the capabilities a tile re-reads when a setting flips.
+    private readonly Dictionary<string, IUsageProvider> _providersByKey = new();
     private readonly NotificationService _notifications = new();
     private readonly Dictionary<string, ProviderTileViewModel> _tilesById;
     private readonly LogService? _logService;
@@ -639,6 +641,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             IsHidden = !visible,
             SupportsInAppSignIn = provider.SupportsInAppSignIn,
+            CanSkipWebSession = provider.CanSkipWebSession && provider.AccountKey == provider.Id,
+            LocalOnly = providerSettings?.LocalOnly ?? false,
             DisconnectsLocalSignIn = provider.SupportsSignOut,
             SupportsAddAccount = provider.SupportsMultipleAccounts,
             ReadLocations = provider.ReadLocations,
@@ -662,6 +666,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
         tile.RefreshMinutesChanged += (_, value) => SetRefreshMinutes(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
+        _providersByKey[provider.AccountKey] = provider;
+        tile.LocalOnlyChanged += (_, value) => SetLocalOnly(tile.ProviderId, value);
         tile.BarColorModeChanged += (_, value) => SetBarColorMode(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
         tile.WindowToggles.CollectionChanged += (_, _) =>
@@ -1291,6 +1297,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         GetOrCreateProviderSettings(providerId).AttentionDisabled = value;
         _settingsStore.RequestSave(_settings);
+    }
+
+    /// <summary>Persists the per-account "use local sources only" switch, lets the tile re-read the
+    /// provider's sign-in capability and refreshes that one account once so the tile shows the other
+    /// source straight away. The browser profile is never touched either way.</summary>
+    private void SetLocalOnly(string providerId, bool value)
+    {
+        GetOrCreateProviderSettings(providerId).LocalOnly = value;
+        _settingsStore.RequestSave(_settings);
+        if (_tilesById.TryGetValue(providerId, out var tile) && _providersByKey.TryGetValue(providerId, out var provider))
+            tile.SupportsInAppSignIn = provider.SupportsInAppSignIn;
+        RefreshProvider(providerId);
     }
 
     /// <summary>Persists a tile's bar color mode and asks the index for its token shares on the next

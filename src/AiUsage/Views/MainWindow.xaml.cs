@@ -588,17 +588,22 @@ public partial class MainWindow : Window, IDisposable
     /// cref="ProviderTileViewModel.SupportsSignOut"/>).</summary>
     private void WireSignIn(ProviderTileViewModel tile)
     {
-        if (!tile.SupportsSignOut)
+        // A tile that can skip its web session is wired even while the switch is on, so turning it off
+        // again finds the sign-in already connected; the branch is chosen per click.
+        if (!tile.SupportsSignOut && !tile.CanSkipWebSession)
             return;
         var accountKey = tile.ProviderId;
 
-        if (tile.SupportsInAppSignIn)
+        // Every in-app sign-in goes through the app's own WebView2 sign-in window. The account
+        // is reconnected only once that window reports a finished sign-in (CompleteSignIn):
+        // reconnecting at the start let a local source fill the tile while the user was still
+        // signing in. Copilot and the primary Claude account have no web session of their own (or
+        // skip it with the local-only switch): "sign in" only ever resumes reading the sign-in the
+        // GitHub CLI or Claude Code already holds, Copilot offering the CLI's own download page when
+        // it is missing. Never runs "gh auth login" itself.
+        tile.ActionRequested += (_, _) =>
         {
-            // Every in-app sign-in goes through the app's own WebView2 sign-in window. The account
-            // is reconnected only once that window reports a finished sign-in (CompleteSignIn):
-            // reconnecting at the start let a local source fill the tile while the user was still
-            // signing in.
-            tile.ActionRequested += (_, _) =>
+            if (tile.SupportsInAppSignIn && !tile.LocalOnly)
             {
                 WebSignInFlow.Open(this, ProviderRegistry.WebSessionFor(accountKey), signedIn =>
                 {
@@ -607,21 +612,12 @@ public partial class MainWindow : Window, IDisposable
                     if (!IsWelcomeOpen())
                         ShowAndActivate(userInitiated: false);
                 });
-            };
-        }
-        else
-        {
-            // Copilot and the primary Claude account: no web session of their own to sign into -
-            // "sign in" only ever resumes reading the sign-in the GitHub CLI or Claude Code already
-            // holds, Copilot offering the CLI's own download page when it is missing (same themed offer WebSignInFlow.Open makes for a missing WebView2 runtime).
-            // Never runs "gh auth login" itself - the CLI missing tool's own sign-in stays the user's.
-            tile.ActionRequested += (_, _) =>
-            {
-                if (WebSignInFlow.OfferGitHubCliIfMissing(this, tile.RealProviderId))
-                    return;
-                ViewModel.Reconnect(accountKey);
-            };
-        }
+                return;
+            }
+            if (tile.LocalOnly || WebSignInFlow.OfferGitHubCliIfMissing(this, tile.RealProviderId))
+                return;
+            ViewModel.Reconnect(accountKey);
+        };
 
         tile.SignOutRequested += async (_, _) =>
         {

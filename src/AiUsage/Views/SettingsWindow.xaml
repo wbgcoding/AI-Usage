@@ -930,6 +930,33 @@
                                                 Command="{Binding DataContext.RemoveAccountCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding ProviderId}"/>
                                     </WrapPanel>
+                                    <!-- Only the primary account of a provider that has a local source
+                                         besides its web session. The switch never touches the browser
+                                         profile, so turning it off resumes the web read without a new
+                                         sign-in. -->
+                                    <StackPanel Style="{StaticResource Gap.Top4}"
+                                                Visibility="{Binding CanSkipWebSession, Converter={StaticResource BoolToVis}}">
+                                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LocalOnly]}"
+                                                  IsChecked="{Binding LocalOnly}"/>
+                                        <TextBlock FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                                                   TextWrapping="Wrap" Margin="16,4,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RealProviderId}" Value="claude">
+                                                        <Setter Property="Text" Value="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LocalOnly.Note.Claude]}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding RealProviderId}" Value="codex">
+                                                        <Setter Property="Text" Value="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LocalOnly.Note.Codex]}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding RealProviderId}" Value="gemini">
+                                                        <Setter Property="Text" Value="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LocalOnly.Note.Gemini]}"/>
+                                                    </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

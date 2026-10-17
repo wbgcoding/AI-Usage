@@ -954,6 +954,29 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal(BarColorModes.Level, tile.SelectedBarColorChoice!.Value);
     }
 
+    [Fact]
+    public void TheLocalOnlySwitchTravelsThroughExportAndImportAndResetClearsIt()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Providers["claude"].LocalOnly = true;
+        var exportPath = Path.Combine(TempDirectory(), "export-local-only.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.True(targetSettings.Providers["claude"].LocalOnly);
+        var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "claude");
+        Assert.True(tile.LocalOnly);
+        Assert.False(targetSettings.Providers["codex"].LocalOnly);
+
+        targetVm.ResetToDefaults();
+
+        Assert.False(targetSettings.Providers["claude"].LocalOnly);
+        Assert.False(tile.LocalOnly);
+    }
+
     private static ProviderSnapshot FiveHourSnapshot(string providerId)
     {
         var now = DateTimeOffset.Now;

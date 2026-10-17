@@ -373,6 +373,51 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
+    public void SwitchingTheSignInCapabilityRaisesTheSignInButtons()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { SupportsInAppSignIn = true };
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now);
+        Assert.True(tile.ShowSignIn);
+        var raised = new List<string?>();
+        tile.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        tile.SupportsInAppSignIn = false;
+
+        Assert.False(tile.ShowSignIn);
+        Assert.Contains(nameof(ProviderTileViewModel.ShowSignIn), raised);
+        Assert.Contains(nameof(ProviderTileViewModel.ShowHeaderSignIn), raised);
+        Assert.Contains(nameof(ProviderTileViewModel.ShowSignOut), raised);
+        Assert.Contains(nameof(ProviderTileViewModel.SupportsSignOut), raised);
+    }
+
+    [Fact]
+    public void LocalOnlyHidesEveryWebSignInEntryEvenWhenTheAccountReadsALocalSignIn()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude")
+        {
+            SupportsInAppSignIn = true, DisconnectsLocalSignIn = true, CanSkipWebSession = true,
+        };
+        tile.Apply(Snapshot(ProviderStatus.NotSignedIn) with { Windows = [] }, Now);
+        Assert.True(tile.ShowSignIn);
+        var changes = new List<bool>();
+        tile.LocalOnlyChanged += (_, value) => changes.Add(value);
+
+        tile.LocalOnly = true;
+
+        Assert.Equal([true], changes);
+        Assert.False(tile.ShowSignIn);
+        Assert.False(tile.ShowHeaderSignIn);
+        Assert.False(tile.SupportsSignOut);
+        Assert.False(tile.HasAction);
+
+        tile.LocalOnly = false;
+
+        Assert.Equal([true, false], changes);
+        Assert.True(tile.ShowSignIn);
+        Assert.True(tile.HasAction);
+    }
+
+    [Fact]
     public void ATimeoutAndALostConnectionHaveTheirOwnWordingAndNoSignIn()
     {
         var loc = LocalizationService.Instance;

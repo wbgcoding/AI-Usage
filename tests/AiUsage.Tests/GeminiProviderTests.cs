@@ -407,6 +407,29 @@ public class GeminiProviderTests : IDisposable
         Assert.Equal(SourceKind.LocalLogin, snapshot.SourceKind);
     }
 
+    [Fact]
+    public async Task Local_only_never_runs_the_web_read_and_turning_it_off_resumes_it()
+    {
+        NetworkStatus.Probe = () => true;
+        var settings = new AppSettings();
+        settings.Providers["gemini"] = new ProviderSettings { LocalOnly = true };
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, QuotaSummary, "Google AI Pro");
+        var provider = ProviderWithWebSession(usage, _ => OkEnvelope, out var scriptRuns, settings: settings);
+        Assert.True(provider.CanSkipWebSession);
+        Assert.False(provider.SupportsInAppSignIn);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Empty(scriptRuns);
+        Assert.Equal(SourceKind.LocalLogin, snapshot.SourceKind);
+        Assert.False(snapshot.WebSessionSignedIn ?? false);
+
+        settings.Providers["gemini"].LocalOnly = false;
+        Assert.True(provider.SupportsInAppSignIn);
+        await provider.FetchAsync(CancellationToken.None);
+        Assert.NotEmpty(scriptRuns);
+    }
+
     /// <summary>One page load per five minutes, however often the tile ticks: the local sign-in is
     /// free to re-read, the browser session is not.</summary>
     [Fact]
@@ -457,7 +480,7 @@ public class GeminiProviderTests : IDisposable
     /// leaves that folder out on purpose.</summary>
     private GeminiProvider ProviderWithWebSession(
         AntigravityUsage usage, Func<string, string> answerScript, out List<string> scriptRuns,
-        Func<DateTimeOffset>? now = null, bool profileFolderExists = true)
+        Func<DateTimeOffset>? now = null, bool profileFolderExists = true, AppSettings? settings = null)
     {
         var profileRoot = TestPaths.CreateDisposableDirectory("ai-usage-gemini-webview");
         _tempDirectories.Add(profileRoot);
@@ -479,7 +502,7 @@ public class GeminiProviderTests : IDisposable
             return Task.FromResult(answerScript(script));
         });
 
-        return new GeminiProvider((_) => Task.FromResult(usage), clock, source, new AppSettings(), _ => { });
+        return new GeminiProvider((_) => Task.FromResult(usage), clock, source, settings ?? new AppSettings(), _ => { });
     }
 
     private readonly List<DisposableTestDirectory> _tempDirectories = [];

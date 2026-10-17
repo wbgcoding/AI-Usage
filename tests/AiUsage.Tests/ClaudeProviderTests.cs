@@ -342,6 +342,62 @@ public class ClaudeProviderTests : IDisposable
         Assert.Contains(LocalizationService.Instance["About.ReadLocationWebSession"], provider.ReadLocations);
     }
 
+    private static AppSettings LocalOnlySettings(string key)
+    {
+        var settings = new AppSettings();
+        settings.Providers[key] = new ProviderSettings { LocalOnly = true };
+        return settings;
+    }
+
+    [Fact]
+    public async Task Local_only_never_asks_the_web_session_even_when_claude_code_holds_no_token()
+    {
+        var webRuns = 0;
+        var provider = new ClaudeProvider(
+            projectsRoot: Path.Combine(FixturesDirectory, "does-not-exist"), now: () => Now,
+            new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => { webRuns++; return Task.FromResult(WebOkEnvelope); }),
+            LocalOnlySettings("claude"), _ => { },
+            _ => Task.FromResult(new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NoToken)));
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(0, webRuns);
+        Assert.NotEqual(SourceKind.WebSession, snapshot.SourceKind);
+        Assert.Empty(snapshot.Windows);
+        Assert.False(provider.SupportsInAppSignIn);
+        Assert.True(provider.CanSkipWebSession);
+        Assert.DoesNotContain(LocalizationService.Instance["About.ReadLocationWebSession"], provider.ReadLocations);
+    }
+
+    [Fact]
+    public async Task Local_only_still_reads_the_claude_code_sign_in()
+    {
+        var provider = new ClaudeProvider(
+            projectsRoot: Path.Combine(FixturesDirectory, "does-not-exist"), now: () => Now,
+            new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called")),
+            LocalOnlySettings("claude"), _ => { }, SignedInLocalLogin());
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.LocalLogin, snapshot.SourceKind);
+        Assert.Equal(42, snapshot.Windows.First(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+    }
+
+    [Fact]
+    public void Turning_local_only_off_again_restores_the_web_sign_in_without_a_new_provider()
+    {
+        var settings = LocalOnlySettings("claude");
+        var provider = new ClaudeProvider(
+            "claude", settings, _ => { },
+            new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult(WebOkEnvelope)), SignedInLocalLogin());
+        Assert.False(provider.SupportsInAppSignIn);
+
+        settings.Providers["claude"].LocalOnly = false;
+
+        Assert.True(provider.SupportsInAppSignIn);
+        Assert.Contains(LocalizationService.Instance["About.ReadLocationWebSession"], provider.ReadLocations);
+    }
+
     [Fact]
     public async Task The_web_session_answers_when_claude_code_holds_no_token()
     {

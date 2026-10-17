@@ -448,6 +448,12 @@ public sealed class ProviderSettings
     /// detected is marked.</summary>
     public bool AttentionDisabled { get; set; }
 
+    /// <summary>Whether this account reads only what a tool already holds on this machine and never
+    /// opens or reads the app's own web session. Default off. Only offered for the primary account of
+    /// a provider that has a local source next to its web route; the browser profile is kept, so
+    /// turning it off again resumes the web read without a new sign-in.</summary>
+    public bool LocalOnly { get; set; }
+
     /// <summary>Row labels (<see cref="Models.UsageWindow.Label"/>, a resource key or a literal
     /// provider-supplied name) hidden from this tile - only ever applies to <see
     /// cref="WindowKind.Other"/> rows, which is the one kind a provider can report more than one of.

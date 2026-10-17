@@ -91,7 +91,14 @@ public sealed class GeminiProvider : IUsageProvider
     public string DisplayName => "Gemini";
 
     // In-app sign-in needs the web session; without it sign-in stays with the Antigravity CLI.
-    public bool SupportsInAppSignIn => _webSource is not null;
+    public bool SupportsInAppSignIn => _webSource is not null && !LocalOnly;
+
+    // Only the primary account has the Antigravity sign-in to fall back on; a further account is web-only.
+    public bool CanSkipWebSession => _webSource is not null && _read is not null;
+
+    /// <summary>The settings switch that keeps this account off the web session; read live so a change
+    /// applies to the very next read.</summary>
+    private bool LocalOnly => CanSkipWebSession && _settings?.Providers.TryGetValue(_accountKey, out var own) == true && own.LocalOnly;
 
     /// <summary>A sign-in just finished: the cached answer from before it (usually "not signed in")
     /// must not stand for the rest of the throttle interval.</summary>
@@ -114,7 +121,7 @@ public sealed class GeminiProvider : IUsageProvider
     // further, web-only account - that further account can never itself sprout a third layer.
     public bool SupportsMultipleAccounts => _read is not null;
 
-    public IReadOnlyList<string> ReadLocations => (_read is not null, _webSource is not null) switch
+    public IReadOnlyList<string> ReadLocations => (_read is not null, _webSource is not null && !LocalOnly) switch
     {
         (true, false) => [LocalizationService.Instance["About.ReadLocationAntigravity"]],
         (true, true) => [LocalizationService.Instance["About.ReadLocationAntigravity"], LocalizationService.Instance["About.ReadLocationWebSession"]],
@@ -176,7 +183,7 @@ public sealed class GeminiProvider : IUsageProvider
         var local = BuildSnapshot(usage, fetchedAt);
         LogFailedSource("Antigravity sign-in read", local, localClock.ElapsedMilliseconds);
 
-        if (_webSource is null)
+        if (_webSource is null || LocalOnly)
             return await WithAccountLabelAsync(local);
 
         var webClock = System.Diagnostics.Stopwatch.StartNew();

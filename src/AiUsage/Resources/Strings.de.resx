@@ -622,4 +622,8 @@
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Sicherung vom {0}. Ohne Verlauf.</value></data>
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Anbieter hat etwas geändert, Werte evtl. unvollständig.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Protokoll öffnen</value></data>
+  <data name="Settings.LocalOnly" xml:space="preserve"><value>Nur lokale Quellen nutzen</value></data>
+  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Ohne Websitzung liest die App nur die Anmeldung von Claude Code. Ist Claude Code abgemeldet, bleibt die Kachel leer.</value></data>
+  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Ohne Websitzung kommen die Werte nur aus den Sitzungsdateien von Codex und bleiben stehen, solange du Codex nicht nutzt. Der Tarif fehlt dann.</value></data>
+  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Ohne Websitzung kommen die Werte nur aus der Anmeldung von Antigravity. Ist Antigravity nicht angemeldet, bleibt die Kachel leer.</value></data>
 </root>

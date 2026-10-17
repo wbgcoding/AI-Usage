@@ -136,7 +136,14 @@ public sealed class ClaudeProvider : IUsageProvider
     // the primary one included: it reads Claude Code's sign-in first and falls back to that session
     // when Claude Code holds no token. Whatever this says, the app never starts a provider program
     // and never touches foreign credentials.
-    public bool SupportsInAppSignIn => _webSource is not null;
+    public bool SupportsInAppSignIn => _webSource is not null && !LocalOnly;
+
+    // Only the primary account has a local sign-in to fall back on; a further account is web-only.
+    public bool CanSkipWebSession => _webSource is not null && _accountKey == Id;
+
+    /// <summary>The settings switch that keeps this account off the web session; read live so a change
+    /// applies to the very next read.</summary>
+    private bool LocalOnly => CanSkipWebSession && _settings?.Providers.TryGetValue(_accountKey, out var own) == true && own.LocalOnly;
 
     public bool SupportsSignOut => _webSource is not null || _localLogin is not null;
 
@@ -174,7 +181,7 @@ public sealed class ClaudeProvider : IUsageProvider
             var sources = new List<string>();
             if (_localLogin is not null)
                 sources.Add(LocalizationService.Instance["About.ReadLocationClaudeCode"]);
-            if (_localLogin is null || _webSource is not null)
+            if (_localLogin is null || (_webSource is not null && !LocalOnly))
                 sources.Add(LocalizationService.Instance["About.ReadLocationWebSession"]);
             if (_projectsRoots.Count == 0)
                 return sources;
@@ -302,7 +309,7 @@ public sealed class ClaudeProvider : IUsageProvider
             && fetchedAt - (localCandidate.DataTimestamp ?? DateTimeOffset.MinValue)
                 < TimeSpan.FromMinutes(SettingsRanges.MinRemoteRefreshMinutes);
 
-        if (_webSource is not null && _settings is not null && _saveSettings is not null && !localIsFreshEnough)
+        if (_webSource is not null && _settings is not null && _saveSettings is not null && !localIsFreshEnough && !LocalOnly)
         {
             var web = await BuildWebSnapshot(fetchedAt, ct);
             if (web is not null)

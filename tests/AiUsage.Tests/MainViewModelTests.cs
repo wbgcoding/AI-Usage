@@ -918,6 +918,61 @@ public class MainViewModelTests : IDisposable
         Assert.All(providers.Where(p => p.Id != "codex"), p => Assert.False(p.WasFetched));
     }
 
+    private sealed class SkippableWebFakeProvider(string accountKey, string id = "claude") : IUsageProvider
+    {
+        public string Id { get; } = id;
+        public string AccountKey { get; } = accountKey;
+        public string DisplayName => Id;
+        public bool RunsOnUiThread => true;
+        public bool SupportsInAppSignIn { get; set; } = true;
+        public bool CanSkipWebSession => true;
+        public int FetchCount { get; private set; }
+
+        public Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
+        {
+            FetchCount++;
+            return Task.FromResult(new ProviderSnapshot(AccountKey, [], null, SourceKind.None, Now, null, ProviderStatus.NoLocalData, null));
+        }
+    }
+
+    [Fact]
+    public void SwitchingLocalOnlyPersistsItAndRefreshesThatAccountOnce()
+    {
+        var settings = new AppSettings();
+        settings.Providers["claude"] = new ProviderSettings { Visible = true };
+        var provider = new SkippableWebFakeProvider("claude");
+        var other = new SkippableWebFakeProvider("codex", "codex");
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, new List<IUsageProvider> { provider, other }, new HistoryStore(TempDirectory(), () => Now));
+        var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+        Assert.True(tile.CanSkipWebSession);
+        Assert.False(tile.LocalOnly);
+        var before = provider.FetchCount;
+        var otherBefore = other.FetchCount;
+
+        tile.LocalOnly = true;
+
+        Assert.True(settings.Providers["claude"].LocalOnly);
+        Assert.Equal(before + 1, provider.FetchCount);
+        Assert.Equal(otherBefore, other.FetchCount);
+
+        provider.SupportsInAppSignIn = true;
+        tile.LocalOnly = false;
+        Assert.False(settings.Providers["claude"].LocalOnly);
+        Assert.Equal(before + 2, provider.FetchCount);
+    }
+
+    [Fact]
+    public void OnlyThePrimaryAccountOffersTheLocalOnlySwitch()
+    {
+        var settings = new AppSettings();
+        settings.Accounts["claude#2"] = "claude";
+        var providers = new List<IUsageProvider> { new SkippableWebFakeProvider("claude"), new SkippableWebFakeProvider("claude#2") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, new HistoryStore(TempDirectory(), () => Now));
+
+        Assert.True(vm.Tiles.Single(t => t.ProviderId == "claude").CanSkipWebSession);
+        Assert.False(vm.Tiles.Single(t => t.ProviderId == "claude#2").CanSkipWebSession);
+    }
+
     private (MainViewModel Vm, FakeTimeProvider Clock) BuildWithClock()
     {
         var clock = new FakeTimeProvider(Now);

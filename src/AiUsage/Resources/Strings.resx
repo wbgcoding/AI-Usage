@@ -623,4 +623,8 @@
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Backup from {0}. No history.</value></data>
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>The provider changed something; values may be incomplete.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Open log</value></data>
+  <data name="Settings.LocalOnly" xml:space="preserve"><value>Use local sources only</value></data>
+  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Without the web session the app reads only Claude Code's sign-in. If Claude Code is signed out, the tile stays empty.</value></data>
+  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Without the web session values come only from Codex's session files and stand still while you don't use Codex. The plan is not shown.</value></data>
+  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Without the web session values come only from Antigravity's sign-in. If Antigravity is not signed in, the tile stays empty.</value></data>
 </root>

@@ -260,6 +260,8 @@ public partial class SettingsWindow : Window
         StartSpin(spinner);
         try
         {
+            if (tile.LocalOnly)
+                return;
             if (!tile.SupportsInAppSignIn)
             {
                 // Copilot or the primary Claude account: no web session of its own - see

@@ -40,6 +40,7 @@ public sealed partial class CodexProvider : IUsageProvider
     private readonly Func<DateTimeOffset> _now;
     private readonly WebUsageSource? _webSource;
     private readonly ThrottledWebReader? _webReader;
+    private readonly AppSettings? _settings;
     private readonly Func<TimeSpan> _attentionMaxAge;
     private readonly string _accountKey;
     private readonly LogService _log = LogService.Shared;
@@ -100,6 +101,7 @@ public sealed partial class CodexProvider : IUsageProvider
         _sessionsRoot = sessionsRoot;
         _now = now ?? (() => DateTimeOffset.Now);
         _webSource = webSource;
+        _settings = settings;
         _attentionMaxAge = attentionMaxAge ?? (() => AttentionDetector.DefaultMaxAge);
         _accountKey = accountKey ?? Id;
         if (webSource is not null && settings is not null && saveSettings is not null)
@@ -117,7 +119,7 @@ public sealed partial class CodexProvider : IUsageProvider
 
     public string DisplayName => "Codex";
 
-    public IReadOnlyList<string> ReadLocations => (_sessionsRoot.Length > 0, _webSource is not null) switch
+    public IReadOnlyList<string> ReadLocations => (_sessionsRoot.Length > 0, _webSource is not null && !LocalOnly) switch
     {
         (true, false) => [CodexPaths.SessionsDisplay],
         (true, true) => [CodexPaths.SessionsDisplay, LocalizationService.Instance["About.ReadLocationWebSession"]],
@@ -126,7 +128,14 @@ public sealed partial class CodexProvider : IUsageProvider
 
     // Only once the app actually owns a browser session for this provider - a build without one has
     // nothing for the two buttons to act on.
-    public bool SupportsInAppSignIn => _webSource is not null;
+    public bool SupportsInAppSignIn => _webSource is not null && !LocalOnly;
+
+    // Only the primary account has session files to fall back on; a further account is web-only.
+    public bool CanSkipWebSession => _webSource is not null && _sessionsRoot.Length > 0;
+
+    /// <summary>The settings switch that keeps this account off the web session; read live so a change
+    /// applies to the very next read.</summary>
+    private bool LocalOnly => CanSkipWebSession && _settings?.Providers.TryGetValue(_accountKey, out var own) == true && own.LocalOnly;
 
     /// <summary>A sign-in just finished: the cached answer from before it (usually "not signed in")
     /// must not stand for the rest of the throttle interval.</summary>
@@ -169,7 +178,7 @@ public sealed partial class CodexProvider : IUsageProvider
                     UnreadableAnswer: _webReader?.AnswerUnread == true);
         }
 
-        if (_webSource is null)
+        if (_webSource is null || LocalOnly)
             return FetchCore(fetchedAt, ct).Snapshot;
 
         // This provider stays off the scheduler's thread-pool wrap (see RunsOnUiThread) so the web

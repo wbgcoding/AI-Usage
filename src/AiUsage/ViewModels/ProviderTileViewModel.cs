@@ -269,16 +269,41 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     }
 
     /// <summary>Whether the provider behind this tile can be signed in/out of directly from the app -
-    /// set once at construction from the provider's own capability, so no <c>[ObservableProperty]</c>
-    /// is needed.</summary>
-    public bool SupportsInAppSignIn { get; init; }
+    /// set at construction from the provider's own capability and refreshed when the local-only
+    /// switch flips (it drops the in-app sign-in while on).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SupportsSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
+    private bool supportsInAppSignIn;
+
+    /// <summary>Whether the account may skip its web session (the "use local sources only" switch is
+    /// offered): primary account of a provider that has a local source besides the web one.</summary>
+    public bool CanSkipWebSession { get; init; }
+
+    /// <summary>The per-account "use local sources only" switch: while on, no web read and no web
+    /// sign-in for this account.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SupportsSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
+    [NotifyPropertyChangedFor(nameof(HasAction))]
+    private bool localOnly;
+
+    public event EventHandler<bool>? LocalOnlyChanged;
+
+    partial void OnLocalOnlyChanged(bool value) => LocalOnlyChanged?.Invoke(this, value);
 
     /// <summary>Whether this tile shows a connect/disconnect pair at all - true for every provider
     /// <see cref="SupportsInAppSignIn"/> already covers, plus Copilot, which disconnects the GitHub
     /// CLI read this app makes rather than a web session of its own (see <see
     /// cref="Services.IUsageProvider.SupportsSignOut"/>). Real provider id, not the account key: a
     /// further Copilot account gets the same pair as the primary one.</summary>
-    public bool SupportsSignOut => SupportsInAppSignIn || RealProviderId == "copilot" || DisconnectsLocalSignIn;
+    public bool SupportsSignOut => !LocalOnly && (SupportsInAppSignIn || RealProviderId == "copilot" || DisconnectsLocalSignIn);
 
     /// <summary>Set from <see cref="Services.IUsageProvider.SupportsSignOut"/>: the account reads a
     /// sign-in another tool holds (the primary Claude account through Claude Code), so "sign out"
@@ -1018,7 +1043,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// provider that was never found at all.</summary>
     public bool HasNumbers => IsOk || IsStale;
 
-    public bool HasAction => !string.IsNullOrEmpty(ActionLabelText);
+    /// <summary>Local-only has no sign-in to offer, so the placeholder's sign-in action stays off.</summary>
+    public bool HasAction => !string.IsNullOrEmpty(ActionLabelText) && !(LocalOnly && _actionKey == "Action_SignIn");
 
     public bool IsMini => Density == TileDensity.Mini;
 
@@ -1178,7 +1204,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     /// <summary>True on Codex's stale tile that reads the local files only and has no web session yet:
     /// next to the hint, a link starts the web sign-in for live values.</summary>
-    public bool ShowCodexSignInLink => _codexLocalHint && SignInState != SignInState.SignedIn && ShowStaleNotice;
+    public bool ShowCodexSignInLink => _codexLocalHint && !LocalOnly && SignInState != SignInState.SignedIn && ShowStaleNotice;
 
     private bool _codexLocalHint;
 
