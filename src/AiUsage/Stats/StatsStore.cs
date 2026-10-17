@@ -233,21 +233,84 @@ public sealed class StatsStore
         }
     }
 
-    /// <summary>Puts the newest readable weekly copy in place of the missing index. The copy is made
-    /// next to the target and moved in, so the index file never appears half written; a copy that cannot
-    /// be read or copied is skipped for the next older one. False when no copy could be used.</summary>
-    private bool TryRestoreWeeklyCopy(string fullPath)
+    private enum CopyVerdict { Usable, Corrupt, Transient }
+
+    private readonly record struct PreparedRestore(DateOnly Date, string CopyPath, string TemporaryPath);
+
+    private const int SqliteError = 1;
+    private const int CopyCheckBusyMilliseconds = 250;
+
+    /// <summary>Reads a weekly copy through SQLite's full integrity check. Corrupt only when the copy
+    /// itself is proven bad (not a database, failed check, no version row); a lock or an IO hiccup is
+    /// Transient, the copy may be perfectly fine a moment later.</summary>
+    private static CopyVerdict JudgeWeeklyCopy(string copyPath)
     {
+        try
+        {
+            var connectionString = new SqliteConnectionStringBuilder { DataSource = copyPath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            Execute(connection, "PRAGMA trusted_schema = OFF");
+            Execute(connection, $"PRAGMA busy_timeout = {CopyCheckBusyMilliseconds}");
+            using (var check = connection.CreateCommand())
+            {
+                check.CommandText = "PRAGMA integrity_check(1)";
+                if (!string.Equals(check.ExecuteScalar() as string, "ok", StringComparison.OrdinalIgnoreCase))
+                    return CopyVerdict.Corrupt;
+            }
+
+            using var version = connection.CreateCommand();
+            version.CommandText = "SELECT MAX(version) FROM schema_version";
+            var value = version.ExecuteScalar();
+            return value is null or DBNull
+                || !long.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                ? CopyVerdict.Corrupt
+                : CopyVerdict.Usable;
+        }
+        catch (SqliteException ex)
+        {
+            return ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase or SqliteError ? CopyVerdict.Corrupt : CopyVerdict.Transient;
+        }
+    }
+
+    private enum RestorePlan { NoCopy, Ready, Wait }
+
+    /// <summary>Chooses the newest usable weekly copy and copies it next to the target (the index file
+    /// never appears half written). Runs before the damaged file is touched. A copy is marked tried only
+    /// when it is proven corrupt; a lock or IO error is retried a few times and then ends the attempt as
+    /// <see cref="RestorePlan.Wait"/>, never falling back to an older copy (a week of rows lost for a
+    /// lock that passes).</summary>
+    private RestorePlan PrepareWeeklyRestore(string fullPath, out PreparedRestore prepared)
+    {
+        prepared = default;
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
             foreach (var (date, copyPath) in ListWeeklyCopies(Path.Combine(directory, WeeklyCopyFolder), DateOnly.FromDateTime(DateTime.Now)))
             {
-                // Each copy gets one try per process: a flaw the copy carries would come back with it.
-                if (!TriedCopies.Add(copyPath))
+                // A copy that carried a flaw (or was restored already) gets no second try per process.
+                if (TriedCopies.Contains(copyPath))
                     continue;
-                if (TryReadSchemaVersion(copyPath, thorough: true) is null)
+
+                var verdict = CopyVerdict.Transient;
+                for (var attempt = 1; attempt <= RestoreMoveAttempts && verdict == CopyVerdict.Transient; attempt++)
+                {
+                    verdict = JudgeWeeklyCopy(copyPath);
+                    if (verdict == CopyVerdict.Transient && attempt < RestoreMoveAttempts)
+                        Thread.Sleep(RestoreMoveRetryMilliseconds);
+                }
+
+                if (verdict == CopyVerdict.Corrupt)
+                {
+                    TriedCopies.Add(copyPath);
                     continue;
+                }
+
+                if (verdict == CopyVerdict.Transient)
+                {
+                    _logError?.Invoke("Statistics: a weekly copy of the index is busy and could not be checked; the restore waits.");
+                    return RestorePlan.Wait;
+                }
 
                 var temporaryPath = fullPath + ".restore-tmp";
                 try
@@ -255,44 +318,21 @@ public sealed class StatsStore
                     File.Delete(temporaryPath);
                     SnapshotIndex(copyPath, temporaryPath);
                 }
+                catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
+                {
+                    DeleteRestoreLeftovers(temporaryPath);
+                    TriedCopies.Add(copyPath);
+                    continue;
+                }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
                 {
                     DeleteRestoreLeftovers(temporaryPath);
-                    continue;
+                    _logError?.Invoke("Statistics: a weekly copy of the index could not be copied; the restore waits.");
+                    return RestorePlan.Wait;
                 }
 
-                // The copy is good; only the move can fail now (a scanner holding the target for a moment).
-                // A few tries, then stop: an older copy would give up a week of rows for a lock that passes.
-                var moved = false;
-                for (var attempt = 1; attempt <= RestoreMoveAttempts && !moved; attempt++)
-                {
-                    try
-                    {
-                        BeforeRestoreMove?.Invoke();
-                        // The copy may hold an older schema: the next open has to bring it up to date.
-                        EnsuredDatabases.TryRemove(fullPath, out _);
-                        File.Move(temporaryPath, fullPath, overwrite: false);
-                        moved = true;
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        if (attempt < RestoreMoveAttempts)
-                            Thread.Sleep(RestoreMoveRetryMilliseconds);
-                    }
-                }
-
-                if (!moved)
-                {
-                    // The copy itself is fine: a later start may use it.
-                    TriedCopies.Remove(copyPath);
-                    DeleteRestoreLeftovers(temporaryPath);
-                    _logError?.Invoke("Statistics: the weekly copy of the index could not be moved into place.");
-                    return false;
-                }
-
-                RecentlyRestored[fullPath] = Environment.TickCount64;
-                _logError?.Invoke($"Statistics: the index was restored from the weekly copy of {date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture)}.");
-                return true;
+                prepared = new PreparedRestore(date, copyPath, temporaryPath);
+                return RestorePlan.Ready;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -300,7 +340,45 @@ public sealed class StatsStore
             // No readable copy folder: the caller falls back to a rebuild.
         }
 
-        return false;
+        return RestorePlan.NoCopy;
+    }
+
+    /// <summary>Moves the prepared copy to the (now free) index path. False when the move failed: the
+    /// copy itself is fine and stays for a later start.</summary>
+    private bool FinishWeeklyRestore(string fullPath, PreparedRestore prepared)
+    {
+        // The copy is good; only the move can fail now (a scanner holding the target for a moment).
+        // A few tries, then stop: an older copy would give up a week of rows for a lock that passes.
+        var moved = false;
+        for (var attempt = 1; attempt <= RestoreMoveAttempts && !moved; attempt++)
+        {
+            try
+            {
+                BeforeRestoreMove?.Invoke();
+                // The copy may hold an older schema: the next open has to bring it up to date.
+                EnsuredDatabases.TryRemove(fullPath, out _);
+                File.Move(prepared.TemporaryPath, fullPath, overwrite: false);
+                moved = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt < RestoreMoveAttempts)
+                    Thread.Sleep(RestoreMoveRetryMilliseconds);
+            }
+        }
+
+        if (!moved)
+        {
+            DeleteRestoreLeftovers(prepared.TemporaryPath);
+            _logError?.Invoke("Statistics: the weekly copy of the index could not be moved into place.");
+            return false;
+        }
+
+        // Restored once per process: the same flaw would come back with the same copy.
+        TriedCopies.Add(prepared.CopyPath);
+        RecentlyRestored[fullPath] = Environment.TickCount64;
+        _logError?.Invoke($"Statistics: the index was restored from the weekly copy of {prepared.Date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture)}.");
+        return true;
     }
 
     // A copy that cannot be deleted (held by a scanner) is logged apart from a failed write and stays for
@@ -860,6 +938,11 @@ public sealed class StatsStore
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
+            // The copy is chosen and copied before the damaged file moves: a copy that is only busy
+            // leaves the index where it is, the next open meets the damage again and retries.
+            var plan = PrepareWeeklyRestore(fullPath, out var prepared);
+            if (plan == RestorePlan.Wait)
+                return;
             // The index is the only copy of usage whose session logs are gone, so earlier copies are
             // kept too: only those beyond the newest few are removed.
             // After a restore in this process the file set aside first holds the newest rows: a repeat
@@ -886,7 +969,7 @@ public sealed class StatsStore
                 if (File.Exists(fullPath + suffix))
                     File.Move(fullPath + suffix, setAside + suffix, overwrite: true);
             }
-            if (!TryRestoreWeeklyCopy(fullPath))
+            if (plan != RestorePlan.Ready || !FinishWeeklyRestore(fullPath, prepared))
                 _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

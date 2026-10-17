@@ -1871,6 +1871,41 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void A_locked_newest_weekly_copy_is_waited_for_not_skipped_and_the_damaged_index_stays_put()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-locked-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-locked");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var newest = Path.Combine(dataDir, "stats-backups", "stats-2026-10-01.db");
+        WriteGarbage(dbPath);
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        // Another process holds the newest copy exclusively for a moment (a scanner, a backup tool).
+        using (var holder = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = newest, Pooling = false }.ToString()))
+        {
+            holder.Open();
+            using (var lockIt = holder.CreateCommand())
+            {
+                lockIt.CommandText = "PRAGMA locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE;";
+                lockIt.ExecuteNonQuery();
+            }
+
+            store.TryLoadSourceFiles(out _);
+            Assert.DoesNotContain(logged, line => line.Contains("restored from", StringComparison.Ordinal));
+            Assert.DoesNotContain(logged, line => line.Contains("rebuilt", StringComparison.Ordinal));
+            Assert.Empty(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+            Assert.True(File.Exists(dbPath));
+        }
+
+        // The lock is gone: the same newest copy is used, not the older one and not an empty index.
+        store.TryLoadSourceFiles(out _);
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a", "file-b"], states.Keys.Order());
+    }
+
+    [Fact]
     public void A_move_that_keeps_failing_ends_the_restore_without_trying_an_older_copy()
     {
         using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-stop-seed");
