@@ -74,6 +74,12 @@ public static class ClaudeUsageParser
     // The window names and limit kinds this read was written for. Anything else the answer carries
     // is named in ChangeNotes instead of being skipped without a trace.
     private static readonly string[] KnownWindowKeys = ["five_hour", "seven_day"];
+
+    // Windows the answer is known to carry beside the two shown ones: the per-model and per-app weekly
+    // windows and the extra-usage block. They are read elsewhere or left out on purpose, so a number
+    // in them is no change.
+    private static readonly string[] KnownUnshownWindowKeys =
+        ["seven_day_opus", "seven_day_sonnet", "seven_day_haiku", "seven_day_oauth_apps", "extra_usage"];
     private static readonly string[] KnownLimitKinds = ["weekly_scoped", "session"];
 
     /// <summary>
@@ -109,7 +115,8 @@ public static class ClaudeUsageParser
                     if (!hasPercentField)
                         notes.Add($"the window '{name}' holds none of the known percent fields (keys: {ReadChangeLog.SafeNames(property.Value.EnumerateObject().Select(p => p.Name))}).");
                 }
-                else if (PercentKeys.Any(key => property.Value.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number))
+                else if (!KnownUnshownWindowKeys.Contains(property.Name)
+                    && PercentKeys.Any(key => property.Value.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number))
                 {
                     notes.Add($"the answer holds an unknown window '{name}', which is not shown.");
                 }

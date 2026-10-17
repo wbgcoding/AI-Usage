@@ -33,8 +33,13 @@ public class ProviderChangeNotesTests
 
     [Fact]
     public void Claude_a_window_object_with_an_unknown_name_is_named() =>
-        Assert.Contains("unknown window 'seven_day_haiku'", Assert.Single(ClaudeUsageParser.ChangeNotes(
-            """{"five_hour":{"utilization":1},"seven_day_haiku":{"utilization":4,"resets_at":1790812800}}""")), StringComparison.Ordinal);
+        Assert.Contains("unknown window 'seven_day_newmodel'", Assert.Single(ClaudeUsageParser.ChangeNotes(
+            """{"five_hour":{"utilization":1},"seven_day_newmodel":{"utilization":4,"resets_at":1790812800}}""")), StringComparison.Ordinal);
+
+    [Fact]
+    public void Claude_the_known_per_model_and_extra_usage_windows_need_no_note() =>
+        Assert.Empty(ClaudeUsageParser.ChangeNotes(
+            """{"five_hour":{"utilization":1},"seven_day":{"utilization":2},"seven_day_opus":{"utilization":3},"seven_day_sonnet":{"utilization":4},"seven_day_oauth_apps":{"utilization":5},"extra_usage":{"is_enabled":true,"utilization":6}}"""));
 
     [Fact]
     public void Claude_a_known_window_without_any_percent_field_names_its_keys()
@@ -300,7 +305,7 @@ public class ProviderChangeNotesTests
     {
         using var capture = ReadChangeLog.BeginCapture();
 
-        new ClaudeUsageEndpoint().ParseBody("""{"five_hour":{"utilization":1},"seven_day_haiku":{"utilization":4}}""");
+        new ClaudeUsageEndpoint().ParseBody("""{"five_hour":{"utilization":1},"seven_day_newmodel":{"utilization":4}}""");
         new CodexUsageEndpoint(() => DateTimeOffset.Parse("2026-10-17T12:00:00Z")).ParseBody(
             """{"rate_limit":{"primary_window":{"used_percent":1,"limit_window_seconds":18000},"tertiary_window":{"used_percent":9}}}""");
         new CursorUsageEndpoint().ParseBody("""{"individualUsage":{"plan":{"autoPercentUsed":10,"imagePercentUsed":4}}}""");
