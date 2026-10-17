@@ -146,8 +146,8 @@ public sealed class StatsStore
             var folder = Path.Combine(dataDirectory, WeeklyCopyFolder);
             if (Directory.Exists(folder))
             {
-                foreach (var leftover in Directory.EnumerateFiles(folder, "stats-*.db.tmp"))
-                    File.Delete(leftover);
+                foreach (var leftover in Directory.EnumerateFiles(folder, "stats-*.db.tmp").ToList())
+                    TryRemoveOldCopy(leftover);
             }
 
             var source = DatabasePathIn(dataDirectory);
@@ -184,7 +184,7 @@ public sealed class StatsStore
             }
 
             foreach (var older in ListWeeklyCopies(folder, today).Skip(KeptWeeklyCopies))
-                File.Delete(older.Path);
+                TryRemoveOldCopy(older.Path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
@@ -260,6 +260,20 @@ public sealed class StatsStore
         }
 
         return false;
+    }
+
+    // A copy that cannot be deleted (held by a scanner) is logged apart from a failed write and stays for
+    // the next week's pass; it never stops the new copy.
+    private void TryRemoveOldCopy(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logError?.Invoke($"Statistics: an old copy of the index could not be removed ({ex.GetType().Name}).");
+        }
     }
 
     private const int RestoreMoveAttempts = 3;

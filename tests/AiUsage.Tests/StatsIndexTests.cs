@@ -1894,4 +1894,41 @@ public class StatsIndexTests
         Assert.Equal(3, calls);
         Assert.DoesNotContain(logged, line => line.Contains("restored from", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void A_locked_leftover_does_not_stop_the_weekly_copy_and_is_logged_as_a_removal_failure()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-leftover");
+        SeedIndex(dataDir, "file-a");
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        var leftover = Path.Combine(folder, "stats-2026-09-01.db.tmp");
+        File.WriteAllText(leftover, "half");
+        var logged = new List<string>();
+
+        using (new FileStream(leftover, FileMode.Open, FileAccess.Read, FileShare.None))
+            new StatsStore(dataDir, logError: logged.Add).WriteWeeklyCopy(dataDir, WeekStart);
+
+        Assert.Contains("stats-2026-10-01.db", WeeklyCopyNames(dataDir));
+        Assert.Contains(logged, line => line.Contains("could not be removed", StringComparison.Ordinal));
+        Assert.DoesNotContain(logged, line => line.Contains("could not be written", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_copy_that_cannot_be_deleted_is_logged_as_a_removal_failure_not_a_write_failure()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-keep");
+        SeedIndex(dataDir, "file-a");
+        var store = new StatsStore(dataDir);
+        foreach (var days in new[] { -21, -14, -7 })
+            store.WriteWeeklyCopy(dataDir, WeekStart.AddDays(days));
+        var oldest = Path.Combine(dataDir, "stats-backups", "stats-2026-09-10.db");
+        var logged = new List<string>();
+
+        using (new FileStream(oldest, FileMode.Open, FileAccess.Read, FileShare.None))
+            new StatsStore(dataDir, logError: logged.Add).WriteWeeklyCopy(dataDir, WeekStart);
+
+        Assert.Contains("stats-2026-10-01.db", WeeklyCopyNames(dataDir));
+        Assert.Contains(logged, line => line.Contains("could not be removed", StringComparison.Ordinal));
+        Assert.DoesNotContain(logged, line => line.Contains("could not be written", StringComparison.Ordinal));
+    }
 }
