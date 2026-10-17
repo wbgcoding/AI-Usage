@@ -393,6 +393,26 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Reordering_a_tile_moves_its_rows_instead_of_rebuilding_them()
+    {
+        var settings = new AppSettings();
+        settings.Providers["claude"].Order = 0;
+        settings.Providers["codex"].Order = 1;
+        settings.Providers["gemini"].Order = 2;
+        settings.Providers["copilot"].Order = 3;
+        var (vm, _) = Build(settings);
+        var before = vm.NotificationRows.Select(r => r.ProviderId).ToList();
+        var codexRow = vm.NotificationRows.Single(r => r.ProviderId == "codex");
+
+        vm.Main.MoveProviderUpCommand.Execute("codex");
+
+        var codexIndex = before.IndexOf("codex") - 1;
+        Assert.Same(codexRow, vm.NotificationRows[codexIndex]);
+        Assert.Same(codexRow.Threshold, vm.ThresholdRows[codexIndex]);
+        Assert.Equal(vm.Main.Tiles.Select(t => t.ProviderId), vm.NotificationRows.Select(r => r.ProviderId));
+    }
+
+    [Fact]
     public void ZoomLabelsFollowTheLanguagesPercentConvention()
     {
         var (vm, _) = Build();
@@ -2487,7 +2507,7 @@ public class SettingsViewModelTests : IDisposable
         await vm.ImportPcCommand.ExecuteAsync(null);
         await vm.ImportPcCommand.ExecuteAsync(null); // the same PC again
 
-        var expected = LocalizationService.Instance.Format("Settings.Backup.Imported", 1, "Work PC");
+        var expected = LocalizationService.Instance.Format("Settings.Backup.Imported.One", 1, "Work PC");
         Assert.Equal([expected, expected], messages);
         var imported = Assert.Single(settings.ImportedMachines);
         Assert.Equal((OtherPc, "Work PC"), (imported.Id, imported.Name));

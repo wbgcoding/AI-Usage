@@ -126,11 +126,11 @@ public class StatsHeatmapTests
 
     [Theory]
     [InlineData("en-US", "Tuesday, 2:00 PM-3:00 PM: 1,234 tokens")]
-    [InlineData("de-DE", "Dienstag, 14:00-15:00 Uhr: 1.234 Token")]
+    [InlineData("de-DE", "Dienstag, 14:00-15:00: 1.234 Token")]
     public void The_hover_text_names_weekday_hours_and_tokens(string cultureName, string expected)
     {
         var culture = new CultureInfo(cultureName);
-        var format = cultureName == "en-US" ? "{0}, {1}-{2}: {3} tokens" : "{0}, {1}-{2} Uhr: {3} Token";
+        var format = cultureName == "en-US" ? "{0}, {1}-{2}: {3} tokens" : "{0}, {1}-{2}: {3} Token";
 
         Assert.Equal(expected, StatsHeatmap.BuildTooltip(format, DayOfWeek.Tuesday, 14, 1234, culture));
     }

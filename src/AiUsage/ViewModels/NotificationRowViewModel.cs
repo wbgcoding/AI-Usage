@@ -65,10 +65,10 @@ public sealed partial class NotificationRowViewModel : ObservableObject
 
     /// <summary>Names what the master switch actually toggles for a screen reader, which otherwise
     /// only announces the checkbox's own bare "Ein" content.</summary>
-    public string NotificationsEnabledFullLabel => $"{NotificationsForProviderText}: {Loc["Settings.On"]}";
+    public string NotificationsEnabledFullLabel => Loc.Format("Format.LabelValue", NotificationsForProviderText, Loc["Settings.On"]);
 
     public string NotifyOnResetEnabledFullLabel =>
-        $"{HeaderDisplayName} {Loc["Settings.NotifyOnResetForProvider"]}: {Loc["Settings.On"]}";
+        Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {Loc["Settings.NotifyOnResetForProvider"]}", Loc["Settings.On"]);
 
     private static LocalizationService Loc => LocalizationService.Instance;
 

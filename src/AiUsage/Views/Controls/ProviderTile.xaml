@@ -340,10 +340,6 @@
                             FontSize="{StaticResource Font.Size.Small}"
                             Visibility="{Binding ShowHeaderSignIn, Converter={StaticResource BoolToVis}}"
                             Command="{Binding RunActionCommand}"/>
-                    <!-- The per-tile hide button is gone (the context menu's "Tile.Hide" entry and the
-                         title bar's eye menu still route to the same hide command underneath), and the
-                         refresh button moved onto the provider name itself (see TileNameButtonStyle
-                         above) - one fewer control crowding the header. -->
                 </StackPanel>
             </Grid>
 

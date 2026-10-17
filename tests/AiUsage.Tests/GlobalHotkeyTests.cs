@@ -4,6 +4,7 @@ using Xunit;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class GlobalHotkeyTests
 {
     [Fact]
@@ -136,5 +137,23 @@ public class GlobalHotkeyTests
 
         Assert.True(matched);
         Assert.Equal(expected, direction);
+    }
+
+    [Theory]
+    [InlineData("de", "Ctrl+Shift+Win+U", "Strg+Umschalt+Win+U")]
+    [InlineData("en", "Ctrl+Shift+Win+U", "Ctrl+Shift+Win+U")]
+    [InlineData("de", "not a hotkey", "not a hotkey")]
+    public void The_display_form_names_the_modifiers_in_the_active_language(string language, string stored, string expected)
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage(language);
+        try
+        {
+            Assert.Equal(expected, GlobalHotkey.FormatForDisplay(stored));
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
     }
 }

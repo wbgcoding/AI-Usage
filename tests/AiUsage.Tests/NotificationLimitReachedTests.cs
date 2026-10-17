@@ -200,6 +200,27 @@ public class NotificationLimitReachedTests : IDisposable
         Assert.DoesNotContain("2h", withoutReset);
     }
 
+    [Theory]
+    [InlineData("en", "Codex: limit reached for 5 hours, resets in 2h")]
+    [InlineData("de", "Codex: Limit für 5 Stunden erreicht, noch 2h")]
+    public void The_text_carries_the_countdown_wording_once(string language, string expected)
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage(language);
+        try
+        {
+            var text = new LimitReachedNotification("codex", "Codex", WindowKind.FiveHour, Start.AddHours(2)).Text(Start);
+            var countdown = CountdownFormatter.Format(Start.AddHours(2), Start);
+
+            Assert.Equal(expected, text);
+            Assert.Equal(text.IndexOf(countdown, StringComparison.Ordinal), text.LastIndexOf(countdown, StringComparison.Ordinal));
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
+
     private sealed class SteadyProvider(string id) : IUsageProvider
     {
         public string Id { get; } = id;

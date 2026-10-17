@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Media;
+using AiUsage.Services;
 
 namespace AiUsage.Views.Controls;
 
@@ -245,7 +246,7 @@ public sealed class StatsHeatmap : FrameworkElement
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var typeface = ChartFonts.UiTypeface(this);
-        var culture = CultureInfo.CurrentCulture;
+        var culture = LocalizationService.Instance.DisplayCulture;
 
         if (!HasData)
         {
@@ -313,7 +314,7 @@ public sealed class StatsHeatmap : FrameworkElement
     private ChartTooltipPopup? _tooltipPopup;
 
     private string TextOf(int row, int column) =>
-        BuildTooltip(TooltipFormat, DayOfRow(FirstDay, row), column, Values[row * Columns + column], CultureInfo.CurrentCulture);
+        BuildTooltip(TooltipFormat, DayOfRow(FirstDay, row), column, Values[row * Columns + column], LocalizationService.Instance.DisplayCulture);
 
     /// <summary>The leader line of one cell, empty when there is none.</summary>
     private string LeaderOf(int row, int column)

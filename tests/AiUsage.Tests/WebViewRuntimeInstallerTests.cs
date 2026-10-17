@@ -158,7 +158,7 @@ public class WebViewRuntimeInstallerTests
             return;
 
         Assert.Equal(WebViewInstallOutcome.DownloadFailed, result.Outcome);
-        Assert.Equal("prepare: the downloaded file is a link", result.Cause);
+        Assert.Equal(LocalizationService.Instance["WebView2.Detail.Link"], result.Cause);
         Assert.False(verified);
         Assert.False(ran);
         Assert.True(File.Exists(target), "the link's target is not touched");
@@ -249,7 +249,7 @@ public class WebViewRuntimeInstallerTests
         var result = await rig.Build().InstallAsync(null, null, CancellationToken.None);
 
         Assert.Equal(WebViewInstallOutcome.InstallerFailed, result.Outcome);
-        Assert.Equal("install: exit code 5", result.Cause);
+        Assert.Equal(LocalizationService.Instance.Format("WebView2.Detail.ExitCode", 5), result.Cause);
         Assert.False(File.Exists(rig.DownloadedFile));
     }
 

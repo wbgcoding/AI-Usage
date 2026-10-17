@@ -61,5 +61,26 @@ public class LocalizationServiceTests
         }
     }
 
+    [Fact]
+    public void The_display_culture_names_days_and_months_in_the_ui_language_and_keeps_the_regional_format()
+    {
+        var regional = CultureInfo.GetCultureInfo("en-US");
+        var display = LocalizationService.DisplayCultureFor(regional, CultureInfo.GetCultureInfo("de"));
+        var day = new DateTime(2026, 10, 1, 14, 30, 0);
+
+        Assert.Equal("Donnerstag", display.DateTimeFormat.GetDayName(day.DayOfWeek));
+        Assert.Equal("Okt", display.DateTimeFormat.AbbreviatedMonthNames[9]);
+        Assert.Equal(day.ToString("t", regional), day.ToString("t", display));
+        Assert.Equal(1234.5.ToString("N1", regional), 1234.5.ToString("N1", display));
+    }
+
+    [Fact]
+    public void The_display_culture_is_the_regional_one_itself_when_the_languages_agree()
+    {
+        var regional = CultureInfo.GetCultureInfo("de-AT");
+
+        Assert.Same(regional, LocalizationService.DisplayCultureFor(regional, CultureInfo.GetCultureInfo("de")));
+    }
+
     private static ResourceManager Resolve(string language) => LocalizationService.ResourceManagerFor(language);
 }

@@ -218,7 +218,8 @@
                                         Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding ModelFilterText}" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding ModelFilterText}" VerticalAlignment="Center" MaxWidth="320"
+                                                   TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
                                                    FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
                                         <Button Command="{Binding ClearModelFilterCommand}" Margin="8,0,0,0" Padding="4,0"
                                                 Style="{StaticResource AiUsageQuietButton}" VerticalAlignment="Center"
@@ -234,7 +235,8 @@
                                         Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding ProjectFilterText}" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding ProjectFilterText}" VerticalAlignment="Center" MaxWidth="320"
+                                                   TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
                                                    FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
                                         <Button Command="{Binding ClearProjectFilterCommand}" Margin="8,0,0,0" Padding="4,0"
                                                 Style="{StaticResource AiUsageQuietButton}" VerticalAlignment="Center"
@@ -371,10 +373,8 @@
                                 </StackPanel>
                             </controls:CollapsibleSection>
 
-                            <!-- Five cards, all the same shape - number, caption, a third line that is
-                                 always there (the busiest day's own date, empty everywhere else) - so
-                                 none of them needs a taller card than its neighbours to fit its own
-                                 content. -->
+                            <!-- The figure cards share one shape - number, caption and an optional
+                                 third line - so the row stays even whichever of them carries one. -->
                             <controls:CollapsibleSection x:Name="FiguresSection" SectionKey="figures"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Figures]}"
                                     Summary="{Binding TotalFigureText}">
@@ -844,7 +844,12 @@
                                                                                                 <Rectangle.Style>
                                                                                                     <Style TargetType="Rectangle">
                                                                                                         <Setter Property="Fill" Value="{DynamicResource Level.Ok.Fill}"/>
+                                                                                                        <!-- The same 3 px stub the tile's bar shows for a small but real use. -->
+                                                                                                        <Setter Property="MinWidth" Value="3"/>
                                                                                                         <Style.Triggers>
+                                                                                                            <DataTrigger Binding="{Binding HighestPercent}" Value="0">
+                                                                                                                <Setter Property="MinWidth" Value="0"/>
+                                                                                                            </DataTrigger>
                                                                                                             <DataTrigger Binding="{Binding Level}" Value="Warn">
                                                                                                                 <Setter Property="Fill" Value="{DynamicResource Level.Warn.Fill}"/>
                                                                                                             </DataTrigger>

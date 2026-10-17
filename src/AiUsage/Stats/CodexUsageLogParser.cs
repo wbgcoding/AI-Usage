@@ -116,14 +116,14 @@ public sealed class CodexUsageLogParser
             // A line missing any of the three base running totals says nothing reliable: reading the
             // gap as zero would make the next complete line count its whole total as new. Such a line
             // is skipped and the previous totals stay.
-            if (JsonReading.TryGetInt64(total, "input_tokens") is not { } input
-                || JsonReading.TryGetInt64(total, "output_tokens") is not { } output
-                || JsonReading.TryGetInt64(total, "cached_input_tokens") is not { } cacheRead)
+            if (Count(total, "input_tokens") is not { } input
+                || Count(total, "output_tokens") is not { } output
+                || Count(total, "cached_input_tokens") is not { } cacheRead)
                 return false;
 
             // Older Codex versions write no cache-write total at all; requiring it would drop every
             // line of their logs. Where it is missing the previous total stands, so it adds nothing.
-            var cacheCreation = JsonReading.TryGetInt64(total, "cache_write_input_tokens") ?? _cumulativeCacheCreation;
+            var cacheCreation = Count(total, "cache_write_input_tokens") ?? _cumulativeCacheCreation;
 
             // Codex resets its running totals not only across files but also mid file, after a
             // context compaction - each of the four counters is checked against its own previous
@@ -220,4 +220,8 @@ public sealed class CodexUsageLogParser
     /// back to zero (a context compaction, or a fresh file), so the new value is counted as this
     /// event's whole delta rather than being clamped to zero and lost.</summary>
     private static long CounterDelta(long previous, long current) => current < previous ? current : current - previous;
+
+    /// <summary>A running total as a count; a negative value is no count at all and reads as missing.</summary>
+    private static long? Count(JsonElement parent, string propertyName) =>
+        JsonReading.TryGetInt64(parent, propertyName) is { } value && value >= 0 ? value : null;
 }

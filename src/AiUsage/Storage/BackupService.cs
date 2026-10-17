@@ -89,8 +89,8 @@ public static class BackupService
 
     private const string SettingsName = "settings.json";
     private const string NotificationsName = "notifications.json";
-    private const string ProjectColorsName = "project-colors.json";
-    private const string StatsName = "stats.db";
+    private const string ProjectColorsName = Stats.ProjectColorResolver.CacheFileName;
+    private const string StatsName = Stats.StatsStore.DatabaseFileName;
 
     private static readonly Regex HistoryName = new(@"^history-[A-Za-z0-9_-]{1,100}\.jsonl\z", RegexOptions.CultureInvariant);
 

@@ -55,7 +55,7 @@ public class UsageRowViewModelTests
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
             LocalizationService.Instance.SetLanguage("de");
             var german = new UsageRowViewModel(window, Now);
-            Assert.Equal("1,82 Mio Token", german.InlineTokensText);
+            Assert.Equal("1,82 Mio. Token", german.InlineTokensText);
             Assert.Equal("1.823.457 Token in diesem Zeitfenster", german.InlineTokensToolTip);
         }
         finally

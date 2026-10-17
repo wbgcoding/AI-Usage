@@ -156,6 +156,17 @@ public partial class StatsWindow : Window
                 return;
             }
 
+            // Inside the custom range panel itself Escape abandons the panel; inside a date picker's
+            // calendar it is left to the calendar.
+            if (!CustomFromPicker.IsDropDownOpen && !CustomToPicker.IsDropDownOpen
+                && EscapeKey.OpenPopupOf(Keyboard.FocusedElement as DependencyObject ?? e.OriginalSource as DependencyObject) == CustomRangePopup)
+            {
+                CustomRangePopup.IsOpen = false;
+                RangeCombo.Focus();
+                e.Handled = true;
+                return;
+            }
+
             if (EscapeKey.ClosesWindow(e))
                 Close();
             return;

@@ -120,7 +120,7 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     /// the eye popup's row template binds this property by name on whichever kind of row it is
     /// showing, so the two must agree on it.</summary>
     public string ToggleVisibilityActionText =>
-        $"{HeaderDisplayName}: {LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]}";
+        LocalizationService.Instance.Format("Format.LabelValue", HeaderDisplayName, LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]);
 
     /// <summary>The header row's own right-hand figure: the total of whatever span is actually shown
     /// (the visible weeks at Full, the visible days at Mini) - not the whole year, so it

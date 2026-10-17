@@ -228,7 +228,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.SetPower(PowerStatus.Read());
         ViewModel.RefreshNow();
         UpdateTray();
-        // UpdateDensity() does not run from here - its own inputs (Layout/HiddenCount/DensityMode
+        // The tick never calls UpdateDensity() - its own inputs (Layout/HiddenCount/DensityMode
         // via ViewModel_PropertyChanged, the tile count via the CollectionChanged subscription above,
         // and a live resize via MainWindow_SizeChanged) already call it directly, so a second's worth
         // of countdown ticks in between has nothing new to recompute.
@@ -515,6 +515,9 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Connects one tile's sign-in and sign-out requests to the app's own sign-in window
     /// and sign-out path; a tile without either has neither button (<see
     /// cref="ProviderTileViewModel.SupportsSignOut"/>).</summary>
+    private static bool IsWelcomeOpen() =>
+        Application.Current?.Windows.OfType<WelcomeWindow>().Any(window => window.IsVisible) == true;
+
     private void WireSignIn(ProviderTileViewModel tile)
     {
         if (!tile.SupportsSignOut)
@@ -532,7 +535,9 @@ public partial class MainWindow : Window, IDisposable
                 WebSignInFlow.Open(this, ProviderRegistry.WebSessionFor(accountKey), signedIn =>
                 {
                     ViewModel.CompleteSignIn(accountKey, signedIn);
-                    ShowAndActivate(userInitiated: false);
+                    // Signed in from the first-start welcome: the widget follows once that closes.
+                    if (!IsWelcomeOpen())
+                        ShowAndActivate(userInitiated: false);
                 });
             };
         }
@@ -552,6 +557,8 @@ public partial class MainWindow : Window, IDisposable
 
         tile.SignOutRequested += async (_, _) =>
         {
+            if (ViewModel.IsSigningOut(accountKey))
+                return;
             var signedOut = await ViewModel.TrySignOutAsync(accountKey);
             if (!signedOut)
                 ViewModel.ShowSignOutIncomplete(accountKey);
@@ -951,7 +958,10 @@ public partial class MainWindow : Window, IDisposable
         if (_settings.Window.Collapsed || _applyingDensityHeight)
             return;
 
-        UpdateDensity();
+        if (_resizeDragActive)
+            QueueDensityUpdate();
+        else
+            UpdateDensity();
 
         if (!_heightIsAutomatic || _autoHeightArea is not { } area)
             return;
@@ -1230,9 +1240,8 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
-    // Only the title bar's native DragMove() (a plain window MOVE) still goes through the Win32
-    // size/move loop, so this hook only ever needs to persist position now - see the resize Thumbs
-    // below for why height changes are handled entirely in managed code instead.
+    // The window's own messages: the hotkey, the desktop layer, snapping and the end of a title-bar
+    // move. Resizing never reaches it - see the resize Thumbs below for why that runs in managed code.
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == DesktopLayer.WmWindowPosChanging)
@@ -1285,14 +1294,32 @@ public partial class MainWindow : Window, IDisposable
     // native non-client resize-border loop entirely for a layered window - confirmed by testing on
     // the VM (self-test): dragging inside WindowChrome's ResizeBorderThickness never even
     // started a resize. These eight Thumb grips (WPF's own drag-delta control) replace it.
+    // A resize drag measures the tallest content once per width instead of on every mouse move, and
+    // coalesces the density passes its size changes ask for; the drag's end settles the final one.
+    private bool _resizeDragActive;
+    private (double Width, double Height)? _dragTallestContentHeight;
+
+    private double TallestContentHeightForDrag()
+    {
+        _resizeDragActive = true;
+        if (_dragTallestContentHeight is { } cached && cached.Width == Width)
+            return cached.Height;
+
+        var height = MeasureTallestContentHeight();
+        _dragTallestContentHeight = (Width, height);
+        return height;
+    }
+
     private void GrowRight(double dx)
     {
+        _resizeDragActive = true;
         MarkWidthManual();
         Width = Math.Max(MinWidth, Width + dx);
     }
 
     private void GrowLeft(double dx)
     {
+        _resizeDragActive = true;
         MarkWidthManual();
         var newWidth = Math.Max(MinWidth, Width - dx);
         Left += Width - newWidth;
@@ -1329,7 +1356,7 @@ public partial class MainWindow : Window, IDisposable
         // window was last dragged small.
         var workAreaHeight = CurrentArea().Height;
         MaxHeight = workAreaHeight;
-        Height = WindowPlacementService.GrowManualHeight(Height, dy, MinHeight, workAreaHeight, MeasureTallestContentHeight(), _zoom);
+        Height = WindowPlacementService.GrowManualHeight(Height, dy, MinHeight, workAreaHeight, TallestContentHeightForDrag(), _zoom);
     }
 
     /// <summary>The content area's natural height, measured fresh rather than read from a stale
@@ -1362,7 +1389,7 @@ public partial class MainWindow : Window, IDisposable
         // only by what the height actually changed, so a capped drag never slides the window away.
         var workAreaHeight = CurrentArea().Height;
         MaxHeight = workAreaHeight;
-        var newHeight = WindowPlacementService.GrowManualHeight(Height, -dy, MinHeight, workAreaHeight, MeasureTallestContentHeight(), _zoom);
+        var newHeight = WindowPlacementService.GrowManualHeight(Height, -dy, MinHeight, workAreaHeight, TallestContentHeightForDrag(), _zoom);
         Top += Height - newHeight;
         Height = newHeight;
     }
@@ -1448,6 +1475,12 @@ public partial class MainWindow : Window, IDisposable
 
     private void Resize_DragCompleted(object sender, DragCompletedEventArgs e)
     {
+        var wasDragging = _resizeDragActive;
+        _resizeDragActive = false;
+        _dragTallestContentHeight = null;
+        if (wasDragging && !_settings.Window.Collapsed)
+            UpdateDensity();
+
         if (!_heightIsAutomatic)
             Current.Height = Height;
         SaveWindowSettings();
@@ -1522,12 +1555,9 @@ public partial class MainWindow : Window, IDisposable
     }
 
     /// <summary>F5 refreshes, Ctrl+, opens Settings - the same actions already reachable via the
-    /// title bar's own buttons. The two conditions are pulled out as pure,
-    /// unit-testable predicates (<see cref="IsRefreshShortcut"/>/<see cref="IsSettingsShortcut"/>)
-    /// because end-to-end proof on a real window was not obtainable: automated synthetic key
-    /// delivery never reached this window in several attempts (F5, Ctrl+,, Esc all silently did
-    /// nothing, while every mouse-driven interaction on the same window worked normally) - a
-    /// disclosed test-tooling gap, not a code defect.</summary>
+    /// title bar's own buttons. The two conditions are pure predicates
+    /// (<see cref="IsRefreshShortcut"/>/<see cref="IsSettingsShortcut"/>) so they are testable
+    /// without a live window.</summary>
     private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (IsRefreshShortcut(e.Key))
@@ -1637,7 +1667,7 @@ public partial class MainWindow : Window, IDisposable
         WindowActivation.TryActivate(_statsWindow.Activate);
     }
 
-    private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore())
+    private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore(), history: ViewModel.HistoryStore)
     {
         ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
     }, _settings, _settingsStore);

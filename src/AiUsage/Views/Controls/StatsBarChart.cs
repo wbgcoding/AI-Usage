@@ -804,8 +804,8 @@ public sealed class StatsBarChart : FrameworkElement
         var bareHours = false;
         string LabelString(int index) =>
             hourIndices is not null ? (bareHours ? index.ToString(CultureInfo.CurrentCulture) : HourAxisLabel(index))
-            : monthIndices is null ? FormatAxisLabel(bars[index].Label, CultureInfo.CurrentCulture)
-            : FormatMonthAxisLabel(bars[index].Label, CultureInfo.CurrentCulture);
+            : monthIndices is null ? FormatAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture)
+            : FormatMonthAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture);
         FormattedText MakeLabel(int index) => new(
             LabelString(index), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi);
 
@@ -960,7 +960,7 @@ public sealed class StatsBarChart : FrameworkElement
             return string.IsNullOrEmpty(tokenWord) ? number : $"{number} {tokenWord}";
         }
 
-        var lines = new List<string> { BuildTooltipHeaderLine(bar.Label, CultureInfo.CurrentCulture) };
+        var lines = new List<string> { BuildTooltipHeaderLine(bar.Label, LocalizationService.Instance.DisplayCulture) };
         if (bar.StackedValues.Count > 1 && seriesLabels.Count > 0)
         {
             for (var s = 0; s < bar.StackedValues.Count; s++)

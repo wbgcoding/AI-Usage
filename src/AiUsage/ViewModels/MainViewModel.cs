@@ -875,14 +875,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public void RefreshNow(bool userStarted = false)
     {
         if (userStarted)
-            _userStartedFetches.UnionWith(Tiles.Select(tile => tile.ProviderId));
+        {
+            lock (_userStartedFetches)
+                _userStartedFetches.UnionWith(Tiles.Select(tile => tile.ProviderId));
+        }
         try
         {
             _scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
         }
         finally
         {
-            _userStartedFetches.Clear();
+            lock (_userStartedFetches)
+                _userStartedFetches.Clear();
         }
     }
 
@@ -998,8 +1002,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>One tile's hidden flag, for <see cref="RefreshScheduler.ResolveInterval"/> - a plain
     /// method rather than a lambda at each call site, so the same delegate instance is reused.</summary>
-    // TryGetValue, not the plain indexer: a fetch already in flight for an account just removed via
-    // TryGetValue: a removed account may be asked once more before the scheduler drops it.
+    // TryGetValue, not the plain indexer: a removed account may be asked once more before the
+    // scheduler drops it.
     internal bool IsTileHidden(string providerId) => _tilesById.TryGetValue(providerId, out var tile) && tile.IsHidden;
 
     /// <summary>One account's disconnected flag (<see cref="ProviderSettings.Disconnected"/>), for
@@ -1020,14 +1024,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private void RefreshProvider(string providerId)
     {
-        _userStartedFetches.Add(providerId);
+        lock (_userStartedFetches)
+            _userStartedFetches.Add(providerId);
         try
         {
             _scheduler.RefreshNow(providerId, _lifetimeCts.Token);
         }
         finally
         {
-            _userStartedFetches.Clear();
+            lock (_userStartedFetches)
+                _userStartedFetches.Clear();
         }
     }
 
@@ -1462,8 +1468,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     // off the UI thread the same way OnSnapshotReady can, hence the same dispatcher check.
     private void OnFetchStarted(string providerId)
     {
-        // Read here, on the calling thread: only the scheduler call a person triggered has it set.
-        var userStarted = _userStartedFetches.Contains(providerId);
+        // Read here, on the calling thread: only the scheduler call a person triggered has it set. A
+        // retry attempt arrives on a pool thread, so the set is only ever touched under its lock.
+        bool userStarted;
+        lock (_userStartedFetches)
+            userStarted = _userStartedFetches.Contains(providerId);
 
         void Mark()
         {
@@ -1655,6 +1664,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             },
             CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
+
+    /// <summary>The one history store of this process. The settings and statistics windows share it, so
+    /// a reset or a data-folder move in one is never undone by a rewrite still running in another.</summary>
+    internal HistoryStore HistoryStore => _historyStore;
 
     /// <summary>Settings window's own "change data folder" flow calls this once it has already
     /// copied every history file across, so the live recording this view model does on every tick

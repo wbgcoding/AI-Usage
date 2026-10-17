@@ -32,7 +32,7 @@ public partial class TitleBar : UserControl
     private bool _eyeOpenedByKeyboard;
 
     public static readonly DependencyProperty TitleTextProperty =
-        DependencyProperty.Register(nameof(TitleText), typeof(string), typeof(TitleBar), new PropertyMetadata("AI-Usage"));
+        DependencyProperty.Register(nameof(TitleText), typeof(string), typeof(TitleBar), new PropertyMetadata(AppInfo.ProductName));
 
     public static readonly DependencyProperty ShowEyeMenuProperty =
         DependencyProperty.Register(nameof(ShowEyeMenu), typeof(bool), typeof(TitleBar), new PropertyMetadata(true));

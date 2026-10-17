@@ -27,6 +27,18 @@ public class StatsIndexTests
         Assert.Equal(new DateTimeOffset(2026, 8, 21, 5, 46, 56, 649, TimeSpan.Zero), result.Timestamp);
     }
 
+    [Fact]
+    public void ClaudeUsageLogParser_reads_a_negative_token_count_as_none()
+    {
+        const string line = """
+            {"type":"assistant","timestamp":"2026-08-21T05:46:56.649Z","message":{"model":"claude-opus-5","usage":{"input_tokens":-5000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":365}}}
+            """;
+
+        Assert.True(ClaudeUsageLogParser.TryParse(line, out var result));
+        Assert.Equal(0, result.InputTokens);
+        Assert.Equal(365, result.OutputTokens);
+    }
+
     // An assistant line's own "effort" field (medium/high/...) rides along into the same
     // UsageEvent the token counts already come from, so a record can later be grouped by it.
     [Fact]
@@ -528,6 +540,24 @@ public class StatsIndexTests
         Assert.True(store.TryGetSourceFile("file-a", out var found));
         Assert.Equal(100, found!.Offset);
         Assert.Equal(["file-a"], store.LoadSourceFiles().Keys);
+    }
+
+    [Fact]
+    public void A_file_that_is_no_database_is_set_aside_and_the_index_starts_over()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-damaged");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        File.WriteAllBytes(dbPath, Enumerable.Repeat((byte)'x', 8192).ToArray());
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        Assert.False(store.TryLoadSourceFiles(out _));
+        Assert.Single(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+        Assert.Contains(logged, line => line.Contains("damaged", StringComparison.Ordinal));
+
+        Assert.True(store.SetSourceFile(new StatsSourceFileState("file-a", "claude", 100, 100, DateTime.UtcNow)));
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a"], states.Keys);
     }
 
     [Fact]

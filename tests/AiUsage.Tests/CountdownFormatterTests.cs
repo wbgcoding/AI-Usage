@@ -113,6 +113,7 @@ public class CountdownFormatterTests
         var reset = new DateTimeOffset(2026, 10, 5, 23, 59, 0, TimeSpan.Zero);
         var previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+        LocalizationService.Instance.SetLanguage("en");
         try
         {
             var clock = CountdownFormatter.FormatClock(reset, reset - TimeSpan.FromDays(3));
@@ -122,6 +123,7 @@ public class CountdownFormatterTests
         finally
         {
             CultureInfo.CurrentCulture = previous;
+            LocalizationService.Instance.SetLanguage("de");
         }
     }
 
@@ -133,6 +135,7 @@ public class CountdownFormatterTests
         var reset = new DateTimeOffset(new DateTime(2026, 10, 22, 21, 32, 0, DateTimeKind.Local));
         var previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+        LocalizationService.Instance.SetLanguage(culture[..2]);
         try
         {
             Assert.Equal(expected, CountdownFormatter.FormatClock(reset, reset - TimeSpan.FromDays(19)));
@@ -141,6 +144,7 @@ public class CountdownFormatterTests
         finally
         {
             CultureInfo.CurrentCulture = previous;
+            LocalizationService.Instance.SetLanguage("de");
         }
     }
 
@@ -150,6 +154,7 @@ public class CountdownFormatterTests
         var reset = new DateTimeOffset(new DateTime(2026, 10, 22, 21, 32, 0, DateTimeKind.Local));
         var previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+        LocalizationService.Instance.SetLanguage("en");
         try
         {
             Assert.Equal("Thu 9:32 PM", CountdownFormatter.FormatClock(reset, reset - TimeSpan.FromDays(5.5)));
@@ -157,6 +162,7 @@ public class CountdownFormatterTests
         finally
         {
             CultureInfo.CurrentCulture = previous;
+            LocalizationService.Instance.SetLanguage("de");
         }
     }
 
@@ -223,6 +229,7 @@ public class CountdownFormatterTests
         Assert.True(reset - now < TimeSpan.FromDays(6));
         var previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+        LocalizationService.Instance.SetLanguage("en");
         try
         {
             Assert.Equal("Mar 29 12:00 PM", CountdownFormatter.FormatClock(reset, now, berlin));
@@ -232,6 +239,7 @@ public class CountdownFormatterTests
         finally
         {
             CultureInfo.CurrentCulture = previous;
+            LocalizationService.Instance.SetLanguage("de");
         }
     }
 }

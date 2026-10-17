@@ -165,7 +165,8 @@ public static class ClaudeUsageLogParser
             : null;
 
     private static long GetLong(JsonElement parent, string propertyName) =>
-        parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)
+        parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt64(out var number) && number >= 0
             ? number
             : 0;
 }

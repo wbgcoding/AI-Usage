@@ -31,21 +31,29 @@ public sealed class StatsStore
     /// <summary>The data folder of a test store; null for the production store.</summary>
     internal string? FixedDirectory => _fixedDirectory;
 
-    private static string DatabasePathIn(string dataDirectory) => Path.Combine(dataDirectory, "stats.db");
+    /// <summary>The index's file name inside the data folder.</summary>
+    internal const string DatabaseFileName = "stats.db";
+
+    private static string DatabasePathIn(string dataDirectory) => Path.Combine(dataDirectory, DatabaseFileName);
     private readonly int _busyTimeoutMs;
+
+    // Where a damaged index is reported; the production store writes to the app log.
+    private readonly Action<string>? _logError;
 
     public StatsStore()
     {
         _busyTimeoutMs = 2000;
+        _logError = message => Services.LogService.Shared.LogError(message);
     }
 
     /// <summary>Test seam: a temp directory instead of the real data folder, and optionally a
     /// shorter busy timeout than the production default of 2000 ms - see <see cref="EnsureSchema"/>
     /// - so a test that deliberately holds the write lock does not have to wait out the real one.</summary>
-    internal StatsStore(string dataDirectory, int busyTimeoutMs = 2000)
+    internal StatsStore(string dataDirectory, int busyTimeoutMs = 2000, Action<string>? logError = null)
     {
         _fixedDirectory = dataDirectory;
         _busyTimeoutMs = busyTimeoutMs;
+        _logError = logError;
     }
 
     /// <summary>Copies the index from one data folder into another through SQLite's own backup, which
@@ -533,6 +541,12 @@ public sealed class StatsStore
                     EnsuredDatabases[fullPath] = true;
             }
         }
+        catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
+        {
+            connection.Dispose();
+            QuarantineDamagedDatabase(connection, fullPath, ex.SqliteErrorCode);
+            throw;
+        }
         catch
         {
             // The caller never sees this connection, so it would otherwise keep the file open.
@@ -541,6 +555,32 @@ public sealed class StatsStore
         }
 
         return connection;
+    }
+
+    private const int SqliteCorrupt = 11;
+    private const int SqliteNotADatabase = 26;
+
+    /// <summary>A damaged index never heals and would leave the statistics empty for good. It is set
+    /// aside (one copy is kept for inspection) so the next walk rebuilds it from the session logs.
+    /// Best effort: a file another process still holds stays where it is until the next attempt.</summary>
+    private void QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode)
+    {
+        SqliteConnection.ClearPool(connection);
+        EnsuredDatabases.TryRemove(fullPath, out _);
+        try
+        {
+            var directory = Path.GetDirectoryName(fullPath)!;
+            foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*"))
+                File.Delete(older);
+            File.Move(fullPath, $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}");
+            foreach (var sidecar in new[] { fullPath + "-wal", fullPath + "-shm", fullPath + "-journal" })
+                File.Delete(sidecar);
+            _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logError?.Invoke($"Statistics: the index is damaged (SQLite error {errorCode}) and could not be set aside ({ex.GetType().Name}).");
+        }
     }
 
     // Database files whose schema this process already brought up to date; later opens (the indexer

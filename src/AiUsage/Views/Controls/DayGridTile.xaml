@@ -20,7 +20,7 @@
     <!-- Same shape as ProviderTile's own root: same background/border/radius/padding/min width, so
          the day-grid tile reads as one more tile among the provider ones, never a special case. -->
     <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.M}"
+            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}"
             MinWidth="{StaticResource Tile.MinWidth}"
             TextElement.Foreground="{DynamicResource Text.Primary}"
             Focusable="True"

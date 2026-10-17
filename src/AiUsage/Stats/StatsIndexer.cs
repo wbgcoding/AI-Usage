@@ -140,6 +140,10 @@ public sealed class StatsIndexer
     // one run counts as one blocked run).
     private readonly Dictionary<string, bool> _passHeld = [];
 
+    // Whether this walk's snapshot of remembered files was read, and the Codex file names it holds.
+    private bool _knownComplete;
+    private HashSet<string>? _knownCodexFileNames;
+
     public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default)
     {
         _failedWrites = 0;
@@ -151,8 +155,13 @@ public sealed class StatsIndexer
         var claudeFoldersSkipped = 0;
 
         // One query for every remembered file instead of one database open per file: most walks find
-        // thousands of files and change none of them.
-        var known = _store.LoadSourceFiles();
+        // thousands of files and change none of them. Once it is read, a file missing from it is
+        // new, so the walk never asks the index about each new file on its own.
+        _knownComplete = _store.TryLoadSourceFiles(out var known);
+        _knownCodexFileNames = _knownComplete
+            ? known.Values.Where(state => state.Provider == CodexProviderId)
+                .Select(state => Path.GetFileName(state.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : null;
 
         // Before the walk: the walk counts a response's fullest copy from the first line it reads, so
         // a pass that ran after it would add the same tokens to files the walk just read for the
@@ -592,7 +601,8 @@ public sealed class StatsIndexer
         // is taken over so the file resumes where it stood instead of being counted from the start.
         if (!TryFindState(path, known, out var existing))
             return (false, 0, 0);
-        existing ??= _store.TryAdoptMovedSourceFile(path, CodexProviderId);
+        if (existing is null && (_knownCodexFileNames is null || _knownCodexFileNames.Contains(listed.Name)))
+            existing = _store.TryAdoptMovedSourceFile(path, CodexProviderId);
         if (existing is not null && existing.MatchesOnDisk(info.Length, info.LastWriteTimeUtc, _clock()))
             return (false, 0, 0);
 
@@ -1345,12 +1355,14 @@ public sealed class StatsIndexer
         return fallback;
     }
 
-    /// <summary>The remembered state from this walk's snapshot, else straight from the index (a file
-    /// first seen during this walk). False when the index could not be read: the file is then skipped
-    /// until the next walk rather than read again from the start.</summary>
+    /// <summary>The remembered state from this walk's snapshot; a file the snapshot lacks is new. Only
+    /// when the snapshot could not be read is the index asked directly. False when that fails too:
+    /// the file is then skipped until the next walk rather than read again from the start.</summary>
     private bool TryFindState(string path, Dictionary<string, StatsSourceFileState> known, out StatsSourceFileState? state)
     {
         if (known.TryGetValue(path, out state))
+            return true;
+        if (_knownComplete)
             return true;
         return _store.TryGetSourceFile(path, out state);
     }

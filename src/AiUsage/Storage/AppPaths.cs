@@ -384,12 +384,19 @@ public static class AppPaths
     /// is never touched. A file is deleted only once it is at least an hour old, so a write in
     /// progress right now is safe. Called once at startup, the same way <see
     /// cref="Providers.Parsing.AntigravityStateReader.CleanUpLeftoverSnapshots()"/> does for its own
-    /// temp folder.
+    /// temp folder. The statistics snapshot and the project color cache in the machine-local cache
+    /// folder are swept the same way.
     /// </summary>
-    public static void CleanUpLeftoverTempFiles() => CleanUpLeftoverTempFiles(DataDirectory);
+    public static void CleanUpLeftoverTempFiles()
+    {
+        CleanUpLeftoverTempFiles(DataDirectory);
+        CleanUpLeftoverTempFiles(Services.StartupProfile.CacheDirectory, IsOwnCacheTempFileName);
+    }
 
     /// <summary>Exposed so a test can plant a leftover in a folder of its own.</summary>
-    internal static void CleanUpLeftoverTempFiles(string directory)
+    internal static void CleanUpLeftoverTempFiles(string directory) => CleanUpLeftoverTempFiles(directory, IsOwnTempFileName);
+
+    internal static void CleanUpLeftoverTempFiles(string directory, Func<string, bool> isOwnTempFileName)
     {
         try
         {
@@ -399,7 +406,7 @@ public static class AppPaths
             var cutoff = DateTime.UtcNow - TimeSpan.FromHours(1);
             foreach (var path in Directory.EnumerateFiles(directory, "*.tmp"))
             {
-                if (!IsOwnTempFileName(Path.GetFileName(path)))
+                if (!isOwnTempFileName(Path.GetFileName(path)))
                     continue;
 
                 try
@@ -419,6 +426,10 @@ public static class AppPaths
         }
     }
 
+    internal static bool IsOwnCacheTempFileName(string name) =>
+        name.StartsWith(Stats.StatsSnapshotFile.FileName + ".", StringComparison.OrdinalIgnoreCase)
+        || name.StartsWith(Stats.ProjectColorResolver.CacheFileName + ".", StringComparison.OrdinalIgnoreCase);
+
     private static bool IsOwnTempFileName(string name) =>
         name.StartsWith("settings.json.", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith("status.json.", StringComparison.OrdinalIgnoreCase)
@@ -432,6 +443,54 @@ public static class AppPaths
 
     /// <summary>Internal, not private: <see cref="ViewModels.SettingsViewModel"/>'s own "change data
     /// folder" flow needs the exact same writability check before it trusts a user-picked folder.</summary>
+    /// <summary>Creates <paramref name="path"/> when it does not exist yet, open only to the current
+    /// user, SYSTEM and the administrators: a folder made on another drive would otherwise inherit that
+    /// drive's defaults, which commonly let every signed-in account read it. An existing folder is
+    /// left as the user set it up. Best effort - the writability check that follows decides.</summary>
+    internal static void TryCreatePrivateDirectory(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        try
+        {
+            var directory = new DirectoryInfo(path);
+            if (directory.Exists)
+                return;
+            if (directory.Parent is { } parent)
+                Directory.CreateDirectory(parent.FullName);
+
+            var security = new System.Security.AccessControl.DirectorySecurity();
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            var owners = new List<System.Security.Principal.SecurityIdentifier>
+            {
+                new(System.Security.Principal.WellKnownSidType.LocalSystemSid, null),
+                new(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid, null),
+            };
+            if (System.Security.Principal.WindowsIdentity.GetCurrent().User is { } user)
+                owners.Insert(0, user);
+            else
+                return;
+
+            foreach (var sid in owners)
+            {
+                security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                    sid, System.Security.AccessControl.FileSystemRights.FullControl,
+                    System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
+                    System.Security.AccessControl.PropagationFlags.None,
+                    System.Security.AccessControl.AccessControlType.Allow));
+            }
+
+            directory.Create(security);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+            or NotSupportedException or System.Security.SecurityException or InvalidOperationException)
+        {
+            // A drive without permissions (FAT, a share) or a refused ACL: the plain creation below
+            // still applies.
+        }
+    }
+
     internal static bool TryEnsureWritableDirectory(string path)
     {
         try

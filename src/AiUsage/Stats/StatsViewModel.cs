@@ -184,9 +184,9 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
 
         custom.Label = SelectedRange == CustomRange
-            ? string.Format(
-                CultureInfo.CurrentCulture, "{0:d} - {1:d}",
-                _customFrom.ToDateTime(TimeOnly.MinValue), _customTo.ToDateTime(TimeOnly.MinValue))
+            ? LocalizationService.Instance.Format(
+                "Stats.Range.CustomLabel",
+                _customFrom.ToString("d", CultureInfo.CurrentCulture), _customTo.ToString("d", CultureInfo.CurrentCulture))
             : LocalizationService.Instance["Stats.Range.Custom"];
     }
 
@@ -273,12 +273,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public bool HasAnyFilter => HasModelFilter || HasProjectFilter;
 
-    /// <summary>The filter chip's text, for example "Model: Opus 4.5".</summary>
     /// <summary>The session table's combined "Project / Model" column header.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Bound from XAML, which needs an instance property.")]
     public string SessionProjectModelHeader => LocalizationService.Instance.Format(
         "Format.Pair", LocalizationService.Instance["Stats.Col.Project"], LocalizationService.Instance["Stats.Col.Model"]);
 
+    /// <summary>The filter chip's text, for example "Model: Opus 4.5".</summary>
     public string ModelFilterText => LocalizationService.Instance.Format("Stats.Filter.Model", SelectedModelFilter);
 
     public string ProjectFilterText => LocalizationService.Instance.Format(
@@ -518,7 +518,7 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<string> cacheShareLabels = [];
 
-    /// <summary>The "top projects" panel - already sorted longest first, capped at ten rows.</summary>
+    /// <summary>The "top projects" panel - already sorted longest first, capped at twelve rows.</summary>
     [ObservableProperty]
     private IReadOnlyList<StatsProjectRow> topProjectRows = [];
 
@@ -628,7 +628,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The month grid's own input - every day from the grid's start up to today (local time):
     /// the last twelve months, reaching further back on a window wide enough to show more weeks than
     /// that at the normal cell size. Independent of <see cref="SelectedRange"/> and <see cref="SelectedGrouping"/> alike, each
-    /// carrying every provider that contributed to it (across all five, not just the two <see
+    /// carrying every provider that contributed to it (across all five, not just the ones <see
     /// cref="StatsAggregator.StackedProviderOrder"/> stacks) and whichever led, largest first.</summary>
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsMonthGrid.DayValue> monthGridDays = [];
@@ -765,7 +765,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         var loc = LocalizationService.Instance;
         var dayTotal = detail.ByProvider.Sum(slice => slice.Total);
-        var dateText = day.ToDateTime(TimeOnly.MinValue).ToString("D", CultureInfo.CurrentCulture);
+        var dateText = day.ToDateTime(TimeOnly.MinValue).ToString("D", LocalizationService.Instance.DisplayCulture);
         var shortened = StatsAggregator.ShortenTokenCount(dayTotal, loc["Number.Thousand"], loc["Number.Million"], loc["Number.Billion"]);
         SelectedDayHeadText = string.Format(CultureInfo.CurrentCulture, loc["Stats.DayDetail.Title"], $"{dateText} · {shortened} {loc["Stats.TokenUnit"]}");
     }
@@ -814,7 +814,7 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors = new Dictionary<string, System.Windows.Media.Color>();
 
-    private const string ProjectColorsFileName = "project-colors.json";
+    private const string ProjectColorsFileName = ProjectColorResolver.CacheFileName;
 
     /// <summary>Where the project color cache lives: the machine-local cache folder, or the folder of a
     /// store that is pinned to one (a test).</summary>
@@ -1489,7 +1489,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
-        // stacked by all five providers rather than just the two
+        // stacked by all five providers rather than just the ones
         // StackedProviderOrder names, since any of them can lead a day on this grid. Built by
         // StatsMonthGridBuilder, the one place this computation lives - the widget's own day-grid tile
         // (DayGridTileViewModel) reads the same store through the same builder, so the two never
@@ -1547,7 +1547,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (held is null || !IsFresh(held))
             ScheduleLimitRefresh(source, from, to);
 
-        // The two donut charts - provider stays in the fixed StackedProviderOrder (same color
+        // The share charts - provider stays in the fixed StackedProviderOrder (same color
         // convention the stacked charts already use), model is sorted by size with everything past
         // the largest six pooled into one "Other"/"Andere" entry.
         var million = loc["Number.Million"];
@@ -1599,12 +1599,10 @@ public sealed partial class StatsViewModel : ObservableObject
             : "";
         SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
 
-        // The cache-share bar.
         var cacheShare = StatsAggregator.CacheShare(inRange);
         CacheShareValues = cacheShare.AsValues;
         CacheShareLabels = [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]];
 
-        // The "top projects" panel.
         TopProjectRows = StatsAggregator.TopProjectsDetailed(inRange, limit: 12, loc["Stats.NoProject"]);
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
@@ -1639,7 +1637,7 @@ public sealed partial class StatsViewModel : ObservableObject
         PreviousPeriodTotalRaw = previous.Sum(record => record.TotalTokens);
         ActiveDayCountRaw = figures.ActiveDayCount;
         PeriodDayCountRaw = Math.Max(1, periodDayCount);
-        ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc["Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
+        ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc[periodDayCount == 1 ? "Stats.ActiveDaysOf.One" : "Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
     }
 
     /// <summary>The quota history a rebuild draws, read ahead of it: every provider's points for one
@@ -1985,7 +1983,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (figures.BusiestDay is { } busiestDay)
         {
             BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
-            BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, CultureInfo.CurrentCulture);
+            BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, LocalizationService.Instance.DisplayCulture);
         }
         else
         {

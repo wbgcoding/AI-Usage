@@ -153,8 +153,8 @@ public readonly record struct StatsCacheShareRow(long NewInput, long CacheWrite,
 /// </summary>
 public static class StatsAggregator
 {
-    /// <summary>Fixed stacking order for day/week grouping - the only two providers a
-    /// <see cref="StatsRecord"/> can ever name, always in the same order so a bar's colors
+    /// <summary>Fixed stacking order for day/week grouping - every provider a
+    /// <see cref="StatsRecord"/> can name, always in the same order so a bar's colors
     /// never swap between two consecutive periods.</summary>
     public static readonly IReadOnlyList<string> StackedProviderOrder = ProviderCoverage.IndexedProviderIds;
 
@@ -171,9 +171,9 @@ public static class StatsAggregator
     {
         StatsGrouping.Day => GroupByDay(records, rangeStart, rangeEnd),
         StatsGrouping.Week => GroupByWeek(records, rangeStart, rangeEnd),
-        StatsGrouping.Weekday => GroupByWeekday(records, CultureInfo.CurrentCulture),
+        StatsGrouping.Weekday => GroupByWeekday(records, Services.LocalizationService.Instance.DisplayCulture),
         StatsGrouping.Hour => GroupByHour(records, CultureInfo.CurrentCulture),
-        StatsGrouping.WeekdayHour => GroupByWeekday(records, CultureInfo.CurrentCulture),
+        StatsGrouping.WeekdayHour => GroupByWeekday(records, Services.LocalizationService.Instance.DisplayCulture),
         StatsGrouping.Model => GroupBySingleValueKey(records, record => ModelDisplayNames.Resolve(record.Model)),
         StatsGrouping.Project => GroupBySingleValueKey(
             records, record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase),

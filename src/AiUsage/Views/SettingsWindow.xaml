@@ -951,10 +951,17 @@
                                   IsChecked="{Binding Main.HotkeyEnabled}" Style="{StaticResource CheckBox.GapM}"/>
                         <StackPanel Visibility="{Binding Main.HotkeyEnabled, Converter={StaticResource BoolToVis}}">
                         <TextBox x:Name="HotkeyCaptureBox" Width="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
-                                 Text="{Binding Main.HotkeyText, Mode=OneWay}" IsReadOnly="True" Focusable="True"
+                                 IsReadOnly="True" Focusable="True"
                                  PreviewKeyDown="HotkeyCaptureBox_PreviewKeyDown"
                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}"
-                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}"/>
+                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}">
+                            <TextBox.Text>
+                                <MultiBinding Converter="{x:Static controls:HotkeyDisplayConverter.Instance}" Mode="OneWay">
+                                    <Binding Path="Main.HotkeyText"/>
+                                    <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Key.Ctrl]"/>
+                                </MultiBinding>
+                            </TextBox.Text>
+                        </TextBox>
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyTaken]}"
                                    Style="{StaticResource TextBlock.GapS}"
                                    FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}"

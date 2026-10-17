@@ -72,4 +72,24 @@ public class EscapeKeyTests
     [Fact]
     public void Elements_outside_any_combo_box_do_not_block_Escape() =>
         Assert.False(OnSta(() => EscapeKey.InOpenComboBox(new StackPanel { Children = { new Button() } }.Children[0])));
+
+    [Fact]
+    public void Content_of_an_open_popup_finds_that_popup_and_a_closed_one_does_not() =>
+        Assert.Equal((true, false, false), OnSta(() =>
+        {
+            var inner = new TextBox();
+            var popup = new System.Windows.Controls.Primitives.Popup { Child = new StackPanel { Children = { inner } } };
+            var closedInner = new TextBox();
+            var closed = new System.Windows.Controls.Primitives.Popup { Child = new StackPanel { Children = { closedInner } } };
+            popup.IsOpen = true;
+            try
+            {
+                return (EscapeKey.OpenPopupOf(inner) == popup, EscapeKey.OpenPopupOf(closedInner) is not null,
+                    EscapeKey.OpenPopupOf(new Button()) is not null);
+            }
+            finally
+            {
+                popup.IsOpen = false;
+            }
+        }));
 }

@@ -248,7 +248,7 @@ public sealed class HistoryChart : FrameworkElement
     /// threshold is unit-testable without a visual tree.</summary>
     internal static string RangeCaption(DateTimeOffset at, TimeSpan range, bool withYear = false)
     {
-        var culture = CultureInfo.CurrentCulture;
+        var culture = LocalizationService.Instance.DisplayCulture;
         var local = at.LocalDateTime;
         if (range <= TimeSpan.FromHours(24))
             return local.ToString("t", culture);
@@ -269,7 +269,7 @@ public sealed class HistoryChart : FrameworkElement
 
         // A day-long range shows the same clock time at both ends, so the start names its day.
         if (range <= TimeSpan.FromHours(24) && start.LocalDateTime.Date != end.LocalDateTime.Date)
-            return (DateLabels.ShortMonthDay(start.LocalDateTime, CultureInfo.CurrentCulture) + " " + RangeCaption(start, range),
+            return (DateLabels.ShortMonthDay(start.LocalDateTime, LocalizationService.Instance.DisplayCulture) + " " + RangeCaption(start, range),
                 RangeCaption(end, range));
 
         var crossesYear = start.LocalDateTime.Year != end.LocalDateTime.Year;
@@ -280,7 +280,7 @@ public sealed class HistoryChart : FrameworkElement
     /// day plus clock time.</summary>
     internal static string HoverTime(DateTimeOffset at, TimeSpan range)
     {
-        var culture = CultureInfo.CurrentCulture;
+        var culture = LocalizationService.Instance.DisplayCulture;
         var local = at.LocalDateTime;
         return range <= TimeSpan.FromHours(24)
             ? local.ToString("t", culture)
@@ -513,8 +513,7 @@ public sealed class HistoryChart : FrameworkElement
         var boxY = Math.Clamp(4, 0, Math.Max(0, height - boxHeight));
 
         var bgBrush = (Brush)(TryFindResource("Bg.Raised") ?? System.Windows.SystemColors.WindowBrush);
-        var borderBrush = (Brush)(TryFindResource("Border") ?? System.Windows.SystemColors.GrayTextBrush);
-        dc.DrawRoundedRectangle(bgBrush, new Pen(borderBrush, 1), new Rect(boxX, boxY, boxWidth, boxHeight), 4, 4);
+        dc.DrawRoundedRectangle(bgBrush, GetGridStyle().SolidPen, new Rect(boxX, boxY, boxWidth, boxHeight), 4, 4);
         dc.DrawText(formatted, new Point(boxX + padding, boxY + padding));
     }
 
@@ -863,8 +862,7 @@ public sealed class HistoryChart : FrameworkElement
 
     /// <summary>Cached, frozen draw resources for the grid lines and the hover guide line - a solid
     /// pen (the top edge and the hover guide, both plain "Border"), a dashed pen at half opacity (the
-    /// 50% line), sharing the same "Border" theme resource <see cref="GetLevelStyle"/> already caches
-    /// its own colors from. Built once per distinct resolved brush and reused across renders instead
+    /// 50% line), sharing the same "Border" theme resource the series colors are cached from. Built once per distinct resolved brush and reused across renders instead
     /// of allocating three fresh Pen/Brush instances on every <see cref="OnRender"/> and every
     /// <see cref="DrawHover"/> call.</summary>
     private sealed class GridStyle
