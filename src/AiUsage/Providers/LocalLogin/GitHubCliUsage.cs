@@ -146,6 +146,9 @@ internal static partial class GitHubCliUsage
         return accounts;
     }
 
+    private static readonly string[] InheritedTokenVariables =
+        ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"];
+
     internal static async Task<(GitHubCliOutcome Outcome, string Output)> RunGhAsync(
         string ghPath, string[] arguments, CancellationToken ct, bool combineStreams = false,
         IReadOnlyDictionary<string, string>? environment = null)
@@ -159,6 +162,10 @@ internal static partial class GitHubCliUsage
         };
         foreach (var argument in arguments)
             startInfo.ArgumentList.Add(argument);
+
+        // gh prefers these over its stored login, so an inherited one would answer for the wrong account.
+        foreach (var name in InheritedTokenVariables)
+            startInfo.Environment.Remove(name);
         if (environment is not null)
         {
             foreach (var (name, value) in environment)

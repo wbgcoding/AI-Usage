@@ -106,6 +106,33 @@ public class GitHubCliUsageTests
         Assert.DoesNotContain(arguments, a => a.Contains("tok-from-env", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task RunGhAsync_keeps_inherited_token_variables_away_from_the_child_process()
+    {
+        string[] names = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"];
+        var saved = names.ToDictionary(name => name, name => Environment.GetEnvironmentVariable(name));
+        try
+        {
+            foreach (var name in names)
+                Environment.SetEnvironmentVariable(name, "parent-" + name);
+            var cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            string[] arguments = ["/c", "echo [%GH_TOKEN%][%GITHUB_TOKEN%][%GH_ENTERPRISE_TOKEN%][%GITHUB_ENTERPRISE_TOKEN%]"];
+
+            var (_, bare) = await GitHubCliUsage.RunGhAsync(cmd, arguments, CancellationToken.None);
+            var (_, withToken) = await GitHubCliUsage.RunGhAsync(
+                cmd, arguments, CancellationToken.None, environment: GitHubCliUsage.TokenEnvironment("tok-from-env"));
+
+            Assert.DoesNotContain("parent-", bare);
+            Assert.DoesNotContain("parent-", withToken);
+            Assert.StartsWith("[tok-from-env][", withToken);
+        }
+        finally
+        {
+            foreach (var (name, value) in saved)
+                Environment.SetEnvironmentVariable(name, value);
+        }
+    }
+
     [Theory]
     [InlineData("To get started with GitHub CLI, please run:  gh auth login", true)]
     [InlineData("gh: Bad credentials (HTTP 401)", true)]
