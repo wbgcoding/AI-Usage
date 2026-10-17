@@ -121,9 +121,10 @@ public sealed class GeminiProvider : IUsageProvider
         _ => [LocalizationService.Instance["About.ReadLocationWebSession"]],
     };
 
-    /// <summary>Both sources are offered to the shared chooser (available beats nothing, more windows
-    /// beat fewer, newer beats older), never merged. Without a web session the local read is the
-    /// answer as it stands.</summary>
+    /// <summary>A usable web answer always wins: it is the Gemini app's own quota, while the
+    /// Antigravity read is the editor's model quota (its summary lists only the Claude and GPT group,
+    /// its per-model answer only a five-hour figure). Otherwise both sources go to the shared chooser,
+    /// never merged. Without a web session the local read is the answer as it stands.</summary>
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
     {
         var snapshot = await FetchSourcesAsync(ct);
@@ -183,11 +184,19 @@ public sealed class GeminiProvider : IUsageProvider
         if (web is not null)
             LogFailedSource("web session read", web, webClock.ElapsedMilliseconds);
 
-        var candidates = new List<ProviderSnapshot> { local };
-        if (web is not null)
-            candidates.Add(web);
-
-        var chosen = SnapshotChooser.Pick(candidates);
+        ProviderSnapshot chosen;
+        if (web is { Status: ProviderStatus.Ok, Windows.Count: > 0 })
+        {
+            // A local answer that could not be read stays noted, as the shared chooser would do.
+            chosen = local.UnreadableAnswer ? web with { UnreadableAnswer = true } : web;
+        }
+        else
+        {
+            var candidates = new List<ProviderSnapshot> { local };
+            if (web is not null)
+                candidates.Add(web);
+            chosen = SnapshotChooser.Pick(candidates);
+        }
 
         // The sign-in state belongs to the browser session, not to whichever source happened to win:
         // the local sign-in answers perfectly well while the session is signed out, and the tile

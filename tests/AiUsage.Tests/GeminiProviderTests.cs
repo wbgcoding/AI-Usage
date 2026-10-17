@@ -217,6 +217,16 @@ public class GeminiProviderTests : IDisposable
     }
 
     [Fact]
+    public void A_summary_group_of_an_unknown_name_is_named()
+    {
+        var summary = SummaryWithoutGemini.Replace("Claude and GPT models", "Argon models");
+
+        var notes = AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(summary, ModelQuota);
+
+        Assert.Contains(notes, note => note.Contains("unknown group 'Argon models'", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void An_unknown_window_in_the_Gemini_group_is_named() =>
         Assert.Contains(
             AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(
@@ -567,6 +577,41 @@ public class GeminiProviderTests : IDisposable
 
         Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
         Assert.Equal(2, snapshot.Windows.Count);
+    }
+
+    /// <summary>The Antigravity per-model answer is the editor's own model quota, not the Gemini
+    /// app's: with the app's usage page answering, its figures reach the tile even when it shows no
+    /// more windows than the local read.</summary>
+    [Fact]
+    public async Task The_per_model_local_quota_never_beats_a_web_answer_with_one_window()
+    {
+        const string webOneWindow = """
+            {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.09,1,[[1792246090,0]]]],false]"}
+            """;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, SummaryWithoutGemini, "Pro", ModelQuotaJson: ModelQuota);
+        var provider = ProviderWithWebSession(usage, _ => webOneWindow, out _);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
+        Assert.Equal(9, Assert.Single(snapshot.Windows).UsedPercent, precision: 3);
+    }
+
+    /// <summary>Even a Gemini group in the Antigravity summary with both windows stays the editor's
+    /// quota: a usable web answer is the Gemini app's own and wins.</summary>
+    [Fact]
+    public async Task A_usable_web_answer_wins_over_a_local_read_with_more_windows()
+    {
+        const string webOneWindow = """
+            {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.09,1,[[1792246090,0]]]],false]"}
+            """;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, QuotaSummary, "Google AI Pro");
+        var provider = ProviderWithWebSession(usage, _ => webOneWindow, out _);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
+        Assert.Single(snapshot.Windows);
     }
 
     /// <summary>gemini.google.com can send the hidden session to Google's traffic check instead of

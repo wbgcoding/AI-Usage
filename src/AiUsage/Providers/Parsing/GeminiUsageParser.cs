@@ -175,10 +175,17 @@ public static class GeminiUsageParser
     // the editor's own completion models. An id from none of them is a family this read ignores.
     private static readonly string[] KnownModelPrefixes = ["gemini-", "claude-", "gpt-", "chat_", "tab_"];
 
+    // Summary groups known not to hold the Gemini quota. Any other group without "Gemini" in its name
+    // is named in the log: it may be the Gemini quota under a new name.
+    private static readonly HashSet<string> KnownOtherGroups = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Claude and GPT models",
+    };
+
     /// <summary>
     /// What in the two answers no longer matches what this parser was written for: a new Gemini
     /// model, a model family it does not know, Gemini models that stopped sharing one quota, an
-    /// unknown window name, or no Gemini quota in either answer. Each note is one log line telling
+    /// unknown window name, an unknown summary group, or no Gemini quota in either answer. Each note is one log line telling
     /// that the read needs adapting; empty while everything looks as expected. Ids and group names
     /// only, never a figure or an account detail.
     /// </summary>
@@ -188,6 +195,11 @@ public static class GeminiUsageParser
         var summaryWindows = Parse(summaryJson);
 
         notes.AddRange(WebChangeNotes(summaryJson));
+        foreach (var name in GroupNames(summaryJson))
+        {
+            if (!name.Contains("Gemini", StringComparison.OrdinalIgnoreCase) && !KnownOtherGroups.Contains(name))
+                notes.Add($"the quota summary names an unknown group '{ReadChangeLog.SafeName(name)}'; it is not shown on the Gemini tile, check whether it holds the Gemini quota.");
+        }
 
         if (summaryWindows.Count > 0)
             return notes;
