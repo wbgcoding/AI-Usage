@@ -314,6 +314,67 @@ public class AntigravityUsageLogParserTests
     }
 
     [Fact]
+    public void A_read_whose_time_budget_is_already_spent_still_advances_past_one_row()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("antigravity-budget");
+        var path = Path.Combine(directory, "conversation.db");
+        AntigravityFixtures.CreateDatabase(path, Start);
+        for (var i = 0; i < 3; i++)
+            AntigravityFixtures.AddCall(path, i, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: i), i, Start + 60 + i);
+        var writeTime = DateTime.UtcNow.AddHours(-1);
+
+        var first = AntigravityUsageLogParser.ReadConversation(path, 0, writeTime, readBudget: TimeSpan.Zero);
+        var second = AntigravityUsageLogParser.ReadConversation(path, first.NextIndex, writeTime, readBudget: TimeSpan.Zero);
+
+        Assert.True(first.Incomplete);
+        Assert.True(first.NextIndex > 0);
+        Assert.True(second.NextIndex > first.NextIndex);
+        Assert.All(second.Events, call => Assert.True(call.Index >= first.NextIndex));
+        var all = AntigravityUsageLogParser.ReadConversation(path, 0, writeTime);
+        Assert.Equal(3, all.Events.Count);
+        Assert.False(all.Incomplete);
+    }
+
+    [Fact]
+    public void A_step_lookup_cut_short_defers_the_calls_it_did_not_reach_instead_of_dating_them_at_the_start()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("antigravity-step-budget");
+        var path = Path.Combine(directory, "conversation.db");
+        AntigravityFixtures.CreateDatabase(path, Start);
+        for (var i = 0; i < 3; i++)
+            AntigravityFixtures.AddCall(path, i, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: i), i, Start + 60 + i);
+        var writeTime = DateTime.UtcNow.AddHours(-1);
+
+        var first = AntigravityUsageLogParser.ReadConversation(path, 0, writeTime, stepBudget: TimeSpan.Zero);
+
+        Assert.True(first.Incomplete);
+        var done = Assert.Single(first.Events);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(Start + 60), done.Timestamp);
+        Assert.Equal(1, first.NextIndex);
+
+        var rest = AntigravityUsageLogParser.ReadConversation(path, first.NextIndex, writeTime);
+        Assert.Equal(2, rest.Events.Count);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(Start + 61), rest.Events[0].Timestamp);
+        Assert.False(rest.Incomplete);
+    }
+
+    [Fact]
+    public void A_settled_call_with_a_confirmed_missing_step_keeps_the_start_time_after_a_complete_lookup()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("antigravity-step-missing");
+        var path = Path.Combine(directory, "conversation.db");
+        AntigravityFixtures.CreateDatabase(path, Start);
+        AntigravityFixtures.AddCall(path, 0, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: 0), 0, Start + 60);
+        AntigravityFixtures.AddCall(path, 1, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: 9));
+
+        var result = AntigravityUsageLogParser.ReadConversation(path, 0, DateTime.UtcNow.AddHours(-1));
+
+        Assert.False(result.Incomplete);
+        Assert.Equal(2, result.Events.Count);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(Start), result.Events[1].Timestamp);
+    }
+
+    [Fact]
     public void Reading_never_changes_the_file()
     {
         using var directory = TestPaths.CreateDisposableDirectory("antigravity-readonly");

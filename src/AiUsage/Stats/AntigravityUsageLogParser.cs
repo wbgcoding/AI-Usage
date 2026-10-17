@@ -189,8 +189,10 @@ public static class AntigravityUsageLogParser
     /// table throws <see cref="InvalidDataException"/>. <paramref name="utcNow"/> only matters for the
     /// grace a call gets to receive its step time.</summary>
     public static ReadResult ReadConversation(
-        string path, long fromIndex, DateTime fileWriteTimeUtc, DateTime? utcNow = null, CancellationToken cancellationToken = default)
+        string path, long fromIndex, DateTime fileWriteTimeUtc, DateTime? utcNow = null,
+        TimeSpan? readBudget = null, TimeSpan? stepBudget = null, CancellationToken cancellationToken = default)
     {
+        var budget = readBudget ?? ReadBudget;
         using var connection = ForeignDatabase.Open(path);
         var clock = Stopwatch.StartNew();
 
@@ -217,7 +219,9 @@ public static class AntigravityUsageLogParser
             while (rows.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (clock.Elapsed > ReadBudget)
+
+                // At least one row is handled per read, so a spent budget still moves the resume point.
+                if (rowsSeen > 0 && clock.Elapsed > budget)
                 {
                     incomplete = true;
                     break;
@@ -271,9 +275,10 @@ public static class AntigravityUsageLogParser
             }
         }
 
-        var stepTimes = IsPlainTable(connection, "steps")
-            ? LoadStepTimes(connection, calls, clock, cancellationToken)
-            : [];
+        var stepTimes = new Dictionary<long, DateTimeOffset>();
+        long? coveredThrough = null;
+        if (IsPlainTable(connection, "steps"))
+            (stepTimes, coveredThrough) = LoadStepTimes(connection, calls, clock, stepBudget ?? ReadBudget, cancellationToken);
         var settled = (utcNow ?? DateTime.UtcNow) - fileWriteTimeUtc > StepGrace;
         var fallback = start ?? new DateTimeOffset(DateTime.SpecifyKind(fileWriteTimeUtc, DateTimeKind.Utc));
         var events = new List<UsageEvent>(calls.Count);
@@ -286,9 +291,10 @@ public static class AntigravityUsageLogParser
             {
                 moment = stepTime;
             }
-            else if (generation.StepIndex >= 0 && !settled)
+            else if (generation.StepIndex >= 0 && (!settled || coveredThrough is { } covered && generation.StepIndex > covered))
             {
-                // The step may simply not be written yet: stop at this call and try again later.
+                // The step may simply not be written yet, or the lookup was cut short before it:
+                // stop at this call and try again later.
                 deferredAt = index;
                 incomplete = true;
                 break;
@@ -318,10 +324,12 @@ public static class AntigravityUsageLogParser
         return command.ExecuteScalar() is string type && type == "table";
     }
 
-    /// <summary>The Unix time of every step the given calls refer to, from one range query. Only the
-    /// needed steps are decoded, and an oversized metadata blob is never loaded.</summary>
-    private static Dictionary<long, DateTimeOffset> LoadStepTimes(
-        SqliteConnection connection, List<(long Index, Generation Generation)> calls, Stopwatch clock, CancellationToken cancellationToken)
+    /// <summary>The Unix time of every step the given calls refer to, from chunked queries. Only the
+    /// needed steps are decoded, and an oversized metadata blob is never loaded. When the time or row
+    /// budget ends the lookup early, <c>CoveredThrough</c> is the highest step index up to which every
+    /// needed step is resolved (found or confirmed absent); null when the lookup completed.</summary>
+    private static (Dictionary<long, DateTimeOffset> Times, long? CoveredThrough) LoadStepTimes(
+        SqliteConnection connection, List<(long Index, Generation Generation)> calls, Stopwatch clock, TimeSpan budget, CancellationToken cancellationToken)
     {
         var needed = new HashSet<long>();
         foreach (var (_, generation) in calls)
@@ -332,40 +340,55 @@ public static class AntigravityUsageLogParser
 
         var times = new Dictionary<long, DateTimeOffset>();
         if (needed.Count == 0)
-            return times;
+            return (times, null);
 
         // Only the needed steps are read, in chunks: a range query would load every step between the
         // lowest and the highest one just to throw most of them away.
         var ordered = needed.Order().ToList();
         var budgetLeft = MaxStepRows;
-        for (var offset = 0; offset < ordered.Count && budgetLeft > 0; offset += StepChunkSize)
+        long covered = -1;
+        for (var offset = 0; offset < ordered.Count; offset += StepChunkSize)
         {
+            if (budgetLeft <= 0)
+                return (times, covered);
+
             var chunk = ordered.Skip(offset).Take(StepChunkSize).ToList();
             using var command = connection.CreateCommand();
             command.CommandText =
                 "SELECT idx, CASE WHEN typeof(metadata) = 'blob' AND length(metadata) <= $max THEN metadata END " +
-                $"FROM steps WHERE idx IN ({string.Join(", ", chunk.Select((_, i) => "$i" + i))}) LIMIT $cap";
+                $"FROM steps WHERE idx IN ({string.Join(", ", chunk.Select((_, i) => "$i" + i))}) ORDER BY idx LIMIT $cap";
             command.Parameters.AddWithValue("$max", MaxMetadataBlobBytes);
             command.Parameters.AddWithValue("$cap", budgetLeft);
             for (var i = 0; i < chunk.Count; i++)
                 command.Parameters.AddWithValue("$i" + i, chunk[i]);
             using var rows = command.ExecuteReader();
+            var lastIndex = -1L;
             while (rows.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (clock.Elapsed > ReadBudget)
-                    return times;
                 budgetLeft--;
-                if (rows.IsDBNull(0) || rows.IsDBNull(1))
-                    continue;
+                if (!rows.IsDBNull(0))
+                {
+                    var index = rows.GetInt64(0);
+                    lastIndex = index;
+                    if (!rows.IsDBNull(1) && needed.Contains(index) && TryParseStepTime((byte[])rows.GetValue(1)) is { } time)
+                        times[index] = time;
+                }
 
-                var index = rows.GetInt64(0);
-                if (needed.Contains(index) && TryParseStepTime((byte[])rows.GetValue(1)) is { } time)
-                    times[index] = time;
+                // Checked after the row, so every read resolves at least one step. Rows come in
+                // ascending order: everything needed up to this row is now decided.
+                if (clock.Elapsed > budget)
+                    return (times, Math.Max(covered, lastIndex));
             }
+
+            // A chunk that used up the row limit may have been cut by it.
+            if (budgetLeft <= 0)
+                return (times, Math.Max(covered, lastIndex));
+
+            covered = chunk[^1];
         }
 
-        return times;
+        return (times, null);
     }
 
     private static bool TryReadStep(ReadOnlySpan<byte> entry, out long step)
