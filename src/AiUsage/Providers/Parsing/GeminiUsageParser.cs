@@ -154,6 +154,138 @@ public static class GeminiUsageParser
         }
     }
 
+    // The model ids the per-model answer listed when this read was last adapted. A Gemini id outside
+    // it is still counted, but named in the log so the read can be checked against it.
+    private static readonly HashSet<string> KnownGeminiModels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-flash-thinking", "gemini-2.5-pro",
+        "gemini-3-flash", "gemini-3-flash-agent", "gemini-3.1-flash-image", "gemini-3.1-flash-lite",
+        "gemini-3.5-flash-extra-low", "gemini-3.5-flash-lite", "gemini-3.5-flash-low", "gemini-3.8-flash-tiered",
+    };
+
+    // Model families the per-model answer is known to hold besides Gemini: other makers' models and
+    // the editor's own completion models. An id from none of them is a family this read ignores.
+    private static readonly string[] KnownModelPrefixes = ["gemini-", "claude-", "gpt-", "chat_", "tab_"];
+
+    /// <summary>
+    /// What in the two answers no longer matches what this parser was written for: a new Gemini
+    /// model, a model family it does not know, Gemini models that stopped sharing one quota, an
+    /// unknown window name, or no Gemini quota in either answer. Each note is one log line telling
+    /// that the read needs adapting; empty while everything looks as expected. Ids and group names
+    /// only, never a figure or an account detail.
+    /// </summary>
+    public static IReadOnlyList<string> ChangeNotes(string summaryJson, string modelQuotaJson)
+    {
+        var notes = new List<string>();
+        var summaryWindows = Parse(summaryJson);
+
+        foreach (var window in UnknownWindowNames(summaryJson))
+            notes.Add($"the quota summary names an unknown window '{window}', which is not shown.");
+
+        if (summaryWindows.Count > 0)
+            return notes;
+
+        if (ParseModelQuota(modelQuotaJson).Count == 0)
+        {
+            notes.Add($"neither the quota summary (groups: {string.Join(", ", GroupNames(summaryJson))}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
+            return notes;
+        }
+
+        var fractions = new HashSet<double>();
+        foreach (var (model, fraction) in ModelBuckets(modelQuotaJson))
+        {
+            if (model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!KnownGeminiModels.Contains(model))
+                    notes.Add($"new Gemini model '{model}' found; it is counted in the shared Gemini quota, check that this still holds.");
+                if (fraction is { } value)
+                    fractions.Add(Math.Round(value, 6));
+            }
+            else if (!KnownModelPrefixes.Any(prefix => model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            {
+                notes.Add($"unknown model '{model}' found; it is not counted on the Gemini tile, check whether it belongs there.");
+            }
+        }
+        if (fractions.Count > 1)
+            notes.Add("the Gemini models no longer share one quota; the tile shows the most used one, check whether separate rows are needed.");
+
+        return notes;
+    }
+
+    private static List<string> GroupNames(string summaryJson)
+    {
+        var names = new List<string>();
+        try
+        {
+            using var document = JsonDocument.Parse(summaryJson);
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("groups", out var groups) && groups.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var group in groups.EnumerateArray())
+                {
+                    if (group.ValueKind == JsonValueKind.Object
+                        && group.TryGetProperty("displayName", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
+                        names.Add(nameEl.GetString() ?? "");
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        return names.Count > 0 ? names : ["none"];
+    }
+
+    private static List<string> UnknownWindowNames(string summaryJson)
+    {
+        var names = new List<string>();
+        try
+        {
+            using var document = JsonDocument.Parse(summaryJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("groups", out var groups) || groups.ValueKind != JsonValueKind.Array
+                || PickGeminiGroup(groups) is not { } group
+                || !group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
+                return names;
+            foreach (var bucket in buckets.EnumerateArray())
+            {
+                if (bucket.ValueKind == JsonValueKind.Object
+                    && bucket.TryGetProperty("window", out var windowEl) && windowEl.ValueKind == JsonValueKind.String
+                    && windowEl.GetString() is { } window && window is not ("5h" or "weekly"))
+                    names.Add(window);
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        return names;
+    }
+
+    private static List<(string Model, double? Fraction)> ModelBuckets(string modelQuotaJson)
+    {
+        var models = new List<(string, double?)>();
+        try
+        {
+            using var document = JsonDocument.Parse(modelQuotaJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
+                return models;
+            foreach (var bucket in buckets.EnumerateArray())
+            {
+                if (bucket.ValueKind != JsonValueKind.Object
+                    || !bucket.TryGetProperty("modelId", out var modelEl) || modelEl.ValueKind != JsonValueKind.String)
+                    continue;
+                double? fraction = bucket.TryGetProperty("remainingFraction", out var fractionEl) && fractionEl.ValueKind == JsonValueKind.Number && fractionEl.TryGetDouble(out var value)
+                    ? value
+                    : bucket.TryGetProperty("resetTime", out _) ? 0 : null;
+                models.Add((modelEl.GetString() ?? "", fraction));
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+        }
+        return models;
+    }
+
     private static DateTimeOffset? ReadResetTime(JsonElement bucket)
     {
         if (!bucket.TryGetProperty("resetTime", out var resetEl) || resetEl.ValueKind != JsonValueKind.String)

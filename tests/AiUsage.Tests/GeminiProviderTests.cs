@@ -155,6 +155,49 @@ public class GeminiProviderTests : IDisposable
     }
 
     [Fact]
+    public void The_answers_seen_when_the_read_was_adapted_need_no_change_note() =>
+        Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, ModelQuota));
+
+    [Fact]
+    public void A_new_Gemini_model_and_an_unknown_model_family_are_named()
+    {
+        var quota = ModelQuota.Replace(
+            """{"tokenType":"WTUS","modelId":"chat_20706","remainingFraction":1},""",
+            """{"resetTime":"2026-10-17T11:40:31Z","modelId":"gemini-4-argon","remainingFraction":0.97771573},"""
+            + """{"resetTime":"2026-10-17T11:40:31Z","modelId":"argon-1","remainingFraction":0.5},""");
+
+        var notes = AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, quota);
+
+        Assert.Contains(notes, note => note.Contains("new Gemini model 'gemini-4-argon'", StringComparison.Ordinal));
+        Assert.Contains(notes, note => note.Contains("unknown model 'argon-1'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Gemini_models_with_different_quotas_are_noted()
+    {
+        var quota = ModelQuota.Replace("gemini-2.5-pro\",\"remainingFraction\":0.97771573", "gemini-2.5-pro\",\"remainingFraction\":0.5");
+
+        var notes = AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, quota);
+
+        Assert.Contains(notes, note => note.Contains("no longer share one quota", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void No_Gemini_quota_in_either_answer_names_the_groups_found()
+    {
+        var note = Assert.Single(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, ""));
+
+        Assert.Contains("Claude and GPT models", note, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_unknown_window_in_the_Gemini_group_is_named() =>
+        Assert.Contains(
+            AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(
+                """{"groups":[{"displayName":"Gemini Models","buckets":[{"window":"daily","remainingFraction":0.5},{"window":"5h","remainingFraction":0.5}]}]}""", ""),
+            note => note.Contains("unknown window 'daily'", StringComparison.Ordinal));
+
+    [Fact]
     public void An_exhausted_bucket_without_remainingFraction_reads_as_fully_used()
     {
         var windows = AiUsage.Providers.Parsing.GeminiUsageParser.Parse(

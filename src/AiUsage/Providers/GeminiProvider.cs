@@ -227,6 +227,7 @@ public sealed class GeminiProvider : IUsageProvider
                 return Empty(fetchedAt, ProviderStatus.NotSignedIn, error: null);
 
             case LocalLoginOutcome.Ok:
+                LogChangeNotes(usage);
                 var windows = GeminiUsageParser.Parse(usage.QuotaSummaryJson);
                 if (windows.Count == 0)
                     windows = GeminiUsageParser.ParseModelQuota(usage.ModelQuotaJson);
@@ -247,6 +248,28 @@ public sealed class GeminiProvider : IUsageProvider
                 return ProviderSnapshots.Unavailable(AccountKey, fetchedAt, kind: usage.FailureKind, httpStatus: usage.HttpStatus);
         }
     }
+
+    // Notes already written by this process: each change is logged once per run, not on every read.
+    private static readonly HashSet<string> LoggedChangeNotes = [];
+
+    /// <summary>Writes a WARN line, once per run, for every way Google's answers no longer match what
+    /// the read was written for (see <see cref="GeminiUsageParser.ChangeNotes"/>), so a look into the
+    /// log shows at once that the read needs adapting.</summary>
+    private static void LogChangeNotes(AntigravityUsage usage)
+    {
+        foreach (var note in GeminiUsageParser.ChangeNotes(usage.QuotaSummaryJson, usage.ModelQuotaJson))
+        {
+            lock (LoggedChangeNotes)
+            {
+                if (!LoggedChangeNotes.Add(note))
+                    continue;
+            }
+            LogService.Shared.Log("WARN", ChangeNotePrefix + note);
+        }
+    }
+
+    /// <summary>Starts every change line in the log, so a search for it finds them all.</summary>
+    internal const string ChangeNotePrefix = "CHANGE DETECTED (Gemini usage read needs adapting): ";
 
     private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) =>
         ProviderSnapshots.Empty(AccountKey, fetchedAt, status, error);
