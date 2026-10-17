@@ -975,7 +975,7 @@ public static class BackupService
             if (journal is null
                 || !SetAsideNamePattern.IsMatch(journal.SetAside ?? "")
                 || journal.Aside is null || journal.Place is null
-                || journal.Aside.Count > 64 || journal.Place.Count > 64
+                || journal.Aside.Count > MaxEntries || journal.Place.Count > MaxEntries
                 || journal.Aside.Any(g => g is null || g.Count > 8 || !g.All(IsJournalName))
                 || !journal.Place.All(IsJournalName))
                 return null;

@@ -958,6 +958,36 @@ public sealed class BackupServiceTests : IDisposable
     }
 
     [Fact]
+    public void An_interrupted_swap_of_many_files_is_rolled_back_from_its_journal()
+    {
+        const int Count = 70;
+        var data = Temp();
+        var setAside = Path.Combine(data, "before-restore-20261010-120000");
+        Directory.CreateDirectory(setAside);
+        var names = Enumerable.Range(0, Count).Select(i => $"history-h{i:D3}.jsonl").ToList();
+        foreach (var name in names)
+        {
+            File.WriteAllText(Path.Combine(setAside, name), "old");
+            File.WriteAllText(Path.Combine(data, name), "new");
+        }
+
+        var journal = new
+        {
+            SetAside = "before-restore-20261010-120000",
+            Aside = names.Select(n => new[] { n }).ToArray(),
+            Place = names.ToArray(),
+        };
+        var journalPath = Path.Combine(data, BackupService.JournalFileName);
+        File.WriteAllText(journalPath, System.Text.Json.JsonSerializer.Serialize(journal));
+
+        Assert.Equal(RestoreOutcome.Unchanged, BackupService.ApplyPendingRestore(data, LocalNow, _ => { }));
+
+        Assert.False(File.Exists(journalPath));
+        Assert.False(File.Exists(journalPath + ".bad"));
+        Assert.All(names, n => Assert.Equal("old", File.ReadAllText(Path.Combine(data, n))));
+    }
+
+    [Fact]
     public void The_write_ahead_log_of_the_old_index_goes_into_the_file_that_is_set_aside()
     {
         var source = Temp();
