@@ -2712,4 +2712,13 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal(before + 1, vm.Main.Tiles.Count);
         vm.Dispose();
     }
+
+    [Fact]
+    public void New_settings_preselect_the_automatic_cost_currency()
+    {
+        var (vm, _) = Build();
+
+        Assert.Equal(CostCurrency.Auto, vm.SelectedCostCurrencyChoice?.Value);
+        vm.Dispose();
+    }
 }

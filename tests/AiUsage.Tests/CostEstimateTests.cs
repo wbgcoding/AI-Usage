@@ -351,11 +351,12 @@ public class CostEstimateTests
     // ---- settings ----
 
     [Fact]
-    public void Settings_default_to_on_and_dollars_and_read_old_files()
+    public void Settings_default_to_on_and_automatic_currency_and_read_old_files()
     {
         var settings = new AppSettings();
         Assert.True(settings.ShowCostEstimate);
-        Assert.Equal(CostCurrency.Usd, settings.CostCurrency);
+        Assert.Equal(CostCurrency.Auto, settings.CostCurrency);
+        Assert.Equal(CostCurrency.Auto, System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{}")!.CostCurrency);
 
         var parsed = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("""{ "CostCurrency": "bogus" }""")!;
         Assert.Equal(CostCurrency.Usd, parsed.CostCurrency);
