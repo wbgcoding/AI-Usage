@@ -430,6 +430,103 @@ public class NotificationServiceTests : IDisposable
         Assert.Equal(["claude#2"], raised.Select(n => n.ProviderId).ToList());
     }
 
+    private static DateTimeOffset LocalTime(int day, int hour, int minute) =>
+        new(new DateTime(2026, 1, day, hour, minute, 0, DateTimeKind.Local));
+
+    private static void Track(NotificationService service, string providerId, DateTimeOffset now) =>
+        service.Evaluate(providerId, providerId, FiveHour(10, now.AddDays(20)), threshold: 85, enabled: true, notifyOnReset: false, now);
+
+    [Fact]
+    public void AMuteAtElevenInTheEveningHoldsUntilMidnight()
+    {
+        var service = new NotificationService(TempDirectory());
+        var muteAt = LocalTime(5, 23, 0);
+        Track(service, "codex", muteAt);
+        Assert.False(service.IsMuted("codex", muteAt));
+
+        service.MuteForToday("codex", muteAt);
+
+        Assert.True(service.IsMuted("codex", muteAt));
+        Assert.True(service.IsMuted("codex", LocalTime(5, 23, 59)));
+        Assert.False(service.IsMuted("codex", LocalTime(6, 0, 0)));
+    }
+
+    [Fact]
+    public void AMuteSurvivesAReloadFromDisk()
+    {
+        var directory = TempDirectory();
+        var muteAt = LocalTime(5, 10, 0);
+        var first = new NotificationService(directory, muteAt);
+        Track(first, "codex", muteAt);
+        first.MuteForToday("codex", muteAt);
+
+        var second = new NotificationService(directory, muteAt.AddMinutes(1));
+
+        Assert.True(second.IsMuted("codex", muteAt.AddMinutes(1)));
+        Assert.False(second.IsMuted("codex", LocalTime(6, 0, 0)));
+    }
+
+    [Fact]
+    public void AFileWrittenBeforeTheMuteExistedStillLoads()
+    {
+        var directory = TempDirectory();
+        var now = LocalTime(5, 10, 0);
+        var old = new[]
+        {
+            new { ProviderId = "codex", Kind = (int)WindowKind.FiveHour, Armed = true, LastNotifiedAt = (DateTimeOffset?)null, LastResetsAt = (DateTimeOffset?)now.AddDays(3), Label = "Window_FiveHour" },
+        };
+        File.WriteAllText(Path.Combine(directory, "notifications.json"), JsonSerializer.Serialize(old));
+
+        var service = new NotificationService(directory, now);
+
+        Assert.False(service.IsMuted("codex", now));
+        service.MuteForToday("codex", now); // the entry was loaded, so there is something to mute
+        Assert.True(service.IsMuted("codex", now));
+    }
+
+    [Fact]
+    public void RemovingAnAccountClearsItsMute()
+    {
+        var directory = TempDirectory();
+        var now = LocalTime(5, 10, 0);
+        var service = new NotificationService(directory, now);
+        Track(service, "claude#2", now);
+        service.MuteForToday("claude#2", now);
+
+        service.RemoveAccount("claude#2");
+
+        Assert.False(service.IsMuted("claude#2", now));
+        Track(service, "claude#2", now);
+        Assert.False(service.IsMuted("claude#2", now));
+        Assert.False(new NotificationService(directory, now).IsMuted("claude#2", now));
+    }
+
+    [Fact]
+    public void MutingOneAccountLeavesAnotherUnmuted()
+    {
+        var service = new NotificationService(TempDirectory());
+        var now = LocalTime(5, 10, 0);
+        Track(service, "claude", now);
+        Track(service, "claude#2", now);
+
+        service.MuteForToday("claude#2", now);
+
+        Assert.True(service.IsMuted("claude#2", now));
+        Assert.False(service.IsMuted("claude", now));
+    }
+
+    [Fact]
+    public void MutingAnAccountWithoutAnyRememberedWindowChangesNothing()
+    {
+        var service = new NotificationService(TempDirectory());
+        var now = LocalTime(5, 10, 0);
+
+        service.MuteForToday("never-seen", now);
+
+        Assert.False(service.IsMuted("never-seen", now));
+        Assert.Equal(0, service.SavesWritten);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

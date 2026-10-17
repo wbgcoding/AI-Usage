@@ -2245,10 +2245,10 @@ public class ProviderTileViewModelTests
         var tile = new ProviderTileViewModel("cursor", "Cursor");
         var memo = new TrayTooltipMemo();
         tile.Apply(TwoModelSnapshot("Model A", 20, "Model B", 30), Now);
-        Assert.True(AiUsage.Views.MainWindow.TryComputeTraySummary([tile], memo, out _, out _, out var before));
+        Assert.True(AiUsage.Views.MainWindow.TryComputeTraySummary([tile], memo, out _, out _, out var before, out _));
 
         tile.Apply(TwoModelSnapshot("Model A", 20, "Model B", 95), Now);
-        var changed = AiUsage.Views.MainWindow.TryComputeTraySummary([tile], memo, out _, out _, out var after);
+        var changed = AiUsage.Views.MainWindow.TryComputeTraySummary([tile], memo, out _, out _, out var after, out _);
 
         Assert.Equal(30, before);
         Assert.True(changed);

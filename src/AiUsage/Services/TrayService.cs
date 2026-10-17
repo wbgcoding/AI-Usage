@@ -107,6 +107,7 @@ public sealed class TrayService : IDisposable
     private string _tooltipText = "AI-Usage";
     private UsageLevel? _lastLevel;
     private int? _lastPercent;
+    private bool _lastDimmed;
     private Icon? _renderedIcon;
     private IntPtr _renderedIconHandle;
     // Whatever icon is showing right now, rendered or one of the plain files - what an Explorer
@@ -374,14 +375,16 @@ public sealed class TrayService : IDisposable
 
     /// <summary>Puts the highest level's colour on the tray icon, with <paramref name="percent"/>
     /// (that level's own rounded usage number) drawn on top of it - null falls back to the plain,
-    /// number-less icon files (startup, or every tile hidden with nothing to show a number for).</summary>
-    public void UpdateIcon(UsageLevel highestLevel, int? percent)
+    /// number-less icon files (startup, or every tile hidden with nothing to show a number for).
+    /// <paramref name="dimmed"/> greys the tile: the number comes from old values.</summary>
+    public void UpdateIcon(UsageLevel highestLevel, int? percent, bool dimmed = false)
     {
-        if (_lastLevel == highestLevel && _lastPercent == percent)
+        if (_lastLevel == highestLevel && _lastPercent == percent && _lastDimmed == dimmed)
             return;
 
         _lastLevel = highestLevel;
         _lastPercent = percent;
+        _lastDimmed = dimmed;
 
         if (percent is not { } value)
         {
@@ -395,7 +398,7 @@ public sealed class TrayService : IDisposable
         }
 
         var size = TrayIconRenderer.IconSizeFor(GetSystemMetrics(SM_CXSMICON));
-        using var bitmap = TrayIconRenderer.Render(highestLevel, value, size);
+        using var bitmap = TrayIconRenderer.Render(highestLevel, value, size, dimmed);
         var handle = bitmap.GetHicon();
         AssignIcon(Icon.FromHandle(handle), renderedHandle: handle);
     }
@@ -406,6 +409,7 @@ public sealed class TrayService : IDisposable
     {
         _lastLevel = null;
         _lastPercent = null;
+        _lastDimmed = false;
         if (ReferenceEquals(_currentIcon, _appIcon))
             return;
 

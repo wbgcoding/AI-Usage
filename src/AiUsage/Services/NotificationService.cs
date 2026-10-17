@@ -79,6 +79,10 @@ public sealed record LimitReachedNotification(
     }
 }
 
+/// <summary>A sign-in that worked before and is gone. <paramref name="CanSignInHere"/> is whether the
+/// app can run the sign-in itself (the toast then offers it as a button).</summary>
+public sealed record SignInExpiredNotification(string ProviderId, string ProviderDisplayName, bool CanSignInHere);
+
 /// <summary>
 /// Threshold notifications: one rising-edge alert per window period,
 /// independently per provider and per window (5 hours / weekly). A dip back below the threshold, or
@@ -305,6 +309,35 @@ public sealed class NotificationService
             RequestSave();
     }
 
+    /// <summary>"Not again today": every remembered window of this account stays quiet until the end of
+    /// the local day of <paramref name="now"/>. Accounts without a remembered window are not affected.</summary>
+    internal void MuteForToday(string providerId, DateTimeOffset now)
+    {
+        var today = DateOnly.FromDateTime(now.LocalDateTime);
+        var changed = false;
+        lock (_gate)
+        {
+            foreach (var (key, state) in _state)
+            {
+                if (key.ProviderId != providerId)
+                    continue;
+                state.MutedThrough = today;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            RequestSave();
+    }
+
+    /// <summary>Whether the account was muted for the local day of <paramref name="now"/>.</summary>
+    internal bool IsMuted(string providerId, DateTimeOffset now)
+    {
+        var today = DateOnly.FromDateTime(now.LocalDateTime);
+        lock (_gate)
+            return _state.Any(kvp => kvp.Key.ProviderId == providerId && kvp.Value.MutedThrough >= today);
+    }
+
     // While a batch is open, a changed window only marks the state dirty; the file is written once
     // when the last open batch ends.
     private int _batchDepth;
@@ -402,6 +435,7 @@ public sealed class NotificationService
                     ForecastFiredFor = entry.ForecastFiredFor,
                     LimitFired = entry.LimitFired,
                     LimitFiredFor = entry.LimitFiredFor,
+                    MutedThrough = entry.MutedThrough,
                 };
             }
         }
@@ -425,7 +459,7 @@ public sealed class NotificationService
 
                 var entries = _state.Select(kvp => new PersistedEntry(
                     kvp.Key.ProviderId, kvp.Key.Kind, kvp.Value.Armed, kvp.Value.LastNotifiedAt, kvp.Value.LastResetsAt, kvp.Key.Label,
-                    kvp.Value.ForecastFiredFor, kvp.Value.LimitFired, kvp.Value.LimitFiredFor)).ToList();
+                    kvp.Value.ForecastFiredFor, kvp.Value.LimitFired, kvp.Value.LimitFiredFor, kvp.Value.MutedThrough)).ToList();
                 var json = JsonSerializer.Serialize(entries, JsonOptions);
 
                 AtomicFile.WriteAllBytes(_filePath, AppEncoding.Utf8NoBom.GetBytes(json));
@@ -440,7 +474,7 @@ public sealed class NotificationService
 
     private sealed record PersistedEntry(
         string ProviderId, WindowKind Kind, bool Armed, DateTimeOffset? LastNotifiedAt, DateTimeOffset? LastResetsAt, string? Label = null,
-        DateTimeOffset? ForecastFiredFor = null, bool LimitFired = false, DateTimeOffset? LimitFiredFor = null);
+        DateTimeOffset? ForecastFiredFor = null, bool LimitFired = false, DateTimeOffset? LimitFiredFor = null, DateOnly? MutedThrough = null);
 
     private sealed class State
     {
@@ -450,5 +484,6 @@ public sealed class NotificationService
         public DateTimeOffset? ForecastFiredFor;
         public bool LimitFired;
         public DateTimeOffset? LimitFiredFor;
+        public DateOnly? MutedThrough;
     }
 }

@@ -24,7 +24,8 @@ public static class TrayTooltipBuilder
 
     // Null, not 0: a provider that never delivered a given window (e.g. Claude's weekly slot) must
     // say so rather than show an invented "0 %".
-    public readonly record struct ProviderLine(string DisplayName, double? FiveHourPercent, double? WeeklyPercent);
+    // Note: short text after the percentages when the numbers are not current (sign-in needed, as of a time).
+    public readonly record struct ProviderLine(string DisplayName, double? FiveHourPercent, double? WeeklyPercent, string? Note = null);
 
     /// <summary>The provider lines, with <paramref name="firstLine"/> (a notice such as the pause)
     /// above them when given. The notice stays whole; the provider lines give way to it, whole line by
@@ -47,9 +48,14 @@ public static class TrayTooltipBuilder
         if (limit <= 0)
             return "";
 
-        var full = string.Join('\n', Lines(providers, providers.Select(p => p.DisplayName).ToList()));
-        if (full.Length <= limit)
-            return full;
+        // Overflow order: notes first (the last line's first), then names cut short, then whole lines.
+        var fullNames = providers.Select(p => p.DisplayName).ToList();
+        for (var notes = providers.Count; notes >= 0; notes--)
+        {
+            var text = string.Join('\n', Lines(providers, fullNames, notes));
+            if (text.Length <= limit)
+                return text;
+        }
 
         // Names cut to three characters; two that end up alike get a number so they stay apart.
         var cut = providers.Select(p => p.DisplayName.Length <= 3 ? p.DisplayName : p.DisplayName[..3]).ToList();
@@ -63,7 +69,7 @@ public static class TrayTooltipBuilder
         }).ToList();
 
         // Whole lines go, last first, rather than a line cut in the middle.
-        var lines = Lines(providers, shortNames);
+        var lines = Lines(providers, shortNames, 0);
         while (lines.Count > 1 && string.Join('\n', lines).Length > limit)
             lines.RemoveAt(lines.Count - 1);
 
@@ -73,13 +79,15 @@ public static class TrayTooltipBuilder
 
     // The window names are the short Tray.Short.* tokens, not the full Window.FiveHour / Window.Weekly
     // labels: those are too long for the 127-character cap above.
-    private static List<string> Lines(IReadOnlyList<ProviderLine> providers, List<string> names)
+    // Only the first <paramref name="notes"/> lines keep their note.
+    private static List<string> Lines(IReadOnlyList<ProviderLine> providers, List<string> names, int notes)
     {
         var loc = LocalizationService.Instance;
         var fiveHour = loc["Tray.Short.FiveHour"];
         var week = loc["Tray.Short.Week"];
         return providers.Select((p, i) =>
-            $"{names[i]} {fiveHour} {FormatPercent(p.FiveHourPercent)} · {week} {FormatPercent(p.WeeklyPercent)}").ToList();
+            $"{names[i]} {fiveHour} {FormatPercent(p.FiveHourPercent)} · {week} {FormatPercent(p.WeeklyPercent)}"
+            + (i >= notes || string.IsNullOrEmpty(p.Note) ? "" : " " + p.Note)).ToList();
     }
 
     private static string FormatPercent(double? percent) =>

@@ -236,6 +236,7 @@ public sealed partial class MainViewModel
             _pendingFetchClear.Remove(accountKey);
             _forecastInputs.Remove(accountKey);
             _notifications.RemoveAccount(accountKey);
+            _signInAlerted.Remove(accountKey);
             RenumberRowOrders();
             RefreshHiddenCount();
             RefreshMoveEligibility();

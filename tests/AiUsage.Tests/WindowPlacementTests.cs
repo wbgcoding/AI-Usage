@@ -616,4 +616,85 @@ public class WindowChromeNativeTests
 
         return result!;
     }
+
+    private static readonly MonitorArea Left1080 = new(@"\\.\DISPLAY1", 0, 0, 1920, 1040, true);
+    private static readonly MonitorArea Right1080 = new(@"\\.\DISPLAY2", 1920, 0, 1920, 1040);
+
+    [Fact]
+    public void SetupKey_does_not_depend_on_the_enumeration_order()
+    {
+        Assert.Equal(
+            WindowPlacementService.SetupKey([Left1080, Right1080]),
+            WindowPlacementService.SetupKey([Right1080, Left1080]));
+    }
+
+    [Fact]
+    public void SetupKey_changes_with_a_resolution_a_position_or_a_missing_monitor()
+    {
+        var both = WindowPlacementService.SetupKey([Left1080, Right1080]);
+
+        Assert.NotEqual(both, WindowPlacementService.SetupKey([Left1080 with { Width = 1280, Height = 720 }, Right1080]));
+        Assert.NotEqual(both, WindowPlacementService.SetupKey([Left1080, Right1080 with { Left = -1920 }]));
+        Assert.NotEqual(both, WindowPlacementService.SetupKey([Left1080]));
+    }
+
+    [Fact]
+    public void SetupKey_names_each_monitor_with_its_integer_area()
+    {
+        var key = WindowPlacementService.SetupKey([Right1080, new MonitorArea("A", -10.4, 5.6, 100.2, 50.9)]);
+
+        Assert.Equal(@"A@-10,6,100x51|\\.\DISPLAY2@1920,0,1920x1040", key);
+    }
+
+    [Fact]
+    public void RememberSetup_puts_the_newest_first_and_keeps_three()
+    {
+        var window = new WindowSettings();
+
+        foreach (var key in new[] { "a", "b", "c", "d" })
+            WindowPlacementService.RememberSetup(window, key, 1, 2, "m");
+
+        Assert.Equal(["d", "c", "b"], window.Setups.Select(s => s.Setup));
+    }
+
+    [Fact]
+    public void RememberSetup_updates_a_known_setup_in_place_and_moves_it_to_the_front()
+    {
+        var window = new WindowSettings();
+        WindowPlacementService.RememberSetup(window, "a", 1, 2, "m1");
+        WindowPlacementService.RememberSetup(window, "b", 3, 4, "m2");
+
+        WindowPlacementService.RememberSetup(window, "a", 50, 60, "m3");
+
+        Assert.Equal(["a", "b"], window.Setups.Select(s => s.Setup));
+        var entry = window.Setups[0];
+        Assert.Equal((50d, 60d, "m3"), (entry.Left, entry.Top, entry.MonitorDeviceName));
+    }
+
+    [Fact]
+    public void FindSetup_returns_the_entry_of_a_known_key_and_null_for_an_unknown_one()
+    {
+        var window = new WindowSettings();
+        WindowPlacementService.RememberSetup(window, "a", 7, 8, "m");
+
+        var found = WindowPlacementService.FindSetup(window, "a");
+
+        Assert.NotNull(found);
+        Assert.Equal((7d, 8d), (found.Left, found.Top));
+        Assert.Null(WindowPlacementService.FindSetup(window, "other"));
+    }
+
+    [Fact]
+    public void SetupJump_happens_only_on_a_display_change_to_a_different_known_setup()
+    {
+        var window = new WindowSettings();
+        WindowPlacementService.RememberSetup(window, "new", 7, 8, "m");
+
+        Assert.NotNull(WindowPlacementService.SetupJump(window, "new", "old", fromDisplayChange: true));
+        // The scale-change path and the deferred replace after a drag never jump.
+        Assert.Null(WindowPlacementService.SetupJump(window, "new", "old", fromDisplayChange: false));
+        // Same setup as before, or one never seen: stay where the window is.
+        Assert.Null(WindowPlacementService.SetupJump(window, "new", "new", fromDisplayChange: true));
+        Assert.Null(WindowPlacementService.SetupJump(window, "unknown", "old", fromDisplayChange: true));
+    }
 }

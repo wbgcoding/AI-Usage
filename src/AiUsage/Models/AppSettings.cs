@@ -358,6 +358,12 @@ public sealed class WindowSettings
     public LayoutSizes Vertical { get; set; } = new();
 
     public LayoutSizes Horizontal { get; set; } = new();
+
+    /// <summary>The place the widget was left per display setup, most recent first, at most
+    /// <see cref="MaxSetups"/>; <see cref="Left"/>/<see cref="Top"/> stay the place for the current one.</summary>
+    public List<WindowSetupPlacement> Setups { get; set; } = [];
+
+    public const int MaxSetups = 3;
 }
 
 /// <summary>One arrangement's (vertical or horizontal) own remembered width/height, kept apart from

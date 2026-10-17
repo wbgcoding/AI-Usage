@@ -12,10 +12,26 @@ public partial class MainWindow
 
     private readonly ReplaceAfterDrag _replaceAfterDrag = new();
 
+    /// <summary>The display setup the window was last placed for; a different one on a display change
+    /// means the remembered place for the new setup applies.</summary>
+    private string _lastSetupKey = "";
+
+    /// <summary>Records where the window stands as its place for the current display setup. Only
+    /// deliberate moves call this (end of a drag, snap, reset): Windows shuffling the window during a
+    /// display change must not overwrite the place remembered for the setup it left.</summary>
+    private void RememberSetupPlace()
+    {
+        // Fresh monitors, so a taskbar or work-area change that raised no display event is in the key.
+        _monitorAreas.Refresh();
+        _lastSetupKey = WindowPlacementService.SetupKey(_monitorAreas.Areas);
+        WindowPlacementService.RememberSetup(_settings.Window, _lastSetupKey, Left, Top, _settings.Window.MonitorDeviceName);
+        _settingsStore.RequestSave(_settings);
+    }
+
     /// <summary>A monitor going away (a dock unplugged, a display turned off) must pull the window
     /// back onto whatever is left right away - not just fix it at the next start.</summary>
     private void SystemEvents_DisplaySettingsChanged(object? sender, EventArgs e) =>
-        Dispatcher.BeginInvoke(ReplaceOnScreen);
+        Dispatcher.BeginInvoke(() => ReplaceOnScreen(fromDisplayChange: true));
 
     /// <summary>Moving to a monitor with another scale factor changes the window's size in device
     /// independent units; the position is resolved again once layout has settled. A change that
@@ -60,14 +76,26 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Puts the window back inside what the current monitors offer.</summary>
-    private void ReplaceOnScreen()
+    /// <summary>Puts the window back inside what the current monitors offer. After a display change onto
+    /// a setup it has a remembered place for (and was not placed for just now), it goes there first.</summary>
+    private void ReplaceOnScreen(bool fromDisplayChange = false)
     {
         _monitorAreas.Refresh();
 
         var monitors = _monitorAreas.Areas;
         var primary = WindowPlacementService.PrimaryOf(monitors);
         var current = new WindowRect(Left, Top, Width, Math.Max(ActualHeight, MinHeight));
+        var key = WindowPlacementService.SetupKey(monitors);
+        if (WindowPlacementService.SetupJump(_settings.Window, key, _lastSetupKey, fromDisplayChange) is { } place)
+        {
+            current = current with { Left = place.Left, Top = place.Top };
+            primary = monitors.FirstOrDefault(m => m.DeviceName == place.MonitorDeviceName, primary);
+        }
+
+        // Only the display-change path moves the marker, so a scale change arriving first cannot
+        // use up the jump the display change is about to make.
+        if (fromDisplayChange)
+            _lastSetupKey = key;
         var resolved = WindowPlacementService.ResolvePosition(current, monitors, primary);
         Left = resolved.Left;
         Top = resolved.Top;

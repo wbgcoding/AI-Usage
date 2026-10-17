@@ -114,7 +114,7 @@ public class MainViewModelTests : IDisposable
         vm.Tick(Now);
         var until = DateTimeOffset.Now.AddHours(1);
 
-        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, pausedUntil: until);
+        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, out _, pausedUntil: until);
 
         Assert.StartsWith(TrayTooltipBuilder.PausedLine(until) + "\n", tooltipText);
         Assert.True(tooltipText.Length <= TrayTooltipBuilder.MaxLength);
@@ -127,7 +127,7 @@ public class MainViewModelTests : IDisposable
         var (vm, _, _) = Build(settings, new Dictionary<string, double> { ["codex"] = 30, ["claude"] = 91, ["gemini"] = 42, ["copilot"] = 55 });
 
         vm.Tick(Now);
-        var changed = MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out var highestPercent);
+        var changed = MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out var highestPercent, out _);
 
         Assert.True(changed);
         Assert.Contains("claude", tooltipText);
@@ -141,7 +141,7 @@ public class MainViewModelTests : IDisposable
         var (vm, _, _) = Build(settings, new Dictionary<string, double> { ["codex"] = 30, ["claude"] = 90, ["gemini"] = 42, ["copilot"] = 42 });
 
         vm.Tick(Now);
-        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _);
+        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, out _);
 
         Assert.DoesNotContain("claude", tooltipText);
         Assert.Contains("gemini", tooltipText);
@@ -686,6 +686,60 @@ public class MainViewModelTests : IDisposable
 
         Assert.DoesNotContain(raised, n => n.ProviderId == "claude");
         Assert.Contains(raised, n => n.ProviderId == "codex"); // its own switch is still on
+    }
+
+    private static void RaiseOn(NotificationService notifications, string eventName, object notification) =>
+        ((Delegate?)typeof(NotificationService).GetField(eventName, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(notifications))!
+            .DynamicInvoke(notification);
+
+    private static IEnumerable<(string Event, Func<string, object> Make)> AllAlertKinds() =>
+    [
+        (nameof(NotificationService.NotificationRaised), id => new ThresholdNotification(id, id, WindowKind.FiveHour, 95, Now.AddHours(1))),
+        (nameof(NotificationService.ResetRaised), id => new ResetNotification(id, id, WindowKind.FiveHour)),
+        (nameof(NotificationService.ForecastRaised), id => new ForecastNotification(id, id, WindowKind.FiveHour, 80, TimeSpan.FromMinutes(20))),
+        (nameof(NotificationService.LimitReachedRaised), id => new LimitReachedNotification(id, id, WindowKind.FiveHour, Now.AddHours(1))),
+    ];
+
+    [Fact]
+    public void AnAccountMutedForTodayRaisesNoneOfTheFourUsageAlertsAndAnotherStillDoes()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        var notifications = (NotificationService)ReadPrivateField(vm, "_notifications");
+        var raised = new List<string>();
+        vm.NotificationRaised += n => raised.Add($"{n.ProviderId}/threshold");
+        vm.ResetRaised += n => raised.Add($"{n.ProviderId}/reset");
+        vm.ForecastRaised += n => raised.Add($"{n.ProviderId}/forecast");
+        vm.LimitReachedRaised += n => raised.Add($"{n.ProviderId}/limit");
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, DateTimeOffset.Now.AddDays(3), windowMinutes: null);
+        foreach (var id in new[] { "claude", "codex" })
+            notifications.Evaluate(id, id, window, threshold: 85, enabled: true, notifyOnReset: false, DateTimeOffset.Now);
+
+        vm.MuteAlertsForToday("claude");
+        foreach (var (eventName, make) in AllAlertKinds())
+        {
+            RaiseOn(notifications, eventName, make("claude"));
+            RaiseOn(notifications, eventName, make("codex"));
+        }
+
+        Assert.DoesNotContain(raised, entry => entry.StartsWith("claude/", StringComparison.Ordinal));
+        Assert.Equal(["codex/threshold", "codex/reset", "codex/forecast", "codex/limit"], raised);
+    }
+
+    [Fact]
+    public void MutingAnUnknownAccountIsIgnored()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        var notifications = (NotificationService)ReadPrivateField(vm, "_notifications");
+        var raised = new List<string>();
+        vm.LimitReachedRaised += n => raised.Add(n.ProviderId);
+
+        vm.MuteAlertsForToday("no-such-account");
+        RaiseOn(notifications, nameof(NotificationService.LimitReachedRaised), new LimitReachedNotification("codex", "codex", WindowKind.FiveHour, null));
+
+        Assert.Equal(["codex"], raised);
+        Assert.False(notifications.IsMuted("no-such-account", DateTimeOffset.Now));
     }
 
     [Fact]
@@ -1596,10 +1650,10 @@ public class MainViewModelTests : IDisposable
         var (vm, _, _) = Build(settings);
         var memo = new TrayTooltipMemo();
 
-        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "Auto"));
-        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "AppIcon"));
-        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "Auto"));
-        Assert.False(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "Auto"));
+        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "Auto"));
+        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "AppIcon"));
+        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "Auto"));
+        Assert.False(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "Auto"));
     }
 
     // MainWindow.ResetHeightToAutomaticOnDoubleClick is the pure action a double click on the top or
@@ -2096,6 +2150,107 @@ public class MainViewModelTests : IDisposable
         vm.OnSnapshotReady(WithStatus(ProviderStatus.Failed));
         vm.OnSnapshotReady(WithStatus(ProviderStatus.Failed));
         Assert.Equal(2, Lines("Failed"));
+    }
+
+    private (MainViewModel Vm, List<SignInExpiredNotification> Raised) BuildSignInAlert(Action<AppSettings>? tweak = null)
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        tweak?.Invoke(settings);
+        var (vm, _, _) = Build(settings);
+        var raised = new List<SignInExpiredNotification>();
+        vm.SignInExpiredRaised += raised.Add;
+        return (vm, raised);
+    }
+
+    private static ProviderSnapshot SignInStatus(ProviderStatus status) =>
+        new("claude", [], null, SourceKind.LocalFile, Now, status == ProviderStatus.Ok ? Now : null, status, null);
+
+    [Fact]
+    public void A_sign_in_that_worked_and_is_gone_twice_in_a_row_raises_one_alert()
+    {
+        var (vm, raised) = BuildSignInAlert();
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        Assert.Empty(raised); // one stray refusal is no alert
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        var alert = Assert.Single(raised);
+        Assert.Equal("claude", alert.ProviderId);
+        Assert.Equal(vm.Tiles.Single(t => t.ProviderId == "claude").NotificationName, alert.ProviderDisplayName);
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        Assert.Single(raised); // once per account until it reads Ok again
+    }
+
+    [Fact]
+    public void An_ok_read_re_arms_the_sign_in_alert()
+    {
+        var (vm, raised) = BuildSignInAlert();
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Equal(2, raised.Count);
+    }
+
+    [Fact]
+    public void A_sign_in_that_never_worked_raises_no_alert()
+    {
+        var (vm, raised) = BuildSignInAlert();
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void A_disconnected_account_raises_no_sign_in_alert()
+    {
+        AppSettings? captured = null;
+        var (vm, raised) = BuildSignInAlert(settings => captured = settings);
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        captured!.Providers["claude"].Disconnected = true;
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void A_tile_with_its_notifications_off_raises_no_sign_in_alert()
+    {
+        var (vm, raised) = BuildSignInAlert(settings => settings.Providers["claude"].NotificationsEnabled = false);
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void Quiet_hours_swallow_the_sign_in_alert()
+    {
+        var (vm, raised) = BuildSignInAlert(settings =>
+        {
+            settings.QuietHoursEnabled = true;
+            settings.QuietHoursStart = "00:00";
+            settings.QuietHoursEnd = "23:59"; // covers the whole day regardless of when the test runs
+        });
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
     }
 
     [Fact]

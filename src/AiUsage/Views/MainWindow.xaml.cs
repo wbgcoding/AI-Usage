@@ -30,6 +30,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly DispatcherTimer _tickTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
     private readonly TrayService _tray;
     private readonly ToastNotifier _toasts;
+    private readonly AlertBundler _alerts;
     private readonly MonitorAreaCache _monitorAreas = new(() => NativeMonitors.WorkAreas());
     private readonly TrayTooltipMemo _trayTooltipMemo = new();
     private readonly ClickThroughPolicy _clickThroughPolicy = new();
@@ -187,11 +188,11 @@ public partial class MainWindow : Window, IDisposable
         PreviewKeyDown += MainWindow_PreviewKeyDown;
 
         _tray = new TrayService(WindowLayers.Normalize(_settings.WindowLayer), _settings.ClickThrough);
-        _toasts = new ToastNotifier(
-            new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line),
-            () => LocalizationService.Instance["Toast.ShowWidget"]);
-        // A click arrives on a platform thread; the window is brought forward on the UI thread.
-        _toasts.Activated += () => Dispatcher.BeginInvoke(new Action(ShowAndActivate));
+        _toasts = new ToastNotifier(new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line));
+        // A click arrives on a platform thread; everything it triggers runs on the UI thread.
+        _alerts = new AlertBundler(
+            AlertBundleWindow, ShowAlert, AlertBundler.ScheduleOnDispatcher, line => (logService ?? LogService.Shared).LogError(line));
+        _toasts.Activated += argument => Dispatcher.BeginInvoke(new Action(() => OnToastActivated(argument)));
         _tray.WidgetVisible = () => IsVisibleForTick() && !_hiddenByFullscreen;
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
         _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow(userStarted: true);
@@ -214,6 +215,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ResetRaised += ViewModel_ResetRaised;
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
         ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
+        ViewModel.SignInExpiredRaised += ViewModel_SignInExpiredRaised;
         ViewModel.LevelAnnounced += AnnounceToScreenReader;
         ViewModel.SnapshotApplied += UpdateTray;
 
@@ -255,27 +257,71 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Raised from the snapshot tail, which always runs on the UI thread, the one
     /// <c>ShowBalloonTip</c> needs.</summary>
     private void ViewModel_NotificationRaised(ThresholdNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
 
-    /// <summary>One alert as a Windows toast with a button that brings the widget forward; the tray
-    /// balloon takes over for this and every later alert once toasts are unavailable.</summary>
-    private void ShowAlert(string title, string text)
+    /// <summary>Alerts of one account that arrive together become one toast.</summary>
+    private static readonly TimeSpan AlertBundleWindow = TimeSpan.FromSeconds(3);
+
+    /// <summary>A usage alert: buttons to bring the widget forward and to stay quiet for the rest of the day.</summary>
+    private void ShowUsageAlert(string providerId, string title, string text)
     {
-        if (!_toasts.TryShow(title, text))
+        var loc = LocalizationService.Instance;
+        _alerts.Add(new Alert(providerId, title, [text],
+            [(loc["Toast.ShowWidget"], ToastXml.ShowArgument), (loc["Toast.MuteToday"], ToastXml.MuteArgument(providerId))]));
+    }
+
+    /// <summary>A bundled alert as a Windows toast; the tray balloon takes over for this and every later
+    /// alert once toasts are unavailable.</summary>
+    private void ShowAlert(Alert alert)
+    {
+        var text = string.Join('\n', alert.Lines);
+        if (!_toasts.TryShow(alert.Title, text, alert.Buttons))
             _tray.ShowBalloon(text);
+    }
+
+    /// <summary>A toast click: the mute button only silences that account and leaves the widget alone;
+    /// anything else brings it forward, and the sign-in button then starts that account's sign-in when
+    /// its tile still exists and still offers one.</summary>
+    private void OnToastActivated(string argument)
+    {
+        _ = ToastXml.TryParse(argument, out var kind, out var key);
+        if (kind == ToastXml.MuteKind)
+        {
+            ViewModel.MuteAlertsForToday(key);
+            return;
+        }
+
+        ShowAndActivate();
+        if (kind != ToastXml.SignInKind)
+            return;
+        var tile = ViewModel.Tiles.FirstOrDefault(t => t.ProviderId == key);
+        if (tile is { ShowSignIn: true } && tile.RunActionCommand.CanExecute(null))
+            tile.RunActionCommand.Execute(null);
+    }
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>. The text names only the
+    /// provider label, never an account email or key.</summary>
+    private void ViewModel_SignInExpiredRaised(SignInExpiredNotification notification)
+    {
+        var loc = LocalizationService.Instance;
+        var button = notification.CanSignInHere
+            ? (loc["Toast.SignIn"], ToastXml.SignInArgument(notification.ProviderId))
+            : (loc["Toast.ShowWidget"], ToastXml.ShowArgument);
+        _alerts.Add(new Alert(notification.ProviderId, loc.Format("Toast.SignInNeeded.Title", notification.ProviderDisplayName),
+            [loc["Toast.SignInNeeded.Body"]], [button]));
     }
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ResetRaised(ResetNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text());
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ForecastRaised(ForecastNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text());
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_LimitReachedRaised(LimitReachedNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
 
     /// <summary>Tells a running screen reader that a window changed color level. Only while the
     /// window is on screen: a hidden or minimized widget has nobody looking at it, and the balloon
@@ -394,6 +440,7 @@ public partial class MainWindow : Window, IDisposable
 
         ShowAndActivate();
         SaveWindowSettings();
+        RememberSetupPlace();
     }
 
     /// <summary>Mirrors the tile list into the tray icon's colour and tooltip - only
@@ -403,13 +450,13 @@ public partial class MainWindow : Window, IDisposable
     /// there is no second comparison here.</summary>
     private void UpdateTray()
     {
-        if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow, ViewModel.PausedUntil))
+        if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, out var dimmed, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow, ViewModel.PausedUntil))
         {
             _tray.UpdateTooltip(tooltipText);
             if (ViewModel.TrayProvider == MainViewModel.TrayProviderAppIcon)
                 _tray.ShowAppIcon();
             else
-                _tray.UpdateIcon(highestLevel, highestPercent);
+                _tray.UpdateIcon(highestLevel, highestPercent, dimmed);
         }
     }
 
@@ -420,10 +467,12 @@ public partial class MainWindow : Window, IDisposable
     /// icon need touching, since both are derived from the very same tile data and the chosen tray
     /// provider. The tooltip always lists every tile; the icon shows <paramref name="trayProvider"/>'s
     /// tile alone when that one is visible with numbers, else the highest usage across all of them;
-    /// of those rows only the <paramref name="trayWindow"/> kind while any exist, else all of them.</summary>
+    /// of those rows only the <paramref name="trayWindow"/> kind while any exist, else all of them.
+    /// <paramref name="dimmed"/> is true when the tile supplying the icon's number is not current
+    /// (stale, or showing the last values after a failed read), so the icon can go grey.</summary>
     internal static bool TryComputeTraySummary(
         IEnumerable<ProviderTileViewModel> tiles, TrayTooltipMemo memo,
-        out string tooltipText, out UsageLevel highestLevel, out int? highestPercent,
+        out string tooltipText, out UsageLevel highestLevel, out int? highestPercent, out bool dimmed,
         string? trayProvider = null, string? trayWindow = null, DateTimeOffset? pausedUntil = null)
     {
         var lines = BuildTrayLines(tiles);
@@ -432,27 +481,30 @@ public partial class MainWindow : Window, IDisposable
         var shown = tiles.Where(t => !t.IsHidden && t.HasNumbers).ToList();
         var pinned = shown.FirstOrDefault(t => t.ProviderId == trayProvider);
 
-        var visibleRows = (pinned is null ? shown : [pinned]).SelectMany(t => t.Rows).ToList();
+        var visibleRows = (pinned is null ? shown : [pinned]).SelectMany(t => t.Rows.Select(r => (Tile: t, Row: r))).ToList();
         if (trayWindow is not null && trayWindow.StartsWith(MainViewModel.TrayWindowLabelPrefix, StringComparison.Ordinal))
         {
             var label = trayWindow[MainViewModel.TrayWindowLabelPrefix.Length..];
-            if (visibleRows.Any(r => r.Label == label))
-                visibleRows = visibleRows.Where(r => r.Label == label).ToList();
+            if (visibleRows.Any(r => r.Row.Label == label))
+                visibleRows = visibleRows.Where(r => r.Row.Label == label).ToList();
         }
-        else if (Enum.TryParse<WindowKind>(trayWindow, out var kind) && visibleRows.Any(r => r.Kind == kind))
+        else if (Enum.TryParse<WindowKind>(trayWindow, out var kind) && visibleRows.Any(r => r.Row.Kind == kind))
         {
-            visibleRows = visibleRows.Where(r => r.Kind == kind).ToList();
+            visibleRows = visibleRows.Where(r => r.Row.Kind == kind).ToList();
         }
-        var highest = visibleRows.Select(r => r.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
+        var highest = visibleRows.Select(r => r.Row.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
         highestLevel = highest;
-        highestPercent = visibleRows.Where(r => r.Level == highest)
-            .Select(r => (int?)StatusTextMap.UsagePercent(r.UsedPercent)).Max();
+        var top = visibleRows.Where(r => r.Row.Level == highest).ToList();
+        var topPercent = top.Select(r => (int?)StatusTextMap.UsagePercent(r.Row.UsedPercent)).Max();
+        highestPercent = topPercent;
+        // The icon shows the highest number; it goes grey only when every row tied for it comes from old values.
+        dimmed = top.Count > 0 && top.Where(r => StatusTextMap.UsagePercent(r.Row.UsedPercent) == topPercent).All(r => !IsCurrent(r.Tile));
 
         // The icon's own number and colour are part of the key: the tooltip names only the
         // five-hour and weekly windows, so a change in any other window the icon shows (a Cursor
         // model row, a window picked by its label) left the icon at its old value.
         return memo.HasChanged(tooltipText + "\n" + trayProvider + "\n" + pinned?.ProviderId + "\n" + trayWindow
-            + "\n" + highestLevel + "\n" + highestPercent);
+            + "\n" + highestLevel + "\n" + highestPercent + "\n" + dimmed);
     }
 
     /// <summary>Pulled out of <see cref="TryComputeTraySummary"/> so it is unit-testable without a
@@ -464,8 +516,23 @@ public partial class MainWindow : Window, IDisposable
             .Select(t => new TrayTooltipBuilder.ProviderLine(
                 t.TrayName,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.UsedPercent,
-                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent))
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent,
+                TrayNote(t)))
             .ToList();
+
+    // Numbers from a stale read or kept after a failed one are old: the tray says so instead of
+    // presenting them as current.
+    private static bool IsCurrent(ProviderTileViewModel tile) => !(tile.IsStale || tile.IsShowingLastValues);
+
+    private static string? TrayNote(ProviderTileViewModel tile)
+    {
+        if (IsCurrent(tile))
+            return null;
+        var loc = LocalizationService.Instance;
+        if (tile.SignInState == SignInState.SignedOut)
+            return loc["Tray.Note.SignIn"];
+        return tile.LastSuccessAt is { } at ? loc.Format("Tray.Note.AsOf", TrayTooltipBuilder.ShortTime(at)) : null;
+    }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -975,8 +1042,13 @@ public partial class MainWindow : Window, IDisposable
     private void ApplyRememberedPlacement()
     {
         var monitors = _monitorAreas.Areas;
-        var primary = monitors.FirstOrDefault(m => m.DeviceName == _settings.Window.MonitorDeviceName, WindowPlacementService.PrimaryOf(monitors));
-        var desired = new WindowRect(_settings.Window.Left, _settings.Window.Top, Current.Width, Current.Height ?? MinHeight);
+        // The place left on this very display setup wins over the one single remembered position.
+        _lastSetupKey = WindowPlacementService.SetupKey(monitors);
+        var place = WindowPlacementService.FindSetup(_settings.Window, _lastSetupKey);
+        var device = place?.MonitorDeviceName ?? _settings.Window.MonitorDeviceName;
+        var primary = monitors.FirstOrDefault(m => m.DeviceName == device, WindowPlacementService.PrimaryOf(monitors));
+        var desired = new WindowRect(
+            place?.Left ?? _settings.Window.Left, place?.Top ?? _settings.Window.Top, Current.Width, Current.Height ?? MinHeight);
 
         var resolved = WindowPlacementService.ResolvePosition(desired, monitors, primary);
         Left = resolved.Left;
@@ -1152,7 +1224,7 @@ public partial class MainWindow : Window, IDisposable
 
         QueueDensityUpdate();
         // Once layout has settled, so the window's real size is known before it is pulled back in.
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ReplaceOnScreen);
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => ReplaceOnScreen());
         SaveWindowSettings();
     }
 
@@ -1286,6 +1358,7 @@ public partial class MainWindow : Window, IDisposable
             if (_replaceAfterDrag.DragEnded())
                 ReplaceOnScreen();
             SaveWindowSettings();
+            RememberSetupPlace();
         }
 
         return IntPtr.Zero;
@@ -1796,6 +1869,7 @@ public partial class MainWindow : Window, IDisposable
         Current.Height = Height;
 
         SaveWindowSettings();
+        RememberSetupPlace();
     }
 
     // ShutdownMode is OnExplicitShutdown (App.xaml): closing the window now just hides it into the
@@ -1928,6 +2002,7 @@ public partial class MainWindow : Window, IDisposable
         _globalHotkey?.Dispose();
         _desktopLayer?.Dispose();
         _fullscreenWatcher?.Dispose();
+        _alerts.FlushAll();
         _tray.Dispose();
         // Blocking is safe here: this only ever runs from MainWindow_Closing on the UI thread, and
         // nothing DisposeAsync awaits needs to marshal back onto that same thread to complete.

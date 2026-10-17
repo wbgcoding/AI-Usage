@@ -7,20 +7,60 @@ using Microsoft.Win32;
 
 namespace AiUsage.Services;
 
-/// <summary>Builds the toast XML. Kept apart from the Windows calls so the escaping and the button
-/// can be checked without a notification platform.</summary>
+/// <summary>Builds the toast XML and reads an activation argument back. Kept apart from the Windows
+/// calls so the escaping and the buttons can be checked without a notification platform.</summary>
 internal static class ToastXml
 {
-    /// <summary>The activation argument of both the toast body and its button.</summary>
+    /// <summary>The activation argument of the toast body and of a plain "show widget" button.</summary>
     internal const string ShowArgument = "show";
 
-    internal static string Build(string title, string text, string buttonLabel) =>
-        "<toast launch=\"" + ShowArgument + "\" activationType=\"foreground\">"
-        + "<visual><binding template=\"ToastGeneric\">"
-        + "<text>" + Escape(title) + "</text><text>" + Escape(text) + "</text>"
-        + "</binding></visual>"
-        + "<actions><action content=\"" + Escape(buttonLabel) + "\" arguments=\"" + ShowArgument + "\" activationType=\"foreground\"/></actions>"
-        + "</toast>";
+    internal const string SignInKind = "signin";
+    internal const string MuteKind = "mute";
+
+    internal const int MaxButtons = 3;
+
+    internal static string Build(string title, string text, IReadOnlyList<(string Label, string Argument)> buttons)
+    {
+        var actions = new StringBuilder();
+        foreach (var (label, argument) in buttons.Take(MaxButtons))
+        {
+            actions.Append("<action content=\"").Append(Escape(label)).Append("\" arguments=\"")
+                .Append(Escape(argument)).Append("\" activationType=\"foreground\"/>");
+        }
+
+        return "<toast launch=\"" + ShowArgument + "\" activationType=\"foreground\">"
+            + "<visual><binding template=\"ToastGeneric\">"
+            + "<text>" + Escape(title) + "</text><text>" + Escape(text) + "</text>"
+            + "</binding></visual>"
+            + "<actions>" + actions + "</actions>"
+            + "</toast>";
+    }
+
+    internal static string SignInArgument(string accountKey) => SignInKind + ":" + accountKey;
+
+    internal static string MuteArgument(string accountKey) => MuteKind + ":" + accountKey;
+
+    /// <summary>Maps an activation argument to its kind and account key. Anything unknown (null, empty,
+    /// another kind, an empty key) is a plain "show".</summary>
+    internal static bool TryParse(string? argument, out string kind, out string key)
+    {
+        kind = ShowArgument;
+        key = "";
+        if (string.IsNullOrEmpty(argument))
+            return false;
+
+        var colon = argument.IndexOf(':');
+        if (colon <= 0 || colon == argument.Length - 1)
+            return false;
+
+        var candidate = argument[..colon];
+        if (candidate is not (SignInKind or MuteKind))
+            return false;
+
+        kind = candidate;
+        key = argument[(colon + 1)..];
+        return true;
+    }
 
     // Provider and account names are typed by the user: markup characters are escaped, and control
     // characters XML cannot carry at all are dropped.
@@ -43,17 +83,17 @@ internal interface IToastBackend
     /// <summary>Makes the app identity known to Windows. Called once before the first <see cref="Show"/>.</summary>
     void Register();
 
-    /// <summary>Shows one toast. <paramref name="activated"/> runs, on any thread, when the person clicks the
-    /// toast or its button while this process is still running.</summary>
-    void Show(string xml, Action activated);
+    /// <summary>Shows one toast. <paramref name="activated"/> runs, on any thread, with the argument of the
+    /// clicked button (or "show" for the toast body) while this process is still running.</summary>
+    void Show(string xml, Action<string> activated);
 }
 
 /// <summary>
-/// Shows alerts as real Windows toasts with a "Show widget" button. Any failure while registering or
+/// Shows alerts as real Windows toasts with action buttons. Any failure while registering or
 /// showing is logged once and from then on <see cref="TryShow"/> answers false, so the caller falls
 /// back to the tray balloon for that alert and every later one of this run.
 /// </summary>
-internal sealed class ToastNotifier(IToastBackend backend, Action<string> log, Func<string> buttonLabel)
+internal sealed class ToastNotifier(IToastBackend backend, Action<string> log)
 {
     private readonly object _gate = new();
     private bool _registered;
@@ -61,11 +101,12 @@ internal sealed class ToastNotifier(IToastBackend backend, Action<string> log, F
     /// <summary>True once a failure switched toasts off for this run.</summary>
     public bool IsDisabled { get; private set; }
 
-    /// <summary>Raised when the person clicks a toast or its button. May arrive on any thread.</summary>
-    public event Action? Activated;
+    /// <summary>Raised with the activation argument when the person clicks a toast or its button. May
+    /// arrive on any thread.</summary>
+    public event Action<string>? Activated;
 
     /// <returns>False when no toast was shown and the caller must use the balloon instead.</returns>
-    public bool TryShow(string title, string text)
+    public bool TryShow(string title, string text, IReadOnlyList<(string Label, string Argument)> buttons)
     {
         lock (_gate)
         {
@@ -80,7 +121,7 @@ internal sealed class ToastNotifier(IToastBackend backend, Action<string> log, F
                     _registered = true;
                 }
 
-                backend.Show(ToastXml.Build(title, text, buttonLabel()), OnActivated);
+                backend.Show(ToastXml.Build(title, text, buttons), OnActivated);
                 return true;
             }
             catch (Exception ex)
@@ -92,7 +133,7 @@ internal sealed class ToastNotifier(IToastBackend backend, Action<string> log, F
         }
     }
 
-    private void OnActivated() => Activated?.Invoke();
+    private void OnActivated(string argument) => Activated?.Invoke(argument);
 }
 
 /// <summary>The app identity Windows files toasts under: one id per user, registered under HKCU for the
@@ -160,6 +201,8 @@ internal sealed unsafe partial class WinRtToastBackend : IToastBackend
     private static readonly Guid IidXmlDocument = new("f7f3a506-1e87-42d6-bcfb-b8c809fa5494");
     private static readonly Guid IidAgileObject = new("94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90");
 
+    private static readonly Guid IidToastActivatedEventArgs = new("e3bf92f3-c197-436f-8265-0625824f8dac");
+
     // ITypedEventHandler<ToastNotification, IInspectable>, derived from its parameterized signature.
     internal static readonly Guid IidActivatedHandler = new("ab54de2d-97d9-5528-b6ad-105afe156530");
 
@@ -174,7 +217,7 @@ internal sealed unsafe partial class WinRtToastBackend : IToastBackend
         ToastRegistration.Write(ToastRegistration.KeyPath, icon);
     }
 
-    public void Show(string xml, Action activated)
+    public void Show(string xml, Action<string> activated)
     {
         nint document = 0, documentIo = 0, documentIface = 0, statics = 0, notifier = 0, factory = 0, toast = 0, handler = 0;
         try
@@ -310,6 +353,9 @@ internal sealed unsafe partial class WinRtToastBackend : IToastBackend
     private static partial int WindowsDeleteString(nint hstring);
 
     [LibraryImport("combase.dll")]
+    private static partial char* WindowsGetStringRawBuffer(nint hstring, uint* length);
+
+    [LibraryImport("combase.dll")]
     private static partial int RoActivateInstance(nint classId, nint* instance);
 
     [LibraryImport("combase.dll")]
@@ -328,7 +374,7 @@ internal sealed unsafe partial class WinRtToastBackend : IToastBackend
 
         private static nint* _vtable;
 
-        internal static nint Create(Action activated)
+        internal static nint Create(Action<string> activated)
         {
             if (_vtable == null)
             {
@@ -378,12 +424,44 @@ internal sealed unsafe partial class WinRtToastBackend : IToastBackend
             return (uint)left;
         }
 
+        // The argument of the clicked button; any failure or a missing argument is a plain "show".
+        private static string ReadArguments(nint args)
+        {
+            nint eventArgs = 0, value = 0;
+            try
+            {
+                if (args == 0)
+                    return ToastXml.ShowArgument;
+
+                var iid = IidToastActivatedEventArgs;
+                if (((delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int>)Slot(args, 0))(args, &iid, &eventArgs) < 0 || eventArgs == 0)
+                    return ToastXml.ShowArgument;
+
+                if (((delegate* unmanaged[Stdcall]<nint, nint*, int>)Slot(eventArgs, 6))(eventArgs, &value) < 0 || value == 0)
+                    return ToastXml.ShowArgument;
+
+                uint length;
+                var buffer = WindowsGetStringRawBuffer(value, &length);
+                return buffer == null || length == 0 ? ToastXml.ShowArgument : new string(buffer, 0, (int)length);
+            }
+            catch
+            {
+                return ToastXml.ShowArgument;
+            }
+            finally
+            {
+                if (value != 0)
+                    _ = WindowsDeleteString(value);
+                Release(eventArgs);
+            }
+        }
+
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
         private static int InvokeImpl(nint self, nint sender, nint args)
         {
             try
             {
-                ((Action?)GCHandle.FromIntPtr(((Instance*)self)->State).Target)?.Invoke();
+                ((Action<string>?)GCHandle.FromIntPtr(((Instance*)self)->State).Target)?.Invoke(ReadArguments(args));
             }
             catch
             {
