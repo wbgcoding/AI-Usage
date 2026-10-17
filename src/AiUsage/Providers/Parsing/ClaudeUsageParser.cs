@@ -61,7 +61,8 @@ public static class ClaudeUsageParser
 
             if (TryReadWindow(root, "five_hour", "Window_FiveHour", WindowKind.FiveHour, out var fiveHour))
                 windows.Add(fiveHour);
-            if (TryReadWindow(root, "seven_day", "Window_Weekly", WindowKind.Weekly, out var weekly))
+            if (TryReadWindow(root, "seven_day", "Window_Weekly", WindowKind.Weekly, out var weekly)
+                || TryReadAllModelsWeeklyLimit(root, out weekly))
                 windows.Add(weekly);
             windows.AddRange(ReadScopedWindows(root));
 
@@ -79,8 +80,11 @@ public static class ClaudeUsageParser
     // windows and the extra-usage block. They are read elsewhere or left out on purpose, so a number
     // in them is no change.
     private static readonly string[] KnownUnshownWindowKeys =
-        ["seven_day_opus", "seven_day_sonnet", "seven_day_haiku", "seven_day_oauth_apps", "extra_usage"];
-    private static readonly string[] KnownLimitKinds = ["weekly_scoped", "session"];
+        ["seven_day_opus", "seven_day_sonnet", "seven_day_haiku", "seven_day_oauth_apps", "extra_usage", "iguana_necktie"];
+
+    // "weekly_all" is the all-models weekly limit, the same number as the "seven_day" window: it is
+    // read only when that window is missing, so the weekly row never shows twice.
+    private static readonly string[] KnownLimitKinds = ["weekly_scoped", "weekly_all", "session"];
 
     /// <summary>
     /// What in the answer no longer matches what this parser was written for: a window object under a
@@ -267,6 +271,30 @@ public static class ClaudeUsageParser
             }
         }
         return null;
+    }
+
+    /// <summary>The all-models weekly limit from the "limits" array, as the weekly window, for an
+    /// answer that carries it there instead of under "seven_day". False when there is none or it has
+    /// no numeric percent.</summary>
+    private static bool TryReadAllModelsWeeklyLimit(JsonElement root, out UsageWindow window)
+    {
+        window = null!;
+        if (!root.TryGetProperty("limits", out var limits) || limits.ValueKind != JsonValueKind.Array)
+            return false;
+
+        foreach (var entry in limits.EnumerateArray())
+        {
+            if (entry.ValueKind != JsonValueKind.Object
+                || !entry.TryGetProperty("kind", out var kindEl) || kindEl.ValueKind != JsonValueKind.String
+                || kindEl.GetString() != "weekly_all"
+                || !entry.TryGetProperty("percent", out var percentEl) || percentEl.ValueKind != JsonValueKind.Number
+                || !percentEl.TryGetDouble(out var percent))
+                continue;
+
+            window = new UsageWindow("Window_Weekly", WindowKind.Weekly, percent, ReadResetsAt(entry), windowMinutes: null);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>Reads the response's per-model weekly caps from its "limits" array - one <see

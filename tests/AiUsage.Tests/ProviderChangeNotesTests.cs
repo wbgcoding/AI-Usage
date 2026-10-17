@@ -32,6 +32,11 @@ public class ProviderChangeNotesTests
             """));
 
     [Fact]
+    public void Claude_the_unnamed_internal_window_and_the_all_models_weekly_limit_need_no_note() =>
+        Assert.Empty(ClaudeUsageParser.ChangeNotes(
+            """{"five_hour":{"utilization":1},"seven_day":{"utilization":2},"iguana_necktie":{"utilization":3,"resets_at":1790812800},"limits":[{"kind":"weekly_all","percent":2,"resets_at":1790812800}]}"""));
+
+    [Fact]
     public void Claude_a_window_object_with_an_unknown_name_is_named() =>
         Assert.Contains("unknown window 'seven_day_newmodel'", Assert.Single(ClaudeUsageParser.ChangeNotes(
             """{"five_hour":{"utilization":1},"seven_day_newmodel":{"utilization":4,"resets_at":1790812800}}""")), StringComparison.Ordinal);

@@ -275,4 +275,36 @@ public class ClaudeUsageParserTests
 
         Assert.Null(Assert.Single(result.Windows).Tokens);
     }
+
+    [Fact]
+    public void The_all_models_weekly_limit_does_not_add_a_second_weekly_row_beside_seven_day()
+    {
+        var result = ClaudeUsageParser.Parse(
+            """{"five_hour":{"utilization":10},"seven_day":{"utilization":20},"iguana_necktie":{"utilization":3},"limits":[{"kind":"weekly_all","percent":20}]}""");
+
+        Assert.Equal(2, result.Windows.Count);
+        Assert.Equal(20, Assert.Single(result.Windows, w => w.Kind == WindowKind.Weekly).UsedPercent);
+    }
+
+    [Fact]
+    public void The_all_models_weekly_limit_stands_in_for_a_missing_seven_day_window()
+    {
+        var result = ClaudeUsageParser.Parse(
+            """{"five_hour":{"utilization":10},"limits":[{"kind":"weekly_all","percent":37,"resets_at":1790812800},{"kind":"weekly_scoped","percent":50,"scope":{"model":{"display_name":"Sonnet"}}}]}""");
+
+        var weekly = Assert.Single(result.Windows, w => w.Kind == WindowKind.Weekly);
+        Assert.Equal("Window_Weekly", weekly.Label);
+        Assert.Equal(37, weekly.UsedPercent);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1790812800), weekly.ResetsAt);
+        Assert.Equal(3, result.Windows.Count);
+    }
+
+    [Fact]
+    public void An_all_models_weekly_limit_without_a_percent_adds_no_window()
+    {
+        var result = ClaudeUsageParser.Parse(
+            """{"five_hour":{"utilization":10},"limits":[{"kind":"weekly_all"}]}""");
+
+        Assert.Equal(WindowKind.FiveHour, Assert.Single(result.Windows).Kind);
+    }
 }
