@@ -15,7 +15,7 @@ public class ToastNotifierTests
         public List<string> Shown { get; } = [];
         public Exception? FailRegister;
         public Exception? FailShow;
-        public Action? LastActivated;
+        public Action<string>? LastActivated;
 
         public void Register()
         {
@@ -24,7 +24,7 @@ public class ToastNotifierTests
                 throw FailRegister;
         }
 
-        public void Show(string xml, Action activated)
+        public void Show(string xml, Action<string> activated)
         {
             if (FailShow is not null)
                 throw FailShow;
@@ -33,10 +33,12 @@ public class ToastNotifierTests
         }
     }
 
+    private static readonly IReadOnlyList<(string Label, string Argument)> ShowButton = [("Show widget", "show")];
+
     [Fact]
     public void TheXmlHasTitleTextAndOneShowButtonAndParses()
     {
-        var xml = ToastXml.Build("Codex", "Codex: 5h at 90%", "Show widget");
+        var xml = ToastXml.Build("Codex", "Codex: 5h at 90%", ShowButton);
 
         var root = XDocument.Parse(xml).Root!;
         Assert.Equal("toast", root.Name.LocalName);
@@ -51,12 +53,14 @@ public class ToastNotifierTests
     [Fact]
     public void MarkupInNamesIsEscapedAndControlCharactersAreDropped()
     {
-        var xml = ToastXml.Build("A <b>&\"'", "x\u0001y<z>", "Zeig \"es\"");
+        var xml = ToastXml.Build("A <b>&\"'", "x\u0001y<z>", [("Zeig \"es\"", "mute:a&\"b")]);
 
         var root = XDocument.Parse(xml).Root!; // must still be well-formed
         Assert.Equal("A <b>&\"'", root.Descendants("text").First().Value);
         Assert.Equal("xy<z>", root.Descendants("text").Last().Value);
-        Assert.Equal("Zeig \"es\"", root.Descendants("action").Single().Attribute("content")!.Value);
+        var action = root.Descendants("action").Single();
+        Assert.Equal("Zeig \"es\"", action.Attribute("content")!.Value);
+        Assert.Equal("mute:a&\"b", action.Attribute("arguments")!.Value);
         Assert.DoesNotContain("<b>", xml);
     }
 
@@ -64,10 +68,11 @@ public class ToastNotifierTests
     public void AShownToastRegistersOnceAndPassesTheXmlWithTheLocalizedButton()
     {
         var backend = new FakeBackend();
-        var notifier = new ToastNotifier(backend, _ => { }, () => "Widget zeigen");
+        var notifier = new ToastNotifier(backend, _ => { });
+        IReadOnlyList<(string Label, string Argument)> buttons = [("Widget zeigen", "show")];
 
-        Assert.True(notifier.TryShow("Codex", "one"));
-        Assert.True(notifier.TryShow("Codex", "two"));
+        Assert.True(notifier.TryShow("Codex", "one", buttons));
+        Assert.True(notifier.TryShow("Codex", "two", buttons));
 
         Assert.Equal(1, backend.Registered);
         Assert.Equal(2, backend.Shown.Count);
@@ -80,12 +85,12 @@ public class ToastNotifierTests
     {
         var backend = new FakeBackend { FailShow = new InvalidOperationException("no platform") };
         var log = new List<string>();
-        var notifier = new ToastNotifier(backend, log.Add, () => "Show widget");
+        var notifier = new ToastNotifier(backend, log.Add);
 
-        Assert.False(notifier.TryShow("Codex", "one"));
+        Assert.False(notifier.TryShow("Codex", "one", ShowButton));
         backend.FailShow = null; // even a platform that recovers is not asked again this run
-        Assert.False(notifier.TryShow("Codex", "two"));
-        Assert.False(notifier.TryShow("Codex", "three"));
+        Assert.False(notifier.TryShow("Codex", "two", ShowButton));
+        Assert.False(notifier.TryShow("Codex", "three", ShowButton));
 
         Assert.True(notifier.IsDisabled);
         Assert.Empty(backend.Shown);
@@ -98,10 +103,10 @@ public class ToastNotifierTests
     {
         var backend = new FakeBackend { FailRegister = new UnauthorizedAccessException("registry") };
         var log = new List<string>();
-        var notifier = new ToastNotifier(backend, log.Add, () => "Show widget");
+        var notifier = new ToastNotifier(backend, log.Add);
 
-        Assert.False(notifier.TryShow("Codex", "one"));
-        Assert.False(notifier.TryShow("Codex", "two"));
+        Assert.False(notifier.TryShow("Codex", "one", ShowButton));
+        Assert.False(notifier.TryShow("Codex", "two", ShowButton));
 
         Assert.Single(log);
         Assert.Empty(backend.Shown);
@@ -111,14 +116,50 @@ public class ToastNotifierTests
     public void AClickOnTheToastRaisesActivated()
     {
         var backend = new FakeBackend();
-        var notifier = new ToastNotifier(backend, _ => { }, () => "Show widget");
-        var raised = 0;
-        notifier.Activated += () => raised++;
+        var notifier = new ToastNotifier(backend, _ => { });
+        var raised = new List<string>();
+        notifier.Activated += raised.Add;
 
-        notifier.TryShow("Codex", "one");
-        backend.LastActivated!();
+        notifier.TryShow("Codex", "one", ShowButton);
+        backend.LastActivated!("signin:claude");
 
-        Assert.Equal(1, raised);
+        Assert.Equal(["signin:claude"], raised);
+    }
+
+    [Fact]
+    public void BuildEmitsOneActionPerButtonAndAtMostThree()
+    {
+        var xml = ToastXml.Build("T", "x", [("A", "show"), ("B", "signin:k"), ("C", "mute:k"), ("D", "show")]);
+
+        var actions = XDocument.Parse(xml).Root!.Descendants("action").ToList();
+        Assert.Equal(["A", "B", "C"], actions.Select(a => a.Attribute("content")!.Value));
+        Assert.Equal(["show", "signin:k", "mute:k"], actions.Select(a => a.Attribute("arguments")!.Value));
+    }
+
+    [Theory]
+    [InlineData("show", "show", "")]
+    [InlineData("signin:claude", "signin", "claude")]
+    [InlineData("mute:codex-2", "mute", "codex-2")]
+    [InlineData("", "show", "")]
+    [InlineData(null, "show", "")]
+    [InlineData("signin:", "show", "")]
+    [InlineData("foo:bar", "show", "")]
+    [InlineData(":claude", "show", "")]
+    public void TryParseMapsAnythingUnknownToShow(string? argument, string kind, string key)
+    {
+        ToastXml.TryParse(argument, out var gotKind, out var gotKey);
+
+        Assert.Equal(kind, gotKind);
+        Assert.Equal(key, gotKey);
+    }
+
+    [Fact]
+    public void ArgumentHelpersRoundTripThroughTryParse()
+    {
+        Assert.True(ToastXml.TryParse(ToastXml.SignInArgument("claude"), out var kind, out var key));
+        Assert.Equal(("signin", "claude"), (kind, key));
+        Assert.True(ToastXml.TryParse(ToastXml.MuteArgument("codex-2"), out kind, out key));
+        Assert.Equal(("mute", "codex-2"), (kind, key));
     }
 
     [Fact]

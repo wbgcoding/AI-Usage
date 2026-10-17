@@ -126,6 +126,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ForecastRaised?.Invoke(notification);
     }
 
+    /// <summary>A sign-in that worked and is now gone twice in a row, once per account until it
+    /// reads Ok again. Obeys the tile's notification switch and quiet hours.</summary>
+    public event Action<SignInExpiredNotification>? SignInExpiredRaised;
+
+    /// <summary>Accounts already warned about an expired sign-in; an Ok read or the account's removal
+    /// clears the key. Only touched on the UI thread (inside the snapshot tail).</summary>
+    private readonly HashSet<string> _signInAlerted = [];
+
     /// <summary>The "limit reached (100 %)" alert, forwarded like <see cref="NotificationRaised"/>
     /// (quiet hours included).</summary>
     public event Action<LimitReachedNotification>? LimitReachedRaised;
@@ -1424,6 +1432,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (snapshot.Status != ProviderStatus.NotSignedIn && IsAccountDisconnected(snapshot.ProviderId))
                 return;
 
+            var hadValues = tile.LastSuccessAt is not null;
+
             // A sign-out from this app forgets the numbers; any other lost sign-in keeps them on show.
             tile.Apply(
                 snapshot, now, ResolvedThresholds(snapshot.ProviderId), _settings.ShowAttentionMark,
@@ -1432,6 +1442,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (OrderedByUsage)
                 ApplyTileOrder();
             var displayName = tile.NotificationName;
+
+            if (snapshot.Status == ProviderStatus.Ok)
+                _signInAlerted.Remove(snapshot.ProviderId);
+            else if (repeatedNotSignedIn && hadValues && !IsAccountDisconnected(snapshot.ProviderId)
+                && GetOrCreateProviderSettings(snapshot.ProviderId).NotificationsEnabled
+                && !QuietHours.IsQuiet(_settings, now) && _signInAlerted.Add(snapshot.ProviderId))
+                SignInExpiredRaised?.Invoke(new SignInExpiredNotification(snapshot.ProviderId, displayName, tile.SupportsInAppSignIn));
 
             // A tile's own master switch (ProviderSettings.NotificationsEnabled) gates both streams;
             // its own reset switch sits underneath that AND the global NotifyOnReset switch, so either

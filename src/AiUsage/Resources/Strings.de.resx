@@ -608,4 +608,7 @@
   <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>Wie oft AI-Usage diesen Anbieter höchstens abfragt. Standard folgt dem Regler unter Abruf.</value></data>
   <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Gilt für jeden Abruf übers Internet; unter Anbieter lässt sich das je Anbieter ändern.</value></data>
+  <data name="Toast.SignInNeeded.Title" xml:space="preserve"><value>{0}: Anmeldung nötig</value></data>
+  <data name="Toast.SignInNeeded.Body" xml:space="preserve"><value>Die Anmeldung ist abgelaufen. Ohne neue Anmeldung bleiben die Werte stehen.</value></data>
+  <data name="Toast.SignIn" xml:space="preserve"><value>Anmelden</value></data>
 </root>

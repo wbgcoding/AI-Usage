@@ -79,6 +79,10 @@ public sealed record LimitReachedNotification(
     }
 }
 
+/// <summary>A sign-in that worked before and is gone. <paramref name="CanSignInHere"/> is whether the
+/// app can run the sign-in itself (the toast then offers it as a button).</summary>
+public sealed record SignInExpiredNotification(string ProviderId, string ProviderDisplayName, bool CanSignInHere);
+
 /// <summary>
 /// Threshold notifications: one rising-edge alert per window period,
 /// independently per provider and per window (5 hours / weekly). A dip back below the threshold, or

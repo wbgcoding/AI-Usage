@@ -2098,6 +2098,107 @@ public class MainViewModelTests : IDisposable
         Assert.Equal(2, Lines("Failed"));
     }
 
+    private (MainViewModel Vm, List<SignInExpiredNotification> Raised) BuildSignInAlert(Action<AppSettings>? tweak = null)
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        tweak?.Invoke(settings);
+        var (vm, _, _) = Build(settings);
+        var raised = new List<SignInExpiredNotification>();
+        vm.SignInExpiredRaised += raised.Add;
+        return (vm, raised);
+    }
+
+    private static ProviderSnapshot SignInStatus(ProviderStatus status) =>
+        new("claude", [], null, SourceKind.LocalFile, Now, status == ProviderStatus.Ok ? Now : null, status, null);
+
+    [Fact]
+    public void A_sign_in_that_worked_and_is_gone_twice_in_a_row_raises_one_alert()
+    {
+        var (vm, raised) = BuildSignInAlert();
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        Assert.Empty(raised); // one stray refusal is no alert
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        var alert = Assert.Single(raised);
+        Assert.Equal("claude", alert.ProviderId);
+        Assert.Equal(vm.Tiles.Single(t => t.ProviderId == "claude").NotificationName, alert.ProviderDisplayName);
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        Assert.Single(raised); // once per account until it reads Ok again
+    }
+
+    [Fact]
+    public void An_ok_read_re_arms_the_sign_in_alert()
+    {
+        var (vm, raised) = BuildSignInAlert();
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Equal(2, raised.Count);
+    }
+
+    [Fact]
+    public void A_sign_in_that_never_worked_raises_no_alert()
+    {
+        var (vm, raised) = BuildSignInAlert();
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void A_disconnected_account_raises_no_sign_in_alert()
+    {
+        AppSettings? captured = null;
+        var (vm, raised) = BuildSignInAlert(settings => captured = settings);
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        captured!.Providers["claude"].Disconnected = true;
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void A_tile_with_its_notifications_off_raises_no_sign_in_alert()
+    {
+        var (vm, raised) = BuildSignInAlert(settings => settings.Providers["claude"].NotificationsEnabled = false);
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
+    [Fact]
+    public void Quiet_hours_swallow_the_sign_in_alert()
+    {
+        var (vm, raised) = BuildSignInAlert(settings =>
+        {
+            settings.QuietHoursEnabled = true;
+            settings.QuietHoursStart = "00:00";
+            settings.QuietHoursEnd = "23:59"; // covers the whole day regardless of when the test runs
+        });
+
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.Ok));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+        vm.OnSnapshotReady(SignInStatus(ProviderStatus.NotSignedIn));
+
+        Assert.Empty(raised);
+    }
+
     [Fact]
     public void A_failed_snapshot_writes_one_INFO_line_naming_the_provider_and_no_file_path()
     {

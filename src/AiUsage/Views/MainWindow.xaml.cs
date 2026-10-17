@@ -187,11 +187,9 @@ public partial class MainWindow : Window, IDisposable
         PreviewKeyDown += MainWindow_PreviewKeyDown;
 
         _tray = new TrayService(WindowLayers.Normalize(_settings.WindowLayer), _settings.ClickThrough);
-        _toasts = new ToastNotifier(
-            new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line),
-            () => LocalizationService.Instance["Toast.ShowWidget"]);
-        // A click arrives on a platform thread; the window is brought forward on the UI thread.
-        _toasts.Activated += () => Dispatcher.BeginInvoke(new Action(ShowAndActivate));
+        _toasts = new ToastNotifier(new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line));
+        // A click arrives on a platform thread; everything it triggers runs on the UI thread.
+        _toasts.Activated += argument => Dispatcher.BeginInvoke(new Action(() => OnToastActivated(argument)));
         _tray.WidgetVisible = () => IsVisibleForTick() && !_hiddenByFullscreen;
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
         _tray.RefreshRequested += (_, _) => ViewModel.RefreshNow(userStarted: true);
@@ -214,6 +212,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ResetRaised += ViewModel_ResetRaised;
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
         ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
+        ViewModel.SignInExpiredRaised += ViewModel_SignInExpiredRaised;
         ViewModel.LevelAnnounced += AnnounceToScreenReader;
         ViewModel.SnapshotApplied += UpdateTray;
 
@@ -259,10 +258,36 @@ public partial class MainWindow : Window, IDisposable
 
     /// <summary>One alert as a Windows toast with a button that brings the widget forward; the tray
     /// balloon takes over for this and every later alert once toasts are unavailable.</summary>
-    private void ShowAlert(string title, string text)
+    private void ShowAlert(string title, string text) =>
+        ShowAlert(title, text, [(LocalizationService.Instance["Toast.ShowWidget"], ToastXml.ShowArgument)]);
+
+    private void ShowAlert(string title, string text, IReadOnlyList<(string Label, string Argument)> buttons)
     {
-        if (!_toasts.TryShow(title, text))
+        if (!_toasts.TryShow(title, text, buttons))
             _tray.ShowBalloon(text);
+    }
+
+    /// <summary>A toast click: the widget always comes forward; the sign-in button then starts that
+    /// account's sign-in when its tile still exists and still offers one.</summary>
+    private void OnToastActivated(string argument)
+    {
+        ShowAndActivate();
+        if (!ToastXml.TryParse(argument, out var kind, out var key) || kind != ToastXml.SignInKind)
+            return;
+        var tile = ViewModel.Tiles.FirstOrDefault(t => t.ProviderId == key);
+        if (tile is { ShowSignIn: true } && tile.RunActionCommand.CanExecute(null))
+            tile.RunActionCommand.Execute(null);
+    }
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>. The text names only the
+    /// provider label, never an account email or key.</summary>
+    private void ViewModel_SignInExpiredRaised(SignInExpiredNotification notification)
+    {
+        var loc = LocalizationService.Instance;
+        var button = notification.CanSignInHere
+            ? (loc["Toast.SignIn"], ToastXml.SignInArgument(notification.ProviderId))
+            : (loc["Toast.ShowWidget"], ToastXml.ShowArgument);
+        ShowAlert(loc.Format("Toast.SignInNeeded.Title", notification.ProviderDisplayName), loc["Toast.SignInNeeded.Body"], [button]);
     }
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
