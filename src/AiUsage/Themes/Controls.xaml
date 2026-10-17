@@ -442,6 +442,7 @@
         <Setter Property="HasDropShadow" Value="False"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Placement" Value="Bottom"/>
+        <Setter Property="MaxWidth" Value="420"/>
         <Setter Property="ToolTipService.InitialShowDelay" Value="400"/>
         <Setter Property="ToolTipService.ShowDuration" Value="20000"/>
         <Setter Property="Template">
@@ -449,7 +450,13 @@
                 <ControlTemplate TargetType="ToolTip">
                     <Border Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}"
                             BorderThickness="1" CornerRadius="{StaticResource Radius.Control}" Padding="8,4">
-                        <ContentPresenter/>
+                        <ContentPresenter>
+                            <ContentPresenter.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                </Style>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
