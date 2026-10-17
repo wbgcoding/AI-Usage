@@ -22,6 +22,9 @@ public static class TrayIconRenderer
     private static readonly Color WarnColor = Color.FromArgb(0xB4, 0x53, 0x09);
     private static readonly Color CritColor = Color.FromArgb(0xBE, 0x12, 0x3C);
 
+    // Old values: the level colour would claim a state that may no longer hold, so the tile goes grey.
+    private static readonly Color DimmedColor = Color.FromArgb(0x61, 0x61, 0x61);
+
     /// <summary>The fixed background colour for a level - not a theme lookup, so the icon reads the
     /// same on every taskbar.</summary>
     internal static Color BackgroundColor(UsageLevel level) => level switch
@@ -32,11 +35,11 @@ public static class TrayIconRenderer
     };
 
     // Drawing the digits means measuring several candidate sizes, so a finished icon is kept per
-    // (level, percent, size) and handed out as a copy, and the font size that fit a text is kept per
+    // (level, percent, size, dimmed) and handed out as a copy, and the font size that fit a text is kept per
     // (text, size). GDI+ objects are not safe to share between threads, so all of it runs under one lock.
     private const int MaxCachedIcons = 128;
     private static readonly object Gate = new();
-    private static readonly Dictionary<(UsageLevel Level, int Percent, int Size), Bitmap> Rendered = [];
+    private static readonly Dictionary<(UsageLevel Level, int Percent, int Size, bool Dimmed), Bitmap> Rendered = [];
     private static readonly Dictionary<(string Text, int Size), int> ChosenPixels = [];
     private static readonly Dictionary<bool, (FontFamily Family, System.Drawing.FontStyle Style)> Faces = [];
 
@@ -47,10 +50,11 @@ public static class TrayIconRenderer
     /// <paramref name="size"/> pixels - the small-icon size Windows asks for at the current scaling
     /// (16, 20, 24 or 32), see <see cref="IconSizeFor"/>. The digits are hinted text (crisp on the
     /// pixel grid), as large as the margin allows, and their ink box sits in the middle of the tile on
-    /// both axes. The caller owns the returned bitmap and must dispose it.</summary>
-    public static Bitmap Render(UsageLevel level, int percent, int size)
+    /// both axes. <paramref name="dimmed"/> draws grey instead of the level colour (the numbers are old).
+    /// The caller owns the returned bitmap and must dispose it.</summary>
+    public static Bitmap Render(UsageLevel level, int percent, int size, bool dimmed = false)
     {
-        var key = (level, Math.Clamp(percent, 0, 100), size);
+        var key = (level, Math.Clamp(percent, 0, 100), size, dimmed);
         lock (Gate)
         {
             if (!Rendered.TryGetValue(key, out var master))
@@ -62,7 +66,7 @@ public static class TrayIconRenderer
                     Rendered.Clear();
                 }
 
-                master = Compose(level, percent, size);
+                master = Compose(level, percent, size, dimmed);
                 Rendered[key] = master;
             }
 
@@ -70,10 +74,10 @@ public static class TrayIconRenderer
         }
     }
 
-    private static Bitmap Compose(UsageLevel level, int percent, int size)
+    private static Bitmap Compose(UsageLevel level, int percent, int size, bool dimmed)
     {
         ComposeCount++;
-        var background = BackgroundColor(level);
+        var background = dimmed ? DimmedColor : BackgroundColor(level);
         var textColor = ContrastingTextColor(background);
 
         var bitmap = new Bitmap(size, size);

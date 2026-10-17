@@ -189,4 +189,28 @@ public class TrayIconRendererTests
 
         return 0.2126 * Channel(c.R) + 0.7152 * Channel(c.G) + 0.0722 * Channel(c.B);
     }
+
+    [Theory]
+    [InlineData(UsageLevel.Ok)]
+    [InlineData(UsageLevel.Crit)]
+    public void A_dimmed_icon_is_grey_whatever_the_level_and_is_cached_apart(UsageLevel level)
+    {
+        using var plain = TrayIconRenderer.Render(level, 42, 24);
+        using var dimmed = TrayIconRenderer.Render(level, 42, 24, dimmed: true);
+
+        Assert.Equal(TrayIconRenderer.BackgroundColor(level).ToArgb(), plain.GetPixel(12, 1).ToArgb());
+        Assert.Equal(Color.FromArgb(0x61, 0x61, 0x61).ToArgb(), dimmed.GetPixel(12, 1).ToArgb());
+
+        var before = TrayIconRenderer.ComposeCount;
+        using var again = TrayIconRenderer.Render(level, 42, 24, dimmed: true);
+        Assert.Equal(before, TrayIconRenderer.ComposeCount);
+    }
+
+    [Fact]
+    public void The_text_on_the_dimmed_background_reaches_the_contrast_floor()
+    {
+        var grey = Color.FromArgb(0x61, 0x61, 0x61);
+
+        Assert.True(ContrastRatio(grey, TrayIconRenderer.ContrastingTextColor(grey)) >= 4.5);
+    }
 }

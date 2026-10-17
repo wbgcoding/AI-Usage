@@ -24,7 +24,8 @@ public static class TrayTooltipBuilder
 
     // Null, not 0: a provider that never delivered a given window (e.g. Claude's weekly slot) must
     // say so rather than show an invented "0 %".
-    public readonly record struct ProviderLine(string DisplayName, double? FiveHourPercent, double? WeeklyPercent);
+    // Note: short text after the percentages when the numbers are not current (sign-in needed, as of a time).
+    public readonly record struct ProviderLine(string DisplayName, double? FiveHourPercent, double? WeeklyPercent, string? Note = null);
 
     /// <summary>The provider lines, with <paramref name="firstLine"/> (a notice such as the pause)
     /// above them when given. The notice stays whole; the provider lines give way to it, whole line by
@@ -79,7 +80,8 @@ public static class TrayTooltipBuilder
         var fiveHour = loc["Tray.Short.FiveHour"];
         var week = loc["Tray.Short.Week"];
         return providers.Select((p, i) =>
-            $"{names[i]} {fiveHour} {FormatPercent(p.FiveHourPercent)} · {week} {FormatPercent(p.WeeklyPercent)}").ToList();
+            $"{names[i]} {fiveHour} {FormatPercent(p.FiveHourPercent)} · {week} {FormatPercent(p.WeeklyPercent)}"
+            + (string.IsNullOrEmpty(p.Note) ? "" : " " + p.Note)).ToList();
     }
 
     private static string FormatPercent(double? percent) =>

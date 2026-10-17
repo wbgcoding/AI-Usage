@@ -448,13 +448,13 @@ public partial class MainWindow : Window, IDisposable
     /// there is no second comparison here.</summary>
     private void UpdateTray()
     {
-        if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow, ViewModel.PausedUntil))
+        if (TryComputeTraySummary(ViewModel.Tiles, _trayTooltipMemo, out var tooltipText, out var highestLevel, out var highestPercent, out var dimmed, ViewModel.TrayProvider, ViewModel.EffectiveTrayWindow, ViewModel.PausedUntil))
         {
             _tray.UpdateTooltip(tooltipText);
             if (ViewModel.TrayProvider == MainViewModel.TrayProviderAppIcon)
                 _tray.ShowAppIcon();
             else
-                _tray.UpdateIcon(highestLevel, highestPercent);
+                _tray.UpdateIcon(highestLevel, highestPercent, dimmed);
         }
     }
 
@@ -465,10 +465,12 @@ public partial class MainWindow : Window, IDisposable
     /// icon need touching, since both are derived from the very same tile data and the chosen tray
     /// provider. The tooltip always lists every tile; the icon shows <paramref name="trayProvider"/>'s
     /// tile alone when that one is visible with numbers, else the highest usage across all of them;
-    /// of those rows only the <paramref name="trayWindow"/> kind while any exist, else all of them.</summary>
+    /// of those rows only the <paramref name="trayWindow"/> kind while any exist, else all of them.
+    /// <paramref name="dimmed"/> is true when the tile supplying the icon's number is not current
+    /// (stale, or showing the last values after a failed read), so the icon can go grey.</summary>
     internal static bool TryComputeTraySummary(
         IEnumerable<ProviderTileViewModel> tiles, TrayTooltipMemo memo,
-        out string tooltipText, out UsageLevel highestLevel, out int? highestPercent,
+        out string tooltipText, out UsageLevel highestLevel, out int? highestPercent, out bool dimmed,
         string? trayProvider = null, string? trayWindow = null, DateTimeOffset? pausedUntil = null)
     {
         var lines = BuildTrayLines(tiles);
@@ -477,27 +479,30 @@ public partial class MainWindow : Window, IDisposable
         var shown = tiles.Where(t => !t.IsHidden && t.HasNumbers).ToList();
         var pinned = shown.FirstOrDefault(t => t.ProviderId == trayProvider);
 
-        var visibleRows = (pinned is null ? shown : [pinned]).SelectMany(t => t.Rows).ToList();
+        var visibleRows = (pinned is null ? shown : [pinned]).SelectMany(t => t.Rows.Select(r => (Tile: t, Row: r))).ToList();
         if (trayWindow is not null && trayWindow.StartsWith(MainViewModel.TrayWindowLabelPrefix, StringComparison.Ordinal))
         {
             var label = trayWindow[MainViewModel.TrayWindowLabelPrefix.Length..];
-            if (visibleRows.Any(r => r.Label == label))
-                visibleRows = visibleRows.Where(r => r.Label == label).ToList();
+            if (visibleRows.Any(r => r.Row.Label == label))
+                visibleRows = visibleRows.Where(r => r.Row.Label == label).ToList();
         }
-        else if (Enum.TryParse<WindowKind>(trayWindow, out var kind) && visibleRows.Any(r => r.Kind == kind))
+        else if (Enum.TryParse<WindowKind>(trayWindow, out var kind) && visibleRows.Any(r => r.Row.Kind == kind))
         {
-            visibleRows = visibleRows.Where(r => r.Kind == kind).ToList();
+            visibleRows = visibleRows.Where(r => r.Row.Kind == kind).ToList();
         }
-        var highest = visibleRows.Select(r => r.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
+        var highest = visibleRows.Select(r => r.Row.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
         highestLevel = highest;
-        highestPercent = visibleRows.Where(r => r.Level == highest)
-            .Select(r => (int?)StatusTextMap.UsagePercent(r.UsedPercent)).Max();
+        var top = visibleRows.Where(r => r.Row.Level == highest).ToList();
+        var topPercent = top.Select(r => (int?)StatusTextMap.UsagePercent(r.Row.UsedPercent)).Max();
+        highestPercent = topPercent;
+        // The icon shows the highest number; it goes grey only when every row tied for it comes from old values.
+        dimmed = top.Count > 0 && top.Where(r => StatusTextMap.UsagePercent(r.Row.UsedPercent) == topPercent).All(r => !IsCurrent(r.Tile));
 
         // The icon's own number and colour are part of the key: the tooltip names only the
         // five-hour and weekly windows, so a change in any other window the icon shows (a Cursor
         // model row, a window picked by its label) left the icon at its old value.
         return memo.HasChanged(tooltipText + "\n" + trayProvider + "\n" + pinned?.ProviderId + "\n" + trayWindow
-            + "\n" + highestLevel + "\n" + highestPercent);
+            + "\n" + highestLevel + "\n" + highestPercent + "\n" + dimmed);
     }
 
     /// <summary>Pulled out of <see cref="TryComputeTraySummary"/> so it is unit-testable without a
@@ -509,8 +514,23 @@ public partial class MainWindow : Window, IDisposable
             .Select(t => new TrayTooltipBuilder.ProviderLine(
                 t.TrayName,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.UsedPercent,
-                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent))
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent,
+                TrayNote(t)))
             .ToList();
+
+    // Numbers from a stale read or kept after a failed one are old: the tray says so instead of
+    // presenting them as current.
+    private static bool IsCurrent(ProviderTileViewModel tile) => !(tile.IsStale || tile.IsShowingLastValues);
+
+    private static string? TrayNote(ProviderTileViewModel tile)
+    {
+        if (IsCurrent(tile))
+            return null;
+        var loc = LocalizationService.Instance;
+        if (tile.SignInState == SignInState.SignedOut)
+            return loc["Tray.Note.SignIn"];
+        return tile.LastSuccessAt is { } at ? loc.Format("Tray.Note.AsOf", TrayTooltipBuilder.ShortTime(at)) : null;
+    }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

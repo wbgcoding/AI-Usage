@@ -86,8 +86,8 @@ public class MainWindowTrayLinesTests
         var tiles = new[] { Tile("claude", ProviderStatus.Ok) };
         var memo = new TrayTooltipMemo();
 
-        var firstChanged = MainWindow.TryComputeTraySummary(tiles, memo, out var firstText, out _, out _);
-        var secondChanged = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _);
+        var firstChanged = MainWindow.TryComputeTraySummary(tiles, memo, out var firstText, out _, out _, out _);
+        var secondChanged = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, out _);
 
         Assert.True(firstChanged);
         Assert.False(secondChanged);
@@ -99,11 +99,11 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new List<ProviderTileViewModel> { Tile("claude", ProviderStatus.Ok) };
         var memo = new TrayTooltipMemo();
-        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _);
-        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _);
+        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, out _);
+        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, out _);
 
         tiles.Add(Tile("codex", ProviderStatus.Ok));
-        var changed = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _);
+        var changed = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, out _);
 
         Assert.True(changed);
     }
@@ -130,7 +130,7 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileAt("claude", 20), TileAt("codex", 55) };
 
-        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, trayProvider: "Auto");
+        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, trayProvider: "Auto");
 
         Assert.Equal(55, percent);
     }
@@ -140,7 +140,7 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileAt("claude", 20), TileAt("codex", 55) };
 
-        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, trayProvider: "claude");
+        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, trayProvider: "claude");
 
         Assert.Equal(20, percent);
     }
@@ -150,7 +150,7 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileAt("claude", 20), TileAt("codex", 55) };
 
-        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, trayProvider: "gemini");
+        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, trayProvider: "gemini");
 
         Assert.Equal(55, percent);
     }
@@ -160,9 +160,9 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileAt("claude", 20), TileAt("codex", 55) };
         var memo = new TrayTooltipMemo();
-        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, trayProvider: "Auto");
+        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, out _, trayProvider: "Auto");
 
-        var changed = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out var percent, trayProvider: "claude");
+        var changed = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out var percent, out _, trayProvider: "claude");
 
         Assert.True(changed);
         Assert.Equal(20, percent);
@@ -197,7 +197,7 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileWithBothWindows("claude", fiveHour: 20, weekly: 70) };
 
-        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, "claude", trayWindow);
+        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, "claude", trayWindow);
 
         Assert.Equal(expected, percent);
     }
@@ -207,7 +207,7 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileAt("claude", 20), TileAt("codex", 55) };
 
-        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, "Auto", "Weekly");
+        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, "Auto", "Weekly");
 
         Assert.Equal(55, percent);
     }
@@ -217,11 +217,89 @@ public class MainWindowTrayLinesTests
     {
         var tiles = new[] { TileWithBothWindows("claude", fiveHour: 20, weekly: 70) };
         var memo = new TrayTooltipMemo();
-        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, "claude", "Auto");
+        MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out _, out _, "claude", "Auto");
 
-        var changed = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out var percent, "claude", "FiveHour");
+        var changed = MainWindow.TryComputeTraySummary(tiles, memo, out _, out _, out var percent, out _, "claude", "FiveHour");
 
         Assert.True(changed);
         Assert.Equal(20, percent);
+    }
+
+    private static ProviderTileViewModel TileKeepingValuesAfter(string id, double percent, ProviderStatus failure)
+    {
+        var tile = TileAt(id, percent);
+        tile.Apply(
+            new ProviderSnapshot(
+                ProviderId: id,
+                Windows: [],
+                PlanType: null,
+                SourceKind: SourceKind.None,
+                FetchedAt: Now.AddMinutes(5),
+                DataTimestamp: null,
+                Status: failure,
+                Error: new ProviderError("Error.Generic")),
+            Now.AddMinutes(5));
+        return tile;
+    }
+
+    [Fact]
+    public void ACurrentTileHasNoNote()
+    {
+        var line = Assert.Single(MainWindow.BuildTrayLines([TileAt("claude", 30)]));
+
+        Assert.Null(line.Note);
+    }
+
+    [Fact]
+    public void AStaleTileCarriesTheAsOfNote()
+    {
+        var line = Assert.Single(MainWindow.BuildTrayLines([Tile("codex", ProviderStatus.Stale)]));
+
+        Assert.False(string.IsNullOrEmpty(line.Note));
+        Assert.Contains(TrayTooltipBuilder.ShortTime(Now), line.Note);
+    }
+
+    [Fact]
+    public void AKeptTileAfterALostSignInSaysSignInNeeded()
+    {
+        var tile = TileKeepingValuesAfter("claude", 40, ProviderStatus.NotSignedIn);
+
+        var line = Assert.Single(MainWindow.BuildTrayLines([tile]));
+
+        Assert.Equal(LocalizationService.Instance["Tray.Note.SignIn"], line.Note);
+    }
+
+    [Fact]
+    public void ADimmedIconNeedsTheTopRowToComeFromOldValues()
+    {
+        var current = TileAt("claude", 20);
+        var old = TileKeepingValuesAfter("codex", 80, ProviderStatus.Failed);
+
+        MainWindow.TryComputeTraySummary([current, old], new TrayTooltipMemo(), out _, out _, out _, out var dimmedTop);
+        MainWindow.TryComputeTraySummary([current], new TrayTooltipMemo(), out _, out _, out _, out var dimmedCurrent);
+        MainWindow.TryComputeTraySummary([TileAt("claude", 90), old], new TrayTooltipMemo(), out _, out _, out _, out var dimmedOther);
+
+        Assert.True(dimmedTop);
+        Assert.False(dimmedCurrent);
+        Assert.False(dimmedOther);
+    }
+
+    [Fact]
+    public void FlippingOnlyTheDimmedStateRefreshesTheIcon()
+    {
+        var tile = TileAt("claude", 40);
+        var memo = new TrayTooltipMemo();
+        MainWindow.TryComputeTraySummary([tile], memo, out _, out _, out _, out var before);
+
+        tile.Apply(
+            new ProviderSnapshot("claude", [], null, SourceKind.None, Now.AddMinutes(1), null,
+                ProviderStatus.Failed, new ProviderError("Error.Generic")),
+            Now.AddMinutes(1));
+        var changed = MainWindow.TryComputeTraySummary([tile], memo, out _, out _, out var percent, out var after);
+
+        Assert.False(before);
+        Assert.True(after);
+        Assert.Equal(40, percent);
+        Assert.True(changed);
     }
 }

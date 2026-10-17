@@ -613,4 +613,6 @@
   <data name="Toast.SignInNeeded.Body" xml:space="preserve"><value>The sign-in has expired. Values stay frozen until you sign in again.</value></data>
   <data name="Toast.SignIn" xml:space="preserve"><value>Sign in</value></data>
   <data name="Toast.MuteToday" xml:space="preserve"><value>Not again today</value></data>
+  <data name="Tray.Note.SignIn" xml:space="preserve"><value>Sign-in needed</value></data>
+  <data name="Tray.Note.AsOf" xml:space="preserve"><value>(as of {0})</value></data>
 </root>

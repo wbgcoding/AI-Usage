@@ -114,7 +114,7 @@ public class MainViewModelTests : IDisposable
         vm.Tick(Now);
         var until = DateTimeOffset.Now.AddHours(1);
 
-        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, pausedUntil: until);
+        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, out _, pausedUntil: until);
 
         Assert.StartsWith(TrayTooltipBuilder.PausedLine(until) + "\n", tooltipText);
         Assert.True(tooltipText.Length <= TrayTooltipBuilder.MaxLength);
@@ -127,7 +127,7 @@ public class MainViewModelTests : IDisposable
         var (vm, _, _) = Build(settings, new Dictionary<string, double> { ["codex"] = 30, ["claude"] = 91, ["gemini"] = 42, ["copilot"] = 55 });
 
         vm.Tick(Now);
-        var changed = MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out var highestPercent);
+        var changed = MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out var highestPercent, out _);
 
         Assert.True(changed);
         Assert.Contains("claude", tooltipText);
@@ -141,7 +141,7 @@ public class MainViewModelTests : IDisposable
         var (vm, _, _) = Build(settings, new Dictionary<string, double> { ["codex"] = 30, ["claude"] = 90, ["gemini"] = 42, ["copilot"] = 42 });
 
         vm.Tick(Now);
-        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _);
+        MainWindow.TryComputeTraySummary(vm.Tiles, new TrayTooltipMemo(), out var tooltipText, out _, out _, out _);
 
         Assert.DoesNotContain("claude", tooltipText);
         Assert.Contains("gemini", tooltipText);
@@ -1650,10 +1650,10 @@ public class MainViewModelTests : IDisposable
         var (vm, _, _) = Build(settings);
         var memo = new TrayTooltipMemo();
 
-        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "Auto"));
-        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "AppIcon"));
-        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "Auto"));
-        Assert.False(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, "Auto"));
+        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "Auto"));
+        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "AppIcon"));
+        Assert.True(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "Auto"));
+        Assert.False(MainWindow.TryComputeTraySummary(vm.Tiles, memo, out _, out _, out _, out _, "Auto"));
     }
 
     // MainWindow.ResetHeightToAutomaticOnDoubleClick is the pure action a double click on the top or
