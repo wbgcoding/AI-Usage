@@ -93,6 +93,9 @@ public sealed class StatsStore
         source.BackupDatabase(destination);
     }
 
+    /// <summary>How long a just restored index is trusted before the same damage counts as new.</summary>
+    internal long RestoreGraceMilliseconds { get; init; } = 10_000;
+
     /// <summary>Test seam: runs between the copy of a weekly copy and its move into place.</summary>
     internal Action? BeforeRestoreMove { get; init; }
 
@@ -151,9 +154,6 @@ public sealed class StatsStore
             var existing = ListWeeklyCopies(folder);
             if (existing.Count > 0 && today.DayNumber - existing[0].Date.DayNumber < WeeklyCopyIntervalDays)
                 return;
-            // A damaged or unreadable index is no copy worth keeping.
-            if (TryReadSchemaVersion(source) is null)
-                return;
 
             Directory.CreateDirectory(folder);
             var finalPath = WeeklyCopyPath(folder, today);
@@ -161,6 +161,15 @@ public sealed class StatsStore
             try
             {
                 SnapshotIndex(source, temporaryPath);
+                // The backup API copies pages as they are: a damaged index would be kept (and restored)
+                // as damaged as it is. The copy is checked in full, the source is not held for it.
+                if (TryReadSchemaVersion(temporaryPath, thorough: true) is null)
+                {
+                    File.Delete(temporaryPath);
+                    _logError?.Invoke("Statistics: the weekly copy of the index failed its check and was not kept.");
+                    return;
+                }
+
                 File.Move(temporaryPath, finalPath, overwrite: false);
             }
             catch
@@ -188,7 +197,10 @@ public sealed class StatsStore
             var directory = Path.GetDirectoryName(fullPath)!;
             foreach (var (date, copyPath) in ListWeeklyCopies(Path.Combine(directory, WeeklyCopyFolder)))
             {
-                if (TryReadSchemaVersion(copyPath) is null)
+                // Each copy gets one try per process: a flaw the copy carries would come back with it.
+                if (!TriedCopies.Add(copyPath))
+                    continue;
+                if (TryReadSchemaVersion(copyPath, thorough: true) is null)
                     continue;
 
                 var temporaryPath = fullPath + ".restore-tmp";
@@ -227,8 +239,9 @@ public sealed class StatsStore
     }
 
     /// <summary>The schema version a database file names, read without changing the file; null when
-    /// it is no SQLite file, fails SQLite's own quick check or has no version row.</summary>
-    internal static int? TryReadSchemaVersion(string databasePath)
+    /// it is no SQLite file, fails SQLite's own quick check (the full integrity check with
+    /// <paramref name="thorough"/>) or has no version row.</summary>
+    internal static int? TryReadSchemaVersion(string databasePath, bool thorough = false)
     {
         try
         {
@@ -238,7 +251,7 @@ public sealed class StatsStore
             Execute(connection, "PRAGMA trusted_schema = OFF");
             using (var check = connection.CreateCommand())
             {
-                check.CommandText = "PRAGMA quick_check(1)";
+                check.CommandText = thorough ? "PRAGMA integrity_check(1)" : "PRAGMA quick_check(1)";
                 if (!string.Equals(check.ExecuteScalar() as string, "ok", StringComparison.OrdinalIgnoreCase))
                     return null;
             }
@@ -743,7 +756,8 @@ public sealed class StatsStore
     // Every open holds it shared; setting a damaged index aside and restoring a copy holds it exclusive.
     private static readonly ReaderWriterLockSlim StoreGate = new(LockRecursionPolicy.NoRecursion);
     private static readonly Dictionary<string, long> RecentlyRestored = new(StringComparer.OrdinalIgnoreCase);
-    private const long RestoreGraceMilliseconds = 10_000;
+    // Weekly copies this process already tried to restore (guarded by the write side of the gate).
+    private static readonly HashSet<string> TriedCopies = new(StringComparer.OrdinalIgnoreCase);
 
     private void SetAsideAndRestore(string fullPath, int errorCode)
     {
@@ -752,15 +766,22 @@ public sealed class StatsStore
             var directory = Path.GetDirectoryName(fullPath)!;
             // The index is the only copy of usage whose session logs are gone, so earlier copies are
             // kept too: only those beyond the newest few are removed.
-            foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
-                         .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
-                         .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
+            // After a restore in this process the file set aside first holds the newest rows: a repeat
+            // of the damage must never rotate it out, so nothing is removed then.
+            if (!RecentlyRestored.ContainsKey(fullPath))
             {
-                File.Delete(older);
-                foreach (var suffix in SidecarSuffixes)
-                    File.Delete(older + suffix);
+                foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
+                             .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
+                             .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
+                {
+                    File.Delete(older);
+                    foreach (var suffix in SidecarSuffixes)
+                        File.Delete(older + suffix);
+                }
             }
             var setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";
+            for (var counter = 2; File.Exists(setAside); counter++)
+                setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}-{counter}";
             File.Move(fullPath, setAside);
             // A journal or WAL holds pages the copy may need to be read back; it moves along with it,
             // and a new index never picks it up.
