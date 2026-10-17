@@ -31,9 +31,12 @@ public sealed class StatsRingChart : FrameworkElement
     /// own code-behind colors each slice by. <see cref="LegendText"/> overrides the percentage text the
     /// legend would otherwise print for this one slice (e.g. "not countable here" for a provider this
     /// machine keeps no local token count for at all) - null keeps the ordinary "12.3%" text.
-    /// <see cref="Tooltip"/> is the hover text, one line per "\n"; null or empty shows none.</summary>
+    /// <see cref="Tooltip"/> is the hover text, one line per "\n"; null or empty shows none.
+    /// <see cref="CostText"/> is the short API cost of exactly this slice's tokens ("~12,00 €"); null or
+    /// empty when the estimate is off or no price is known.</summary>
     public readonly record struct Slice(
-        string Label, double Percent, string ProviderId = "", string? LegendText = null, long Total = 0, string? Tooltip = null);
+        string Label, double Percent, string ProviderId = "", string? LegendText = null, long Total = 0, string? Tooltip = null,
+        string? CostText = null);
 
     public static readonly DependencyProperty SlicesProperty = DependencyProperty.Register(
         nameof(Slices), typeof(IReadOnlyList<Slice>), typeof(StatsRingChart),
@@ -106,6 +109,14 @@ public sealed class StatsRingChart : FrameworkElement
 
         var slice = slices[index];
         return (slice.Label, StatsAggregator.ShortenTokenCountCompact(slice.Total, thousandSuffix, millionSuffix, billionSuffix, wholeNumbers));
+    }
+
+    /// <summary>The cost line under the center figure: the cost of the same largest slice, empty when
+    /// it is unknown or nothing qualifies.</summary>
+    internal static string CenterCost(IReadOnlyList<Slice> slices)
+    {
+        var index = LargestSliceIndex(slices);
+        return index < 0 ? "" : slices[index].CostText ?? "";
     }
 
     /// <summary>"Largest share: {0}, {1}" (DE "Größter Anteil: {0}, {1}") filled in from <see
@@ -456,6 +467,9 @@ public sealed class StatsRingChart : FrameworkElement
     private const double CenterValueBaseFontSize = 13;
     private const double CenterNameBaseFontSize = 10;
     private const double CenterTextMinFontSize = 7;
+    // The cost line under the figure: this share of the figure's size, never below the floor.
+    private const double CenterCostFontRatio = 0.55;
+    private const double CenterCostMinFontSize = 6;
     // Leaves a little air inside the ring's own inner edge rather than letting the text touch the
     // stroke it sits inside.
     private const double CenterTextPadding = 6;
@@ -483,6 +497,7 @@ public sealed class StatsRingChart : FrameworkElement
             return;
 
         var (name, value) = CenterHeadline(slices, ThousandSuffix, MillionSuffix, BillionSuffix);
+        var costText = CenterCost(slices);
 
         var boldTypeface = new Typeface(typeface.FontFamily, typeface.Style, FontWeights.Bold, typeface.Stretch);
 
@@ -532,6 +547,8 @@ public sealed class StatsRingChart : FrameworkElement
 
         var valueScale = FitScale(naturalValue.Width, naturalValue.Height, fitWidth, innerDiameter, CenterTextMinFontSize / valueBaseSize);
         var pairHeight = naturalName.Height * nameScale * nameLines + naturalValue.Height * valueScale;
+        if (costText.Length > 0)
+            pairHeight += naturalValue.Height * valueScale * CenterCostFontRatio;
         var heightScale = pairHeight > innerDiameter ? innerDiameter / pairHeight : 1.0;
 
         // The proportional step above is an estimate; walk the size down until the measured line
@@ -549,13 +566,32 @@ public sealed class StatsRingChart : FrameworkElement
         var nameLine = BuildNameLine(nameSize, nameLines, trim: true);
         var valueLine = BuildValueLine(valueSize, trim: true);
 
+        FormattedText BuildCostLine(double fontSize, bool trim) => new(
+            costText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, TextBrush, dpi)
+        {
+            MaxTextWidth = trim ? innerDiameter : 0,
+            MaxLineCount = 1,
+            Trimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+        };
+        FormattedText? costLine = null;
+        if (costText.Length > 0)
+        {
+            var costSize = Math.Max(CenterCostMinFontSize, valueSize * CenterCostFontRatio);
+            while (costSize > CenterCostMinFontSize && BuildCostLine(costSize, trim: false).Width > fitWidth)
+                costSize = Math.Max(CenterCostMinFontSize, costSize - 0.25);
+            costLine = BuildCostLine(costSize, trim: true);
+            costLine.TextAlignment = TextAlignment.Center;
+        }
+
         nameLine.TextAlignment = TextAlignment.Center;
         valueLine.TextAlignment = TextAlignment.Center;
-        var blockHeight = nameLine.Height + valueLine.Height;
+        var blockHeight = nameLine.Height + valueLine.Height + (costLine?.Height ?? 0);
         var y = center.Y - blockHeight / 2;
         var left = center.X - innerDiameter / 2;
         dc.DrawText(nameLine, new Point(left, y));
         dc.DrawText(valueLine, new Point(left, y + nameLine.Height));
+        if (costLine is not null)
+            dc.DrawText(costLine, new Point(left, y + nameLine.Height + valueLine.Height));
     }
 
     /// <summary>How much the two center lines must shrink to fit inside a <paramref
@@ -612,14 +648,31 @@ public sealed class StatsRingChart : FrameworkElement
             dc.DrawRectangle(brush, null, new Rect(x, y + (rowHeight - swatch) / 2, swatch, swatch));
 
             var percentText = slices[i].LegendText ?? StatsBarChart.PercentLabel(slices[i].Percent, CultureInfo.CurrentCulture);
-            var (label, percent) = LegendEntryTexts(
-                slices[i].Label, percentText, Math.Max(1, width - x - swatch - 8), dpi, typeface, TextBrush, LegendBaseFontSize * textScale);
+            var legendWidth = Math.Max(1, width - x - swatch - 8);
+            var fontSize = LegendBaseFontSize * textScale;
+            var figure = LegendFigure(slices[i].Label, percentText, slices[i].CostText, legendWidth, dpi, typeface, fontSize);
+            var (label, percent) = LegendEntryTexts(slices[i].Label, figure, legendWidth, dpi, typeface, TextBrush, fontSize);
             var textX = x + swatch + 4 * textScale;
             dc.DrawText(label, new Point(textX, y + (rowHeight - label.Height) / 2));
             dc.DrawText(percent, new Point(textX + label.Width, y + (rowHeight - percent.Height) / 2));
 
             y += rowHeight;
         }
+    }
+
+    /// <summary>The legend figure of one slice: the percentage, followed by " · cost" only when the full
+    /// label and the longer figure still fit <paramref name="maxWidth"/> - the cost never costs the label
+    /// any of its letters.</summary>
+    internal static string LegendFigure(
+        string label, string percentText, string? costText, double maxWidth, double dpi, Typeface typeface, double fontSize)
+    {
+        if (string.IsNullOrEmpty(costText))
+            return percentText;
+
+        var longer = percentText + " \u00B7 " + costText;
+        double Width(string text) => new FormattedText(
+            text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Black, dpi).Width;
+        return Width(label) + Width(" \u00B7 " + longer) <= maxWidth ? longer : percentText;
     }
 
     /// <summary>One legend entry as two texts: the label, trimmed with an ellipsis to what is left of

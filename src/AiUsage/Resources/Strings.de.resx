@@ -389,6 +389,7 @@
   <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Hauptmodell: {0}</value></data>
   <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Aktiv: {0}</value></data>
   <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sitzungen: {0}</value></data>
+  <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>Früher auch unter: {0}</value></data>
   <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0 Uhr</value></data>
   <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6 Uhr</value></data>
   <data name="Stats.Hour.Axis12" xml:space="preserve"><value>12 Uhr</value></data>
@@ -503,7 +504,7 @@
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Ein kurzer Strich im Balken zeigt, wie viel vom Zeitfenster schon vergangen ist. Reicht die Füllung darüber hinaus, verbrauchst du schneller, als die Zeit vergeht.</value></data>
   <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Hinweis zeigen, wenn der Verbrauch unter der Zeit liegt</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Der Tooltip des Balkens sagt, wenn der Verbrauch unter dem schon vergangenen Teil des Zeitfensters liegt. Ausgeschaltet fehlt nur dieser Satz; „darüber“ und „im Plan“ bleiben.</value></data>
-  <data name="Stats.Cost.Column" xml:space="preserve"><value>Kosten (API)</value></data>
+  <data name="Stats.Cost.Column" xml:space="preserve"><value>API-Kosten:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Ungefähre Kosten, wenn diese Tokens zu den öffentlichen API-Listenpreisen abgerechnet würden (Preisliste von LiteLLM, Stand {0}). Abos werden anders abgerechnet.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Kein Preis bekannt für: {0}. Nicht mitgezählt.</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Preise noch nicht geladen.</value></data>

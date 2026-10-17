@@ -5,7 +5,7 @@ namespace AiUsage.Stats;
 /// percentages the bar draws.</summary>
 public sealed record StatsLimitRowViewModel(
     string Label, string ReachedText, string HighestText, string AveragePeakText, string DetailText,
-    double HighestPercent, double AveragePeakPercent, int ReachedCount)
+    double HighestPercent, double AveragePeakPercent, int ReachedCount, string WindowKey = "")
 {
     /// <summary>The bar's color step: red once the limit was reached, amber from 80 percent.</summary>
     public string Level => ReachedCount > 0 ? "Crit" : HighestPercent >= 80 ? "Warn" : "Ok";

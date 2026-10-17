@@ -190,6 +190,25 @@ public class StatsMinimumWidthTests
         Assert.Equal("Codex", shortLabel.Text);
     }
 
+    [Fact]
+    public void The_legend_adds_the_cost_only_where_the_label_keeps_its_full_name()
+    {
+        var (wide, narrow, none, empty) = RunOnSta(() =>
+        {
+            var typeface = new Typeface("Segoe UI");
+            return (
+                StatsRingChart.LegendFigure("Codex", "45 %", "~3,00 \u20AC", 300, 1.0, typeface, 12),
+                StatsRingChart.LegendFigure("Codex", "45 %", "~3,00 \u20AC", 70, 1.0, typeface, 12),
+                StatsRingChart.LegendFigure("Codex", "45 %", null, 300, 1.0, typeface, 12),
+                StatsRingChart.LegendFigure("Codex", "45 %", "", 300, 1.0, typeface, 12));
+        });
+
+        Assert.Equal("45 % \u00B7 ~3,00 \u20AC", wide);
+        Assert.Equal("45 %", narrow);
+        Assert.Equal("45 %", none);
+        Assert.Equal("45 %", empty);
+    }
+
     // ---- heatmap ----
 
     [Theory]

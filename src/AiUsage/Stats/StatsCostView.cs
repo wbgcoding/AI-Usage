@@ -1,3 +1,4 @@
+using System.Globalization;
 using AiUsage.Services;
 using AiUsage.Stats.Pricing;
 
@@ -18,12 +19,55 @@ internal sealed class StatsCostView(CostService? service)
 
     public CostSummary Sum(IEnumerable<StatsRecord> records) => _service?.Sum(records) ?? CostSummary.Empty;
 
+    /// <summary>The cache-share tooltip: one line per part, "label: tokens" and, when the estimate is on,
+    /// the part's cost after it (not for a part without tokens), then the line naming the models without a price. Empty when no tokens.</summary>
+    public string SplitTooltip(IReadOnlyList<string> labels, IReadOnlyList<long> tokens, IEnumerable<StatsRecord> records)
+    {
+        if (tokens.Sum() <= 0)
+            return "";
+
+        var split = _service?.Split(records);
+        var lines = PartLines(labels, tokens, split);
+        if (split is { AnyPriced: true } && CostService.UnpricedLine(new CostSummary(0, true, split.UnpricedModels)) is { } unpriced)
+            lines.Add(unpriced);
+        return string.Join('\n', lines);
+    }
+
+    /// <summary>The tooltip of a total figure: <paramref name="totalLine"/>, the parts as in <see cref="SplitTooltip"/>,
+    /// then the whole API cost and the line naming the models without a price. Empty when no tokens.</summary>
+    public string TotalTooltip(string totalLine, IReadOnlyList<string> labels, IReadOnlyList<long> tokens, IEnumerable<StatsRecord> records)
+    {
+        if (tokens.Sum() <= 0)
+            return "";
+
+        var rows = records as IReadOnlyList<StatsRecord> ?? records.ToList();
+        var lines = new List<string> { totalLine };
+        lines.AddRange(PartLines(labels, tokens, _service?.Split(rows)));
+        if (Line(rows) is { } cost)
+            lines.Add(cost);
+        return string.Join('\n', lines);
+    }
+
+    private List<string> PartLines(IReadOnlyList<string> labels, IReadOnlyList<long> tokens, CostSplit? split)
+    {
+        var lines = new List<string>(labels.Count + 2);
+        for (var i = 0; i < labels.Count && i < tokens.Count; i++)
+        {
+            var line = labels[i] + ": " + tokens[i].ToString("N0", CultureInfo.CurrentCulture);
+            if (split is { AnyPriced: true } && tokens[i] > 0)
+                line += " \u00B7 " + Label(new CostSummary(split.AsParts[i], true, []));
+            lines.Add(line);
+        }
+
+        return lines;
+    }
+
     /// <summary>The figure for <paramref name="summary"/>, or empty.</summary>
     public string Text(CostSummary summary) => _service?.Text(summary) ?? "";
 
     public string Text(IEnumerable<StatsRecord> records) => _service is null ? "" : _service.Text(records);
 
-    /// <summary>The tooltip lines for a figure: "Cost (API): ~2,00 €", then the line naming the models
+    /// <summary>The tooltip lines for a figure: "API cost: ~2,00 €", then the line naming the models
     /// without a price. Null when there is nothing to say.</summary>
     public string? Line(CostSummary summary)
     {
@@ -31,7 +75,7 @@ internal sealed class StatsCostView(CostService? service)
         if (text.Length == 0)
             return null;
 
-        var line = LocalizationService.Instance["Stats.Cost.Column"] + ": " + text;
+        var line = LocalizationService.Instance["Stats.Cost.Column"] + " " + text;
         return CostService.UnpricedLine(summary) is { } unpriced ? line + "\n" + unpriced : line;
     }
 
@@ -50,6 +94,13 @@ internal sealed class StatsCostView(CostService? service)
         return result;
     }
 
+    /// <summary>The short in-place figure of <paramref name="summary"/>: no star, empty when nothing is priced.</summary>
+    public string Label(CostSummary summary) => _service?.Label(summary) ?? "";
+
+    /// <summary>The in-place figure of one bucket of <see cref="ByKey"/>, empty when unknown.</summary>
+    public string LabelFor(Dictionary<string, CostSummary> byKey, string key) =>
+        byKey.TryGetValue(key, out var summary) ? Label(summary) : "";
+
     /// <summary>The tooltip line of one bucket of <see cref="ByKey"/>, or null.</summary>
     public string? LineFor(Dictionary<string, CostSummary> byKey, string key) =>
         byKey.TryGetValue(key, out var summary) ? Line(summary) : null;
@@ -57,6 +108,14 @@ internal sealed class StatsCostView(CostService? service)
     /// <summary>The same figures, without the unpriced sentence: for a short suffix on a row.</summary>
     public string TextFor(Dictionary<string, CostSummary> byKey, string key) =>
         byKey.TryGetValue(key, out var summary) ? Text(summary) : "";
+
+    /// <summary>The cost of the rows by token kind; empty when the estimate is off.</summary>
+    public CostSplit Split(IEnumerable<StatsRecord> records) => _service?.Split(records) ?? CostSplit.Empty;
+
+    /// <summary>The dollars, the amount in the shown currency and its code for the export; all empty when
+    /// unknown or the estimate is off.</summary>
+    public (string Usd, string Cost, string Currency) ForExport(CostSummary summary) =>
+        _service?.ExportFigures(summary) ?? ("", "", "");
 
     /// <summary>A cost figure as plain dollars for the export, empty when unknown.</summary>
     public static string UsdForExport(CostSummary summary) => CostService.UsdForExport(summary);

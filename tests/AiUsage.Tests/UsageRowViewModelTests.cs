@@ -65,6 +65,26 @@ public class UsageRowViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData(0L, false)]
+    [InlineData(1L, true)]
+    public void The_window_token_figure_shows_only_from_one_token(long tokens, bool shown)
+    {
+        var window = new UsageWindow(
+            "Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300, tokens: new TokenUsage(tokens));
+        var provided = new UsageRowViewModel(window, Now);
+        var indexed = new UsageRowViewModel(new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42.0, resetsAt: null, windowMinutes: 300), Now)
+        {
+            WindowTokens = tokens,
+        };
+
+        foreach (var row in new[] { provided, indexed })
+        {
+            Assert.Equal(shown, row.InlineTokensText.Length > 0);
+            Assert.Equal(shown, row.InlineTokensToolTip.Length > 0);
+        }
+    }
+
     [Fact]
     public void InlineTokensToolTip_is_empty_without_a_token_count()
     {

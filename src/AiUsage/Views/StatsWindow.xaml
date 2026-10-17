@@ -200,11 +200,16 @@
                                     </Border>
                                 </Popup>
                             </StackPanel>
-                            <Button x:Name="ResetLayoutButton" Grid.Column="1" Style="{StaticResource AiUsageQuietButton}"
-                                    VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click"
-                                    Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"
-                                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Layout.Reset]}"
-                                    AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="ResetLayoutButton" Style="{StaticResource AiUsageQuietButton}"
+                                        VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click" Margin="0,0,8,0"
+                                        Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"
+                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Layout.Reset]}"
+                                        AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Layout.Reset]}"/>
+                                <Button x:Name="ExportCsvButton" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.ExportCsv]}"
+                                        Command="{Binding ExportCsvCommand}" Style="{StaticResource AiUsageQuietButton}"
+                                        Padding="8,4" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </Grid>
 
                         <TextBlock Text="{Binding ImportedFromText}" TextWrapping="Wrap" Margin="0,0,0,12"
@@ -407,8 +412,11 @@
                                         <TextBlock Text="{Binding PerDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerDay]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerDay], Mode=OneWay}"/>
+                                            <Run Text="{Binding PerDayCostText, Mode=OneWay}"/>
+                                        </TextBlock>
                                         <Border Height="28" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
@@ -417,8 +425,11 @@
                                         <TextBlock Text="{Binding BusiestDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.BusiestDay]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.BusiestDay], Mode=OneWay}"/>
+                                            <Run Text="{Binding BusiestDayCostText, Mode=OneWay}"/>
+                                        </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="Columns" Values="{Binding DailyTotalsSeries}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
                                                                         Height="28" Margin="0,4,0,0"/>
@@ -451,8 +462,11 @@
                                         <TextBlock Text="{Binding PerActiveDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerActiveDay]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerActiveDay], Mode=OneWay}"/>
+                                            <Run Text="{Binding PerActiveDayCostText, Mode=OneWay}"/>
+                                        </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="Progress" Numerator="{Binding ActiveDayCountRaw}"
                                                                         Denominator="{Binding PeriodDayCountRaw}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
@@ -488,12 +502,9 @@
                                     HeaderToolTip="{Binding ChartTooltip}">
                                 <!-- The grouping only drives this chart and the table at the bottom, so its
                                      picker sits on this section's own header rather than the window's.
-                                     The CSV export follows that grouping, so its button sits next to it. -->
+                                     -->
                                 <controls:CollapsibleSection.HeaderContent>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="ExportCsvButton" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.ExportCsv]}"
-                                                Command="{Binding ExportCsvCommand}" Style="{StaticResource AiUsageQuietButton}"
-                                                Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"
                                                    VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
                                                    Foreground="{DynamicResource Text.Secondary}"/>
@@ -543,7 +554,7 @@
                                     </ItemsControl.ItemContainerStyle>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Margin="0,0,16,0" ToolTip="{Binding ExactText}" Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}">
+                                            <TextBlock Margin="0,0,16,0" ToolTip="{Binding TooltipText}" Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}">
                                                 <Run Text="{Binding LabelValueText, Mode=OneWay}"/>
                                             </TextBlock>
                                         </DataTemplate>
@@ -599,7 +610,6 @@
                                             <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
                                             <ColumnDefinition Width="96"/>
                                             <ColumnDefinition Width="88"/>
-                                            <ColumnDefinition Width="Auto" SharedSizeGroup="SessionCost"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
@@ -614,10 +624,6 @@
                                         <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Tokens]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="4" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Cost.Column]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
-                                                   Margin="0,0,8,0" TextAlignment="Right" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                                                   Visibility="{Binding HasTotalCost, Converter={StaticResource BoolToVis}}"/>
                                     </Grid>
                                     <ItemsControl x:Name="SessionTable" ItemsSource="{Binding SessionRows}"
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
@@ -654,7 +660,6 @@
                                                         <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
                                                         <ColumnDefinition Width="96"/>
                                                         <ColumnDefinition Width="88"/>
-                                                        <ColumnDefinition Width="Auto" SharedSizeGroup="SessionCost"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Grid.Column="0">
                                                         <TextBlock Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
@@ -665,21 +670,24 @@
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Grid.Column="2" Text="{Binding Duration}" Foreground="{DynamicResource Text.Secondary}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding Tokens}" TextAlignment="Right" Margin="0,0,8,0"
-                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="4" Text="{Binding CostText}" TextAlignment="Right" Margin="0,0,8,0"
-                                                               Foreground="{DynamicResource Text.Secondary}"
-                                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding CostText}" Value="">
-                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
+                                                    <!-- The cost sits under the token figure, so it never takes width from the project name. -->
+                                                    <StackPanel Grid.Column="3" Margin="0,0,8,0">
+                                                        <TextBlock Text="{Binding Tokens}" TextAlignment="Right"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding CostText}" TextAlignment="Right"
+                                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding CostText}" Value="">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -697,6 +705,7 @@
                                                             TextBrush="{DynamicResource Text.Muted}"
                                                             TooltipBackground="{DynamicResource Bg.Raised}"
                                                             LeaderTexts="{Binding HeatmapLeaderTexts}"
+                                                            CostLines="{Binding HeatmapCostLines}"
                                                             TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
                                                             EmptyText="{Binding EmptyChartText}"/>
                                 </Border>
@@ -732,6 +741,7 @@
                                         Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsCacheShareBar x:Name="CacheShareBar" Values="{Binding CacheShareValues}"
+                                                                  ToolTip="{Binding CacheShareTooltip}"
                                                                   SegmentLabels="{Binding CacheShareLabels}"
                                                                   TextBrush="{DynamicResource Text.Muted}"
                                                                   EmptyText="{Binding EmptyChartText}"

@@ -20,6 +20,19 @@ public sealed record CostSummary(double Usd, bool AnyPriced, IReadOnlyList<strin
         : [.. UnpricedModels.Union(other.UnpricedModels, StringComparer.Ordinal).Order(StringComparer.Ordinal)]);
 }
 
+/// <summary>The cost of a set of usage rows kept apart by token kind, in the order the cache-share bar
+/// draws them. <see cref="UnpricedModels"/> are left out of every part.</summary>
+public sealed record CostSplit(
+    double NewInput, double CacheWrite, double CacheRead, double Output, bool AnyPriced, IReadOnlyList<string> UnpricedModels)
+{
+    public static CostSplit Empty { get; } = new(0, 0, 0, 0, false, []);
+
+    public double Total => NewInput + CacheWrite + CacheRead + Output;
+
+    /// <summary>The four parts: new input, cache write, cache read, output.</summary>
+    public IReadOnlyList<double> AsParts => [NewInput, CacheWrite, CacheRead, Output];
+}
+
 /// <summary>The price arithmetic, a pure function of a price and token counts. The stored input count
 /// of every provider is already the uncached share (the parsers subtract the cache read), so it is
 /// priced as is.</summary>
@@ -32,6 +45,43 @@ public static class CostCalculator
         + Math.Max(0, record.OutputTokens) * price.Output
         + Math.Max(0, record.CacheReadTokens) * (price.CacheRead ?? price.Input)
         + Math.Max(0, record.CacheCreationTokens) * (price.CacheCreation ?? price.Input);
+
+    /// <summary>The cost of the rows split by token kind: new input at the input price, cache write at the
+    /// cache creation price, cache read at the cache read price, output at the output price.</summary>
+    public static CostSplit Split(IEnumerable<StatsRecord> records, ModelPriceList prices)
+    {
+        var byModel = new Dictionary<string, (long Input, long Output, long Read, long Creation)>(StringComparer.Ordinal);
+        foreach (var record in records)
+        {
+            if (record.TotalTokens <= 0)
+                continue;
+            byModel.TryGetValue(record.Model, out var sum);
+            byModel[record.Model] = (
+                sum.Input + Math.Max(0, record.InputTokens), sum.Output + Math.Max(0, record.OutputTokens),
+                sum.Read + Math.Max(0, record.CacheReadTokens), sum.Creation + Math.Max(0, record.CacheCreationTokens));
+        }
+
+        double input = 0, output = 0, read = 0, creation = 0;
+        var anyPriced = false;
+        List<string>? unpriced = null;
+        foreach (var (model, sum) in byModel)
+        {
+            if (prices.Find(model) is not { } price)
+            {
+                (unpriced ??= []).Add(ReadChangeLog.SafeName(model));
+                continue;
+            }
+
+            anyPriced = true;
+            input += sum.Input * price.Input;
+            output += sum.Output * price.Output;
+            read += sum.Read * (price.CacheRead ?? price.Input);
+            creation += sum.Creation * (price.CacheCreation ?? price.Input);
+        }
+
+        unpriced?.Sort(StringComparer.Ordinal);
+        return new CostSplit(input, creation, read, output, anyPriced, unpriced ?? []);
+    }
 
     /// <summary>Sums the rows. Rows are grouped by model first so each model is looked up once.</summary>
     public static CostSummary Sum(IEnumerable<StatsRecord> records, ModelPriceList prices)

@@ -26,6 +26,17 @@ public class StatsChartTests
     }
 
     [Fact]
+    public void The_natural_width_of_a_project_name_is_measured_without_throwing()
+    {
+        var face = new Typeface("Segoe UI");
+        var shortWidth = StatsHorizontalBarChart.RichNameNaturalWidth("a", CultureInfo.InvariantCulture, face, Brushes.Black, 1);
+        var longWidth = StatsHorizontalBarChart.RichNameNaturalWidth("a-much-longer-name", CultureInfo.InvariantCulture, face, Brushes.Black, 1);
+
+        Assert.True(shortWidth > 0);
+        Assert.True(longWidth > shortWidth);
+    }
+
+    [Fact]
     public void BuildTooltipLines_appends_the_token_word_to_every_value_line_when_set()
     {
         var bar = new StatsBarChart.Bar("2026-01-01", [100, 50]);

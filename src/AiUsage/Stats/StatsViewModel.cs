@@ -409,6 +409,11 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<string> heatmapLeaderTexts = [];
 
+    /// <summary>The cost lines of each grid cell (the cost and the models without a price), in the order
+    /// of <see cref="HeatmapValues"/>; empty for a cell without tokens or while the estimate is off.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> heatmapCostLines = [];
+
     // The figures bar's own five cards. BusiestDayDateText and the two Change properties are
     // "" / false whenever their underlying figure has nothing to show (an empty period, or - for the
     // change card only - no preceding period to compare against) - shown as an em dash by the view,
@@ -427,6 +432,16 @@ public sealed partial class StatsViewModel : ObservableObject
     public bool HasTotalCost => TotalCostText.Length > 0;
 
     partial void OnTotalCostTextChanged(string value) => OnPropertyChanged(nameof(HasTotalCost));
+
+    // The cost beside the per-day, per-active-day and busiest-day figures; empty while no estimate is shown.
+    [ObservableProperty]
+    private string perDayCostText = "";
+
+    [ObservableProperty]
+    private string perActiveDayCostText = "";
+
+    [ObservableProperty]
+    private string busiestDayCostText = "";
 
     [ObservableProperty]
     private string perDayFigureText = "";
@@ -530,6 +545,10 @@ public sealed partial class StatsViewModel : ObservableObject
 
     [ObservableProperty]
     private IReadOnlyList<string> cacheShareLabels = [];
+
+    /// <summary>The hover text of the cache-share bar: tokens and API cost per part. Empty without tokens.</summary>
+    [ObservableProperty]
+    private string cacheShareTooltip = "";
 
     /// <summary>The "top projects" panel - already sorted longest first, capped at twelve rows.</summary>
     [ObservableProperty]
@@ -992,6 +1011,7 @@ public sealed partial class StatsViewModel : ObservableObject
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
         LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
         LoadSessions = _store.LoadSessions;
+        BuildAliases = ProjectAliasResolver.Build;
         _askForSavePath = askForSavePath ?? CsvSaveDialog.Show;
         _showMessage = showMessage ?? (message => Views.ConfirmWindow.ShowInfo(null, message));
 
@@ -1113,6 +1133,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Keeps what the active filters let through.</summary>
     private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all)
     {
+        all = Merged(all);
         if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
@@ -1125,6 +1146,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all)
     {
+        all = Merged(all);
         if (!HasProviderFilter && !HasAnyFilter)
             return all;
 
@@ -1209,6 +1231,48 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Reads every stored session - a seam like <see cref="LoadRecords"/>.</summary>
     internal Func<IReadOnlyList<StatsSessionRecord>> LoadSessions { get; set; }
 
+    /// <summary>Works out which project paths are one moved project - a seam like <see cref="LoadRecords"/>;
+    /// the default looks at the file system, so it runs on the load thread.</summary>
+    internal Func<IReadOnlyList<StatsRecord>, IReadOnlyList<StatsSessionRecord>, ProjectAliases> BuildAliases { get; set; }
+
+    /// <summary>The moved projects of the data on screen.</summary>
+    internal ProjectAliases Aliases { get; private set; } = ProjectAliases.None;
+
+    private IReadOnlyList<StatsRecord>? _aliasedFrom;
+    private IReadOnlyList<StatsRecord> _aliased = [];
+    private IReadOnlyList<StatsSessionRecord>? _aliasedSessionsFrom;
+    private IReadOnlyList<StatsSessionRecord> _aliasedSessions = [];
+
+    /// <summary>The records with moved projects merged; the raw list when nothing moved. Kept for the
+    /// list it was built from, so a rebuild without a reload does not copy every row again.</summary>
+    private IReadOnlyList<StatsRecord> Merged(IReadOnlyList<StatsRecord> records)
+    {
+        if (Aliases.IsEmpty)
+            return records;
+
+        if (!ReferenceEquals(_aliasedFrom, records))
+        {
+            _aliased = Aliases.Apply(records);
+            _aliasedFrom = records;
+        }
+
+        return _aliased;
+    }
+
+    private IReadOnlyList<StatsSessionRecord> Merged(IReadOnlyList<StatsSessionRecord> sessions)
+    {
+        if (Aliases.IsEmpty)
+            return sessions;
+
+        if (!ReferenceEquals(_aliasedSessionsFrom, sessions))
+        {
+            _aliasedSessions = Aliases.Apply(sessions);
+            _aliasedSessionsFrom = sessions;
+        }
+
+        return _aliasedSessions;
+    }
+
     /// <summary>The prepared data to open with, if the indexer has some (the window wires its service
     /// in); null means the window has to read the store itself.</summary>
     internal Func<StatsDataSnapshot?> TakeSnapshot { get; set; } = () => null;
@@ -1228,6 +1292,7 @@ public sealed partial class StatsViewModel : ObservableObject
             _allSessions = snapshot.Sessions;
             // A store read already under way started before this data and must not put older rows back.
             _recomputeGeneration++;
+            Aliases = snapshot.Aliases ?? ProjectAliases.None;
             RecomputeFrom(snapshot.Records);
         }
 
@@ -1241,6 +1306,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>Every stored session, kept from the last load for the session grouping.</summary>
     private IReadOnlyList<StatsSessionRecord> _allSessions = [];
+
+    /// <summary>What the last rebuild computed beyond the filtered rows, kept for the CSV export.</summary>
+    private sealed record ExportScope(
+        DateOnly From, DateOnly To, IReadOnlyList<StatsRecord> Previous, StatsHeadlineFigures Figures, int PeriodDayCount);
+
+    private ExportScope? _exportScope;
 
     /// <summary>A period or grouping pick: the records are already in memory once a load has finished
     /// (only a window open or an index update changes them), so the rebuild reuses them instead of
@@ -1308,18 +1379,20 @@ public sealed partial class StatsViewModel : ObservableObject
         try
         {
             var (range, customFrom, customTo) = (SelectedRange, _customFrom, _customTo);
-            var (all, sessions, inputs) = await Task.Run(() =>
+            var (all, sessions, inputs, aliases) = await Task.Run(() =>
             {
                 var records = LoadRecords();
                 var loadedSessions = LoadSessions();
+                var loadedAliases = BuildAliases(records, loadedSessions);
                 var (from, to) = LimitPeriod(range, customFrom, customTo, records);
-                return (records, loadedSessions, LoadLimitInputs(from, to));
+                return (records, loadedSessions, LoadLimitInputs(from, to), loadedAliases);
             });
             if (generation == _recomputeGeneration)
             {
                 if (showLoading || !RecordsLoaded || !MatchesShown(all, sessions))
                 {
                     _allSessions = sessions;
+                    Aliases = aliases;
                     RecomputeFrom(all, inputs);
                 }
                 else
@@ -1366,6 +1439,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         _allSessions = LoadSessions();
         var records = LoadRecords();
+        Aliases = BuildAliases(records, _allSessions);
         var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, records);
         RecomputeFrom(records, LoadLimitInputs(from, to));
         RecordsLoaded = true;
@@ -1541,13 +1615,24 @@ public sealed partial class StatsViewModel : ObservableObject
             ? barRows.Select(row => row.Key is "" ? ((StatsFilterKind Kind, string Key)?)null : (filterKind, row.Key ?? row.Label)).ToList()
             : [];
 
+        // A project bar is named by its folder; its tooltip opens with the full path.
+        var barProjectLabels = SelectedGrouping == StatsGrouping.Project
+            ? ProjectLabels.For(barRows.Select(ProjectPathOf).OfType<string>())
+            : null;
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
-            row.Label, row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
+            barProjectLabels is not null && ProjectPathOf(row) is { } projectPath
+                ? StatsAggregator.MiddleEllipsis(barProjectLabels[projectPath], StatsAggregator.ProjectLabelMaxChars)
+                : row.Label,
+            row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
             JoinLines(
                 barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null,
                 barKeys[index].ProviderId == OtherProjectsColorKey
                     ? otherCostLine
-                    : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null))).ToList();
+                    : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null,
+                barProjectLabels is not null && barKeys[index].ProviderId != OtherProjectsColorKey && ProjectPathOf(row) is { } formerKey
+                    ? FormerPathsLine(formerKey)
+                    : null),
+            barProjectLabels is not null ? ProjectPathOf(row) : null)).ToList();
 
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
@@ -1564,6 +1649,9 @@ public sealed partial class StatsViewModel : ObservableObject
         var exportCosts = dayRows is not null && weeklyPerDay && costView.Active
             ? costView.ByKey(inRange, record => BarCostKey(record, StatsGrouping.Day, false))
             : groupCosts;
+        var rowProjectLabels = SelectedGrouping == StatsGrouping.Project
+            ? ProjectLabels.For(groupedRows.Select(ProjectPathOf).OfType<string>())
+            : null;
         Rows = (dayRows ?? groupedRows)
             .Select((row, rowIndex) =>
             {
@@ -1577,7 +1665,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
                 if (row.Key == NoProjectFilterKey)
                     return new StatsRowViewModel(row.Label, row.Total, totalText, FilterKind: StatsFilterKind.Project, FilterKey: NoProjectFilterKey, CostUsd: usd);
-                var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
+                var shortened = StatsAggregator.MiddleEllipsis(rowProjectLabels![ProjectPathOf(row)!], StatsAggregator.ProjectLabelMaxChars);
                 return new StatsRowViewModel(shortened, row.Total, totalText, ToolTip: row.Label, FilterKind: StatsFilterKind.Project, FilterKey: row.Label, CostUsd: usd);
             })
             .ToList();
@@ -1606,7 +1694,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 var providerTotal = inRange.Where(record => record.Provider == providerId).Sum(record => record.TotalTokens);
                 return new StatsProviderRowViewModel(
                     displayName, ShortenTokens(providerTotal, loc), providerTotal.ToString("N0", CultureInfo.CurrentCulture),
-                    costView.TextFor(providerCosts, providerId));
+                    costView.LabelFor(providerCosts, providerId), costView.LineFor(providerCosts, providerId) ?? "");
             })
             .ToList();
 
@@ -1632,7 +1720,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 var name = ProviderDisplayNames.GetValueOrDefault(slice.Label, slice.Label);
                 return new Views.Controls.StatsRingChart.Slice(
                     name, slice.Percent, ProviderId: slice.Label, Total: slice.Total,
-                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(providerCosts, slice.Label)));
+                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(providerCosts, slice.Label)),
+                    CostText: costView.LabelFor(providerCosts, slice.Label));
             })
             .ToList();
 
@@ -1650,7 +1739,10 @@ public sealed partial class StatsViewModel : ObservableObject
                 Tooltip: RingTooltip(
                     slice.Label, slice, loc, slice.IsPooled ? pooledModels : null,
                     slice.IsPooled ? costView.Line(SumOf(modelCosts, pooledModels.Select(member => member.Label))) : costView.LineFor(modelCosts, slice.Label),
-                    member => costView.TextFor(modelCosts, member))))
+                    member => costView.TextFor(modelCosts, member)),
+                CostText: slice.IsPooled
+                    ? costView.Label(SumOf(modelCosts, pooledModels.Select(member => member.Label)))
+                    : costView.LabelFor(modelCosts, slice.Label)))
             .ToList();
 
         // The "share per effort level" ring, beside the model ring. ProviderId here carries the raw
@@ -1664,7 +1756,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 var name = ResolveEffortLabel(slice.Label);
                 return new Views.Controls.StatsRingChart.Slice(
                     name, slice.Percent, ProviderId: slice.Label, Total: slice.Total,
-                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(effortCosts, slice.Label)));
+                    Tooltip: RingTooltip(name, slice, loc, costLine: costView.LineFor(effortCosts, slice.Label)),
+                    CostText: costView.LabelFor(effortCosts, slice.Label));
             })
             .ToList();
 
@@ -1681,15 +1774,24 @@ public sealed partial class StatsViewModel : ObservableObject
         var cacheShare = StatsAggregator.CacheShare(inRange);
         CacheShareValues = cacheShare.AsValues;
         CacheShareLabels = [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]];
+        CacheShareTooltip = costView.SplitTooltip(CacheShareLabels, CacheShareValues, inRange);
 
         var projectCosts = costView.ByKey(inRange, record => StatsAggregator.ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase);
         TopProjectRows = StatsAggregator.TopProjectsDetailed(
-            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key));
+            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), FormerPathsLine,
+            key => costView.LabelFor(projectCosts, key));
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
         // The weekday by hour grid, in the culture's own week order.
         HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
         HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
+        var firstDay = HeatmapFirstDay;
+        var cellCosts = costView.ByKey(
+            inRange.Where(record => StatsAggregator.WeekdayHourCell(record, firstDay) >= 0),
+            record => StatsAggregator.WeekdayHourCell(record, firstDay).ToString(CultureInfo.InvariantCulture));
+        HeatmapCostLines = Enumerable.Range(0, 7 * 24)
+            .Select(cell => costView.LineFor(cellCosts, cell.ToString(CultureInfo.InvariantCulture)) ?? "")
+            .ToList();
         IReadOnlyList<StatsHeatmapCell> leaders = IsHeatmap && heatmapKeyOf is not null
             ? StatsAggregator.WeekdayHourLeaders(inRange, heatmapKeyOf, HeatmapFirstDay)
             : [];
@@ -1708,7 +1810,8 @@ public sealed partial class StatsViewModel : ObservableObject
         // short history can cut down.
         var figures = StatsAggregator.ComputeHeadlineFigures(
             inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
-        ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc);
+        ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc, costView, inRange, previous);
+        _exportScope = new ExportScope(from, to, previous, figures, periodDayCount);
         var totalCost = costView.Sum(inRange);
         TotalCostText = costView.Text(totalCost);
         TotalCostTooltip = costView.Line(totalCost) ?? "";
@@ -1852,7 +1955,8 @@ public sealed partial class StatsViewModel : ObservableObject
                         loc.Format("Stats.Limits.Detail", highest, averagePeak),
                         Math.Clamp(row.Highest, 0, 100),
                         Math.Clamp(row.AveragePeak, 0, 100),
-                        row.ReachedCount);
+                        row.ReachedCount,
+                        row.WindowLabelKey);
                 }).ToList();
                 var (note, tip) = PerPercentNote(group.Key, loc);
                 return new StatsLimitGroupViewModel(
@@ -1992,7 +2096,7 @@ public sealed partial class StatsViewModel : ObservableObject
             var tooltip = string.Format(CultureInfo.CurrentCulture, loc["Stats.Session.Tooltip"], project, start, duration, totalText, model);
             var (costText, costUsd) = SessionCost(session, costView);
             if (costText.Length > 1)
-                tooltip += "\n" + loc["Stats.Cost.Column"] + ": " + costText;
+                tooltip += "\n" + loc["Stats.Cost.Column"] + " " + costText;
 
             tableRows.Add(new StatsSessionRowViewModel(project, start, duration, totalText, model, tooltip, costText));
             exportRows.Add(new StatsRowViewModel($"{project} · {start}", session.TotalTokens, totalText, tooltip, CostUsd: costUsd));
@@ -2040,6 +2144,21 @@ public sealed partial class StatsViewModel : ObservableObject
 
         return total;
     }
+
+    /// <summary>The folder path a project row stands for, or null for the pooled "no project" and "other
+    /// projects" rows.</summary>
+    private static string? ProjectPathOf(StatsGroupedRow row)
+    {
+        var key = row.Key ?? row.Label;
+        return key.Length == 0 || key == NoProjectFilterKey ? null : key;
+    }
+
+    /// <summary>"Earlier also at: ..." for a project that moved folders and continues as <paramref name="project"/>;
+    /// null when nothing was merged into it.</summary>
+    private string? FormerPathsLine(string project) =>
+        Aliases.FormerPaths(project) is { Count: > 0 } former
+            ? string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Project.Tip.FormerPaths"], string.Join(", ", former))
+            : null;
 
     /// <summary>The non-empty parts as tooltip lines, or null when there are none.</summary>
     private static string? JoinLines(params string?[] parts)
@@ -2110,7 +2229,9 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Formats <see cref="StatsAggregator.ComputeHeadlineFigures"/>'s pure result into the
     /// four bound strings the view shows - the only place a shortened number or an em dash for "no
     /// figure to show" gets decided.</summary>
-    private void ApplyHeadlineFigures(StatsHeadlineFigures figures, long previousTotal, LocalizationService loc)
+    private void ApplyHeadlineFigures(
+        StatsHeadlineFigures figures, long previousTotal, LocalizationService loc,
+        StatsCostView costView, IReadOnlyList<StatsRecord> inRange, IReadOnlyList<StatsRecord> previous)
     {
         var thousand = loc["Number.Thousand"];
         var million = loc["Number.Million"];
@@ -2131,17 +2252,25 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
             BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, LocalizationService.Instance.DisplayCulture);
+            BusiestDayCostText = costView.Text(costView.Sum(inRange.Where(record => record.Day == busiestDay)));
         }
         else
         {
             BusiestDayFigureText = "–";
             BusiestDayDateText = "";
+            BusiestDayCostText = "";
         }
+
+        // The averages carry the same share of the period's cost as of its tokens.
+        var periodCost = costView.Sum(inRange);
+        PerDayCostText = figures.Total > 0 ? costView.Text(Scaled(periodCost, figures.PerDayAverage / figures.Total)) : "";
+        PerActiveDayCostText = figures.ActiveDayCount > 0 ? costView.Text(Scaled(periodCost, 1.0 / figures.ActiveDayCount)) : "";
 
         HasPreviousPeriod = figures.HasPreviousPeriod;
         VsPreviousCaption = figures.HasPreviousPeriod
             ? string.Format(CultureInfo.CurrentCulture, loc["Stats.VsPreviousValue"],
-                StatsAggregator.ShortenTokenCount(previousTotal, thousand, million, billion))
+                StatsAggregator.ShortenTokenCount(previousTotal, thousand, million, billion)
+                    + (costView.Text(costView.Sum(previous)) is { Length: > 0 } previousCost ? " " + previousCost : ""))
             : loc["Stats.VsPrevious"];
         if (figures.HasPreviousPeriod)
         {
@@ -2158,6 +2287,9 @@ public sealed partial class StatsViewModel : ObservableObject
             ChangeIsIncrease = true;
         }
     }
+
+    private static CostSummary Scaled(CostSummary summary, double factor) =>
+        summary with { Usd = summary.Usd * factor };
 
     /// <summary>Every record from the period compared against - empty for "All", which has no
     /// defined length to mirror.</summary>
@@ -2387,9 +2519,9 @@ public sealed partial class StatsViewModel : ObservableObject
         _ => DateOnly.MinValue,
     };
 
-    /// <summary>Writes exactly the rows of the current grouping - same rows, same order - to a CSV file the
-    /// user picks, reusing <see cref="StatsExport"/>'s writer. Cancelling the dialog does
-    /// nothing; a write failure shows the app's own error text, never a raw exception message.</summary>
+    /// <summary>Writes everything the window computed for its current range and provider selection to one
+    /// CSV file the user picks (see <see cref="StatsExport"/>). Cancelling the dialog does nothing; a write
+    /// failure shows the app's own error text, never a raw exception message.</summary>
     [RelayCommand]
     private void ExportCsv()
     {
@@ -2398,16 +2530,36 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
 
         var loc = LocalizationService.Instance;
-        var labelHeader = GroupingChoices.First(choice => choice.Value == SelectedGrouping).Label;
-        var csv = StatsExport.ToCsv(Rows, labelHeader, loc["StatsWindow.ColumnTotal"], withCost: new StatsCostView(_cost).Active);
-
         try
         {
-            File.WriteAllText(path, csv, AppEncoding.Utf8NoBom);
+            File.WriteAllText(path, StatsExport.ToCsv(BuildExportRows()), StatsExport.FileEncoding);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _showMessage(loc["StatsWindow.ExportFailed"]);
         }
+    }
+
+    internal IReadOnlyList<StatsExportRow> BuildExportRows()
+    {
+        var scope = _exportScope;
+        var from = scope?.From ?? DateOnly.MinValue;
+        var to = scope?.To ?? DateOnly.MaxValue;
+        var raw = _sourceRecords
+            .Where(record => record.Day >= from && record.Day <= to
+                && (!HasProviderFilter || _selectedProviders.Contains(record.Provider))
+                && (!HasModelFilter || ModelDisplayNames.Resolve(record.Model) == SelectedModelFilter)
+                && (!HasProjectFilter || MatchesProject(Aliases.Resolve(record.Project))))
+            .ToList();
+        return StatsExportBuilder.Build(new StatsExportData(
+            _currentPeriodRecords,
+            scope?.Previous ?? [],
+            raw,
+            StatsAggregator.SessionsInRange(ApplyFilters(_allSessions), from, to),
+            scope?.Figures ?? default,
+            scope?.PeriodDayCount ?? 1,
+            LimitGroups,
+            Aliases,
+            new StatsCostView(_cost)));
     }
 }

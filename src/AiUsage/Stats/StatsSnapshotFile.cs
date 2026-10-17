@@ -67,7 +67,7 @@ internal static class StatsSnapshotFile
 
             var envelope = JsonSerializer.Deserialize<Envelope>(File.ReadAllBytes(path));
             if (envelope is { Version: CurrentVersion, Records: { } records, Sessions: { } sessions })
-                return new StatsDataSnapshot(records, sessions);
+                return StatsDataSnapshot.Prepared(records, sessions);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
         {

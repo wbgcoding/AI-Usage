@@ -95,7 +95,7 @@ public sealed class AppSettings
 
     /// <summary>The currency of that estimate. Prices are in US dollars; euro converts with the daily
     /// reference rate, automatic picks euro when the system region uses it.</summary>
-    public CostCurrency CostCurrency { get; set; } = CostCurrency.Usd;
+    public CostCurrency CostCurrency { get; set; } = CostCurrency.Auto;
 
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs

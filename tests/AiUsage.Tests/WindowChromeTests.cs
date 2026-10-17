@@ -337,12 +337,12 @@ public class WindowChromeTests
         Assert.True(buttonVisible, "The CSV export button is not fully visible at the window's MinWidth.");
     }
 
-    /// <summary>The CSV export follows the grouping chosen on the breakdown section's header, so its
-    /// button sits on that header.</summary>
+    /// <summary>The CSV export covers the whole window, so its button sits in the top header row at the
+    /// right edge and not on one section's header.</summary>
     [Fact]
-    public void TheCsvExportButtonSitsOnTheBreakdownSectionHeader()
+    public void TheCsvExportButtonSitsTopRightOfTheWindowAndNotOnASectionHeader()
     {
-        var insideBreakdownSection = OnUiThread(static _ =>
+        var (onHeader, outsideSection) = OnUiThread(static _ =>
         {
             using var dataDir = TestPaths.CreateDisposableDirectory("stats-window-csv-button");
             var window = new StatsWindow(StatsVm.Create(new StatsStore(dataDir)));
@@ -350,16 +350,21 @@ public class WindowChromeTests
             Arrange(root, 800, 600);
 
             var button = (Button?)root.FindName("ExportCsvButton");
+            var combo = (FrameworkElement?)root.FindName("RangeCombo");
             var section = (DependencyObject?)root.FindName("BreakdownSection");
+            var inside = false;
             for (DependencyObject? node = button; node is not null; node = VisualTreeHelper.GetParent(node))
-            {
-                if (ReferenceEquals(node, section))
-                    return button!.ActualWidth > 0;
-            }
-            return false;
+                inside |= ReferenceEquals(node, section);
+
+            var right = button is null ? 0 : button.TransformToAncestor(root).Transform(new Point(button.ActualWidth, 0)).X;
+            var top = button is null ? 999 : button.TransformToAncestor(root).Transform(new Point(0, 0)).Y;
+            var comboTop = combo is null ? -999 : combo.TransformToAncestor(root).Transform(new Point(0, 0)).Y;
+            var header = button is { ActualWidth: > 0 } && right > 800 - 60 && Math.Abs(top - comboTop) < 30;
+            return (header, !inside);
         });
 
-        Assert.True(insideBreakdownSection, "ExportCsvButton is not a visible part of the BreakdownSection header.");
+        Assert.True(onHeader, "ExportCsvButton is not at the right end of the header row beside the range selector.");
+        Assert.True(outsideSection, "ExportCsvButton still sits on the BreakdownSection header.");
     }
 
     [Fact]

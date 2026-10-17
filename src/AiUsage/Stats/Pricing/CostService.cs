@@ -116,11 +116,23 @@ public sealed class CostService
     public CostSummary Sum(IEnumerable<StatsRecord> records) =>
         Enabled && !Prices.IsEmpty ? CostCalculator.Sum(records, Prices) : CostSummary.Empty;
 
+    /// <summary>The cost of <paramref name="records"/> by token kind; empty when the estimate is off or no
+    /// prices are loaded.</summary>
+    public CostSplit Split(IEnumerable<StatsRecord> records) =>
+        Enabled && !Prices.IsEmpty ? CostCalculator.Split(records, Prices) : CostSplit.Empty;
+
     /// <summary>The text for a cost figure: empty when off or nothing to say.</summary>
     public string Text(CostSummary summary) =>
         Enabled ? CostFormatter.Format(summary, EffectiveCurrency, Rate.UsdPerEur, _culture()) : "";
 
     public string Text(IEnumerable<StatsRecord> records) => Text(Sum(records));
+
+    /// <summary>The short figure for an in-place label: the priced part only, never a star or a question
+    /// mark; empty when off or nothing is priced. The tooltip names what was left out.</summary>
+    public string Label(CostSummary summary) =>
+        Enabled && summary.AnyPriced
+            ? CostFormatter.Format(summary.Usd, EffectiveCurrency, Rate.UsdPerEur, _culture())
+            : "";
 
     /// <summary>The "no price known for ..." tooltip line, or null when every model is priced.</summary>
     public static string? UnpricedLine(CostSummary summary) => summary.HasUnpriced
@@ -141,6 +153,18 @@ public sealed class CostService
     /// price is known.</summary>
     public static string UsdForExport(CostSummary summary) =>
         summary.AnyPriced ? summary.Usd.ToString("0.######", CultureInfo.InvariantCulture) : "";
+
+    /// <summary>The cost for the export: dollars, the same amount in the shown currency (a euro figure needs
+    /// the rate, else the dollars show) and that currency's code. All empty when no price is known.</summary>
+    public (string Usd, string Cost, string Currency) ExportFigures(CostSummary summary)
+    {
+        if (!summary.AnyPriced)
+            return ("", "", "");
+
+        var euro = EffectiveCurrency == CostCurrency.Eur && Rate.UsdPerEur is > 0;
+        var shown = euro ? summary.Usd / Rate.UsdPerEur!.Value : summary.Usd;
+        return (UsdForExport(summary), shown.ToString("0.######", CultureInfo.InvariantCulture), euro ? "EUR" : "USD");
+    }
 
     /// <summary>Called after the switch or the currency changed: open statistics redraw, then whatever
     /// is now needed (the rate after a change to euro) is loaded in the background.</summary>

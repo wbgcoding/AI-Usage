@@ -1,0 +1,169 @@
+namespace AiUsage.Stats;
+
+/// <summary>
+/// Which project paths of the index are one project that moved: worked out at query time from the
+/// stored paths, never written back, so the index keeps the raw path of every row.
+/// </summary>
+public sealed class ProjectAliases
+{
+    public static readonly ProjectAliases None = new(
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase));
+
+    private readonly Dictionary<string, string> _target;
+    private readonly Dictionary<string, IReadOnlyList<string>> _former;
+
+    internal ProjectAliases(Dictionary<string, string> target, Dictionary<string, IReadOnlyList<string>> former)
+    {
+        _target = target;
+        _former = former;
+    }
+
+    public bool IsEmpty => _target.Count == 0;
+
+    /// <summary>The path <paramref name="project"/> continues as; the path itself when it is not merged.</summary>
+    public string Resolve(string project)
+    {
+        if (_target.Count == 0 || string.IsNullOrEmpty(project))
+            return project;
+
+        return _target.TryGetValue(StatsAggregator.ProjectKey(project), out var target) ? target : project;
+    }
+
+    /// <summary>The older paths merged into <paramref name="project"/>, empty when none.</summary>
+    public IReadOnlyList<string> FormerPaths(string project) =>
+        _former.TryGetValue(project, out var paths) ? paths : [];
+
+    /// <summary>The records with every merged path replaced; the same list when nothing changes.</summary>
+    public IReadOnlyList<StatsRecord> Apply(IReadOnlyList<StatsRecord> records)
+    {
+        if (_target.Count == 0)
+            return records;
+
+        List<StatsRecord>? result = null;
+        for (var i = 0; i < records.Count; i++)
+        {
+            var record = records[i];
+            var resolved = Resolve(record.Project);
+            if (result is null && string.Equals(resolved, record.Project, StringComparison.Ordinal))
+                continue;
+
+            if (result is null)
+            {
+                result = new List<StatsRecord>(records.Count);
+                for (var j = 0; j < i; j++)
+                    result.Add(records[j]);
+            }
+
+            result.Add(string.Equals(resolved, record.Project, StringComparison.Ordinal) ? record : record with { Project = resolved });
+        }
+
+        return result ?? records;
+    }
+
+    /// <summary>The sessions with every merged path replaced; the same list when nothing changes.</summary>
+    public IReadOnlyList<StatsSessionRecord> Apply(IReadOnlyList<StatsSessionRecord> sessions)
+    {
+        if (_target.Count == 0)
+            return sessions;
+
+        List<StatsSessionRecord>? result = null;
+        for (var i = 0; i < sessions.Count; i++)
+        {
+            var session = sessions[i];
+            var resolved = Resolve(session.Project);
+            var same = string.Equals(resolved, session.Project, StringComparison.Ordinal);
+            if (result is null && same)
+                continue;
+
+            if (result is null)
+            {
+                result = new List<StatsSessionRecord>(sessions.Count);
+                for (var j = 0; j < i; j++)
+                    result.Add(sessions[j]);
+            }
+
+            result.Add(same ? session : session with { Project = resolved });
+        }
+
+        return result ?? sessions;
+    }
+}
+
+/// <summary>
+/// Finds projects that moved folders. Full paths are grouped by their last folder name
+/// (case-insensitive). Within a group, paths whose folder no longer exists merge into the single one
+/// that does; with none left, into the most recently used; with two or more present they stay apart.
+/// </summary>
+public static class ProjectAliasResolver
+{
+    /// <summary>Builds the aliases for the given rows. <paramref name="directoryExists"/> is asked once per
+    /// path of a group with several paths, so it may touch the disk: call this off the UI thread.</summary>
+    public static ProjectAliases Build(
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions, Func<string, bool> directoryExists)
+    {
+        // Latest use per project root, over the usage rows and the sessions.
+        var lastUsed = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        foreach (var record in records)
+        {
+            if (IsFullPath(record.Project))
+                Touch(lastUsed, record.Project, record.Day.ToDateTime(new TimeOnly(Math.Clamp(record.Hour, 0, 23), 0)));
+        }
+
+        foreach (var session in sessions)
+        {
+            if (IsFullPath(session.Project))
+                Touch(lastUsed, session.Project, session.LastUtc.ToLocalTime().DateTime);
+        }
+
+        var target = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var former = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in lastUsed.Keys.GroupBy(ProjectLabels.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var paths = group.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+            if (paths.Count < 2)
+                continue;
+
+            var present = paths.Where(directoryExists).ToList();
+            string? winner;
+            if (present.Count == 1)
+                winner = present[0];
+            else if (present.Count == 0)
+                winner = paths.OrderByDescending(path => lastUsed[path]).First();
+            else
+                continue;
+
+            var others = paths.Where(path => !string.Equals(path, winner, StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (var other in others)
+                target[other] = winner;
+            former[winner] = others;
+        }
+
+        return target.Count == 0 ? ProjectAliases.None : new ProjectAliases(target, former);
+    }
+
+    /// <summary>Builds the aliases against the real file system.</summary>
+    public static ProjectAliases Build(IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions) =>
+        Build(records, sessions, SafeDirectoryExists);
+
+    private static bool SafeDirectoryExists(string path)
+    {
+        try
+        {
+            return Directory.Exists(path);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static void Touch(Dictionary<string, DateTime> lastUsed, string project, DateTime when)
+    {
+        var key = StatsAggregator.ProjectKey(project);
+        if (!lastUsed.TryGetValue(key, out var known) || when > known)
+            lastUsed[key] = when;
+    }
+
+    private static bool IsFullPath(string project) => project.AsSpan().IndexOfAny('\\', '/') >= 0;
+}

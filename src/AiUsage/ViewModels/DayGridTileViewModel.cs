@@ -2,6 +2,7 @@ using System.Globalization;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Stats;
+using AiUsage.Stats.Pricing;
 using AiUsage.Views.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -35,11 +36,22 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     private IReadOnlyList<StatsRecord>? _records;
     private int _refreshSequence;
 
+    private readonly Func<CostService?>? _costSource;
+    private CostService? _subscribedCost;
+    private StatsCostView _costView = new(null);
+
+    /// <summary>The header's cost figure and tooltip are kept for the range they were made for, so a
+    /// resize that leaves the range alone does not scan the records again.</summary>
+    private (DateOnly From, DateOnly To)? _headerRange;
+    private bool _headerDirty = true;
+
     /// <param name="clock">The current local date; a test hands in a fixed one so the early-January
     /// case (the range reaching into the previous year) is reproducible.</param>
-    public DayGridTileViewModel(StatsStore? statsStore, Func<DateOnly>? clock = null)
+    /// <param name="cost">The cost estimate, or null while it is off; asked on every refresh.</param>
+    public DayGridTileViewModel(StatsStore? statsStore, Func<DateOnly>? clock = null, Func<CostService?>? cost = null)
     {
         _statsStore = statsStore;
+        _costSource = cost;
         _clock = clock ?? (() => DateOnly.FromDateTime(DateTime.Now));
         Today = _clock();
         RangeStart = Today;
@@ -131,6 +143,19 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
         LocalizationService.Instance["Stats.RingCompact.Million"],
         LocalizationService.Instance["Stats.RingCompact.Billion"]);
 
+    /// <summary>The header's cost figure ("~12 €", no star), empty while the estimate is off.</summary>
+    public string TotalCostText { get; private set; } = "";
+
+    public bool HasTotalCost => TotalCostText.Length > 0;
+
+    /// <summary>The gap between the token total and its cost; none while there is no cost.</summary>
+    public string TotalCostSeparator => HasTotalCost ? "  " : "";
+
+    /// <summary>The tooltip of the total and its cost: the total tokens, the split into new input,
+    /// cache write, cache read and output with a cost each, the whole API cost and the models without
+    /// a price.</summary>
+    public string TotalTooltip { get; private set; } = "";
+
     /// <summary>Raised on a click on a real, non-future day - MainWindow opens (or focuses) the
     /// statistics window and selects this exact day there, reusing its own existing day-selection
     /// (see <see cref="Views.StatsWindow.SelectDay"/>) rather than building a second one.</summary>
@@ -156,6 +181,10 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     /// <see cref="Services.StatsIndexerService.IndexCompleted"/> fires, so the tile never needs the
     /// statistics window to have been opened even once to show real numbers.</summary>
     public void Refresh() => _ = RefreshAndLogAsync();
+
+    /// <summary>The estimate was switched, its currency changed or prices arrived: the day tooltips and
+    /// the header are made again.</summary>
+    public void RefreshCost() => Refresh();
 
     private async Task RefreshAndLogAsync()
     {
@@ -183,6 +212,9 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
             OnPropertyChanged(nameof(Today));
         }
 
+        var costService = _costSource?.Invoke();
+        WatchCost(costService);
+        var costView = new StatsCostView(costService);
         IReadOnlyList<StatsMonthGrid.DayValue> days;
         IReadOnlyList<StatsRecord>? records = null;
         IReadOnlyList<long>? colorScale = null;
@@ -198,7 +230,7 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
             var wantedStart = WantedRangeStart(today);
             try
             {
-                (days, hasAnyData, records, colorScale) = await Task.Run(() => LoadDays(store, today, wantedStart));
+                (days, hasAnyData, records, colorScale) = await Task.Run(() => LoadDays(store, today, wantedStart, costView));
             }
             catch (Exception ex)
             {
@@ -212,6 +244,8 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
 
         _allDays = days;
         _records = records;
+        _costView = costView;
+        _headerDirty = true;
         ColorScaleTotals = colorScale;
         OnPropertyChanged(nameof(ColorScaleTotals));
         HasAnyData = hasAnyData;
@@ -221,13 +255,13 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     }
 
     private static (IReadOnlyList<StatsMonthGrid.DayValue> Days, bool HasAnyData, IReadOnlyList<StatsRecord> Records, IReadOnlyList<long> ColorScale)
-        LoadDays(StatsStore store, DateOnly today, DateOnly wantedStart)
+        LoadDays(StatsStore store, DateOnly today, DateOnly wantedStart, StatsCostView costView)
     {
         var all = store.LoadAll();
         // From the oldest week the tile shows at its current width: those columns reach back past
         // January 1st into the previous year (the seven-day strip needs that in early January too),
         // and before the first recorded day as empty cells.
-        var built = StatsMonthGridBuilder.Build(all, today, from: wantedStart);
+        var built = StatsMonthGridBuilder.Build(all, today, from: wantedStart, costLine: CostLineOf(costView));
         return (built.Days, all.Count > 0, all, built.ColorScaleTotals);
     }
 
@@ -239,7 +273,61 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
     {
         OnPropertyChanged(nameof(HeaderDisplayName));
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
+        _headerDirty = true;
+        RecomputeHeader();
         OnPropertyChanged(nameof(TotalText));
+    }
+
+    private static Func<IEnumerable<StatsRecord>, string?>? CostLineOf(StatsCostView costView) =>
+        costView.Active ? records => costView.Line(records) : null;
+
+    /// <summary>Follows the service's change (the price list arrived, the currency changed); it is
+    /// raised on a background thread, the tile redraws on the one it was refreshed from.</summary>
+    private void WatchCost(CostService? service)
+    {
+        if (service is null || ReferenceEquals(service, _subscribedCost))
+            return;
+
+        _subscribedCost = service;
+        var context = SynchronizationContext.Current;
+        service.Changed += () =>
+        {
+            if (context is null)
+                RefreshCost();
+            else
+                context.Post(_ => RefreshCost(), null);
+        };
+    }
+
+    /// <summary>The cost figure and tooltip of the shown span; made again only when the span, the
+    /// records or the estimate changed.</summary>
+    private void RecomputeHeader()
+    {
+        if (!_headerDirty && _headerRange == (RangeStart, RangeEnd))
+            return;
+
+        _headerDirty = false;
+        _headerRange = (RangeStart, RangeEnd);
+        var text = "";
+        var tooltip = "";
+        if (_records is { } records)
+        {
+            var inRange = records.Where(record => record.Day >= RangeStart && record.Day <= RangeEnd).ToList();
+            var loc = LocalizationService.Instance;
+            var values = StatsAggregator.CacheShare(inRange).AsValues;
+            text = _costView.Label(_costView.Sum(inRange));
+            tooltip = _costView.TotalTooltip(
+                loc["Stats.Total"] + ": " + values.Sum().ToString("N0", CultureInfo.CurrentCulture) + " " + loc["Stats.TokenUnit"],
+                [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]],
+                values, inRange);
+        }
+
+        TotalCostText = text;
+        TotalTooltip = tooltip;
+        OnPropertyChanged(nameof(TotalCostText));
+        OnPropertyChanged(nameof(HasTotalCost));
+        OnPropertyChanged(nameof(TotalCostSeparator));
+        OnPropertyChanged(nameof(TotalTooltip));
     }
 
     /// <summary>How many of the most recent weeks fit <paramref name="availableWidth"/> at the grid's
@@ -280,13 +368,14 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
 
         if (_records is { } records && (_allDays.Count == 0 || RangeStart < _allDays[0].Day))
         {
-            _allDays = StatsMonthGridBuilder.Build(records, Today, from: RangeStart, colorScale: ColorScaleTotals).Days;
+            _allDays = StatsMonthGridBuilder.Build(records, Today, from: RangeStart, colorScale: ColorScaleTotals, costLine: CostLineOf(_costView)).Days;
             Days = _allDays;
             OnPropertyChanged(nameof(Days));
         }
 
         OnPropertyChanged(nameof(RangeStart));
         OnPropertyChanged(nameof(RangeEnd));
+        RecomputeHeader();
         OnPropertyChanged(nameof(TotalText));
     }
 }

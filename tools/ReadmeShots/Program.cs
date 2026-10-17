@@ -36,6 +36,7 @@ using System.Windows.Threading;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Stats;
+using AiUsage.Stats.Pricing;
 using AiUsage.Storage;
 using AiUsage.ViewModels;
 using AiUsage.Views;
@@ -372,6 +373,40 @@ internal static class Program
             Path.Combine(outputDirectory, "token-usage.png"));
     }
 
+    /// <summary>A cost service on a fixed, seeded price list and euro rate that never touches the network, so
+    /// the shots always show the cost figures.</summary>
+    private static CostService BuildFixedCostService(string dataDirectory)
+    {
+        var cacheDirectory = Path.Combine(dataDirectory, "price-cache");
+        Directory.CreateDirectory(cacheDirectory);
+        var stamp = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        // USD per token: input, output, cache read, cache creation.
+        (string Model, double In, double Out, double Read, double Create)[] prices =
+        [
+            ("claude-opus-4-8", 15e-6, 75e-6, 1.5e-6, 18.75e-6),
+            ("claude-opus-4-6", 15e-6, 75e-6, 1.5e-6, 18.75e-6),
+            ("claude-opus-4-5", 5e-6, 25e-6, 0.5e-6, 6.25e-6),
+            ("claude-sonnet-5", 3e-6, 15e-6, 0.3e-6, 3.75e-6),
+            ("claude-sonnet-4-6", 3e-6, 15e-6, 0.3e-6, 3.75e-6),
+            ("claude-sonnet-4-5", 3e-6, 15e-6, 0.3e-6, 3.75e-6),
+            ("claude-haiku-4-5", 1e-6, 5e-6, 0.1e-6, 1.25e-6),
+            ("gpt-5.6-sol", 1.25e-6, 10e-6, 0.125e-6, 0),
+            ("gpt-5.6-terra", 0.75e-6, 6e-6, 0.075e-6, 0),
+            ("gpt-5.6-luna", 0.25e-6, 2e-6, 0.025e-6, 0),
+            ("gpt-5-codex", 1.25e-6, 10e-6, 0.125e-6, 0),
+            ("gemini-3-pro", 2e-6, 12e-6, 0.2e-6, 0),
+            ("gemini-3-flash", 0.5e-6, 3e-6, 0.05e-6, 0),
+        ];
+        static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+        var models = string.Join(",", prices.Select(p =>
+            $"\"{p.Model}\":{{\"input\":{N(p.In)},\"output\":{N(p.Out)},\"cacheRead\":{N(p.Read)}"
+            + (p.Create > 0 ? $",\"cacheCreation\":{N(p.Create)}" : "") + "}"));
+        File.WriteAllText(Path.Combine(cacheDirectory, "model-prices.json"), $"{{\"fetchedAt\":\"{stamp}\",\"models\":{{{models}}}}}");
+        // usdPerEur: about 0.92 euro per dollar.
+        File.WriteAllText(Path.Combine(cacheDirectory, "eur-rate.json"), $"{{\"usdPerEur\":{N(1 / 0.92)},\"fetchedAt\":\"{stamp}\"}}");
+        return new CostService(() => true, () => CostCurrency.Auto, cacheDirectory, networkAllowed: () => false);
+    }
+
     /// <summary>The statistics window on its 30 day range with the busy day selected, never shown.</summary>
     internal static StatsWindow BuildStatisticsWindow(
         string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay,
@@ -382,7 +417,7 @@ internal static class Program
         store.AddDelta(records);
         seed?.Invoke(store);
 
-        var viewModel = new StatsViewModel(store);
+        var viewModel = new StatsViewModel(store, cost: BuildFixedCostService(dataDirectory));
         viewModel.Recompute();
         viewModel.SelectedRangeChoice = viewModel.RangeChoices.Single(choice => choice.Value == "Month");
         PumpUntil(() => !viewModel.IsLoading, TimeSpan.FromSeconds(10), settle: TimeSpan.FromSeconds(1));

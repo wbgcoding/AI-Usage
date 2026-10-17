@@ -35,9 +35,11 @@ public sealed class StatsBarChart : FrameworkElement
     /// uniform theme accent - the model, effort and project groupings each fill them in, the view
     /// resolving them into an actual <see cref="BarBrushes"/> entry through <c>ChartPalette</c>; every
     /// other bar uses the series brushes. <see cref="ExtraTooltipLine"/>
-    /// is one more tooltip line below the total, for a bar that bundles several entries.</summary>
+    /// is one more tooltip line below the total, for a bar that bundles several entries.
+    /// <see cref="TooltipTitle"/> replaces the tooltip's first line when the label is only a short name.</summary>
     public readonly record struct Bar(
-        string Label, IReadOnlyList<long> StackedValues, string ColorProviderId = "", int ColorRank = 0, string? ExtraTooltipLine = null);
+        string Label, IReadOnlyList<long> StackedValues, string ColorProviderId = "", int ColorRank = 0, string? ExtraTooltipLine = null,
+        string? TooltipTitle = null);
 
     public static readonly DependencyProperty BarsProperty = DependencyProperty.Register(
         nameof(Bars), typeof(IReadOnlyList<Bar>), typeof(StatsBarChart),
@@ -960,7 +962,10 @@ public sealed class StatsBarChart : FrameworkElement
             return string.IsNullOrEmpty(tokenWord) ? number : $"{number} {tokenWord}";
         }
 
-        var lines = new List<string> { BuildTooltipHeaderLine(bar.Label, LocalizationService.Instance.DisplayCulture) };
+        var lines = new List<string>
+        {
+            bar.TooltipTitle ?? BuildTooltipHeaderLine(bar.Label, LocalizationService.Instance.DisplayCulture),
+        };
         if (bar.StackedValues.Count > 1 && seriesLabels.Count > 0)
         {
             for (var s = 0; s < bar.StackedValues.Count; s++)

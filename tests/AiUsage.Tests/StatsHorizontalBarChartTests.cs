@@ -182,4 +182,15 @@ public class StatsHorizontalBarChartTests
         Assert.Equal("app (work)", lines[0]);
         Assert.Equal(@"Folder: C:\work\app", lines[1]);
     }
+
+    [Theory]
+    [InlineData(400, 60, 50, 40, 100, true)]
+    [InlineData(266, 60, 50, 40, 100, true)]
+    [InlineData(265, 60, 50, 40, 100, false)]
+    [InlineData(100, 60, 50, 40, 10, false)]
+    public void The_cost_is_drawn_only_where_the_full_name_still_fits(
+        double width, double textX, double figureWidth, double costWidth, double nameWidth, bool expected)
+    {
+        Assert.Equal(expected, StatsHorizontalBarChart.CostFits(width, textX, figureWidth, costWidth, nameWidth));
+    }
 }

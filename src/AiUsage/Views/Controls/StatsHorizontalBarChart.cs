@@ -189,6 +189,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (row.SessionCount is { } sessionCount)
             lines.Add(string.IsNullOrEmpty(sessionsFormat) ? sessionCount.ToString(culture) : string.Format(culture, sessionsFormat, sessionCount));
 
+        if (!string.IsNullOrEmpty(row.FormerPathsLine))
+            lines.Add(row.FormerPathsLine);
+
         if (!string.IsNullOrEmpty(row.CostLine))
             lines.AddRange(row.CostLine.Split('\n'));
 
@@ -276,6 +279,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             StatsBarChart.PercentLabel(row.Percent, culture),
             string.IsNullOrEmpty(activeLabel) ? activeText : $"{activeLabel}: {activeText}",
         };
+        if (!string.IsNullOrEmpty(row.FormerPathsLine))
+            lines.Add(row.FormerPathsLine);
+
         if (!string.IsNullOrEmpty(row.CostLine))
             lines.AddRange(row.CostLine.Split('\n'));
         return lines;
@@ -356,6 +362,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private const double RichBarGap = 2;
     private const double RichIconGap = 6;
     private const double RichFigureGap = 8;
+    private const double RichCostGap = 8;
 
     private double CurrentRowHeight => ShowProjectDetails ? RichRowHeight : RowHeight;
 
@@ -735,6 +742,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         }
     }
 
+    /// <summary>Whether the cost fits right of the figure without cutting the project name: the full name,
+    /// the figure, the cost and the gaps between them must all fit in the row.</summary>
+    internal static bool CostFits(double width, double textX, double figureWidth, double costWidth, double nameWidth) =>
+        textX + nameWidth + RichFigureGap + figureWidth + RichCostGap + costWidth <= width;
+
     /// <summary>The project name of a rich row: always one line, cut with an ellipsis - without the
     /// line limit a long name wraps into the bar beneath it.</summary>
     internal static FormattedText CreateRichNameText(string name, double maxWidth, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
@@ -744,6 +756,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             MaxLineCount = 1,
             Trimming = TextTrimming.CharacterEllipsis,
         };
+
+    /// <summary>The uncut width of a project name. Measured without a width limit: WPF refuses an
+    /// infinite MaxTextWidth.</summary>
+    internal static double RichNameNaturalWidth(string name, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
+        new FormattedText(name, culture, FlowDirection.LeftToRight, semiBold, 12, brush, dpi).Width;
 
     /// <summary>One 852-style row: an icon (or, missing one, a dot in the project's own color), the
     /// project's name in semibold (the full path is in the tooltip only), cut to whatever width is
@@ -778,8 +795,21 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var figureText = new FormattedText(
             $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatsBarChart.PercentLabel(row.Percent, CultureInfo.CurrentCulture)}",
             culture, FlowDirection.LeftToRight, regular, 11, TextBrush, dpi);
-        var figureX = Math.Max(textX, width - figureText.Width);
+        var costText = string.IsNullOrEmpty(row.CostText)
+            ? null
+            : new FormattedText(row.CostText, culture, FlowDirection.LeftToRight, regular, 11, MutedBrush, dpi);
+        if (costText is not null)
+        {
+            var nameNatural = RichNameNaturalWidth(projectName, culture, semiBold, TextBrush, dpi);
+            if (!CostFits(width, textX, figureText.Width, costText.Width, nameNatural))
+                costText = null;
+        }
+
+        var costBlock = costText is null ? 0 : costText.Width + RichCostGap;
+        var figureX = Math.Max(textX, width - figureText.Width - costBlock);
         drawingContext.DrawText(figureText, new Point(figureX, y + (textAreaHeight - figureText.Height) / 2));
+        if (costText is not null)
+            drawingContext.DrawText(costText, new Point(figureX + figureText.Width + RichCostGap, y + (textAreaHeight - costText.Height) / 2));
 
         var nameAreaWidth = Math.Max(1, figureX - textX - RichFigureGap);
 
