@@ -21,8 +21,10 @@ public enum StatsGrouping
 /// <summary>One row of a grouped result: a label (a day, an ISO week, a model or a project name)
 /// and its token total, broken into stacked segments for the chart - one segment per provider for
 /// day/week grouping, a single segment for model/project grouping (a model or project already
-/// belongs to exactly one provider, so stacking would add nothing there).</summary>
-public readonly record struct StatsGroupedRow(string Label, IReadOnlyList<long> StackedValues, long Total);
+/// belongs to exactly one provider, so stacking would add nothing there).
+/// <see cref="Key"/> is what the row is grouped by when that differs from its label (the records
+/// without a project); null otherwise.</summary>
+public readonly record struct StatsGroupedRow(string Label, IReadOnlyList<long> StackedValues, long Total, string? Key = null);
 
 /// <summary>A day or week chart stacked by model: the model names in stacking order (largest
 /// first, the pooled remainder last when <see cref="HasOther"/>) and one row per period whose stacked
@@ -102,8 +104,10 @@ public readonly record struct StatsHeadlineFigures(
 /// cref="ShareByModel"/>, which is the one caller that can name a single provider a model belongs
 /// to - the provider ring's own slices are already one provider each, and the pooled entry belongs
 /// to none. <see cref="Hour"/> is only filled in by <see cref="DayDetail"/>'s hour list, so a
-/// caller can put the bars back in clock order whatever the label looks like.</summary>
-public readonly record struct StatsShareSlice(string Label, long Total, double Percent, string ProviderId = "", int Hour = -1);
+/// caller can put the bars back in clock order whatever the label looks like.
+/// <see cref="IsPooled"/> marks the entry that pools what has no name of its own (the records without
+/// a project, the models past the top ones), so it is told apart without comparing its label.</summary>
+public readonly record struct StatsShareSlice(string Label, long Total, double Percent, string ProviderId = "", int Hour = -1, bool IsPooled = false);
 
 /// <summary>One "top projects" row. First/LastActivity are scoped to the requested period; the token split, ProviderIds and MainModel feed only the hover tooltip; Color and IconPath are filled in by StatsViewModel.</summary>
 public readonly record struct StatsProjectRow(
@@ -118,7 +122,9 @@ public readonly record struct StatsProjectRow(
     // change again.
     int? SessionCount = null,
     // A row that brings its own hover text (a session) shows it instead of the project lines.
-    string? TooltipText = null);
+    string? TooltipText = null,
+    // The row that pools the records without a project; its FullPath is the display label.
+    bool IsNoProject = false);
 
 /// <summary>The month grid's own day-detail panel: one day's usage broken four ways, every list
 /// already sorted by total, descending. <see cref="ByHour"/> is the one exception to "only entries
@@ -175,8 +181,9 @@ public static class StatsAggregator
         StatsGrouping.Hour => GroupByHour(records, CultureInfo.CurrentCulture),
         StatsGrouping.WeekdayHour => GroupByWeekday(records, Services.LocalizationService.Instance.DisplayCulture),
         StatsGrouping.Model => GroupBySingleValueKey(records, record => ModelDisplayNames.Resolve(record.Model)),
-        StatsGrouping.Project => GroupBySingleValueKey(
-            records, record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase),
+        StatsGrouping.Project => GroupBySingleValueKey(records, record => ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase)
+            .Select(row => row.Label == NoProjectKey ? row with { Label = noProjectLabel, Key = NoProjectKey } : row)
+            .ToList(),
         StatsGrouping.Effort => GroupBySingleValueKey(records, record => record.Effort),
         _ => [],
     };
@@ -630,7 +637,7 @@ public static class StatsAggregator
             .ToList();
         var pooledTotal = byModel.Skip(topCount).Sum(entry => entry.Total);
         if (pooledTotal > 0)
-            slices.Add(new StatsShareSlice(otherLabel, pooledTotal, Percent(pooledTotal)));
+            slices.Add(new StatsShareSlice(otherLabel, pooledTotal, Percent(pooledTotal), IsPooled: true));
         return slices;
     }
 
@@ -653,11 +660,13 @@ public static class StatsAggregator
     {
         var grandTotal = records.Sum(record => record.TotalTokens);
         return records
-            .GroupBy(record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase)
-            .Select(group => (Label: group.Key, Total: group.Sum(record => record.TotalTokens)))
+            .GroupBy(record => ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase)
+            .Select(group => (Key: group.Key, Total: group.Sum(record => record.TotalTokens)))
             .OrderByDescending(entry => entry.Total)
             .Take(limit)
-            .Select(entry => new StatsShareSlice(entry.Label, entry.Total, grandTotal > 0 ? entry.Total * 100.0 / grandTotal : 0))
+            .Select(entry => new StatsShareSlice(
+                entry.Key == NoProjectKey ? noProjectLabel : entry.Key, entry.Total, grandTotal > 0 ? entry.Total * 100.0 / grandTotal : 0,
+                IsPooled: entry.Key == NoProjectKey))
             .ToList();
     }
 
@@ -674,7 +683,7 @@ public static class StatsAggregator
     {
         var grandTotal = records.Sum(record => record.TotalTokens);
         return records
-            .GroupBy(record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(record => ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase)
             .Select(group => (
                 FullPath: group.Key,
                 Total: group.Sum(record => record.TotalTokens),
@@ -698,8 +707,8 @@ public static class StatsAggregator
             .OrderByDescending(entry => entry.Total)
             .Take(limit)
             .Select(entry => new StatsProjectRow(
-                MiddleEllipsis(ShortenProjectLabel(entry.FullPath), ProjectLabelMaxChars),
-                entry.FullPath,
+                entry.FullPath == NoProjectKey ? noProjectLabel : MiddleEllipsis(ShortenProjectLabel(entry.FullPath), ProjectLabelMaxChars),
+                entry.FullPath == NoProjectKey ? noProjectLabel : entry.FullPath,
                 entry.Total,
                 grandTotal > 0 ? entry.Total * 100.0 / grandTotal : 0,
                 entry.First,
@@ -708,7 +717,8 @@ public static class StatsAggregator
                 entry.OutputTokens,
                 entry.CachedTokens,
                 entry.ProviderIds,
-                entry.MainModel))
+                entry.MainModel,
+                IsNoProject: entry.FullPath == NoProjectKey))
             .ToList();
     }
 
@@ -720,6 +730,13 @@ public static class StatsAggregator
     /// (<c>.tmp</c>, <c>.worktrees</c>, <c>.claude\worktrees</c>), so everything from the first such
     /// folder on is cut off and the work counts for the project itself. Trailing separators are
     /// trimmed so the same folder always yields the same key.</summary>
+    /// <summary>What the records without a project are grouped under: a value no folder can have, so a
+    /// project whose name happens to read like the translated "no project" label stays its own row.</summary>
+    public const string NoProjectKey = "\u0001";
+
+    internal static string ProjectGroupKey(string? project) =>
+        string.IsNullOrEmpty(project) ? NoProjectKey : ProjectKey(project);
+
     internal static string ProjectKey(string project)
     {
         var match = AgentWorkFolder.Match(project);
@@ -932,10 +949,11 @@ public static class StatsAggregator
             .ToList();
 
         var byProject = dayRecords
-            .GroupBy(record => string.IsNullOrEmpty(record.Project) ? noProjectLabel : ProjectKey(record.Project), StringComparer.OrdinalIgnoreCase)
-            .Select(group => (Label: group.Key, Total: group.Sum(record => record.TotalTokens)))
+            .GroupBy(record => ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase)
+            .Select(group => (Key: group.Key, Total: group.Sum(record => record.TotalTokens)))
             .OrderByDescending(entry => entry.Total)
-            .Select(entry => new StatsShareSlice(entry.Label, entry.Total, Percent(entry.Total)))
+            .Select(entry => new StatsShareSlice(
+                entry.Key == NoProjectKey ? noProjectLabel : entry.Key, entry.Total, Percent(entry.Total), IsPooled: entry.Key == NoProjectKey))
             .ToList();
 
         var byHourTotals = dayRecords.GroupBy(record => record.Hour).ToDictionary(group => group.Key, group => group.Sum(record => record.TotalTokens));

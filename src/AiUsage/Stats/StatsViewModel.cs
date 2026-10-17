@@ -290,7 +290,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>What <see cref="SelectedProjectFilter"/> holds for the records that carry no project: a
     /// value no folder can have, so the filter keeps matching after the display language (and with it
     /// the "no project" wording) changes.</summary>
-    internal const string NoProjectFilterKey = "\u0001";
+    internal const string NoProjectFilterKey = StatsAggregator.NoProjectKey;
 
     /// <summary>True while the breakdown chart draws one bar per model or project, so a click on a bar
     /// can filter.</summary>
@@ -757,8 +757,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // The day's projects that have no resolved color yet are resolved in the background; the
         // detail is built again once they arrive (see OnProjectColorsChanged).
-        var noProject = LocalizationService.Instance["Stats.NoProject"];
-        _dayProjectKeys = detail.ByProject.Select(slice => slice.Label).Where(key => key != noProject).ToList();
+        _dayProjectKeys = detail.ByProject.Where(slice => !slice.IsPooled).Select(slice => slice.Label).ToList();
         var unrequested = _dayProjectKeys.Where(key => !ProjectColors.ContainsKey(key) && _requestedDayProjectKeys.Add(key)).ToList();
         if (unrequested.Count > 0)
             RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
@@ -781,7 +780,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private readonly HashSet<string> _requestedDayProjectKeys = [];
 
     private List<string> CurrentBarProjectKeys() => SelectedGrouping == StatsGrouping.Project
-        ? Bars.Select(bar => bar.ColorProviderId).Where(key => key.Length > 0 && key != OtherProjectsColorKey).ToList()
+        ? Bars.Select(bar => bar.ColorProviderId).Where(key => key.Length > 0 && key != OtherProjectsColorKey && key != NoProjectFilterKey).ToList()
         : [];
 
     partial void OnProjectColorsChanged(IReadOnlyDictionary<string, System.Windows.Media.Color> value)
@@ -855,7 +854,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         var generation = ++_projectColorGeneration;
         var dayKeys = _dayProjectKeys;
-        var folders = rows.Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct().ToList();
+        var folders = rows.Where(row => !row.IsNoProject).Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct().ToList();
         if (folders.Count == 0)
             return;
 
@@ -926,11 +925,13 @@ public sealed partial class StatsViewModel : ObservableObject
         slices
             .Select(slice =>
             {
-                var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(slice.Label), StatsAggregator.ProjectLabelMaxChars);
-                var color = projectColors.TryGetValue(slice.Label, out var resolved) && resolved != default
+                var shortened = slice.IsPooled
+                    ? slice.Label
+                    : StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(slice.Label), StatsAggregator.ProjectLabelMaxChars);
+                var color = !slice.IsPooled && projectColors.TryGetValue(slice.Label, out var resolved) && resolved != default
                     ? resolved
                     : ChartPalette.ForProvider(slice.Label);
-                return new StatsProjectRow(shortened, slice.Label, slice.Total, slice.Percent, day, day, Color: color);
+                return new StatsProjectRow(shortened, slice.Label, slice.Total, slice.Percent, day, day, Color: color, IsNoProject: slice.IsPooled);
             })
             .ToList();
 
@@ -1113,10 +1114,6 @@ public sealed partial class StatsViewModel : ObservableObject
                 SelectedModelFilter = SelectedModelFilter == key ? "" : key;
                 break;
             case StatsFilterKind.Project:
-                // The rows and bars name the no-project group in the display language; the filter
-                // keeps the neutral key.
-                if (key == LocalizationService.Instance["Stats.NoProject"])
-                    key = NoProjectFilterKey;
                 SelectedProjectFilter = string.Equals(SelectedProjectFilter, key, StringComparison.OrdinalIgnoreCase) ? "" : key;
                 break;
             default:
@@ -1142,7 +1139,8 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
 
         var slice = ModelShareSlices[index];
-        if (slice.Label != LocalizationService.Instance["Stats.Other"])
+        // Every real model slice names the provider it belongs to; the pooled one names none.
+        if (slice.ProviderId.Length > 0)
             ToggleFilter(StatsFilterKind.Model, slice.Label);
     }
 
@@ -1150,7 +1148,7 @@ public sealed partial class StatsViewModel : ObservableObject
     public void ActivateTopProject(int index)
     {
         if (index >= 0 && index < TopProjectRows.Count)
-            ToggleFilter(StatsFilterKind.Project, TopProjectRows[index].FullPath);
+            ToggleFilter(StatsFilterKind.Project, TopProjectRows[index].IsNoProject ? NoProjectFilterKey : TopProjectRows[index].FullPath);
     }
 
     [RelayCommand]
@@ -1422,7 +1420,7 @@ public sealed partial class StatsViewModel : ObservableObject
             var rest = groupedRows.Skip(MaxProjectBars).ToList();
             var restTotal = rest.Sum(row => row.Total);
             barRows = groupedRows.Take(MaxProjectBars)
-                .Append(new StatsGroupedRow(LocalizationService.Instance["Stats.OtherProjects"], [restTotal], restTotal)).ToList();
+                .Append(new StatsGroupedRow(LocalizationService.Instance["Stats.OtherProjects"], [restTotal], restTotal, Key: "")).ToList();
             barKeys = barColorKeys.Take(MaxProjectBars).Append(new BarColorKey(OtherProjectsColorKey, 0)).ToList();
             otherTooltipLine = BuildOtherProjectsTooltip(rest);
         }
@@ -1475,12 +1473,10 @@ public sealed partial class StatsViewModel : ObservableObject
             StatsGrouping.Project => StatsFilterKind.Project,
             _ => StatsFilterKind.None,
         };
-        var otherProjectsLabel = LocalizationService.Instance["Stats.OtherProjects"];
         BarsFilterable = filterKind != StatsFilterKind.None && !IsModelStack && !IsAgentStack;
+        // The bundled "other projects" bar carries an empty key and names nothing to filter by.
         _barTargets = BarsFilterable
-            ? barRows.Select(row => row.Label == otherProjectsLabel && filterKind == StatsFilterKind.Project
-                ? ((StatsFilterKind Kind, string Key)?)null
-                : (filterKind, row.Label)).ToList()
+            ? barRows.Select(row => row.Key is "" ? ((StatsFilterKind Kind, string Key)?)null : (filterKind, row.Key ?? row.Label)).ToList()
             : [];
 
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
@@ -1508,6 +1504,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 if (SelectedGrouping != StatsGrouping.Project)
                     return new StatsRowViewModel(row.Label, row.Total, totalText);
 
+                if (row.Key == NoProjectFilterKey)
+                    return new StatsRowViewModel(row.Label, row.Total, totalText, FilterKind: StatsFilterKind.Project, FilterKey: NoProjectFilterKey);
                 var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
                 return new StatsRowViewModel(shortened, row.Total, totalText, ToolTip: row.Label, FilterKind: StatsFilterKind.Project, FilterKey: row.Label);
             })
@@ -1573,7 +1571,7 @@ public sealed partial class StatsViewModel : ObservableObject
         ModelShareSlices = modelShares
             .Select(slice => new Views.Controls.StatsRingChart.Slice(
                 slice.Label, slice.Percent, slice.ProviderId, Total: slice.Total,
-                Tooltip: RingTooltip(slice.Label, slice, loc, slice.Label == otherLabel && slice.ProviderId.Length == 0 ? pooledModels : null)))
+                Tooltip: RingTooltip(slice.Label, slice, loc, slice.IsPooled ? pooledModels : null)))
             .ToList();
 
         // The "share per effort level" ring, beside the model ring. ProviderId here carries the raw
@@ -2143,7 +2141,7 @@ public sealed partial class StatsViewModel : ObservableObject
             return groupedRows.Select(row => new BarColorKey(row.Label, 0)).ToList();
 
         if (grouping == StatsGrouping.Project)
-            return groupedRows.Select(row => new BarColorKey(row.Label, 0)).ToList();
+            return groupedRows.Select(row => new BarColorKey(row.Key ?? row.Label, 0)).ToList();
 
         if (grouping == StatsGrouping.Model)
         {
