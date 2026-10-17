@@ -22,6 +22,9 @@ public sealed class StatsHeatmap : FrameworkElement
     private const double LeftLabelWidth = 30;
     private const double TopLabelHeight = 16;
     private const double CellGap = 2;
+
+    // Room right of and below the grid for the focus ring, which reaches past the last cell.
+    private const double EdgeMargin = 3;
     private const double CellCorner = 2;
     private const double MaxCellHeight = 22;
     private const double MinCellHeight = 12;
@@ -220,7 +223,25 @@ public sealed class StatsHeatmap : FrameworkElement
     /// <summary>The width of one cell in a control <paramref name="width"/> wide: never below one
     /// pixel, so a very narrow control cannot produce a negative rectangle.</summary>
     internal static double CellWidthFor(double width) =>
-        Math.Max(1, (width - LeftLabelWidth - (Columns - 1) * CellGap) / Columns);
+        Math.Max(1, (width - LeftLabelWidth - EdgeMargin - (Columns - 1) * CellGap) / Columns);
+
+    /// <summary>Where one cell sits in a control <paramref name="width"/> wide.</summary>
+    internal static Rect CellRect(int row, int column, double width)
+    {
+        var cellWidth = CellWidthFor(width);
+        var cellHeight = CellHeightFor(width);
+        return new Rect(
+            LeftLabelWidth + column * (cellWidth + CellGap), TopLabelHeight + row * (cellHeight + CellGap), cellWidth, cellHeight);
+    }
+
+    private const double FocusRingThickness = 1.5;
+
+    /// <summary>The ring drawn around a focused cell, as the pen's centre line.</summary>
+    internal static Rect FocusRingFor(Rect cell) => Rect.Inflate(cell, FocusRingThickness, FocusRingThickness);
+
+    /// <summary>Everything the ring paints: its centre line plus half the pen on each side.</summary>
+    internal static Rect FocusRingBounds(Rect cell) =>
+        Rect.Inflate(FocusRingFor(cell), FocusRingThickness / 2, FocusRingThickness / 2);
 
     private static double CellHeightFor(double width) =>
         Math.Clamp(CellWidthFor(width), MinCellHeight, MaxCellHeight);
@@ -231,7 +252,7 @@ public sealed class StatsHeatmap : FrameworkElement
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? DefaultWidth : availableSize.Width;
-        var height = TopLabelHeight + Rows * CellHeightFor(width) + (Rows - 1) * CellGap;
+        var height = TopLabelHeight + Rows * CellHeightFor(width) + (Rows - 1) * CellGap + EdgeMargin;
         return new Size(width, height);
     }
 
@@ -291,7 +312,7 @@ public sealed class StatsHeatmap : FrameworkElement
             for (var column = 0; column < Columns; column++)
             {
                 var value = Values[row * Columns + column];
-                var rect = new Rect(LeftLabelWidth + column * (cellWidth + CellGap), y, cellWidth, cellHeight);
+                var rect = CellRect(row, column, width);
                 var step = Step(value, sorted);
                 var index = row * Columns + column;
                 var color = index < CellColors.Count && CellColors[index].A != 0 ? CellColors[index] : accent;
@@ -300,8 +321,8 @@ public sealed class StatsHeatmap : FrameworkElement
 
                 if (IsKeyboardFocused && _focusedCell == (row, column))
                 {
-                    var ring = new Rect(rect.X - 1.5, rect.Y - 1.5, rect.Width + 3, rect.Height + 3);
-                    drawingContext.DrawRoundedRectangle(null, new Pen(AccentBrush, 1.5), ring, CellCorner + 1, CellCorner + 1);
+                    drawingContext.DrawRoundedRectangle(
+                        null, new Pen(AccentBrush, FocusRingThickness), FocusRingFor(rect), CellCorner + 1, CellCorner + 1);
                 }
 
                 _cellHits.Add(new CellHit(rect, row, column));

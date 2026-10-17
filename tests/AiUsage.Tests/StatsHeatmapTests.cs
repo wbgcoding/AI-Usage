@@ -193,6 +193,20 @@ public class StatsHeatmapTests
     }
 
     [Fact]
+    public void The_focus_ring_of_the_last_cell_stays_inside_the_control()
+    {
+        var (bounds, ring) = RunOnSta(() =>
+        {
+            var heatmap = new StatsHeatmap { Values = new long[168] };
+            heatmap.Measure(new Size(600, double.PositiveInfinity));
+            var cell = StatsHeatmap.CellRect(StatsHeatmap.Rows - 1, StatsHeatmap.Columns - 1, heatmap.DesiredSize.Width);
+            return (new Rect(heatmap.DesiredSize), StatsHeatmap.FocusRingBounds(cell));
+        });
+
+        Assert.True(bounds.Contains(ring), $"{ring} outside {bounds}");
+    }
+
+    [Fact]
     public void A_cell_is_shaded_in_its_own_color_and_the_rest_keep_the_accent()
     {
         var (own, accent) = RunOnSta(() =>
@@ -209,7 +223,7 @@ public class StatsHeatmapTests
                 heatmap.Arrange(new Rect(heatmap.DesiredSize));
                 var bitmap = new RenderTargetBitmap(600, (int)heatmap.DesiredSize.Height, 96, 96, PixelFormats.Pbgra32);
                 bitmap.Render(heatmap);
-                var cellWidth = (600.0 - 30 - 23 * 2) / 24;
+                var cellWidth = StatsHeatmap.CellWidthFor(600);
                 var pixel = new byte[4];
                 bitmap.CopyPixels(new Int32Rect((int)(30 + 14 * (cellWidth + 2) + cellWidth / 2), (int)(16 + (cellWidth + 2) + cellWidth / 2), 1, 1), pixel, 4, 0);
                 return (pixel[2], pixel[0]);
