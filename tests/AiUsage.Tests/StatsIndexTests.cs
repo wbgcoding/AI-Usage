@@ -1816,4 +1816,17 @@ public class StatsIndexTests
         Assert.Contains(logged, line => line.Contains("rebuilt from the session logs", StringComparison.Ordinal));
         Assert.True(File.Exists(first));
     }
+
+    [Fact]
+    public void A_copy_dated_in_the_future_does_not_block_the_weekly_copy()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-future");
+        SeedIndex(dataDir, "file-a");
+        var store = new StatsStore(dataDir);
+        store.WriteWeeklyCopy(dataDir, WeekStart.AddDays(120));
+
+        store.WriteWeeklyCopy(dataDir, WeekStart);
+
+        Assert.Equal(["stats-2026-10-01.db", "stats-2027-01-29.db"], WeeklyCopyNames(dataDir));
+    }
 }

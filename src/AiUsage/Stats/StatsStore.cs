@@ -112,8 +112,10 @@ public sealed class StatsStore
     private static string WeeklyCopyPath(string folder, DateOnly date) =>
         Path.Combine(folder, "stats-" + date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture) + ".db");
 
-    // The copies named stats-yyyy-MM-dd.db, newest first; anything else in the folder is ignored.
-    private static List<(DateOnly Date, string Path)> ListWeeklyCopies(string folder)
+    // The copies named stats-yyyy-MM-dd.db, newest first; anything else in the folder is ignored. A copy
+    // dated after today (the clock was set back) counts as dated today, the write time tells it from a
+    // real copy of today.
+    private static List<(DateOnly Date, string Path)> ListWeeklyCopies(string folder, DateOnly today)
     {
         var copies = new List<(DateOnly, string)>();
         if (!Directory.Exists(folder))
@@ -127,8 +129,10 @@ public sealed class StatsStore
                 copies.Add((date, path));
         }
 
-        copies.Sort((a, b) => b.Item1.CompareTo(a.Item1));
-        return copies;
+        return copies
+            .OrderByDescending(copy => copy.Item1 > today ? today : copy.Item1)
+            .ThenByDescending(copy => File.GetLastWriteTimeUtc(copy.Item2))
+            .ToList();
     }
 
     /// <summary>Writes a consistent copy of the index into <c>stats-backups</c> when the newest copy is a
@@ -151,8 +155,9 @@ public sealed class StatsStore
                 return;
 
             var today = DateOnly.FromDateTime(now.DateTime);
-            var existing = ListWeeklyCopies(folder);
-            if (existing.Count > 0 && today.DayNumber - existing[0].Date.DayNumber < WeeklyCopyIntervalDays)
+            // A copy dated in the future (the clock was set back) is no reason to skip this week.
+            var newest = ListWeeklyCopies(folder, today).FirstOrDefault(copy => copy.Date <= today);
+            if (newest.Path is not null && today.DayNumber - newest.Date.DayNumber < WeeklyCopyIntervalDays)
                 return;
 
             Directory.CreateDirectory(folder);
@@ -178,7 +183,7 @@ public sealed class StatsStore
                 throw;
             }
 
-            foreach (var older in ListWeeklyCopies(folder).Skip(KeptWeeklyCopies))
+            foreach (var older in ListWeeklyCopies(folder, today).Skip(KeptWeeklyCopies))
                 File.Delete(older.Path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
@@ -195,7 +200,7 @@ public sealed class StatsStore
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
-            foreach (var (date, copyPath) in ListWeeklyCopies(Path.Combine(directory, WeeklyCopyFolder)))
+            foreach (var (date, copyPath) in ListWeeklyCopies(Path.Combine(directory, WeeklyCopyFolder), DateOnly.FromDateTime(DateTime.Now)))
             {
                 // Each copy gets one try per process: a flaw the copy carries would come back with it.
                 if (!TriedCopies.Add(copyPath))
