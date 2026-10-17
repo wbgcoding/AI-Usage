@@ -962,6 +962,23 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void LocalOnlyResumesTheLocalReadOfAnAccountSignedOutInTheApp()
+    {
+        var settings = new AppSettings();
+        settings.Providers["claude"] = new ProviderSettings { Visible = true, Disconnected = true };
+        var provider = new SkippableWebFakeProvider("claude");
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, new List<IUsageProvider> { provider }, new HistoryStore(TempDirectory(), () => Now));
+        var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+        var before = provider.FetchCount;
+
+        tile.LocalOnly = true;
+
+        Assert.False(settings.Providers["claude"].Disconnected);
+        Assert.False(vm.IsAccountDisconnected("claude"));
+        Assert.Equal(before + 1, provider.FetchCount);
+    }
+
+    [Fact]
     public void OnlyThePrimaryAccountOffersTheLocalOnlySwitch()
     {
         var settings = new AppSettings();
