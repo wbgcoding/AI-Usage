@@ -16,6 +16,11 @@ namespace AiUsage.Tests;
 /// One narrow, named exception: <c>Services/UpdateCheck.cs</c> uses <see cref="System.Net.Http.HttpClient"/>
 /// for a GET against this app's own public release metadata - it never touches a provider, never
 /// anything but GET, and is proven safe on its own terms below rather than simply let through.
+///
+/// Two named exceptions to "every request is a GET", both plain reads that only answer on POST: Cursor's
+/// Grok Bot usage bar and the Gemini app's usage RPC (fixed rpc id <c>jSf9Qc</c>, fixed request literal,
+/// only the page's own token in the body). Each is recognised by its exact endpoint appearing next to the
+/// verb; any other POST, including another Gemini rpc id, still fails.
 /// </summary>
 public class TokenSafetyTests
 {
@@ -60,7 +65,16 @@ public class TokenSafetyTests
     // always the literal '{}', never a candidate path and never built from anything the discovered
     // account carries. Every other POST anywhere under src still fails this guard; this one is
     // recognised only by its exact endpoint appearing near the verb, not merely by being POST.
-    private const string AllowedPostEndpoint = "/api/dashboard/get-sand-usage-status";
+    // The second is the Gemini app's usage RPC: it answers only on POST too, with a fixed rpc id and a
+    // fixed request literal (see GeminiDiscoveryScript), a read of the account's own usage figures.
+    private static readonly string[] AllowedPostEndpoints =
+    [
+        "/api/dashboard/get-sand-usage-status",
+        "/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc",
+    ];
+
+    private static bool NamesAllowedPostEndpoint(string window) =>
+        AllowedPostEndpoints.Any(endpoint => window.Contains(endpoint, StringComparison.Ordinal));
 
     internal static bool HasForbiddenHttpClientType(string text) => HttpClientType.IsMatch(text);
 
@@ -72,8 +86,8 @@ public class TokenSafetyTests
             if (window.Contains("method: 'GET'", StringComparison.Ordinal))
                 continue;
             // The one exception (see HasForbiddenPostVerb): a POST is only ever tolerated for the
-            // fixed Grok Bot endpoint, never for any other fetch.
-            if (window.Contains("method: 'POST'", StringComparison.Ordinal) && window.Contains(AllowedPostEndpoint, StringComparison.Ordinal))
+            // allow-listed endpoints, never for any other fetch.
+            if (window.Contains("method: 'POST'", StringComparison.Ordinal) && NamesAllowedPostEndpoint(window))
                 continue;
             return true;
         }
@@ -81,7 +95,7 @@ public class TokenSafetyTests
     }
 
     /// <summary>True for a POST verb anywhere in <paramref name="text"/> that is not immediately
-    /// explained by <see cref="AllowedPostEndpoint"/> appearing nearby - the same windowed-proximity
+    /// explained by one of <see cref="AllowedPostEndpoints"/> appearing nearby - the same windowed-proximity
     /// idea as <see cref="HasFetchWithoutGetNearby"/>, just inverted (forbidden unless nearby, rather
     /// than required nearby).</summary>
     internal static bool HasForbiddenPostVerb(string text)
@@ -90,7 +104,7 @@ public class TokenSafetyTests
         {
             var start = Math.Max(0, match.Index - 200);
             var window = text.Substring(start, Math.Min(400, text.Length - start));
-            if (!window.Contains(AllowedPostEndpoint, StringComparison.Ordinal))
+            if (!NamesAllowedPostEndpoint(window))
                 return true;
         }
         return false;
@@ -145,7 +159,7 @@ public class TokenSafetyTests
         "https://claude.ai",
         "https://chatgpt.com",
         "https://cursor.com",
-        "https://aistudio.google.com",
+        "https://gemini.google.com",
         "https://github.com",
     ];
 
@@ -255,11 +269,23 @@ public class TokenSafetyTests
     }
 
     [Fact]
-    public void HasForbiddenPostVerb_allows_only_the_fixed_grok_bot_endpoint()
+    public void HasForbiddenPostVerb_allows_only_the_fixed_grok_bot_and_gemini_usage_endpoints()
     {
         Assert.False(HasForbiddenPostVerb(
             "await fetch('/api/dashboard/get-sand-usage-status', {method: 'POST', credentials: 'include', body: '{}'})"));
+        Assert.False(HasForbiddenPostVerb(
+            "await fetch('/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc', {method: 'POST', credentials: 'include'})"));
         Assert.True(HasForbiddenPostVerb("await fetch('/api/chat', {method: 'POST', credentials: 'include'})"));
+    }
+
+    [Fact]
+    public void A_POST_to_another_batchexecute_rpc_is_still_forbidden()
+    {
+        const string planted = "await fetch('/_/BardChatUi/data/batchexecute?rpcids=OTHER', {method: 'POST', credentials: 'include'})";
+
+        Assert.True(HasForbiddenPostVerb(planted));
+        Assert.True(HasFetchWithoutGetNearby(planted));
+        Assert.True(HasForbiddenRequestShape(planted));
     }
 
     [Fact]
