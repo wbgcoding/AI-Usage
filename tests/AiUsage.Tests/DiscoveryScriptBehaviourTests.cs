@@ -16,9 +16,20 @@ public class DiscoveryScriptBehaviourTests
         const routes = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
         globalThis.location = {origin: 'https://site.test', hostname: 'site.test'};
         globalThis.navigator = {onLine: true};
-        globalThis.fetch = async (path) => {
-            const r = routes[path] || {status: 404, body: ''};
+        // The Gemini script reads its anti-forgery token, build label and language from the page itself.
+        globalThis.window = {WIZ_global_data: JSON.parse(process.argv[4])};
+        globalThis.document = {documentElement: {lang: 'de'}};
+        globalThis.fetch = async (path, init) => {
+            // A path with extra query parameters (the Gemini RPC adds the build label and language)
+            // matches the route that names its fixed start.
+            const key = routes[path] ? path : Object.keys(routes).find(k => path.startsWith(k + '&'));
+            const r = routes[key] || {status: 404, body: ''};
             if (r.throws) throw new Error('network');
+            // The Gemini usage RPC only answers a POST that carries the request literal and the token.
+            if (key && key.includes('batchexecute')) {
+                const body = String((init || {}).body || '');
+                if ((init || {}).method !== 'POST' || !body.includes('f.req=') || !body.includes('at=tok')) return {status: 405, ok: false, text: async () => ''};
+            }
             return {
                 status: r.status,
                 ok: r.status >= 200 && r.status < 300,
@@ -44,7 +55,9 @@ public class DiscoveryScriptBehaviourTests
 
     private sealed record Route(int Status, string Body, string? Ct = null);
 
-    private static string RunInNode(string script, Dictionary<string, Route> routes)
+    private const string SignedInPage = """{"SNlM0e":"tok","cfb2h":"boq_build"}""";
+
+    private static string RunInNode(string script, Dictionary<string, Route> routes, string pageData = SignedInPage)
     {
         var node = NodeLocator.Find() ?? throw new InvalidOperationException("node.exe not on PATH");
 
@@ -68,6 +81,7 @@ public class DiscoveryScriptBehaviourTests
         info.ArgumentList.Add(runnerPath);
         info.ArgumentList.Add(scriptPath);
         info.ArgumentList.Add(routesPath);
+        info.ArgumentList.Add(pageData);
         using var process = Process.Start(info)!;
         var output = process.StandardOutput.ReadToEnd();
         process.StandardError.ReadToEnd();
@@ -156,24 +170,66 @@ public class DiscoveryScriptBehaviourTests
         Assert.Equal("blocked", Status_(RunInNode(ClaudeDiscoveryScript.Discover(), routes)));
     }
 
-    [NodeFact]
-    public void Gemini_discovery_returns_every_json_candidate_and_the_reader_takes_the_first_that_parses()
+    /// <summary>The answer of the usage RPC as the app's batch envelope: a length-prefixed JSON line whose
+    /// <c>jSf9Qc</c> entry carries the usage payload as a JSON string.</summary>
+    private static string GeminiEnvelope(string payload)
     {
-        const string quota = """
-            {"groups":[{"displayName":"Gemini Models","buckets":[
-              {"window":"weekly","resetTime":"2026-09-18T05:21:33Z","remainingFraction":0.9},
-              {"window":"5h","resetTime":"2026-09-13T20:40:15Z","remainingFraction":1}]}]}
-            """;
+        var line = "[[\"wrb.fr\",\"jSf9Qc\"," + JsonSerializer.Serialize(payload) + ",null,null,null,\"generic\"],[\"di\",117]]";
+        return ")]}'\n\n" + line.Length + "\n" + line + "\n25\n[[\"e\",4,null,null,237]]";
+    }
+
+    [NodeFact]
+    public void Gemini_discovery_posts_the_usage_rpc_and_the_reader_takes_the_payload()
+    {
         var routes = new Dictionary<string, Route>
         {
-            [GeminiDiscoveryScript.CandidatePaths[0]] = Json("""{"unknown":true}"""),
-            [GeminiDiscoveryScript.CandidatePaths[1]] = Json(quota),
+            [GeminiDiscoveryScript.CandidatePaths[0]] = new(200, GeminiEnvelope("[2,[[2181,0.09,1,[[1792246090,287070000]]],[45607,0.05737659,2,[[1792652890,287184000]]]],false]"), "text/plain"),
         };
         var envelope = RunInNode(GeminiDiscoveryScript.Discover(), routes);
-        var source = NewSource(new GeminiUsageEndpoint(), "gemini", "aistudio.google.com");
+        var source = NewSource(new GeminiUsageEndpoint(), "gemini", "gemini.google.com");
         var (result, path) = source.Interpret(envelope);
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
-        Assert.Equal(GeminiDiscoveryScript.CandidatePaths[1], path);
+        Assert.Equal(GeminiDiscoveryScript.CandidatePaths[0], path);
+    }
+
+    [NodeFact]
+    public void Gemini_direct_read_answers_the_same_payload()
+    {
+        var routes = new Dictionary<string, Route>
+        {
+            [GeminiDiscoveryScript.CandidatePaths[0]] = new(200, GeminiEnvelope("[2,[],false]"), "text/plain"),
+        };
+        using var document = JsonDocument.Parse(RunInNode(GeminiDiscoveryScript.Fetch(GeminiDiscoveryScript.CandidatePaths[0]), routes));
+        Assert.Equal("ok", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("[2,[],false]", document.RootElement.GetProperty("body").GetString());
+    }
+
+    [NodeFact]
+    public void Gemini_page_without_an_anti_forgery_token_reads_as_signed_out_without_a_request()
+    {
+        var routes = new Dictionary<string, Route>
+        {
+            [GeminiDiscoveryScript.CandidatePaths[0]] = new(200, GeminiEnvelope("[2,[],false]"), "text/plain"),
+        };
+        Assert.Equal("not_signed_in", Status_(RunInNode(GeminiDiscoveryScript.Discover(), routes, pageData: "{}")));
+        Assert.Equal("not_signed_in", Status_(RunInNode(GeminiDiscoveryScript.Fetch(GeminiDiscoveryScript.CandidatePaths[0]), routes, pageData: """{"SNlM0e":""}""")));
+    }
+
+    [NodeFact]
+    public void Gemini_answer_without_the_usage_entry_reads_as_failed()
+    {
+        var routes = new Dictionary<string, Route>
+        {
+            [GeminiDiscoveryScript.CandidatePaths[0]] = new(200, ")]}'\n\n25\n[[\"e\",4,null,null,237]]", "text/plain"),
+        };
+        Assert.Equal("failed", Status_(RunInNode(GeminiDiscoveryScript.Discover(), routes)));
+    }
+
+    [NodeFact]
+    public void Gemini_rpc_answering_401_reads_as_signed_out_and_429_as_blocked()
+    {
+        Assert.Equal("not_signed_in", Status_(RunInNode(GeminiDiscoveryScript.Discover(), new() { [GeminiDiscoveryScript.CandidatePaths[0]] = Status(401) })));
+        Assert.Equal("blocked", Status_(RunInNode(GeminiDiscoveryScript.Discover(), new() { [GeminiDiscoveryScript.CandidatePaths[0]] = Status(429) })));
     }
 
     private static WebUsageSource NewSource(IWebUsageEndpoint endpoint, string id, string host) =>

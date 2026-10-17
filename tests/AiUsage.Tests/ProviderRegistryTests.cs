@@ -226,8 +226,8 @@ public class ProviderRegistryTests : IDisposable
 
         Assert.Equal("gemini", session.ProviderId);
         Assert.Equal("gemini", session.ProfileFolderName);
-        Assert.StartsWith("https://aistudio.google.com/", session.BaseUrl, StringComparison.Ordinal);
-        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://aistudio.google.com/usage", session.AllowedHosts));
+        Assert.StartsWith("https://gemini.google.com/", session.BaseUrl, StringComparison.Ordinal);
+        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://gemini.google.com/usage", session.AllowedHosts));
         Assert.True(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.com/ServiceLogin", session.AllowedHosts));
         Assert.True(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.de/signin/v2", session.AllowedHosts));
         Assert.True(SignInNavigationPolicy.IsAllowedUri("https://accounts.google.co.uk/signin/v2", session.AllowedHosts));
@@ -373,7 +373,7 @@ public class ProviderRegistryTests : IDisposable
     [Theory]
     [InlineData("codex#2", "chatgpt.com")]
     [InlineData("cursor#2", "cursor.com")]
-    [InlineData("gemini#2", "aistudio.google.com")]
+    [InlineData("gemini#2", "gemini.google.com")]
     public void AFurtherAccountsWebSessionIsItsOwnProfileOnTheProvidersOwnSite(string accountKey, string host)
     {
         var primary = ProviderRegistry.WebSessionFor(ProviderRegistry.BaseProviderId(accountKey));

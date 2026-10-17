@@ -919,7 +919,7 @@ public class WebSessionScriptRunnerTests
     [Fact]
     public void A_navigation_turned_away_is_logged_once_per_host_without_path_or_query()
     {
-        IReadOnlyList<string> allowed = ["aistudio.google.com", "accounts.google.com"];
+        IReadOnlyList<string> allowed = ["gemini.google.com", "accounts.google.com"];
         var gate = new FirstPerHostGate();
 
         var first = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/ml?continue=secret&code=1", allowed, gate);
@@ -932,7 +932,7 @@ public class WebSessionScriptRunnerTests
         Assert.DoesNotContain("/ml", first, StringComparison.Ordinal);
         Assert.Null(again);
         Assert.Contains("www.google.com", other, StringComparison.Ordinal);
-        Assert.Null(WebView2HiddenBrowserHost.BlockedNavigationLine("https://aistudio.google.com/usage", allowed, gate));
+        Assert.Null(WebView2HiddenBrowserHost.BlockedNavigationLine("https://gemini.google.com/usage", allowed, gate));
     }
 
     [Fact]

@@ -337,7 +337,7 @@ public class GeminiProviderTests : IDisposable
     private const string NotSignedInEnvelope = """{"status":"not_signed_in"}""";
 
     private const string OkEnvelope = """
-        {"status":"ok","path":"/api/usage","body":"{\"groups\":[{\"displayName\":\"Gemini Models\",\"buckets\":[{\"window\":\"5h\",\"resetTime\":\"2026-09-13T20:40:15Z\",\"remainingFraction\":0.75}]}]}"}
+        {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.25,1,[[1792246090,0]]]],false]"}
         """;
 
     /// <summary>SnapshotChooser prefers more windows over fewer once both candidates are otherwise
@@ -351,7 +351,7 @@ public class GeminiProviderTests : IDisposable
             {"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","resetTime":"2026-09-13T20:40:15Z","remainingFraction":0.5}]}]}
             """;
         const string webTwoWindows = """
-            {"status":"ok","path":"/api/usage","body":"{\"groups\":[{\"displayName\":\"Gemini Models\",\"buckets\":[{\"window\":\"5h\",\"resetTime\":\"2026-09-13T20:40:15Z\",\"remainingFraction\":1},{\"window\":\"weekly\",\"resetTime\":\"2026-09-18T05:21:33Z\",\"remainingFraction\":0.4}]}]}"}
+            {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.0,1,[[1792246090,0]]],[45607,0.6,2,[[1792652890,0]]]],false]"}
             """;
         var usage = new AntigravityUsage(LocalLoginOutcome.Ok, localOneWindow, "Google AI Pro");
         var provider = ProviderWithWebSession(usage, _ => webTwoWindows, out _);
@@ -425,7 +425,7 @@ public class GeminiProviderTests : IDisposable
             {"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","resetTime":"2026-09-13T20:40:15Z","remainingFraction":0.5}]}]}
             """;
         const string webTwoWindows = """
-            {"status":"ok","path":"/api/usage","body":"{\"groups\":[{\"displayName\":\"Gemini Models\",\"buckets\":[{\"window\":\"5h\",\"resetTime\":\"2026-09-13T20:40:15Z\",\"remainingFraction\":1},{\"window\":\"weekly\",\"resetTime\":\"2026-09-18T05:21:33Z\",\"remainingFraction\":0.4}]}]}"}
+            {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.0,1,[[1792246090,0]]],[45607,0.6,2,[[1792652890,0]]]],false]"}
             """;
         var usage = new AntigravityUsage(LocalLoginOutcome.Ok, localOneWindow, "Google AI Pro");
         var now = DateTimeOffset.Parse("2026-09-18T20:00:00Z");
@@ -459,8 +459,8 @@ public class GeminiProviderTests : IDisposable
         scriptRuns = runs;
         var clock = now ?? (() => DateTimeOffset.Parse("2026-09-18T20:00:00Z"));
         var descriptor = new WebSessionDescriptor(
-            ProviderId: "gemini", BaseUrl: "https://aistudio.google.com/usage",
-            SignInUrl: "https://aistudio.google.com/", AllowedHosts: ["google.com"], ProfileFolderName: "gemini");
+            ProviderId: "gemini", BaseUrl: "https://gemini.google.com/usage",
+            SignInUrl: "https://gemini.google.com/", AllowedHosts: ["google.com"], ProfileFolderName: "gemini");
         var source = new WebUsageSource(descriptor, new GeminiUsageEndpoint(), (script, _) =>
         {
             if (!WebViewHost.ProfileExists("gemini"))

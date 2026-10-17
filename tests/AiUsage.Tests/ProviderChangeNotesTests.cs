@@ -309,8 +309,7 @@ public class ProviderChangeNotesTests
         new CodexUsageEndpoint(() => DateTimeOffset.Parse("2026-10-17T12:00:00Z")).ParseBody(
             """{"rate_limit":{"primary_window":{"used_percent":1,"limit_window_seconds":18000},"tertiary_window":{"used_percent":9}}}""");
         new CursorUsageEndpoint().ParseBody("""{"individualUsage":{"plan":{"autoPercentUsed":10,"imagePercentUsed":4}}}""");
-        new GeminiUsageEndpoint().ParseBody(
-            """{"groups":[{"displayName":"Gemini Models","buckets":[{"window":"daily","remainingFraction":0.5}]}]}""");
+        new GeminiUsageEndpoint().ParseBody("[2,[[2181,0.1,1],[7,0.3,3]],false]");
 
         foreach (var provider in new[] { "Claude", "Codex", "Cursor", "Gemini" })
             Assert.Single(capture.Lines, line => line.Contains($"({provider} usage read needs adapting)", StringComparison.Ordinal));
@@ -324,7 +323,7 @@ public class ProviderChangeNotesTests
         new ClaudeUsageEndpoint().ParseBody("""{"five_hour":{"utilization":1}}""");
         new CodexUsageEndpoint(() => DateTimeOffset.Parse("2026-10-17T12:00:00Z")).ParseBody("""{"rate_limits":{"primary":{"used_percent":1,"window_minutes":300}}}""");
         new CursorUsageEndpoint().ParseBody("""{"individualUsage":{"plan":{"autoPercentUsed":10}}}""");
-        new GeminiUsageEndpoint().ParseBody("""{"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","remainingFraction":1}]}]}""");
+        new GeminiUsageEndpoint().ParseBody("[2,[[2181,0.1,1,[[1792246090,0]]]],false]");
 
         Assert.Empty(capture.Lines);
     }
