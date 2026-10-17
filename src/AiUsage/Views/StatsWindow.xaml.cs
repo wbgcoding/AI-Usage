@@ -726,8 +726,8 @@ public partial class StatsWindow : Window
             // A window built ahead of time takes the then-current data when it is shown.
             if (!_opened)
                 return;
-            if (!_viewModel.TryShowSnapshot())
-                _ = RecomputeLoggedAsync(showLoading: false);
+            _viewModel.TryShowSnapshot();
+            _ = RecomputeLoggedAsync(showLoading: false);
         });
 
     /// <summary>One brush per stacked segment: two (one per provider) for day/week grouping, one for

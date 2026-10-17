@@ -2198,6 +2198,38 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
+    public async Task TryShowSnapshot_wins_over_a_store_read_that_started_before_it()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-snapshot-race");
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var older = new List<StatsRecord> { new("claude", today, "modelA", "projA", 100, 50, 0, 0) };
+        List<StatsRecord> newer = [.. older, new("codex", today, "modelB", "projB", 900, 90, 0, 0)];
+        using var readStarted = new ManualResetEventSlim();
+        using var releaseRead = new ManualResetEventSlim();
+        var viewModel = new StatsViewModel(new StatsStore(dataDir))
+        {
+            LoadingDelay = TimeSpan.FromMilliseconds(1),
+            LoadSessions = () => [],
+            LoadRecords = () =>
+            {
+                readStarted.Set();
+                releaseRead.Wait(TimeSpan.FromSeconds(10));
+                return older;
+            },
+        };
+        viewModel.TakeSnapshot = () => new StatsDataSnapshot(newer, []);
+
+        var read = viewModel.RecomputeAsync(showLoading: false);
+        Assert.True(readStarted.Wait(TimeSpan.FromSeconds(10)));
+        Assert.True(viewModel.TryShowSnapshot());
+        var shown = viewModel.Bars;
+        releaseRead.Set();
+        await read;
+
+        Assert.Same(shown, viewModel.Bars); // the read that began earlier must not put its older data back
+    }
+
+    [Fact]
     public async Task RecomputeAsync_without_the_loading_state_never_shows_the_pill_and_skips_an_unchanged_rebuild()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-quiet-reload");

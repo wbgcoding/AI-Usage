@@ -1226,6 +1226,8 @@ public sealed partial class StatsViewModel : ObservableObject
             && !(RecordsLoaded && MatchesShown(snapshot.Records, snapshot.Sessions)))
         {
             _allSessions = snapshot.Sessions;
+            // A store read already under way started before this data and must not put older rows back.
+            _recomputeGeneration++;
             RecomputeFrom(snapshot.Records);
         }
 
