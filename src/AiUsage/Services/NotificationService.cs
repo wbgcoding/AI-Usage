@@ -415,7 +415,10 @@ public sealed class NotificationService
             {
                 if (entry?.ProviderId is null)
                     continue;
-                if (entry.LastResetsAt is { } resetsAt && now >= resetsAt)
+                // An expired window drops its alert state, but a mute for today outlives the window.
+                var expired = entry.LastResetsAt is { } resetsAt && now >= resetsAt;
+                var mutedToday = entry.MutedThrough >= DateOnly.FromDateTime(now.LocalDateTime);
+                if (expired && !mutedToday)
                     continue;
 
                 // A label stored under an older spelling keys the same window it does today, so an
@@ -427,16 +430,18 @@ public sealed class NotificationService
                 if (currentLabel != storedLabel && _state.ContainsKey(key))
                     continue;
 
-                _state[key] = new State
-                {
-                    Armed = entry.Armed,
-                    LastNotifiedAt = entry.LastNotifiedAt,
-                    LastResetsAt = entry.LastResetsAt,
-                    ForecastFiredFor = entry.ForecastFiredFor,
-                    LimitFired = entry.LimitFired,
-                    LimitFiredFor = entry.LimitFiredFor,
-                    MutedThrough = entry.MutedThrough,
-                };
+                _state[key] = expired
+                    ? new State { MutedThrough = entry.MutedThrough }
+                    : new State
+                    {
+                        Armed = entry.Armed,
+                        LastNotifiedAt = entry.LastNotifiedAt,
+                        LastResetsAt = entry.LastResetsAt,
+                        ForecastFiredFor = entry.ForecastFiredFor,
+                        LimitFired = entry.LimitFired,
+                        LimitFiredFor = entry.LimitFiredFor,
+                        MutedThrough = entry.MutedThrough,
+                    };
             }
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)

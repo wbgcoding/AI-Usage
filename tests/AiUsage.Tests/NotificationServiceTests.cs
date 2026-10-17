@@ -467,6 +467,23 @@ public class NotificationServiceTests : IDisposable
     }
 
     [Fact]
+    public void AMuteOutlivesTheWindowItWasSetOnAcrossAReload()
+    {
+        var directory = TempDirectory();
+        var muteAt = LocalTime(5, 10, 0);
+        var resetsAt = muteAt.AddHours(1);
+        var first = new NotificationService(directory, muteAt);
+        first.Evaluate("codex", "Codex", FiveHour(90, resetsAt), threshold: 85, enabled: true, notifyOnReset: false, muteAt);
+        first.MuteForToday("codex", muteAt);
+
+        var afterReset = LocalTime(5, 12, 0);
+        var second = new NotificationService(directory, afterReset);
+
+        Assert.True(second.IsMuted("codex", afterReset));
+        Assert.False(second.IsMuted("codex", LocalTime(6, 0, 0)));
+    }
+
+    [Fact]
     public void AFileWrittenBeforeTheMuteExistedStillLoads()
     {
         var directory = TempDirectory();
