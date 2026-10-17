@@ -1870,6 +1870,62 @@ public class StatsIndexTests
         Assert.Contains(logged, line => line.Contains("could not be set aside", StringComparison.Ordinal));
     }
 
+    // Wipes the root page of a table: the schema page stays intact, so only a full structure check sees it.
+    private static void WipeTablePage(string dbPath, string table)
+    {
+        long page;
+        int pageSize;
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = dbPath, Pooling = false }.ToString()))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT rootpage FROM sqlite_master WHERE name = '{table}'";
+            page = (long)command.ExecuteScalar()!;
+            command.CommandText = "PRAGMA page_size";
+            pageSize = (int)(long)command.ExecuteScalar()!;
+        }
+        using var file = new FileStream(dbPath, FileMode.Open, FileAccess.Write, FileShare.None);
+        file.Position = (page - 1) * pageSize;
+        file.Write(new byte[pageSize]);
+    }
+
+    [Fact]
+    public void The_first_open_in_a_process_finds_damage_in_a_table_page_and_sets_the_file_aside()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-quickcheck-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-quickcheck");
+        // Written elsewhere: this process never opened the file at its final path.
+        SeedIndex(seedDir, "file-a");
+        SqliteConnection.ClearAllPools();
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        File.Copy(Path.Combine(seedDir, "stats.db"), dbPath);
+        WipeTablePage(dbPath, "usage");
+        var logged = new List<string>();
+
+        new StatsStore(dataDir, logError: logged.Add).TryLoadSourceFiles(out _);
+
+        Assert.Single(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+        Assert.Contains(logged, line => line.Contains("rebuilt from the session logs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_structure_check_runs_once_per_file_in_a_process()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-quickcheck-once");
+        SeedIndex(dataDir, "file-a");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var store = new StatsStore(dataDir);
+        Assert.True(store.TryLoadSourceFiles(out _));
+        SqliteConnection.ClearAllPools();
+        WipeTablePage(dbPath, "usage");
+
+        // The file was verified at its first open; later opens only pay for what they read.
+        Assert.True(store.TryLoadSourceFiles(out var states));
+
+        Assert.Equal(["file-a"], states.Keys);
+        Assert.Empty(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+    }
+
     [Fact]
     public void A_copy_dated_in_the_future_does_not_block_the_weekly_copy()
     {

@@ -73,7 +73,7 @@ public sealed class StatsStore
         using var source = new SqliteConnection(sourceConnectionString);
         using var destination = new SqliteConnection(destinationConnectionString);
         // The copy replaces whatever schema the destination file had.
-        EnsuredDatabases.TryRemove(Path.GetFullPath(destinationPath), out _);
+        ForgetDatabase(Path.GetFullPath(destinationPath));
         source.Open();
         destination.Open();
         source.BackupDatabase(destination);
@@ -372,7 +372,7 @@ public sealed class StatsStore
             {
                 BeforeRestoreMove?.Invoke();
                 // The copy may hold an older schema: the next open has to bring it up to date.
-                EnsuredDatabases.TryRemove(fullPath, out _);
+                ForgetDatabase(fullPath);
                 File.Move(prepared.TemporaryPath, fullPath, overwrite: false);
                 moved = true;
             }
@@ -877,6 +877,7 @@ public sealed class StatsStore
                 connection.Open();
                 // Nothing a database file declares (views, triggers, functions) may run with the app's rights.
                 Execute(connection, "PRAGMA trusted_schema = OFF");
+                VerifyStructureOnce(connection, fullPath);
                 if (schemaKnown)
                 {
                     SetBusyTimeout(connection);
@@ -930,7 +931,7 @@ public sealed class StatsStore
     private void QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode, long generation)
     {
         SqliteConnection.ClearPool(connection);
-        EnsuredDatabases.TryRemove(fullPath, out _);
+        ForgetDatabase(fullPath);
         // Two threads can fail on the same file; the second one's report is about a file that is gone
         // by now and must not set aside the index the first one put in its place.
         StoreGate.EnterWriteLock();
@@ -1036,6 +1037,32 @@ public sealed class StatsStore
             }
             return false;
         }
+    }
+
+    // Files whose page structure this process already checked (once per process, at the first open).
+    private static readonly ConcurrentDictionary<string, bool> VerifiedDatabases = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A flipped page that no query happens to read would sit in the index until the day a
+    /// query does. One <c>quick_check</c> at the first open of a file per process routes such damage
+    /// through the same set-aside and weekly-copy restore as damage found any other way.</summary>
+    private void VerifyStructureOnce(SqliteConnection connection, string fullPath)
+    {
+        if (VerifiedDatabases.ContainsKey(fullPath))
+            return;
+        SetBusyTimeout(connection);
+        using var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA quick_check(1)";
+        var result = Convert.ToString(check.ExecuteScalar(), CultureInfo.InvariantCulture);
+        if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
+            throw new SqliteException("The index failed its structure check.", SqliteCorrupt);
+        VerifiedDatabases[fullPath] = true;
+    }
+
+    // The file at this path is about to be replaced: its schema and structure are unknown again.
+    private static void ForgetDatabase(string fullPath)
+    {
+        EnsuredDatabases.TryRemove(fullPath, out _);
+        VerifiedDatabases.TryRemove(fullPath, out _);
     }
 
     // Database files whose schema this process already brought up to date; later opens (the indexer
