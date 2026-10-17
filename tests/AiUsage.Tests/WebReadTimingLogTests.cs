@@ -24,13 +24,16 @@ public class WebReadTimingLogTests
     }
 
     [Fact]
-    public void Only_the_first_ten_reads_of_a_provider_log_a_line()
+    public void Only_the_first_ten_reads_of_a_provider_log_a_timing_line_then_one_notice_and_silence()
     {
         var log = new WebReadTimingLog();
 
         for (var i = 0; i < WebReadTimingLog.LoggedReadsPerProvider; i++)
             Assert.NotNull(log.NextLine("claude", 100 + i, TwoHundredMegabytes));
 
+        Assert.Equal(
+            "web read claude: the first 10 reads are logged, later reads still run but are not logged",
+            log.NextLine("claude", 100, TwoHundredMegabytes));
         Assert.Null(log.NextLine("claude", 100, TwoHundredMegabytes));
         Assert.Null(log.NextLine("claude", 100, null));
     }
@@ -42,6 +45,7 @@ public class WebReadTimingLogTests
         for (var i = 0; i < WebReadTimingLog.LoggedReadsPerProvider; i++)
             log.NextLine("claude", 100, null);
 
+        Assert.NotNull(log.NextLine("claude", 100, null)); // the stop notice
         Assert.Null(log.NextLine("claude", 100, null));
         Assert.Equal("web read cursor: 5 ms", log.NextLine("cursor", 5, null));
     }

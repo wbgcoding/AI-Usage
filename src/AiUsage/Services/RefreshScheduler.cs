@@ -51,6 +51,16 @@ public sealed class RefreshScheduler
     // pushed in (SetPower), never polled here, so a test drives it with a plain value.
     private PowerState _power;
     private bool _saveEnergyOnBattery;
+
+    // Diagnostics for a refresh that seems to stand still: the last tick, and the reason the network
+    // was last held. Only touched under _gate.
+    private DateTimeOffset? _lastTickAt;
+    private string? _lastHoldReason;
+
+    /// <summary>A gap between two ticks longer than this is logged: the timer normally ticks every
+    /// second (every 30 s while nobody looks), so a longer one means the app was suspended or the UI
+    /// thread blocked.</summary>
+    private static readonly TimeSpan TickGapToLog = TimeSpan.FromMinutes(2);
     private DateTimeOffset? _pausedUntil;
 
     /// <summary>
@@ -205,6 +215,7 @@ public sealed class RefreshScheduler
     {
         List<IUsageProvider> due;
         bool holdNetwork;
+        List<string> notes;
         lock (_gate)
         {
             // Remembered for RunOneAsync (including a later single-provider RefreshNow, which has no
@@ -220,15 +231,62 @@ public sealed class RefreshScheduler
             // both see a provider as due and both start it.
             var now = _timeProvider.GetUtcNow();
             due = _providers.Where(p => IsDueLocked(p, now, ignoreNetworkSkip)).ToList();
+            notes = DiagnoseLocked(now, due, ignoreNetworkSkip);
             foreach (var provider in due)
-                _state[provider.AccountKey].InFlight = true;
+            {
+                var claimed = _state[provider.AccountKey];
+                claimed.InFlight = true;
+                claimed.InFlightSince = now;
+                claimed.LongReadLogged = false;
+            }
 
             // While the network is held back, a provider only runs because its last reading was
             // local: its fetch must leave out any network part (see FetchContext).
             holdNetwork = !ignoreNetworkSkip && NetworkIsOffLocked(now);
         }
 
+        foreach (var note in notes)
+            _logInfo(note);
+
         return due.Select(provider => RunOneAsync(provider, holdNetwork, ct)).ToList();
+    }
+
+    /// <summary>The lines that would explain a refresh that seems to stand still, each once per
+    /// occurrence: a long gap between ticks, a read that runs far past its timeout, and the network
+    /// being held while providers are due (once per change of the reason). Caller must already hold
+    /// <see cref="_gate"/>; the lines are logged after it is released.</summary>
+    private List<string> DiagnoseLocked(DateTimeOffset now, List<IUsageProvider> due, bool ignoreNetworkSkip)
+    {
+        List<string> notes = [];
+
+        if (_lastTickAt is { } last && now - last > TickGapToLog)
+            notes.Add($"Refresh tick: {(int)(now - last).TotalMinutes} min without a tick, the timer resumed");
+        _lastTickAt = now;
+
+        foreach (var provider in _providers)
+        {
+            var state = _state[provider.AccountKey];
+            if (state.InFlight && !state.LongReadLogged && now - state.InFlightSince > _maxFetchTimeout + TimeSpan.FromMinutes(1))
+            {
+                state.LongReadLogged = true;
+                notes.Add($"Provider '{provider.AccountKey}': a read has been running for {(int)(now - state.InFlightSince).TotalMinutes} min, past its timeout");
+            }
+        }
+
+        string? holdReason = null;
+        if (!ignoreNetworkSkip && NetworkIsOffLocked(now)
+            && _providers.Any(p => !due.Contains(p) && !_state[p.AccountKey].InFlight && now >= _state[p.AccountKey].NextDueAt))
+            holdReason = PausedUntilLocked(now) is not null ? "paused" : "energy saver";
+
+        if (holdReason != _lastHoldReason)
+        {
+            notes.Add(holdReason is not null
+                ? $"Refresh: network reads are held while due ({holdReason})"
+                : "Refresh: network reads are no longer held");
+            _lastHoldReason = holdReason;
+        }
+
+        return notes;
     }
 
     /// <summary>
@@ -313,6 +371,8 @@ public sealed class RefreshScheduler
             {
                 state.NextDueAt = _timeProvider.GetUtcNow();
                 state.InFlight = true;
+                state.InFlightSince = state.NextDueAt;
+                state.LongReadLogged = false;
             }
         }
         if (provider is null)
@@ -769,6 +829,10 @@ public sealed class RefreshScheduler
         public TimeSpan CurrentInterval = initialInterval;
         public DateTimeOffset NextDueAt = dueAt;
         public bool InFlight;
+
+        // When the running attempt was claimed, and whether its overlong run is already logged.
+        public DateTimeOffset InFlightSince;
+        public bool LongReadLogged;
 
         // The source of the last reading that had one; null until the first.
         public SourceKind? LastSource;
