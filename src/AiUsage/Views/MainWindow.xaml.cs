@@ -1058,6 +1058,12 @@ public partial class MainWindow : Window, IDisposable
         if (resolved.Left != desired.Left || resolved.Top != desired.Top)
             SaveWindowSettings();
 
+        // A setup without an entry yet takes the position the window starts at, so a dock or undock
+        // before the first deliberate move still returns here.
+        var startDevice = monitors.FirstOrDefault(m => Contains(m, resolved), primary).DeviceName;
+        if (place is null && WindowPlacementService.RememberSetupIfNew(_settings.Window, _lastSetupKey, resolved.Left, resolved.Top, startDevice))
+            _settingsStore.RequestSave(_settings);
+
         _heightIsAutomatic = Current.Height is null;
         if (Current.Height is { } manualHeight)
         {

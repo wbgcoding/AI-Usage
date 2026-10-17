@@ -658,6 +658,20 @@ public class WindowChromeNativeTests
     }
 
     [Fact]
+    public void RememberSetupIfNew_records_an_unknown_setup_and_leaves_a_known_one_alone()
+    {
+        var window = new WindowSettings();
+        WindowPlacementService.RememberSetup(window, "known", 7, 8, "m1");
+
+        Assert.False(WindowPlacementService.RememberSetupIfNew(window, "known", 50, 60, "m2"));
+        Assert.True(WindowPlacementService.RememberSetupIfNew(window, "fresh", 3, 4, "m3"));
+
+        Assert.Equal(["fresh", "known"], window.Setups.Select(s => s.Setup));
+        Assert.Equal(7, WindowPlacementService.FindSetup(window, "known")!.Left);
+        Assert.Equal("m3", WindowPlacementService.FindSetup(window, "fresh")!.MonitorDeviceName);
+    }
+
+    [Fact]
     public void RememberSetup_updates_a_known_setup_in_place_and_moves_it_to_the_front()
     {
         var window = new WindowSettings();

@@ -156,6 +156,16 @@ public class WindowPlacementService
             window.Setups.RemoveRange(WindowSettings.MaxSetups, window.Setups.Count - WindowSettings.MaxSetups);
     }
 
+    /// <summary>Records the place for <paramref name="key"/> only when none is stored yet, so the
+    /// current place becomes the one a later dock or undock comes back to. True when it was added.</summary>
+    public static bool RememberSetupIfNew(WindowSettings window, string key, double left, double top, string device)
+    {
+        if (FindSetup(window, key) is not null)
+            return false;
+        RememberSetup(window, key, left, top, device);
+        return true;
+    }
+
     /// <summary>The place remembered for <paramref name="key"/>, or null for a setup not seen before.</summary>
     public static WindowSetupPlacement? FindSetup(WindowSettings window, string key) =>
         window.Setups.FirstOrDefault(s => s.Setup == key);
