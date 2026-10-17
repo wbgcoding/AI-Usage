@@ -136,6 +136,70 @@ public class WindowLengthsTests
     }
 
     [Fact]
+    public void Switching_the_below_hint_off_drops_only_that_sentence()
+    {
+        // 40 % used with 60 % of the window gone is below, a reset in four hours (20 % gone) is ahead.
+        var below = Row(Window("Window_FiveHour", WindowKind.FiveHour, TimeSpan.FromHours(2)), "claude");
+        var above = Row(Window("Window_FiveHour", WindowKind.FiveHour, TimeSpan.FromHours(4)), "claude");
+        var onPace = new UsageRowViewModel(
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 60, Now + TimeSpan.FromHours(2), null), Now, TileDensity.Full, null, "claude");
+        Assert.NotEqual("", below.PaceText);
+        var aboveText = above.PaceText;
+        var onText = onPace.PaceText;
+
+        foreach (var row in new[] { below, above, onPace })
+            row.SetShowPaceBelowHint(false, Now);
+
+        Assert.Equal("", below.PaceText);
+        Assert.Equal("", below.BarTooltipText);
+        Assert.NotNull(below.PacePercent);
+        Assert.Equal(aboveText, above.PaceText);
+        Assert.Equal(onText, onPace.PaceText);
+
+        below.SetShowPaceBelowHint(true, Now);
+        Assert.NotEqual("", below.PaceText);
+        Assert.Contains(below.PaceText, below.BarTooltipText);
+    }
+
+    [Fact]
+    public void A_row_built_with_the_below_hint_off_leaves_that_sentence_out()
+    {
+        var row = new UsageRowViewModel(
+            Window("Window_FiveHour", WindowKind.FiveHour, TimeSpan.FromHours(2)), Now, TileDensity.Full, null, "claude", showPaceBelowHint: false);
+
+        Assert.Equal("", row.PaceText);
+    }
+
+    [Fact]
+    public void The_tile_below_hint_switch_changes_every_row_and_new_rows_follow_it()
+    {
+        var now = DateTimeOffset.Now;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(now), now);
+        Assert.All(tile.Rows, row => Assert.NotEqual("", row.PaceText));
+
+        tile.ApplyShowPaceBelowHint(false);
+        Assert.All(tile.Rows, row => Assert.Equal("", row.PaceText));
+
+        tile.Apply(Snapshot(now), now.AddSeconds(30));
+        Assert.All(tile.Rows, row => Assert.Equal("", row.PaceText));
+
+        tile.ApplyShowPaceBelowHint(true);
+        Assert.All(tile.Rows, row => Assert.NotEqual("", row.PaceText));
+    }
+
+    [Fact]
+    public void The_below_hint_setting_defaults_on_for_a_file_without_it_and_round_trips()
+    {
+        Assert.True(SettingsStore.Validate("{}").Settings!.ShowPaceBelowHint);
+
+        var off = new AppSettings { ShowPaceBelowHint = false };
+        var json = System.Text.Json.JsonSerializer.Serialize(off, SettingsStore.JsonOptions);
+
+        Assert.False(SettingsStore.Validate(json).Settings!.ShowPaceBelowHint);
+    }
+
+    [Fact]
     public void The_tile_switch_changes_every_row_at_once_and_new_rows_follow_it()
     {
         // The switch reads the real clock, so this one runs on it too.

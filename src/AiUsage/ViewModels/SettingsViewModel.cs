@@ -426,6 +426,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool showPaceMarker = true;
 
     [ObservableProperty]
+    private bool showPaceBelowHint = true;
+
+    [ObservableProperty]
     private bool allDaysAllowed = true;
 
     /// <summary>Monday to Sunday, one check box each, shown while <see cref="AllDaysAllowed"/> is off.</summary>
@@ -626,6 +629,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         quietHoursEnabled = settings.QuietHoursEnabled;
         allDaysAllowed = settings.AllDaysAllowed;
         showPaceMarker = settings.ShowPaceMarker;
+        showPaceBelowHint = settings.ShowPaceBelowHint;
         quietHoursStartText = settings.QuietHoursStart;
         quietHoursEndText = settings.QuietHoursEnd;
         // The registry is the single source of truth, never the remembered settings
@@ -1119,6 +1123,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ShowPaceMarker = value;
         _store.RequestSave(_settings);
         Main.ApplyShowPaceMarkerToAllTiles(value);
+    }
+
+    partial void OnShowPaceBelowHintChanged(bool value)
+    {
+        _settings.ShowPaceBelowHint = value;
+        _store.RequestSave(_settings);
+        Main.ApplyShowPaceBelowHintToAllTiles(value);
     }
 
     partial void OnAllDaysAllowedChanged(bool value)
@@ -1927,6 +1938,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ChartRange = source.ChartRange;
         _settings.ShowPreviousWeekLine = source.ShowPreviousWeekLine;
         _settings.ShowPaceMarker = source.ShowPaceMarker;
+        _settings.ShowPaceBelowHint = source.ShowPaceBelowHint;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
         _settings.ZoomPercent = WindowZoom.Normalize(source.ZoomPercent);
         _settings.ShowTooltips = source.ShowTooltips;
@@ -2017,6 +2029,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ShowPreviousWeekLine = _settings.ShowPreviousWeekLine;
         ShowPaceMarker = _settings.ShowPaceMarker;
         Main.ApplyShowPaceMarkerToAllTiles(_settings.ShowPaceMarker);
+        ShowPaceBelowHint = _settings.ShowPaceBelowHint;
+        Main.ApplyShowPaceBelowHintToAllTiles(_settings.ShowPaceBelowHint);
         HideOnFullscreen = _settings.HideOnFullscreen;
         ZoomPercent = _settings.ZoomPercent;
         ShowTooltips = _settings.ShowTooltips;

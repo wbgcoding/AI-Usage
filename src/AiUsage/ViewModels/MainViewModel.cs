@@ -624,6 +624,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             AttentionDisabled = providerSettings?.AttentionDisabled ?? false,
             BarColorMode = providerSettings?.BarColorMode ?? BarColorModes.Level,
             ShowPaceMarker = _settings.ShowPaceMarker,
+            ShowPaceBelowHint = _settings.ShowPaceBelowHint,
             HiddenWindows = [.. providerSettings?.HiddenWindows ?? []],
             AccountName = providerSettings?.AccountName ?? "",
             RefreshMinutes = providerSettings?.RefreshMinutes,
@@ -1721,6 +1722,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         foreach (var tile in Tiles)
             tile.ApplyShowPaceMarker(value);
+    }
+
+    /// <summary>Settings window's "say when usage is below the time" check box calls this so every
+    /// bar's tooltip gains or loses that sentence at once.</summary>
+    internal void ApplyShowPaceBelowHintToAllTiles(bool value)
+    {
+        foreach (var tile in Tiles)
+            tile.ApplyShowPaceBelowHint(value);
     }
 
     /// <summary>Settings window's "mark a waiting tile" check box calls this so every tile's marker

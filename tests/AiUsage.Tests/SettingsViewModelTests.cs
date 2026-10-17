@@ -996,6 +996,39 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheBelowHintSwitchDropsThatSentenceOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
+    {
+        var (vm, settings) = Build();
+        foreach (var tile in vm.Main.Tiles)
+            tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
+        Assert.True(vm.ShowPaceBelowHint);
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotEqual("", row.PaceText)));
+
+        vm.ShowPaceBelowHint = false;
+
+        Assert.False(settings.ShowPaceBelowHint);
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Equal("", row.PaceText)));
+        Assert.All(vm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotNull(row.PacePercent)));
+
+        var exportPath = Path.Combine(TempDirectory(), "export-below-hint.json");
+        var (sourceVm, _) = Build(new AppSettings { ShowPaceBelowHint = false }, askForSettingsExportPath: _ => exportPath);
+        sourceVm.ExportSettingsCommand.Execute(null);
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        foreach (var tile in targetVm.Main.Tiles)
+            tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.False(targetSettings.ShowPaceBelowHint);
+        Assert.False(targetVm.ShowPaceBelowHint);
+        Assert.All(targetVm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.Equal("", row.PaceText)));
+
+        targetVm.ResetToDefaults();
+
+        Assert.True(targetSettings.ShowPaceBelowHint);
+        Assert.All(targetVm.Main.Tiles, tile => Assert.All(tile.Rows, row => Assert.NotEqual("", row.PaceText)));
+    }
+
+    [Fact]
     public void TheForecastLeadPickerOffersTheNineChoicesStoresThePickAndResetGoesBackToThirty()
     {
         var settings = new AppSettings { Language = "de" };

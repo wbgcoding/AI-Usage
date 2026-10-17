@@ -605,6 +605,25 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         set => ApplyShowPaceMarker(value);
     }
 
+    private bool _showPaceBelowHint = true;
+
+    /// <summary>The global below-the-time sentence switch (see <see cref="AppSettings.ShowPaceBelowHint"/>),
+    /// handed to every row this tile builds.</summary>
+    internal bool ShowPaceBelowHint
+    {
+        get => _showPaceBelowHint;
+        set => ApplyShowPaceBelowHint(value);
+    }
+
+    /// <summary>Adds or drops the below-the-time tooltip sentence on every row at once, without a fetch.</summary>
+    internal void ApplyShowPaceBelowHint(bool show)
+    {
+        _showPaceBelowHint = show;
+        var now = DateTimeOffset.Now;
+        foreach (var row in Rows)
+            row.SetShowPaceBelowHint(show, now);
+    }
+
     /// <summary>Shows or hides the time marker on every row at once, without a fetch.</summary>
     internal void ApplyShowPaceMarker(bool show)
     {
@@ -1425,7 +1444,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         {
             Rows.Clear();
             foreach (var window in visibleWindows)
-                Rows.Add(new UsageRowViewModel(window, now, Density, ThresholdPercentFor(window.Kind, thresholds), RealProviderId, _showPaceMarker));
+                Rows.Add(new UsageRowViewModel(window, now, Density, ThresholdPercentFor(window.Kind, thresholds), RealProviderId, _showPaceMarker, _showPaceBelowHint));
         }
 
         for (var i = 0; i < Rows.Count; i++)

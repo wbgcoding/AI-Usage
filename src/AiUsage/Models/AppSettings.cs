@@ -83,6 +83,11 @@ public sealed class AppSettings
     /// Defaults on, also for a file written before the setting existed.</summary>
     public bool ShowPaceMarker { get; set; } = true;
 
+    /// <summary>Whether the bar tooltip says when usage is below the share of the window that has
+    /// passed. Off leaves out only that sentence; the ahead and on-pace ones stay. Defaults on, also for
+    /// a file written before the setting existed.</summary>
+    public bool ShowPaceBelowHint { get; set; } = true;
+
     /// <summary>Whether hovering a control shows its explanatory tooltip anywhere in the program -
     /// enforced centrally by one class handler on the tooltip-opening event (see App.xaml.cs
     /// OnStartup), not per element. Defaults on. Not offered in the Settings window; a

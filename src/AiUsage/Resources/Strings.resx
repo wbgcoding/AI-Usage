@@ -502,6 +502,8 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Turn off to pick weekdays without notifications: unchecked days stay completely quiet.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Show the time marker in the bars</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>A short line in each bar shows how much of the time window has passed. If the fill reaches past it, usage is running ahead of time.</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Say when usage is below the time</value></data>
+  <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>The bar's tooltip says when usage is below the share of the window that has passed. Off leaves out only that sentence; ahead and on pace stay.</value></data>
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, running low</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limit almost reached</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit reached</value></data>

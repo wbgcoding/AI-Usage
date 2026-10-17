@@ -30,6 +30,10 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>The global "show the time marker" setting. Off keeps <see cref="PacePercent"/> null.</summary>
     private bool _showPace = true;
 
+    /// <summary>The global "say when usage is below the time" setting. Off blanks <see cref="PaceText"/>
+    /// for the below case only.</summary>
+    private bool _showPaceBelowHint = true;
+
     /// <summary>The tile's own density, mirrored here only because <see cref="ClockText"/> depends on
     /// it (Full only) - this row never decides its own density, it is always handed in by <see
     /// cref="ProviderTileViewModel"/> through the constructor or <see cref="Update"/>.</summary>
@@ -221,7 +225,10 @@ public partial class UsageRowViewModel : ObservableObject
             if (PacePercent is not { } pace)
                 return "";
             var difference = UsedPercent - pace;
-            var key = difference > PaceTolerance ? "Tile.Pace.Above" : difference < -PaceTolerance ? "Tile.Pace.Below" : "Tile.Pace.On";
+            var below = difference < -PaceTolerance;
+            if (below && !_showPaceBelowHint)
+                return "";
+            var key = difference > PaceTolerance ? "Tile.Pace.Above" : below ? "Tile.Pace.Below" : "Tile.Pace.On";
             return Loc.Format(key, StatusTextMap.UsagePercent(pace).ToString(CultureInfo.CurrentCulture));
         }
     }
@@ -279,6 +286,14 @@ public partial class UsageRowViewModel : ObservableObject
     {
         _showPace = show;
         UpdatePace(now);
+    }
+
+    /// <summary>The below-the-time sentence switch changed: the tooltip line appears or goes at once.</summary>
+    internal void SetShowPaceBelowHint(bool show, DateTimeOffset now)
+    {
+        _showPaceBelowHint = show;
+        OnPropertyChanged(nameof(PaceText));
+        OnPropertyChanged(nameof(BarTooltipText));
     }
 
     /// <summary>Recomputes <see cref="PacePercent"/> and raises the dependent properties only when the
@@ -355,13 +370,14 @@ public partial class UsageRowViewModel : ObservableObject
 
     public UsageRowViewModel(
         UsageWindow window, DateTimeOffset now, TileDensity density = TileDensity.Full, double? thresholdPercent = null,
-        string providerId = "", bool showPace = true)
+        string providerId = "", bool showPace = true, bool showPaceBelowHint = true)
     {
         LabelText = StatusTextMap.Resolve(window.Label);
         Label = window.Label;
         Kind = window.Kind;
         _providerId = providerId;
         _showPace = showPace;
+        _showPaceBelowHint = showPaceBelowHint;
         _resetsAt = window.ResetsAt;
         _windowMinutes = WindowLengths.MinutesFor(window, providerId);
         _density = density;

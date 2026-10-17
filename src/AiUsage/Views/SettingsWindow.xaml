@@ -376,6 +376,10 @@
                               IsChecked="{Binding ShowPaceMarker}" Style="{StaticResource CheckBox.GapS}"
                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ShowPaceMarker]}"/>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowPaceBelowHint]}"
+                              IsChecked="{Binding ShowPaceBelowHint}" Style="{StaticResource CheckBox.GapS}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ShowPaceBelowHint]}"/>
+
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.VisibilityPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
                         <ItemsControl.ItemsPanel>
