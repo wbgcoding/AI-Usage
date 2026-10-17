@@ -39,6 +39,28 @@ public class SettingsWindowLayoutTests
         });
     }
 
+    [Fact]
+    public void Escape_in_the_hotkey_box_closes_the_window_without_reaching_the_box()
+    {
+        RunOnSta(window =>
+        {
+            Lay(window, 560);
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+            using var source = new System.Windows.Interop.HwndSource(0, 0, 0, 0, 0, "escape-test", IntPtr.Zero);
+            var args = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, source, 0, System.Windows.Input.Key.Escape)
+            {
+                RoutedEvent = UIElement.PreviewKeyDownEvent,
+            };
+
+            window.HotkeyCaptureBox.RaiseEvent(args);
+
+            Assert.True(closed);
+            Assert.True(args.Handled);
+            Assert.False(((SettingsViewModel)window.DataContext).Main.HotkeyNeedsModifier);
+        });
+    }
+
     private static UIElement Lay(SettingsWindow window, double width)
     {
         var root = (UIElement)window.Content;

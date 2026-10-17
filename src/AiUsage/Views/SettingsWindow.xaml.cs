@@ -37,7 +37,14 @@ public partial class SettingsWindow : Window
         Width = _viewModel.SettingsWidth;
 
         // Esc closes dialogs, keyboard-only throughout.
-        PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) Close(); };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (!EscapeKey.ClosesWindow(e))
+                return;
+            // Handled, so a focused hotkey box never sees the Escape that closes the window.
+            e.Handled = true;
+            Close();
+        };
 
         // The owner is applied after the constructor returns, so the work area this window will
         // actually appear on is only known once it is about to show.
@@ -103,6 +110,10 @@ public partial class SettingsWindow : Window
         // Tab and Shift+Tab stay focus navigation, so a keyboard user can always leave the box;
         // only a Tab combined with Ctrl, Alt or Win is taken as a hotkey.
         if (key == Key.Tab && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Windows)) == 0)
+            return;
+
+        // Escape is never a hotkey and never a missing-modifier mistake.
+        if (key == Key.Escape)
             return;
 
         e.Handled = true;
