@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using AiUsage.Io;
 using AiUsage.Providers;
+using AiUsage.Services;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -191,10 +192,51 @@ public static class ClaudeLocalLimitReader
     {
         if (!line.Contains("quotaLimits", StringComparison.Ordinal))
             return;
+        foreach (var note in ChangeNotes(line))
+            ReadChangeLog.Report("Claude", note);
         if (!TryParseQuotaLimit(line, out var limit, out var lineTime) || limit is null)
             return; // the substring matched but the line did not parse as expected
 
         newest[limit.RateLimitType] = (limit, lineTime); // later in the file = newer
+    }
+
+    // The limit types this read maps onto a bar; any other type still shows, as a further window.
+    private static readonly string[] KnownRateLimitTypes = ["five_hour", "seven_day", "weekly"];
+
+    /// <summary>
+    /// What in one transcript line no longer matches what this reader was written for: a rejected
+    /// limit without a usable reset time (it would be skipped) or with a limit type it does not know
+    /// (it falls back to a generic window). Empty for any line that is no top-level quotaLimits
+    /// object, for the routine statuses other than a rejection, and for a rejection as expected.
+    /// </summary>
+    public static IReadOnlyList<string> ChangeNotes(string line)
+    {
+        var notes = new List<string>();
+        try
+        {
+            using var document = JsonDocument.Parse(line);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("quotaLimits", out var quotaLimits) || quotaLimits.ValueKind != JsonValueKind.Object
+                || !quotaLimits.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String
+                || status.GetString() != "rejected")
+                return notes;
+
+            var hasReset = quotaLimits.TryGetProperty("resetsAt", out var resetsAt) && resetsAt.ValueKind == JsonValueKind.Number
+                && resetsAt.TryGetInt64(out var unix)
+                && UnixTimeConversion.FromUnixSecondsOrNull(unix) is { } instant && UnixTimeConversion.PlausibleOrNull(instant) is not null;
+            if (!hasReset)
+                notes.Add("a rejected quota limit carries no usable resetsAt, so it is not shown.");
+
+            if (!quotaLimits.TryGetProperty("rateLimitType", out var typeEl) || typeEl.ValueKind != JsonValueKind.String)
+                notes.Add("a rejected quota limit names no rateLimitType; it is shown as a generic window.");
+            else if (!KnownRateLimitTypes.Contains(typeEl.GetString()))
+                notes.Add($"a rejected quota limit has the unknown rateLimitType '{ReadChangeLog.SafeName(typeEl.GetString())}'; it is shown as a generic window.");
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+        }
+
+        return notes;
     }
 
     private static bool TryParseQuotaLimit(string line, out ClaudeQuotaLimit? limit, out DateTimeOffset? lineTime)

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiUsage.Models;
+using AiUsage.Services;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -28,6 +29,55 @@ public static class CopilotUserParser
     {
         var words = id.Replace('_', ' ').Trim();
         return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
+    }
+
+    /// <summary>
+    /// What in the response no longer matches what this parser was written for: a quota id it has no
+    /// label for (shown under its own name), a quota that is neither unlimited nor absent yet has no
+    /// numeric <c>percent_remaining</c>, or one whose percentage lies outside 0..100 (both skipped).
+    /// Empty for a response that looks as expected, unlimited and absent quotas included. Ids only,
+    /// never a figure or an account detail.
+    /// </summary>
+    public static IReadOnlyList<string> ChangeNotes(string responseText)
+    {
+        var notes = new List<string>();
+        if (string.IsNullOrWhiteSpace(responseText))
+            return notes;
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseText);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("quota_snapshots", out var snapshots) || snapshots.ValueKind != JsonValueKind.Object)
+                return notes;
+
+            foreach (var snapshot in snapshots.EnumerateObject())
+            {
+                if (snapshot.Value.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var id = ReadChangeLog.SafeName(snapshot.Name);
+                if (!KnownLabels.ContainsKey(snapshot.Name))
+                    notes.Add($"new quota id '{id}' found; it is shown under its own name, check that this is right.");
+
+                var bucket = snapshot.Value;
+                if (bucket.TryGetProperty("has_quota", out var hasQuota) && hasQuota.ValueKind == JsonValueKind.False)
+                    continue;
+                if (bucket.TryGetProperty("unlimited", out var unlimited) && unlimited.ValueKind == JsonValueKind.True)
+                    continue;
+
+                if (!bucket.TryGetProperty("percent_remaining", out var remainingEl)
+                    || remainingEl.ValueKind != JsonValueKind.Number || !remainingEl.TryGetDouble(out var remaining))
+                    notes.Add($"quota '{id}' has no numeric percent_remaining, so it is not shown.");
+                else if (remaining is < 0 or > 100)
+                    notes.Add($"quota '{id}' reports a percentage outside 0 to 100, so it is not shown.");
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return notes;
     }
 
     /// <summary>True when the response holds the <c>quota_snapshots</c> object this parser reads, even

@@ -91,6 +91,8 @@ public sealed class CopilotProvider : IUsageProvider
         switch (result.Outcome)
         {
             case GitHubCliOutcome.Ok:
+                foreach (var note in CopilotUserParser.ChangeNotes(result.Json))
+                    ReadChangeLog.Report(DisplayName, note);
                 var windows = CopilotUserParser.Parse(result.Json);
                 if (windows.Count == 0)
                 {

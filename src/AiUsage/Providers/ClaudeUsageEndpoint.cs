@@ -1,4 +1,5 @@
 using AiUsage.Providers.Parsing;
+using AiUsage.Services;
 
 namespace AiUsage.Providers;
 
@@ -19,6 +20,8 @@ public sealed class ClaudeUsageEndpoint : IWebUsageEndpoint
 
     public WebUsageResult ParseBody(string body)
     {
+        foreach (var note in ClaudeUsageParser.ChangeNotes(body))
+            ReadChangeLog.Report("Claude", note);
         var parsed = ClaudeUsageParser.Parse(body);
         return parsed.Outcome switch
         {

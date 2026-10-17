@@ -1,5 +1,6 @@
 using AiUsage.Models;
 using AiUsage.Providers;
+using AiUsage.Services;
 using AiUsage.Web;
 using Xunit;
 
@@ -519,5 +520,57 @@ public class WebUsageSourceTests
         });
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.FetchAsync(new AppSettings(), _ => { }, cts.Token));
+    }
+
+    [Fact]
+    public async Task A_discovery_where_every_address_answered_not_found_reports_a_moved_endpoint()
+    {
+        var body = """{"status":"failed","attempts":["__PATH__ 404","__OTHER__ 404"]}"""
+            .Replace("__PATH__", UsagePath).Replace("__OTHER__", UsagePath.Replace("/usage", "/usage_limits"));
+        var source = Source((_, _) => Task.FromResult(body));
+        using var capture = ReadChangeLog.BeginCapture();
+
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+
+        var line = Assert.Single(capture.Lines);
+        Assert.Contains("(Claude usage read needs adapting): every usage address answered with HTTP 404", line, StringComparison.Ordinal);
+        Assert.DoesNotContain(OrgId, line, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("""{"status":"failed","attempts":["__PATH__ 404","__PATH__ 500"]}""")]
+    [InlineData("""{"status":"failed","attempts":["__PATH__ 000"]}""")]
+    [InlineData("""{"status":"failed","attempts":[]}""")]
+    [InlineData("""{"status":"failed"}""")]
+    [InlineData("""{"status":"not_signed_in","attempts":["__PATH__ 404"]}""")]
+    [InlineData("""{"status":"blocked","attempts":["__PATH__ 404"]}""")]
+    public async Task A_discovery_that_failed_for_another_reason_reports_no_moved_endpoint(string template)
+    {
+        var body = template.Replace("__PATH__", UsagePath);
+        var source = Source((_, _) => Task.FromResult(body));
+        using var capture = ReadChangeLog.BeginCapture();
+
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+
+        Assert.Empty(capture.Lines);
+    }
+
+    [Fact]
+    public async Task A_further_account_is_named_by_its_provider_without_the_suffix()
+    {
+        var descriptor = Descriptor with { ProviderId = "claude#2" };
+        var body = """{"status":"failed","attempts":["__PATH__ 404"]}""".Replace("__PATH__", UsagePath);
+        var source = new WebUsageSource(descriptor, new ClaudeUsageEndpoint(), (_, _) => Task.FromResult(body));
+        using var capture = ReadChangeLog.BeginCapture();
+
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+
+        Assert.Contains("(Claude usage read needs adapting)", Assert.Single(capture.Lines), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_Claude_discovery_script_reports_what_each_address_answered_with()
+    {
+        Assert.Contains("attempts.push(path + ' ' + res.status)", ClaudeDiscoveryScript.Discover(), StringComparison.Ordinal);
     }
 }

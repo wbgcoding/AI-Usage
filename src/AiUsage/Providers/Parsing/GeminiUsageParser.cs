@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiUsage.Models;
+using AiUsage.Services;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -179,15 +180,14 @@ public static class GeminiUsageParser
         var notes = new List<string>();
         var summaryWindows = Parse(summaryJson);
 
-        foreach (var window in UnknownWindowNames(summaryJson))
-            notes.Add($"the quota summary names an unknown window '{window}', which is not shown.");
+        notes.AddRange(WebChangeNotes(summaryJson));
 
         if (summaryWindows.Count > 0)
             return notes;
 
         if (ParseModelQuota(modelQuotaJson).Count == 0)
         {
-            notes.Add($"neither the quota summary (groups: {string.Join(", ", GroupNames(summaryJson))}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
+            notes.Add($"neither the quota summary (groups: {string.Join(", ", GroupNames(summaryJson).Select(ReadChangeLog.SafeName))}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
             return notes;
         }
 
@@ -197,7 +197,7 @@ public static class GeminiUsageParser
             if (model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
             {
                 if (!KnownGeminiModels.Contains(model))
-                    notes.Add($"new Gemini model '{model}' found; it is counted in the shared Gemini quota, check that this still holds.");
+                    notes.Add($"new Gemini model '{ReadChangeLog.SafeName(model)}' found; it is counted in the shared Gemini quota, check that this still holds.");
                 if (fraction is { } value)
                 {
                     lowestFraction = Math.Min(lowestFraction ?? value, value);
@@ -206,12 +206,61 @@ public static class GeminiUsageParser
             }
             else if (!KnownModelPrefixes.Any(prefix => model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
             {
-                notes.Add($"unknown model '{model}' found; it is not counted on the Gemini tile, check whether it belongs there.");
+                notes.Add($"unknown model '{ReadChangeLog.SafeName(model)}' found; it is not counted on the Gemini tile, check whether it belongs there.");
             }
         }
         if (highestFraction - lowestFraction > 1e-6)
             notes.Add("the Gemini models no longer share one quota; the tile shows the most used one, check whether separate rows are needed.");
 
+        return notes;
+    }
+
+    /// <summary>
+    /// The notes that need nothing but one quota summary: a bucket of the Gemini group with a window
+    /// name the read does not know, with no window name, or with a remainingFraction that is no number
+    /// between 0 and 1 (each is skipped). Only an answer whose Gemini group is recognised is looked at,
+    /// so the other usage addresses of the web read, which hold other shapes, say nothing here.
+    /// Empty for a summary that looks as expected. Names only, never a figure.
+    /// </summary>
+    public static IReadOnlyList<string> WebChangeNotes(string summaryJson)
+    {
+        var notes = new List<string>();
+        foreach (var window in UnknownWindowNames(summaryJson))
+            notes.Add($"the quota summary names an unknown window '{ReadChangeLog.SafeName(window)}', which is not shown.");
+        notes.AddRange(UnusableBucketNotes(summaryJson));
+        return notes.Distinct().ToList();
+    }
+
+    private static List<string> UnusableBucketNotes(string summaryJson)
+    {
+        var notes = new List<string>();
+        try
+        {
+            using var document = JsonDocument.Parse(summaryJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("groups", out var groups) || groups.ValueKind != JsonValueKind.Array
+                || PickGeminiGroup(groups) is not { } group
+                || !group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
+                return notes;
+
+            foreach (var bucket in buckets.EnumerateArray())
+            {
+                if (bucket.ValueKind != JsonValueKind.Object)
+                    continue;
+                if (!bucket.TryGetProperty("window", out var windowEl) || windowEl.ValueKind != JsonValueKind.String)
+                {
+                    notes.Add("a bucket of the Gemini group names no window, so it is not shown.");
+                    continue;
+                }
+
+                if (bucket.TryGetProperty("remainingFraction", out var fractionEl)
+                    && (fractionEl.ValueKind != JsonValueKind.Number || !fractionEl.TryGetDouble(out var fraction) || fraction is < 0 or > 1))
+                    notes.Add($"the '{ReadChangeLog.SafeName(windowEl.GetString())}' bucket has a remainingFraction that is no number between 0 and 1, so it is not shown.");
+            }
+        }
+        catch (JsonException)
+        {
+        }
         return notes;
     }
 

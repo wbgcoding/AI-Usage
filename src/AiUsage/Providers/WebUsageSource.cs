@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiUsage.Models;
+using AiUsage.Services;
 using AiUsage.Web;
 
 namespace AiUsage.Providers;
@@ -242,6 +243,8 @@ public sealed class WebUsageSource
     private async Task<(WebUsageResult Result, string? Path)> RunDiscoveryAsync(CancellationToken ct)
     {
         var (envelopeJson, result) = await RunEnvelopeAsync(_endpoint.Discover(), ct);
+        if (envelopeJson is not null && result.Result.Outcome == WebUsageOutcome.Failed && !result.Result.SessionSignedIn)
+            ReportMovedEndpoint(envelopeJson);
         if (_log is not null && envelopeJson is not null)
         {
             var attempts = ReadAttempts(envelopeJson);
@@ -261,6 +264,31 @@ public sealed class WebUsageSource
         }
 
         return result;
+    }
+
+    /// <summary>The provider's name as the change line words it: its id, up to a further account's
+    /// "#" suffix, with a capital first letter ("claude#2" reads "Claude").</summary>
+    private string ProviderName
+    {
+        get
+        {
+            var id = Descriptor.ProviderId.Split('#')[0];
+            return id.Length == 0 ? "Provider" : char.ToUpperInvariant(id[0]) + id[1..];
+        }
+    }
+
+    /// <summary>A discovery walk that ended without any answer because every candidate address replied
+    /// "not found": the provider moved its usage endpoint, which only an adaptation of the candidate
+    /// list fixes. A walk with a single other reply (a sign-out, a rate limit, a server error, a
+    /// connection that never got through) is not that and says nothing here.</summary>
+    private void ReportMovedEndpoint(string envelopeJson)
+    {
+        var attempts = ReadAttemptList(envelopeJson);
+        if (attempts.Count == 0 || !attempts.All(attempt => attempt.EndsWith(" 404", StringComparison.Ordinal)))
+            return;
+
+        var paths = string.Join(", ", attempts.Select(attempt => MaskIds(attempt[..attempt.LastIndexOf(' ')])));
+        ReadChangeLog.Report(ProviderName, $"every usage address answered with HTTP 404 ({paths}); the endpoint has probably moved.");
     }
 
     /// <summary>A usage path with every id-like part replaced by <c>{id}</c>: a GUID, or any path
@@ -425,7 +453,12 @@ public sealed class WebUsageSource
     /// itself shapes this answer, so only entries of the exact expected form survive: one of this
     /// provider's own allowed paths, a space, and a three-digit status code. Anything else is dropped
     /// rather than written into the log.</summary>
-    private string ReadAttempts(string envelopeJson)
+    private string ReadAttempts(string envelopeJson) =>
+        string.Join(", ", ReadAttemptList(envelopeJson)
+            .Select(entry => MaskIds(entry[..entry.LastIndexOf(' ')]) + entry[entry.LastIndexOf(' ')..]));
+
+    /// <summary>The entries of <see cref="ReadAttempts"/> before they are masked and joined.</summary>
+    private List<string> ReadAttemptList(string envelopeJson)
     {
         try
         {
@@ -433,19 +466,19 @@ public sealed class WebUsageSource
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("attempts", out var attempts)
                 || attempts.ValueKind != JsonValueKind.Array)
-                return "";
+                return [];
 
-            return string.Join(", ", attempts.EnumerateArray()
+            return attempts.EnumerateArray()
                 .Where(entry => entry.ValueKind == JsonValueKind.String)
                 .Select(entry => entry.GetString())
                 .OfType<string>()
                 .Where(IsPathAndStatus)
                 .Take(MaxLoggedAttempts)
-                .Select(entry => MaskIds(entry[..entry.LastIndexOf(' ')]) + entry[entry.LastIndexOf(' ')..]));
+                .ToList();
         }
         catch (JsonException)
         {
-            return "";
+            return [];
         }
     }
 

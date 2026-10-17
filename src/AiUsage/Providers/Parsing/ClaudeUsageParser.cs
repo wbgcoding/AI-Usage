@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using AiUsage.Models;
+using AiUsage.Services;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -68,6 +69,87 @@ public static class ClaudeUsageParser
                 ? new ClaudeUsageResult(ClaudeUsageOutcome.Ok, windows)
                 : ClaudeUsageResult.Failed;
         }
+    }
+
+    // The window names and limit kinds this read was written for. Anything else the answer carries
+    // is named in ChangeNotes instead of being skipped without a trace.
+    private static readonly string[] KnownWindowKeys = ["five_hour", "seven_day"];
+    private static readonly string[] KnownLimitKinds = ["weekly_scoped", "session"];
+
+    /// <summary>
+    /// What in the answer no longer matches what this parser was written for: a window object under a
+    /// name it does not know, a known window without any of the percent fields it reads, a "limits"
+    /// entry of an unknown kind, a scoped weekly limit without a percent or a model name. Each note is
+    /// one log line telling that the read needs adapting; empty for an answer that looks as expected
+    /// (and for a challenge page or text that is no JSON object, which are not a change of shape).
+    /// Names only, never a figure or an account detail.
+    /// </summary>
+    public static IReadOnlyList<string> ChangeNotes(string responseText)
+    {
+        var notes = new List<string>();
+        if (string.IsNullOrWhiteSpace(responseText) || LooksLikeChallenge(responseText))
+            return notes;
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseText);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return notes;
+
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var name = ReadChangeLog.SafeName(property.Name);
+                var hasPercentField = PercentKeys.Any(key => property.Value.TryGetProperty(key, out _));
+                if (KnownWindowKeys.Contains(property.Name))
+                {
+                    if (!hasPercentField)
+                        notes.Add($"the window '{name}' holds none of the known percent fields (keys: {ReadChangeLog.SafeNames(property.Value.EnumerateObject().Select(p => p.Name))}).");
+                }
+                else if (PercentKeys.Any(key => property.Value.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number))
+                {
+                    notes.Add($"the answer holds an unknown window '{name}', which is not shown.");
+                }
+            }
+
+            if (root.TryGetProperty("limits", out var limits) && limits.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var entry in limits.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.Object)
+                        continue;
+
+                    var kind = entry.TryGetProperty("kind", out var kindEl) && kindEl.ValueKind == JsonValueKind.String ? kindEl.GetString() : null;
+                    if (kind is null)
+                        notes.Add("a limits entry names no kind, so it is not shown.");
+                    else if (!KnownLimitKinds.Contains(kind))
+                        notes.Add($"a limits entry of unknown kind '{ReadChangeLog.SafeName(kind)}' is not shown.");
+                    else if (kind == "weekly_scoped")
+                        AddScopedLimitNotes(entry, notes);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return notes.Distinct().ToList();
+    }
+
+    private static void AddScopedLimitNotes(JsonElement entry, List<string> notes)
+    {
+        if (!entry.TryGetProperty("percent", out var percentEl) || percentEl.ValueKind != JsonValueKind.Number)
+            notes.Add("a weekly_scoped limit carries no numeric percent, so it is not shown.");
+
+        var hasModelName = entry.TryGetProperty("scope", out var scopeEl) && scopeEl.ValueKind == JsonValueKind.Object
+            && scopeEl.TryGetProperty("model", out var modelEl) && modelEl.ValueKind == JsonValueKind.Object
+            && modelEl.TryGetProperty("display_name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String
+            && !string.IsNullOrEmpty(nameEl.GetString());
+        if (!hasModelName)
+            notes.Add("a weekly_scoped limit names no model, so it is not shown.");
     }
 
     /// <summary>True for an HTML page (leading '<' after stripping a byte-order mark and

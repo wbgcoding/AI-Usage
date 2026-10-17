@@ -1,4 +1,5 @@
 using AiUsage.Providers.Parsing;
+using AiUsage.Services;
 
 namespace AiUsage.Providers;
 
@@ -20,6 +21,8 @@ public sealed class CursorUsageEndpoint : IWebUsageEndpoint
 
     public WebUsageResult ParseBody(string body)
     {
+        foreach (var note in CursorUsageParser.ChangeNotes(body))
+            ReadChangeLog.Report("Cursor", note);
         var windows = CursorUsageParser.Parse(body);
         return windows.Count == 0
             ? WebUsageResult.Failed

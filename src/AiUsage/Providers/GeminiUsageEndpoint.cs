@@ -1,4 +1,5 @@
 using AiUsage.Providers.Parsing;
+using AiUsage.Services;
 
 namespace AiUsage.Providers;
 
@@ -17,6 +18,8 @@ public sealed class GeminiUsageEndpoint : IWebUsageEndpoint
 
     public WebUsageResult ParseBody(string body)
     {
+        foreach (var note in GeminiUsageParser.WebChangeNotes(body))
+            ReadChangeLog.Report("Gemini", note);
         var windows = GeminiUsageParser.Parse(body);
         return windows.Count == 0 ? WebUsageResult.Failed : new WebUsageResult(WebUsageOutcome.Ok, windows);
     }

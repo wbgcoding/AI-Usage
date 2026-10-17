@@ -50,6 +50,41 @@ public static class CodexWebUsageParser
         }
     }
 
+    /// <summary>
+    /// What in the answer no longer matches what this parser was written for: a window under a name it
+    /// does not know, a known window without <c>used_percent</c>, a window length that is neither five
+    /// hours nor a week (see <see cref="CodexWindowKinds.CollectNotes"/>). Empty for an answer that
+    /// looks as expected; a null window is the normal "no number" shape and says nothing.
+    /// </summary>
+    public static IReadOnlyList<string> ChangeNotes(string json)
+    {
+        var notes = new List<string>();
+        if (string.IsNullOrWhiteSpace(json))
+            return notes;
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return notes;
+
+            var rateLimit = TryGetObject(root, "rate_limit");
+            var rateLimits = TryGetObject(root, "rate_limits");
+            if (rateLimit is { } web)
+                CodexWindowKinds.CollectNotes(web, "rate_limit", ["primary_window", "secondary_window"], notes);
+            if (rateLimits is { } files)
+                CodexWindowKinds.CollectNotes(files, "rate_limits", ["primary", "secondary"], notes);
+            if (rateLimit is null && rateLimits is null)
+                CodexWindowKinds.CollectNotes(root, "answer", ["primary", "secondary"], notes);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+        }
+
+        return notes.Distinct().ToList();
+    }
+
     /// <summary>The account's tier as the usage answer words it (<c>plan_type</c> at the root, e.g.
     /// "plus"), or null - the same document <see cref="Parse"/> already reads.</summary>
     public static string? ParsePlan(string json)

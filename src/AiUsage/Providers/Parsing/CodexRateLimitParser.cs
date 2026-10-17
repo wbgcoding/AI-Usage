@@ -28,7 +28,13 @@ public sealed record CodexRateLimits(
 /// </summary>
 public static class CodexRateLimitParser
 {
-    public static bool TryParse(string line, out CodexRateLimits? result)
+    public static bool TryParse(string line, out CodexRateLimits? result) => TryParse(line, out result, notes: null);
+
+    /// <summary>Same parse; <paramref name="notes"/> additionally collects what in a rate-limit block
+    /// no longer matches what this parser was written for (an unknown window, a window without
+    /// <c>used_percent</c>, an unusual window length - see <see cref="CodexWindowKinds.CollectNotes"/>),
+    /// so the caller can report it. Names and lengths only.</summary>
+    public static bool TryParse(string line, out CodexRateLimits? result, List<string>? notes)
     {
         result = null;
         if (string.IsNullOrWhiteSpace(line))
@@ -48,6 +54,9 @@ public static class CodexRateLimitParser
             if (!payload.TryGetProperty("rate_limits", out var rateLimits)
                 || rateLimits.ValueKind != JsonValueKind.Object)
                 return false;
+
+            if (notes is not null)
+                CodexWindowKinds.CollectNotes(rateLimits, "rate_limits", ["primary", "secondary"], notes);
 
             // A null block is a normal shape, not a broken line: read what is there and let the
             // "at least one percentage" check below decide whether the line is usable at all.

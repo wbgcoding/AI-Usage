@@ -33,6 +33,37 @@ public static class ReadChangeLog
     /// is not told twice.</summary>
     public static void ReportGeneral(string providerName, string note) => Write(providerName, note, general: true);
 
+    private const int MaxNameLength = 40;
+
+    /// <summary>A name taken from a provider's answer (a key, a model, a window, a quota id), made safe
+    /// for a log line: <c>{id}</c> for anything that looks like an account or organisation id or an
+    /// email address, every character outside letters, digits and a few separators replaced, and cut
+    /// to a short length. The answer itself is foreign text; only its names may ever be logged.</summary>
+    public static string SafeName(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return "(none)";
+        if (name.Contains('@') || Guid.TryParse(name, out _)
+            || (name.Length >= 16 && !name.Contains('-') && name.Any(char.IsAsciiDigit)
+                && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')))
+            return "{id}";
+
+        var shortened = name.Length > MaxNameLength ? name[..MaxNameLength] : name;
+        return string.Create(shortened.Length, shortened, static (span, source) =>
+        {
+            for (var i = 0; i < span.Length; i++)
+                span[i] = char.IsAsciiLetterOrDigit(source[i]) || source[i] is '_' or '-' or '.' or ' ' or ':' or '/' ? source[i] : '?';
+        });
+    }
+
+    /// <summary>The names of the properties of a JSON object as a short, comma-joined list for a
+    /// note (at most <paramref name="max"/> of them), each passed through <see cref="SafeName"/>.</summary>
+    public static string SafeNames(IEnumerable<string> names, int max = 8)
+    {
+        var list = names.Take(max + 1).Select(SafeName).ToList();
+        return list.Count == 0 ? "none" : list.Count > max ? string.Join(", ", list.Take(max)) + ", ..." : string.Join(", ", list);
+    }
+
     private static void Write(string providerName, string note, bool general)
     {
         var line = $"{Prefix} ({providerName} usage read needs adapting): {note}";

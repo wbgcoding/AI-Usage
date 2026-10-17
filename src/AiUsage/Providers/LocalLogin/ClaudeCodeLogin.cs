@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Net.Http;
 using AiUsage.Models;
 using AiUsage.Providers.Parsing;
+using AiUsage.Services;
 
 namespace AiUsage.Providers.LocalLogin;
 
@@ -83,6 +84,8 @@ internal static class ClaudeCodeLogin
                 LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse,
                 FailureKind: response.FailureKind, HttpStatus: response.StatusCode > 0 ? response.StatusCode : null);
 
+        foreach (var note in ClaudeUsageParser.ChangeNotes(response.Body))
+            ReadChangeLog.Report("Claude", note);
         var parsed = ClaudeUsageParser.Parse(response.Body);
         // The server answered successfully, so a body that yields nothing (other than a challenge page) is a shape this read does not know.
         return parsed.Outcome == ClaudeUsageOutcome.Ok

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiUsage.Models;
+using AiUsage.Services;
 using static AiUsage.Providers.Parsing.JsonReading;
 
 namespace AiUsage.Providers.Parsing;
@@ -37,6 +38,52 @@ public static class CursorUsageParser
         {
             return null;
         }
+    }
+
+    // The percent fields of the usage summary's plan block this read was written for.
+    private static readonly string[] KnownPlanFields =
+        ["autoPercentUsed", "apiPercentUsed", "totalPercentUsed", "used", "limit", "includedUsageCents", "usedIncludedUsageCents"];
+
+    /// <summary>
+    /// What in a usage summary no longer matches what this parser was written for: a plan block with
+    /// none of the usage fields it reads, a further <c>...PercentUsed</c> bar it does not know, a Grok
+    /// Bot block without its percentage. Only an answer that has the summary's <c>individualUsage.plan</c>
+    /// block is looked at - the other usage addresses have shapes of their own that are no change
+    /// here. Empty for an answer that looks as expected. Names only, never a figure.
+    /// </summary>
+    public static IReadOnlyList<string> ChangeNotes(string json)
+    {
+        var notes = new List<string>();
+        if (string.IsNullOrWhiteSpace(json))
+            return notes;
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || TryGetObject(root, "individualUsage") is not { } individual || TryGetObject(individual, "plan") is not { } plan)
+                return notes;
+
+            if (!KnownPlanFields.Any(field => plan.TryGetProperty(field, out _))
+                && !(root.TryGetProperty("isUnlimited", out var unlimited) && unlimited.ValueKind == JsonValueKind.True))
+                notes.Add($"individualUsage.plan holds none of the known usage fields (keys: {ReadChangeLog.SafeNames(plan.EnumerateObject().Select(p => p.Name))}).");
+
+            foreach (var property in plan.EnumerateObject())
+            {
+                if (property.Name.EndsWith("PercentUsed", StringComparison.Ordinal) && !KnownPlanFields.Contains(property.Name)
+                    && property.Value.ValueKind == JsonValueKind.Number)
+                    notes.Add($"individualUsage.plan holds the unknown usage bar '{ReadChangeLog.SafeName(property.Name)}', which is not shown.");
+            }
+
+            if (TryGetObject(root, "grokBot") is { } grokBot && TryGetDouble(grokBot, "usagePercent") is null)
+                notes.Add("the grokBot block holds no numeric usagePercent, so it is not shown.");
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+        }
+
+        return notes.Distinct().ToList();
     }
 
     public static IReadOnlyList<UsageWindow> Parse(string json)

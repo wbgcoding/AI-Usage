@@ -322,7 +322,11 @@ public sealed partial class CodexProvider : IUsageProvider
                         // Cheap prefilter before the real (JSON) parse: almost no line mentions a rate limit.
                         if (!line.Contains("rate_limits", StringComparison.Ordinal))
                             continue;
-                        if (!CodexRateLimitParser.TryParse(line, out var limits) || limits is null)
+                        var lineNotes = new List<string>();
+                        var parsed = CodexRateLimitParser.TryParse(line, out var limits, lineNotes);
+                        foreach (var note in lineNotes)
+                            ReadChangeLog.Report(DisplayName, note);
+                        if (!parsed || limits is null)
                             continue;
                         if (BuildSnapshot(limits, fetchedAt) is not { } snapshot)
                             continue;

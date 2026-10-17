@@ -1,4 +1,5 @@
 using AiUsage.Providers.Parsing;
+using AiUsage.Services;
 
 namespace AiUsage.Providers;
 
@@ -23,6 +24,8 @@ public sealed class CodexUsageEndpoint : IWebUsageEndpoint
 
     public WebUsageResult ParseBody(string body)
     {
+        foreach (var note in CodexWebUsageParser.ChangeNotes(body))
+            ReadChangeLog.Report("Codex", note);
         var windows = CodexWebUsageParser.Parse(body, _now());
         return windows.Count == 0
             ? WebUsageResult.Failed
