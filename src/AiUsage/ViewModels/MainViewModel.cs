@@ -120,9 +120,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// cref="NotificationRaised"/> (quiet hours included).</summary>
     public event Action<ForecastNotification>? ForecastRaised;
 
+    // Quiet hours and a "not again today" mute both drop a usage alert; the tile and tray colour still change.
+    private bool IsAlertAllowed(string providerId)
+    {
+        var now = DateTimeOffset.Now;
+        return !QuietHours.IsQuiet(_settings, now) && !_notifications.IsMuted(providerId, now);
+    }
+
+    /// <summary>The "not again today" toast button: this account's usage alerts stay silent until the
+    /// local day ends. An unknown id changes nothing.</summary>
+    public void MuteAlertsForToday(string providerId)
+    {
+        if (Tiles.Any(tile => tile.ProviderId == providerId))
+            _notifications.MuteForToday(providerId, DateTimeOffset.Now);
+    }
+
     private void ForwardForecastNotification(ForecastNotification notification)
     {
-        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+        if (IsAlertAllowed(notification.ProviderId))
             ForecastRaised?.Invoke(notification);
     }
 
@@ -140,7 +155,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void ForwardLimitReachedNotification(LimitReachedNotification notification)
     {
-        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+        if (IsAlertAllowed(notification.ProviderId))
             LimitReachedRaised?.Invoke(notification);
     }
 
@@ -181,13 +196,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void ForwardThresholdNotification(ThresholdNotification notification)
     {
-        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+        if (IsAlertAllowed(notification.ProviderId))
             NotificationRaised?.Invoke(notification);
     }
 
     private void ForwardResetNotification(ResetNotification notification)
     {
-        if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
+        if (IsAlertAllowed(notification.ProviderId))
             ResetRaised?.Invoke(notification);
     }
 

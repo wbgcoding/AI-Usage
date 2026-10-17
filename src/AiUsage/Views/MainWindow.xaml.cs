@@ -254,25 +254,37 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Raised from the snapshot tail, which always runs on the UI thread, the one
     /// <c>ShowBalloonTip</c> needs.</summary>
     private void ViewModel_NotificationRaised(ThresholdNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
 
-    /// <summary>One alert as a Windows toast with a button that brings the widget forward; the tray
-    /// balloon takes over for this and every later alert once toasts are unavailable.</summary>
-    private void ShowAlert(string title, string text) =>
-        ShowAlert(title, text, [(LocalizationService.Instance["Toast.ShowWidget"], ToastXml.ShowArgument)]);
+    /// <summary>A usage alert: buttons to bring the widget forward and to stay quiet for the rest of the day.</summary>
+    private void ShowUsageAlert(string providerId, string title, string text)
+    {
+        var loc = LocalizationService.Instance;
+        ShowAlert(title, text, [(loc["Toast.ShowWidget"], ToastXml.ShowArgument), (loc["Toast.MuteToday"], ToastXml.MuteArgument(providerId))]);
+    }
 
+    /// <summary>One alert as a Windows toast; the tray balloon takes over for this and every later
+    /// alert once toasts are unavailable.</summary>
     private void ShowAlert(string title, string text, IReadOnlyList<(string Label, string Argument)> buttons)
     {
         if (!_toasts.TryShow(title, text, buttons))
             _tray.ShowBalloon(text);
     }
 
-    /// <summary>A toast click: the widget always comes forward; the sign-in button then starts that
-    /// account's sign-in when its tile still exists and still offers one.</summary>
+    /// <summary>A toast click: the mute button only silences that account and leaves the widget alone;
+    /// anything else brings it forward, and the sign-in button then starts that account's sign-in when
+    /// its tile still exists and still offers one.</summary>
     private void OnToastActivated(string argument)
     {
+        _ = ToastXml.TryParse(argument, out var kind, out var key);
+        if (kind == ToastXml.MuteKind)
+        {
+            ViewModel.MuteAlertsForToday(key);
+            return;
+        }
+
         ShowAndActivate();
-        if (!ToastXml.TryParse(argument, out var kind, out var key) || kind != ToastXml.SignInKind)
+        if (kind != ToastXml.SignInKind)
             return;
         var tile = ViewModel.Tiles.FirstOrDefault(t => t.ProviderId == key);
         if (tile is { ShowSignIn: true } && tile.RunActionCommand.CanExecute(null))
@@ -292,15 +304,15 @@ public partial class MainWindow : Window, IDisposable
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ResetRaised(ResetNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text());
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ForecastRaised(ForecastNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text());
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_LimitReachedRaised(LimitReachedNotification notification) =>
-        ShowAlert(notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
 
     /// <summary>Tells a running screen reader that a window changed color level. Only while the
     /// window is on screen: a hidden or minimized widget has nobody looking at it, and the balloon

@@ -688,6 +688,60 @@ public class MainViewModelTests : IDisposable
         Assert.Contains(raised, n => n.ProviderId == "codex"); // its own switch is still on
     }
 
+    private static void RaiseOn(NotificationService notifications, string eventName, object notification) =>
+        ((Delegate?)typeof(NotificationService).GetField(eventName, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(notifications))!
+            .DynamicInvoke(notification);
+
+    private static IEnumerable<(string Event, Func<string, object> Make)> AllAlertKinds() =>
+    [
+        (nameof(NotificationService.NotificationRaised), id => new ThresholdNotification(id, id, WindowKind.FiveHour, 95, Now.AddHours(1))),
+        (nameof(NotificationService.ResetRaised), id => new ResetNotification(id, id, WindowKind.FiveHour)),
+        (nameof(NotificationService.ForecastRaised), id => new ForecastNotification(id, id, WindowKind.FiveHour, 80, TimeSpan.FromMinutes(20))),
+        (nameof(NotificationService.LimitReachedRaised), id => new LimitReachedNotification(id, id, WindowKind.FiveHour, Now.AddHours(1))),
+    ];
+
+    [Fact]
+    public void AnAccountMutedForTodayRaisesNoneOfTheFourUsageAlertsAndAnotherStillDoes()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        var notifications = (NotificationService)ReadPrivateField(vm, "_notifications");
+        var raised = new List<string>();
+        vm.NotificationRaised += n => raised.Add($"{n.ProviderId}/threshold");
+        vm.ResetRaised += n => raised.Add($"{n.ProviderId}/reset");
+        vm.ForecastRaised += n => raised.Add($"{n.ProviderId}/forecast");
+        vm.LimitReachedRaised += n => raised.Add($"{n.ProviderId}/limit");
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, DateTimeOffset.Now.AddDays(3), windowMinutes: null);
+        foreach (var id in new[] { "claude", "codex" })
+            notifications.Evaluate(id, id, window, threshold: 85, enabled: true, notifyOnReset: false, DateTimeOffset.Now);
+
+        vm.MuteAlertsForToday("claude");
+        foreach (var (eventName, make) in AllAlertKinds())
+        {
+            RaiseOn(notifications, eventName, make("claude"));
+            RaiseOn(notifications, eventName, make("codex"));
+        }
+
+        Assert.DoesNotContain(raised, entry => entry.StartsWith("claude/", StringComparison.Ordinal));
+        Assert.Equal(["codex/threshold", "codex/reset", "codex/forecast", "codex/limit"], raised);
+    }
+
+    [Fact]
+    public void MutingAnUnknownAccountIsIgnored()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings);
+        var notifications = (NotificationService)ReadPrivateField(vm, "_notifications");
+        var raised = new List<string>();
+        vm.LimitReachedRaised += n => raised.Add(n.ProviderId);
+
+        vm.MuteAlertsForToday("no-such-account");
+        RaiseOn(notifications, nameof(NotificationService.LimitReachedRaised), new LimitReachedNotification("codex", "codex", WindowKind.FiveHour, null));
+
+        Assert.Equal(["codex"], raised);
+        Assert.False(notifications.IsMuted("no-such-account", DateTimeOffset.Now));
+    }
+
     [Fact]
     public async Task ATileHoldsItsHistoryChartValuesRightAfterASnapshot()
     {

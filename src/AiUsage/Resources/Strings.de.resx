@@ -611,4 +611,5 @@
   <data name="Toast.SignInNeeded.Title" xml:space="preserve"><value>{0}: Anmeldung nötig</value></data>
   <data name="Toast.SignInNeeded.Body" xml:space="preserve"><value>Die Anmeldung ist abgelaufen. Ohne neue Anmeldung bleiben die Werte stehen.</value></data>
   <data name="Toast.SignIn" xml:space="preserve"><value>Anmelden</value></data>
+  <data name="Toast.MuteToday" xml:space="preserve"><value>Heute nicht mehr</value></data>
 </root>
