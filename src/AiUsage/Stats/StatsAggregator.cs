@@ -125,7 +125,7 @@ public readonly record struct StatsProjectRow(
     string? TooltipText = null,
     // The row that pools the records without a project; its FullPath is the display label.
     bool IsNoProject = false,
-    // The cost estimate lines for the hover tooltip ("Cost (API): ~2,00 €", then the unpriced
+    // The cost estimate lines for the hover tooltip ("API cost: ~2,00 €", then the unpriced
     // models); filled in by StatsViewModel, null when no cost is shown.
     string? CostLine = null);
 

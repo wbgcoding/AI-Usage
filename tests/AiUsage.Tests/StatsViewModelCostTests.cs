@@ -90,6 +90,7 @@ public class StatsViewModelCostTests
         var viewModel = Create(Service(), vm => vm.SelectedGrouping = StatsGrouping.Model);
         var priced = Assert.Single(viewModel.Bars, bar => bar.Label.Contains("Sonnet", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("~$3.00", priced.ExtraTooltipLine);
+        Assert.Contains(AiUsage.Services.LocalizationService.Instance["Stats.Cost.Column"] + " ~$3.00", priced.ExtraTooltipLine);
         var unpriced = Assert.Single(viewModel.Bars, bar => bar.Label.Contains("mystery", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("?*", unpriced.ExtraTooltipLine);
     }

@@ -1990,7 +1990,7 @@ public sealed partial class StatsViewModel : ObservableObject
             var tooltip = string.Format(CultureInfo.CurrentCulture, loc["Stats.Session.Tooltip"], project, start, duration, totalText, model);
             var (costText, costUsd) = SessionCost(session, costView);
             if (costText.Length > 1)
-                tooltip += "\n" + loc["Stats.Cost.Column"] + ": " + costText;
+                tooltip += "\n" + loc["Stats.Cost.Column"] + " " + costText;
 
             tableRows.Add(new StatsSessionRowViewModel(project, start, duration, totalText, model, tooltip, costText));
             exportRows.Add(new StatsRowViewModel($"{project} · {start}", session.TotalTokens, totalText, tooltip, CostUsd: costUsd));

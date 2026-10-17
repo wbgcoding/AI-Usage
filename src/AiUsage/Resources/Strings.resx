@@ -504,7 +504,7 @@
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>A short line in each bar shows how much of the time window has passed. If the fill reaches past it, usage is running ahead of time.</value></data>
   <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Say when usage is below the time</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>The bar's tooltip says when usage is below the share of the window that has passed. Off leaves out only that sentence; ahead and on pace stay.</value></data>
-  <data name="Stats.Cost.Column" xml:space="preserve"><value>Cost (API)</value></data>
+  <data name="Stats.Cost.Column" xml:space="preserve"><value>API cost:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Approximate cost had these tokens been billed at the public API list prices (LiteLLM price list, as of {0}). Subscriptions are billed differently.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* No price known for: {0}. Not counted.</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prices not loaded yet.</value></data>

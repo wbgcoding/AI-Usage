@@ -23,7 +23,7 @@ internal sealed class StatsCostView(CostService? service)
 
     public string Text(IEnumerable<StatsRecord> records) => _service is null ? "" : _service.Text(records);
 
-    /// <summary>The tooltip lines for a figure: "Cost (API): ~2,00 €", then the line naming the models
+    /// <summary>The tooltip lines for a figure: "API cost: ~2,00 €", then the line naming the models
     /// without a price. Null when there is nothing to say.</summary>
     public string? Line(CostSummary summary)
     {
@@ -31,7 +31,7 @@ internal sealed class StatsCostView(CostService? service)
         if (text.Length == 0)
             return null;
 
-        var line = LocalizationService.Instance["Stats.Cost.Column"] + ": " + text;
+        var line = LocalizationService.Instance["Stats.Cost.Column"] + " " + text;
         return CostService.UnpricedLine(summary) is { } unpriced ? line + "\n" + unpriced : line;
     }
 
