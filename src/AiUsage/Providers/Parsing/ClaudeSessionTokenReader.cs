@@ -58,10 +58,19 @@ public sealed class ClaudeSessionTokenReader
     /// cref="ClaudeUsageLogParser.TryParse"/> and adding its four token counts to that file's running
     /// total - or, on a repeat call against the same file, only the lines appended since the last
     /// call.</summary>
-    public long SumTokens(string sessionFile, CancellationToken ct = default)
+    public long SumTokens(string sessionFile, CancellationToken ct = default) => SumTokens(sessionFile, out _, ct);
+
+    /// <summary>Same as <see cref="SumTokens(string, CancellationToken)"/>, with that file's <see
+    /// cref="LastEventAt"/> taken under the same lock, so an overlapping read can never pair this sum
+    /// with another file's time.</summary>
+    public long SumTokens(string sessionFile, out DateTimeOffset? lastEventAt, CancellationToken ct = default)
     {
         lock (_gate)
-            return SumTokensCore(sessionFile, ct);
+        {
+            var sum = SumTokensCore(sessionFile, ct);
+            lastEventAt = _current?.LastEventAt;
+            return sum;
+        }
     }
 
     private long SumTokensCore(string sessionFile, CancellationToken ct)

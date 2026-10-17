@@ -246,8 +246,7 @@ public sealed class ClaudeProvider : IUsageProvider
                 {
                     try
                     {
-                        tokens = _tokenReader.SumTokens(newestFile, ct);
-                        lastEventAt = _tokenReader.LastEventAt;
+                        tokens = _tokenReader.SumTokens(newestFile, out lastEventAt, ct);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
