@@ -15,7 +15,8 @@ public sealed record Alert(
 /// title; lines are appended; buttons are united by argument (show, sign-in, mute, at most three).
 /// UI thread only: <c>schedule</c> must call back on the thread that calls <see cref="Add"/>.
 /// </summary>
-public sealed class AlertBundler(TimeSpan window, Action<Alert> show, Func<TimeSpan, Action, IDisposable> schedule)
+public sealed class AlertBundler(
+    TimeSpan window, Action<Alert> show, Func<TimeSpan, Action, IDisposable> schedule, Action<string>? log = null)
 {
     private sealed class Pending(string title, IDisposable timer)
     {
@@ -24,8 +25,6 @@ public sealed class AlertBundler(TimeSpan window, Action<Alert> show, Func<TimeS
         public List<string> Lines { get; } = [];
         public List<(string Label, string Argument)> Buttons { get; } = [];
     }
-
-    private const int MaxButtons = 3;
 
     private readonly Dictionary<string, Pending> _pending = new(StringComparer.Ordinal);
 
@@ -59,8 +58,17 @@ public sealed class AlertBundler(TimeSpan window, Action<Alert> show, Func<TimeS
             return;
 
         bundle.Timer.Dispose();
-        var buttons = bundle.Buttons.OrderBy(b => Rank(b.Argument)).Take(MaxButtons).ToList();
-        show(new Alert(key, bundle.Title, bundle.Lines, buttons));
+        var buttons = bundle.Buttons.OrderBy(b => Rank(b.Argument)).Take(ToastXml.MaxButtons).ToList();
+        // Runs inside a dispatcher timer tick: a failing toast must not take the app down or keep
+        // the other accounts' alerts from showing.
+        try
+        {
+            show(new Alert(key, bundle.Title, bundle.Lines, buttons));
+        }
+        catch (Exception ex)
+        {
+            log?.Invoke($"An alert could not be shown ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+        }
     }
 
     private static int Rank(string argument) =>

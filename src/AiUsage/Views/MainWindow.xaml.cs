@@ -190,7 +190,8 @@ public partial class MainWindow : Window, IDisposable
         _tray = new TrayService(WindowLayers.Normalize(_settings.WindowLayer), _settings.ClickThrough);
         _toasts = new ToastNotifier(new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line));
         // A click arrives on a platform thread; everything it triggers runs on the UI thread.
-        _alerts = new AlertBundler(AlertBundleWindow, ShowAlert, AlertBundler.ScheduleOnDispatcher);
+        _alerts = new AlertBundler(
+            AlertBundleWindow, ShowAlert, AlertBundler.ScheduleOnDispatcher, line => (logService ?? LogService.Shared).LogError(line));
         _toasts.Activated += argument => Dispatcher.BeginInvoke(new Action(() => OnToastActivated(argument)));
         _tray.WidgetVisible = () => IsVisibleForTick() && !_hiddenByFullscreen;
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();

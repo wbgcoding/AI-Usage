@@ -147,4 +147,25 @@ public class AlertBundlerTests
 
         Assert.Empty(shown);
     }
+
+    [Fact]
+    public void AFailingShowIsLoggedAndTheOtherBundlesStillFlush()
+    {
+        var schedule = new FakeSchedule();
+        var shown = new List<Alert>();
+        var logged = new List<string>();
+        var bundler = new AlertBundler(
+            TimeSpan.FromSeconds(3),
+            alert => { if (alert.AccountKey == "a") throw new InvalidOperationException("boom"); shown.Add(alert); },
+            schedule.Schedule,
+            logged.Add);
+        bundler.Add(A("a", "one", Show));
+        bundler.Add(A("b", "two", Show));
+
+        schedule.Elapse();
+
+        Assert.Equal(["b"], shown.Select(s => s.AccountKey));
+        var line = Assert.Single(logged);
+        Assert.Contains("InvalidOperationException", line, StringComparison.Ordinal);
+    }
 }
