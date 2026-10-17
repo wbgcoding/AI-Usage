@@ -38,6 +38,9 @@ public sealed class WebUsageSource
     private readonly Func<string, CancellationToken, Task<string>> _executeScript;
     private readonly IWebUsageEndpoint _endpoint;
     private readonly Action<string>? _log;
+    // The kind of the last thrown read that was logged: a session that keeps failing the same way
+    // writes one line, not one per tick.
+    private string? _loggedFailureKind;
     private readonly AccountExtrasCache _extras;
 
     // The account ids a discovered usage path carries (the Claude organisation, Cursor's account).
@@ -517,9 +520,18 @@ public sealed class WebUsageSource
         // throws one of its own, which is a failed read like any other.
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
+            // Without a line a thrown read (a start navigation that failed, a timeout) looks exactly
+            // like a site that never answered. The exception type only, never its message.
+            var kind = ex.GetType().Name;
+            if (_log is not null && kind != _loggedFailureKind)
+            {
+                _loggedFailureKind = kind;
+                _log($"{Descriptor.ProviderId}: web read failed ({kind})");
+            }
             return (null, (WebUsageResult.Failed, null));
         }
 
+        _loggedFailureKind = null;
         return (envelopeJson, Interpret(envelopeJson));
     }
 

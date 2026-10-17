@@ -379,6 +379,31 @@ public class WebUsageSourceTests
         Assert.DoesNotContain(logged, line => line.Contains(OrgId));
     }
 
+    // A thrown read used to vanish without a trace, which hid why a tile kept its local numbers.
+    // It now leaves one line per kind of failure (never the message, which may carry page text).
+    [Fact]
+    public async Task A_thrown_read_logs_its_kind_once_until_a_read_succeeds()
+    {
+        var logged = new List<string>();
+        var fail = true;
+        var okBody = """{"status":"ok","results":[],"attempts":[]}""";
+        var source = new WebUsageSource(
+            Descriptor, new ClaudeUsageEndpoint(),
+            (_, _) => fail ? throw new InvalidOperationException("secret page text") : Task.FromResult(okBody),
+            log: logged.Add);
+
+        var first = await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+        fail = false;
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+        fail = true;
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+
+        Assert.Equal(WebUsageOutcome.Failed, first.Outcome);
+        Assert.Equal(2, logged.Count(line => line == "claude: web read failed (InvalidOperationException)"));
+        Assert.DoesNotContain(logged, line => line.Contains("secret page text"));
+    }
+
     [Fact]
     public async Task Discovery_attempt_lines_never_carry_the_organization_id()
     {
