@@ -7,8 +7,9 @@ using AiUsage.Services;
 
 namespace AiUsage.Providers.Parsing;
 
-/// <summary>An already-triggered local rate limit read out of a session transcript.</summary>
-public sealed record ClaudeQuotaLimit(DateTimeOffset ResetsAt, string RateLimitType);
+/// <summary>An already-triggered local rate limit read out of a session transcript;
+/// <paramref name="LoggedAt"/> is when Claude Code wrote it, null when the line carried no time.</summary>
+public sealed record ClaudeQuotaLimit(DateTimeOffset ResetsAt, string RateLimitType, DateTimeOffset? LoggedAt = null);
 
 /// <summary>
 /// Reads the most recent already-triggered rate limit out of Claude's local session transcripts.
@@ -99,7 +100,7 @@ public static class ClaudeLocalLimitReader
                 {
                     if (lineTime is { } at && at < cutoff)
                         continue; // older than any live window
-                    newestPerType.TryAdd(type, limit);
+                    newestPerType.TryAdd(type, limit with { LoggedAt = lineTime });
                 }
             }
 

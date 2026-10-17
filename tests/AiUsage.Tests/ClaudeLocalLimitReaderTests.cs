@@ -125,6 +125,18 @@ public class ClaudeLocalLimitReaderTests : IDisposable
     }
 
     [Fact]
+    public void FindActiveLimit_keeps_when_the_rejection_was_logged()
+    {
+        var directory = TempDirectory();
+        var loggedAt = Now.AddHours(-1);
+        File.WriteAllLines(Path.Combine(directory, "session.jsonl"), [LimitLine(loggedAt)]);
+
+        var limit = ClaudeLocalLimitReader.FindActiveLimit(directory, Now);
+
+        Assert.Equal(loggedAt, limit!.LoggedAt);
+    }
+
+    [Fact]
     public void FindActiveLimit_skips_a_file_last_written_more_than_a_week_ago()
     {
         var directory = TempDirectory();

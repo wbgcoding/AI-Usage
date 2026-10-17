@@ -798,4 +798,22 @@ public class ClaudeProviderTests : IDisposable
         foreach (var directory in _tempDirectories)
             directory.Dispose();
     }
+
+    [Theory]
+    [InlineData(5.0, true)]
+    [InlineData(89.0, true)]
+    [InlineData(95.0, false)]
+    public void A_reading_after_the_rejection_decides_whether_the_limit_still_holds(double readingPercent, bool over) =>
+        Assert.Equal(over, ClaudeProvider.LimitIsOverByReading(
+            DateTimeOffset.Parse("2026-10-17T12:00:00Z"), readingPercent, DateTimeOffset.Parse("2026-10-17T11:00:00Z")));
+
+    [Fact]
+    public void A_reading_older_than_the_rejection_or_without_times_keeps_the_limit()
+    {
+        var logged = DateTimeOffset.Parse("2026-10-17T11:00:00Z");
+        Assert.False(ClaudeProvider.LimitIsOverByReading(DateTimeOffset.Parse("2026-10-17T10:00:00Z"), 0, logged));
+        Assert.False(ClaudeProvider.LimitIsOverByReading(null, 0, logged));
+        Assert.False(ClaudeProvider.LimitIsOverByReading(DateTimeOffset.Parse("2026-10-17T12:00:00Z"), 0, null));
+        Assert.False(ClaudeProvider.LimitIsOverByReading(DateTimeOffset.Parse("2026-10-17T12:00:00Z"), null, logged));
+    }
 }

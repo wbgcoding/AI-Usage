@@ -330,7 +330,9 @@ public sealed class ClaudeProvider : IUsageProvider
             {
                 if (chosen is not { Status: ProviderStatus.Ok, Windows.Count: > 0 })
                     return await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct);
-                chosen = chosen with { Windows = WithLimitApplied(chosen.Windows, limitWindow) };
+                var reading = chosen.Windows.FirstOrDefault(w => w.Kind == limitWindow.Kind && limitWindow.Kind != WindowKind.Other);
+                if (!LimitIsOverByReading(chosen.DataTimestamp, reading?.UsedPercent, limit!.LoggedAt))
+                    chosen = chosen with { Windows = WithLimitApplied(chosen.Windows, limitWindow) };
             }
 
             return AttachSessionTokens(chosen, sessionTokens, sessionLastEventAt, fetchedAt);
@@ -340,6 +342,18 @@ public sealed class ClaudeProvider : IUsageProvider
             ? await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct)
             : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
     }
+
+    /// <summary>A usage reading taken after Claude Code logged the rejection already knows whether the
+    /// limit still holds: a reset used early (or one that came sooner than logged) shows there as a
+    /// window well below full, while the logged rejection would keep it full until its old reset time.
+    /// A reading still near full, one without a time or a matching window, or a rejection without a
+    /// time keeps the rejection.</summary>
+    internal static bool LimitIsOverByReading(DateTimeOffset? readingAt, double? readingPercent, DateTimeOffset? limitLoggedAt) =>
+        readingAt is { } reading && limitLoggedAt is { } logged && reading > logged
+        && readingPercent is { } percent && percent < LimitStillHeldPercent;
+
+    // A reading this close to full after a rejection is the same limit, not a reset.
+    private const double LimitStillHeldPercent = 90;
 
     /// <summary>The rejection Claude Code logged is newer than any usage reading, so the matching
     /// window shows full with the logged reset; every other window keeps its own reading.</summary>
