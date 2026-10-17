@@ -468,4 +468,53 @@ public class StatsIndexerServiceTests
 
         Assert.Equal(2, walks);
     }
+
+    [Fact]
+    public void Progress_is_throttled_and_cleared_when_the_walk_ends()
+    {
+        var events = new List<(int Done, int Total)?>();
+        (int Done, int Total)? during = null;
+        StatsIndexerService? holder = null;
+        using var service = StatsIndexerService.ForTest((token, progress) =>
+        {
+            for (var done = 1; done <= 100; done++)
+                progress(done, 100);
+            during = holder!.Progress;
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot);
+        holder = service;
+        service.ProgressChanged += (_, _) => events.Add(holder.Progress);
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        // 25, 50, 75, 100 while the walk ran, then one more when the value was cleared.
+        Assert.Equal((100, 100), during);
+        Assert.InRange(events.Count, 4, 6);
+        Assert.Equal([(25, 100), (50, 100), (75, 100), (100, 100)], events.Take(4).Select(e => e!.Value).ToArray());
+        Assert.Null(service.Progress);
+        Assert.Null(events[^1]);
+    }
+
+    [Fact]
+    public void A_walk_without_progress_raises_no_progress_event_and_a_failing_handler_does_not_stop_it()
+    {
+        var raised = 0;
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: EmptySnapshot);
+        service.ProgressChanged += (_, _) => raised++;
+        service.StartInBackground();
+        WaitIdle(service);
+        Assert.Equal(0, raised);
+        Assert.Null(service.Progress);
+
+        using var failing = StatsIndexerService.ForTest((_, progress) =>
+        {
+            progress(30, 30);
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot);
+        failing.ProgressChanged += (_, _) => throw new InvalidOperationException("handler");
+        failing.StartInBackground();
+        WaitIdle(failing);
+        Assert.Null(failing.Progress);
+    }
 }

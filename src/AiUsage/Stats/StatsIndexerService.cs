@@ -15,7 +15,7 @@ namespace AiUsage.Stats;
 public sealed class StatsIndexerService : IDisposable
 {
     // Null result: the walk's outcome is unknown (the test seam, or a cancelled/failed walk).
-    private readonly Func<CancellationToken, StatsIndexResult?> _runIndexOnce;
+    private readonly Func<CancellationToken, Action<int, int>, StatsIndexResult?> _runIndexOnce;
     private readonly Func<StatsDataSnapshot>? _loadSnapshot;
     private readonly LogService? _logService;
     // Writes the weekly copy of the index; null for a service that keeps none.
@@ -37,6 +37,14 @@ public sealed class StatsIndexerService : IDisposable
     // The local date of the last announced walk: a new day is announced even when nothing was read,
     // since the day grid and the statistics window anchor "today" on the load they get.
     private DateOnly _lastRaisedDate;
+
+    // The progress of the walk in flight; the last two fields throttle its events and belong to the
+    // walk thread alone.
+    private (int Done, int Total)? _progress;
+    private int _lastReportedDone;
+    private long _lastReportedTick;
+    private const int ProgressEveryFiles = 25;
+    private const long ProgressEveryMilliseconds = 250;
     private Func<DateOnly> _today = () => DateOnly.FromDateTime(DateTime.Now);
 
     // The prepared data of the last raising walk. Every change bumps the generation, so a slow load
@@ -50,6 +58,22 @@ public sealed class StatsIndexerService : IDisposable
     private readonly Func<string>? _snapshotPath;
     private StatsDataSnapshot? _persisted;
     private readonly object _persistGate = new();
+
+    /// <summary>How far a big first read has come (files read, files to read), or null while there is
+    /// no such read: a walk only reports when at least twenty files are new to the index.</summary>
+    public (int Done, int Total)? Progress
+    {
+        get
+        {
+            lock (_gate)
+                return _progress;
+        }
+    }
+
+    /// <summary>Raised on the walk's thread when <see cref="Progress"/> changed: at most every 25 files or
+    /// 250 ms, at the end of the read and once more when it is cleared. A subscriber that touches UI
+    /// state must marshal back to its own dispatcher itself.</summary>
+    public event EventHandler? ProgressChanged;
 
     /// <summary>Raised on a background thread after a walk finishes (cancelled or not) that read at
     /// least one file, after the first walk of the process whatever it read, after the first walk on a
@@ -78,7 +102,7 @@ public sealed class StatsIndexerService : IDisposable
     }
 
     public StatsIndexerService(StatsStore store, LogService? logService = null)
-        : this(token => new StatsIndexer(store, logService).IndexOnce(token), () => StatsDataSnapshot.Load(store), logService,
+        : this((token, progress) => new StatsIndexer(store, logService).IndexOnce(progress, token), () => StatsDataSnapshot.Load(store), logService,
             () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath,
             now => store.WriteWeeklyCopy(store.DataDirectory, now))
     {
@@ -96,7 +120,7 @@ public sealed class StatsIndexerService : IDisposable
     /// cancel-aborts-it contracts can be driven and observed without touching this machine's own
     /// session history.</summary>
     internal StatsIndexerService(Action<CancellationToken> runIndexOnce, LogService? logService = null)
-        : this(token =>
+        : this((token, _) =>
         {
             runIndexOnce(token);
             return (StatsIndexResult?)null;
@@ -110,10 +134,15 @@ public sealed class StatsIndexerService : IDisposable
         Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null,
         Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null, Func<string>? snapshotPath = null,
         Action<DateTimeOffset>? weeklyCopy = null) =>
-        new(token => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+        new((token, _) => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+
+    /// <summary>Test seam whose stand-in also receives the progress callback of the real walk.</summary>
+    internal static StatsIndexerService ForTest(
+        Func<CancellationToken, Action<int, int>, StatsIndexResult> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot = null) =>
+        new((token, progress) => runIndexOnce(token, progress), loadSnapshot, null) { _today = () => DateOnly.FromDateTime(DateTime.Now) };
 
     private StatsIndexerService(
-        Func<CancellationToken, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
+        Func<CancellationToken, Action<int, int>, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
         Func<string>? snapshotPath = null, Action<DateTimeOffset>? weeklyCopy = null)
     {
         _weeklyCopy = weeklyCopy;
@@ -217,7 +246,9 @@ public sealed class StatsIndexerService : IDisposable
         var walkFinished = false;
         try
         {
-            var result = _runIndexOnce(token);
+            _lastReportedDone = 0;
+            _lastReportedTick = Environment.TickCount64;
+            var result = _runIndexOnce(token, OnWalkProgress);
             walkFinished = result is not null && !token.IsCancellationRequested;
             lock (_gate)
             {
@@ -237,6 +268,7 @@ public sealed class StatsIndexerService : IDisposable
         {
             try
             {
+                ClearProgress();
                 if (raise)
                 {
                     lock (_gate)
@@ -258,6 +290,50 @@ public sealed class StatsIndexerService : IDisposable
                 // raises the event: Dispose then waits for the one thread that is left.
                 lock (_gate)
                     _isRunning = false;
+            }
+        }
+    }
+
+    // Called by the walk after each file new to the index; passes on only every 25th file, a call 250 ms
+    // after the last one, and the last file.
+    private void OnWalkProgress(int done, int total)
+    {
+        var now = Environment.TickCount64;
+        var atEnd = done >= total;
+        if (done == _lastReportedDone
+            || (!atEnd && done - _lastReportedDone < ProgressEveryFiles && now - _lastReportedTick < ProgressEveryMilliseconds))
+            return;
+
+        _lastReportedDone = done;
+        _lastReportedTick = now;
+        lock (_gate)
+            _progress = (done, total);
+        RaiseProgressChanged();
+    }
+
+    private void ClearProgress()
+    {
+        lock (_gate)
+        {
+            if (_progress is null)
+                return;
+            _progress = null;
+        }
+
+        RaiseProgressChanged();
+    }
+
+    private void RaiseProgressChanged()
+    {
+        foreach (var handler in ProgressChanged?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                ((EventHandler)handler)(this, EventArgs.Empty);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _logService?.LogError($"A statistics progress handler failed ({ex.GetType().Name}).");
             }
         }
     }

@@ -144,7 +144,16 @@ public sealed class StatsIndexer
     private bool _knownComplete;
     private HashSet<string>? _knownCodexFileNames;
 
-    public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default)
+    /// <summary>A walk only reports progress when at least this many session files are new to the index
+    /// (the first build); a smaller read is over before anyone could watch it.</summary>
+    internal const int ProgressMinimumNewFiles = 20;
+
+    public StatsIndexResult IndexOnce(CancellationToken cancellationToken = default) =>
+        IndexOnce(null, cancellationToken);
+
+    /// <param name="progress">Called with (new files read so far, new files in all) after each file
+    /// new to the index, only while there are <see cref="ProgressMinimumNewFiles"/> or more of them.</param>
+    public StatsIndexResult IndexOnce(Action<int, int>? progress, CancellationToken cancellationToken = default)
     {
         _failedWrites = 0;
         _passHeld.Clear();
@@ -214,22 +223,6 @@ public sealed class StatsIndexer
             });
         }
 
-        foreach (var listed in claudeFiles)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            claudeFilesSeen++;
-            var (read, linesParsed, linesSkipped) = IndexClaudeFile(listed, known, cancellationToken);
-            if (read)
-                claudeFilesRead++;
-            claudeLinesParsed += linesParsed;
-            claudeLinesSkipped += linesSkipped;
-        }
-
-        var codexFilesSeen = 0;
-        var codexFilesRead = 0;
-        var codexLinesParsed = 0L;
-        var codexLinesSkipped = 0L;
-
         var codexFiles = EnumerateNewestFirstWithInfo(_codexSessionsRoot, "rollout-*.jsonl", out var codexFoldersSkipped, cancellationToken);
         if (_codexArchivedRoot is not null)
         {
@@ -239,15 +232,47 @@ public sealed class StatsIndexer
         }
 
         codexFiles = [.. codexFiles.DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)];
+
+        // The size of a first build, counted before it starts so the progress has a total. Only a
+        // snapshot that was read tells which files are new.
+        var newFiles = _knownComplete
+            ? claudeFiles.Count(file => !known.ContainsKey(file.FullName))
+                + codexFiles.Count(file => !known.ContainsKey(file.FullName))
+            : 0;
+        var reportProgress = progress is not null && newFiles >= ProgressMinimumNewFiles;
+        var newFilesDone = 0;
+
+        foreach (var listed in claudeFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            claudeFilesSeen++;
+            var isNew = reportProgress && !known.ContainsKey(listed.FullName);
+            var (read, linesParsed, linesSkipped) = IndexClaudeFile(listed, known, cancellationToken);
+            if (read)
+                claudeFilesRead++;
+            claudeLinesParsed += linesParsed;
+            claudeLinesSkipped += linesSkipped;
+            if (isNew)
+                progress!(++newFilesDone, newFiles);
+        }
+
+        var codexFilesSeen = 0;
+        var codexFilesRead = 0;
+        var codexLinesParsed = 0L;
+        var codexLinesSkipped = 0L;
+
         foreach (var listed in codexFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
             codexFilesSeen++;
+            var isNew = reportProgress && !known.ContainsKey(listed.FullName);
             var (read, linesParsed, linesSkipped) = IndexCodexFile(listed, known, cancellationToken);
             if (read)
                 codexFilesRead++;
             codexLinesParsed += linesParsed;
             codexLinesSkipped += linesSkipped;
+            if (isNew)
+                progress!(++newFilesDone, newFiles);
         }
 
         var geminiFilesSeen = 0;

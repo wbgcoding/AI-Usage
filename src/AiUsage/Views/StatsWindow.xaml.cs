@@ -102,7 +102,11 @@ public partial class StatsWindow : Window
         // StatsIndexerService.IndexCompleted fires on its own background thread, so the reload is
         // marshalled back here. The walk itself starts when the window is really shown.
         if (StatsIndexerService.Shared is { } indexer)
+        {
             indexer.IndexCompleted += OnIndexCompleted;
+            indexer.ProgressChanged += OnIndexProgressChanged;
+            _viewModel.IndexProgress = indexer.Progress;
+        }
 
         MonthGrid.ProviderDisplayNames = Stats.StatsViewModel.ProviderDisplayNames;
         // The grid reaches back as far as its scroller's width fits; the view model only re-slices in
@@ -706,7 +710,10 @@ public partial class StatsWindow : Window
     {
         KeepForNextOpen();
         if (StatsIndexerService.Shared is { } indexer)
+        {
             indexer.IndexCompleted -= OnIndexCompleted;
+            indexer.ProgressChanged -= OnIndexProgressChanged;
+        }
 
         _dragController.Cancel();
         _layoutPresenter.Detach();
@@ -728,6 +735,15 @@ public partial class StatsWindow : Window
                 return;
             _viewModel.TryShowSnapshot();
             _ = RecomputeLoggedAsync(showLoading: false);
+        });
+
+    /// <summary>Runs on the indexer's thread; the value is read again on this window's thread so a
+    /// later change is never overwritten by an earlier event that arrives after it.</summary>
+    private void OnIndexProgressChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (StatsIndexerService.Shared is { } indexer)
+                _viewModel.IndexProgress = indexer.Progress;
         });
 
     /// <summary>One brush per stacked segment: two (one per provider) for day/week grouping, one for

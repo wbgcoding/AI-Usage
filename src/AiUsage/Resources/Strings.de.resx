@@ -610,4 +610,5 @@
   <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Gilt für jeden Abruf übers Internet; unter Anbieter lässt sich das je Anbieter ändern.</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Token-Index wöchentlich sichern</value></data>
   <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Die letzten drei Kopien liegen im Datenordner unter stats-backups. Ein beschädigter Index wird daraus wiederhergestellt.</value></data>
+  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Sitzungsprotokolle werden gelesen: {0} von {1} Dateien</value></data>
 </root>

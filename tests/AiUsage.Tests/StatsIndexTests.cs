@@ -1630,4 +1630,52 @@ public class StatsIndexTests
         Assert.True(store.TryLoadSourceFiles(out var states));
         Assert.Empty(states);
     }
+
+    private static void WriteSessions(string claudeRoot, string codexRoot, int claudeCount, int codexCount)
+    {
+        var project = Directory.CreateDirectory(Path.Combine(claudeRoot, "Project")).FullName;
+        for (var i = 0; i < claudeCount; i++)
+            File.WriteAllText(Path.Combine(project, $"session-{i}.jsonl"), ClaudeLine("2026-01-01T00:00:00Z", "modelA", 10, 5, 0, 0) + "\n");
+        for (var i = 0; i < codexCount; i++)
+            File.WriteAllText(Path.Combine(codexRoot, $"rollout-2026-01-01T00-00-00-{i:000}.jsonl"), CodexTokenLine("2026-01-01T00:00:00Z", 100, 20) + "\n");
+    }
+
+    [Fact]
+    public void A_first_build_of_twenty_five_new_files_reports_progress_up_to_all_of_them()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-progress-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-progress-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-progress-data");
+        WriteSessions(claudeRoot, codexRoot, 15, 10);
+        var reports = new List<(int Done, int Total)>();
+
+        new StatsIndexer(new StatsStore(dataDir), claudeRoot, codexRoot)
+            .IndexOnce(progress: (done, total) => reports.Add((done, total)));
+
+        Assert.Equal(25, reports.Count);
+        Assert.All(reports, report => Assert.Equal(25, report.Total));
+        Assert.Equal(Enumerable.Range(1, 25), reports.Select(report => report.Done));
+    }
+
+    [Fact]
+    public void A_small_read_and_a_walk_over_known_files_report_no_progress()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-noprogress-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-noprogress-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-noprogress-data");
+        var reports = 0;
+        var store = new StatsStore(dataDir);
+
+        WriteSessions(claudeRoot, codexRoot, 3, 2);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce(progress: (_, _) => reports++);
+        Assert.Equal(0, reports);
+
+        // Many files, but only the first walk finds them new.
+        WriteSessions(claudeRoot, codexRoot, 25, 0);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce(progress: (_, _) => reports++);
+        var afterFirst = reports;
+        Assert.Equal(22, afterFirst); // 22 of the 25 files are new, the other 3 are known
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce(progress: (_, _) => reports++);
+        Assert.Equal(afterFirst, reports);
+    }
 }

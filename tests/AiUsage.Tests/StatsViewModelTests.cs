@@ -2421,4 +2421,35 @@ public class StatsViewModelCaptionTests
         Assert.Empty(viewModel.SessionChartRows);
         Assert.True(viewModel.IsBarChart);
     }
+
+    [Fact]
+    public void EmptyChartText_shows_the_read_progress_until_the_records_are_loaded()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-progress-text");
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = new StatsViewModel(new StatsStore(dataDir));
+            var changed = new List<string?>();
+            viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+            viewModel.IndexProgress = (1200, 5000);
+            var expected = LocalizationService.Instance.Format(
+                "Stats.Indexing.Progress", 1200.ToString("N0", System.Globalization.CultureInfo.CurrentCulture), 5000.ToString("N0", System.Globalization.CultureInfo.CurrentCulture));
+            Assert.Equal(expected, viewModel.EmptyChartText);
+            Assert.Contains("of", expected, StringComparison.Ordinal);
+            Assert.Contains(nameof(StatsViewModel.EmptyChartText), changed);
+
+            viewModel.IndexProgress = null;
+            Assert.Equal(LocalizationService.Instance["StatsWindow.Loading"], viewModel.EmptyChartText);
+
+            viewModel.IndexProgress = (5000, 5000);
+            viewModel.Recompute();
+            Assert.Equal(LocalizationService.Instance["Stats.Chart.Empty"], viewModel.EmptyChartText);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
 }
