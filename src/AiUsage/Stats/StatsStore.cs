@@ -213,21 +213,40 @@ public sealed class StatsStore
                 {
                     File.Delete(temporaryPath);
                     SnapshotIndex(copyPath, temporaryPath);
-                    BeforeRestoreMove?.Invoke();
-                    // The copy may hold an older schema: the next open has to bring it up to date.
-                    EnsuredDatabases.TryRemove(fullPath, out _);
-                    File.Move(temporaryPath, fullPath, overwrite: false);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
                 {
+                    DeleteRestoreLeftovers(temporaryPath);
+                    continue;
+                }
+
+                // The copy is good; only the move can fail now (a scanner holding the target for a moment).
+                // A few tries, then stop: an older copy would give up a week of rows for a lock that passes.
+                var moved = false;
+                for (var attempt = 1; attempt <= RestoreMoveAttempts && !moved; attempt++)
+                {
                     try
                     {
-                        File.Delete(temporaryPath);
+                        BeforeRestoreMove?.Invoke();
+                        // The copy may hold an older schema: the next open has to bring it up to date.
+                        EnsuredDatabases.TryRemove(fullPath, out _);
+                        File.Move(temporaryPath, fullPath, overwrite: false);
+                        moved = true;
                     }
-                    catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
+                        if (attempt < RestoreMoveAttempts)
+                            Thread.Sleep(RestoreMoveRetryMilliseconds);
                     }
-                    continue;
+                }
+
+                if (!moved)
+                {
+                    // The copy itself is fine: a later start may use it.
+                    TriedCopies.Remove(copyPath);
+                    DeleteRestoreLeftovers(temporaryPath);
+                    _logError?.Invoke("Statistics: the weekly copy of the index could not be moved into place.");
+                    return false;
                 }
 
                 RecentlyRestored[fullPath] = Environment.TickCount64;
@@ -241,6 +260,23 @@ public sealed class StatsStore
         }
 
         return false;
+    }
+
+    private const int RestoreMoveAttempts = 3;
+    private const int RestoreMoveRetryMilliseconds = 100;
+
+    private static void DeleteRestoreLeftovers(string temporaryPath)
+    {
+        foreach (var path in new[] { temporaryPath, temporaryPath + "-journal" })
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
     }
 
     /// <summary>The schema version a database file names, read without changing the file; null when

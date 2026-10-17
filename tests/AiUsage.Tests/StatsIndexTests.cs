@@ -1829,4 +1829,69 @@ public class StatsIndexTests
 
         Assert.Equal(["stats-2026-10-01.db", "stats-2027-01-29.db"], WeeklyCopyNames(dataDir));
     }
+
+    // Two weekly copies in dataDir/stats-backups: 2026-09-24 knows file-a, 2026-10-01 knows file-a and file-b.
+    private static void SeedTwoWeeklyCopies(string seedDir, string dataDir)
+    {
+        SeedIndex(seedDir, "file-a");
+        var seeder = new StatsStore(seedDir);
+        seeder.WriteWeeklyCopy(seedDir, WeekStart.AddDays(-7));
+        Assert.True(seeder.SetSourceFile(new StatsSourceFileState("file-b", "claude", 100, 100, DateTime.UtcNow)));
+        seeder.WriteWeeklyCopy(seedDir, WeekStart);
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        foreach (var file in Directory.GetFiles(Path.Combine(seedDir, "stats-backups")))
+            File.Copy(file, Path.Combine(folder, Path.GetFileName(file)));
+    }
+
+    [Fact]
+    public void A_move_that_fails_once_is_retried_instead_of_falling_back_to_an_older_copy()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-retry-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-retry");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteGarbage(dbPath);
+        var calls = 0;
+        var store = new StatsStore(dataDir)
+        {
+            BeforeRestoreMove = () =>
+            {
+                // The first attempt finds the target taken (a scanner holding a file there), the next finds it free.
+                if (++calls == 1)
+                    File.WriteAllText(dbPath, "");
+                else if (File.Exists(dbPath))
+                    File.Delete(dbPath);
+            },
+        };
+
+        store.TryLoadSourceFiles(out _);
+
+        Assert.True(new StatsStore(dataDir).TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a", "file-b"], states.Keys.Order());
+    }
+
+    [Fact]
+    public void A_move_that_keeps_failing_ends_the_restore_without_trying_an_older_copy()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-stop-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-stop");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteGarbage(dbPath);
+        var calls = 0;
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add)
+        {
+            BeforeRestoreMove = () =>
+            {
+                calls++;
+                File.WriteAllText(dbPath, "");
+            },
+        };
+
+        store.TryLoadSourceFiles(out _);
+
+        Assert.Equal(3, calls);
+        Assert.DoesNotContain(logged, line => line.Contains("restored from", StringComparison.Ordinal));
+    }
 }
