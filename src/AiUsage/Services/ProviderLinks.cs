@@ -25,7 +25,7 @@ public static class ProviderLinks
         ["claude"] = new Uri("https://status.anthropic.com"),
         ["codex"] = new Uri("https://status.openai.com"),
         ["cursor"] = new Uri("https://status.cursor.com"),
-        ["gemini"] = new Uri("https://aistudio.google.com/status"),
+        ["gemini"] = new Uri("https://gemini.google.com/usage"),
         ["copilot"] = new Uri("https://www.githubstatus.com"),
     };
 

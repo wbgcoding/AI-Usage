@@ -80,21 +80,21 @@ public static class ProviderRegistry
         AllowedHosts: ["cursor.com", "cursor.sh", "workos.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts, Web.SignInNavigationPolicy.ExactPrefix + "github.com"],
         ProfileFolderName: "cursor");
 
-    /// <summary>Gemini's own session: its own usage page on AI Studio, its own front door, and its
+    /// <summary>Gemini's own session: the usage page of the Gemini app, its own front door, and its
     /// own browser profile subfolder. The product's own host plus Google's sign-in hosts (see
     /// <see cref="Web.SignInNavigationPolicy.GoogleSignInHosts"/>): Google's two-factor confirmation
     /// travels through more of its own hosts than the front door alone.</summary>
     internal static readonly WebSessionDescriptor GeminiWebSession = new(
         ProviderId: "gemini",
-        BaseUrl: "https://aistudio.google.com/usage",
-        // Google account sign-in with the usage page as its return address, not aistudio.google.com
-        // itself: signed out, that address answers with the product welcome page, which carries no
+        BaseUrl: "https://gemini.google.com/usage",
+        // Google account sign-in with the usage page as its return address, not gemini.google.com
+        // itself: signed out, the usage page redirects to the app's welcome page, which carries no
         // visible way in and is exactly the "just a Google page, no sign-in" a signed-out user would
         // see.
-        SignInUrl: "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Faistudio.google.com%2Fusage",
+        SignInUrl: "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fgemini.google.com%2Fusage",
         // The sign-in hosts include the country account hosts: after the login Google sets the
         // session cookies through accounts.google.<the user's country domain>.
-        AllowedHosts: ["aistudio.google.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
+        AllowedHosts: ["gemini.google.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
         ProfileFolderName: "gemini");
 
     /// <summary>Which provider's fixed session shape a "&lt;provider&gt;#&lt;n&gt;"-style account key

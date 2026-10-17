@@ -9,7 +9,7 @@ namespace AiUsage.Providers;
 /// <summary>
 /// Reads Gemini/Antigravity usage through two sources: the sign-in the Antigravity CLI already
 /// holds on this machine always (see <see cref="AntigravityLocalLogin"/>), and - once the app's own
-/// browser session for aistudio.google.com is signed in - the account's own usage endpoint on top of
+/// browser session for gemini.google.com is signed in - the account's own usage read on top of
 /// it, the same dual-source shape <see cref="CodexProvider"/> uses. Both sources go through the
 /// shared chooser; they are never mixed into one window list. When no sign-in exists at all the tile
 /// asks the user to sign in through Antigravity itself. Never throws.
