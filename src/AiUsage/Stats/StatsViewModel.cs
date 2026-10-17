@@ -1539,13 +1539,21 @@ public sealed partial class StatsViewModel : ObservableObject
             ? barRows.Select(row => row.Key is "" ? ((StatsFilterKind Kind, string Key)?)null : (filterKind, row.Key ?? row.Label)).ToList()
             : [];
 
+        // A project bar is named by its folder; its tooltip opens with the full path.
+        var barProjectLabels = SelectedGrouping == StatsGrouping.Project
+            ? ProjectLabels.For(barRows.Select(ProjectPathOf).OfType<string>())
+            : null;
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
-            row.Label, row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
+            barProjectLabels is not null && ProjectPathOf(row) is { } projectPath
+                ? StatsAggregator.MiddleEllipsis(barProjectLabels[projectPath], StatsAggregator.ProjectLabelMaxChars)
+                : row.Label,
+            row.StackedValues, barKeys[index].ProviderId, barKeys[index].Rank,
             JoinLines(
                 barKeys[index].ProviderId == OtherProjectsColorKey ? otherTooltipLine : null,
                 barKeys[index].ProviderId == OtherProjectsColorKey
                     ? otherCostLine
-                    : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null))).ToList();
+                    : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null),
+            barProjectLabels is not null ? ProjectPathOf(row) : null)).ToList();
 
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
@@ -1562,6 +1570,9 @@ public sealed partial class StatsViewModel : ObservableObject
         var exportCosts = dayRows is not null && weeklyPerDay && costView.Active
             ? costView.ByKey(inRange, record => BarCostKey(record, StatsGrouping.Day, false))
             : groupCosts;
+        var rowProjectLabels = SelectedGrouping == StatsGrouping.Project
+            ? ProjectLabels.For(groupedRows.Select(ProjectPathOf).OfType<string>())
+            : null;
         Rows = (dayRows ?? groupedRows)
             .Select((row, rowIndex) =>
             {
@@ -1575,7 +1586,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
                 if (row.Key == NoProjectFilterKey)
                     return new StatsRowViewModel(row.Label, row.Total, totalText, FilterKind: StatsFilterKind.Project, FilterKey: NoProjectFilterKey, CostUsd: usd);
-                var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
+                var shortened = StatsAggregator.MiddleEllipsis(rowProjectLabels![ProjectPathOf(row)!], StatsAggregator.ProjectLabelMaxChars);
                 return new StatsRowViewModel(shortened, row.Total, totalText, ToolTip: row.Label, FilterKind: StatsFilterKind.Project, FilterKey: row.Label, CostUsd: usd);
             })
             .ToList();
@@ -2040,6 +2051,14 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>The non-empty parts as tooltip lines, or null when there are none.</summary>
+    /// <summary>The folder path a project row stands for, or null for the pooled "no project" and "other
+    /// projects" rows.</summary>
+    private static string? ProjectPathOf(StatsGroupedRow row)
+    {
+        var key = row.Key ?? row.Label;
+        return key.Length == 0 || key == NoProjectFilterKey ? null : key;
+    }
+
     private static string? JoinLines(params string?[] parts)
     {
         var present = parts.Where(part => !string.IsNullOrEmpty(part)).ToList();
