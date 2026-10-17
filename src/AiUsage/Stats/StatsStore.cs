@@ -81,8 +81,11 @@ public sealed class StatsStore
 
     /// <summary>A consistent copy of the index file at <paramref name="sourcePath"/> through SQLite's own
     /// backup (never a raw file copy, which can catch a write half done), for a backup zip. The source
-    /// is opened read-only and the destination file must not exist yet.</summary>
-    internal static void SnapshotIndex(string sourcePath, string destinationPath)
+    /// is opened read-only and the destination file must not exist yet. With <paramref name="pagesPerStep"/>
+    /// above zero the copy runs in steps of that many pages and calls <paramref name="betweenSteps"/>
+    /// between them, so the source is free for a writer in the gaps (a write in between restarts the
+    /// copy); otherwise it is one step that holds the source for the whole copy.</summary>
+    internal static void SnapshotIndex(string sourcePath, string destinationPath, int pagesPerStep = -1, Action? betweenSteps = null)
     {
         var sourceConnectionString = new SqliteConnectionStringBuilder { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
         var destinationConnectionString = new SqliteConnectionStringBuilder { DataSource = destinationPath, Mode = SqliteOpenMode.ReadWriteCreate, Pooling = false }.ToString();
@@ -90,8 +93,45 @@ public sealed class StatsStore
         using var destination = new SqliteConnection(destinationConnectionString);
         source.Open();
         destination.Open();
-        source.BackupDatabase(destination);
+        if (pagesPerStep <= 0)
+        {
+            source.BackupDatabase(destination);
+            return;
+        }
+
+        var backup = SQLitePCL.raw.sqlite3_backup_init(destination.Handle, "main", source.Handle, "main");
+        if (backup is null || backup.IsInvalid)
+            SqliteException.ThrowExceptionForRC(SQLitePCL.raw.sqlite3_errcode(destination.Handle), destination.Handle);
+
+        try
+        {
+            var waits = 0;
+            while (true)
+            {
+                var result = SQLitePCL.raw.sqlite3_backup_step(backup, pagesPerStep);
+                if (result == SQLitePCL.raw.SQLITE_DONE)
+                    break;
+                if (result == SQLitePCL.raw.SQLITE_BUSY || result == SQLitePCL.raw.SQLITE_LOCKED)
+                {
+                    // A writer holds the source: wait for it, but not for ever.
+                    if (++waits > MaxSnapshotWaits)
+                        SqliteException.ThrowExceptionForRC(result, destination.Handle);
+                }
+                else if (result == SQLitePCL.raw.SQLITE_OK)
+                    waits = 0;
+                else
+                    SqliteException.ThrowExceptionForRC(result, destination.Handle);
+
+                betweenSteps?.Invoke();
+            }
+        }
+        finally
+        {
+            SQLitePCL.raw.sqlite3_backup_finish(backup);
+        }
     }
+
+    private const int MaxSnapshotWaits = 400;
 
     /// <summary>How long a just restored index is trusted before the same damage counts as new.</summary>
     internal long RestoreGraceMilliseconds { get; init; } = 10_000;
@@ -106,6 +146,7 @@ public sealed class StatsStore
     internal const string WeeklyCopyFolder = "stats-backups";
 
     private const int KeptWeeklyCopies = 3;
+    private const int WeeklyCopyPagesPerStep = 200;
     private const int WeeklyCopyIntervalDays = 7;
     private const string WeeklyCopyDateFormat = "yyyy-MM-dd";
 
@@ -165,7 +206,7 @@ public sealed class StatsStore
             var temporaryPath = finalPath + ".tmp";
             try
             {
-                SnapshotIndex(source, temporaryPath);
+                SnapshotIndex(source, temporaryPath, WeeklyCopyPagesPerStep, () => Thread.Sleep(5));
                 // The backup API copies pages as they are: a damaged index would be kept (and restored)
                 // as damaged as it is. The copy is checked in full, the source is not held for it.
                 if (TryReadSchemaVersion(temporaryPath, thorough: true) is null)

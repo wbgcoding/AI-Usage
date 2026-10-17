@@ -1931,4 +1931,49 @@ public class StatsIndexTests
         Assert.Contains(logged, line => line.Contains("could not be removed", StringComparison.Ordinal));
         Assert.DoesNotContain(logged, line => line.Contains("could not be written", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void A_stepwise_snapshot_lets_a_writer_in_between_the_steps_and_ends_consistent()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-snapshot-steps");
+        var sourcePath = Path.Combine(dataDir, "source.db");
+        var sourceConnection = new SqliteConnectionStringBuilder { DataSource = sourcePath, Pooling = false }.ToString();
+        using (var seed = new SqliteConnection(sourceConnection))
+        {
+            seed.Open();
+            using var create = seed.CreateCommand();
+            create.CommandText = "CREATE TABLE t (id INTEGER PRIMARY KEY, payload BLOB);"
+                + " WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 400)"
+                + " INSERT INTO t (payload) SELECT zeroblob(2000) FROM n;";
+            create.ExecuteNonQuery();
+        }
+
+        var steps = 0;
+        var writes = 0;
+        StatsStore.SnapshotIndex(sourcePath, Path.Combine(dataDir, "copy.db"), pagesPerStep: 10, betweenSteps: () =>
+        {
+            steps++;
+            if (steps != 1)
+                return;
+            // A writer with no patience at all: a copy holding the source for its whole run would lock it out.
+            using var writer = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = sourcePath, Pooling = false, DefaultTimeout = 0 }.ToString());
+            writer.Open();
+            using var insert = writer.CreateCommand();
+            insert.CommandText = "INSERT INTO t (payload) VALUES (zeroblob(10))";
+            insert.ExecuteNonQuery();
+            writes++;
+        });
+
+        Assert.True(steps > 1);
+        Assert.Equal(1, writes);
+        var copyConnection = new SqliteConnectionStringBuilder { DataSource = Path.Combine(dataDir, "copy.db"), Pooling = false }.ToString();
+        using var copy = new SqliteConnection(copyConnection);
+        copy.Open();
+        using var check = copy.CreateCommand();
+        check.CommandText = "PRAGMA integrity_check(1)";
+        Assert.Equal("ok", check.ExecuteScalar());
+        using var count = copy.CreateCommand();
+        count.CommandText = "SELECT COUNT(*) FROM t";
+        Assert.Equal(401L, count.ExecuteScalar());
+    }
 }
