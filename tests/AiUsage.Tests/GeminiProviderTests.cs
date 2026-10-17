@@ -132,6 +132,16 @@ public class GeminiProviderTests : IDisposable
         Assert.Equal(DateTimeOffset.Parse("2026-10-17T11:40:31Z"), window.ResetsAt);
     }
 
+    [Fact]
+    public void An_unused_Gemini_quota_without_a_reset_still_shows_as_a_window()
+    {
+        var window = Assert.Single(AiUsage.Providers.Parsing.GeminiUsageParser.ParseModelQuota(
+            """{"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":1},{"modelId":"gemini-3-flash"}]}"""));
+
+        Assert.Equal(0, window.UsedPercent);
+        Assert.Null(window.ResetsAt);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not json")]

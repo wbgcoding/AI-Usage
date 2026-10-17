@@ -132,14 +132,21 @@ public static class GeminiUsageParser
             {
                 if (bucket.ValueKind != JsonValueKind.Object
                     || !bucket.TryGetProperty("modelId", out var modelEl) || modelEl.ValueKind != JsonValueKind.String
-                    || !(modelEl.GetString() ?? "").StartsWith("gemini-", StringComparison.OrdinalIgnoreCase)
-                    || !bucket.TryGetProperty("resetTime", out _))
+                    || !(modelEl.GetString() ?? "").StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
                     continue;
-                // Same proto3 rule as the summary: a missing fraction is an exhausted quota.
+                // Same proto3 rule as the summary: a missing fraction is an exhausted quota, which always
+                // names its reset. A bucket with neither says nothing; an unused quota may come without a
+                // reset and still counts.
                 double remaining = 0;
-                if (bucket.TryGetProperty("remainingFraction", out var fractionEl)
-                    && (fractionEl.ValueKind != JsonValueKind.Number || !fractionEl.TryGetDouble(out remaining)))
+                if (bucket.TryGetProperty("remainingFraction", out var fractionEl))
+                {
+                    if (fractionEl.ValueKind != JsonValueKind.Number || !fractionEl.TryGetDouble(out remaining))
+                        continue;
+                }
+                else if (!bucket.TryGetProperty("resetTime", out _))
+                {
                     continue;
+                }
                 if (remaining is < 0 or > 1)
                     continue;
                 if (lowest is { } known && remaining >= known)
