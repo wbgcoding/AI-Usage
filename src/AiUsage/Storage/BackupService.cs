@@ -79,6 +79,10 @@ public static class BackupService
     internal const long MaxTotalBytes = 3L * 1024 * 1024 * 1024;
     internal const long MaxStatsBytes = 2L * 1024 * 1024 * 1024;
     internal const long MaxHistoryBytes = 256L * 1024 * 1024;
+
+    /// <summary>A history line longer than this is never a point (they are a few hundred characters);
+    /// the preview skips it instead of holding it in memory.</summary>
+    internal const int MaxHistoryLineChars = 1024 * 1024;
     internal const long MaxSmallFileBytes = 4L * 1024 * 1024;
     internal const long MaxManifestBytes = 64 * 1024;
 
@@ -321,6 +325,44 @@ public static class BackupService
             return AppEncoding.Utf8NoBom.GetString(memory.GetBuffer(), 0, (int)memory.Length);
         }
 
+        /// <summary>The entry's lines, read through a stream: only one line (up to
+        /// <see cref="MaxHistoryLineChars"/> characters; longer ones are skipped) is in memory at a time.
+        /// Size and checksum were already checked by <see cref="Verify"/>.</summary>
+        public IEnumerable<string> ReadLines(string name)
+        {
+            using var reader = new StreamReader(_entries[name].Open(), AppEncoding.Utf8NoBom, detectEncodingFromByteOrderMarks: false);
+            var line = new StringBuilder();
+            var tooLong = false;
+            var buffer = new char[8192];
+            int read;
+            while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (var i = 0; i < read; i++)
+                {
+                    var c = buffer[i];
+                    if (c == '\n')
+                    {
+                        if (!tooLong && line.Length > 0)
+                            yield return line.ToString();
+                        line.Clear();
+                        tooLong = false;
+                    }
+                    else if (!tooLong)
+                    {
+                        line.Append(c);
+                        if (line.Length > MaxHistoryLineChars)
+                        {
+                            tooLong = true;
+                            line.Clear();
+                        }
+                    }
+                }
+            }
+
+            if (!tooLong && line.Length > 0)
+                yield return line.ToString();
+        }
+
         /// <summary>Reads the whole entry and discards it: the really decompressed size and the stored
         /// checksum are checked like in <see cref="Extract"/>, without writing anything.</summary>
         public void Verify(string name, ref long totalRead) => CopyChecked(_entries[name], Stream.Null, name, ref totalRead);
@@ -535,7 +577,7 @@ public static class BackupService
             return new BackupInspection(ex.Refusal, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException
-            or FormatException or InvalidCastException or OverflowException)
+            or FormatException or InvalidCastException or OverflowException or OutOfMemoryException)
         {
             return new BackupInspection(BackupRefusal.NotABackup, null);
         }
@@ -555,8 +597,7 @@ public static class BackupService
         {
             var providerId = name["history-".Length..^".jsonl".Length];
             var any = false;
-            using var lines = new StringReader(backup.ReadText(name));
-            while (lines.ReadLine() is { } line)
+            foreach (var line in backup.ReadLines(name))
             {
                 if (HistoryStore.ParseLine(line, providerId).Point is not { } point)
                     continue;

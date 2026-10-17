@@ -1216,4 +1216,23 @@ public sealed class BackupServiceTests : IDisposable
         File.WriteAllText(junk, "not a zip");
         Assert.Null(BackupService.Inspect(junk, Temp()).Summary);
     }
+
+    [Fact]
+    public void The_summary_reads_a_history_file_line_by_line_and_skips_a_line_beyond_the_cap()
+    {
+        var at = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
+        var padded = new string(' ', BackupService.MaxHistoryLineChars + 10) + HistoryLine(at);
+        var zip = MakeZip(Temp(), z =>
+        {
+            AddText(z, "history-claude.jsonl", padded);
+            AddText(z, "history-codex.jsonl", padded + HistoryLine(at.AddDays(3)));
+        });
+
+        var summary = BackupService.Inspect(zip, Temp()).Summary;
+
+        Assert.NotNull(summary);
+        Assert.Equal(1, summary.AccountsWithHistory);
+        Assert.Equal(at.AddDays(3), summary.HistoryFrom);
+        Assert.Equal(at.AddDays(3), summary.HistoryTo);
+    }
 }
