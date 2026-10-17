@@ -31,6 +31,16 @@ public static class SignInNavigationPolicy
     /// (<c>=github.com</c>).</summary>
     public const string ExactPrefix = "=";
 
+    /// <summary>An allow-list entry for one path on one host: Google's unusual-traffic check
+    /// (<c>https://www.google.com/sorry/...</c>), where a Google site sends a session it wants a person
+    /// to confirm before it answers again. Only the visible sign-in window may load it, so the person can
+    /// pass the check there; the hidden session never does (it cannot answer it, see
+    /// <see cref="IsGoogleTrafficCheck"/>). It admits nothing else on www.google.com.</summary>
+    public const string GoogleTrafficCheck = "www.google.com/sorry/";
+
+    private const string GoogleTrafficCheckHost = "www.google.com";
+    private const string GoogleTrafficCheckPath = "/sorry/";
+
     private const string GoogleAccountsPrefix = "accounts.google.";
 
     // The country suffixes of Google's own search domains (google.com/supported_domains), without the
@@ -63,6 +73,10 @@ public static class SignInNavigationPolicy
     {
         foreach (var allowed in allowedHosts)
         {
+            // A path entry names more than a host; it never admits the host as a whole.
+            if (allowed == GoogleTrafficCheck)
+                continue;
+
             if (allowed == GoogleCountryAccounts)
             {
                 if (IsGoogleCountryAccountsHost(host))
@@ -96,7 +110,17 @@ public static class SignInNavigationPolicy
     public static bool IsAllowedUri(string url, IReadOnlyList<string> allowedHosts) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps
-        && IsAllowedHost(uri.Host, allowedHosts);
+        && (IsAllowedHost(uri.Host, allowedHosts)
+            || (allowedHosts.Contains(GoogleTrafficCheck) && IsGoogleTrafficCheck(url)));
+
+    /// <summary>True for Google's unusual-traffic check page: https, exactly www.google.com (no
+    /// subdomain, no look-alike) and a path under <c>/sorry/</c>.</summary>
+    public static bool IsGoogleTrafficCheck(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && uri.IdnHost.Equals(GoogleTrafficCheckHost, StringComparison.OrdinalIgnoreCase)
+        && uri.IsDefaultPort
+        && uri.AbsolutePath.StartsWith(GoogleTrafficCheckPath, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>For the hosts a person allowed by hand on a blocked notice: https and exactly the named
     /// host, not its subdomains. The person was shown one host name and said yes to that name; a sibling

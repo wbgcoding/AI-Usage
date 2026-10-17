@@ -93,8 +93,10 @@ public static class ProviderRegistry
         // see.
         SignInUrl: "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fgemini.google.com%2Fusage",
         // The sign-in hosts include the country account hosts: after the login Google sets the
-        // session cookies through accounts.google.<the user's country domain>.
-        AllowedHosts: ["gemini.google.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
+        // session cookies through accounts.google.<the user's country domain>. gemini.google.com can
+        // send a session to Google's unusual-traffic check first; the sign-in window lets the person
+        // pass it, the hidden session reports it as "sign in again" (see WebSessionCheckRequiredException).
+        AllowedHosts: ["gemini.google.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts, Web.SignInNavigationPolicy.GoogleTrafficCheck],
         ProfileFolderName: "gemini");
 
     /// <summary>Which provider's fixed session shape a "&lt;provider&gt;#&lt;n&gt;"-style account key

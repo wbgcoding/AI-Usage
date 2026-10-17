@@ -126,4 +126,45 @@ public class SignInNavigationPolicyTests
     {
         Assert.Equal(expected, SignInNavigationPolicy.IsUsageOrigin(url, "claude.ai"));
     }
+
+    [Theory]
+    [InlineData("https://www.google.com/sorry/index?continue=https://gemini.google.com/usage", true)]
+    [InlineData("https://WWW.GOOGLE.COM/sorry/index", true)]
+    [InlineData("https://www.google.com/search?q=sorry", false)]
+    [InlineData("https://www.google.com/sorryx/index", false)]
+    [InlineData("http://www.google.com/sorry/index", false)]
+    [InlineData("https://www.google.com:8443/sorry/index", false)]
+    [InlineData("https://google.com/sorry/index", false)]
+    [InlineData("https://www.google.com.evil.test/sorry/index", false)]
+    [InlineData("https://evil.test/sorry/index", false)]
+    [InlineData("not a url", false)]
+    public void The_google_traffic_check_is_only_that_path_on_www_google_com(string url, bool expected)
+    {
+        Assert.Equal(expected, SignInNavigationPolicy.IsGoogleTrafficCheck(url));
+    }
+
+    [Fact]
+    public void The_traffic_check_entry_admits_that_page_and_nothing_else_on_the_host()
+    {
+        string[] hosts = ["gemini.google.com", SignInNavigationPolicy.GoogleTrafficCheck];
+
+        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://www.google.com/sorry/index?continue=x", hosts));
+        Assert.False(SignInNavigationPolicy.IsAllowedUri("https://www.google.com/search?q=x", hosts));
+        Assert.False(SignInNavigationPolicy.IsAllowedUri("https://www.google.com/", hosts));
+        Assert.False(SignInNavigationPolicy.IsAllowedHost("www.google.com", hosts));
+    }
+
+    [Fact]
+    public void Without_the_entry_the_traffic_check_stays_blocked()
+    {
+        Assert.False(SignInNavigationPolicy.IsAllowedUri("https://www.google.com/sorry/index", AllowedHosts));
+    }
+
+    [Fact]
+    public void Only_the_gemini_session_admits_the_traffic_check()
+    {
+        const string check = "https://www.google.com/sorry/index?continue=https://gemini.google.com/usage";
+        Assert.True(SignInNavigationPolicy.IsAllowedUri(check, AiUsage.Services.ProviderRegistry.GeminiWebSession.AllowedHosts));
+        Assert.False(SignInNavigationPolicy.IsAllowedUri(check, AiUsage.Services.ProviderRegistry.CodexWebSession.AllowedHosts));
+    }
 }
