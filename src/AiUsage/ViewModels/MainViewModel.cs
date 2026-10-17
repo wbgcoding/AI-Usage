@@ -166,6 +166,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <see cref="ProviderTileViewModel.LevelAnnounced"/>).</summary>
     public event Action<string>? LevelAnnounced;
 
+    /// <summary>Raised on the UI thread once a provider's reading reached its tile, so the tray
+    /// follows a new number at once instead of on the next (up to 30 s away) hidden-window tick.</summary>
+    public event Action? SnapshotApplied;
+
     private void ForwardThresholdNotification(ThresholdNotification notification)
     {
         if (!QuietHours.IsQuiet(_settings, DateTimeOffset.Now))
@@ -224,6 +228,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// live window.</summary>
     internal static bool IsAttended(bool windowVisible, bool sessionLocked) =>
         windowVisible && !sessionLocked;
+
+    /// <summary>Whether the refresh scheduler should keep the normal cadence: the widget is watched
+    /// (<see cref="IsAttended"/>), or it is hidden while the tray icon draws a usage number. That number
+    /// is then the one live display left, and the closed-window cadence left it minutes behind the
+    /// widget, which caught up the moment it was opened. The plain program icon shows no number, so
+    /// it keeps the slower cadence.</summary>
+    internal static bool IsAttendedForRefresh(bool windowVisible, bool trayShowsNumber, bool sessionLocked) =>
+        IsAttended(windowVisible || trayShowsNumber, sessionLocked);
+
+    private bool RefreshAttended =>
+        IsAttendedForRefresh(WindowVisible, _settings.TrayProvider != TrayProviderAppIcon, SessionLocked);
 
     public ObservableCollection<Choice<string>> DensityChoices { get; } =
     [
@@ -862,7 +877,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         foreach (var providerId in _pendingFetchClear.ToList())
             TryClearFetching(providerId);
         PausedUntil = _scheduler.PausedUntil;
-        _scheduler.Tick(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+        _scheduler.Tick(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWindowTokens(now);
         if (OrderedByUsage)
             ApplyTileOrder();
@@ -881,7 +896,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         try
         {
-            _scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+            _scheduler.RefreshNow(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
         }
         finally
         {
@@ -893,7 +908,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The network came back: reads again, at once, the providers whose last attempt failed
     /// for lack of a connection (see <see cref="RefreshScheduler.RefreshNetworkFailed"/>).</summary>
     public void RefreshNetworkFailed() =>
-        _scheduler.RefreshNetworkFailed(IsTileHidden, IsAttended(WindowVisible, SessionLocked), IsAccountDisconnected, _lifetimeCts.Token);
+        _scheduler.RefreshNetworkFailed(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
 
     private readonly object _windowTokensApplyLock = new();
 
@@ -1454,6 +1469,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 : before.Windows;
             _statusReadings[snapshot.ProviderId] = (snapshot.Status, windows);
             QueueStatusFile(now);
+            SnapshotApplied?.Invoke();
         }
 
         var dispatcher = Application.Current?.Dispatcher;

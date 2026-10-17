@@ -215,6 +215,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
         ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
         ViewModel.LevelAnnounced += AnnounceToScreenReader;
+        ViewModel.SnapshotApplied += UpdateTray;
 
         // Startup tiles here; an account added later is wired the moment it joins the collection
         // (ViewModel_Tiles_CollectionChanged), or its sign-in and sign-out buttons would do nothing.

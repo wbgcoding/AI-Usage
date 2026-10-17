@@ -95,8 +95,29 @@ public class MainWindowTickTests
     {
         var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "ViewModels", "MainViewModel.cs"));
 
-        Assert.Contains("_scheduler.Tick(IsTileHidden, IsAttended(WindowVisible, SessionLocked)", source, StringComparison.Ordinal);
-        Assert.Contains("_scheduler.RefreshNow(IsTileHidden, IsAttended(WindowVisible, SessionLocked)", source, StringComparison.Ordinal);
+        Assert.Contains("_scheduler.Tick(IsTileHidden, RefreshAttended", source, StringComparison.Ordinal);
+        Assert.Contains("_scheduler.RefreshNow(IsTileHidden, RefreshAttended", source, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, false, false, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, true, true, false)]
+    public void A_tray_number_keeps_the_normal_cadence_while_the_widget_is_hidden(
+        bool windowVisible, bool trayShowsNumber, bool sessionLocked, bool expected) =>
+        Assert.Equal(expected, MainViewModel.IsAttendedForRefresh(windowVisible, trayShowsNumber, sessionLocked));
+
+    [Fact]
+    public void The_tray_follows_each_applied_snapshot_not_only_the_tick()
+    {
+        var root = FindRepoRoot();
+        var window = File.ReadAllText(Path.Combine(root, "src", "AiUsage", "Views", "MainWindow.xaml.cs"));
+        var model = File.ReadAllText(Path.Combine(root, "src", "AiUsage", "ViewModels", "MainViewModel.cs"));
+
+        Assert.Contains("ViewModel.SnapshotApplied += UpdateTray;", window, StringComparison.Ordinal);
+        Assert.Contains("SnapshotApplied?.Invoke();", model, StringComparison.Ordinal);
     }
 
     // A worktree's own root has a ".git" FILE (pointing at the real repo's .git/worktrees/<name>),
