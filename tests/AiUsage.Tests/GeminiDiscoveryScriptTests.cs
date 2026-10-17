@@ -3,7 +3,7 @@ using AiUsage.Providers;
 namespace AiUsage.Tests;
 
 /// <summary>
-/// The Gemini read script runs inside a signed-in aistudio.google.com session, so what it may ask
+/// The Gemini read script runs inside a signed-in gemini.google.com session, so what it may ask
 /// for is fenced the same way Codex's is: a fixed candidate list, an allow-list built from that
 /// list, and a direct fetch that refuses anything outside it.
 /// </summary>
@@ -19,8 +19,9 @@ public class GeminiDiscoveryScriptTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("/api/generateContent")]
-    [InlineData("/api/usage/../generateContent")]
-    [InlineData("https://elsewhere.test/api/usage")]
+    [InlineData("/_/BardChatUi/data/batchexecute?rpcids=OTHER")]
+    [InlineData("/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc&x=1")]
+    [InlineData("https://elsewhere.test/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc")]
     [InlineData("/api/usage?x=1")]
     public void A_path_outside_the_candidate_list_is_refused(string? path)
     {
@@ -41,16 +42,32 @@ public class GeminiDiscoveryScriptTests
         Assert.Contains(GeminiDiscoveryScript.CandidatePaths[0], script, StringComparison.Ordinal);
     }
 
+    /// <summary>The usage RPC answers only on POST, so the scripts post, but only the one fixed request:
+    /// the rpc id and the request literal are constants, the body holds no other page data than the
+    /// page's own anti-forgery token, and no other verb appears.</summary>
     [Fact]
-    public void Both_scripts_only_ever_read()
+    public void Both_scripts_post_only_the_fixed_usage_request()
     {
         foreach (var script in new[] { GeminiDiscoveryScript.Discover(), GeminiDiscoveryScript.Fetch(GeminiDiscoveryScript.CandidatePaths[0]) })
         {
-            Assert.Contains("method: 'GET'", script, StringComparison.Ordinal);
-            Assert.DoesNotContain("POST", script, StringComparison.Ordinal);
+            Assert.Contains("method: 'POST'", script, StringComparison.Ordinal);
+            Assert.Contains("""[[["jSf9Qc","[]",null,"generic"]]]""", script, StringComparison.Ordinal);
+            Assert.Contains("/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc", script, StringComparison.Ordinal);
+            Assert.Contains("WIZ_global_data", script, StringComparison.Ordinal);
             Assert.DoesNotContain("PUT", script, StringComparison.Ordinal);
             Assert.DoesNotContain("DELETE", script, StringComparison.Ordinal);
+            Assert.DoesNotContain("PATCH", script, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void A_page_without_an_anti_forgery_token_answers_not_signed_in_without_a_request()
+    {
+        var script = GeminiDiscoveryScript.Discover();
+        var tokenCheck = script.IndexOf("SNlM0e", StringComparison.Ordinal);
+        var firstFetch = script.IndexOf("fetch(url", StringComparison.Ordinal);
+
+        Assert.True(tokenCheck >= 0 && tokenCheck < firstFetch, "the token check has to come before the usage request");
     }
 
     /// <summary>The whole point of the candidate walk is that a run against the live site says which
