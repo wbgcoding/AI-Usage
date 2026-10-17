@@ -164,6 +164,7 @@ internal static class ReviewSurfaces
 
         list.Add(new Surface("tile.failed", GroupTiles, context => ReviewDialogs.RenderFailedTile(context, "tile.failed"), HasMinSize: true));
         list.Add(new Surface("tile.blocked", GroupTiles, context => ReviewDialogs.RenderBlockedTile(context, "tile.blocked"), HasMinSize: true));
+        list.Add(new Surface("tile.readchange", GroupTiles, context => ReviewDialogs.RenderReadChangeTile(context, "tile.readchange"), HasMinSize: true));
 
         list.Add(new Surface("dialog.signin-blocked", GroupDialogs, context => ReviewDialogs.RenderBlockedSignIn(context.OutputPath("dialog.signin-blocked"))));
         list.Add(new Surface("dialog.welcome", GroupDialogs, context => ReviewDialogs.RenderWelcome(context.Now, context.OutputPath("dialog.welcome"))));

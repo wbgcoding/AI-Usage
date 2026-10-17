@@ -614,4 +614,12 @@
   <data name="Toast.MuteToday" xml:space="preserve"><value>Heute nicht mehr</value></data>
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Anmeldung nötig</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(Stand {0})</value></data>
+  <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Token-Index wöchentlich sichern</value></data>
+  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Die letzten drei Kopien liegen im Datenordner unter stats-backups. Ein beschädigter Index wird daraus wiederhergestellt.</value></data>
+  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Sitzungsprotokolle werden gelesen: {0} von {1} Dateien</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Sicherung vom {0}. Verlauf von {1} bis {2} für {3} Konten.</value></data>
+  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Sicherung vom {0}. Verlauf von {1} bis {2} für 1 Konto.</value></data>
+  <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Sicherung vom {0}. Ohne Verlauf.</value></data>
+  <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Anbieter hat etwas geändert, Werte evtl. unvollständig.</value></data>
+  <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Protokoll öffnen</value></data>
 </root>

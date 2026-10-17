@@ -49,4 +49,7 @@ public sealed record ProviderSnapshot(
     // True when a provider's source answered and the answer was there, but nothing in it could be
     // read (a changed shape, a renamed field). Not a network failure, not a signed-out state, not
     // a paused fetch. The scheduler reports it once per run so a log review spots the change.
-    bool UnreadableAnswer = false);
+    bool UnreadableAnswer = false,
+    // True when the read that produced this snapshot wrote a change note (see ReadChangeLog), also
+    // when that very line had been logged before. The tile then says so and links to the log.
+    bool ReadChanged = false);

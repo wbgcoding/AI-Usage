@@ -722,7 +722,7 @@ public class HistoryStore
     /// rewritten back to disk missing whatever a newer build added to it.</summary>
     private static HistoryPoint? ParseLineOrNull(string line, string providerId) => ParseLine(line, providerId).Point;
 
-    private static (HistoryPoint? Point, bool IsFutureVersion) ParseLine(string line, string providerId)
+    internal static (HistoryPoint? Point, bool IsFutureVersion) ParseLine(string line, string providerId)
     {
         if (string.IsNullOrWhiteSpace(line))
             return (null, false);

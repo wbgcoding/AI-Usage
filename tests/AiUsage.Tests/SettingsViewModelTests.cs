@@ -71,7 +71,7 @@ public class SettingsViewModelTests : IDisposable
         Func<CancellationToken, Task<UpdateCheck.Release?>>? fetchLatestRelease = null,
         IReadOnlyList<FakeProvider>? providers = null, Action<string>? showMessage = null, string? historyDirectory = null,
         string? dataDirectory = null, Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
-        Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
+        Func<string, string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null)
     {
         settings ??= new AppSettings();
         providers ??= [new("codex"), new("claude"), new("gemini"), new("copilot")];
@@ -99,7 +99,7 @@ public class SettingsViewModelTests : IDisposable
             // Never a real dialog, a real restart or the real data folder's index here either.
             askForBackupSavePath: askForBackupSavePath ?? (_ => null),
             askForBackupOpenPath: askForBackupOpenPath ?? (() => null),
-            confirmRestore: confirmRestore ?? (_ => false),
+            confirmRestore: confirmRestore ?? ((_, _) => false),
             restartApp: restartApp ?? (() => false),
             statsStore: statsStore ?? new Stats.StatsStore(dataDirectory ?? TempDirectory()));
         // The list of other PCs fills in from a pool thread; a test that records changes must not race it.
@@ -2359,7 +2359,7 @@ public class SettingsViewModelTests : IDisposable
         var asked = false;
         var restarted = false;
         var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => junk, showMessage: messages.Add,
-            confirmRestore: _ => asked = true, restartApp: () => restarted = true);
+            confirmRestore: (_, _) => asked = true, restartApp: () => restarted = true);
 
         await vm.RestoreBackupCommand.ExecuteAsync(null);
 
@@ -2379,7 +2379,7 @@ public class SettingsViewModelTests : IDisposable
         var restarts = 0;
         string? offered = null;
         var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip,
-            confirmRestore: folder => { offered = folder; return confirm; }, restartApp: () => { restarts++; return true; });
+            confirmRestore: (folder, _) => { offered = folder; return confirm; }, restartApp: () => { restarts++; return true; });
 
         await vm.RestoreBackupCommand.ExecuteAsync(null);
         Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
@@ -2405,7 +2405,7 @@ public class SettingsViewModelTests : IDisposable
         var zip = Path.Combine(TempDirectory(), "b.zip");
         BackupService.Create(SeededDataFolder(OtherPc, 99), zip, "1", OtherPc, "PC", DateTimeOffset.UtcNow, TempDirectory());
         var messages = new List<string>();
-        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip, confirmRestore: _ => true, restartApp: () => false, showMessage: messages.Add);
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip, confirmRestore: (_, _) => true, restartApp: () => false, showMessage: messages.Add);
 
         await vm.RestoreBackupCommand.ExecuteAsync(null);
 
@@ -2720,5 +2720,52 @@ public class SettingsViewModelTests : IDisposable
 
         Assert.Equal(CostCurrency.Auto, vm.SelectedCostCurrencyChoice?.Value);
         vm.Dispose();
+    }
+
+    [Theory]
+    [InlineData(1, "Settings.Backup.Preview.One")]
+    [InlineData(2, "Settings.Backup.Preview")]
+    public async Task The_restore_confirmation_gets_a_preview_line_with_the_backup_s_history(int accounts, string key)
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zipFolder = TempDirectory();
+        var source = SeededDataFolder(OtherPc, 99);
+        var from = new DateTimeOffset(2026, 2, 3, 10, 0, 0, TimeSpan.Zero);
+        var to = new DateTimeOffset(2026, 8, 9, 10, 0, 0, TimeSpan.Zero);
+        for (var i = 0; i < accounts; i++)
+            File.WriteAllText(Path.Combine(source, $"history-acct{i}.jsonl"),
+                System.Text.Json.JsonSerializer.Serialize(new HistoryPoint(1, from, WindowKind.FiveHour, 10, null)) + "\n"
+                + System.Text.Json.JsonSerializer.Serialize(new HistoryPoint(1, to, WindowKind.FiveHour, 20, null)) + "\n");
+        var zip = Path.Combine(zipFolder, "b.zip");
+        var created = DateTimeOffset.UtcNow;
+        BackupService.Create(source, zip, "1", OtherPc, "PC", created, TempDirectory());
+        string? line = null;
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip,
+            confirmRestore: (_, preview) => { line = preview; return false; });
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        var local = created.ToLocalTime();
+        var expected = LocalizationService.Instance.Format(key, local.ToString("g", System.Globalization.CultureInfo.CurrentCulture),
+            from.ToLocalTime().ToString("d", System.Globalization.CultureInfo.CurrentCulture),
+            to.ToLocalTime().ToString("d", System.Globalization.CultureInfo.CurrentCulture), accounts);
+        Assert.Equal(expected, line);
+    }
+
+    [Fact]
+    public async Task The_restore_preview_of_a_backup_without_history_says_so()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zip = Path.Combine(TempDirectory(), "b.zip");
+        var created = DateTimeOffset.UtcNow;
+        BackupService.Create(SeededDataFolder(OtherPc, 99), zip, "1", OtherPc, "PC", created, TempDirectory());
+        string? line = null;
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip,
+            confirmRestore: (_, preview) => { line = preview; return false; });
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        Assert.Equal(LocalizationService.Instance.Format("Settings.Backup.Preview.NoHistory",
+            created.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture)), line);
     }
 }

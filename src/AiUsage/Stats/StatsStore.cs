@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using AiUsage.Storage;
@@ -80,8 +81,11 @@ public sealed class StatsStore
 
     /// <summary>A consistent copy of the index file at <paramref name="sourcePath"/> through SQLite's own
     /// backup (never a raw file copy, which can catch a write half done), for a backup zip. The source
-    /// is opened read-only and the destination file must not exist yet.</summary>
-    internal static void SnapshotIndex(string sourcePath, string destinationPath)
+    /// is opened read-only and the destination file must not exist yet. With <paramref name="pagesPerStep"/>
+    /// above zero the copy runs in steps of that many pages and calls <paramref name="betweenSteps"/>
+    /// between them, so the source is free for a writer in the gaps (a write in between restarts the
+    /// copy); otherwise it is one step that holds the source for the whole copy.</summary>
+    internal static void SnapshotIndex(string sourcePath, string destinationPath, int pagesPerStep = -1, Action? betweenSteps = null)
     {
         var sourceConnectionString = new SqliteConnectionStringBuilder { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
         var destinationConnectionString = new SqliteConnectionStringBuilder { DataSource = destinationPath, Mode = SqliteOpenMode.ReadWriteCreate, Pooling = false }.ToString();
@@ -89,12 +93,251 @@ public sealed class StatsStore
         using var destination = new SqliteConnection(destinationConnectionString);
         source.Open();
         destination.Open();
-        source.BackupDatabase(destination);
+        if (pagesPerStep <= 0)
+        {
+            source.BackupDatabase(destination);
+            return;
+        }
+
+        var backup = SQLitePCL.raw.sqlite3_backup_init(destination.Handle, "main", source.Handle, "main");
+        if (backup is null || backup.IsInvalid)
+            SqliteException.ThrowExceptionForRC(SQLitePCL.raw.sqlite3_errcode(destination.Handle), destination.Handle);
+
+        try
+        {
+            var waits = 0;
+            while (true)
+            {
+                var result = SQLitePCL.raw.sqlite3_backup_step(backup, pagesPerStep);
+                if (result == SQLitePCL.raw.SQLITE_DONE)
+                    break;
+                if (result == SQLitePCL.raw.SQLITE_BUSY || result == SQLitePCL.raw.SQLITE_LOCKED)
+                {
+                    // A writer holds the source: wait for it, but not for ever.
+                    if (++waits > MaxSnapshotWaits)
+                        SqliteException.ThrowExceptionForRC(result, destination.Handle);
+                }
+                else if (result == SQLitePCL.raw.SQLITE_OK)
+                    waits = 0;
+                else
+                    SqliteException.ThrowExceptionForRC(result, destination.Handle);
+
+                betweenSteps?.Invoke();
+            }
+        }
+        finally
+        {
+            SQLitePCL.raw.sqlite3_backup_finish(backup);
+        }
+    }
+
+    private const int MaxSnapshotWaits = 400;
+
+    /// <summary>How long a just restored index is trusted before the same damage counts as new.</summary>
+    internal long RestoreGraceMilliseconds { get; init; } = 10_000;
+
+    /// <summary>Test seam: runs between the copy of a weekly copy and its move into place.</summary>
+    internal Action? BeforeRestoreMove { get; init; }
+
+    /// <summary>The data folder this store keeps its index in.</summary>
+    internal string DataDirectory => _fixedDirectory ?? AppPaths.DataDirectory;
+
+    /// <summary>Folder inside the data folder that holds the weekly copies of the index.</summary>
+    internal const string WeeklyCopyFolder = "stats-backups";
+
+    private const int KeptWeeklyCopies = 3;
+    private const int WeeklyCopyPagesPerStep = 200;
+    private const int WeeklyCopyIntervalDays = 7;
+    private const string WeeklyCopyDateFormat = "yyyy-MM-dd";
+
+    private static string WeeklyCopyPath(string folder, DateOnly date) =>
+        Path.Combine(folder, "stats-" + date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture) + ".db");
+
+    // The copies named stats-yyyy-MM-dd.db, newest first; anything else in the folder is ignored. A copy
+    // dated after today (the clock was set back) counts as dated today, the write time tells it from a
+    // real copy of today.
+    private static List<(DateOnly Date, string Path)> ListWeeklyCopies(string folder, DateOnly today)
+    {
+        var copies = new List<(DateOnly, string)>();
+        if (!Directory.Exists(folder))
+            return copies;
+
+        foreach (var path in Directory.EnumerateFiles(folder, "stats-*.db"))
+        {
+            var name = Path.GetFileName(path);
+            if (name.Length == "stats-yyyy-MM-dd.db".Length
+                && DateOnly.TryParseExact(name.AsSpan(6, WeeklyCopyDateFormat.Length), WeeklyCopyDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                copies.Add((date, path));
+        }
+
+        return copies
+            .OrderByDescending(copy => copy.Item1 > today ? today : copy.Item1)
+            .ThenByDescending(copy => File.GetLastWriteTimeUtc(copy.Item2))
+            .ToList();
+    }
+
+    /// <summary>Writes a consistent copy of the index into <c>stats-backups</c> when the newest copy is a
+    /// week old or there is none, and keeps the three newest. The copy is made under a temporary name
+    /// and moved into place, so a half written file never counts as a copy. Reads the index through
+    /// SQLite's backup API, so the running app is not held up. Every IO failure is logged and swallowed.</summary>
+    internal void WriteWeeklyCopy(string dataDirectory, DateTimeOffset now)
+    {
+        try
+        {
+            var folder = Path.Combine(dataDirectory, WeeklyCopyFolder);
+            if (Directory.Exists(folder))
+            {
+                foreach (var leftover in Directory.EnumerateFiles(folder, "stats-*.db.tmp").ToList())
+                    TryRemoveOldCopy(leftover);
+            }
+
+            var source = DatabasePathIn(dataDirectory);
+            if (!File.Exists(source))
+                return;
+
+            var today = DateOnly.FromDateTime(now.DateTime);
+            // A copy dated in the future (the clock was set back) is no reason to skip this week.
+            var newest = ListWeeklyCopies(folder, today).FirstOrDefault(copy => copy.Date <= today);
+            if (newest.Path is not null && today.DayNumber - newest.Date.DayNumber < WeeklyCopyIntervalDays)
+                return;
+
+            Directory.CreateDirectory(folder);
+            var finalPath = WeeklyCopyPath(folder, today);
+            var temporaryPath = finalPath + ".tmp";
+            try
+            {
+                SnapshotIndex(source, temporaryPath, WeeklyCopyPagesPerStep, () => Thread.Sleep(5));
+                // The backup API copies pages as they are: a damaged index would be kept (and restored)
+                // as damaged as it is. The copy is checked in full, the source is not held for it.
+                if (TryReadSchemaVersion(temporaryPath, thorough: true) is null)
+                {
+                    File.Delete(temporaryPath);
+                    _logError?.Invoke("Statistics: the weekly copy of the index failed its check and was not kept.");
+                    return;
+                }
+
+                File.Move(temporaryPath, finalPath, overwrite: false);
+            }
+            catch
+            {
+                File.Delete(temporaryPath);
+                throw;
+            }
+
+            foreach (var older in ListWeeklyCopies(folder, today).Skip(KeptWeeklyCopies))
+                TryRemoveOldCopy(older.Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            _logError?.Invoke($"Statistics: the weekly copy of the index could not be written ({ex.GetType().Name}).");
+        }
+    }
+
+    /// <summary>Puts the newest readable weekly copy in place of the missing index. The copy is made
+    /// next to the target and moved in, so the index file never appears half written; a copy that cannot
+    /// be read or copied is skipped for the next older one. False when no copy could be used.</summary>
+    private bool TryRestoreWeeklyCopy(string fullPath)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(fullPath)!;
+            foreach (var (date, copyPath) in ListWeeklyCopies(Path.Combine(directory, WeeklyCopyFolder), DateOnly.FromDateTime(DateTime.Now)))
+            {
+                // Each copy gets one try per process: a flaw the copy carries would come back with it.
+                if (!TriedCopies.Add(copyPath))
+                    continue;
+                if (TryReadSchemaVersion(copyPath, thorough: true) is null)
+                    continue;
+
+                var temporaryPath = fullPath + ".restore-tmp";
+                try
+                {
+                    File.Delete(temporaryPath);
+                    SnapshotIndex(copyPath, temporaryPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+                {
+                    DeleteRestoreLeftovers(temporaryPath);
+                    continue;
+                }
+
+                // The copy is good; only the move can fail now (a scanner holding the target for a moment).
+                // A few tries, then stop: an older copy would give up a week of rows for a lock that passes.
+                var moved = false;
+                for (var attempt = 1; attempt <= RestoreMoveAttempts && !moved; attempt++)
+                {
+                    try
+                    {
+                        BeforeRestoreMove?.Invoke();
+                        // The copy may hold an older schema: the next open has to bring it up to date.
+                        EnsuredDatabases.TryRemove(fullPath, out _);
+                        File.Move(temporaryPath, fullPath, overwrite: false);
+                        moved = true;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        if (attempt < RestoreMoveAttempts)
+                            Thread.Sleep(RestoreMoveRetryMilliseconds);
+                    }
+                }
+
+                if (!moved)
+                {
+                    // The copy itself is fine: a later start may use it.
+                    TriedCopies.Remove(copyPath);
+                    DeleteRestoreLeftovers(temporaryPath);
+                    _logError?.Invoke("Statistics: the weekly copy of the index could not be moved into place.");
+                    return false;
+                }
+
+                RecentlyRestored[fullPath] = Environment.TickCount64;
+                _logError?.Invoke($"Statistics: the index was restored from the weekly copy of {date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture)}.");
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // No readable copy folder: the caller falls back to a rebuild.
+        }
+
+        return false;
+    }
+
+    // A copy that cannot be deleted (held by a scanner) is logged apart from a failed write and stays for
+    // the next week's pass; it never stops the new copy.
+    private void TryRemoveOldCopy(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logError?.Invoke($"Statistics: an old copy of the index could not be removed ({ex.GetType().Name}).");
+        }
+    }
+
+    private const int RestoreMoveAttempts = 3;
+    private const int RestoreMoveRetryMilliseconds = 100;
+
+    private static void DeleteRestoreLeftovers(string temporaryPath)
+    {
+        foreach (var path in new[] { temporaryPath, temporaryPath + "-journal" })
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
     }
 
     /// <summary>The schema version a database file names, read without changing the file; null when
-    /// it is no SQLite file, fails SQLite's own quick check or has no version row.</summary>
-    internal static int? TryReadSchemaVersion(string databasePath)
+    /// it is no SQLite file, fails SQLite's own quick check (the full integrity check with
+    /// <paramref name="thorough"/>) or has no version row.</summary>
+    internal static int? TryReadSchemaVersion(string databasePath, bool thorough = false)
     {
         try
         {
@@ -104,7 +347,7 @@ public sealed class StatsStore
             Execute(connection, "PRAGMA trusted_schema = OFF");
             using (var check = connection.CreateCommand())
             {
-                check.CommandText = "PRAGMA quick_check(1)";
+                check.CommandText = thorough ? "PRAGMA integrity_check(1)" : "PRAGMA quick_check(1)";
                 if (!string.Equals(check.ExecuteScalar() as string, "ok", StringComparison.OrdinalIgnoreCase))
                     return null;
             }
@@ -523,35 +766,53 @@ public sealed class StatsStore
         }.ToString();
         var connection = new SqliteConnection(connectionString);
         var fullPath = Path.GetFullPath(DatabasePath);
-        // Checked before the connection creates the file: a deleted database has to be rebuilt.
-        var schemaKnown = EnsuredDatabases.ContainsKey(fullPath) && File.Exists(fullPath);
+        SqliteException? damaged = null;
+        // Shared with every other open and exclusive against setting a damaged file aside and putting a
+        // copy in its place: an open that came in between would create an empty index right where the
+        // restore moves the copy to.
+        StoreGate.EnterReadLock();
         try
         {
-            connection.Open();
-            // Nothing a database file declares (views, triggers, functions) may run with the app's rights.
-            Execute(connection, "PRAGMA trusted_schema = OFF");
-            if (schemaKnown)
+            // Checked before the connection creates the file: a deleted database has to be rebuilt.
+            var schemaKnown = EnsuredDatabases.ContainsKey(fullPath) && File.Exists(fullPath);
+            try
             {
-                SetBusyTimeout(connection);
+                connection.Open();
+                // Nothing a database file declares (views, triggers, functions) may run with the app's rights.
+                Execute(connection, "PRAGMA trusted_schema = OFF");
+                if (schemaKnown)
+                {
+                    SetBusyTimeout(connection);
+                }
+                else
+                {
+                    EnsureSchema(connection);
+                    if (IsUsable)
+                        EnsuredDatabases[fullPath] = true;
+                }
             }
-            else
+            catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
             {
-                EnsureSchema(connection);
-                if (IsUsable)
-                    EnsuredDatabases[fullPath] = true;
+                connection.Dispose();
+                damaged = ex;
+            }
+            catch
+            {
+                // The caller never sees this connection, so it would otherwise keep the file open.
+                connection.Dispose();
+                throw;
             }
         }
-        catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
+        finally
         {
-            connection.Dispose();
-            QuarantineDamagedDatabase(connection, fullPath, ex.SqliteErrorCode);
-            throw;
+            StoreGate.ExitReadLock();
         }
-        catch
+
+        if (damaged is not null)
         {
-            // The caller never sees this connection, so it would otherwise keep the file open.
-            connection.Dispose();
-            throw;
+            // Outside the shared hold: the quarantine takes the exclusive one.
+            QuarantineDamagedDatabase(connection, fullPath, damaged.SqliteErrorCode);
+            ExceptionDispatchInfo.Capture(damaged).Throw();
         }
 
         return connection;
@@ -572,20 +833,51 @@ public sealed class StatsStore
     {
         SqliteConnection.ClearPool(connection);
         EnsuredDatabases.TryRemove(fullPath, out _);
+        // Two threads can fail on the same file; the second must not set aside the index the first
+        // one just put back.
+        StoreGate.EnterWriteLock();
+        try
+        {
+            if (RecentlyRestored.TryGetValue(fullPath, out var restoredTick)
+                && Environment.TickCount64 - restoredTick < RestoreGraceMilliseconds && File.Exists(fullPath))
+                return;
+            SetAsideAndRestore(fullPath, errorCode);
+        }
+        finally
+        {
+            StoreGate.ExitWriteLock();
+        }
+    }
+
+    // Every open holds it shared; setting a damaged index aside and restoring a copy holds it exclusive.
+    private static readonly ReaderWriterLockSlim StoreGate = new(LockRecursionPolicy.NoRecursion);
+    private static readonly Dictionary<string, long> RecentlyRestored = new(StringComparer.OrdinalIgnoreCase);
+    // Weekly copies this process already tried to restore (guarded by the write side of the gate).
+    private static readonly HashSet<string> TriedCopies = new(StringComparer.OrdinalIgnoreCase);
+
+    private void SetAsideAndRestore(string fullPath, int errorCode)
+    {
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
             // The index is the only copy of usage whose session logs are gone, so earlier copies are
             // kept too: only those beyond the newest few are removed.
-            foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
-                         .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
-                         .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
+            // After a restore in this process the file set aside first holds the newest rows: a repeat
+            // of the damage must never rotate it out, so nothing is removed then.
+            if (!RecentlyRestored.ContainsKey(fullPath))
             {
-                File.Delete(older);
-                foreach (var suffix in SidecarSuffixes)
-                    File.Delete(older + suffix);
+                foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
+                             .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
+                             .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
+                {
+                    File.Delete(older);
+                    foreach (var suffix in SidecarSuffixes)
+                        File.Delete(older + suffix);
+                }
             }
             var setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";
+            for (var counter = 2; File.Exists(setAside); counter++)
+                setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}-{counter}";
             File.Move(fullPath, setAside);
             // A journal or WAL holds pages the copy may need to be read back; it moves along with it,
             // and a new index never picks it up.
@@ -594,7 +886,8 @@ public sealed class StatsStore
                 if (File.Exists(fullPath + suffix))
                     File.Move(fullPath + suffix, setAside + suffix, overwrite: true);
             }
-            _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
+            if (!TryRestoreWeeklyCopy(fullPath))
+                _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

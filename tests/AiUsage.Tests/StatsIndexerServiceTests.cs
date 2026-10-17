@@ -405,4 +405,116 @@ public class StatsIndexerServiceTests
         Assert.Throws<OperationCanceledException>(
             () => StatsIndexer.EnumerateNewestFirst(root, "*.jsonl", out _, cancelled.Token));
     }
+
+    [Fact]
+    public void A_finished_walk_writes_the_weekly_copy_while_it_is_enabled()
+    {
+        var copies = 0;
+        using var service = StatsIndexerService.ForTest(
+            _ => Walk(1, 0), loadSnapshot: EmptySnapshot, weeklyCopy: _ => Interlocked.Increment(ref copies));
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(1, copies);
+    }
+
+    [Fact]
+    public void No_weekly_copy_is_written_while_it_is_switched_off()
+    {
+        var copies = 0;
+        using var service = StatsIndexerService.ForTest(
+            _ => Walk(1, 0), loadSnapshot: EmptySnapshot, weeklyCopy: _ => Interlocked.Increment(ref copies));
+        service.WeeklyCopyEnabled = false;
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(0, copies);
+    }
+
+    [Fact]
+    public void No_weekly_copy_is_written_after_a_cancelled_walk()
+    {
+        var copies = 0;
+        StatsIndexerService? holder = null;
+        using var service = StatsIndexerService.ForTest(_ =>
+        {
+            holder!.Cancel();
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot, weeklyCopy: _ => Interlocked.Increment(ref copies));
+        holder = service;
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(0, copies);
+    }
+
+    [Fact]
+    public void A_failing_weekly_copy_neither_ends_the_thread_nor_blocks_the_next_walk()
+    {
+        var walks = 0;
+        using var service = StatsIndexerService.ForTest(_ =>
+        {
+            Interlocked.Increment(ref walks);
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot, weeklyCopy: _ => throw new InvalidOperationException("disk"));
+
+        service.StartInBackground();
+        WaitIdle(service);
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(2, walks);
+    }
+
+    [Fact]
+    public void Progress_is_throttled_and_cleared_when_the_walk_ends()
+    {
+        var events = new List<(int Done, int Total)?>();
+        (int Done, int Total)? during = null;
+        StatsIndexerService? holder = null;
+        using var service = StatsIndexerService.ForTest((token, progress) =>
+        {
+            for (var done = 1; done <= 100; done++)
+                progress(done, 100);
+            during = holder!.Progress;
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot);
+        holder = service;
+        service.ProgressChanged += (_, _) => events.Add(holder.Progress);
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        // 25, 50, 75, 100 while the walk ran, then one more when the value was cleared.
+        Assert.Equal((100, 100), during);
+        Assert.InRange(events.Count, 4, 6);
+        Assert.Equal([(25, 100), (50, 100), (75, 100), (100, 100)], events.Take(4).Select(e => e!.Value).ToArray());
+        Assert.Null(service.Progress);
+        Assert.Null(events[^1]);
+    }
+
+    [Fact]
+    public void A_walk_without_progress_raises_no_progress_event_and_a_failing_handler_does_not_stop_it()
+    {
+        var raised = 0;
+        using var service = StatsIndexerService.ForTest(_ => Walk(1, 0), loadSnapshot: EmptySnapshot);
+        service.ProgressChanged += (_, _) => raised++;
+        service.StartInBackground();
+        WaitIdle(service);
+        Assert.Equal(0, raised);
+        Assert.Null(service.Progress);
+
+        using var failing = StatsIndexerService.ForTest((_, progress) =>
+        {
+            progress(30, 30);
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot);
+        failing.ProgressChanged += (_, _) => throw new InvalidOperationException("handler");
+        failing.StartInBackground();
+        WaitIdle(failing);
+        Assert.Null(failing.Progress);
+    }
 }

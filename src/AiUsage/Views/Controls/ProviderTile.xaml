@@ -399,6 +399,12 @@
                         </ItemsControl.Style>
                     </ItemsControl>
 
+                    <!-- The provider's answer changed shape: values may be incomplete, with the log one click away. -->
+                    <TextBlock FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               Margin="0,4,0,8" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
+                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ReadChange.Notice]}"
+                               Visibility="{Binding ShowReadChangeNotice, Converter={StaticResource BoolToVis}}"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ReadChange.Notice], Mode=OneWay}"/> <Hyperlink Command="{Binding OpenLogCommand}" Foreground="{DynamicResource Accent}"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ReadChange.OpenLog], Mode=OneWay}"/></Hyperlink></TextBlock>
+
                     <!-- Until the chart has two readings it is one muted line, not an empty box. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.Empty]}"
                                FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Micro}"

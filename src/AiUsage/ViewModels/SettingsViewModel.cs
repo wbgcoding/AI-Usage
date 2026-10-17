@@ -41,7 +41,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string, bool> _removeMachine;
     private readonly Func<string, string?> _askForBackupSavePath;
     private readonly Func<string?> _askForBackupOpenPath;
-    private readonly Func<string, bool> _confirmRestore;
+    private readonly Func<string, string, bool> _confirmRestore;
     private readonly Func<bool> _restartApp;
     private readonly Func<string, bool> _confirmRiskyFolder;
     private readonly Func<string, bool> _confirmReplaceOldCopy;
@@ -276,6 +276,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RefreshSecondsLabel))]
     private int refreshSeconds;
+
+    /// <summary>Whether the token index is copied weekly into the data folder.</summary>
+    [ObservableProperty]
+    private bool statsWeeklyCopy;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RetentionLabel))]
@@ -604,7 +608,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Action<string, string>? copyIndex = null,
         Action<string, string>? copySmallFiles = null,
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
-        Func<string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
+        Func<string, string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
         Func<string, bool>? removeMachine = null, Func<string, bool>? confirmRiskyFolder = null,
         Func<string, bool>? confirmReplaceOldCopy = null)
     {
@@ -646,6 +650,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         showPreviousWeekLine = settings.ShowPreviousWeekLine;
         hideOnFullscreen = settings.HideOnFullscreen;
         saveEnergyOnBattery = settings.SaveEnergyOnBattery;
+        statsWeeklyCopy = settings.StatsWeeklyCopy;
         zoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
         Choice.Select(ZoomChoices, zoomPercent);
         showTooltips = settings.ShowTooltips;
@@ -1134,6 +1139,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.SaveEnergyOnBattery = value;
         _store.RequestSave(_settings);
         Main.UpdateSaveEnergyOnBattery(value);
+    }
+
+    partial void OnStatsWeeklyCopyChanged(bool value)
+    {
+        _settings.StatsWeeklyCopy = value;
+        _store.RequestSave(_settings);
+        if (Stats.StatsIndexerService.Shared is { } indexer)
+            indexer.WeeklyCopyEnabled = value;
     }
 
     partial void OnCheckForUpdatesChanged(bool value)
@@ -1683,7 +1696,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             var dataDirectory = _store.DataDirectory;
             var setAside = BackupService.PlanSetAside(dataDirectory, DateTime.Now);
-            if (!_confirmRestore(setAside))
+            if (!_confirmRestore(setAside, RestorePreviewLine(inspection.Summary)))
                 return;
 
             _store.SaveNow(_settings);
@@ -1731,10 +1744,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         return dialog.ShowDialog() == true;
     }
 
-    private static bool ShowRealRestoreConfirm(string setAsideFolder)
+    /// <summary>One line on what the chosen backup holds, shown above the restore question; empty when
+    /// the backup gave no summary.</summary>
+    internal static string RestorePreviewLine(BackupSummary? summary)
+    {
+        if (summary is null)
+            return "";
+
+        var loc = LocalizationService.Instance;
+        var culture = CultureInfo.CurrentCulture;
+        var created = summary.Created.ToLocalTime().ToString("g", culture);
+        if (summary is not { HistoryFrom: { } from, HistoryTo: { } to, AccountsWithHistory: > 0 and var accounts })
+            return loc.Format("Settings.Backup.Preview.NoHistory", created);
+
+        return loc.Format(accounts == 1 ? "Settings.Backup.Preview.One" : "Settings.Backup.Preview",
+            created, from.ToLocalTime().ToString("d", culture), to.ToLocalTime().ToString("d", culture), accounts);
+    }
+
+    private static bool ShowRealRestoreConfirm(string setAsideFolder, string previewLine)
     {
         var loc = LocalizationService.Instance;
-        var dialog = new Views.ConfirmWindow(AppInfo.ProductName, loc.Format("Settings.Backup.RestoreConfirm", setAsideFolder),
+        var question = loc.Format("Settings.Backup.RestoreConfirm", setAsideFolder);
+        var dialog = new Views.ConfirmWindow(AppInfo.ProductName, previewLine.Length == 0 ? question : previewLine + "\n\n" + question,
             loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
         Views.OwnerWindowResolver.ApplyOwner(dialog, null);
         return dialog.ShowDialog() == true;
@@ -1997,6 +2028,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
+        _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.AllDaysAllowed = source.AllDaysAllowed;
         _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
@@ -2089,6 +2121,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
+        StatsWeeklyCopy = _settings.StatsWeeklyCopy;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
         AllDaysAllowed = _settings.AllDaysAllowed;
         RebuildQuietDays();

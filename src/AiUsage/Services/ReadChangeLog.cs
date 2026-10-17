@@ -23,6 +23,9 @@ public static class ReadChangeLog
     // its own once-only memory, so parallel tests neither see each other's lines nor touch the log.
     private static readonly AsyncLocal<Capture?> Current = new();
 
+    // The read scope of the current async flow (see BeginReadScope), independent of any capture.
+    private static readonly AsyncLocal<ReadScope?> CurrentRead = new();
+
     /// <summary>Writes the WARN line for <paramref name="note"/> unless this provider already
     /// reported the very same note in this run.</summary>
     public static void Report(string providerName, string note) => Write(providerName, note, general: false);
@@ -66,6 +69,8 @@ public static class ReadChangeLog
 
     private static void Write(string providerName, string note, bool general)
     {
+        // Before any once-only check: a change already logged earlier still counts for this read.
+        CurrentRead.Value?.MarkNoted();
         var line = $"{Prefix} ({providerName} usage read needs adapting): {note}";
         if (Current.Value is { } capture)
         {
@@ -83,6 +88,31 @@ public static class ReadChangeLog
                 ProvidersWithNote.Add(providerName);
         }
         LogService.Shared.Log("WARN", line);
+    }
+
+    /// <summary>Starts watching this flow for notes: <see cref="ReadScope.Noted"/> turns true once any
+    /// note is written inside it, whether or not the line was new. Dispose ends the scope and gives
+    /// the enclosing one (if any) back.</summary>
+    internal static ReadScope BeginReadScope()
+    {
+        var scope = new ReadScope(CurrentRead.Value);
+        CurrentRead.Value = scope;
+        return scope;
+    }
+
+    /// <summary>One read's "did anything change" flag; shared by the read's own flow and every task it starts.</summary>
+    internal sealed class ReadScope : IDisposable
+    {
+        private readonly ReadScope? _outer;
+        private volatile bool _noted;
+
+        internal ReadScope(ReadScope? outer) => _outer = outer;
+
+        public bool Noted => _noted;
+
+        internal void MarkNoted() => _noted = true;
+
+        public void Dispose() => CurrentRead.Value = _outer;
     }
 
     /// <summary>Starts collecting this flow's lines instead of logging them; dispose to end it.</summary>

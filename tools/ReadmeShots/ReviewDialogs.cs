@@ -50,6 +50,19 @@ internal static class ReviewDialogs
             now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
     }
 
+    internal static void RenderReadChangeTile(SurfaceContext context, string id)
+    {
+        var now = DateTimeOffset.Now;
+        var windows = new[]
+        {
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, now.AddHours(2), 300),
+            new UsageWindow("Window_Weekly", WindowKind.Weekly, 18, now.AddDays(3), 10080),
+        };
+        RenderTile(
+            new ProviderSnapshot("claude", windows, "Pro", SourceKind.WebSession, now, now, ProviderStatus.Ok, null, ReadChanged: true),
+            now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
+    }
+
     internal static void RenderCrash(string outputPath)
     {
         // A few lines of sample details: the box keeps its minimum height and grows with them.
@@ -124,12 +137,13 @@ internal static class ReviewDialogs
     internal static void RenderRestoreConfirm(string outputPath)
     {
         var loc = LocalizationService.Instance;
-        var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Settings.Backup.RestoreConfirm", SampleSetAsideFolder),
+        var preview = loc.Format("Settings.Backup.Preview", "10/10/2026 12:00", "3/2/2026", "9/20/2026", 3);
+        var window = new ConfirmWindow(AppInfo.ProductName, preview + "\n\n" + loc.Format("Settings.Backup.RestoreConfirm", SampleSetAsideFolder),
             loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
     }
 
-    internal static void RenderRestoreNotice(string outputPath)
+internal static void RenderRestoreNotice(string outputPath)
     {
         var loc = LocalizationService.Instance;
         var window = new ConfirmWindow(AppInfo.ProductName, loc.Format("Backup.Restored", SampleSetAsideFolder), loc["Action.Ok"], "");

@@ -615,4 +615,12 @@
   <data name="Toast.MuteToday" xml:space="preserve"><value>Not again today</value></data>
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Sign-in needed</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(as of {0})</value></data>
+  <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Back up the token index weekly</value></data>
+  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>The last three copies are kept in the data folder under stats-backups. A damaged index is restored from them.</value></data>
+  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Reading session logs: {0} of {1} files</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Backup from {0}. History from {1} to {2} for {3} accounts.</value></data>
+  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Backup from {0}. History from {1} to {2} for 1 account.</value></data>
+  <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Backup from {0}. No history.</value></data>
+  <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>The provider changed something; values may be incomplete.</value></data>
+  <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Open log</value></data>
 </root>

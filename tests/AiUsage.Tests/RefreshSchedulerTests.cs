@@ -997,6 +997,45 @@ public class RefreshSchedulerTests
         Assert.Equal(ProviderStatus.Ok, Assert.Single(reported).Status);
     }
 
+    [Fact]
+    public async Task A_read_that_reports_a_change_is_raised_with_ReadChanged_and_the_next_clean_read_without()
+    {
+        using var capture = ReadChangeLog.BeginCapture();
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var changed = true;
+        var provider = new FakeProvider("codex", _ =>
+        {
+            if (changed)
+                ReadChangeLog.Report("codex", "an unknown window 'x'.");
+            return Task.FromResult(Ok("codex") with { Windows = [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 10, null, 300)] });
+        });
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+        changed = false;
+        clock.Advance(BaseInterval * 2);
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal([true, false], reported.Select(s => s.ReadChanged));
+    }
+
+    [Fact]
+    public async Task A_general_finding_of_the_scheduler_itself_also_sets_ReadChanged()
+    {
+        using var capture = ReadChangeLog.BeginCapture();
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("claude") { NextResult = Ok("claude") with { Windows = [] } };
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.True(Assert.Single(reported).ReadChanged);
+    }
+
     private sealed class FakeProvider : IUsageProvider
     {
         private readonly Func<CancellationToken, Task<ProviderSnapshot>>? _fetch;

@@ -26,8 +26,12 @@ public enum BackupRefusal
 /// <summary>The identity card inside a backup (<c>manifest.json</c>).</summary>
 public sealed record BackupManifest(int Format, string AppVersion, string MachineId, string MachineName, DateTimeOffset Created);
 
+/// <summary>What a backup holds, for the line shown before a restore: when it was made and which span of
+/// history it carries (null range when it carries none).</summary>
+public sealed record BackupSummary(DateTimeOffset Created, DateTimeOffset? HistoryFrom, DateTimeOffset? HistoryTo, int AccountsWithHistory);
+
 /// <summary>The result of looking inside a backup without changing anything.</summary>
-public sealed record BackupInspection(BackupRefusal Refusal, BackupManifest? Manifest)
+public sealed record BackupInspection(BackupRefusal Refusal, BackupManifest? Manifest, BackupSummary? Summary = null)
 {
     public bool IsAccepted => Refusal == BackupRefusal.None;
 }
@@ -75,6 +79,10 @@ public static class BackupService
     internal const long MaxTotalBytes = 3L * 1024 * 1024 * 1024;
     internal const long MaxStatsBytes = 2L * 1024 * 1024 * 1024;
     internal const long MaxHistoryBytes = 256L * 1024 * 1024;
+
+    /// <summary>A history line longer than this is never a point (they are a few hundred characters);
+    /// the preview skips it instead of holding it in memory.</summary>
+    internal const int MaxHistoryLineChars = 1024 * 1024;
     internal const long MaxSmallFileBytes = 4L * 1024 * 1024;
     internal const long MaxManifestBytes = 64 * 1024;
 
@@ -317,6 +325,44 @@ public static class BackupService
             return AppEncoding.Utf8NoBom.GetString(memory.GetBuffer(), 0, (int)memory.Length);
         }
 
+        /// <summary>The entry's lines, read through a stream: only one line (up to
+        /// <see cref="MaxHistoryLineChars"/> characters; longer ones are skipped) is in memory at a time.
+        /// Size and checksum were already checked by <see cref="Verify"/>.</summary>
+        public IEnumerable<string> ReadLines(string name)
+        {
+            using var reader = new StreamReader(_entries[name].Open(), AppEncoding.Utf8NoBom, detectEncodingFromByteOrderMarks: false);
+            var line = new StringBuilder();
+            var tooLong = false;
+            var buffer = new char[8192];
+            int read;
+            while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (var i = 0; i < read; i++)
+                {
+                    var c = buffer[i];
+                    if (c == '\n')
+                    {
+                        if (!tooLong && line.Length > 0)
+                            yield return line.ToString();
+                        line.Clear();
+                        tooLong = false;
+                    }
+                    else if (!tooLong)
+                    {
+                        line.Append(c);
+                        if (line.Length > MaxHistoryLineChars)
+                        {
+                            tooLong = true;
+                            line.Clear();
+                        }
+                    }
+                }
+            }
+
+            if (!tooLong && line.Length > 0)
+                yield return line.ToString();
+        }
+
         /// <summary>Reads the whole entry and discards it: the really decompressed size and the stored
         /// checksum are checked like in <see cref="Extract"/>, without writing anything.</summary>
         public void Verify(string name, ref long totalRead) => CopyChecked(_entries[name], Stream.Null, name, ref totalRead);
@@ -524,14 +570,14 @@ public static class BackupService
         {
             using var backup = OpenedBackup.Open(zipPath);
             CheckContent(backup, scratch);
-            return new BackupInspection(BackupRefusal.None, backup.Manifest);
+            return new BackupInspection(BackupRefusal.None, backup.Manifest, Summarise(backup));
         }
         catch (RefusedException ex)
         {
             return new BackupInspection(ex.Refusal, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException
-            or FormatException or InvalidCastException or OverflowException)
+            or FormatException or InvalidCastException or OverflowException or OutOfMemoryException)
         {
             return new BackupInspection(BackupRefusal.NotABackup, null);
         }
@@ -541,7 +587,34 @@ public static class BackupService
         }
     }
 
-    /// <summary>The checks that need the entries' content: the settings file and the token index.</summary>
+    /// <summary>Reads the history entries of an already checked backup for their time range and the
+    /// number of accounts that have at least one readable point; unreadable lines are skipped.</summary>
+    private static BackupSummary Summarise(OpenedBackup backup)
+    {
+        DateTimeOffset? from = null, to = null;
+        var accounts = 0;
+        foreach (var name in backup.DataNames.Where(n => HistoryName.IsMatch(n)))
+        {
+            var providerId = name["history-".Length..^".jsonl".Length];
+            var any = false;
+            foreach (var line in backup.ReadLines(name))
+            {
+                if (HistoryStore.ParseLine(line, providerId).Point is not { } point)
+                    continue;
+                any = true;
+                if (from is null || point.Timestamp < from)
+                    from = point.Timestamp;
+                if (to is null || point.Timestamp > to)
+                    to = point.Timestamp;
+            }
+
+            if (any)
+                accounts++;
+        }
+
+        return new BackupSummary(backup.Manifest.Created, from, to, accounts);
+    }
+
     /// <summary>Checks every entry of <paramref name="backup"/> and returns where its token index was
     /// unpacked for the schema check (null when it carries none), so a caller needing the index
     /// itself takes this copy instead of unpacking it a second time.</summary>
