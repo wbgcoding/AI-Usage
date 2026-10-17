@@ -133,8 +133,9 @@ public sealed class StatsStore
 
     private const int MaxSnapshotWaits = 400;
 
-    /// <summary>How long a just restored index is trusted before the same damage counts as new.</summary>
-    internal long RestoreGraceMilliseconds { get; init; } = 10_000;
+    /// <summary>Test seam: runs in an open that met damage, after it let go of the store gate and before
+    /// it asks for the quarantine.</summary>
+    internal Action? BeforeQuarantine { get; init; }
 
     /// <summary>Test seam: runs between the copy of a weekly copy and its move into place.</summary>
     internal Action? BeforeRestoreMove { get; init; }
@@ -391,7 +392,7 @@ public sealed class StatsStore
 
         // Restored once per process: the same flaw would come back with the same copy.
         TriedCopies.Add(prepared.CopyPath);
-        RecentlyRestored[fullPath] = Environment.TickCount64;
+        RecentlyRestored.Add(fullPath);
         _logError?.Invoke($"Statistics: the index was restored from the weekly copy of {prepared.Date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture)}.");
         return true;
     }
@@ -860,12 +861,15 @@ public sealed class StatsStore
         var connection = new SqliteConnection(connectionString);
         var fullPath = Path.GetFullPath(DatabasePath);
         SqliteException? damaged = null;
+        long generation;
         // Shared with every other open and exclusive against setting a damaged file aside and putting a
         // copy in its place: an open that came in between would create an empty index right where the
         // restore moves the copy to.
         StoreGate.EnterReadLock();
         try
         {
+            // Which incarnation of the file this open looks at: a damage report for an older one is stale.
+            generation = FileGenerations.GetValueOrDefault(fullPath);
             // Checked before the connection creates the file: a deleted database has to be rebuilt.
             var schemaKnown = EnsuredDatabases.ContainsKey(fullPath) && File.Exists(fullPath);
             try
@@ -904,7 +908,8 @@ public sealed class StatsStore
         if (damaged is not null)
         {
             // Outside the shared hold: the quarantine takes the exclusive one.
-            QuarantineDamagedDatabase(connection, fullPath, damaged.SqliteErrorCode);
+            BeforeQuarantine?.Invoke();
+            QuarantineDamagedDatabase(connection, fullPath, damaged.SqliteErrorCode, generation);
             ExceptionDispatchInfo.Capture(damaged).Throw();
         }
 
@@ -922,17 +927,16 @@ public sealed class StatsStore
     /// <summary>A damaged index never heals and would leave the statistics empty for good. It is set
     /// aside (one copy is kept for inspection) so the next walk rebuilds it from the session logs.
     /// Best effort: a file another process still holds stays where it is until the next attempt.</summary>
-    private void QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode)
+    private void QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode, long generation)
     {
         SqliteConnection.ClearPool(connection);
         EnsuredDatabases.TryRemove(fullPath, out _);
-        // Two threads can fail on the same file; the second must not set aside the index the first
-        // one just put back.
+        // Two threads can fail on the same file; the second one's report is about a file that is gone
+        // by now and must not set aside the index the first one put in its place.
         StoreGate.EnterWriteLock();
         try
         {
-            if (RecentlyRestored.TryGetValue(fullPath, out var restoredTick)
-                && Environment.TickCount64 - restoredTick < RestoreGraceMilliseconds && File.Exists(fullPath))
+            if (FileGenerations.GetValueOrDefault(fullPath) != generation)
                 return;
             SetAsideAndRestore(fullPath, errorCode);
         }
@@ -944,7 +948,10 @@ public sealed class StatsStore
 
     // Every open holds it shared; setting a damaged index aside and restoring a copy holds it exclusive.
     private static readonly ReaderWriterLockSlim StoreGate = new(LockRecursionPolicy.NoRecursion);
-    private static readonly Dictionary<string, long> RecentlyRestored = new(StringComparer.OrdinalIgnoreCase);
+    // Per path, counts the times the file was set aside (guarded by the gate: written exclusive, read shared).
+    private static readonly Dictionary<string, long> FileGenerations = new(StringComparer.OrdinalIgnoreCase);
+    // Paths this process put a weekly copy back at.
+    private static readonly HashSet<string> RecentlyRestored = new(StringComparer.OrdinalIgnoreCase);
     // Weekly copies this process already tried to restore (guarded by the write side of the gate).
     private static readonly HashSet<string> TriedCopies = new(StringComparer.OrdinalIgnoreCase);
 
@@ -962,7 +969,7 @@ public sealed class StatsStore
             // kept too: only those beyond the newest few are removed.
             // After a restore in this process the file set aside first holds the newest rows: a repeat
             // of the damage must never rotate it out, so nothing is removed then.
-            if (!RecentlyRestored.ContainsKey(fullPath))
+            if (!RecentlyRestored.Contains(fullPath))
             {
                 foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
                              .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
@@ -977,6 +984,7 @@ public sealed class StatsStore
             for (var counter = 2; File.Exists(setAside); counter++)
                 setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}-{counter}";
             File.Move(fullPath, setAside);
+            FileGenerations[fullPath] = FileGenerations.GetValueOrDefault(fullPath) + 1;
             // A journal or WAL holds pages the copy may need to be read back; it moves along with it,
             // and a new index never picks it up.
             foreach (var suffix in SidecarSuffixes)

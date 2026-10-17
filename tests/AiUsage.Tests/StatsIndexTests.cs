@@ -1800,13 +1800,13 @@ public class StatsIndexTests
         File.WriteAllText(dbPath, new string('x', 8192));
         File.SetLastWriteTimeUtc(dbPath, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var logged = new List<string>();
-        var store = new StatsStore(dataDir, logError: logged.Add) { RestoreGraceMilliseconds = 0 };
+        var store = new StatsStore(dataDir, logError: logged.Add);
         store.TryLoadSourceFiles(out _);
         Assert.Contains(logged, line => line.Contains("restored from the weekly copy", StringComparison.Ordinal));
         var first = Directory.GetFiles(dataDir, "stats.db.corrupt-*")
             .Single(path => new FileInfo(path).Length == 8192);
 
-        // The same damage shows up again in the restored file (no grace window left).
+        // The same damage shows up again in the restored file.
         SqliteConnection.ClearAllPools();
         File.WriteAllText(dbPath, new string('y', 8192));
         logged.Clear();
@@ -1815,6 +1815,36 @@ public class StatsIndexTests
         Assert.DoesNotContain(logged, line => line.Contains("restored from", StringComparison.Ordinal));
         Assert.Contains(logged, line => line.Contains("rebuilt from the session logs", StringComparison.Ordinal));
         Assert.True(File.Exists(first));
+    }
+
+    [Fact]
+    public void A_stale_damage_report_never_sets_aside_the_index_that_replaced_the_damaged_file()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-stale-damage");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        File.WriteAllText(dbPath, new string('x', 8192));
+        var inner = new StatsStore(dataDir);
+        var ran = false;
+        var outer = new StatsStore(dataDir, logError: _ => { })
+        {
+            // A second open meets the same damage first, rebuilds the index and writes a row into it.
+            BeforeQuarantine = () =>
+            {
+                if (ran)
+                    return;
+                ran = true;
+                inner.TryLoadSourceFiles(out _);
+                inner.TryLoadSourceFiles(out _);
+                Assert.True(inner.SetSourceFile(new StatsSourceFileState("file-new", "claude", 100, 100, DateTime.UtcNow)));
+            },
+        };
+
+        outer.TryLoadSourceFiles(out _);
+
+        Assert.True(ran);
+        Assert.True(inner.TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-new"], states.Keys);
+        Assert.Single(Directory.GetFiles(dataDir, "stats.db.corrupt-*"), path => !path.EndsWith("-wal") && !path.EndsWith("-shm"));
     }
 
     [Fact]
