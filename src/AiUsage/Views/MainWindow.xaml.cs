@@ -30,6 +30,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly DispatcherTimer _tickTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
     private readonly TrayService _tray;
     private readonly ToastNotifier _toasts;
+    private readonly AlertBundler _alerts;
     private readonly MonitorAreaCache _monitorAreas = new(() => NativeMonitors.WorkAreas());
     private readonly TrayTooltipMemo _trayTooltipMemo = new();
     private readonly ClickThroughPolicy _clickThroughPolicy = new();
@@ -189,6 +190,7 @@ public partial class MainWindow : Window, IDisposable
         _tray = new TrayService(WindowLayers.Normalize(_settings.WindowLayer), _settings.ClickThrough);
         _toasts = new ToastNotifier(new WinRtToastBackend(), line => (logService ?? LogService.Shared).LogInfo(line));
         // A click arrives on a platform thread; everything it triggers runs on the UI thread.
+        _alerts = new AlertBundler(AlertBundleWindow, ShowAlert, AlertBundler.ScheduleOnDispatcher);
         _toasts.Activated += argument => Dispatcher.BeginInvoke(new Action(() => OnToastActivated(argument)));
         _tray.WidgetVisible = () => IsVisibleForTick() && !_hiddenByFullscreen;
         _tray.ShowHideRequested += (_, _) => ToggleVisibility();
@@ -256,18 +258,23 @@ public partial class MainWindow : Window, IDisposable
     private void ViewModel_NotificationRaised(ThresholdNotification notification) =>
         ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text(DateTimeOffset.Now));
 
+    /// <summary>Alerts of one account that arrive together become one toast.</summary>
+    private static readonly TimeSpan AlertBundleWindow = TimeSpan.FromSeconds(3);
+
     /// <summary>A usage alert: buttons to bring the widget forward and to stay quiet for the rest of the day.</summary>
     private void ShowUsageAlert(string providerId, string title, string text)
     {
         var loc = LocalizationService.Instance;
-        ShowAlert(title, text, [(loc["Toast.ShowWidget"], ToastXml.ShowArgument), (loc["Toast.MuteToday"], ToastXml.MuteArgument(providerId))]);
+        _alerts.Add(new Alert(providerId, title, [text],
+            [(loc["Toast.ShowWidget"], ToastXml.ShowArgument), (loc["Toast.MuteToday"], ToastXml.MuteArgument(providerId))]));
     }
 
-    /// <summary>One alert as a Windows toast; the tray balloon takes over for this and every later
+    /// <summary>A bundled alert as a Windows toast; the tray balloon takes over for this and every later
     /// alert once toasts are unavailable.</summary>
-    private void ShowAlert(string title, string text, IReadOnlyList<(string Label, string Argument)> buttons)
+    private void ShowAlert(Alert alert)
     {
-        if (!_toasts.TryShow(title, text, buttons))
+        var text = string.Join('\n', alert.Lines);
+        if (!_toasts.TryShow(alert.Title, text, alert.Buttons))
             _tray.ShowBalloon(text);
     }
 
@@ -299,7 +306,8 @@ public partial class MainWindow : Window, IDisposable
         var button = notification.CanSignInHere
             ? (loc["Toast.SignIn"], ToastXml.SignInArgument(notification.ProviderId))
             : (loc["Toast.ShowWidget"], ToastXml.ShowArgument);
-        ShowAlert(loc.Format("Toast.SignInNeeded.Title", notification.ProviderDisplayName), loc["Toast.SignInNeeded.Body"], [button]);
+        _alerts.Add(new Alert(notification.ProviderId, loc.Format("Toast.SignInNeeded.Title", notification.ProviderDisplayName),
+            [loc["Toast.SignInNeeded.Body"]], [button]));
     }
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
@@ -1965,6 +1973,7 @@ public partial class MainWindow : Window, IDisposable
         _globalHotkey?.Dispose();
         _desktopLayer?.Dispose();
         _fullscreenWatcher?.Dispose();
+        _alerts.FlushAll();
         _tray.Dispose();
         // Blocking is safe here: this only ever runs from MainWindow_Closing on the UI thread, and
         // nothing DisposeAsync awaits needs to marshal back onto that same thread to complete.
