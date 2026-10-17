@@ -162,6 +162,7 @@ public sealed partial class MainViewModel
 
     private bool KeyIsTaken(string accountKey) =>
         _settings.Accounts.ContainsKey(accountKey)
+        || SharesFolderNameWithAnotherAccount(accountKey)
         || _historyStore.HasHistory(accountKey)
         || Directory.Exists(WebViewHost.ProfileFolderPath(ProviderRegistry.WebSessionFor(accountKey).ProfileFolderName));
 

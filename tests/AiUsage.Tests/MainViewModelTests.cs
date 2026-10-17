@@ -2635,6 +2635,29 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ANewAccountSkipsAKeyThatCleansDownToAnExistingHandSetKey()
+    {
+        var settings = new AppSettings();
+        settings.Accounts["claude-2"] = "claude";
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings,
+            [new FakeAccountProvider("claude")], new HistoryStore(TempDirectory(), () => Now));
+        vm.CreateWebAccount = key => (new FakeAccountProvider(key), new GatedRunner());
+
+        WebViewHost.SetRootOverride(TempDirectory());
+        try
+        {
+            vm.AddAccountCommand.Execute("claude");
+        }
+        finally
+        {
+            WebViewHost.ClearRootOverrideForTests();
+        }
+
+        Assert.True(settings.Accounts.ContainsKey("claude#3"));
+        Assert.False(settings.Accounts.ContainsKey("claude#2"));
+    }
+
+    [Fact]
     public void ANewAccountSkipsAKeyWhoseSignInFolderIsStillOnDisk()
     {
         var root = TempDirectory();
