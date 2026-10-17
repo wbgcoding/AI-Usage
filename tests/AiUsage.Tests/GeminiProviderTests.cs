@@ -159,6 +159,22 @@ public class GeminiProviderTests : IDisposable
         Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, ModelQuota));
 
     [Fact]
+    public async Task A_new_Gemini_model_is_reported_through_the_shared_change_log()
+    {
+        var quota = ModelQuota.Replace(
+            """{"tokenType":"WTUS","modelId":"chat_20706","remainingFraction":1},""",
+            """{"resetTime":"2026-10-17T11:40:31Z","modelId":"gemini-9-argon","remainingFraction":0.97771573},""");
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, SummaryWithoutGemini, "Pro", ModelQuotaJson: quota);
+        using var capture = ReadChangeLog.BeginCapture();
+
+        await Provider(usage, FakeEmail).FetchAsync(CancellationToken.None);
+
+        var line = Assert.Single(capture.Lines);
+        Assert.StartsWith("CHANGE DETECTED (Gemini usage read needs adapting): ", line, StringComparison.Ordinal);
+        Assert.Contains("gemini-9-argon", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_new_Gemini_model_and_an_unknown_model_family_are_named()
     {
         var quota = ModelQuota.Replace(

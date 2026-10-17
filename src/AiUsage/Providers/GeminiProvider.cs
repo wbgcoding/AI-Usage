@@ -249,27 +249,14 @@ public sealed class GeminiProvider : IUsageProvider
         }
     }
 
-    // Notes already written by this process: each change is logged once per run, not on every read.
-    private static readonly HashSet<string> LoggedChangeNotes = [];
-
-    /// <summary>Writes a WARN line, once per run, for every way Google's answers no longer match what
-    /// the read was written for (see <see cref="GeminiUsageParser.ChangeNotes"/>), so a look into the
-    /// log shows at once that the read needs adapting.</summary>
+    /// <summary>Reports, once per run, every way Google's answers no longer match what the read was
+    /// written for (see <see cref="GeminiUsageParser.ChangeNotes"/>), so a look into the log shows at
+    /// once that the read needs adapting.</summary>
     private static void LogChangeNotes(AntigravityUsage usage)
     {
         foreach (var note in GeminiUsageParser.ChangeNotes(usage.QuotaSummaryJson, usage.ModelQuotaJson))
-        {
-            lock (LoggedChangeNotes)
-            {
-                if (!LoggedChangeNotes.Add(note))
-                    continue;
-            }
-            LogService.Shared.Log("WARN", ChangeNotePrefix + note);
-        }
+            ReadChangeLog.Report("Gemini", note);
     }
-
-    /// <summary>Starts every change line in the log, so a search for it finds them all.</summary>
-    internal const string ChangeNotePrefix = "CHANGE DETECTED (Gemini usage read needs adapting): ";
 
     private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) =>
         ProviderSnapshots.Empty(AccountKey, fetchedAt, status, error);
