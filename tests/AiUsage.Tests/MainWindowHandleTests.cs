@@ -37,4 +37,12 @@ public class MainWindowHandleTests
         var marshal = body.IndexOf("Dispatcher.BeginInvoke", StringComparison.Ordinal);
         Assert.True(marshal >= 0 && apply > marshal, "ThemeService.Apply must run inside Dispatcher.BeginInvoke");
     }
+
+    [Fact]
+    public void Remembering_a_place_keys_it_from_freshly_read_monitors()
+    {
+        var body = SourceScan.Member(Placement, "private void RememberSetupPlace");
+        var refresh = body.IndexOf("_monitorAreas.Refresh()", StringComparison.Ordinal);
+        Assert.True(refresh >= 0 && refresh < body.IndexOf("SetupKey", StringComparison.Ordinal), "monitors must be refreshed before the key is built");
+    }
 }

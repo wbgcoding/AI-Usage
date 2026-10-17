@@ -135,7 +135,9 @@ public class WindowPlacementService
     }
 
     /// <summary>Names a display setup: every monitor as <c>Name@Left,Top,WxH</c> (whole numbers),
-    /// sorted by name so the enumeration order does not matter, joined with "|".</summary>
+    /// sorted by name so the enumeration order does not matter, joined with "|". The rectangles are
+    /// the work areas, so a taskbar change makes a new setup; device names can renumber after a dock
+    /// is reconnected, which also reads as a new setup.</summary>
     public static string SetupKey(IReadOnlyList<MonitorArea> monitors) => string.Join(
         "|",
         monitors.OrderBy(m => m.DeviceName, StringComparer.Ordinal).Select(m => string.Create(

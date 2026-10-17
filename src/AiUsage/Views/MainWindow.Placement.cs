@@ -21,6 +21,8 @@ public partial class MainWindow
     /// display change must not overwrite the place remembered for the setup it left.</summary>
     private void RememberSetupPlace()
     {
+        // Fresh monitors, so a taskbar or work-area change that raised no display event is in the key.
+        _monitorAreas.Refresh();
         _lastSetupKey = WindowPlacementService.SetupKey(_monitorAreas.Areas);
         WindowPlacementService.RememberSetup(_settings.Window, _lastSetupKey, Left, Top, _settings.Window.MonitorDeviceName);
         _settingsStore.RequestSave(_settings);
