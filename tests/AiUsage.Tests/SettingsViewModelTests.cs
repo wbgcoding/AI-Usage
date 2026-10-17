@@ -697,6 +697,46 @@ public class SettingsViewModelTests : IDisposable
         Assert.False(vm.Main.IsAccountDisconnected("claude"));
     }
 
+    // Only the user's own flip of the switch resumes a signed-out account; an import or reset that
+    // sets the value must not.
+    [Fact]
+    public void ImportingLocalOnlyKeepsASignedOutAccountSignedOut()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Providers["claude"] = new ProviderSettings { LocalOnly = true };
+        var exportPath = Path.Combine(TempDirectory(), "export-local-only.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath,
+            providers: [new("claude", canSkipWebSession: true)]);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var targetSettings = new AppSettings();
+        targetSettings.Providers["claude"] = new ProviderSettings { Disconnected = true };
+        var (targetVm, _) = Build(targetSettings, askForSettingsImportPath: () => exportPath,
+            providers: [new("claude", canSkipWebSession: true)]);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.True(targetSettings.Providers["claude"].LocalOnly);
+        Assert.True(targetSettings.Providers["claude"].Disconnected);
+        Assert.True(targetVm.Main.IsAccountDisconnected("claude"));
+    }
+
+    // A stray LocalOnly on an account that cannot skip its web session must not reach the tile.
+    [Fact]
+    public void ImportingLocalOnlyForAnAccountThatCannotSkipTheWebSessionLeavesTheTileOff()
+    {
+        var sourceSettings = new AppSettings();
+        sourceSettings.Providers["claude"] = new ProviderSettings { LocalOnly = true };
+        var exportPath = Path.Combine(TempDirectory(), "export-local-only-cannot-skip.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath,
+            providers: [new("claude", canSkipWebSession: true)]);
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var (targetVm, _) = Build(askForSettingsImportPath: () => exportPath, providers: [new("claude")]);
+        targetVm.ImportSettingsCommand.Execute(null);
+
+        Assert.False(targetVm.Main.Tiles.Single(t => t.ProviderId == "claude").LocalOnly);
+    }
+
     // An account added while the window is open used to get no rows, and a reset afterwards threw
     // because the default settings carry no entry for that account.
     [Fact]
@@ -963,7 +1003,8 @@ public class SettingsViewModelTests : IDisposable
         var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
         sourceVm.ExportSettingsCommand.Execute(null);
 
-        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath,
+            providers: [new("codex"), new("claude", canSkipWebSession: true)]);
         targetVm.ImportSettingsCommand.Execute(null);
 
         Assert.True(targetSettings.Providers["claude"].LocalOnly);
@@ -2293,11 +2334,12 @@ public class SettingsViewModelTests : IDisposable
         Assert.DoesNotContain(vm.Main.Tiles, t => t.ProviderId == "claude#2");
     }
 
-    private sealed class FakeProvider(string id, string? accountKey = null) : IUsageProvider
+    private sealed class FakeProvider(string id, string? accountKey = null, bool canSkipWebSession = false) : IUsageProvider
     {
         public string Id { get; } = id;
         public string AccountKey { get; } = accountKey ?? id;
         public string DisplayName => Id;
+        public bool CanSkipWebSession => canSkipWebSession;
 
         public Task<ProviderSnapshot> FetchAsync(CancellationToken ct) =>
             Task.FromResult(new ProviderSnapshot(Id, [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300)],

@@ -637,12 +637,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void BuildTile(IUsageProvider provider)
     {
         var visible = !_settings.Providers.TryGetValue(provider.AccountKey, out var providerSettings) || providerSettings.Visible;
+        var canSkipWebSession = provider.CanSkipWebSession && provider.AccountKey == provider.Id;
         var tile = new ProviderTileViewModel(provider.AccountKey, provider.DisplayName, provider.Id)
         {
             IsHidden = !visible,
             SupportsInAppSignIn = provider.SupportsInAppSignIn,
-            CanSkipWebSession = provider.CanSkipWebSession && provider.AccountKey == provider.Id,
-            LocalOnly = providerSettings?.LocalOnly ?? false,
+            CanSkipWebSession = canSkipWebSession,
+            LocalOnly = canSkipWebSession && (providerSettings?.LocalOnly ?? false),
             DisconnectsLocalSignIn = provider.SupportsSignOut,
             SupportsAddAccount = provider.SupportsMultipleAccounts,
             ReadLocations = provider.ReadLocations,
@@ -1299,11 +1300,29 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settingsStore.RequestSave(_settings);
     }
 
+    private bool _localOnlyFromSettings;
+
+    /// <summary>Applies a stored local-only value (settings import or reset) to a tile: the same
+    /// refresh as a toggle, but a signed-out account stays signed out.</summary>
+    internal void ApplyLocalOnlyFromSettings(ProviderTileViewModel tile, bool value)
+    {
+        _localOnlyFromSettings = true;
+        try
+        {
+            tile.LocalOnly = tile.CanSkipWebSession && value;
+        }
+        finally
+        {
+            _localOnlyFromSettings = false;
+        }
+    }
+
     /// <summary>Persists the per-account "use local sources only" switch, lets the tile re-read the
     /// provider's sign-in capability and refreshes that one account once so the tile shows the other
     /// source straight away. The browser profile is never touched either way.</summary>
     private void SetLocalOnly(string providerId, bool value)
     {
+        var fromSettings = _localOnlyFromSettings;
         GetOrCreateProviderSettings(providerId).LocalOnly = value;
         _settingsStore.RequestSave(_settings);
         if (_tilesById.TryGetValue(providerId, out var tile) && _providersByKey.TryGetValue(providerId, out var provider))
@@ -1314,8 +1333,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         // An account signed out in the app has no sign-in button under local-only to come back with:
         // choosing local-only is the way back to its local read (no web session is touched). Reconnect
-        // refreshes it as well.
-        if (value && _settings.Providers.TryGetValue(providerId, out var own) && own.Disconnected)
+        // refreshes it as well. An import or reset that sets the value is no such choice.
+        if (value && !fromSettings && _settings.Providers.TryGetValue(providerId, out var own) && own.Disconnected)
         {
             Reconnect(providerId);
             return;
