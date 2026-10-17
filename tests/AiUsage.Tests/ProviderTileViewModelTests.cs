@@ -391,7 +391,7 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
-    public void LocalOnlyHidesEveryWebSignInEntryEvenWhenTheAccountReadsALocalSignIn()
+    public void LocalOnlyHidesTheWebSignInButKeepsTheSignOutOfALocalSignIn()
     {
         var tile = new ProviderTileViewModel("claude", "Claude")
         {
@@ -407,7 +407,7 @@ public class ProviderTileViewModelTests
         Assert.Equal([true], changes);
         Assert.False(tile.ShowSignIn);
         Assert.False(tile.ShowHeaderSignIn);
-        Assert.False(tile.SupportsSignOut);
+        Assert.True(tile.SupportsSignOut);
         Assert.False(tile.HasAction);
 
         tile.LocalOnly = false;

@@ -303,12 +303,17 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// CLI read this app makes rather than a web session of its own (see <see
     /// cref="Services.IUsageProvider.SupportsSignOut"/>). Real provider id, not the account key: a
     /// further Copilot account gets the same pair as the primary one.</summary>
-    public bool SupportsSignOut => !LocalOnly && (SupportsInAppSignIn || RealProviderId == "copilot" || DisconnectsLocalSignIn);
+    public bool SupportsSignOut => (!LocalOnly && (SupportsInAppSignIn || RealProviderId == "copilot")) || DisconnectsLocalSignIn;
 
     /// <summary>Set from <see cref="Services.IUsageProvider.SupportsSignOut"/>: the account reads a
     /// sign-in another tool holds (the primary Claude account through Claude Code), so "sign out"
     /// only stops this app's reads and "sign in" resumes them.</summary>
-    public bool DisconnectsLocalSignIn { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SupportsSignOut))]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowHeaderSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowSignOut))]
+    private bool disconnectsLocalSignIn;
 
     /// <summary>Whether the Settings window offers an "add account" button for this tile - only a
     /// provider that can hold more than one account at once (Claude today).</summary>
@@ -1024,6 +1029,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// only ever says "failed". A failure that is plainly not about the sign-in (the server's own
     /// error, no answer, no connection) never shows it.</summary>
     public bool ShowSignIn => SupportsSignOut
+        && !LocalOnly
         && !ErrorPresenter.IsNotASignInProblem(FailureKind)
         && SignInState != SignInState.SignedIn
         && (SignInState == SignInState.SignedOut || (_lastSnapshot is not null && _lastSnapshot.Windows.Count == 0));

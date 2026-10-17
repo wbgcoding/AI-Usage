@@ -145,7 +145,9 @@ public sealed class ClaudeProvider : IUsageProvider
     /// applies to the very next read.</summary>
     private bool LocalOnly => CanSkipWebSession && _settings?.Providers.TryGetValue(_accountKey, out var own) == true && own.LocalOnly;
 
-    public bool SupportsSignOut => _webSource is not null || _localLogin is not null;
+    // Local-only drops the web sign-in but not Claude Code's: while that login exists the app can
+    // still be told to stop reading it.
+    public bool SupportsSignOut => (_webSource is not null && !LocalOnly) || _localLogin is not null;
 
     // Claude is the one provider that can hold more than one account (a further web session).
     public bool SupportsMultipleAccounts => true;

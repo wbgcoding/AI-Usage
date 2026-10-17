@@ -1307,7 +1307,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         GetOrCreateProviderSettings(providerId).LocalOnly = value;
         _settingsStore.RequestSave(_settings);
         if (_tilesById.TryGetValue(providerId, out var tile) && _providersByKey.TryGetValue(providerId, out var provider))
+        {
             tile.SupportsInAppSignIn = provider.SupportsInAppSignIn;
+            tile.DisconnectsLocalSignIn = provider.SupportsSignOut;
+        }
 
         // An account signed out in the app has no sign-in button under local-only to come back with:
         // choosing local-only is the way back to its local read (no web session is touched). Reconnect

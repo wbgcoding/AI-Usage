@@ -384,6 +384,18 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
+    public void Local_only_keeps_the_sign_out_only_while_a_local_login_exists()
+    {
+        var web = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult(WebOkEnvelope));
+        var withLogin = new ClaudeProvider("claude", LocalOnlySettings("claude"), _ => { }, web, SignedInLocalLogin());
+        var withoutLogin = new ClaudeProvider("claude", LocalOnlySettings("claude"), _ => { }, web);
+
+        Assert.True(withLogin.SupportsSignOut);
+        Assert.False(withoutLogin.SupportsSignOut);
+        Assert.True(new ClaudeProvider("claude", new AppSettings(), _ => { }, web).SupportsSignOut);
+    }
+
+    [Fact]
     public void Turning_local_only_off_again_restores_the_web_sign_in_without_a_new_provider()
     {
         var settings = LocalOnlySettings("claude");
