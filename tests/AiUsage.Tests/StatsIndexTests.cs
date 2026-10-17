@@ -1678,4 +1678,42 @@ public class StatsIndexTests
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce(progress: (_, _) => reports++);
         Assert.Equal(afterFirst, reports);
     }
+
+    [Fact]
+    public void A_reader_that_opens_the_index_during_a_restore_waits_for_it_instead_of_creating_an_empty_one()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-race-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-race");
+        SeedIndex(seedDir, "file-a", "file-b");
+        new StatsStore(seedDir).WriteWeeklyCopy(seedDir, WeekStart);
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        File.Copy(Path.Combine(seedDir, "stats-backups", "stats-2026-10-01.db"), Path.Combine(folder, "stats-2026-10-01.db"));
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var logged = new List<string>();
+        using var inRestore = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var restoring = new StatsStore(dataDir, logError: logged.Add)
+        {
+            BeforeRestoreMove = () =>
+            {
+                inRestore.Set();
+                release.Wait(TimeSpan.FromSeconds(30));
+            },
+        };
+
+        var first = Task.Run(() => restoring.TryLoadSourceFiles(out _));
+        Assert.True(inRestore.Wait(TimeSpan.FromSeconds(30)));
+        var second = Task.Run(() => new StatsStore(dataDir).TryLoadSourceFiles(out _));
+
+        // The reader gets no chance to put an empty index where the restore is about to move one.
+        Assert.False(second.Wait(TimeSpan.FromMilliseconds(500)));
+        Assert.False(File.Exists(Path.Combine(dataDir, "stats.db")));
+        release.Set();
+        Assert.True(Task.WaitAll([first, second], TimeSpan.FromSeconds(30)));
+
+        Assert.Contains(logged, line => line.Contains("restored from the weekly copy of 2026-10-01", StringComparison.Ordinal));
+        Assert.DoesNotContain(logged, line => line.Contains("rebuilt", StringComparison.Ordinal));
+        Assert.True(new StatsStore(dataDir).TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a", "file-b"], states.Keys.Order());
+    }
 }

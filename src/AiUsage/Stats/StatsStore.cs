@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using AiUsage.Storage;
@@ -91,6 +92,9 @@ public sealed class StatsStore
         destination.Open();
         source.BackupDatabase(destination);
     }
+
+    /// <summary>Test seam: runs between the copy of a weekly copy and its move into place.</summary>
+    internal Action? BeforeRestoreMove { get; init; }
 
     /// <summary>The data folder this store keeps its index in.</summary>
     internal string DataDirectory => _fixedDirectory ?? AppPaths.DataDirectory;
@@ -192,6 +196,9 @@ public sealed class StatsStore
                 {
                     File.Delete(temporaryPath);
                     SnapshotIndex(copyPath, temporaryPath);
+                    BeforeRestoreMove?.Invoke();
+                    // The copy may hold an older schema: the next open has to bring it up to date.
+                    EnsuredDatabases.TryRemove(fullPath, out _);
                     File.Move(temporaryPath, fullPath, overwrite: false);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
@@ -650,35 +657,53 @@ public sealed class StatsStore
         }.ToString();
         var connection = new SqliteConnection(connectionString);
         var fullPath = Path.GetFullPath(DatabasePath);
-        // Checked before the connection creates the file: a deleted database has to be rebuilt.
-        var schemaKnown = EnsuredDatabases.ContainsKey(fullPath) && File.Exists(fullPath);
+        SqliteException? damaged = null;
+        // Shared with every other open and exclusive against setting a damaged file aside and putting a
+        // copy in its place: an open that came in between would create an empty index right where the
+        // restore moves the copy to.
+        StoreGate.EnterReadLock();
         try
         {
-            connection.Open();
-            // Nothing a database file declares (views, triggers, functions) may run with the app's rights.
-            Execute(connection, "PRAGMA trusted_schema = OFF");
-            if (schemaKnown)
+            // Checked before the connection creates the file: a deleted database has to be rebuilt.
+            var schemaKnown = EnsuredDatabases.ContainsKey(fullPath) && File.Exists(fullPath);
+            try
             {
-                SetBusyTimeout(connection);
+                connection.Open();
+                // Nothing a database file declares (views, triggers, functions) may run with the app's rights.
+                Execute(connection, "PRAGMA trusted_schema = OFF");
+                if (schemaKnown)
+                {
+                    SetBusyTimeout(connection);
+                }
+                else
+                {
+                    EnsureSchema(connection);
+                    if (IsUsable)
+                        EnsuredDatabases[fullPath] = true;
+                }
             }
-            else
+            catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
             {
-                EnsureSchema(connection);
-                if (IsUsable)
-                    EnsuredDatabases[fullPath] = true;
+                connection.Dispose();
+                damaged = ex;
+            }
+            catch
+            {
+                // The caller never sees this connection, so it would otherwise keep the file open.
+                connection.Dispose();
+                throw;
             }
         }
-        catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
+        finally
         {
-            connection.Dispose();
-            QuarantineDamagedDatabase(connection, fullPath, ex.SqliteErrorCode);
-            throw;
+            StoreGate.ExitReadLock();
         }
-        catch
+
+        if (damaged is not null)
         {
-            // The caller never sees this connection, so it would otherwise keep the file open.
-            connection.Dispose();
-            throw;
+            // Outside the shared hold: the quarantine takes the exclusive one.
+            QuarantineDamagedDatabase(connection, fullPath, damaged.SqliteErrorCode);
+            ExceptionDispatchInfo.Capture(damaged).Throw();
         }
 
         return connection;
@@ -701,16 +726,22 @@ public sealed class StatsStore
         EnsuredDatabases.TryRemove(fullPath, out _);
         // Two threads can fail on the same file; the second must not set aside the index the first
         // one just put back.
-        lock (QuarantineGate)
+        StoreGate.EnterWriteLock();
+        try
         {
             if (RecentlyRestored.TryGetValue(fullPath, out var restoredTick)
                 && Environment.TickCount64 - restoredTick < RestoreGraceMilliseconds && File.Exists(fullPath))
                 return;
             SetAsideAndRestore(fullPath, errorCode);
         }
+        finally
+        {
+            StoreGate.ExitWriteLock();
+        }
     }
 
-    private static readonly object QuarantineGate = new();
+    // Every open holds it shared; setting a damaged index aside and restoring a copy holds it exclusive.
+    private static readonly ReaderWriterLockSlim StoreGate = new(LockRecursionPolicy.NoRecursion);
     private static readonly Dictionary<string, long> RecentlyRestored = new(StringComparer.OrdinalIgnoreCase);
     private const long RestoreGraceMilliseconds = 10_000;
 
