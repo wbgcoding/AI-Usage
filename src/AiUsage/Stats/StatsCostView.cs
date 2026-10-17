@@ -27,7 +27,30 @@ internal sealed class StatsCostView(CostService? service)
             return "";
 
         var split = _service?.Split(records);
-        var lines = new List<string>(labels.Count + 1);
+        var lines = PartLines(labels, tokens, split);
+        if (split is { AnyPriced: true } && CostService.UnpricedLine(new CostSummary(0, true, split.UnpricedModels)) is { } unpriced)
+            lines.Add(unpriced);
+        return string.Join('\n', lines);
+    }
+
+    /// <summary>The tooltip of a total figure: <paramref name="totalLine"/>, the parts as in <see cref="SplitTooltip"/>,
+    /// then the whole API cost and the line naming the models without a price. Empty when no tokens.</summary>
+    public string TotalTooltip(string totalLine, IReadOnlyList<string> labels, IReadOnlyList<long> tokens, IEnumerable<StatsRecord> records)
+    {
+        if (tokens.Sum() <= 0)
+            return "";
+
+        var rows = records as IReadOnlyList<StatsRecord> ?? records.ToList();
+        var lines = new List<string> { totalLine };
+        lines.AddRange(PartLines(labels, tokens, _service?.Split(rows)));
+        if (Line(rows) is { } cost)
+            lines.Add(cost);
+        return string.Join('\n', lines);
+    }
+
+    private List<string> PartLines(IReadOnlyList<string> labels, IReadOnlyList<long> tokens, CostSplit? split)
+    {
+        var lines = new List<string>(labels.Count + 2);
         for (var i = 0; i < labels.Count && i < tokens.Count; i++)
         {
             var line = labels[i] + ": " + tokens[i].ToString("N0", CultureInfo.CurrentCulture);
@@ -36,9 +59,7 @@ internal sealed class StatsCostView(CostService? service)
             lines.Add(line);
         }
 
-        if (split is { AnyPriced: true } && CostService.UnpricedLine(new CostSummary(0, true, split.UnpricedModels)) is { } unpriced)
-            lines.Add(unpriced);
-        return string.Join('\n', lines);
+        return lines;
     }
 
     /// <summary>The figure for <paramref name="summary"/>, or empty.</summary>

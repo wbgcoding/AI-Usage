@@ -570,7 +570,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             QueueStatusFile(DateTimeOffset.Now);
         };
 
-        DayGridTile = new DayGridTileViewModel(_statsStore)
+        DayGridTile = new DayGridTileViewModel(_statsStore, cost: () => _settings.ShowCostEstimate ? Cost : null)
         {
             IsHidden = !(_settings.Providers.TryGetValue(AppSettings.DayGridTileId, out var gridSettings) && gridSettings.Visible),
         };
@@ -1695,7 +1695,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Settings window calls this after the estimate switch or its currency changed, so open
     /// statistics redraw and a needed download starts.</summary>
-    internal void CostSettingsChanged() => _cost?.NotifySettingsChanged();
+    internal void CostSettingsChanged()
+    {
+        DayGridTile.RefreshCost();
+        _cost?.NotifySettingsChanged();
+    }
 
     /// <summary>Settings window's own "change data folder" flow calls this once it has already
     /// copied every history file across, so the live recording this view model does on every tick

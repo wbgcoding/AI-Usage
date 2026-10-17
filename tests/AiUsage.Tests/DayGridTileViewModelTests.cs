@@ -1,5 +1,6 @@
 using AiUsage.Services;
 using AiUsage.Stats;
+using AiUsage.Stats.Pricing;
 using System.Windows;
 using AiUsage.ViewModels;
 using Xunit;
@@ -381,5 +382,63 @@ public class DayGridTileViewModelTests
 
         Assert.Equal(314, width);
         Assert.Equal(0, AiUsage.Views.Controls.DayGridTile.InnerWidth(10, new Thickness(12), new Thickness(1)));
+    }
+
+    private static CostService TileCost(bool enabled = true)
+    {
+        var directory = TestPaths.CreateDisposableDirectory("daygrid-tile-cost").Path;
+        var service = new CostService(
+            () => enabled, () => AiUsage.Models.CostCurrency.Usd, directory, () => System.Globalization.CultureInfo.GetCultureInfo("en-US"),
+            () => new System.Globalization.RegionInfo("US"), null, () => false);
+        service.Prices.Replace(
+            AiUsage.Stats.Pricing.ModelPriceList.Parse("""{ "claude-sonnet-4-5": { "input_cost_per_token": 0.000003, "output_cost_per_token": 0.000015, "mode": "chat" } }"""),
+            DateTimeOffset.UtcNow, persist: false);
+        return service;
+    }
+
+    private static async Task<DayGridTileViewModel> CostTile(Func<CostService?> cost)
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("daygrid-tile-cost-store");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "claude-sonnet-4-5", "projA", 1_000_000, 0, 0, 0),
+            new StatsRecord("claude", today, "mystery-model", "projB", 500, 500, 0, 0),
+        ]);
+        var tile = new DayGridTileViewModel(store, cost: cost);
+        await tile.RefreshAsync();
+        return tile;
+    }
+
+    [Fact]
+    public async Task The_head_shows_the_cost_beside_the_total_and_its_tooltip_splits_it()
+    {
+        var loc = LocalizationService.Instance;
+        var service = TileCost();
+        var tile = await CostTile(() => service);
+
+        Assert.Equal("~$3.00", tile.TotalCostText);
+        Assert.True(tile.HasTotalCost);
+        Assert.Contains(loc["Stats.Cache.New"] + ": ", tile.TotalTooltip);
+        Assert.Contains(loc["Stats.Cache.Output"] + ": ", tile.TotalTooltip);
+        Assert.Contains(loc["Stats.Cost.Column"] + " ~$3.00", tile.TotalTooltip);
+        Assert.Contains("mystery-model", tile.TotalTooltip);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        Assert.Contains("~$3.00", Assert.Single(tile.Days, day => day.Day == today).CostLine);
+    }
+
+    [Fact]
+    public async Task Without_an_estimate_the_head_and_the_days_carry_no_cost()
+    {
+        var off = TileCost(enabled: false);
+        foreach (var source in new Func<CostService?>[] { () => off, () => null })
+        {
+            var tile = await CostTile(source);
+
+            Assert.Equal("", tile.TotalCostText);
+            Assert.False(tile.HasTotalCost);
+            Assert.DoesNotContain("~", tile.TotalTooltip);
+            Assert.All(tile.Days, day => Assert.Null(day.CostLine));
+        }
     }
 }

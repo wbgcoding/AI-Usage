@@ -45,10 +45,11 @@
                 <TextBlock Grid.Column="0" Text="{Binding HeaderDisplayName}" FontFamily="{DynamicResource Font.Ui}"
                            FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
                            TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding TotalText}" FontFamily="{DynamicResource Font.Numeric}"
+                <TextBlock Grid.Column="1" FontFamily="{DynamicResource Font.Numeric}"
                            FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Secondary}"
                            Typography.NumeralAlignment="Tabular" VerticalAlignment="Center" Margin="8,0,0,0"
-                           Visibility="{Binding HasAnyData, Converter={StaticResource BoolToVis}}"/>
+                           ToolTip="{Binding TotalTooltip}"
+                           Visibility="{Binding HasAnyData, Converter={StaticResource BoolToVis}}"><Run Text="{Binding TotalText, Mode=OneWay}"/><Run Text="{Binding TotalCostSeparator, Mode=OneWay}"/><Run Text="{Binding TotalCostText, Mode=OneWay}"/></TextBlock>
             </Grid>
 
             <!-- The grid never scrolls here (unlike the statistics window's own copy): RangeStart
