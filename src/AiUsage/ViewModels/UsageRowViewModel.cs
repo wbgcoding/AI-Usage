@@ -363,7 +363,8 @@ public partial class UsageRowViewModel : ObservableObject
         }
     }
 
-    private long? InlineTokens => WindowTokens ?? TokenCount;
+    // From 1 token on; a zero count shows nothing instead of "0 tokens".
+    private long? InlineTokens => (WindowTokens ?? TokenCount) is > 0 and var tokens ? tokens : null;
 
     private string RoundedPercentText() =>
         StatusTextMap.FormatUsagePercent(UsedPercent);
