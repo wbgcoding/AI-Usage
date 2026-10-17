@@ -951,6 +951,22 @@ public class PortableSwapTests
     }
 
     [Fact]
+    public void ALockedOldCopyDoesNotKeepTheStagedCopy()
+    {
+        var folder = TestPaths.CreateDirectory("swap");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running, "current");
+        File.WriteAllText(running + ".old", "old");
+        File.WriteAllText(running + ".new", "stale");
+
+        using (new FileStream(running + ".old", FileMode.Open, FileAccess.Read, FileShare.None))
+            PortableSwap.DeleteLeftover(running);
+
+        Assert.False(File.Exists(running + ".new"));
+        Assert.True(File.Exists(running + ".old"));
+    }
+
+    [Fact]
     public void TheLeftoverIsKeptWhileTheExeItselfIsMissing()
     {
         var folder = TestPaths.CreateDirectory("swap");

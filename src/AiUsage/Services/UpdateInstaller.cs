@@ -477,13 +477,18 @@ public static class PortableSwap
     /// exe itself is missing: the <c>.old</c> file is then the only copy of the program.</summary>
     public static void DeleteLeftover(string runningExePath)
     {
+        if (!File.Exists(runningExePath))
+            return;
+
+        TryDelete(runningExePath + OldSuffix);
+        TryDelete(runningExePath + StagedSuffix);
+    }
+
+    private static void TryDelete(string path)
+    {
         try
         {
-            if (!File.Exists(runningExePath))
-                return;
-
-            File.Delete(runningExePath + OldSuffix);
-            File.Delete(runningExePath + StagedSuffix);
+            File.Delete(path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
