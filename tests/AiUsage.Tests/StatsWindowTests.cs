@@ -1847,11 +1847,12 @@ public class StatsHorizontalBarChartGeometryTests
         Assert.Equal(-1, StatsRingChart.SliceIndexAt(center, width, height, slices));
         Assert.Equal(-1, StatsRingChart.SliceIndexAt(new Point(2, 2), width, height, slices));
 
-        // The legend: two rows of 18 px, centered in the height.
-        var legendTop = (height - 2 * 18) / 2;
+        // The legend: two rows, grown with the 200 px ring to 18 * 1.4 px each, centered in the height.
+        const double row = 18 * 1.4;
+        var legendTop = (height - 2 * row) / 2;
         Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 5), width, height, slices));
-        Assert.Equal(1, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 25), width, height, slices));
-        Assert.Equal(-1, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 40), width, height, slices));
+        Assert.Equal(1, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + row + 5), width, height, slices));
+        Assert.Equal(-1, StatsRingChart.SliceIndexAt(new Point(width - 60, legendTop + 2 * row + 5), width, height, slices));
     }
 
     /// <summary>The donut center text never clips: content already inside the box is never enlarged

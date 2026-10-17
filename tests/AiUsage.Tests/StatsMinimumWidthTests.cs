@@ -146,6 +146,33 @@ public class StatsMinimumWidthTests
         Assert.Equal(1, StatsRingChart.SliceIndexAt(new Point(150, 70), 400, 132, slices));
     }
 
+    [Theory]
+    [InlineData(132, 1.0)]
+    [InlineData(198, 1.5)]
+    [InlineData(236, 1.7878787)]
+    [InlineData(400, 1.8)]
+    public void The_center_texts_grow_with_the_ring(double diameter, double scale) =>
+        Assert.Equal(scale, StatsRingChart.CenterTextScale(diameter), 5);
+
+    [Theory]
+    [InlineData(132, 132, 3, 1.0)]
+    [InlineData(236, 240, 3, 1.4)]
+    [InlineData(236, 240, 12, 1.1111111)]
+    [InlineData(236, 240, 20, 1.0)]
+    public void The_legend_grows_less_and_always_keeps_every_row_inside(double diameter, double height, int slices, double scale) =>
+        Assert.Equal(scale, StatsRingChart.LegendTextScale(diameter, height, slices), 5);
+
+    [Fact]
+    public void A_click_on_a_grown_legend_finds_its_row()
+    {
+        StatsRingChart.Slice[] slices = [new("Claude", 60), new("Codex", 30), new("Gemini", 10)];
+
+        // Width 520, height 240: ring 240 wide, legend at x = 252, rows of 18 * 1.4 = 25.2 from y = 82.2.
+        Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(260, 90), 520, 240, slices));
+        Assert.Equal(1, StatsRingChart.SliceIndexAt(new Point(260, 115), 520, 240, slices));
+        Assert.Equal(2, StatsRingChart.SliceIndexAt(new Point(260, 140), 520, 240, slices));
+    }
+
     [Fact]
     public void A_long_legend_label_is_trimmed_before_its_figure_is()
     {

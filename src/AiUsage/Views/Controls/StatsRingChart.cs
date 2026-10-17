@@ -244,6 +244,7 @@ public sealed class StatsRingChart : FrameworkElement
     private const double LegendGap = 12;
     private const double MinLegendWidth = 100;
     private const double LegendRowHeight = 18;
+    private const double LegendBaseFontSize = 10;
 
     /// <summary>The ring's diameter and where the legend starts: the legend sits right after the ring
     /// and gets all the rest of the width; a narrow control shrinks the ring before the legend loses
@@ -257,6 +258,27 @@ public sealed class StatsRingChart : FrameworkElement
     private const double MinRingHeight = 132;
     private const double MaxRingHeight = 240;
     private const double LegendAllowance = 150;
+
+    // How far the texts grow with the ring: the center lines up to the ring's own growth, the legend
+    // less, so it still fits beside a large ring.
+    private const double MaxCenterTextScale = 1.8;
+    private const double MaxLegendTextScale = 1.4;
+
+    /// <summary>How much the center texts grow with the ring: 1 at the smallest ring, in step with the
+    /// diameter above it. A fixed size left a large ring with tiny text in its middle.</summary>
+    internal static double CenterTextScale(double diameter) =>
+        Math.Clamp(diameter / MinRingHeight, 1.0, MaxCenterTextScale);
+
+    /// <summary>How much the legend grows beside a ring of <paramref name="diameter"/>: like the center
+    /// texts, but less, and never past what lets all <paramref name="sliceCount"/> rows fit the
+    /// control's <paramref name="height"/>.</summary>
+    internal static double LegendTextScale(double diameter, double height, int sliceCount)
+    {
+        var scale = Math.Min(MaxLegendTextScale, CenterTextScale(diameter));
+        if (sliceCount > 0)
+            scale = Math.Min(scale, height / (sliceCount * LegendRowHeight));
+        return Math.Max(1.0, scale);
+    }
 
     /// <summary>The control's height: the ring grows with the width the tile gives it (the legend keeps
     /// its allowance), within a fixed range. It depends on the width only, so switching the provider or
@@ -372,10 +394,11 @@ public sealed class StatsRingChart : FrameworkElement
         }
 
         var legendX = Math.Min(legendStart, Math.Max(0, width - 4));
-        var legendTop = Math.Max(0, (height - slices.Count * LegendRowHeight) / 2);
+        var rowHeight = LegendRowHeight * LegendTextScale(diameter, height, slices.Count);
+        var legendTop = Math.Max(0, (height - slices.Count * rowHeight) / 2);
         if (point.X >= legendX && point.Y >= legendTop)
         {
-            var row = (int)((point.Y - legendTop) / LegendRowHeight);
+            var row = (int)((point.Y - legendTop) / rowHeight);
             if (row < slices.Count)
                 return row;
         }
@@ -425,9 +448,9 @@ public sealed class StatsRingChart : FrameworkElement
             drawingContext.DrawGeometry(null, pen, ArcGeometry(center, radius, sweeps[i].StartAngle, sweeps[i].SweepAngle));
         }
 
-        DrawCenterText(drawingContext, slices, brushes, center, radius, strokeThickness, dpi, typeface);
+        DrawCenterText(drawingContext, slices, brushes, center, radius, strokeThickness, CenterTextScale(diameter), dpi, typeface);
 
-        DrawLegend(drawingContext, slices, brushes, legendStart, width, height, dpi, typeface);
+        DrawLegend(drawingContext, slices, brushes, legendStart, width, height, LegendTextScale(diameter, height, slices.Count), dpi, typeface);
     }
 
     private const double CenterValueBaseFontSize = 13;
@@ -447,8 +470,10 @@ public sealed class StatsRingChart : FrameworkElement
     /// state.</summary>
     private void DrawCenterText(
         DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes,
-        Point center, double radius, double strokeThickness, double dpi, Typeface typeface)
+        Point center, double radius, double strokeThickness, double textScale, double dpi, Typeface typeface)
     {
+        var nameBaseSize = CenterNameBaseFontSize * textScale;
+        var valueBaseSize = CenterValueBaseFontSize * textScale;
         var innerDiameter = Math.Max(0, 2 * (radius - strokeThickness / 2) - CenterTextPadding * 2);
         if (innerDiameter <= 0)
             return;
@@ -485,13 +510,13 @@ public sealed class StatsRingChart : FrameworkElement
             Trimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
         };
 
-        var naturalName = BuildNameLine(CenterNameBaseFontSize, 1, trim: false);
-        var naturalValue = BuildValueLine(CenterValueBaseFontSize, trim: false);
+        var naturalName = BuildNameLine(nameBaseSize, 1, trim: false);
+        var naturalValue = BuildValueLine(valueBaseSize, trim: false);
 
         // A few percent of slack: text scaled to exactly the hole's width can still be trimmed by
         // the layout's own rounding.
         const double comfortableScale = 0.85;
-        var nameScale = FitScale(naturalName.Width, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / CenterNameBaseFontSize);
+        var nameScale = FitScale(naturalName.Width, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / nameBaseSize);
         var nameLines = 1;
         if (fitWidth / naturalName.Width < comfortableScale && name.Contains(' '))
         {
@@ -499,20 +524,20 @@ public sealed class StatsRingChart : FrameworkElement
             // and size it to the widest word instead.
             var widestWord = name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(word => new FormattedText(
-                    word, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, CenterNameBaseFontSize, CenterTextBrush, dpi).Width)
+                    word, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, nameBaseSize, CenterTextBrush, dpi).Width)
                 .Max();
             nameLines = 2;
-            nameScale = FitScale(widestWord, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / CenterNameBaseFontSize);
+            nameScale = FitScale(widestWord, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / nameBaseSize);
         }
 
-        var valueScale = FitScale(naturalValue.Width, naturalValue.Height, fitWidth, innerDiameter, CenterTextMinFontSize / CenterValueBaseFontSize);
+        var valueScale = FitScale(naturalValue.Width, naturalValue.Height, fitWidth, innerDiameter, CenterTextMinFontSize / valueBaseSize);
         var pairHeight = naturalName.Height * nameScale * nameLines + naturalValue.Height * valueScale;
         var heightScale = pairHeight > innerDiameter ? innerDiameter / pairHeight : 1.0;
 
         // The proportional step above is an estimate; walk the size down until the measured line
         // really fits the hole (or the minimum size is reached).
-        var nameSize = Math.Max(CenterTextMinFontSize, CenterNameBaseFontSize * nameScale * heightScale);
-        var valueSize = Math.Max(CenterTextMinFontSize, CenterValueBaseFontSize * valueScale * heightScale);
+        var nameSize = Math.Max(CenterTextMinFontSize, nameBaseSize * nameScale * heightScale);
+        var valueSize = Math.Max(CenterTextMinFontSize, valueBaseSize * valueScale * heightScale);
         while (valueSize > CenterTextMinFontSize && BuildValueLine(valueSize, trim: false).Width > fitWidth)
             valueSize = Math.Max(CenterTextMinFontSize, valueSize - 0.25);
         if (nameLines == 1)
@@ -572,10 +597,11 @@ public sealed class StatsRingChart : FrameworkElement
     }
 
     private void DrawLegend(
-        DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes, double legendX, double width, double height, double dpi, Typeface typeface)
+        DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes, double legendX, double width, double height,
+        double textScale, double dpi, Typeface typeface)
     {
-        const double swatch = 10;
-        const double rowHeight = LegendRowHeight;
+        var swatch = 10 * textScale;
+        var rowHeight = LegendRowHeight * textScale;
         var totalHeight = slices.Count * rowHeight;
         var y = Math.Max(0, (height - totalHeight) / 2);
         var x = Math.Min(legendX, Math.Max(0, width - 4));
@@ -587,8 +613,8 @@ public sealed class StatsRingChart : FrameworkElement
 
             var percentText = slices[i].LegendText ?? StatsBarChart.PercentLabel(slices[i].Percent, CultureInfo.CurrentCulture);
             var (label, percent) = LegendEntryTexts(
-                slices[i].Label, percentText, Math.Max(1, width - x - swatch - 8), dpi, typeface, TextBrush);
-            var textX = x + swatch + 4;
+                slices[i].Label, percentText, Math.Max(1, width - x - swatch - 8), dpi, typeface, TextBrush, LegendBaseFontSize * textScale);
+            var textX = x + swatch + 4 * textScale;
             dc.DrawText(label, new Point(textX, y + (rowHeight - label.Height) / 2));
             dc.DrawText(percent, new Point(textX + label.Width, y + (rowHeight - percent.Height) / 2));
 
@@ -600,10 +626,10 @@ public sealed class StatsRingChart : FrameworkElement
     /// <paramref name="maxWidth"/>, and " · figure" right after it. The figure is the number the ring
     /// exists to show, so it is laid out first and never cut; only the label gives way.</summary>
     internal static (FormattedText Label, FormattedText Figure) LegendEntryTexts(
-        string label, string figure, double maxWidth, double dpi, Typeface typeface, Brush brush)
+        string label, string figure, double maxWidth, double dpi, Typeface typeface, Brush brush, double fontSize = LegendBaseFontSize)
     {
         FormattedText Make(string text, double limit) =>
-            new(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, brush, dpi)
+            new(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, brush, dpi)
             {
                 MaxTextWidth = Math.Max(1, limit),
                 // One line per row: a wrapped second line would run into the next row.
