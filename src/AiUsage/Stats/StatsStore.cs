@@ -983,21 +983,58 @@ public sealed class StatsStore
             var setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";
             for (var counter = 2; File.Exists(setAside); counter++)
                 setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}-{counter}";
-            File.Move(fullPath, setAside);
-            FileGenerations[fullPath] = FileGenerations.GetValueOrDefault(fullPath) + 1;
-            // A journal or WAL holds pages the copy may need to be read back; it moves along with it,
-            // and a new index never picks it up.
-            foreach (var suffix in SidecarSuffixes)
+            if (!MoveAsGroup(fullPath, setAside))
             {
-                if (File.Exists(fullPath + suffix))
-                    File.Move(fullPath + suffix, setAside + suffix, overwrite: true);
+                // Everything is back where it was: the damaged index stays and the next open tries again.
+                if (plan == RestorePlan.Ready)
+                    DeleteRestoreLeftovers(prepared.TemporaryPath);
+                _logError?.Invoke($"Statistics: the index is damaged (SQLite error {errorCode}) and could not be set aside (a file is in use).");
+                return;
             }
+            FileGenerations[fullPath] = FileGenerations.GetValueOrDefault(fullPath) + 1;
             if (plan != RestorePlan.Ready || !FinishWeeklyRestore(fullPath, prepared))
                 _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logError?.Invoke($"Statistics: the index is damaged (SQLite error {errorCode}) and could not be set aside ({ex.GetType().Name}).");
+        }
+    }
+
+    /// <summary>Moves the index and its sidecars next to the set-aside name as one unit. The sidecars go
+    /// first and the index last, so a failure never leaves the index absent with its journal or WAL in
+    /// place; whatever moved before the failure is moved back.</summary>
+    private bool MoveAsGroup(string fullPath, string setAside)
+    {
+        var done = new List<(string From, string To)>();
+        try
+        {
+            foreach (var suffix in SidecarSuffixes)
+            {
+                // A journal or WAL holds pages the copy may need to be read back; it moves along with
+                // the index, and a new index never picks it up.
+                if (!File.Exists(fullPath + suffix))
+                    continue;
+                File.Move(fullPath + suffix, setAside + suffix, overwrite: true);
+                done.Add((fullPath + suffix, setAside + suffix));
+            }
+            File.Move(fullPath, setAside);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            for (var index = done.Count - 1; index >= 0; index--)
+            {
+                try
+                {
+                    File.Move(done[index].To, done[index].From);
+                }
+                catch (Exception back) when (back is IOException or UnauthorizedAccessException)
+                {
+                    _logError?.Invoke($"Statistics: {Path.GetFileName(done[index].From)} could not be moved back ({back.GetType().Name}).");
+                }
+            }
+            return false;
         }
     }
 

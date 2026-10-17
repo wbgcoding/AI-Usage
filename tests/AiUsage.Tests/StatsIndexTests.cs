@@ -1848,6 +1848,29 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void A_set_aside_that_fails_midway_puts_every_moved_file_back()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-setaside-rollback");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        File.WriteAllText(dbPath, new string('x', 8192));
+        File.WriteAllText(dbPath + "-wal", "wal");
+        File.WriteAllText(dbPath + "-shm", "shm");
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        // A scanner holding the last sidecar: its move fails after the others went through.
+        using (new FileStream(dbPath + "-shm", FileMode.Open, FileAccess.Read, FileShare.Read))
+            store.TryLoadSourceFiles(out _);
+
+        Assert.True(File.Exists(dbPath));
+        Assert.Equal(8192, new FileInfo(dbPath).Length);
+        Assert.Equal("wal", File.ReadAllText(dbPath + "-wal"));
+        Assert.Equal("shm", File.ReadAllText(dbPath + "-shm"));
+        Assert.Empty(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+        Assert.Contains(logged, line => line.Contains("could not be set aside", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void A_copy_dated_in_the_future_does_not_block_the_weekly_copy()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-future");
