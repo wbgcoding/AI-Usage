@@ -9,7 +9,7 @@ using Xunit;
 namespace AiUsage.Tests;
 
 /// <summary>How often each provider may be read: the account's own value, else the global one, and a
-/// web session or network endpoint never below five minutes.</summary>
+/// chosen value down to one minute on every route.</summary>
 public class ProviderReadIntervalTests
 {
     private static AppSettings Settings(int global, string? accountKey = null, int? own = null)
@@ -21,7 +21,8 @@ public class ProviderReadIntervalTests
     }
 
     [Theory]
-    [InlineData(1, null, 5)]
+    [InlineData(1, null, 1)]
+    [InlineData(3, null, 3)]
     [InlineData(5, null, 5)]
     [InlineData(30, null, 30)]
     [InlineData(30, 10, 10)]
@@ -31,7 +32,7 @@ public class ProviderReadIntervalTests
     // Not one of the allowed values: the global one counts.
     [InlineData(30, 7, 30)]
     [InlineData(30, 0, 30)]
-    public void AWebRouteTakesTheOwnValueThenTheGlobalOneAndNeverLessThanFiveMinutes(int global, int? own, int expectedMinutes)
+    public void AnyRouteTakesTheOwnValueThenTheGlobalOneDownToOneMinute(int global, int? own, int expectedMinutes)
     {
         var settings = Settings(global, "cursor", own);
 
@@ -43,11 +44,11 @@ public class ProviderReadIntervalTests
     [InlineData(3, null, 3)]
     [InlineData(1, 10, 10)]
     [InlineData(30, 5, 5)]
-    public void ALocalLoginRouteFollowsTheValueDownToTheGlobalMinimum(int global, int? own, int expectedMinutes)
+    public void TheClaudeAccountFollowsTheValueDownToTheGlobalMinimum(int global, int? own, int expectedMinutes)
     {
         var settings = Settings(global, "claude", own);
 
-        Assert.Equal(TimeSpan.FromMinutes(expectedMinutes), ProviderRegistry.ReadInterval(settings, "claude", belowFloorAllowed: true));
+        Assert.Equal(TimeSpan.FromMinutes(expectedMinutes), ProviderRegistry.ReadInterval(settings, "claude"));
     }
 
     [Fact]
@@ -119,7 +120,7 @@ public class ProviderReadIntervalTests
         AllowedHosts: ["cursor.com"], ProfileFolderName: "cursor");
 
     [Fact]
-    public void CursorHonoursTheOwnValueThenTheGlobalOneThenTheFloor()
+    public void CursorHonoursTheOwnValueThenTheGlobalOneDownToOneMinute()
     {
         var source = new WebUsageSource(Descriptor, new CursorUsageEndpoint(), (_, _) => throw new InvalidOperationException());
 
@@ -127,14 +128,14 @@ public class ProviderReadIntervalTests
             new CursorProvider("cursor", source, Settings(30, "cursor", 10), _ => { }).MinRefreshInterval);
         Assert.Equal(TimeSpan.FromMinutes(30),
             new CursorProvider("cursor", source, Settings(30), _ => { }).MinRefreshInterval);
-        Assert.Equal(TimeSpan.FromMinutes(5),
+        Assert.Equal(TimeSpan.FromMinutes(1),
             new CursorProvider("cursor", source, Settings(1), _ => { }).MinRefreshInterval);
         Assert.Equal(TimeSpan.FromMinutes(15),
             new CursorProvider("cursor#2", source, Settings(1, "cursor#2", 15), _ => { }).MinRefreshInterval);
     }
 
     [Fact]
-    public void GeminiHonoursTheOwnValueThenTheGlobalOneThenTheFloor()
+    public void GeminiHonoursTheOwnValueThenTheGlobalOneDownToOneMinute()
     {
         var source = new WebUsageSource(Descriptor with { ProviderId = "gemini" }, new GeminiUsageEndpoint(), (_, _) => throw new InvalidOperationException());
 
@@ -142,19 +143,19 @@ public class ProviderReadIntervalTests
             new GeminiProvider(Settings(5, "gemini", 60), _ => { }, source).MinRefreshInterval);
         Assert.Equal(TimeSpan.FromMinutes(20),
             new GeminiProvider(Settings(20), _ => { }, source).MinRefreshInterval);
-        Assert.Equal(TimeSpan.FromMinutes(5),
+        Assert.Equal(TimeSpan.FromMinutes(1),
             new GeminiProvider(Settings(1), _ => { }, source).MinRefreshInterval);
         Assert.Equal(TimeSpan.FromMinutes(5), new GeminiProvider().MinRefreshInterval);
     }
 
     [Fact]
-    public void CopilotHonoursTheOwnValueThenTheGlobalOneThenTheFloor()
+    public void CopilotHonoursTheOwnValueThenTheGlobalOneDownToOneMinute()
     {
         Assert.Equal(TimeSpan.FromMinutes(30),
             new CopilotProvider(Settings(5, "copilot", 30)).MinRefreshInterval);
         Assert.Equal(TimeSpan.FromMinutes(15),
             new CopilotProvider(Settings(15)).MinRefreshInterval);
-        Assert.Equal(TimeSpan.FromMinutes(5),
+        Assert.Equal(TimeSpan.FromMinutes(2),
             new CopilotProvider(Settings(2)).MinRefreshInterval);
         Assert.Equal(TimeSpan.FromMinutes(10),
             new CopilotProvider("copilot#2", "someone", Settings(2, "copilot#2", 10)).MinRefreshInterval);
@@ -162,7 +163,7 @@ public class ProviderReadIntervalTests
     }
 
     [Fact]
-    public void ClaudeHonoursTheOwnValueOnBothRoutesAndOnlyTheLoginRouteGoesBelowFive()
+    public void ClaudeHonoursTheChosenValueOnBothRoutesDownToTheMinimum()
     {
         var withOwn = Settings(1, "claude", 15);
         var withoutOwn = Settings(2);
@@ -174,6 +175,7 @@ public class ProviderReadIntervalTests
         var webSource = new WebUsageSource(
             Descriptor with { ProviderId = "claude" }, new ClaudeUsageEndpoint(), (_, _) => throw new InvalidOperationException());
         Assert.Equal(TimeSpan.FromMinutes(15), new ClaudeProvider("claude", withOwn, _ => { }, webSource).MinRefreshInterval);
-        Assert.Equal(TimeSpan.FromMinutes(5), new ClaudeProvider("claude", withoutOwn, _ => { }, webSource).MinRefreshInterval);
+        Assert.Equal(TimeSpan.FromMinutes(2), new ClaudeProvider("claude", withoutOwn, _ => { }, webSource).MinRefreshInterval);
+        Assert.Equal(TimeSpan.FromMinutes(1), new ClaudeProvider("claude", Settings(1), _ => { }, webSource).MinRefreshInterval);
     }
 }

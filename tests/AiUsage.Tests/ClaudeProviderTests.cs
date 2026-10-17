@@ -62,18 +62,18 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
-    public void A_web_session_account_with_a_one_minute_setting_still_holds_the_five_minute_floor()
+    public void A_web_session_account_with_a_one_minute_setting_follows_it()
     {
         var directory = SeedDirectory("claude-no-limits.jsonl");
         var settings = new AppSettings { RemoteRefreshMinutes = 1 };
         var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called"));
         var provider = new ClaudeProvider(directory, () => Now, webSource, settings, _ => { });
 
-        Assert.Equal(TimeSpan.FromMinutes(5), provider.MinRefreshInterval);
+        Assert.Equal(TimeSpan.FromMinutes(1), provider.MinRefreshInterval);
     }
 
     [Fact]
-    public async Task The_primary_account_drops_the_web_floor_while_the_claude_code_sign_in_answers()
+    public async Task The_primary_account_keeps_the_chosen_interval_before_and_after_the_claude_code_sign_in_answers()
     {
         var settings = new AppSettings { RemoteRefreshMinutes = 1 };
         var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => throw new InvalidOperationException("must not be called"));
@@ -82,7 +82,7 @@ public class ClaudeProviderTests : IDisposable
             "claude", settings, _ => { }, webSource,
             _ => Task.FromResult(new ClaudeCodeUsage(LocalLoginOutcome.Ok, [window], ClaudeCodeLoginReason.Ok)));
 
-        Assert.Equal(TimeSpan.FromMinutes(5), provider.MinRefreshInterval);
+        Assert.Equal(TimeSpan.FromMinutes(1), provider.MinRefreshInterval);
 
         await provider.FetchAsync(CancellationToken.None);
 

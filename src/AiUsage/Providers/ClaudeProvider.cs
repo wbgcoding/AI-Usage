@@ -150,16 +150,9 @@ public sealed class ClaudeProvider : IUsageProvider
     // that part still moves off the caller's thread even though the provider as a whole opts out.
     public bool RunsOnUiThread => true;
 
-    // True while the Claude Code sign-in gives the numbers: then only its plain request is paid, and
-    // the web session's floor does not apply.
-    private volatile bool _localLoginAnsweredLast;
-
     /// <summary>Settings-driven (this account's own value, else <see cref="AppSettings.RemoteRefreshMinutes"/>,
     /// default 5 min) rather than hardcoded, so <see cref="RefreshScheduler"/> picks up a change without ever knowing this
-    /// provider has a web path at all. The web session still holds a five-minute floor underneath the
-    /// settings value: one browser page load costs more than the local-login path's plain request, so
-    /// it never goes below what the other remote providers use. The local-login path pays only that
-    /// plain request, so the settings value applies alone, down to <see
+    /// provider has a web path at all. The chosen value applies on both routes, down to <see
     /// cref="SettingsRanges.MinRemoteRefreshMinutes"/>. No settings at all (the local-only test seam,
     /// which reaches neither remote path) falls back to five minutes when a local login exists, or the
     /// scheduler's per-tick default (null) otherwise.</summary>
@@ -170,7 +163,7 @@ public sealed class ClaudeProvider : IUsageProvider
             if (_settings is null)
                 return _localLogin is not null ? ProviderRegistry.RemoteReadFloor : null;
 
-            return ProviderRegistry.ReadInterval(_settings, _accountKey, belowFloorAllowed: _webSource is null || _localLoginAnsweredLast);
+            return ProviderRegistry.ReadInterval(_settings, _accountKey);
         }
     }
 
@@ -324,7 +317,6 @@ public sealed class ClaudeProvider : IUsageProvider
             if (picked.Status == ProviderStatus.NotSignedIn && _localLogin is not null
                 && candidates.Skip(1).FirstOrDefault(c => c.Status == ProviderStatus.NotSignedIn) is { } webNotSignedIn)
                 picked = webNotSignedIn with { SkipReasonWord = picked.SkipReasonWord };
-            _localLoginAnsweredLast = picked.SourceKind == SourceKind.LocalLogin && picked.Status == ProviderStatus.Ok;
             var chosen = picked with { IsWaitingForUser = isWaitingForUser, WaitingSince = waitingSince };
             if (limitWindow is not null)
             {

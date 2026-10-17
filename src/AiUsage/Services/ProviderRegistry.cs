@@ -14,8 +14,8 @@ namespace AiUsage.Services;
 /// </summary>
 public static class ProviderRegistry
 {
-    /// <summary>The shortest span between two reads of a provider's remote side (its web session or
-    /// its network endpoint), however often the tile ticks.</summary>
+    /// <summary>The span between two reads of a provider's remote side (its web session or its network
+    /// endpoint) when no settings exist (the test seam); with settings, the chosen value applies.</summary>
     internal static readonly TimeSpan RemoteReadFloor = TimeSpan.FromMinutes(5);
 
     private static readonly Lazy<IReadOnlyList<ProviderKind>> LazyKinds = new(() =>
@@ -36,10 +36,10 @@ public static class ProviderRegistry
     public static IReadOnlyList<ProviderKind> Kinds => LazyKinds.Value;
 
     /// <summary>How often one account may be read at most: its own value when it has one, else the
-    /// global one. A route that costs more than a plain request (a web session, a network endpoint)
-    /// never goes below <see cref="RemoteReadFloor"/>; <paramref name="belowFloorAllowed"/> lifts that
-    /// for the route that does.</summary>
-    internal static TimeSpan ReadInterval(AppSettings? settings, string accountKey, bool belowFloorAllowed = false)
+    /// global one, down to
+    /// <see cref="SettingsRanges.MinRemoteRefreshMinutes"/> on every route. A provider that pushes back
+    /// (a 429, a blocked page) is slowed down by the scheduler's own backoff, not by a floor here.</summary>
+    internal static TimeSpan ReadInterval(AppSettings? settings, string accountKey)
     {
         if (settings is null)
             return RemoteReadFloor;
@@ -47,8 +47,7 @@ public static class ProviderRegistry
         var own = settings.Providers.TryGetValue(accountKey, out var providerSettings)
             ? ProviderSettings.NormalizeRefreshMinutes(providerSettings.RefreshMinutes)
             : null;
-        var configured = TimeSpan.FromMinutes(own ?? SettingsRanges.ClampRemoteRefreshMinutes(settings.RemoteRefreshMinutes));
-        return belowFloorAllowed || configured > RemoteReadFloor ? configured : RemoteReadFloor;
+        return TimeSpan.FromMinutes(own ?? SettingsRanges.ClampRemoteRefreshMinutes(settings.RemoteRefreshMinutes));
     }
 
     /// <summary>Codex's own session: the account page the sign-in window opens, the hosts its login
