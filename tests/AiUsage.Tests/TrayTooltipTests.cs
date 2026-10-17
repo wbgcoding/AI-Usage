@@ -185,6 +185,33 @@ public class TrayTooltipTests
     }
 
     [Fact]
+    public void NotesGoBeforeNamesAreShortenedAndBeforeAnyLineIsDropped()
+    {
+        LocalizationService.Instance.SetLanguage("en");
+        try
+        {
+            var lines = new[]
+            {
+                new TrayTooltipBuilder.ProviderLine("Claude Code Max", 42, 63, "Sign-in needed"),
+                new TrayTooltipBuilder.ProviderLine("Codex Business", 42, 63, "Sign-in needed"),
+                new TrayTooltipBuilder.ProviderLine("Gemini Advanced", 42, 63, "Sign-in needed"),
+            };
+
+            var text = TrayTooltipBuilder.Build(lines);
+
+            Assert.True(text.Length <= TrayTooltipBuilder.MaxLength);
+            Assert.Equal(3, text.Split('\n').Length);
+            Assert.Contains("Claude Code Max", text);
+            Assert.Contains("Codex Business", text);
+            Assert.Contains("Gemini Advanced", text);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
     public void ALineWithoutANoteIsUnchanged()
     {
         var plain = TrayTooltipBuilder.Build([new TrayTooltipBuilder.ProviderLine("Claude", 42, 63)]);
