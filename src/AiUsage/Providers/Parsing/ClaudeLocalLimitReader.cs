@@ -52,9 +52,10 @@ public static class ClaudeLocalLimitReader
     }
 
     /// <summary>What one transcript contributed: its newest rejection per limit type, with the line's
-    /// own timestamp for the age bound, and how far into the file complete lines were consumed.</summary>
+    /// own timestamp for the age bound, how far into the file complete lines were consumed, and the last
+    /// bytes before that offset, which tell an appended file from a rewritten one.</summary>
     private sealed record FileState(
-        long Length, DateTime LastWriteUtc, long ConsumedOffset,
+        long Length, DateTime LastWriteUtc, long ConsumedOffset, byte[] Tail,
         IReadOnlyDictionary<string, (ClaudeQuotaLimit Limit, DateTimeOffset? LineTime)> Newest);
 
     // Transcripts only ever grow by appending, so a file seen before is read again from where the
@@ -64,6 +65,9 @@ public static class ClaudeLocalLimitReader
 
     // A line longer than this is none of the shapes this reader recognises.
     private const int MaxLineBytes = 4 * 1024 * 1024;
+
+    // How many bytes before the resume point are compared to tell a rewrite from an append.
+    private const int FingerprintBytes = 4096;
 
     internal static ClaudeQuotaLimit? FindActiveLimit(
         string projectsRoot, DateTimeOffset now, out string? newestFilePath, ReadStats? stats, CancellationToken ct = default)
@@ -134,27 +138,29 @@ public static class ClaudeLocalLimitReader
         if (cached is not null && cached.Length == length && cached.LastWriteUtc == writeUtc && cached.ConsumedOffset == length)
             return cached;
 
-        // Only a grown file keeps its earlier bytes; anything else is read from the start.
-        var startOffset = 0L;
-        var known = new Dictionary<string, (ClaudeQuotaLimit, DateTimeOffset?)>(StringComparer.Ordinal);
-        if (cached is not null && length >= cached.Length && writeUtc >= cached.LastWriteUtc)
-        {
-            startOffset = cached.ConsumedOffset;
-            foreach (var pair in cached.Newest)
-                known[pair.Key] = pair.Value;
-        }
-
         try
         {
             using var stream = new FileStream(
                 path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+            // Only a grown file whose earlier bytes are still the ones read keeps them; a rewrite of
+            // the same or a longer length is read from the start.
+            var startOffset = 0L;
+            var known = new Dictionary<string, (ClaudeQuotaLimit, DateTimeOffset?)>(StringComparer.Ordinal);
+            if (cached is not null && length >= cached.Length && writeUtc >= cached.LastWriteUtc
+                && TailMatches(stream, cached.ConsumedOffset, cached.Tail))
+            {
+                startOffset = cached.ConsumedOffset;
+                foreach (var pair in cached.Newest)
+                    known[pair.Key] = pair.Value;
+            }
 
             var consumed = CompleteLineReader.Read(
                 stream, startOffset, acceptTrailingLineWithoutNewline: false, MaxLineBytes, onOversized: () => { },
                 line => Absorb(line, known), ct);
             var bytesRead = Math.Max(0, consumed - startOffset);
 
-            var state = new FileState(length, writeUtc, consumed,
+            var state = new FileState(length, writeUtc, consumed, ReadTail(stream, consumed),
                 new Dictionary<string, (ClaudeQuotaLimit Limit, DateTimeOffset? LineTime)>(known));
             Cache[path] = state;
 
@@ -187,6 +193,29 @@ public static class ClaudeLocalLimitReader
         {
             return null; // vanished or locked between the scan and the open
         }
+    }
+
+    private static byte[] ReadTail(FileStream stream, long offset)
+    {
+        var count = (int)Math.Min(FingerprintBytes, offset);
+        if (count <= 0)
+            return [];
+        var buffer = new byte[count];
+        stream.Seek(offset - count, SeekOrigin.Begin);
+        var got = stream.ReadAtLeast(buffer, count, throwOnEndOfStream: false);
+        return got == count ? buffer : [];
+    }
+
+    private static bool TailMatches(FileStream stream, long offset, byte[] expected)
+    {
+        if (offset == 0)
+            return true;
+        if (expected.Length == 0 || stream.Length < offset)
+            return false;
+        var buffer = new byte[expected.Length];
+        stream.Seek(offset - expected.Length, SeekOrigin.Begin);
+        var got = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+        return got == buffer.Length && buffer.AsSpan().SequenceEqual(expected);
     }
 
     private static void Absorb(string line, Dictionary<string, (ClaudeQuotaLimit, DateTimeOffset?)> newest)

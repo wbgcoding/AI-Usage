@@ -221,6 +221,19 @@ public class ClaudeLocalLimitReaderTests : IDisposable
         Assert.Null(ClaudeLocalLimitReader.FindActiveLimit(directory, Now));
     }
 
+    [Fact]
+    public void FindActiveLimit_rereads_a_file_that_was_rewritten_to_a_longer_length()
+    {
+        var directory = TempDirectory();
+        var path = Path.Combine(directory, "session.jsonl");
+        File.WriteAllText(path, RejectionLine("five_hour", Now.AddHours(5)) + "\n" + PlainLine(Now) + "\n");
+        Assert.NotNull(ClaudeLocalLimitReader.FindActiveLimit(directory, Now));
+
+        File.WriteAllText(path, string.Join("\n", Enumerable.Range(0, 4).Select(i => PlainLine(Now.AddMinutes(i)))) + "\n");
+
+        Assert.Null(ClaudeLocalLimitReader.FindActiveLimit(directory, Now));
+    }
+
     private string ProjectsDirectoryWith(string fixtureName)
     {
         var directory = TempDirectory();
