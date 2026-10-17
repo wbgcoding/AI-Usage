@@ -70,6 +70,18 @@ public sealed class StatsHeatmap : FrameworkElement
         set => SetValue(CellColorsProperty, value);
     }
 
+    /// <summary>The cost lines per cell (may hold a line break), in the order of <see cref="Values"/>,
+    /// shown under the token line; empty or missing shows none.</summary>
+    public static readonly DependencyProperty CostLinesProperty = DependencyProperty.Register(
+        nameof(CostLines), typeof(IReadOnlyList<string>), typeof(StatsHeatmap),
+        new FrameworkPropertyMetadata(Array.Empty<string>(), OnDataChanged));
+
+    public IReadOnlyList<string> CostLines
+    {
+        get => (IReadOnlyList<string>)GetValue(CostLinesProperty);
+        set => SetValue(CostLinesProperty, value);
+    }
+
     /// <summary>A second hover line per cell, in the order of <see cref="Values"/>; empty or missing
     /// shows none.</summary>
     public static readonly DependencyProperty LeaderTextsProperty = DependencyProperty.Register(
@@ -323,11 +335,25 @@ public sealed class StatsHeatmap : FrameworkElement
         return index < LeaderTexts.Count ? LeaderTexts[index] : "";
     }
 
-    private string[] LinesOf(int row, int column)
+    private string CostOf(int row, int column)
     {
-        var leader = LeaderOf(row, column);
-        return leader.Length == 0 ? [TextOf(row, column)] : [TextOf(row, column), leader];
+        var index = row * Columns + column;
+        return index < CostLines.Count ? CostLines[index] : "";
     }
+
+    /// <summary>The hover lines of a cell: tokens, the cost lines, then the leader.</summary>
+    internal static string[] BuildLines(string tokens, string cost, string leader)
+    {
+        var lines = new List<string> { tokens };
+        if (cost.Length > 0)
+            lines.AddRange(cost.Split('\n'));
+        if (leader.Length > 0)
+            lines.Add(leader);
+        return [.. lines];
+    }
+
+    private string[] LinesOf(int row, int column) =>
+        BuildLines(TextOf(row, column), CostOf(row, column), LeaderOf(row, column));
 
     private void ShowTooltip(CellHit hit)
     {

@@ -136,6 +136,25 @@ public class StatsHeatmapTests
     }
 
     [Fact]
+    public void A_cell_tooltip_lists_the_tokens_then_the_cost_lines_then_the_leader()
+    {
+        Assert.Equal(["tokens", "cost", "unpriced", "leader"], StatsHeatmap.BuildLines("tokens", "cost\nunpriced", "leader"));
+        Assert.Equal(["tokens", "cost"], StatsHeatmap.BuildLines("tokens", "cost", ""));
+        Assert.Equal(["tokens", "leader"], StatsHeatmap.BuildLines("tokens", "", "leader"));
+        Assert.Equal(["tokens"], StatsHeatmap.BuildLines("tokens", "", ""));
+    }
+
+    [Fact]
+    public void The_cell_of_a_record_is_its_row_and_hour_in_the_culture_week_order()
+    {
+        var record = Record(Tuesday, 14, 1);
+
+        Assert.Equal(CellIndex(DayOfWeek.Monday, Tuesday, 14), StatsAggregator.WeekdayHourCell(record, DayOfWeek.Monday));
+        Assert.Equal(CellIndex(DayOfWeek.Sunday, Tuesday, 14), StatsAggregator.WeekdayHourCell(record, DayOfWeek.Sunday));
+        Assert.Equal(-1, StatsAggregator.WeekdayHourCell(Record(Tuesday, 24, 1), DayOfWeek.Monday));
+    }
+
+    [Fact]
     public void The_last_hour_of_the_day_ends_at_midnight()
     {
         var culture = new CultureInfo("de-DE");

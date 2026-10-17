@@ -892,6 +892,11 @@ public static class StatsAggregator
         return values;
     }
 
+    /// <summary>The index of the grid cell (<see cref="FlattenWeekdayHour"/> order) that holds
+    /// <paramref name="record"/>, or -1 for a record without a valid hour.</summary>
+    public static int WeekdayHourCell(StatsRecord record, DayOfWeek firstDay) =>
+        record.Hour is < 0 or >= 24 ? -1 : (((int)record.Day.DayOfWeek - (int)firstDay + 7) % 7) * 24 + record.Hour;
+
     /// <summary>The weekday by hour grid as 168 cells in the order of <see cref="FlattenWeekdayHour"/>:
     /// each cell's total and the key (from <paramref name="keyOf"/>) that put the most tokens into it,
     /// the smaller key winning a tie so the result never depends on record order.</summary>
@@ -901,10 +906,10 @@ public static class StatsAggregator
         var perKey = new Dictionary<(int Cell, string Key), long>();
         foreach (var record in records)
         {
-            if (record.Hour is < 0 or >= 24)
+            var cell = WeekdayHourCell(record, firstDay);
+            if (cell < 0)
                 continue;
 
-            var cell = (((int)record.Day.DayOfWeek - (int)firstDay + 7) % 7) * 24 + record.Hour;
             var key = (cell, keyOf(record));
             perKey[key] = perKey.GetValueOrDefault(key) + record.TotalTokens;
         }

@@ -543,7 +543,7 @@
                                     </ItemsControl.ItemContainerStyle>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Margin="0,0,16,0" ToolTip="{Binding ExactText}" Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}">
+                                            <TextBlock Margin="0,0,16,0" ToolTip="{Binding TooltipText}" Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}">
                                                 <Run Text="{Binding LabelValueText, Mode=OneWay}"/>
                                             </TextBlock>
                                         </DataTemplate>
@@ -697,6 +697,7 @@
                                                             TextBrush="{DynamicResource Text.Muted}"
                                                             TooltipBackground="{DynamicResource Bg.Raised}"
                                                             LeaderTexts="{Binding HeatmapLeaderTexts}"
+                                                            CostLines="{Binding HeatmapCostLines}"
                                                             TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
                                                             EmptyText="{Binding EmptyChartText}"/>
                                 </Border>

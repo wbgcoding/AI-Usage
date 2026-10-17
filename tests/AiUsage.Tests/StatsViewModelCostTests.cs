@@ -80,8 +80,49 @@ public class StatsViewModelCostTests
     {
         var viewModel = Create(Service());
         var claude = viewModel.ProviderRows.First(row => row.CostText.Length > 0);
-        Assert.Equal("~$3.00*", claude.CostText);
-        Assert.Contains("~$3.00*", claude.LabelValueText);
+        Assert.Equal("~$3.00", claude.CostText);
+        Assert.Contains("~$3.00", claude.LabelValueText);
+        Assert.DoesNotContain("*", claude.LabelValueText);
+    }
+
+    [Fact]
+    public void The_provider_row_tooltip_adds_the_cost_and_the_unpriced_models_to_the_exact_tokens()
+    {
+        var viewModel = Create(Service());
+        var claude = viewModel.ProviderRows.First(row => row.CostText.Length > 0);
+
+        var lines = claude.TooltipText.Split('\n');
+        Assert.Equal(claude.ExactText, lines[0]);
+        Assert.Equal(AiUsage.Services.LocalizationService.Instance["Stats.Cost.Column"] + " ~$3.00*", lines[1]);
+        Assert.Contains("mystery-model", lines[2]);
+    }
+
+    [Fact]
+    public void The_provider_row_tooltip_is_only_the_exact_tokens_when_the_estimate_is_off()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        Assert.All(viewModel.ProviderRows, row => Assert.Equal(row.ExactText, row.TooltipText));
+    }
+
+    [Fact]
+    public void A_heatmap_cell_names_its_cost_and_the_unpriced_models_and_an_empty_cell_none()
+    {
+        var viewModel = Create(Service());
+
+        Assert.Equal(168, viewModel.HeatmapCostLines.Count);
+        var filled = viewModel.HeatmapCostLines.Where(line => line.Length > 0).ToList();
+        var line = Assert.Single(filled);
+        Assert.Contains("~$3.00*", line);
+        Assert.Contains("mystery-model", line);
+    }
+
+    [Fact]
+    public void The_heatmap_carries_no_cost_when_the_estimate_is_off()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        Assert.All(viewModel.HeatmapCostLines, line => Assert.Equal("", line));
     }
 
     [Fact]

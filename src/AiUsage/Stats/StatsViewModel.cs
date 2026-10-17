@@ -409,6 +409,11 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<string> heatmapLeaderTexts = [];
 
+    /// <summary>The cost lines of each grid cell (the cost and the models without a price), in the order
+    /// of <see cref="HeatmapValues"/>; empty for a cell without tokens or while the estimate is off.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> heatmapCostLines = [];
+
     // The figures bar's own five cards. BusiestDayDateText and the two Change properties are
     // "" / false whenever their underlying figure has nothing to show (an empty period, or - for the
     // change card only - no preceding period to compare against) - shown as an em dash by the view,
@@ -1671,7 +1676,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 var providerTotal = inRange.Where(record => record.Provider == providerId).Sum(record => record.TotalTokens);
                 return new StatsProviderRowViewModel(
                     displayName, ShortenTokens(providerTotal, loc), providerTotal.ToString("N0", CultureInfo.CurrentCulture),
-                    costView.TextFor(providerCosts, providerId));
+                    costView.LabelFor(providerCosts, providerId), costView.LineFor(providerCosts, providerId) ?? "");
             })
             .ToList();
 
@@ -1762,6 +1767,13 @@ public sealed partial class StatsViewModel : ObservableObject
         // The weekday by hour grid, in the culture's own week order.
         HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
         HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
+        var firstDay = HeatmapFirstDay;
+        var cellCosts = costView.ByKey(
+            inRange.Where(record => StatsAggregator.WeekdayHourCell(record, firstDay) >= 0),
+            record => StatsAggregator.WeekdayHourCell(record, firstDay).ToString(CultureInfo.InvariantCulture));
+        HeatmapCostLines = Enumerable.Range(0, 7 * 24)
+            .Select(cell => costView.LineFor(cellCosts, cell.ToString(CultureInfo.InvariantCulture)) ?? "")
+            .ToList();
         IReadOnlyList<StatsHeatmapCell> leaders = IsHeatmap && heatmapKeyOf is not null
             ? StatsAggregator.WeekdayHourLeaders(inRange, heatmapKeyOf, HeatmapFirstDay)
             : [];
