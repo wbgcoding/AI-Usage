@@ -17,7 +17,8 @@ internal enum LocalLoginOutcome
 /// plan-tier name to show, both empty/null unless <see cref="Outcome"/> is
 /// <see cref="LocalLoginOutcome.Ok"/>.</summary>
 internal sealed record AntigravityUsage(
-    LocalLoginOutcome Outcome, string QuotaSummaryJson, string? PlanName, FailureKind FailureKind = FailureKind.Other, int? HttpStatus = null)
+    LocalLoginOutcome Outcome, string QuotaSummaryJson, string? PlanName, FailureKind FailureKind = FailureKind.Other, int? HttpStatus = null,
+    string ModelQuotaJson = "")
 {
     public static readonly AntigravityUsage NotSignedIn = new(LocalLoginOutcome.NotSignedIn, "", null);
     public static readonly AntigravityUsage Failed = new(LocalLoginOutcome.Failed, "", null);
@@ -38,6 +39,7 @@ internal static class AntigravityLocalLogin
     private const string TokenUrl = "https://oauth2.googleapis.com/token";
     private const string LoadUrl = "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
     private const string QuotaUrl = "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary";
+    private const string ModelQuotaUrl = "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota";
 
     // Refreshed access tokens are valid ~1 hour; cache the one we minted so a fetch every few minutes
     // does not re-run the OAuth round trip (or the binary scan behind it) each time.
@@ -110,7 +112,17 @@ internal static class AntigravityLocalLogin
         if (!quota.Ok)
             return FailedFor(quota);
 
-        return new AntigravityUsage(LocalLoginOutcome.Ok, quota.Body, planName);
+        // The summary no longer lists a Gemini group for every account; the per-model answer still
+        // carries the Gemini models' shared quota. A failure there leaves the summary as it is.
+        var modelQuotaBody = "";
+        if (Parsing.GeminiUsageParser.Parse(quota.Body).Count == 0)
+        {
+            var modelQuota = await LocalLoginHttp.SendAsync(HttpMethod.Post, ModelQuotaUrl, accessToken, quotaBody, UserAgent, ct);
+            if (modelQuota.Ok)
+                modelQuotaBody = modelQuota.Body;
+        }
+
+        return new AntigravityUsage(LocalLoginOutcome.Ok, quota.Body, planName, ModelQuotaJson: modelQuotaBody);
     }
 
     private static Task<LocalLoginHttp.Response> LoadCodeAssistAsync(string accessToken, CancellationToken ct) =>

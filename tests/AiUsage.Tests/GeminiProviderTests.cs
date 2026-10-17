@@ -99,6 +99,61 @@ public class GeminiProviderTests : IDisposable
         Assert.Equal(FakeEmail, snapshot.AccountLabel);
     }
 
+    // Shape of the answers seen on 2026-10-17: the summary lists only the Claude/GPT group, the
+    // per-model answer carries the Gemini models' shared five-hour quota.
+    private const string SummaryWithoutGemini = """
+        {"groups":[{"displayName":"Claude and GPT models","buckets":[
+          {"window":"weekly","resetTime":"2026-10-22T21:14:07Z","remainingFraction":0.9997828},
+          {"window":"5h","resetTime":"2026-10-17T15:17:16Z","remainingFraction":1}]}]}
+        """;
+
+    private const string ModelQuota = """
+        {"buckets":[
+          {"tokenType":"WTUS","modelId":"chat_20706","remainingFraction":1},
+          {"resetTime":"2026-10-17T15:18:53Z","tokenType":"WTUS","modelId":"claude-opus-5-5-high","remainingFraction":0.5},
+          {"resetTime":"2026-10-17T11:40:31Z","tokenType":"WTUS","modelId":"gemini-3.8-flash-tiered","remainingFraction":0.97771573},
+          {"resetTime":"2026-10-17T11:40:31Z","tokenType":"WTUS","modelId":"gemini-2.5-pro","remainingFraction":0.97771573},
+          {"tokenType":"WTUS","modelId":"tab_flash_lite_preview","remainingFraction":1}]}
+        """;
+
+    [Fact]
+    public void A_summary_without_a_Gemini_group_never_shows_another_group_as_Gemini()
+    {
+        Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.Parse(SummaryWithoutGemini));
+    }
+
+    [Fact]
+    public void The_per_model_answer_gives_the_Gemini_models_shared_five_hour_window()
+    {
+        var window = Assert.Single(AiUsage.Providers.Parsing.GeminiUsageParser.ParseModelQuota(ModelQuota));
+
+        Assert.Equal(WindowKind.FiveHour, window.Kind);
+        Assert.Equal(2.228427, window.UsedPercent, precision: 3);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-17T11:40:31Z"), window.ResetsAt);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not json")]
+    [InlineData("""{"buckets":[{"modelId":"claude-opus-5-5-high","resetTime":"2026-10-17T15:18:53Z","remainingFraction":0.5}]}""")]
+    [InlineData("""{"buckets":[{"modelId":"gemini-2.5-pro","resetTime":"2026-10-17T11:40:31Z","remainingFraction":3}]}""")]
+    public void A_per_model_answer_without_a_usable_Gemini_bucket_gives_no_window(string json)
+    {
+        Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.ParseModelQuota(json));
+    }
+
+    [Fact]
+    public async Task Without_a_Gemini_group_the_tile_shows_the_per_model_quota()
+    {
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, SummaryWithoutGemini, "Pro", ModelQuotaJson: ModelQuota);
+
+        var snapshot = await Provider(usage, FakeEmail).FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        var window = Assert.Single(snapshot.Windows);
+        Assert.Equal(2.228427, window.UsedPercent, precision: 3);
+    }
+
     [Fact]
     public void An_exhausted_bucket_without_remainingFraction_reads_as_fully_used()
     {

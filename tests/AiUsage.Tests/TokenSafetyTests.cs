@@ -220,6 +220,7 @@ public class TokenSafetyTests
         Assert.True(LocalLoginHttp.IsAllowedUrl("https://oauth2.googleapis.com/token"));
         Assert.True(LocalLoginHttp.IsAllowedUrl("https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"));
         Assert.True(LocalLoginHttp.IsAllowedUrl("https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary"));
+        Assert.True(LocalLoginHttp.IsAllowedUrl("https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"));
         Assert.True(LocalLoginHttp.IsAllowedUrl("https://api.anthropic.com/api/oauth/usage"));
 
         // A chat/message/completion endpoint, or anything else, is refused before a socket opens.

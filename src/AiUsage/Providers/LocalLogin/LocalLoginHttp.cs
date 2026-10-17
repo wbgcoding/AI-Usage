@@ -25,6 +25,7 @@ internal static class LocalLoginHttp
         "https://oauth2.googleapis.com/token",
         "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
         "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+        "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
         "https://api.anthropic.com/api/oauth/usage",
     };
 

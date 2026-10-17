@@ -229,6 +229,8 @@ public sealed class GeminiProvider : IUsageProvider
             case LocalLoginOutcome.Ok:
                 var windows = GeminiUsageParser.Parse(usage.QuotaSummaryJson);
                 if (windows.Count == 0)
+                    windows = GeminiUsageParser.ParseModelQuota(usage.ModelQuotaJson);
+                if (windows.Count == 0)
                     return Empty(fetchedAt, ProviderStatus.Failed, error: null);
 
                 return new ProviderSnapshot(
