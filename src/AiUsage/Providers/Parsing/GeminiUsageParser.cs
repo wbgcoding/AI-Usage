@@ -191,7 +191,7 @@ public static class GeminiUsageParser
             return notes;
         }
 
-        var fractions = new HashSet<double>();
+        double? lowestFraction = null, highestFraction = null;
         foreach (var (model, fraction) in ModelBuckets(modelQuotaJson))
         {
             if (model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
@@ -199,14 +199,17 @@ public static class GeminiUsageParser
                 if (!KnownGeminiModels.Contains(model))
                     notes.Add($"new Gemini model '{model}' found; it is counted in the shared Gemini quota, check that this still holds.");
                 if (fraction is { } value)
-                    fractions.Add(Math.Round(value, 6));
+                {
+                    lowestFraction = Math.Min(lowestFraction ?? value, value);
+                    highestFraction = Math.Max(highestFraction ?? value, value);
+                }
             }
             else if (!KnownModelPrefixes.Any(prefix => model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
             {
                 notes.Add($"unknown model '{model}' found; it is not counted on the Gemini tile, check whether it belongs there.");
             }
         }
-        if (fractions.Count > 1)
+        if (highestFraction - lowestFraction > 1e-6)
             notes.Add("the Gemini models no longer share one quota; the tile shows the most used one, check whether separate rows are needed.");
 
         return notes;
