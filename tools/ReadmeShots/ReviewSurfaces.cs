@@ -143,6 +143,10 @@ internal static class ReviewSurfaces
                 context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
                 context.OutputPath("stats.projects"), minWidth: context.Size == SizeKind.Min,
                 configure: viewModel => viewModel.SetGroupingCommand.Execute(StatsGrouping.Project)), HasMinSize: true),
+            new("stats.indexing", GroupStats, context => Program.RenderStatistics(
+                context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
+                context.OutputPath("stats.indexing"), minWidth: context.Size == SizeKind.Min,
+                configure: viewModel => viewModel.IndexProgress = (1204, 4180)), HasMinSize: true),
             Heatmap("stats.heatmap.provider", StatsColorBy.Provider),
             new("stats.models", GroupStats, context => Program.RenderStatistics(
                 context.NextDataFolder("stats"), context.Records, context.BusyDay, fullHeight: true,
