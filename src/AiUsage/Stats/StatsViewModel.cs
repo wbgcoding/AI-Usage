@@ -433,6 +433,16 @@ public sealed partial class StatsViewModel : ObservableObject
 
     partial void OnTotalCostTextChanged(string value) => OnPropertyChanged(nameof(HasTotalCost));
 
+    // The cost beside the per-day, per-active-day and busiest-day figures; empty while no estimate is shown.
+    [ObservableProperty]
+    private string perDayCostText = "";
+
+    [ObservableProperty]
+    private string perActiveDayCostText = "";
+
+    [ObservableProperty]
+    private string busiestDayCostText = "";
+
     [ObservableProperty]
     private string perDayFigureText = "";
 
@@ -1798,7 +1808,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // short history can cut down.
         var figures = StatsAggregator.ComputeHeadlineFigures(
             inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
-        ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc);
+        ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc, costView, inRange, previous);
         _exportScope = new ExportScope(from, to, previous, figures, periodDayCount);
         var totalCost = costView.Sum(inRange);
         TotalCostText = costView.Text(totalCost);
@@ -2217,7 +2227,9 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Formats <see cref="StatsAggregator.ComputeHeadlineFigures"/>'s pure result into the
     /// four bound strings the view shows - the only place a shortened number or an em dash for "no
     /// figure to show" gets decided.</summary>
-    private void ApplyHeadlineFigures(StatsHeadlineFigures figures, long previousTotal, LocalizationService loc)
+    private void ApplyHeadlineFigures(
+        StatsHeadlineFigures figures, long previousTotal, LocalizationService loc,
+        StatsCostView costView, IReadOnlyList<StatsRecord> inRange, IReadOnlyList<StatsRecord> previous)
     {
         var thousand = loc["Number.Thousand"];
         var million = loc["Number.Million"];
@@ -2238,17 +2250,25 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
             BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, LocalizationService.Instance.DisplayCulture);
+            BusiestDayCostText = costView.Text(costView.Sum(inRange.Where(record => record.Day == busiestDay)));
         }
         else
         {
             BusiestDayFigureText = "–";
             BusiestDayDateText = "";
+            BusiestDayCostText = "";
         }
+
+        // The averages carry the same share of the period's cost as of its tokens.
+        var periodCost = costView.Sum(inRange);
+        PerDayCostText = figures.Total > 0 ? costView.Text(Scaled(periodCost, figures.PerDayAverage / figures.Total)) : "";
+        PerActiveDayCostText = figures.ActiveDayCount > 0 ? costView.Text(Scaled(periodCost, 1.0 / figures.ActiveDayCount)) : "";
 
         HasPreviousPeriod = figures.HasPreviousPeriod;
         VsPreviousCaption = figures.HasPreviousPeriod
             ? string.Format(CultureInfo.CurrentCulture, loc["Stats.VsPreviousValue"],
-                StatsAggregator.ShortenTokenCount(previousTotal, thousand, million, billion))
+                StatsAggregator.ShortenTokenCount(previousTotal, thousand, million, billion)
+                    + (costView.Text(costView.Sum(previous)) is { Length: > 0 } previousCost ? " " + previousCost : ""))
             : loc["Stats.VsPrevious"];
         if (figures.HasPreviousPeriod)
         {
@@ -2265,6 +2285,9 @@ public sealed partial class StatsViewModel : ObservableObject
             ChangeIsIncrease = true;
         }
     }
+
+    private static CostSummary Scaled(CostSummary summary, double factor) =>
+        summary with { Usd = summary.Usd * factor };
 
     /// <summary>Every record from the period compared against - empty for "All", which has no
     /// defined length to mirror.</summary>

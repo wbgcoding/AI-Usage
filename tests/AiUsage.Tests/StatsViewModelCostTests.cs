@@ -26,7 +26,8 @@ public class StatsViewModelCostTests
         return service;
     }
 
-    private static StatsViewModel Create(CostService? cost, Action<StatsViewModel>? configure = null, Func<string, string?>? save = null)
+    private static StatsViewModel Create(
+        CostService? cost, Action<StatsViewModel>? configure = null, Func<string, string?>? save = null, IEnumerable<StatsRecord>? extra = null)
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-cost-store");
         var store = new StatsStore(dataDir);
@@ -34,6 +35,7 @@ public class StatsViewModelCostTests
         store.AddDelta([
             new StatsRecord("claude", today, "claude-sonnet-4-5", "projA", 1_000_000, 0, 0, 0),
             new StatsRecord("claude", today, "mystery-model", "projB", 500, 500, 0, 0),
+            .. extra ?? [],
         ]);
         var viewModel = new StatsViewModel(store, save, _ => { }, cost: cost);
         configure?.Invoke(viewModel);
@@ -335,5 +337,40 @@ public class StatsViewModelCostTests
         Assert.Contains(viewModel.SessionRows, row => row.CostText == "~$3.00");
         Assert.Contains(viewModel.SessionRows, row => row.CostText == "?");
         Assert.Contains(viewModel.SessionRows, row => row.ToolTip.Contains("~$3.00"));
+    }
+
+    [Fact]
+    public void Every_token_figure_of_the_figures_section_adds_its_cost()
+    {
+        var viewModel = Create(Service());
+
+        // One active day holds all of it, so the busiest day and the active-day average equal the total.
+        Assert.Equal("~$3.00*", viewModel.BusiestDayCostText);
+        Assert.Equal("~$3.00*", viewModel.PerActiveDayCostText);
+        Assert.StartsWith("~$", viewModel.PerDayCostText);
+        Assert.EndsWith("*", viewModel.PerDayCostText);
+    }
+
+    [Fact]
+    public void The_previous_period_figure_names_its_cost()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var earlier = Enumerable.Range(0, 20).Select(offset =>
+            new StatsRecord("claude", today.AddDays(-35 - offset), "claude-sonnet-4-5", "projA", 2_000_000, 0, 0, 0));
+        var viewModel = Create(Service(), vm => vm.SelectedRange = "Month", extra: earlier);
+
+        Assert.True(viewModel.HasPreviousPeriod);
+        Assert.Contains("~$", viewModel.VsPreviousCaption);
+    }
+
+    [Fact]
+    public void The_figures_section_shows_no_cost_while_the_estimate_is_off()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        Assert.Equal("", viewModel.PerDayCostText);
+        Assert.Equal("", viewModel.PerActiveDayCostText);
+        Assert.Equal("", viewModel.BusiestDayCostText);
+        Assert.DoesNotContain("~", viewModel.VsPreviousCaption);
     }
 }

@@ -412,8 +412,11 @@
                                         <TextBlock Text="{Binding PerDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerDay]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerDay], Mode=OneWay}"/>
+                                            <Run Text="{Binding PerDayCostText, Mode=OneWay}"/>
+                                        </TextBlock>
                                         <Border Height="28" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
@@ -422,8 +425,11 @@
                                         <TextBlock Text="{Binding BusiestDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.BusiestDay]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.BusiestDay], Mode=OneWay}"/>
+                                            <Run Text="{Binding BusiestDayCostText, Mode=OneWay}"/>
+                                        </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="Columns" Values="{Binding DailyTotalsSeries}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
                                                                         Height="28" Margin="0,4,0,0"/>
@@ -456,8 +462,11 @@
                                         <TextBlock Text="{Binding PerActiveDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
                                                    FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerActiveDay]}"
-                                                   Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"/>
+                                        <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerActiveDay], Mode=OneWay}"/>
+                                            <Run Text="{Binding PerActiveDayCostText, Mode=OneWay}"/>
+                                        </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="Progress" Numerator="{Binding ActiveDayCountRaw}"
                                                                         Denominator="{Binding PeriodDayCountRaw}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
