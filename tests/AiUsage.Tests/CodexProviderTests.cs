@@ -656,6 +656,29 @@ public class CodexProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task Local_only_scan_runs_off_the_calling_thread()
+    {
+        var settings = new AppSettings();
+        settings.Providers["codex"] = new ProviderSettings { LocalOnly = true };
+        var provider = ProviderWithWebSession(NewSessionsDirectory(), _ => OkEnvelope, out _, settings: settings);
+
+        // The lock is re-entrant: a scan on this thread would pass straight through it and finish
+        // inside FetchAsync, a scan on the pool blocks until it is released.
+        await StartWhileHoldingTheGate(provider);
+    }
+
+    private static Task<ProviderSnapshot> StartWhileHoldingTheGate(CodexProvider provider)
+    {
+        lock (provider.LocalReadGate)
+        {
+            var fetch = provider.FetchAsync(CancellationToken.None);
+            Thread.Sleep(50);
+            Assert.False(fetch.IsCompleted);
+            return fetch;
+        }
+    }
+
+    [Fact]
     public async Task The_web_read_is_left_out_while_the_network_is_held_and_made_otherwise()
     {
         var provider = ProviderWithWebSession(NewSessionsDirectory(), _ => OkEnvelope, out var scriptRuns);

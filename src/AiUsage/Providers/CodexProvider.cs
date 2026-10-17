@@ -59,6 +59,9 @@ public sealed partial class CodexProvider : IUsageProvider
     // file memo and the plausibility baseline are only ever updated by one read at a time.
     private readonly Lock _localReadGate = new();
 
+    /// <summary>Test seam: lets a test prove the local scan runs off the calling thread.</summary>
+    internal Lock LocalReadGate => _localReadGate;
+
     /// <summary>Session files opened for reading lines over this provider's lifetime - internal so a
     /// test can prove an unchanged file is not read a second time.</summary>
     internal int FilesOpened { get; private set; }
@@ -178,8 +181,12 @@ public sealed partial class CodexProvider : IUsageProvider
                     UnreadableAnswer: _webReader?.AnswerUnread == true);
         }
 
-        if (_webSource is null || LocalOnly)
+        // With a web source the scheduler leaves this provider on the UI thread (see RunsOnUiThread),
+        // so the scan moves to the pool in that case, local-only included.
+        if (_webSource is null)
             return FetchCore(fetchedAt, ct).Snapshot;
+        if (LocalOnly)
+            return (await Task.Run(() => FetchCore(fetchedAt, ct), ct)).Snapshot;
 
         // This provider stays off the scheduler's thread-pool wrap (see RunsOnUiThread) so the web
         // read keeps starting on the calling thread it needs - which would otherwise leave the
