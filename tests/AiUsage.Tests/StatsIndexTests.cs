@@ -1905,6 +1905,37 @@ public class StatsIndexTests
         Assert.Equal(["file-a", "file-b"], states.Keys.Order());
     }
 
+    [Theory]
+    [InlineData("UPDATE schema_version SET version = 99")]
+    [InlineData("UPDATE schema_version SET version = 3")]
+    [InlineData("DROP TABLE usage")]
+    [InlineData("DROP TABLE source_file")]
+    [InlineData("DROP TABLE session")]
+    public void A_weekly_copy_this_build_cannot_use_is_skipped_for_the_next_older_one(string spoil)
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-schema-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-schema");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        var newest = Path.Combine(dataDir, "stats-backups", "stats-2026-10-01.db");
+        using (var spoiler = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = newest, Pooling = false }.ToString()))
+        {
+            spoiler.Open();
+            using var command = spoiler.CreateCommand();
+            command.CommandText = spoil;
+            command.ExecuteNonQuery();
+        }
+
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        store.TryLoadSourceFiles(out _);
+
+        Assert.Contains(logged, line => line.Contains("weekly copy of 2026-09-24", StringComparison.Ordinal));
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a"], states.Keys.ToArray());
+    }
+
     [Fact]
     public void A_move_that_keeps_failing_ends_the_restore_without_trying_an_older_copy()
     {

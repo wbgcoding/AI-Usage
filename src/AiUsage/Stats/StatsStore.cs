@@ -233,16 +233,20 @@ public sealed class StatsStore
         }
     }
 
-    private enum CopyVerdict { Usable, Corrupt, Transient }
+    private enum CopyVerdict { Usable, Corrupt, Transient, Unsupported }
 
     private readonly record struct PreparedRestore(DateOnly Date, string CopyPath, string TemporaryPath);
 
     private const int SqliteError = 1;
     private const int CopyCheckBusyMilliseconds = 250;
 
+    // The oldest schema EnsureSchema migrates without dropping rows (v4 keeps them, older ones are rebuilt).
+    private const int OldestMigratableSchema = 4;
+
     /// <summary>Reads a weekly copy through SQLite's full integrity check. Corrupt only when the copy
     /// itself is proven bad (not a database, failed check, no version row); a lock or an IO hiccup is
-    /// Transient, the copy may be perfectly fine a moment later.</summary>
+    /// Transient, the copy may be perfectly fine a moment later. Unsupported: sound, but this build
+    /// cannot use it (a newer or a too old schema, or a table that holds rows is missing).</summary>
     private static CopyVerdict JudgeWeeklyCopy(string copyPath)
     {
         try
@@ -262,16 +266,24 @@ public sealed class StatsStore
             using var version = connection.CreateCommand();
             version.CommandText = "SELECT MAX(version) FROM schema_version";
             var value = version.ExecuteScalar();
-            return value is null or DBNull
-                || !long.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                ? CopyVerdict.Corrupt
-                : CopyVerdict.Usable;
+            if (value is null or DBNull
+                || !long.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+                return CopyVerdict.Corrupt;
+            if (number < OldestMigratableSchema || number > SchemaVersion)
+                return CopyVerdict.Unsupported;
+
+            // Tables whose rows exist nowhere else; the rest (meta, claude_*) the next open creates again.
+            var required = number >= 7 ? RowTablesFromV7 : RowTablesFromV4;
+            return required.All(table => TableExists(connection, table)) ? CopyVerdict.Usable : CopyVerdict.Unsupported;
         }
         catch (SqliteException ex)
         {
             return ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase or SqliteError ? CopyVerdict.Corrupt : CopyVerdict.Transient;
         }
     }
+
+    private static readonly string[] RowTablesFromV4 = ["schema_version", "usage", "source_file"];
+    private static readonly string[] RowTablesFromV7 = ["schema_version", "usage", "source_file", "session", "session_model"];
 
     private enum RestorePlan { NoCopy, Ready, Wait }
 
@@ -305,6 +317,9 @@ public sealed class StatsStore
                     TriedCopies.Add(copyPath);
                     continue;
                 }
+
+                if (verdict == CopyVerdict.Unsupported)
+                    continue;
 
                 if (verdict == CopyVerdict.Transient)
                 {
