@@ -133,13 +133,14 @@ public sealed class CodexUsageLogParser
             // than a clamped-to-zero loss.
             var deltaOutput = CounterDelta(_cumulativeOutput, output);
             var deltaCacheCreation = CounterDelta(_cumulativeCacheCreation, cacheCreation);
-            var deltaCacheRead = CounterDelta(_cumulativeCacheRead, cacheRead);
+            var rawInput = CounterDelta(_cumulativeInput, input);
+            var deltaCacheRead = Math.Min(CounterDelta(_cumulativeCacheRead, cacheRead), rawInput);
 
             // Codex's own "input_tokens" total already includes whatever share of it was served
             // from cache (unlike Claude, where the input and cache fields are separate, non
             // overlapping quantities) - the cached share is subtracted out right here, so a record
             // built from this event never counts it a second time when its four fields are summed.
-            var deltaInput = Math.Max(0, CounterDelta(_cumulativeInput, input) - deltaCacheRead);
+            var deltaInput = rawInput - deltaCacheRead;
 
             _cumulativeInput = input;
             _cumulativeOutput = output;

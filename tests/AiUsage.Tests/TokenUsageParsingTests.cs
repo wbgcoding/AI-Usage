@@ -160,6 +160,22 @@ public class TokenUsageParsingTests : IDisposable
         Assert.Equal(70, firstResult.OutputTokens + thirdResult.OutputTokens);
     }
 
+    [Fact]
+    public void CodexUsageLogParser_never_lets_the_cache_share_exceed_the_input_it_is_part_of()
+    {
+        // The cached counter jumps by more than the input counter in one event: the cache share is
+        // part of the input, so it is capped at that event's input rise and nothing is counted twice.
+        var parser = new CodexUsageLogParser();
+        var first = CodexTokenCountLine("2026-09-01T10:00:00Z", input: 100, output: 10, cacheCreation: 0, cacheRead: 40);
+        var second = CodexTokenCountLine("2026-09-01T10:05:00Z", input: 110, output: 10, cacheCreation: 0, cacheRead: 80);
+
+        Assert.True(parser.TryParseLine(first, out _));
+        Assert.True(parser.TryParseLine(second, out var result));
+
+        Assert.Equal(10, result.InputTokens + result.CacheReadTokens);
+        Assert.True(result.CacheReadTokens <= 10);
+    }
+
     private static string CodexTokenCountLine(string timestamp, long input, long output, long cacheCreation, long cacheRead) =>
         "{\"type\":\"event_msg\",\"timestamp\":\"" + timestamp + "\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":" +
         input + ",\"cached_input_tokens\":" + cacheRead + ",\"cache_write_input_tokens\":" + cacheCreation + ",\"output_tokens\":" + output + "}}}}";
