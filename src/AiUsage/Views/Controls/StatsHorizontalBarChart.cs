@@ -757,6 +757,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             Trimming = TextTrimming.CharacterEllipsis,
         };
 
+    /// <summary>The uncut width of a project name. Measured without a width limit: WPF refuses an
+    /// infinite MaxTextWidth.</summary>
+    internal static double RichNameNaturalWidth(string name, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
+        new FormattedText(name, culture, FlowDirection.LeftToRight, semiBold, 12, brush, dpi).Width;
+
     /// <summary>One 852-style row: an icon (or, missing one, a dot in the project's own color), the
     /// project's name in semibold (the full path is in the tooltip only), cut to whatever width is
     /// left once the right-aligned value/share text is measured, and a thin bar under the whole row
@@ -795,7 +800,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             : new FormattedText(row.CostText, culture, FlowDirection.LeftToRight, regular, 11, MutedBrush, dpi);
         if (costText is not null)
         {
-            var nameNatural = CreateRichNameText(projectName, double.PositiveInfinity, culture, semiBold, TextBrush, dpi).Width;
+            var nameNatural = RichNameNaturalWidth(projectName, culture, semiBold, TextBrush, dpi);
             if (!CostFits(width, textX, figureText.Width, costText.Width, nameNatural))
                 costText = null;
         }
