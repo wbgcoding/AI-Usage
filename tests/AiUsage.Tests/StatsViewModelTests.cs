@@ -2423,7 +2423,7 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
-    public void EmptyChartText_shows_the_read_progress_until_the_records_are_loaded()
+    public void EmptyChartText_shows_the_read_progress_while_the_read_runs_even_after_the_records_loaded()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-progress-text");
         try
@@ -2443,8 +2443,16 @@ public class StatsViewModelCaptionTests
             viewModel.IndexProgress = null;
             Assert.Equal(LocalizationService.Instance["StatsWindow.Loading"], viewModel.EmptyChartText);
 
+            // The window loads the stored records within moments, long before the first read is done:
+            // the empty chart keeps naming the progress until the read ends.
             viewModel.IndexProgress = (5000, 5000);
             viewModel.Recompute();
+            Assert.Equal(
+                LocalizationService.Instance.Format(
+                    "Stats.Indexing.Progress", 5000.ToString("N0", System.Globalization.CultureInfo.CurrentCulture), 5000.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)),
+                viewModel.EmptyChartText);
+
+            viewModel.IndexProgress = null;
             Assert.Equal(LocalizationService.Instance["Stats.Chart.Empty"], viewModel.EmptyChartText);
         }
         finally

@@ -1375,10 +1375,11 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>What an empty chart says: how far the first read of the session logs has come while
-    /// there is one, otherwise that the data is still on its way until the first load has been shown,
-    /// and only then that the period holds no tokens.</summary>
+    /// there is one (the stored records are shown within moments, long before that read ends),
+    /// otherwise that the data is still on its way until the first load has been shown, and only then
+    /// that the period holds no tokens.</summary>
     public string EmptyChartText =>
-        !RecordsLoaded && IndexProgress is { } progress
+        IndexProgress is { } progress
             ? LocalizationService.Instance.Format(
                 "Stats.Indexing.Progress", progress.Done.ToString("N0", CultureInfo.CurrentCulture), progress.Total.ToString("N0", CultureInfo.CurrentCulture))
             : LocalizationService.Instance[RecordsLoaded ? "Stats.Chart.Empty" : "StatsWindow.Loading"];
