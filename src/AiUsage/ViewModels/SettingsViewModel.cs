@@ -277,6 +277,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(RefreshSecondsLabel))]
     private int refreshSeconds;
 
+    /// <summary>Whether the token index is copied weekly into the data folder.</summary>
+    [ObservableProperty]
+    private bool statsWeeklyCopy;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RetentionLabel))]
     [NotifyPropertyChangedFor(nameof(RetentionFullLabel))]
@@ -646,6 +650,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         showPreviousWeekLine = settings.ShowPreviousWeekLine;
         hideOnFullscreen = settings.HideOnFullscreen;
         saveEnergyOnBattery = settings.SaveEnergyOnBattery;
+        statsWeeklyCopy = settings.StatsWeeklyCopy;
         zoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
         Choice.Select(ZoomChoices, zoomPercent);
         showTooltips = settings.ShowTooltips;
@@ -1134,6 +1139,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.SaveEnergyOnBattery = value;
         _store.RequestSave(_settings);
         Main.UpdateSaveEnergyOnBattery(value);
+    }
+
+    partial void OnStatsWeeklyCopyChanged(bool value)
+    {
+        _settings.StatsWeeklyCopy = value;
+        _store.RequestSave(_settings);
+        if (Stats.StatsIndexerService.Shared is { } indexer)
+            indexer.WeeklyCopyEnabled = value;
     }
 
     partial void OnCheckForUpdatesChanged(bool value)
@@ -1997,6 +2010,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
+        _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.AllDaysAllowed = source.AllDaysAllowed;
         _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
@@ -2089,6 +2103,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ShowAttentionMark = _settings.ShowAttentionMark;
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
+        StatsWeeklyCopy = _settings.StatsWeeklyCopy;
         QuietHoursEnabled = _settings.QuietHoursEnabled;
         AllDaysAllowed = _settings.AllDaysAllowed;
         RebuildQuietDays();

@@ -405,4 +405,67 @@ public class StatsIndexerServiceTests
         Assert.Throws<OperationCanceledException>(
             () => StatsIndexer.EnumerateNewestFirst(root, "*.jsonl", out _, cancelled.Token));
     }
+
+    [Fact]
+    public void A_finished_walk_writes_the_weekly_copy_while_it_is_enabled()
+    {
+        var copies = 0;
+        using var service = StatsIndexerService.ForTest(
+            _ => Walk(1, 0), loadSnapshot: EmptySnapshot, weeklyCopy: _ => Interlocked.Increment(ref copies));
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(1, copies);
+    }
+
+    [Fact]
+    public void No_weekly_copy_is_written_while_it_is_switched_off()
+    {
+        var copies = 0;
+        using var service = StatsIndexerService.ForTest(
+            _ => Walk(1, 0), loadSnapshot: EmptySnapshot, weeklyCopy: _ => Interlocked.Increment(ref copies));
+        service.WeeklyCopyEnabled = false;
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(0, copies);
+    }
+
+    [Fact]
+    public void No_weekly_copy_is_written_after_a_cancelled_walk()
+    {
+        var copies = 0;
+        StatsIndexerService? holder = null;
+        using var service = StatsIndexerService.ForTest(_ =>
+        {
+            holder!.Cancel();
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot, weeklyCopy: _ => Interlocked.Increment(ref copies));
+        holder = service;
+
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(0, copies);
+    }
+
+    [Fact]
+    public void A_failing_weekly_copy_neither_ends_the_thread_nor_blocks_the_next_walk()
+    {
+        var walks = 0;
+        using var service = StatsIndexerService.ForTest(_ =>
+        {
+            Interlocked.Increment(ref walks);
+            return Walk(1, 0);
+        }, loadSnapshot: EmptySnapshot, weeklyCopy: _ => throw new InvalidOperationException("disk"));
+
+        service.StartInBackground();
+        WaitIdle(service);
+        service.StartInBackground();
+        WaitIdle(service);
+
+        Assert.Equal(2, walks);
+    }
 }

@@ -18,6 +18,9 @@ public sealed class StatsIndexerService : IDisposable
     private readonly Func<CancellationToken, StatsIndexResult?> _runIndexOnce;
     private readonly Func<StatsDataSnapshot>? _loadSnapshot;
     private readonly LogService? _logService;
+    // Writes the weekly copy of the index; null for a service that keeps none.
+    private readonly Action<DateTimeOffset>? _weeklyCopy;
+    private volatile bool _weeklyCopyEnabled = true;
     private readonly object _gate = new();
     private CancellationTokenSource? _cancellation;
     private Thread? _thread;
@@ -76,8 +79,17 @@ public sealed class StatsIndexerService : IDisposable
 
     public StatsIndexerService(StatsStore store, LogService? logService = null)
         : this(token => new StatsIndexer(store, logService).IndexOnce(token), () => StatsDataSnapshot.Load(store), logService,
-            () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath)
+            () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath,
+            now => store.WriteWeeklyCopy(store.DataDirectory, now))
     {
+    }
+
+    /// <summary>Whether a finished walk also writes the weekly copy of the index. On unless the
+    /// user switched it off in the settings.</summary>
+    public bool WeeklyCopyEnabled
+    {
+        get => _weeklyCopyEnabled;
+        set => _weeklyCopyEnabled = value;
     }
 
     /// <summary>Test seam: a controllable stand-in for the real walk, so the one-instance and
@@ -96,13 +108,15 @@ public sealed class StatsIndexerService : IDisposable
     /// "only announce a walk that read something" rule can be driven.</summary>
     internal static StatsIndexerService ForTest(
         Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null,
-        Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null, Func<string>? snapshotPath = null) =>
-        new(token => runIndexOnce(token), loadSnapshot, logService, snapshotPath) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+        Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null, Func<string>? snapshotPath = null,
+        Action<DateTimeOffset>? weeklyCopy = null) =>
+        new(token => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
 
     private StatsIndexerService(
         Func<CancellationToken, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
-        Func<string>? snapshotPath = null)
+        Func<string>? snapshotPath = null, Action<DateTimeOffset>? weeklyCopy = null)
     {
+        _weeklyCopy = weeklyCopy;
         _runIndexOnce = runIndexOnce;
         _loadSnapshot = loadSnapshot;
         _logService = logService;
@@ -200,9 +214,11 @@ public sealed class StatsIndexerService : IDisposable
     private void RunSafely(CancellationToken token)
     {
         var raise = true;
+        var walkFinished = false;
         try
         {
             var result = _runIndexOnce(token);
+            walkFinished = result is not null && !token.IsCancellationRequested;
             lock (_gate)
             {
                 raise = ShouldRaise(result, _firstWalkDone, _today() != _lastRaisedDate);
@@ -231,6 +247,10 @@ public sealed class StatsIndexerService : IDisposable
                         RefreshSnapshot();
                     RaiseIndexCompleted();
                 }
+
+                // After the window has its data, so the copy never delays what the user sees.
+                if (walkFinished && _weeklyCopyEnabled && !token.IsCancellationRequested)
+                    WriteWeeklyCopy();
             }
             finally
             {
@@ -239,6 +259,18 @@ public sealed class StatsIndexerService : IDisposable
                 lock (_gate)
                     _isRunning = false;
             }
+        }
+    }
+
+    private void WriteWeeklyCopy()
+    {
+        try
+        {
+            _weeklyCopy?.Invoke(DateTimeOffset.Now);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logService?.LogError($"Statistics weekly copy failed ({ex.GetType().Name}).");
         }
     }
 

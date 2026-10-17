@@ -212,7 +212,7 @@ public partial class App : Application, IDisposable
         // the tiles' week token figures read this same database, so without it usage made while the
         // app just keeps running would only show up after the next start or the next time the
         // statistics window opens.
-        _statsIndexerService = new StatsIndexerService(new StatsStore(), logService);
+        _statsIndexerService = new StatsIndexerService(new StatsStore(), logService) { WeeklyCopyEnabled = settings.StatsWeeklyCopy };
         StatsIndexerService.Shared = _statsIndexerService;
         // The data the last run left behind, so a statistics window opened before the first walk is
         // over has numbers to show at once.

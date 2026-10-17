@@ -1512,4 +1512,122 @@ public class StatsIndexTests
 
         Assert.Null(StatsStore.TryReadSchemaVersion(path));
     }
+
+    private static void SeedIndex(string directory, params string[] sourceFiles)
+    {
+        var store = new StatsStore(directory);
+        foreach (var file in sourceFiles)
+            Assert.True(store.SetSourceFile(new StatsSourceFileState(file, "claude", 100, 100, DateTime.UtcNow)));
+    }
+
+    private static string[] WeeklyCopyNames(string directory)
+    {
+        var folder = Path.Combine(directory, "stats-backups");
+        return Directory.Exists(folder)
+            ? Directory.GetFiles(folder).Select(file => Path.GetFileName(file)).Order().ToArray()
+            : [];
+    }
+
+    private static void WriteGarbage(string path) =>
+        File.WriteAllBytes(path, Enumerable.Repeat((byte)'x', 8192).ToArray());
+
+    private static readonly DateTimeOffset WeekStart = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void The_weekly_copy_is_written_every_seven_days_and_the_newest_three_are_kept()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly");
+        SeedIndex(dataDir, "file-a");
+        var store = new StatsStore(dataDir);
+
+        store.WriteWeeklyCopy(dataDir, WeekStart);
+        Assert.Equal(["stats-2026-10-01.db"], WeeklyCopyNames(dataDir));
+
+        store.WriteWeeklyCopy(dataDir, WeekStart.AddDays(3));
+        Assert.Single(WeeklyCopyNames(dataDir));
+
+        store.WriteWeeklyCopy(dataDir, WeekStart.AddDays(7));
+        Assert.Equal(["stats-2026-10-01.db", "stats-2026-10-08.db"], WeeklyCopyNames(dataDir));
+
+        foreach (var days in new[] { 14, 21, 28 })
+            store.WriteWeeklyCopy(dataDir, WeekStart.AddDays(days));
+        Assert.Equal(["stats-2026-10-15.db", "stats-2026-10-22.db", "stats-2026-10-29.db"], WeeklyCopyNames(dataDir));
+        Assert.All(WeeklyCopyNames(dataDir), name =>
+            Assert.NotNull(StatsStore.TryReadSchemaVersion(Path.Combine(dataDir, "stats-backups", name))));
+    }
+
+    [Fact]
+    public void A_leftover_temporary_copy_is_removed_and_an_unreadable_index_is_not_copied()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-tmp");
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        File.WriteAllText(Path.Combine(folder, "stats-2026-09-24.db.tmp"), "half");
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+
+        new StatsStore(dataDir).WriteWeeklyCopy(dataDir, WeekStart);
+
+        Assert.Empty(WeeklyCopyNames(dataDir));
+    }
+
+    [Fact]
+    public void A_damaged_index_is_set_aside_and_the_newest_valid_weekly_copy_is_restored_with_its_rows()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore");
+        SeedIndex(seedDir, "file-a", "file-b");
+        new StatsStore(seedDir).WriteWeeklyCopy(seedDir, WeekStart);
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        File.Copy(Path.Combine(seedDir, "stats-backups", "stats-2026-10-01.db"), Path.Combine(folder, "stats-2026-10-01.db"));
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        // The call that meets the damage may fail; a later one finds the restored index.
+        store.TryLoadSourceFiles(out _);
+        Assert.Single(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+        Assert.Contains(logged, line => line.Contains("restored from the weekly copy of 2026-10-01", StringComparison.Ordinal));
+        Assert.DoesNotContain(logged, line => line.Contains("rebuilt", StringComparison.Ordinal));
+
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a", "file-b"], states.Keys.Order());
+        Assert.Empty(Directory.GetFiles(dataDir, "*.restore-tmp"));
+    }
+
+    [Fact]
+    public void A_corrupt_newest_weekly_copy_falls_back_to_the_older_one()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-fallback-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-fallback");
+        SeedIndex(seedDir, "older-file");
+        new StatsStore(seedDir).WriteWeeklyCopy(seedDir, WeekStart);
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        File.Copy(Path.Combine(seedDir, "stats-backups", "stats-2026-10-01.db"), Path.Combine(folder, "stats-2026-10-01.db"));
+        WriteGarbage(Path.Combine(folder, "stats-2026-10-08.db"));
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        store.TryLoadSourceFiles(out _);
+
+        Assert.Contains(logged, line => line.Contains("weekly copy of 2026-10-01", StringComparison.Ordinal));
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Equal(["older-file"], states.Keys.ToArray());
+    }
+
+    [Fact]
+    public void A_damaged_index_without_a_usable_copy_still_starts_over()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-none");
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        WriteGarbage(Path.Combine(folder, "stats-2026-10-01.db"));
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var logged = new List<string>();
+        var store = new StatsStore(dataDir, logError: logged.Add);
+
+        store.TryLoadSourceFiles(out _);
+
+        Assert.Contains(logged, line => line.Contains("rebuilt from the session logs", StringComparison.Ordinal));
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Empty(states);
+    }
 }

@@ -25,6 +25,10 @@ public sealed class AppSettings
     /// listed and removed again.</summary>
     public List<ImportedMachine> ImportedMachines { get; set; } = [];
 
+    /// <summary>Whether the token index is also copied once a week into the data folder (the last
+    /// three copies are kept and a damaged index is restored from them).</summary>
+    public bool StatsWeeklyCopy { get; set; } = true;
+
     public int RefreshSeconds { get; set; } = 60;
 
     /// <summary>How often, in minutes, a provider read over the internet is asked at most, unless the
