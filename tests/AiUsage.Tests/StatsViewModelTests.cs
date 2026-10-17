@@ -2423,6 +2423,45 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
+    public void IndexProgressText_follows_the_read_progress_whatever_the_charts_show()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-progress-line");
+        try
+        {
+            LocalizationService.Instance.SetLanguage("en");
+            var viewModel = new StatsViewModel(new StatsStore(dataDir));
+            var changed = new List<string?>();
+            viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+            Assert.Null(viewModel.IndexProgressText);
+            Assert.False(viewModel.HasIndexProgress);
+
+            viewModel.IndexProgress = (1200, 5000);
+
+            Assert.Equal(
+                LocalizationService.Instance.Format(
+                    "Stats.Indexing.Progress", 1200.ToString("N0", System.Globalization.CultureInfo.CurrentCulture), 5000.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)),
+                viewModel.IndexProgressText);
+            Assert.True(viewModel.HasIndexProgress);
+            Assert.Contains(nameof(StatsViewModel.IndexProgressText), changed);
+            Assert.Contains(nameof(StatsViewModel.HasIndexProgress), changed);
+
+            // Stored records on screen do not hide it: the line is separate from the empty chart.
+            viewModel.Recompute();
+            Assert.NotNull(viewModel.IndexProgressText);
+
+            changed.Clear();
+            viewModel.IndexProgress = null;
+            Assert.Null(viewModel.IndexProgressText);
+            Assert.False(viewModel.HasIndexProgress);
+            Assert.Contains(nameof(StatsViewModel.IndexProgressText), changed);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
     public void EmptyChartText_shows_the_read_progress_while_the_read_runs_even_after_the_records_loaded()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-progress-text");

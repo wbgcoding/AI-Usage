@@ -212,6 +212,10 @@
                             </StackPanel>
                         </Grid>
 
+                        <TextBlock x:Name="IndexProgressLine" Text="{Binding IndexProgressText}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                                   Visibility="{Binding HasIndexProgress, Converter={StaticResource BoolToVis}}"/>
+
                         <TextBlock Text="{Binding ImportedFromText}" TextWrapping="Wrap" Margin="0,0,0,12"
                                    FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                    Visibility="{Binding HasImportedFrom, Converter={StaticResource BoolToVis}}"/>

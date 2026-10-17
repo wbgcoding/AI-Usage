@@ -1371,8 +1371,21 @@ public sealed partial class StatsViewModel : ObservableObject
                 return;
             _indexProgress = value;
             OnPropertyChanged(nameof(EmptyChartText));
+            OnPropertyChanged(nameof(IndexProgressText));
+            OnPropertyChanged(nameof(HasIndexProgress));
         }
     }
+
+    /// <summary>The read progress as a line of its own under the top row, or null while no read runs.
+    /// The empty-chart text alone is never seen on a large first read: the first stored records fill
+    /// the charts within seconds.</summary>
+    public string? IndexProgressText => IndexProgress is { } progress ? FormatProgress(progress) : null;
+
+    public bool HasIndexProgress => IndexProgress is not null;
+
+    private static string FormatProgress((int Done, int Total) progress) =>
+        LocalizationService.Instance.Format(
+            "Stats.Indexing.Progress", progress.Done.ToString("N0", CultureInfo.CurrentCulture), progress.Total.ToString("N0", CultureInfo.CurrentCulture));
 
     /// <summary>What an empty chart says: how far the first read of the session logs has come while
     /// there is one (the stored records are shown within moments, long before that read ends),
@@ -1380,8 +1393,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// that the period holds no tokens.</summary>
     public string EmptyChartText =>
         IndexProgress is { } progress
-            ? LocalizationService.Instance.Format(
-                "Stats.Indexing.Progress", progress.Done.ToString("N0", CultureInfo.CurrentCulture), progress.Total.ToString("N0", CultureInfo.CurrentCulture))
+            ? FormatProgress(progress)
             : LocalizationService.Instance[RecordsLoaded ? "Stats.Chart.Empty" : "StatsWindow.Loading"];
 
     /// <summary>The same rebuild as <see cref="Recompute"/>, with the one part that can take real
