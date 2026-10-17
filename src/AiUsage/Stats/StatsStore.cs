@@ -563,6 +563,8 @@ public sealed class StatsStore
     // Damaged copies kept beside the rebuilt index, the one just set aside included.
     private const int KeptDamagedCopies = 3;
 
+    private static readonly string[] SidecarSuffixes = ["-wal", "-shm", "-journal"];
+
     /// <summary>A damaged index never heals and would leave the statistics empty for good. It is set
     /// aside (one copy is kept for inspection) so the next walk rebuilds it from the session logs.
     /// Best effort: a file another process still holds stays where it is until the next attempt.</summary>
@@ -576,11 +578,22 @@ public sealed class StatsStore
             // The index is the only copy of usage whose session logs are gone, so earlier copies are
             // kept too: only those beyond the newest few are removed.
             foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
+                         .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
                          .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
+            {
                 File.Delete(older);
-            File.Move(fullPath, $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}");
-            foreach (var sidecar in new[] { fullPath + "-wal", fullPath + "-shm", fullPath + "-journal" })
-                File.Delete(sidecar);
+                foreach (var suffix in SidecarSuffixes)
+                    File.Delete(older + suffix);
+            }
+            var setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";
+            File.Move(fullPath, setAside);
+            // A journal or WAL holds pages the copy may need to be read back; it moves along with it,
+            // and a new index never picks it up.
+            foreach (var suffix in SidecarSuffixes)
+            {
+                if (File.Exists(fullPath + suffix))
+                    File.Move(fullPath + suffix, setAside + suffix, overwrite: true);
+            }
             _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
