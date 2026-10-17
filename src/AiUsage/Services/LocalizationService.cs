@@ -10,8 +10,9 @@ namespace AiUsage.Services;
 /// <c>Strings.resx</c> (EN) and <c>Strings.de.resx</c> (DE) are embedded straight into the main
 /// assembly (see AiUsage.csproj), each behind its own <see cref="ResourceManager"/> instance, so
 /// switching languages is a plain lookup-table swap - no thread culture, no satellite assembly
-/// resolution, nothing that could interact with number/date formatting (those follow
-/// the OS regional format regardless of which UI language is picked here).
+/// resolution, nothing that could interact with number/date formatting (those follow the OS
+/// regional format regardless of which UI language is picked here; only the names of days and
+/// months follow the UI language, through <see cref="DisplayCulture"/>).
 /// </summary>
 public sealed class LocalizationService : INotifyPropertyChanged
 {
@@ -79,6 +80,48 @@ public sealed class LocalizationService : INotifyPropertyChanged
     /// cref="SetLanguage"/> does - for the one thing the resource files cannot hold: names the .NET
     /// calendar already knows (the days of the week).</summary>
     public CultureInfo ActiveCulture => CultureInfo.GetCultureInfo(Languages.First(l => l.Resources == _active).Code);
+
+    private sealed record DisplayEntry(CultureInfo Regional, CultureInfo Language, CultureInfo Display);
+
+    // Replaced whole, so a reader on another thread never sees half of an entry.
+    private DisplayEntry? _display;
+
+    /// <summary>The Windows regional format with the day and month names of the active UI language:
+    /// what every date that names a weekday or month is written with, so a German UI on an English
+    /// regional format reads "Montag", never "Monday", while its clock and numbers keep the regional
+    /// format.</summary>
+    public CultureInfo DisplayCulture
+    {
+        get
+        {
+            var regional = CultureInfo.CurrentCulture;
+            var language = ActiveCulture;
+            if (_display is { } cached && ReferenceEquals(cached.Regional, regional) && ReferenceEquals(cached.Language, language))
+                return cached.Display;
+
+            var display = DisplayCultureFor(regional, language);
+            _display = new DisplayEntry(regional, language, display);
+            return display;
+        }
+    }
+
+    internal static CultureInfo DisplayCultureFor(CultureInfo regional, CultureInfo language)
+    {
+        if (string.Equals(regional.TwoLetterISOLanguageName, language.TwoLetterISOLanguageName, StringComparison.OrdinalIgnoreCase))
+            return regional;
+
+        var culture = (CultureInfo)regional.Clone();
+        var names = language.DateTimeFormat;
+        var format = culture.DateTimeFormat;
+        format.DayNames = names.DayNames;
+        format.AbbreviatedDayNames = names.AbbreviatedDayNames;
+        format.ShortestDayNames = names.ShortestDayNames;
+        format.MonthNames = names.MonthNames;
+        format.AbbreviatedMonthNames = names.AbbreviatedMonthNames;
+        format.MonthGenitiveNames = names.MonthGenitiveNames;
+        format.AbbreviatedMonthGenitiveNames = names.AbbreviatedMonthGenitiveNames;
+        return CultureInfo.ReadOnly(culture);
+    }
 
     // CurrentCulture, not InvariantCulture: numbers and dates embedded into a
     // format string follow the OS regional format, independent of which UI language is active.

@@ -35,14 +35,10 @@ public sealed class RefreshScheduler
     private readonly object _gate = new();
     private TimeSpan _baseInterval;
 
-    // Set by the most recent Tick/RefreshNow(all) call, read by RunOneAsync (directly, and via the
-    // single-provider RefreshNow below, which has no fresher information of its own to pass in) to
-    // resolve the interval a just-finished fetch schedules its next one at. The one-second timer
-    // keeps these within a second of the real window/tile state, so a manual single-provider refresh
-    // in between two ticks still resolves against an answer that is practically current.
-    // Which tiles are hidden, resolved by TickCore on the caller's (UI) thread: the delegate behind it
-    // reads view-model state that only that thread may touch, and a finished fetch resolves its next
-    // interval on a pool thread.
+    // Which tiles are hidden and whether the window shows, set by the most recent Tick/RefreshNow(all)
+    // on the caller's (UI) thread - the delegate behind them reads view-model state only that thread
+    // may touch - and read by RunOneAsync, often on a pool thread, to resolve the interval a finished
+    // fetch schedules its next one at. The one-second timer keeps them practically current.
     private Dictionary<string, bool> _hiddenByAccount = [];
     private bool _windowVisible = true;
 
@@ -60,7 +56,7 @@ public sealed class RefreshScheduler
     /// <summary>
     /// <paramref name="minFetchTimeout"/>/<paramref name="maxFetchTimeout"/> default to the real
     /// 60s/5min floor and cap; a test can inject a much shorter pair so a "provider never completes"
-    /// scenario does not have to wait out a real 60 real seconds - the timeout itself always fires on
+    /// scenario does not have to wait out 60 real seconds - the timeout itself always fires on
     /// the real clock (CancellationTokenSource has no fake-time hook), only the configured duration is
     /// test-controlled. <paramref name="log"/> receives one line for each subscriber that throws.
     /// </summary>

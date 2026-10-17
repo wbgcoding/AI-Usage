@@ -483,7 +483,7 @@ public class StatsViewModelTests
             var viewModel = ViewModelWithRecordFrom("stats-vm-busiest-day-text-" + culture, 3, "Month");
             var day = DateOnly.FromDateTime(DateTime.Now).AddDays(-3);
 
-            Assert.Equal(AiUsage.Services.DateLabels.WeekdayDayMonthShort(day, System.Globalization.CultureInfo.CurrentCulture), viewModel.BusiestDayDateText);
+            Assert.Equal(AiUsage.Services.DateLabels.WeekdayDayMonthShort(day, AiUsage.Services.LocalizationService.Instance.DisplayCulture), viewModel.BusiestDayDateText);
             Assert.Matches(shape, viewModel.BusiestDayDateText);
         }
         finally
@@ -1420,7 +1420,7 @@ public class StatsViewModelTests
         Assert.Equal(600, viewModel.PeriodTotalRaw);
         Assert.Equal(7, viewModel.PeriodDayCountRaw);
         Assert.Equal(100, viewModel.PreviousPeriodTotalRaw); // the 7 days before: -20 .. -14
-        var label = string.Format(CultureInfo.CurrentCulture, "{0:d} - {1:d}", today.AddDays(-13).ToDateTime(TimeOnly.MinValue), today.AddDays(-7).ToDateTime(TimeOnly.MinValue));
+        var label = LocalizationService.Instance.Format("Stats.Range.CustomLabel", today.AddDays(-13).ToString("d", CultureInfo.CurrentCulture), today.AddDays(-7).ToString("d", CultureInfo.CurrentCulture));
         Assert.Equal(label, viewModel.SelectedRangeChoice?.Label);
 
         await viewModel.SetRangeCommand.ExecuteAsync("Week");
@@ -1443,7 +1443,7 @@ public class StatsViewModelTests
 
         Assert.Equal(1, applied);
         Assert.Equal("Custom", viewModel.SelectedRange);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, "{0:d} - {1:d}", today.AddDays(-9), today.AddDays(-2)), viewModel.SelectedRangeChoice?.Label);
+        Assert.Equal(LocalizationService.Instance.Format("Stats.Range.CustomLabel", today.AddDays(-9).ToString("d", CultureInfo.CurrentCulture), today.AddDays(-2).ToString("d", CultureInfo.CurrentCulture)), viewModel.SelectedRangeChoice?.Label);
 
         viewModel.CustomFromDate = null;
         Assert.False(viewModel.ApplyCustomRangeCommand.CanExecute(null));

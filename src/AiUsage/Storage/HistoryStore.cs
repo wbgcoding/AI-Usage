@@ -168,7 +168,9 @@ public class HistoryStore
         if (last is not null)
         {
             var unchanged = Math.Abs(last.Percent - request.Percent) < 0.001;
-            var tooSoon = request.Now - last.Timestamp < MinAppendInterval;
+            // A clock set back puts the newest point in the future; that is no reason to stop writing.
+            var age = request.Now - last.Timestamp;
+            var tooSoon = age >= TimeSpan.Zero && age < MinAppendInterval;
             if (unchanged && tooSoon)
                 return;
         }

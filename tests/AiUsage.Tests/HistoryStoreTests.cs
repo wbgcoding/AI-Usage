@@ -63,6 +63,20 @@ public class HistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Append_keeps_writing_an_unchanged_value_after_the_clock_was_set_back()
+    {
+        var directory = TempDirectory();
+        var clock = Now;
+        var store = new HistoryStore(directory, () => clock);
+
+        store.Append("codex", WindowKind.FiveHour, 42.0, resetsAt: null);
+        clock = clock.AddHours(-1);
+        store.Append("codex", WindowKind.FiveHour, 42.0, resetsAt: null);
+
+        Assert.Equal(2, store.Load("codex", Now.AddDays(-1), Now.AddDays(1)).Count);
+    }
+
+    [Fact]
     public void Append_writes_a_separate_file_for_a_second_account_of_the_same_provider()
     {
         var directory = TempDirectory();
@@ -88,7 +102,7 @@ public class HistoryStoreTests : IDisposable
         clock = clock.AddMinutes(6);
         store.Append("codex", WindowKind.FiveHour, 42.0, resetsAt: null);
 
-        Assert.Equal(2, store.Load("codex", TimeSpan.FromDays(1)).Count);
+        Assert.Equal(2, store.Load("codex", Now.AddDays(-1), Now.AddDays(1)).Count);
     }
 
     [Fact]
@@ -102,7 +116,7 @@ public class HistoryStoreTests : IDisposable
         clock = clock.AddSeconds(1);
         store.Append("codex", WindowKind.FiveHour, 43.0, resetsAt: null);
 
-        Assert.Equal(2, store.Load("codex", TimeSpan.FromDays(1)).Count);
+        Assert.Equal(2, store.Load("codex", Now.AddDays(-1), Now.AddDays(1)).Count);
     }
 
     [Fact]
@@ -581,7 +595,7 @@ public class HistoryStoreTests : IDisposable
         File.WriteAllLines(Path.Combine(directory, "history-codex.jsonl"),
             [Line(Now.AddHours(-3), "FiveHour", 10), Line(Now.AddHours(-2), "FiveHour", 20)]);
         var store = new HistoryStore(directory, () => Now);
-        Assert.Equal(2, store.Load("codex", TimeSpan.FromDays(1)).Count);
+        Assert.Equal(2, store.Load("codex", Now.AddDays(-1), Now.AddDays(1)).Count);
         var parsedBefore = store.LoadLinesParsedForTest;
 
         store.Append("codex", WindowKind.FiveHour, 55.0, resetsAt: null);
@@ -654,7 +668,7 @@ public class HistoryStoreTests : IDisposable
         var path = Path.Combine(directory, "history-codex.jsonl");
         File.WriteAllLines(path, [Line(Now.AddHours(-3), "FiveHour", 10), Line(Now.AddHours(-2), "FiveHour", 20)]);
         var store = new HistoryStore(directory, () => Now);
-        Assert.Equal(2, store.Load("codex", TimeSpan.FromDays(1)).Count);
+        Assert.Equal(2, store.Load("codex", Now.AddDays(-1), Now.AddDays(1)).Count);
 
         File.WriteAllLines(path, [Line(Now.AddHours(-1), "FiveHour", 77)]);
 

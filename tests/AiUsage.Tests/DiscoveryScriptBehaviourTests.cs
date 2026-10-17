@@ -145,6 +145,18 @@ public class DiscoveryScriptBehaviourTests
     }
 
     [NodeFact]
+    public void Claude_discovery_with_every_candidate_rate_limited_reads_as_blocked()
+    {
+        var routes = new Dictionary<string, Route>
+        {
+            ["/api/organizations"] = Json($$"""[{"uuid":"{{Uuid}}","capabilities":["chat"]}]"""),
+            [$"/api/organizations/{Uuid}/usage"] = Status(429),
+            [$"/api/organizations/{Uuid}/usage_limits"] = Status(429),
+        };
+        Assert.Equal("blocked", Status_(RunInNode(ClaudeDiscoveryScript.Discover(), routes)));
+    }
+
+    [NodeFact]
     public void Gemini_discovery_returns_every_json_candidate_and_the_reader_takes_the_first_that_parses()
     {
         const string quota = """

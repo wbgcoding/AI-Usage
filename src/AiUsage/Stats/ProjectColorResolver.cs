@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using AiUsage.Io;
 
 namespace AiUsage.Stats;
 
@@ -27,6 +28,9 @@ public readonly record struct ProjectColorInfo(Color Color, string? IconPath);
 /// </summary>
 public static class ProjectColorResolver
 {
+    /// <summary>The color cache's file name, in the machine-local cache folder.</summary>
+    internal const string CacheFileName = "project-colors.json";
+
     // Raised whenever the icon search changes what it finds, so colors computed from an older find are
     // recomputed once.
     private const int CacheVersion = 2;
@@ -731,7 +735,7 @@ public static class ProjectColorResolver
                 Directory.CreateDirectory(directory);
 
             var file = new CacheFile { Version = CacheVersion, Entries = entries };
-            File.WriteAllText(cacheFilePath, JsonSerializer.Serialize(file, CacheJsonOptions));
+            AtomicFile.WriteAllBytes(cacheFilePath, JsonSerializer.SerializeToUtf8Bytes(file, CacheJsonOptions));
         }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }

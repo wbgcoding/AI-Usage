@@ -39,8 +39,8 @@ public partial class SettingsWindow : Window
         // Esc closes dialogs, keyboard-only throughout.
         PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) Close(); };
 
-        // Owner is only set after the constructor returns (object initializer), so the work area
-        // this window will actually appear on is only known once it is about to show.
+        // The owner is applied after the constructor returns, so the work area this window will
+        // actually appear on is only known once it is about to show.
         Loaded += SettingsWindow_Loaded;
         Closed += (_, _) => _viewModel.Main.CopilotLoginChoiceRequested -= Main_CopilotLoginChoiceRequested;
 
@@ -277,7 +277,7 @@ public partial class SettingsWindow : Window
     private async void SignOut_Click(object sender, RoutedEventArgs e)
     {
         var button = (Button)sender;
-        if (button.DataContext is not ProviderTileViewModel tile)
+        if (button.DataContext is not ProviderTileViewModel tile || _viewModel.Main.IsSigningOut(tile.ProviderId))
             return;
 
         var spinner = button.FindName("SignOutSpinner") as UIElement;
@@ -496,7 +496,7 @@ public partial class SettingsWindow : Window
             HorizontalContentAlignment = HorizontalAlignment.Left,
             Content = headerContent,
         };
-        System.Windows.Automation.AutomationProperties.SetName(headerButton, $"{provider.DisplayName}: {caption}");
+        System.Windows.Automation.AutomationProperties.SetName(headerButton, LocalizationService.Instance.Format("Format.LabelValue", provider.DisplayName, caption));
         headerButton.Click += (_, _) =>
         {
             var expanded = content.Visibility == Visibility.Visible;

@@ -150,6 +150,10 @@ public sealed class ClaudeProvider : IUsageProvider
     // that part still moves off the caller's thread even though the provider as a whole opts out.
     public bool RunsOnUiThread => true;
 
+    // True while the Claude Code sign-in gives the numbers: then only its plain request is paid, and
+    // the web session's floor does not apply.
+    private volatile bool _localLoginAnsweredLast;
+
     /// <summary>Settings-driven (this account's own value, else <see cref="AppSettings.RemoteRefreshMinutes"/>,
     /// default 5 min) rather than hardcoded, so <see cref="RefreshScheduler"/> picks up a change without ever knowing this
     /// provider has a web path at all. The web session still holds a five-minute floor underneath the
@@ -159,10 +163,6 @@ public sealed class ClaudeProvider : IUsageProvider
     /// cref="SettingsRanges.MinRemoteRefreshMinutes"/>. No settings at all (the local-only test seam,
     /// which reaches neither remote path) falls back to five minutes when a local login exists, or the
     /// scheduler's per-tick default (null) otherwise.</summary>
-    // True while the Claude Code sign-in gives the numbers: then only its plain request is paid, and
-    // the web session's floor does not apply.
-    private volatile bool _localLoginAnsweredLast;
-
     public TimeSpan? MinRefreshInterval
     {
         get
@@ -246,7 +246,7 @@ public sealed class ClaudeProvider : IUsageProvider
                 {
                     try
                     {
-                        tokens = _tokenReader.SumTokens(newestFile);
+                        tokens = _tokenReader.SumTokens(newestFile, ct);
                         lastEventAt = _tokenReader.LastEventAt;
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

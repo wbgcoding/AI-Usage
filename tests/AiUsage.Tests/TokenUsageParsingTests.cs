@@ -144,6 +144,22 @@ public class TokenUsageParsingTests : IDisposable
         Assert.Equal(70, totalOutput); // 50 + 20, never 50 + 70
     }
 
+    [Fact]
+    public void CodexUsageLogParser_skips_a_line_with_a_negative_total_and_keeps_the_previous_totals()
+    {
+        var parser = new CodexUsageLogParser();
+        var first = CodexTokenCountLine("2026-09-01T10:00:00Z", input: 100, output: 50, cacheCreation: 0, cacheRead: 0);
+        var negative = CodexTokenCountLine("2026-09-01T10:05:00Z", input: -400, output: 60, cacheCreation: 0, cacheRead: 0);
+        var third = CodexTokenCountLine("2026-09-01T10:10:00Z", input: 130, output: 70, cacheCreation: 0, cacheRead: 0);
+
+        Assert.True(parser.TryParseLine(first, out var firstResult));
+        Assert.False(parser.TryParseLine(negative, out _));
+        Assert.True(parser.TryParseLine(third, out var thirdResult));
+
+        Assert.Equal(130, firstResult.InputTokens + thirdResult.InputTokens);
+        Assert.Equal(70, firstResult.OutputTokens + thirdResult.OutputTokens);
+    }
+
     private static string CodexTokenCountLine(string timestamp, long input, long output, long cacheCreation, long cacheRead) =>
         "{\"type\":\"event_msg\",\"timestamp\":\"" + timestamp + "\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":" +
         input + ",\"cached_input_tokens\":" + cacheRead + ",\"cache_write_input_tokens\":" + cacheCreation + ",\"output_tokens\":" + output + "}}}}";

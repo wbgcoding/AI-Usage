@@ -184,6 +184,7 @@ public sealed class StatsIndexerService : IDisposable
                 return;
 
             _isRunning = true;
+            _cancellation?.Dispose();
             _cancellation = new CancellationTokenSource();
             var token = _cancellation.Token;
             _thread = new Thread(() => RunSafely(token))

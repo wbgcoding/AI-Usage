@@ -486,7 +486,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>Names what the global Ein/Aus check box actually toggles - the same reasoning as
     /// <see cref="ThresholdRowViewModel.FiveHourEnabledFullLabel"/> and its siblings.</summary>
-    public string DefaultThresholdEnabledFullLabel => $"{DefaultThresholdLabelText}: {LocalizationService.Instance["Settings.On"]}";
+    public string DefaultThresholdEnabledFullLabel => LocalizationService.Instance.Format("Format.LabelValue", DefaultThresholdLabelText, LocalizationService.Instance["Settings.On"]);
 
     /// <summary>Names the two real colour boundaries <see cref="UsageRowViewModel.Classify"/> uses -
     /// shown as a grey line under the threshold slider so "yellow"/"red" is never a claim the numbers on
@@ -578,7 +578,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main = main;
         _settings = settings;
         _store = store;
-        _historyStore = historyStore ?? new HistoryStore();
+        _historyStore = historyStore ?? main.HistoryStore;
         _isAutostartEnabled = isAutostartEnabled;
         _enableAutostart = enableAutostart;
         _disableAutostart = disableAutostart;
@@ -708,7 +708,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void OnTilesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RebuildProviderRows();
+    private void OnTilesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        // A reordered tile moves its rows along, so a row being edited keeps its state.
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Move
+            && e.OldItems is { Count: 1 }
+            && e.OldStartingIndex is >= 0 && e.OldStartingIndex < NotificationRows.Count
+            && e.NewStartingIndex is >= 0 && e.NewStartingIndex < NotificationRows.Count
+            && NotificationRows.Count == ThresholdRows.Count)
+        {
+            NotificationRows.Move(e.OldStartingIndex, e.NewStartingIndex);
+            ThresholdRows.Move(e.OldStartingIndex, e.NewStartingIndex);
+            return;
+        }
+
+        RebuildProviderRows();
+    }
 
     /// <summary>One notification and threshold row per tile, each bound to that account's own entry
     /// in the live settings - created when an import or an older file has none for it.</summary>
@@ -1386,7 +1401,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (File.Exists(Path.Combine(destination, "stats.db")) || File.Exists(Path.Combine(destination, "settings.json")))
+        if (File.Exists(Path.Combine(destination, Stats.StatsStore.DatabaseFileName)) || File.Exists(Path.Combine(destination, "settings.json")))
         {
             if (!AppPaths.SameDirectory(destination, OwnDefaultDataDirectory()))
             {
@@ -1412,6 +1427,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         _store.SaveNow(_settings); // drain a still-pending debounced save before anything else moves
 
+        AppPaths.TryCreatePrivateDirectory(destination);
         if (!AppPaths.TryEnsureWritableDirectory(destination))
         {
             _showMessage(LocalizationService.Instance["Settings.DataFolderRefused"]);
@@ -1453,7 +1469,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             AppPaths.EnsureDataMarker();
             _store.Redirect(destination);
             Main.RedirectHistoryStore(destination);
-            _historyStore.Redirect(destination);
+            if (!ReferenceEquals(_historyStore, Main.HistoryStore))
+                _historyStore.Redirect(destination);
             DataFolderPath = AppPaths.DataDirectory; // the settings row shows the new path without a restart
 
             _store.SaveNow(_settings); // now lands in the new folder - _store was just redirected above
@@ -1768,7 +1785,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                     _store.RequestSave(_settings);
                     await RebuildImportedPcsAsync();
                     Stats.StatsIndexerService.Shared?.RefreshSnapshotInBackground();
-                    _showMessage(loc.Format("Settings.Backup.Imported", days, name));
+                    _showMessage(loc.Format(days == 1 ? "Settings.Backup.Imported.One" : "Settings.Backup.Imported", days, name));
                     break;
                 default:
                     _showMessage(loc["Settings.Backup.Refused"]);

@@ -177,10 +177,13 @@ public class HistoryChartGeometryTests
         Assert.Equal(expected, WithCulture(culture, () => HistoryChart.HoverTime(at, TimeSpan.FromDays(7))));
     }
 
+    /// <summary>Runs <paramref name="action"/> for a user whose UI language matches the regional
+    /// format <paramref name="name"/>.</summary>
     private static T WithCulture<T>(string name, Func<T> action)
     {
         var previous = System.Globalization.CultureInfo.CurrentCulture;
         System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo(name);
+        AiUsage.Services.LocalizationService.Instance.SetLanguage(name[..2]);
         try
         {
             return action();
@@ -188,6 +191,7 @@ public class HistoryChartGeometryTests
         finally
         {
             System.Globalization.CultureInfo.CurrentCulture = previous;
+            AiUsage.Services.LocalizationService.Instance.SetLanguage("de");
         }
     }
 

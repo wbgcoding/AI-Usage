@@ -233,4 +233,21 @@ public sealed class GlobalHotkey : IDisposable
         parts.Add(key.ToString());
         return string.Join("+", parts);
     }
+
+    /// <summary>The stored form as shown to the user, the modifiers named in the active language
+    /// ("Strg+Alt+U" in German). Text that does not parse is shown as it is.</summary>
+    public static string FormatForDisplay(string? stored)
+    {
+        if (string.IsNullOrEmpty(stored) || !TryParse(stored, out var modifiers, out var key))
+            return stored ?? "";
+
+        var loc = LocalizationService.Instance;
+        var parts = new List<string>(5);
+        if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add(loc["Key.Ctrl"]);
+        if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add(loc["Key.Alt"]);
+        if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add(loc["Key.Shift"]);
+        if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add(loc["Key.Win"]);
+        parts.Add(key.ToString());
+        return string.Join("+", parts);
+    }
 }

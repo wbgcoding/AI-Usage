@@ -67,11 +67,11 @@ public static class CodexRateLimitParser
 
             result = new CodexRateLimits(
                 PrimaryUsedPercent: primaryUsedPercent,
-                PrimaryWindowMinutes: TryGetInt32(primary, "window_minutes"),
-                PrimaryResetsAt: TryGetUnixSeconds(primary, "resets_at"),
+                PrimaryWindowMinutes: CodexWindowKinds.PlausibleMinutesOrNull(TryGetInt32(primary, "window_minutes")),
+                PrimaryResetsAt: TryGetUnixTime(primary, "resets_at"),
                 SecondaryUsedPercent: secondaryUsedPercent,
-                SecondaryWindowMinutes: TryGetInt32(secondary, "window_minutes"),
-                SecondaryResetsAt: TryGetUnixSeconds(secondary, "resets_at"),
+                SecondaryWindowMinutes: CodexWindowKinds.PlausibleMinutesOrNull(TryGetInt32(secondary, "window_minutes")),
+                SecondaryResetsAt: TryGetUnixTime(secondary, "resets_at"),
                 PlanType: TryGetString(rateLimits, "plan_type"),
                 Timestamp: timestamp,
                 TotalTokens: TryGetTotalTokens(payload));
@@ -97,13 +97,13 @@ public static class CodexRateLimitParser
             ? tokens
             : null;
 
-    private static DateTimeOffset? TryGetUnixSeconds(JsonElement? element, string propertyName)
+    private static DateTimeOffset? TryGetUnixTime(JsonElement? element, string propertyName)
     {
         if (element is not { } parent || !parent.TryGetProperty(propertyName, out var value)
             || value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var seconds))
             return null;
 
-        return UnixTimeConversion.FromUnixSecondsOrNull(seconds) is { } instant
+        return UnixTimeConversion.FromUnixSecondsOrMillisecondsOrNull(seconds) is { } instant
             ? UnixTimeConversion.PlausibleOrNull(instant)
             : null;
     }

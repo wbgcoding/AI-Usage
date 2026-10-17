@@ -63,6 +63,6 @@ public class TrayMenuTests
 
         Assert.Equal(Text(key), header);
         Assert.Equal(FontWeights.SemiBold, weight);
-        Assert.Equal("Ctrl+Alt+U", gesture);
+        Assert.Equal(GlobalHotkey.FormatForDisplay("Ctrl+Alt+U"), gesture);
     }
 }

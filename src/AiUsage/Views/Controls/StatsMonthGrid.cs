@@ -77,7 +77,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         if (grid.IsKeyboardFocused && grid._focusedDay is not null)
             grid.UpdateFocusedAutomationName();
         else
-            AutomationProperties.SetName(grid, BuildAccessibleSummary(grid.Days, grid.RangeStart, grid.RangeEnd, CultureInfo.CurrentCulture));
+            AutomationProperties.SetName(grid, BuildAccessibleSummary(grid.Days, grid.RangeStart, grid.RangeEnd, LocalizationService.Instance.DisplayCulture));
     }
 
     /// <summary>Pure so the summary text is unit testable without a visual tree - the whole covered
@@ -757,7 +757,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     {
         var cellSize = fit.CellSize;
         const DayOfWeek firstDayOfWeek = DayOfWeek.Monday;
-        var dayAbbreviations = CultureInfo.CurrentCulture.DateTimeFormat.AbbreviatedDayNames;
+        var dayAbbreviations = LocalizationService.Instance.DisplayCulture.DateTimeFormat.AbbreviatedDayNames;
         for (var row = 0; row < 7; row++)
         {
             var dayOfWeek = (DayOfWeek)(((int)firstDayOfWeek + row) % 7);
@@ -773,7 +773,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private void DrawMonthLabels(DrawingContext dc, IReadOnlyList<GridCell?[]> columns, GridFit fit, double dpi, Typeface typeface)
     {
-        foreach (var (column, label) in MonthLabels(columns, CultureInfo.CurrentCulture))
+        foreach (var (column, label) in MonthLabels(columns, LocalizationService.Instance.DisplayCulture))
         {
             var x = EffectiveLeftLabelWidth + column * (fit.CellSize + fit.Gap);
             var text = new FormattedText(label, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 11, TextBrush, dpi);
@@ -992,7 +992,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     private void ShowTooltip(CellHit hover)
     {
-        var lines = BuildTooltipLines(hover, ProviderDisplayNames, TokenWord, TotalLabel, NoUsageText, CultureInfo.CurrentCulture);
+        var lines = BuildTooltipLines(hover, ProviderDisplayNames, TokenWord, TotalLabel, NoUsageText, LocalizationService.Instance.DisplayCulture);
         _tooltipPopup ??= new ChartTooltipPopup();
         _tooltipPopup.Show(this, hover.Rect, lines, TooltipBackground, TextBrush, TextBrush);
     }
@@ -1113,7 +1113,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
         _focusedDay = null;
         _tooltipPopup?.Hide();
-        AutomationProperties.SetName(this, BuildAccessibleSummary(Days, RangeStart, RangeEnd, CultureInfo.CurrentCulture));
+        AutomationProperties.SetName(this, BuildAccessibleSummary(Days, RangeStart, RangeEnd, LocalizationService.Instance.DisplayCulture));
         InvalidateVisual();
     }
 
@@ -1148,7 +1148,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
                 var lines = BuildTooltipLines(
                     new CellHit(default, found.Day, found.Total, found.ByProvider), ProviderDisplayNames, TokenWord, TotalLabel,
-                    NoUsageText, CultureInfo.CurrentCulture);
+                    NoUsageText, LocalizationService.Instance.DisplayCulture);
                 AutomationProperties.SetName(this, string.Join(". ", lines));
                 return;
             }

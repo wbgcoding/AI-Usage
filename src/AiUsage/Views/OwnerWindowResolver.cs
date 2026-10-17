@@ -50,7 +50,7 @@ internal static class OwnerWindowResolver
     /// The decision behind <see cref="ApplyOwner"/>, generic for the same test-without-a-real-window
     /// reason as <see cref="Resolve{T}"/>: an unowned dialog needs to be switched to
     /// <see cref="WindowStartupLocation.CenterScreen"/> explicitly, since <c>CenterOwner</c> - what
-    /// four of today's six dialogs declare in XAML - silently behaves like <c>Manual</c> (a top-left
+    /// most dialogs declare in XAML - silently behaves like <c>Manual</c> (a top-left
     /// corner open) once there is no owner to center against.
     /// </summary>
     internal static bool NeedsCenterOnScreen<T>(T? resolvedOwner) where T : class => resolvedOwner is null;

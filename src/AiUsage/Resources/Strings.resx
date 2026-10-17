@@ -25,7 +25,7 @@
 
   <data name="Window.FiveHour" xml:space="preserve"><value>5 hours</value></data>
   <data name="Window.Weekly" xml:space="preserve"><value>7 days</value></data>
-  <data name="Level.WarnName" xml:space="preserve"><value>nearly used up</value></data>
+  <data name="Level.WarnName" xml:space="preserve"><value>running low</value></data>
   <data name="Level.CritName" xml:space="preserve"><value>almost at the limit</value></data>
   <data name="Window.Other" xml:space="preserve"><value>Other</value></data>
   <data name="Window.TokensThisSession" xml:space="preserve"><value>{0} tokens in this window</value></data>
@@ -72,6 +72,11 @@
   <data name="WebView2.Install.Installing" xml:space="preserve"><value>Installing the WebView2 Runtime…</value></data>
   <data name="WebView2.Install.Failed" xml:space="preserve"><value>The WebView2 Runtime could not be installed. You can download it from Microsoft and then sign in again.</value></data>
   <data name="WebView2.Install.OpenDownloadPage" xml:space="preserve"><value>Open download page</value></data>
+  <data name="WebView2.Detail.UntrustedFolder" xml:space="preserve"><value>Preparing: the download folder cannot be trusted.</value></data>
+  <data name="WebView2.Detail.Link" xml:space="preserve"><value>Preparing: the downloaded file is a link.</value></data>
+  <data name="WebView2.Detail.ExtraFiles" xml:space="preserve"><value>Preparing: the download folder holds more than the installer.</value></data>
+  <data name="WebView2.Detail.ExitCode" xml:space="preserve"><value>Setup ended with exit code {0}.</value></data>
+  <data name="WebView2.Detail.StillMissing" xml:space="preserve"><value>The runtime is still missing after setup.</value></data>
   <data name="State.Stale.Head" xml:space="preserve"><value>Data is out of date</value></data>
   <data name="State.Stale.Reason" xml:space="preserve"><value>Last update {0} ago</value></data>
   <data name="State.Stale.Meaning" xml:space="preserve"><value>These numbers come from a window that has since expired.</value></data>
@@ -86,11 +91,11 @@
   <data name="Chart.Empty" xml:space="preserve"><value>The chart appears once there are two readings.</value></data>
   <data name="Stats.Chart.Empty" xml:space="preserve"><value>No tokens counted for this period yet.</value></data>
   <data name="Chart.Summary" xml:space="preserve"><value>History {0}: {1} values, highest {2}%.</value></data>
-  <data name="Settings.ResetConfirm" xml:space="preserve"><value>Reset all settings to their defaults? This cannot be undone. To keep a copy, choose Export settings first.</value></data>
+  <data name="Settings.ResetConfirm" xml:space="preserve"><value>Reset all settings to their defaults? This cannot be undone. To keep a copy, choose Export… first.</value></data>
   <data name="Settings.NewerFile" xml:space="preserve"><value>The settings file comes from a newer version. It is left untouched and nothing is saved this session; defaults are in use.</value></data>
   <data name="Notify.Threshold" xml:space="preserve"><value>{0}: {1} at {2}% ({3})</value></data>
   <data name="Notify.ThresholdNoReset" xml:space="preserve"><value>{0}: {1} at {2}%</value></data>
-  <data name="Notify.Reset" xml:space="preserve"><value>{0}: the {1} window is free again.</value></data>
+  <data name="Notify.Reset" xml:space="preserve"><value>{0}: the “{1}” window is free again.</value></data>
   <data name="Empty.AllHidden.Head" xml:space="preserve"><value>Every provider is hidden</value></data>
   <data name="Empty.AllHidden.Reason" xml:space="preserve"><value>Data keeps being collected in the background. Show a provider again to see it.</value></data>
   <data name="Empty.AllHidden.Action" xml:space="preserve"><value>Open settings</value></data>
@@ -199,6 +204,8 @@
   <data name="TitleBar.WithShortcut" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Key.Ctrl" xml:space="preserve"><value>Ctrl</value></data>
   <data name="Key.Alt" xml:space="preserve"><value>Alt</value></data>
+  <data name="Key.Shift" xml:space="preserve"><value>Shift</value></data>
+  <data name="Key.Win" xml:space="preserve"><value>Win</value></data>
   <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
   <data name="Theme.Terminal" xml:space="preserve"><value>Terminal</value></data>
   <data name="Theme.Dark" xml:space="preserve"><value>Dark</value></data>
@@ -364,10 +371,10 @@
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Peak {0} · avg. peak {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Peak: the highest level in the range. Avg. peak: the mean of each window's highest level, marked as a line on the bar.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>No quota history in this period yet.</value></data>
-  <data name="Stats.PerPercent" xml:space="preserve"><value>1 % of the week ≈ {0}</value></data>
+  <data name="Stats.PerPercent" xml:space="preserve"><value>1% of the week ≈ {0}</value></data>
   <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} tokens {1}</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimate from {0} hours of your own usage. Cache reads count separately: 1 % ≈ {1} cached tokens.</value></data>
-  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1 % of the week ≈ {0} tokens (all models)</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimate from {0} hours of your own usage. Cache reads count separately: 1% ≈ {1} cached tokens.</value></data>
+  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1% of the week ≈ {0} tokens (all models)</value></data>
   <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Not enough data yet for tokens per percent.</value></data>
   <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Not available with more than one account.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>No project</value></data>
@@ -408,15 +415,15 @@
   <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Which weekdays the tokens fall on, added up over the whole period.</value></data>
   <data name="Tip.Stats.Chart.ByHour" xml:space="preserve"><value>Which hours of the day the tokens fall on.</value></data>
   <data name="Tip.Settings.Mica" xml:space="preserve"><value>Mica is a Windows 11 material: the window background takes on a soft tint of your desktop wallpaper and shifts slightly as you move the window. It only shows with the "System" theme at full opacity and uses a little graphics power.</value></data>
-  <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Sets how tall one tile is. On automatic the tiles fit themselves to the window height.</value></data>
-  <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Picks whose usage the icon in the taskbar notification area shows. On automatic it shows the highest usage of all tiles.</value></data>
-  <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Picks which time window the icon shows, for example 5 hours or week. On automatic it shows the highest value.</value></data>
+  <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Sets how tall one tile is. When set to Automatic, the tiles fit themselves to the window height.</value></data>
+  <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Picks whose usage the icon in the taskbar notification area shows. When set to Automatic, it shows the highest usage of all tiles.</value></data>
+  <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Picks which time window the icon shows, for example 5 hours or 7 days. When set to Automatic, it shows the highest value.</value></data>
   <data name="Tip.Settings.DataFolder" xml:space="preserve"><value>Where your settings, your history and the token index are stored.</value></data>
   <data name="Tip.Settings.SignIn" xml:space="preserve"><value>Opens this provider's sign-in page in a window of its own. The session stays on this PC.</value></data>
   <data name="Tip.Settings.SignOut" xml:space="preserve"><value>Deletes this provider's saved browser session from this PC.</value></data>
   <data name="Tip.Settings.Visibility" xml:space="preserve"><value>Shows or hides this provider's tile in the main window. Its data keeps being collected either way.</value></data>
   <data name="Settings.AttentionMaxAge" xml:space="preserve"><value>Show the waiting mark for</value></data>
-  <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>After this long without an answer, the tile stops marking the provider as waiting. On off, nothing is marked.</value></data>
+  <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>After this long without an answer, the tile stops marking the provider as waiting. When set to Off, nothing is marked.</value></data>
   <data name="Settings.AttentionMaxAge.Off" xml:space="preserve"><value>Off</value></data>
   <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 h</value></data>
   <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 h</value></data>
@@ -443,6 +450,7 @@
   <data name="Stats.PerActiveDay" xml:space="preserve"><value>Average per active day</value></data>
   <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>The total divided by the days that actually saw tokens.</value></data>
   <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>on {0} of {1} days</value></data>
+  <data name="Stats.ActiveDaysOf.One" xml:space="preserve"><value>on {0} of 1 day</value></data>
   <data name="Stats.MonthGrid.Head" xml:space="preserve"><value>Usage per day</value></data>
   <data name="Stats.MonthGrid.Empty" xml:space="preserve"><value>No days counted for this period yet.</value></data>
   <data name="Stats.MonthGrid.LegendLess" xml:space="preserve"><value>less</value></data>
@@ -457,9 +465,9 @@
   <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Selected day · {0}</value></data>
   <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Close day detail</value></data>
   <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Waiting for an answer. Click to dismiss.</value></data>
-  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0} % of the time has passed, usage is ahead of it.</value></data>
-  <data name="Tile.Pace.On" xml:space="preserve"><value>{0} % of the time has passed, usage is on pace.</value></data>
-  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0} % of the time has passed, usage is below it.</value></data>
+  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0}% of the time has passed, usage is ahead of it.</value></data>
+  <data name="Tile.Pace.On" xml:space="preserve"><value>{0}% of the time has passed, usage is on pace.</value></data>
+  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0}% of the time has passed, usage is below it.</value></data>
   <data name="State.Failed.Server.Head" xml:space="preserve"><value>{0} is having problems</value></data>
   <data name="State.Failed.Server.Reason" xml:space="preserve"><value>The server answered with an error (HTTP {1}). The next attempt follows automatically.</value></data>
   <data name="State.Failed.Refused.Head" xml:space="preserve"><value>{0} refused the request</value></data>
@@ -494,11 +502,11 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Turn off to pick weekdays without notifications: unchecked days stay completely quiet.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Show the time marker in the bars</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>A short line in each bar shows how much of the time window has passed. If the fill reaches past it, usage is running ahead of time.</value></data>
-  <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, running low</value></data>
-  <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, limit almost reached</value></data>
+  <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, running low</value></data>
+  <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limit almost reached</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit reached</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notify when a limit is reached (100 %)</value></data>
-  <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} limit reached, resets in {2}</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notify when a limit is reached (100%)</value></data>
+  <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limit reached for {1}, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
   <data name="Settings.SaveEnergy" xml:space="preserve"><value>Save energy on battery</value></data>
@@ -536,6 +544,7 @@
   <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>This month</value></data>
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Last month</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Custom range…</value></data>
+  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} to {1}</value></data>
   <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>All providers</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Provider</value></data>
   <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} providers</value></data>
@@ -565,6 +574,7 @@
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Reads the token history from another PC's backup and merges it with the history here. This PC's own data stays untouched; importing the same PC again replaces its earlier copy.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
+  <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>Imported 1 day of token history from {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>
   <data name="Stats.ImportedFrom" xml:space="preserve"><value>Includes history from: {0}</value></data>
   <data name="State.Failed.RateLimited.Head" xml:space="preserve"><value>{0} asks for fewer requests</value></data>

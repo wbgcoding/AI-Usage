@@ -797,7 +797,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// buttons (Settings window's display card, the title bar's eye popup), so the text names the
     /// action and shows which way the show/hide toggle flips next, not just the bare provider name.</summary>
     public string ToggleVisibilityActionText =>
-        $"{HeaderDisplayName}: {LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]}";
+        LocalizationService.Instance.Format("Format.LabelValue", HeaderDisplayName, LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]);
 
     /// <summary>Timestamp of the last snapshot that actually carried data, regardless of status - a
     /// Stale snapshot still has a last-known timestamp. Feeds the Settings window's "zuletzt

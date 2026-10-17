@@ -77,6 +77,7 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged, I
         {
             PropertyChanged?.Invoke(this, new(nameof(IsFound)));
             PropertyChanged?.Invoke(this, new(nameof(ShowSignIn)));
+            PropertyChanged?.Invoke(this, new(nameof(SignInAutomationName)));
         }
     }
 
@@ -93,6 +94,10 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged, I
     /// <summary>The row's button runs the tile's own action, so a tile without one (Copilot before
     /// the GitHub CLI is signed in: the hint says what to do) shows no button rather than an empty one.</summary>
     public bool ShowSignIn => !IsFound && Tile.ShowSignIn && Tile.HasAction;
+
+    /// <summary>Every row's button reads the same, so a screen reader also hears whose it is.</summary>
+    public string SignInAutomationName =>
+        LocalizationService.Instance.Format("Format.LabelValue", Tile.DisplayName, Tile.ActionLabelText ?? "");
 
     public string? Hint { get; }
 

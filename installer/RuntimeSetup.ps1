@@ -246,6 +246,17 @@ function Save-Download([string]$Address, [string]$Destination) {
     }
 }
 
+# The installer is started with administrator rights, so its folder must hold nothing but the
+# installer: a DLL planted beside it would be loaded into the elevated process.
+function Get-FolderProblem([string]$Work, [string]$Installer) {
+    $reparse = [IO.FileAttributes]::ReparsePoint
+    if ((Get-Item -LiteralPath $Work -Force).Attributes -band $reparse) { return 'the download folder is a link' }
+    $entries = @(Get-ChildItem -LiteralPath $Work -Force)
+    if ($entries.Count -ne 1 -or $entries[0].Name -ne [IO.Path]::GetFileName($Installer)) { return 'the download folder holds more than the installer' }
+    if ($entries[0].Attributes -band $reparse) { return 'the installer is a link' }
+    return $null
+}
+
 function Invoke-Main {
     if ($VerifyFile) {
         $guard = $null
@@ -275,6 +286,10 @@ function Invoke-Main {
     $guard = $null
     try {
         # A folder that did not exist a moment ago, named at random: nothing can be waiting in it.
+        if ((Test-Path -LiteralPath $Folder) -and ((Get-Item -LiteralPath $Folder -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            Write-Log 'installer refused: the temporary folder is a link'
+            return $ExitSignature
+        }
         $work = Join-Path $Folder ('runtime-' + [Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work)
         $file = Join-Path $work 'windowsdesktop-runtime.exe'
@@ -293,6 +308,7 @@ function Invoke-Main {
 
         $problem = Get-SignatureProblem $file
         if (-not $problem) { $problem = Get-ProductProblem $file }
+        if (-not $problem) { $problem = Get-FolderProblem $work $file }
         if ($problem) {
             Write-Log "installer refused: $problem"
             return $ExitSignature

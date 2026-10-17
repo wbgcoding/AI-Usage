@@ -82,6 +82,7 @@
                                         <Button Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="12,4"
                                                 VerticalAlignment="Center"
                                                 Content="{Binding Tile.ActionLabelText}" Command="{Binding Tile.RunActionCommand}"
+                                                AutomationProperties.Name="{Binding SignInAutomationName}"
                                                 Visibility="{Binding ShowSignIn, Converter={StaticResource BoolToVis}}"/>
                                     </Grid>
                                 </DataTemplate>

@@ -54,7 +54,7 @@ public static class CountdownFormatter
         if (resetsAt is not { } reset)
             return "";
 
-        var culture = CultureInfo.CurrentCulture;
+        var culture = LocalizationService.Instance.DisplayCulture;
         var local = TimeZoneInfo.ConvertTime(reset, zone);
         var remaining = reset - now;
         if (remaining < TimeSpan.FromHours(24))
@@ -73,9 +73,8 @@ public static class CountdownFormatter
 
     /// <summary>"Last update … ago" for the Stale state
     /// - same day/hour/minute rounding as <see cref="Format"/>, just phrased as
-    /// elapsed time. The bare duration ("2h 15m") is not looked up per language: the identical
-    /// "d"/"h"/"m" unit letters are used in both EN and DE, so this is
-    /// locale-invariant the same way a raw number is, not a piece of translatable prose.</summary>
+    /// elapsed time. The bare duration ("2h 15m") is not looked up per language: it uses the compact
+    /// unit symbols the reset texts of both languages use as well.</summary>
     public static string FormatAge(DateTimeOffset? dataTimestamp, DateTimeOffset now)
     {
         if (dataTimestamp is not { } timestamp)
@@ -84,7 +83,7 @@ public static class CountdownFormatter
         return Loc.Format("State.Stale.Reason", FormatElapsed(now - timestamp));
     }
 
-    /// <summary>Bare "2h 15m"-style duration text (a zero unit is left out: "2h", "19d"), locale-invariant like a raw number - reused by
+    /// <summary>Bare "2h 15m"-style duration text (a zero unit is left out: "2h", "19d"), in the same compact symbols in every language - reused by
     /// <see cref="ViewModels.UsageRowViewModel"/> for the usage forecast segment instead of a second
     /// duration formatter. Below a minute the seconds run along instead of a flat "&lt;1m", so the
     /// number on screen keeps moving instead of sitting still for up to 59 seconds.</summary>

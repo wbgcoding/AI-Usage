@@ -278,7 +278,7 @@ public class RuntimeSetupScriptTests
         Assert.Contains("en.RuntimeNeeded=AI-Usage needs the .NET 10 Desktop Runtime from Microsoft. Setup downloads and installs it now (about 60 MB).", text);
         Assert.Contains("de.RuntimeNeeded=AI-Usage braucht die .NET 10 Desktop Runtime von Microsoft. Das Setup l\u00e4dt sie jetzt herunter und installiert sie (etwa 60 MB).", text);
         Assert.Contains("en.RuntimeFailed=The .NET Desktop Runtime could not be installed. Install it from " + ManualDownload + " and start setup again.", text);
-        Assert.Contains("de.RuntimeFailed=Die .NET Desktop Runtime lie\u00df sich nicht installieren. Installiere sie von " + ManualDownload + " und starte das Setup erneut.", text);
+        Assert.Contains("de.RuntimeFailed=Die .NET Desktop Runtime lie\u00df sich nicht installieren. Installieren Sie sie von " + ManualDownload + " und starten Sie das Setup erneut.", text);
         Assert.DoesNotMatch(new Regex("[\u2013\u2014]"), text);
     }
 

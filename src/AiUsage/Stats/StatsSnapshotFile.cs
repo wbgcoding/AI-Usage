@@ -14,7 +14,6 @@ namespace AiUsage.Stats;
 /// </summary>
 internal static class StatsSnapshotFile
 {
-    /// <summary>The name of the file.</summary>
     internal const string FileName = "stats-snapshot.json";
 
     /// <summary>Bumped whenever the shape of a record changes; a file with another number is dropped.</summary>

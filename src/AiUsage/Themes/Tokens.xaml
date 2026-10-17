@@ -38,8 +38,8 @@
          together. -->
     <CornerRadius x:Key="Radius.Window.Top">7,7,0,0</CornerRadius>
 
-    <!-- The narrowest a provider tile may get: the main window's minimum width (300) less its shadow
-         gutter (2 x 8), window border (2), tile list padding (2 x 8) and the 8 px vertical scrollbar,
+    <!-- The narrowest a provider tile may get: below the main window's minimum width (300) with room
+         to spare for the window border (2), tile list padding (2 x 8) and the 8 px vertical scrollbar,
          so a stacked tile always fits the narrowest window instead of losing its right edge. The
          tile's normal width (340) stays in WindowPlacementService, which sizes the window from it. -->
     <system:Double x:Key="Tile.MinWidth">258</system:Double>

@@ -13,8 +13,9 @@ public enum WebViewInstallOutcome
     StillMissing,
 }
 
-/// <summary><paramref name="Cause"/> is a short technical line for the error dialog (never a path,
-/// never a message text), null when nothing went wrong or the user cancelled.</summary>
+/// <summary><paramref name="Cause"/> is a short line for the error dialog's details (never a path):
+/// a technical exception line, or a localized sentence for a check this app made itself. Null when
+/// nothing went wrong or the user cancelled.</summary>
 public sealed record WebViewInstallResult(WebViewInstallOutcome Outcome, string? Cause = null);
 
 /// <summary>What the signature check found. <paramref name="Detail"/> is the technical line shown
@@ -86,7 +87,7 @@ public sealed class WebViewRuntimeInstaller
             // the file goes into a folder created fresh for this run, with nothing beside it.
             runFolder = FreshRunFolder.TryCreate(_tempFolder());
             if (runFolder is null)
-                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, "prepare: the download folder cannot be trusted");
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, Services.LocalizationService.Instance["WebView2.Detail.UntrustedFolder"]);
             file = Path.Combine(runFolder, "MicrosoftEdgeWebview2Setup.exe");
 
             try
@@ -112,7 +113,7 @@ public sealed class WebViewRuntimeInstaller
             guard = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
             // Opening follows a link: the held file must be the one the path names.
             if (!FreshRunFolder.LeaseIsAt(guard, file))
-                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, "prepare: the downloaded file is a link");
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, Services.LocalizationService.Instance["WebView2.Detail.Link"]);
 
             SignatureCheckResult signature;
             try
@@ -135,7 +136,7 @@ public sealed class WebViewRuntimeInstaller
 
             // Anything beside the checked file means the folder was tampered with after it was created.
             if (!FreshRunFolder.HoldsOnly(runFolder, file))
-                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, "prepare: the download folder holds more than the installer");
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, Services.LocalizationService.Instance["WebView2.Detail.ExtraFiles"]);
 
             installing?.Invoke();
             int exitCode;
@@ -159,8 +160,8 @@ public sealed class WebViewRuntimeInstaller
                 return new WebViewInstallResult(WebViewInstallOutcome.Installed);
 
             return exitCode != 0
-                ? new WebViewInstallResult(WebViewInstallOutcome.InstallerFailed, $"install: exit code {exitCode}")
-                : new WebViewInstallResult(WebViewInstallOutcome.StillMissing, "install: runtime not found afterwards");
+                ? new WebViewInstallResult(WebViewInstallOutcome.InstallerFailed, Services.LocalizationService.Instance.Format("WebView2.Detail.ExitCode", exitCode))
+                : new WebViewInstallResult(WebViewInstallOutcome.StillMissing, Services.LocalizationService.Instance["WebView2.Detail.StillMissing"]);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -30,6 +30,7 @@ public sealed class StatusFileWriter : IDisposable
     private readonly Action<string>? _log;
     private readonly TimeSpan _debounce;
     private readonly Lock _gate = new();
+    private readonly Lock _writeGate = new();
     private readonly Timer _timer;
     private string? _pending;
     private bool _disposed;
@@ -62,15 +63,20 @@ public sealed class StatusFileWriter : IDisposable
     /// <summary>Writes the pending document now, if there is one.</summary>
     public void Flush()
     {
-        string? json;
-        lock (_gate)
+        // Taking and writing happen under one lock, so a timer write still retrying an older document
+        // can never land after the final one written at exit.
+        lock (_writeGate)
         {
-            json = _pending;
-            _pending = null;
-        }
+            string? json;
+            lock (_gate)
+            {
+                json = _pending;
+                _pending = null;
+            }
 
-        if (json is not null)
-            TryWrite(_pathProvider(), json, _log);
+            if (json is not null)
+                TryWrite(_pathProvider(), json, _log);
+        }
     }
 
     public void Dispose()

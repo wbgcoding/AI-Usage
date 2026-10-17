@@ -103,11 +103,11 @@ public sealed class GeminiProvider : IUsageProvider
     // itself.
     public bool RunsOnUiThread => _webSource is not null;
 
+    public bool HasLocalSource => _read is not null;
+
     // Two lightweight reads against a remote endpoint - hold to the same web-session floor Claude
     // uses rather than the local-file default, so it is not polled every tick; the user's own
     // interval for this account can only make it longer.
-    public bool HasLocalSource => _read is not null;
-
     public TimeSpan? MinRefreshInterval => ProviderRegistry.ReadInterval(_settings, _accountKey);
 
     // Only the primary account (the one with the Antigravity CLI's own local sign-in) can hold a
@@ -122,8 +122,8 @@ public sealed class GeminiProvider : IUsageProvider
     };
 
     /// <summary>Both sources are offered to the shared chooser (available beats nothing, more windows
-    /// beat fewer, newer beats older), never merged. Without a web session that is a single result -
-    /// wrapping it still routes it through the same rule every other provider follows.</summary>
+    /// beat fewer, newer beats older), never merged. Without a web session the local read is the
+    /// answer as it stands.</summary>
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
     {
         var snapshot = await FetchSourcesAsync(ct);
@@ -246,13 +246,6 @@ public sealed class GeminiProvider : IUsageProvider
         }
     }
 
-    private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) => new(
-        ProviderId: AccountKey,
-        Windows: [],
-        PlanType: null,
-        SourceKind: SourceKind.None,
-        FetchedAt: fetchedAt,
-        DataTimestamp: null,
-        Status: status,
-        Error: error);
+    private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) =>
+        ProviderSnapshots.Empty(AccountKey, fetchedAt, status, error);
 }

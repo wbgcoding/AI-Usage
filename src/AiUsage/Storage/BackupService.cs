@@ -89,8 +89,8 @@ public static class BackupService
 
     private const string SettingsName = "settings.json";
     private const string NotificationsName = "notifications.json";
-    private const string ProjectColorsName = "project-colors.json";
-    private const string StatsName = "stats.db";
+    private const string ProjectColorsName = Stats.ProjectColorResolver.CacheFileName;
+    private const string StatsName = Stats.StatsStore.DatabaseFileName;
 
     private static readonly Regex HistoryName = new(@"^history-[A-Za-z0-9_-]{1,100}\.jsonl\z", RegexOptions.CultureInvariant);
 
@@ -542,7 +542,10 @@ public static class BackupService
     }
 
     /// <summary>The checks that need the entries' content: the settings file and the token index.</summary>
-    private static void CheckContent(OpenedBackup backup, string scratch)
+    /// <summary>Checks every entry of <paramref name="backup"/> and returns where its token index was
+    /// unpacked for the schema check (null when it carries none), so a caller needing the index
+    /// itself takes this copy instead of unpacking it a second time.</summary>
+    private static string? CheckContent(OpenedBackup backup, string scratch)
     {
         if (backup.Has(SettingsName))
             CheckSettingsText(backup.ReadText(SettingsName));
@@ -554,12 +557,13 @@ public static class BackupService
             backup.Verify(name, ref total);
 
         if (!backup.Has(StatsName))
-            return;
+            return null;
 
         Directory.CreateDirectory(scratch);
         var extracted = Path.Combine(scratch, StatsName);
         backup.Extract(StatsName, extracted, ref total);
         CheckStatsSchema(extracted);
+        return extracted;
     }
 
     /// <summary>The same gate a normal load applies to the settings file.</summary>
@@ -616,10 +620,8 @@ public static class BackupService
                 return null;
             }
 
-            CheckContent(backup, Path.Combine(scratch, "check"));
-            var path = Path.Combine(scratch, StatsName);
-            long total = 0;
-            backup.Extract(StatsName, path, ref total);
+            var path = CheckContent(backup, scratch)
+                ?? throw new RefusedException(BackupRefusal.NotABackup);
             refusal = BackupRefusal.None;
             return new ImportSource(backup.Manifest, path, scratch);
         }

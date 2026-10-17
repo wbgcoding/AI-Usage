@@ -184,9 +184,9 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
 
         custom.Label = SelectedRange == CustomRange
-            ? string.Format(
-                CultureInfo.CurrentCulture, "{0:d} - {1:d}",
-                _customFrom.ToDateTime(TimeOnly.MinValue), _customTo.ToDateTime(TimeOnly.MinValue))
+            ? LocalizationService.Instance.Format(
+                "Stats.Range.CustomLabel",
+                _customFrom.ToString("d", CultureInfo.CurrentCulture), _customTo.ToString("d", CultureInfo.CurrentCulture))
             : LocalizationService.Instance["Stats.Range.Custom"];
     }
 
@@ -273,12 +273,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public bool HasAnyFilter => HasModelFilter || HasProjectFilter;
 
-    /// <summary>The filter chip's text, for example "Model: Opus 4.5".</summary>
     /// <summary>The session table's combined "Project / Model" column header.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Bound from XAML, which needs an instance property.")]
     public string SessionProjectModelHeader => LocalizationService.Instance.Format(
         "Format.Pair", LocalizationService.Instance["Stats.Col.Project"], LocalizationService.Instance["Stats.Col.Model"]);
 
+    /// <summary>The filter chip's text, for example "Model: Opus 4.5".</summary>
     public string ModelFilterText => LocalizationService.Instance.Format("Stats.Filter.Model", SelectedModelFilter);
 
     public string ProjectFilterText => LocalizationService.Instance.Format(
@@ -290,7 +290,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>What <see cref="SelectedProjectFilter"/> holds for the records that carry no project: a
     /// value no folder can have, so the filter keeps matching after the display language (and with it
     /// the "no project" wording) changes.</summary>
-    internal const string NoProjectFilterKey = "\u0001";
+    internal const string NoProjectFilterKey = StatsAggregator.NoProjectKey;
 
     /// <summary>True while the breakdown chart draws one bar per model or project, so a click on a bar
     /// can filter.</summary>
@@ -518,7 +518,7 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<string> cacheShareLabels = [];
 
-    /// <summary>The "top projects" panel - already sorted longest first, capped at ten rows.</summary>
+    /// <summary>The "top projects" panel - already sorted longest first, capped at twelve rows.</summary>
     [ObservableProperty]
     private IReadOnlyList<StatsProjectRow> topProjectRows = [];
 
@@ -628,7 +628,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The month grid's own input - every day from the grid's start up to today (local time):
     /// the last twelve months, reaching further back on a window wide enough to show more weeks than
     /// that at the normal cell size. Independent of <see cref="SelectedRange"/> and <see cref="SelectedGrouping"/> alike, each
-    /// carrying every provider that contributed to it (across all five, not just the two <see
+    /// carrying every provider that contributed to it (across all five, not just the ones <see
     /// cref="StatsAggregator.StackedProviderOrder"/> stacks) and whichever led, largest first.</summary>
     [ObservableProperty]
     private IReadOnlyList<Views.Controls.StatsMonthGrid.DayValue> monthGridDays = [];
@@ -757,15 +757,14 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // The day's projects that have no resolved color yet are resolved in the background; the
         // detail is built again once they arrive (see OnProjectColorsChanged).
-        var noProject = LocalizationService.Instance["Stats.NoProject"];
-        _dayProjectKeys = detail.ByProject.Select(slice => slice.Label).Where(key => key != noProject).ToList();
+        _dayProjectKeys = detail.ByProject.Where(slice => !slice.IsPooled).Select(slice => slice.Label).ToList();
         var unrequested = _dayProjectKeys.Where(key => !ProjectColors.ContainsKey(key) && _requestedDayProjectKeys.Add(key)).ToList();
         if (unrequested.Count > 0)
             RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
         var loc = LocalizationService.Instance;
         var dayTotal = detail.ByProvider.Sum(slice => slice.Total);
-        var dateText = day.ToDateTime(TimeOnly.MinValue).ToString("D", CultureInfo.CurrentCulture);
+        var dateText = day.ToDateTime(TimeOnly.MinValue).ToString("D", LocalizationService.Instance.DisplayCulture);
         var shortened = StatsAggregator.ShortenTokenCount(dayTotal, loc["Number.Thousand"], loc["Number.Million"], loc["Number.Billion"]);
         SelectedDayHeadText = string.Format(CultureInfo.CurrentCulture, loc["Stats.DayDetail.Title"], $"{dateText} · {shortened} {loc["Stats.TokenUnit"]}");
     }
@@ -781,7 +780,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private readonly HashSet<string> _requestedDayProjectKeys = [];
 
     private List<string> CurrentBarProjectKeys() => SelectedGrouping == StatsGrouping.Project
-        ? Bars.Select(bar => bar.ColorProviderId).Where(key => key.Length > 0 && key != OtherProjectsColorKey).ToList()
+        ? Bars.Select(bar => bar.ColorProviderId).Where(key => key.Length > 0 && key != OtherProjectsColorKey && key != NoProjectFilterKey).ToList()
         : [];
 
     partial void OnProjectColorsChanged(IReadOnlyDictionary<string, System.Windows.Media.Color> value)
@@ -814,7 +813,7 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors = new Dictionary<string, System.Windows.Media.Color>();
 
-    private const string ProjectColorsFileName = "project-colors.json";
+    private const string ProjectColorsFileName = ProjectColorResolver.CacheFileName;
 
     /// <summary>Where the project color cache lives: the machine-local cache folder, or the folder of a
     /// store that is pinned to one (a test).</summary>
@@ -855,7 +854,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         var generation = ++_projectColorGeneration;
         var dayKeys = _dayProjectKeys;
-        var folders = rows.Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct().ToList();
+        var folders = rows.Where(row => !row.IsNoProject).Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct().ToList();
         if (folders.Count == 0)
             return;
 
@@ -926,11 +925,13 @@ public sealed partial class StatsViewModel : ObservableObject
         slices
             .Select(slice =>
             {
-                var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(slice.Label), StatsAggregator.ProjectLabelMaxChars);
-                var color = projectColors.TryGetValue(slice.Label, out var resolved) && resolved != default
+                var shortened = slice.IsPooled
+                    ? slice.Label
+                    : StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(slice.Label), StatsAggregator.ProjectLabelMaxChars);
+                var color = !slice.IsPooled && projectColors.TryGetValue(slice.Label, out var resolved) && resolved != default
                     ? resolved
                     : ChartPalette.ForProvider(slice.Label);
-                return new StatsProjectRow(shortened, slice.Label, slice.Total, slice.Percent, day, day, Color: color);
+                return new StatsProjectRow(shortened, slice.Label, slice.Total, slice.Percent, day, day, Color: color, IsNoProject: slice.IsPooled);
             })
             .ToList();
 
@@ -1113,10 +1114,6 @@ public sealed partial class StatsViewModel : ObservableObject
                 SelectedModelFilter = SelectedModelFilter == key ? "" : key;
                 break;
             case StatsFilterKind.Project:
-                // The rows and bars name the no-project group in the display language; the filter
-                // keeps the neutral key.
-                if (key == LocalizationService.Instance["Stats.NoProject"])
-                    key = NoProjectFilterKey;
                 SelectedProjectFilter = string.Equals(SelectedProjectFilter, key, StringComparison.OrdinalIgnoreCase) ? "" : key;
                 break;
             default:
@@ -1142,7 +1139,8 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
 
         var slice = ModelShareSlices[index];
-        if (slice.Label != LocalizationService.Instance["Stats.Other"])
+        // Every real model slice names the provider it belongs to; the pooled one names none.
+        if (slice.ProviderId.Length > 0)
             ToggleFilter(StatsFilterKind.Model, slice.Label);
     }
 
@@ -1150,7 +1148,7 @@ public sealed partial class StatsViewModel : ObservableObject
     public void ActivateTopProject(int index)
     {
         if (index >= 0 && index < TopProjectRows.Count)
-            ToggleFilter(StatsFilterKind.Project, TopProjectRows[index].FullPath);
+            ToggleFilter(StatsFilterKind.Project, TopProjectRows[index].IsNoProject ? NoProjectFilterKey : TopProjectRows[index].FullPath);
     }
 
     [RelayCommand]
@@ -1422,7 +1420,7 @@ public sealed partial class StatsViewModel : ObservableObject
             var rest = groupedRows.Skip(MaxProjectBars).ToList();
             var restTotal = rest.Sum(row => row.Total);
             barRows = groupedRows.Take(MaxProjectBars)
-                .Append(new StatsGroupedRow(LocalizationService.Instance["Stats.OtherProjects"], [restTotal], restTotal)).ToList();
+                .Append(new StatsGroupedRow(LocalizationService.Instance["Stats.OtherProjects"], [restTotal], restTotal, Key: "")).ToList();
             barKeys = barColorKeys.Take(MaxProjectBars).Append(new BarColorKey(OtherProjectsColorKey, 0)).ToList();
             otherTooltipLine = BuildOtherProjectsTooltip(rest);
         }
@@ -1475,12 +1473,10 @@ public sealed partial class StatsViewModel : ObservableObject
             StatsGrouping.Project => StatsFilterKind.Project,
             _ => StatsFilterKind.None,
         };
-        var otherProjectsLabel = LocalizationService.Instance["Stats.OtherProjects"];
         BarsFilterable = filterKind != StatsFilterKind.None && !IsModelStack && !IsAgentStack;
+        // The bundled "other projects" bar carries an empty key and names nothing to filter by.
         _barTargets = BarsFilterable
-            ? barRows.Select(row => row.Label == otherProjectsLabel && filterKind == StatsFilterKind.Project
-                ? ((StatsFilterKind Kind, string Key)?)null
-                : (filterKind, row.Label)).ToList()
+            ? barRows.Select(row => row.Key is "" ? ((StatsFilterKind Kind, string Key)?)null : (filterKind, row.Key ?? row.Label)).ToList()
             : [];
 
         Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
@@ -1489,7 +1485,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
-        // stacked by all five providers rather than just the two
+        // stacked by all five providers rather than just the ones
         // StackedProviderOrder names, since any of them can lead a day on this grid. Built by
         // StatsMonthGridBuilder, the one place this computation lives - the widget's own day-grid tile
         // (DayGridTileViewModel) reads the same store through the same builder, so the two never
@@ -1508,6 +1504,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 if (SelectedGrouping != StatsGrouping.Project)
                     return new StatsRowViewModel(row.Label, row.Total, totalText);
 
+                if (row.Key == NoProjectFilterKey)
+                    return new StatsRowViewModel(row.Label, row.Total, totalText, FilterKind: StatsFilterKind.Project, FilterKey: NoProjectFilterKey);
                 var shortened = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
                 return new StatsRowViewModel(shortened, row.Total, totalText, ToolTip: row.Label, FilterKind: StatsFilterKind.Project, FilterKey: row.Label);
             })
@@ -1547,7 +1545,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (held is null || !IsFresh(held))
             ScheduleLimitRefresh(source, from, to);
 
-        // The two donut charts - provider stays in the fixed StackedProviderOrder (same color
+        // The share charts - provider stays in the fixed StackedProviderOrder (same color
         // convention the stacked charts already use), model is sorted by size with everything past
         // the largest six pooled into one "Other"/"Andere" entry.
         var million = loc["Number.Million"];
@@ -1573,7 +1571,7 @@ public sealed partial class StatsViewModel : ObservableObject
         ModelShareSlices = modelShares
             .Select(slice => new Views.Controls.StatsRingChart.Slice(
                 slice.Label, slice.Percent, slice.ProviderId, Total: slice.Total,
-                Tooltip: RingTooltip(slice.Label, slice, loc, slice.Label == otherLabel && slice.ProviderId.Length == 0 ? pooledModels : null)))
+                Tooltip: RingTooltip(slice.Label, slice, loc, slice.IsPooled ? pooledModels : null)))
             .ToList();
 
         // The "share per effort level" ring, beside the model ring. ProviderId here carries the raw
@@ -1599,12 +1597,10 @@ public sealed partial class StatsViewModel : ObservableObject
             : "";
         SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
 
-        // The cache-share bar.
         var cacheShare = StatsAggregator.CacheShare(inRange);
         CacheShareValues = cacheShare.AsValues;
         CacheShareLabels = [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]];
 
-        // The "top projects" panel.
         TopProjectRows = StatsAggregator.TopProjectsDetailed(inRange, limit: 12, loc["Stats.NoProject"]);
         RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
@@ -1639,7 +1635,7 @@ public sealed partial class StatsViewModel : ObservableObject
         PreviousPeriodTotalRaw = previous.Sum(record => record.TotalTokens);
         ActiveDayCountRaw = figures.ActiveDayCount;
         PeriodDayCountRaw = Math.Max(1, periodDayCount);
-        ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc["Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
+        ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc[periodDayCount == 1 ? "Stats.ActiveDaysOf.One" : "Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
     }
 
     /// <summary>The quota history a rebuild draws, read ahead of it: every provider's points for one
@@ -1985,7 +1981,7 @@ public sealed partial class StatsViewModel : ObservableObject
         if (figures.BusiestDay is { } busiestDay)
         {
             BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
-            BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, CultureInfo.CurrentCulture);
+            BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, LocalizationService.Instance.DisplayCulture);
         }
         else
         {
@@ -2145,7 +2141,7 @@ public sealed partial class StatsViewModel : ObservableObject
             return groupedRows.Select(row => new BarColorKey(row.Label, 0)).ToList();
 
         if (grouping == StatsGrouping.Project)
-            return groupedRows.Select(row => new BarColorKey(row.Label, 0)).ToList();
+            return groupedRows.Select(row => new BarColorKey(row.Key ?? row.Label, 0)).ToList();
 
         if (grouping == StatsGrouping.Model)
         {

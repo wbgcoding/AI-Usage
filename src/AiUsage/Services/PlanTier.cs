@@ -29,6 +29,11 @@ public static class PlanTier
 
         var tokens = Tokenize(raw);
 
+        if (tokens.Contains("max5x"))
+            return "Max 5x";
+        if (tokens.Contains("max20x"))
+            return "Max 20x";
+
         var maxAt = tokens.IndexOf("max");
         if (maxAt >= 0)
         {
@@ -39,10 +44,6 @@ public static class PlanTier
                 if (i + 1 < tokens.Count && tokens[i + 1] is "5x" or "20x")
                     return "Max " + tokens[i + 1];
             }
-            if (tokens.Contains("max5x"))
-                return "Max 5x";
-            if (tokens.Contains("max20x"))
-                return "Max 20x";
             return "Max";
         }
 

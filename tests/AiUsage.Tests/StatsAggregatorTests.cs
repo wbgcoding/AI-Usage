@@ -941,6 +941,42 @@ public class StatsAggregatorTests
     }
 
     [Fact]
+    public void A_project_named_like_the_no_project_label_keeps_its_own_row()
+    {
+        var day = new DateOnly(2026, 3, 10);
+        var records = new[]
+        {
+            Record("codex", day, "modelA", "Ohne Projekt", 100),
+            Record("codex", day, "modelB", "", 30),
+        };
+
+        var grouped = StatsAggregator.Group(records, StatsGrouping.Project, noProjectLabel: "Ohne Projekt");
+        Assert.Equal([(100L, (string?)null), (30L, StatsAggregator.NoProjectKey)], grouped.Select(row => (row.Total, row.Key)));
+
+        var top = StatsAggregator.TopProjectsDetailed(records, limit: 10, noProjectLabel: "Ohne Projekt");
+        Assert.Equal([(100L, false), (30L, true)], top.Select(row => (row.Total, row.IsNoProject)));
+
+        var detail = StatsAggregator.DayDetail(records, day, "Ohne Projekt");
+        Assert.Equal([(100L, false), (30L, true)], detail.ByProject.Select(slice => (slice.Total, slice.IsPooled)));
+    }
+
+    [Fact]
+    public void Only_the_pooled_model_slice_is_marked_even_when_a_model_carries_the_same_name()
+    {
+        var day = new DateOnly(2026, 3, 10);
+        var records = new[]
+        {
+            Record("claude", day, "Other", "p", 100),
+            Record("claude", day, "modelB", "p", 50),
+            Record("claude", day, "modelC", "p", 10),
+        };
+
+        var slices = StatsAggregator.ShareByModel(records, topCount: 2, otherLabel: "Other");
+
+        Assert.Equal([false, false, true], slices.Select(slice => slice.IsPooled));
+    }
+
+    [Fact]
     public void ComputeHeadlineFigures_shows_no_change_when_less_than_a_quarter_of_the_previous_days_saw_tokens()
     {
         var current = new[] { Record("claude", new DateOnly(2026, 1, 20), "modelA", "projA", 100) };
