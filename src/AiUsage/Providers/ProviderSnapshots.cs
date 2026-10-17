@@ -17,18 +17,24 @@ internal static class ProviderSnapshots
     /// status behind it), because otherwise the failure could be anything.</summary>
     internal static ProviderSnapshot Unavailable(
         string accountKey, DateTimeOffset fetchedAt, string? skipReasonWord = null,
-        FailureKind kind = FailureKind.Other, int? httpStatus = null) => new(
-        ProviderId: accountKey,
-        Windows: [],
-        PlanType: null,
-        SourceKind: SourceKind.None,
-        FetchedAt: fetchedAt,
-        DataTimestamp: null,
-        Status: ProviderStatus.Failed,
-        Error: NetworkStatus.HasInternet()
-            ? kind == FailureKind.Other ? null : new ProviderError("Status_Failed_Reason", "Action_Retry", Kind: kind, HttpStatus: httpStatus)
-            : OfflineError,
-        SkipReasonWord: skipReasonWord);
+        FailureKind kind = FailureKind.Other, int? httpStatus = null, bool unreadableAnswer = false)
+    {
+        var online = NetworkStatus.HasInternet();
+        return new(
+            ProviderId: accountKey,
+            Windows: [],
+            PlanType: null,
+            SourceKind: SourceKind.None,
+            FetchedAt: fetchedAt,
+            DataTimestamp: null,
+            Status: ProviderStatus.Failed,
+            Error: online
+                ? kind == FailureKind.Other ? null : new ProviderError("Status_Failed_Reason", "Action_Retry", Kind: kind, HttpStatus: httpStatus)
+                : OfflineError,
+            SkipReasonWord: skipReasonWord,
+            // An answer that could not be read says nothing while the machine is offline.
+            UnreadableAnswer: unreadableAnswer && online);
+    }
 
     /// <summary>A snapshot with no windows, carrying only its status and error.</summary>
     internal static ProviderSnapshot Empty(string accountKey, DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) => new(

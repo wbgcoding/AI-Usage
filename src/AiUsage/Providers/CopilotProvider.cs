@@ -93,7 +93,12 @@ public sealed class CopilotProvider : IUsageProvider
             case GitHubCliOutcome.Ok:
                 var windows = CopilotUserParser.Parse(result.Json);
                 if (windows.Count == 0)
-                    return Empty(fetchedAt, ProviderStatus.Failed, error: null);
+                {
+                    // An account whose buckets are all unlimited also gives no window, but its answer
+                    // has the expected shape: only a shape this read does not know is a change.
+                    return Empty(fetchedAt, ProviderStatus.Failed, error: null)
+                        with { UnreadableAnswer = !CopilotUserParser.HasQuotaSnapshots(result.Json) };
+                }
 
                 return new ProviderSnapshot(
                     ProviderId: AccountKey,

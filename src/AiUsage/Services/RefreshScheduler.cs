@@ -570,6 +570,7 @@ public sealed class RefreshScheduler
                 state.LastFailureKind = snapshot.Status == ProviderStatus.Failed ? snapshot.Error?.Kind : null;
             }
 
+            ReportReadChanges(provider.DisplayName, snapshot);
             RaiseSnapshotReady(snapshot);
         }
         finally
@@ -587,6 +588,24 @@ public sealed class RefreshScheduler
             runCts.Cancel();
             runCts.Dispose();
         }
+    }
+
+    /// <summary>The checks every provider's snapshot passes on its way out, present and future ones
+    /// alike: the address no longer exists, an answer that reads as a success yet holds no window, an
+    /// answer that arrived but could not be read. Each is one change line in the log (see
+    /// <see cref="ReadChangeLog"/>); network failures, timeouts, rate limits, a signed-out session
+    /// and a held fetch never match any of them.</summary>
+    internal static void ReportReadChanges(string providerName, ProviderSnapshot snapshot)
+    {
+        if (snapshot.Error is { Kind: FailureKind.EndpointMoved } moved)
+            ReadChangeLog.ReportGeneral(providerName,
+                $"the usage address no longer answers (HTTP {(moved.HttpStatus is { } status ? status.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unknown")}); the endpoint has probably moved.");
+        else if (snapshot.UnreadableAnswer)
+            ReadChangeLog.ReportGeneral(providerName,
+                "the answer arrived but nothing in it could be read; its shape has probably changed.");
+        else if (snapshot.Status == ProviderStatus.Ok && snapshot.Windows.Count == 0)
+            ReadChangeLog.ReportGeneral(providerName,
+                "the read counts as successful but the answer holds no usage window; its shape has probably changed.");
     }
 
     /// <summary>A failure that is worth one quiet retry: no answer in time, or the server answered with

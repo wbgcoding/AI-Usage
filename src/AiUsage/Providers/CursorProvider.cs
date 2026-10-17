@@ -107,11 +107,13 @@ public sealed class CursorProvider : IUsageProvider
         // and names what actually happened, rather than the bare, indistinguishable-from-a-dead-
         // connection message a null error leaves on the tile.
         WebUsageOutcome.Ok => Empty(fetchedAt, ProviderStatus.Failed,
-            new ProviderError("Status_UnreadableAnswer_Reason", "Action_Retry")),
+            new ProviderError("Status_UnreadableAnswer_Reason", "Action_Retry")) with { UnreadableAnswer = true },
         WebUsageOutcome.NotSignedIn => Empty(fetchedAt, ProviderStatus.NotSignedIn, error: null),
         WebUsageOutcome.Blocked => Empty(fetchedAt, ProviderStatus.Blocked, error: null),
         // The request never got out the door - say so, rather than a plain, less informative failure.
-        _ => ProviderSnapshots.Unavailable(AccountKey, fetchedAt),
+        // A signed-in session whose usage address answered with something unreadable is no network
+        // problem: it is noted as a changed answer.
+        _ => ProviderSnapshots.Unavailable(AccountKey, fetchedAt, unreadableAnswer: web.SessionSignedIn),
     };
 
     private ProviderSnapshot Empty(DateTimeOffset fetchedAt, ProviderStatus status, ProviderError? error) =>

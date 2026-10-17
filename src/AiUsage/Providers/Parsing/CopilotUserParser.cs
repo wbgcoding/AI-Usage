@@ -30,6 +30,26 @@ public static class CopilotUserParser
         return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
     }
 
+    /// <summary>True when the response holds the <c>quota_snapshots</c> object this parser reads, even
+    /// if every bucket in it is unlimited or absent.</summary>
+    public static bool HasQuotaSnapshots(string responseText)
+    {
+        if (string.IsNullOrWhiteSpace(responseText))
+            return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseText);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("quota_snapshots", out var snapshots)
+                && snapshots.ValueKind == JsonValueKind.Object;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     public static IReadOnlyList<UsageWindow> Parse(string responseText)
     {
         if (string.IsNullOrWhiteSpace(responseText))

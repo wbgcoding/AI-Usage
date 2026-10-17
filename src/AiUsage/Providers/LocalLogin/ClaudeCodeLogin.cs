@@ -25,7 +25,7 @@ internal enum ClaudeCodeLoginReason
 /// just the outcome and why.</summary>
 internal sealed record ClaudeCodeUsage(
     LocalLoginOutcome Outcome, IReadOnlyList<UsageWindow> Windows, ClaudeCodeLoginReason Reason = ClaudeCodeLoginReason.Ok,
-    string? PlanType = null, FailureKind FailureKind = FailureKind.Other, int? HttpStatus = null)
+    string? PlanType = null, FailureKind FailureKind = FailureKind.Other, int? HttpStatus = null, bool AnswerUnread = false)
 {
     public static readonly ClaudeCodeUsage NotSignedIn = new(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.MissingFile);
     public static readonly ClaudeCodeUsage Failed = new(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse);
@@ -84,9 +84,10 @@ internal static class ClaudeCodeLogin
                 FailureKind: response.FailureKind, HttpStatus: response.StatusCode > 0 ? response.StatusCode : null);
 
         var parsed = ClaudeUsageParser.Parse(response.Body);
+        // The server answered successfully, so a body that yields nothing (other than a challenge page) is a shape this read does not know.
         return parsed.Outcome == ClaudeUsageOutcome.Ok
             ? new ClaudeCodeUsage(LocalLoginOutcome.Ok, parsed.Windows, ClaudeCodeLoginReason.Ok, plan)
-            : new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse);
+            : new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse, AnswerUnread: parsed.Outcome == ClaudeUsageOutcome.Failed);
     }
 
     /// <summary>The answer for a refused request, null for any other status. A 401 on a token the file

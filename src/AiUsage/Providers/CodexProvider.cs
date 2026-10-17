@@ -156,12 +156,17 @@ public sealed partial class CodexProvider : IUsageProvider
         {
             var webOnly = await ReadWebAsync(fetchedAt, ct);
             return webOnly is not null
-                ? webOnly with { WebSessionSignedIn = _webReader?.SessionSignedIn }
+                ? webOnly with
+                {
+                    WebSessionSignedIn = _webReader?.SessionSignedIn,
+                    UnreadableAnswer = webOnly.UnreadableAnswer || _webReader?.AnswerUnread == true,
+                }
                 : new ProviderSnapshot(
                     ProviderId: AccountKey, Windows: [], PlanType: null, SourceKind: SourceKind.None,
                     FetchedAt: fetchedAt, DataTimestamp: null,
                     Status: _webReader?.SessionSignedIn == false ? ProviderStatus.NotSignedIn : ProviderStatus.Failed,
-                    Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn);
+                    Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn,
+                    UnreadableAnswer: _webReader?.AnswerUnread == true);
         }
 
         if (_webSource is null)
@@ -206,6 +211,7 @@ public sealed partial class CodexProvider : IUsageProvider
             // a local session file that outranks the web read this tick must not blank it again.
             AccountLabel = chosen.AccountLabel ?? _webReader?.LastAccountLabel,
             WebSessionSignedIn = _webReader?.SessionSignedIn,
+            UnreadableAnswer = chosen.UnreadableAnswer || _webReader?.AnswerUnread == true,
             IsWaitingForUser = chosen.IsWaitingForUser || local.Snapshot.IsWaitingForUser,
             WaitingSince = combinedWaitingSince,
         };

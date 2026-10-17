@@ -149,6 +149,54 @@ public sealed class ThrottledWebReaderTests : IDisposable
         Assert.NotNull(await reader.ReadUnlessHeldAsync(Start, CancellationToken.None));
     }
 
+    private const string UnreadableEnvelope = """{"status":"ok","path":"/backend-api/codex/usage","body":"{\"surprise\":true}"}""";
+
+    [Fact]
+    public async Task A_signed_in_answer_the_parser_cannot_read_is_marked_unread()
+    {
+        var reader = NewReader(() => UnreadableEnvelope, out _);
+
+        await reader.ReadAsync(Start, CancellationToken.None);
+
+        Assert.True(reader.AnswerUnread);
+    }
+
+    [Fact]
+    public async Task A_held_fetch_says_nothing_about_the_last_unreadable_answer()
+    {
+        var reader = NewReader(() => UnreadableEnvelope, out _);
+        await reader.ReadAsync(Start, CancellationToken.None);
+
+        using (FetchContext.HoldNetwork())
+            Assert.False(reader.AnswerUnread);
+    }
+
+    [Theory]
+    [InlineData(FailedEnvelope)]
+    [InlineData(NotSignedInEnvelope)]
+    [InlineData(OkEnvelope)]
+    public async Task A_failed_script_a_sign_out_or_a_good_answer_is_not_marked_unread(string envelope)
+    {
+        var reader = NewReader(() => envelope, out _);
+
+        await reader.ReadAsync(Start, CancellationToken.None);
+
+        Assert.False(reader.AnswerUnread);
+    }
+
+    [Fact]
+    public async Task The_mark_ends_with_the_next_good_read()
+    {
+        var answer = UnreadableEnvelope;
+        var reader = NewReader(() => answer, out _);
+        await reader.ReadAsync(Start, CancellationToken.None);
+
+        answer = OkEnvelope;
+        await reader.ReadAsync(Start.AddSeconds(30), CancellationToken.None);
+
+        Assert.False(reader.AnswerUnread);
+    }
+
     public void Dispose()
     {
         WebViewHost.ClearRootOverrideForTests();

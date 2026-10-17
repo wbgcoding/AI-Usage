@@ -217,7 +217,19 @@ public sealed class ClaudeProvider : IUsageProvider
     internal static string ProjectsRootFor(string? configDirValue, string userProfile) =>
         ClaudeConfigRoot.ProjectsRoot(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
 
+    // Set during one fetch when the web session's usage address answered but nothing in it could be
+    // read. That web answer is no candidate of its own (see BuildWebSnapshot), so the mark rides
+    // on whichever snapshot the fetch ends with. A provider is fetched one run at a time.
+    private bool _webAnswerUnread;
+
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
+    {
+        _webAnswerUnread = false;
+        var snapshot = await FetchSourcesAsync(ct);
+        return _webAnswerUnread ? snapshot with { UnreadableAnswer = true } : snapshot;
+    }
+
+    private async Task<ProviderSnapshot> FetchSourcesAsync(CancellationToken ct)
     {
         var fetchedAt = _now();
 
@@ -495,7 +507,8 @@ public sealed class ClaudeProvider : IUsageProvider
                     ? "State.NotSignedIn.ClaudeExpired"
                     : "State.NotSignedIn.ClaudeCode"),
                 SkipReasonWord: ReasonWord(usage.Reason)),
-            _ => ProviderSnapshots.Unavailable(AccountKey, fetchedAt, ReasonWord(usage.Reason), usage.FailureKind, usage.HttpStatus),
+            _ => ProviderSnapshots.Unavailable(
+                AccountKey, fetchedAt, ReasonWord(usage.Reason), usage.FailureKind, usage.HttpStatus, usage.AnswerUnread),
         };
 
         // A failed request keeps the last numbers for the next expiry; a sign-in that is really gone
@@ -535,6 +548,8 @@ public sealed class ClaudeProvider : IUsageProvider
     private async Task<ProviderSnapshot?> BuildWebSnapshot(DateTimeOffset fetchedAt, CancellationToken ct)
     {
         var web = await _webSource!.FetchAsync(_settings!, _saveSettings!, ct);
+        if (web.Outcome == WebUsageOutcome.Failed && web.SessionSignedIn && NetworkStatus.HasInternet())
+            _webAnswerUnread = true;
         return web.Outcome switch
         {
             WebUsageOutcome.Ok => ProviderSnapshots.FromWeb(AccountKey, web, fetchedAt, web.PlanType),

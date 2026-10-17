@@ -48,6 +48,12 @@ internal sealed class ThrottledWebReader
     /// <summary>Null until a read has said whether the session is signed in.</summary>
     public bool? SessionSignedIn { get; private set; }
 
+    private bool _answerUnread;
+
+    /// <summary>True while the last real read got a signed-in answer from the usage address that the
+    /// parser could not read (a changed shape). A held fetch makes no read, so it says nothing then.</summary>
+    public bool AnswerUnread => _answerUnread && !FetchContext.NetworkHeld;
+
     /// <summary>The last account address a read reported, kept for the ticks that answer from
     /// elsewhere.</summary>
     public string? LastAccountLabel { get; private set; }
@@ -109,6 +115,7 @@ internal sealed class ThrottledWebReader
             LastAccountLabel = webLabel;
 
         SessionSignedIn = ProviderSnapshots.SessionSignedIn(result, SessionSignedIn);
+        _answerUnread = result.Outcome == WebUsageOutcome.Failed && result.SessionSignedIn;
 
         if (readFailed)
         {

@@ -16,25 +16,40 @@ public static class ReadChangeLog
     // Notes already written by this process: each change is logged once per run, not on every read.
     private static readonly HashSet<string> Written = [];
 
+    // Providers that already wrote a note of their own this run (see ReportGeneral).
+    private static readonly HashSet<string> ProvidersWithNote = new(StringComparer.Ordinal);
+
     // Test seam: a capture scope on the current async flow takes the lines instead of the log, with
     // its own once-only memory, so parallel tests neither see each other's lines nor touch the log.
     private static readonly AsyncLocal<Capture?> Current = new();
 
     /// <summary>Writes the WARN line for <paramref name="note"/> unless this provider already
     /// reported the very same note in this run.</summary>
-    public static void Report(string providerName, string note)
+    public static void Report(string providerName, string note) => Write(providerName, note, general: false);
+
+    /// <summary>Same line, for the checks that apply to every provider alike (a moved address, an
+    /// answer with nothing to show, an answer nothing could be read from). They only say that
+    /// something changed, so a provider that already named what changed in a note of its own this run
+    /// is not told twice.</summary>
+    public static void ReportGeneral(string providerName, string note) => Write(providerName, note, general: true);
+
+    private static void Write(string providerName, string note, bool general)
     {
         var line = $"{Prefix} ({providerName} usage read needs adapting): {note}";
         if (Current.Value is { } capture)
         {
-            capture.Add(line);
+            capture.Add(providerName, line, general);
             return;
         }
 
         lock (Written)
         {
+            if (general && ProvidersWithNote.Contains(providerName))
+                return;
             if (!Written.Add(line))
                 return;
+            if (!general)
+                ProvidersWithNote.Add(providerName);
         }
         LogService.Shared.Log("WARN", line);
     }
@@ -52,6 +67,7 @@ public static class ReadChangeLog
     {
         private readonly object _gate = new();
         private readonly List<string> _lines = [];
+        private readonly HashSet<string> _providersWithNote = new(StringComparer.Ordinal);
 
         public IReadOnlyList<string> Lines
         {
@@ -62,12 +78,17 @@ public static class ReadChangeLog
             }
         }
 
-        internal void Add(string line)
+        internal void Add(string providerName, string line, bool general)
         {
             lock (_gate)
             {
-                if (!_lines.Contains(line))
-                    _lines.Add(line);
+                if (general && _providersWithNote.Contains(providerName))
+                    return;
+                if (_lines.Contains(line))
+                    return;
+                _lines.Add(line);
+                if (!general)
+                    _providersWithNote.Add(providerName);
             }
         }
 

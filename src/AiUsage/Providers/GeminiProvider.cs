@@ -154,13 +154,15 @@ public sealed class GeminiProvider : IUsageProvider
                 ? webOnly with
                 {
                     WebSessionSignedIn = _webReader?.SessionSignedIn,
+                    UnreadableAnswer = webOnly.UnreadableAnswer || _webReader?.AnswerUnread == true,
                     AccountLabel = webOnly.AccountLabel ?? _webReader?.LastAccountLabel,
                 }
                 : new ProviderSnapshot(
                     ProviderId: AccountKey, Windows: [], PlanType: null, SourceKind: SourceKind.None,
                     FetchedAt: fetchedAt, DataTimestamp: null,
                     Status: _webReader?.SessionSignedIn == false ? ProviderStatus.NotSignedIn : ProviderStatus.Failed,
-                    Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn);
+                    Error: null, WebSessionSignedIn: _webReader?.SessionSignedIn,
+                    UnreadableAnswer: _webReader?.AnswerUnread == true);
         }
 
         // The sign-in read asks Google's servers: a held fetch (pause, energy saver) makes no request.
@@ -190,7 +192,11 @@ public sealed class GeminiProvider : IUsageProvider
         // The sign-in state belongs to the browser session, not to whichever source happened to win:
         // the local sign-in answers perfectly well while the session is signed out, and the tile
         // still has to be able to offer the sign-in that makes the numbers live.
-        return (await WithAccountLabelAsync(chosen)) with { WebSessionSignedIn = _webReader?.SessionSignedIn };
+        return (await WithAccountLabelAsync(chosen)) with
+        {
+            WebSessionSignedIn = _webReader?.SessionSignedIn,
+            UnreadableAnswer = chosen.UnreadableAnswer || _webReader?.AnswerUnread == true,
+        };
     }
 
     /// <summary>The account's address does not depend on which source won the numbers: whichever
@@ -232,7 +238,7 @@ public sealed class GeminiProvider : IUsageProvider
                 if (windows.Count == 0)
                     windows = GeminiUsageParser.ParseModelQuota(usage.ModelQuotaJson);
                 if (windows.Count == 0)
-                    return Empty(fetchedAt, ProviderStatus.Failed, error: null);
+                    return Empty(fetchedAt, ProviderStatus.Failed, error: null) with { UnreadableAnswer = true };
 
                 return new ProviderSnapshot(
                     ProviderId: AccountKey,

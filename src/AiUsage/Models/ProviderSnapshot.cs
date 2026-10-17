@@ -45,4 +45,8 @@ public sealed record ProviderSnapshot(
     // True when this snapshot only re-offers an earlier reading (an expired-token hold-over, a cached
     // web answer) under a new fetch time. The tile still shows it, but it is no new point for the
     // history chart. A fresh read of an idle source stays false even though its data time is old.
-    bool HeldOver = false);
+    bool HeldOver = false,
+    // True when a provider's source answered and the answer was there, but nothing in it could be
+    // read (a changed shape, a renamed field). Not a network failure, not a signed-out state, not
+    // a paused fetch. The scheduler reports it once per run so a log review spots the change.
+    bool UnreadableAnswer = false);

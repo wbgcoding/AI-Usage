@@ -29,6 +29,16 @@ public static class SnapshotChooser
         if (candidates.Count == 1)
             return candidates[0];
 
+        // A source whose answer could not be read stays noted even when another source wins the
+        // numbers: that source's shape changed all the same.
+        var picked = PickOne(candidates);
+        return !picked.UnreadableAnswer && candidates.Any(candidate => candidate.UnreadableAnswer)
+            ? picked with { UnreadableAnswer = true }
+            : picked;
+    }
+
+    private static ProviderSnapshot PickOne(IReadOnlyList<ProviderSnapshot> candidates)
+    {
         var usable = candidates.Where(IsUsable).ToList();
         if (usable.Count > 0)
             return usable
