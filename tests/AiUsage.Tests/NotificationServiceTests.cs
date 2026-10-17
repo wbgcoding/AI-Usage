@@ -143,6 +143,38 @@ public class NotificationServiceTests : IDisposable
     }
 
     [Fact]
+    public void AResetTimeThatWobblesByMinutesAfterItPassedIsNotANewPeriod()
+    {
+        var service = new NotificationService(TempDirectory());
+        var raised = new List<ThresholdNotification>();
+        var resets = new List<ResetNotification>();
+        service.NotificationRaised += n => raised.Add(n);
+        service.ResetRaised += n => resets.Add(n);
+
+        service.Evaluate("claude", "Claude", FiveHour(90, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: true, Start);
+        Assert.Single(raised);
+
+        // The stored reset time has been reached, the provider now names a time two minutes later.
+        service.Evaluate("claude", "Claude", FiveHour(90, Start.AddHours(1).AddMinutes(2)), threshold: 85, enabled: true, notifyOnReset: true, Start.AddHours(1));
+
+        Assert.Single(raised);
+        Assert.Empty(resets);
+    }
+
+    [Fact]
+    public void AResetTimeMoreThanTheToleranceLaterIsANewPeriod()
+    {
+        var service = new NotificationService(TempDirectory());
+        var raised = new List<ThresholdNotification>();
+        service.NotificationRaised += n => raised.Add(n);
+
+        service.Evaluate("claude", "Claude", FiveHour(90, Start.AddHours(1)), threshold: 85, enabled: true, notifyOnReset: false, Start);
+        service.Evaluate("claude", "Claude", FiveHour(90, Start.AddHours(1).AddMinutes(11)), threshold: 85, enabled: true, notifyOnReset: false, Start.AddHours(1));
+
+        Assert.Equal(2, raised.Count);
+    }
+
+    [Fact]
     public void ACrossingRearmedByADipButSuppressedByTheLockoutStillFiresOnceItExpires()
     {
         var service = new NotificationService(TempDirectory());

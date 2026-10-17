@@ -164,10 +164,10 @@ public sealed class NotificationService
             }
             var before = (state.Armed, state.LastNotifiedAt, state.LastResetsAt, state.ForecastFiredFor, state.LimitFired, state.LimitFiredFor);
 
-            // A reset counts only once the window reports a different reset time. A stale snapshot
+            // A reset counts only once the window reports a reset time beyond the period tolerance. A stale snapshot
             // keeps repeating the old, already-passed one, and treating that as a fresh reset on every
             // fetch re-armed the window and repeated the balloon about once a minute.
-            var resetPassed = state.LastResetsAt is { } lastReset && now >= lastReset && window.ResetsAt != lastReset;
+            var resetPassed = state.LastResetsAt is { } lastReset && now >= lastReset && !SamePeriod(lastReset, window.ResetsAt);
             if (window.UsedPercent < threshold || resetPassed)
                 state.Armed = true;
 
