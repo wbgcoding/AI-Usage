@@ -107,6 +107,18 @@ public class GitHubCliUsageTests
     }
 
     [Fact]
+    public async Task RunGhAsync_fails_when_the_output_passes_the_size_cap()
+    {
+        var powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+        string[] arguments = ["-NoProfile", "-Command", "[Console]::Out.Write('x' * 2000000)"];
+
+        var (outcome, output) = await GitHubCliUsage.RunGhAsync(powershell, arguments, CancellationToken.None);
+
+        Assert.Equal(GitHubCliOutcome.Failed, outcome);
+        Assert.Equal("", output);
+    }
+
+    [Fact]
     public async Task RunGhAsync_keeps_inherited_token_variables_away_from_the_child_process()
     {
         string[] names = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"];
