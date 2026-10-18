@@ -455,7 +455,7 @@ public sealed class StatsRingChart : FrameworkElement
                 continue;
 
             var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
-            var pen = new Pen(brush, strokeThickness);
+            var pen = ChartDrawCache.PenFor(brush, strokeThickness);
             drawingContext.DrawGeometry(null, pen, ArcGeometry(center, radius, sweeps[i].StartAngle, sweeps[i].SweepAngle));
         }
 

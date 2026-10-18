@@ -192,7 +192,7 @@ public sealed class StatsBarChart : FrameworkElement
             }
         }
         geometry.Freeze();
-        drawingContext.DrawGeometry(null, new Pen(OverlayBrush, 1.5) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, geometry);
+        drawingContext.DrawGeometry(null, ChartDrawCache.PenFor(OverlayBrush, 1.5, round: true), geometry);
     }
 
     /// <summary>The already-localized "M"/"B" magnitude words <see
@@ -708,7 +708,7 @@ public sealed class StatsBarChart : FrameworkElement
             _leftMargin = DefaultLeftMargin;
             _bottomMargin = DefaultBottomMargin;
             var emptyChartHeight = Math.Max(0, height - _bottomMargin);
-            drawingContext.DrawLine(new Pen(AxisBrush, 1), new Point(_leftMargin, emptyChartHeight + 0.5), new Point(width, emptyChartHeight + 0.5));
+            drawingContext.DrawLine(ChartDrawCache.PenFor(AxisBrush, 1), new Point(_leftMargin, emptyChartHeight + 0.5), new Point(width, emptyChartHeight + 0.5));
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
@@ -755,7 +755,7 @@ public sealed class StatsBarChart : FrameworkElement
             var tick = yTicks[i];
             var tickText = tickTexts[i];
             var y = chartHeight - (plotHeight * tick / (double)scaleMax);
-            drawingContext.DrawLine(new Pen(AxisBrush, 1) { DashStyle = DashStyles.Dot }, new Point(_leftMargin, y), new Point(width, y));
+            drawingContext.DrawLine(ChartDrawCache.PenFor(AxisBrush, 1, dotted: true), new Point(_leftMargin, y), new Point(width, y));
             // Both coordinates are held inside the control even for a figure wider or a chart shorter
             // than the margins above allow for - a clipped figure is worse than a tight one.
             drawingContext.DrawText(tickText, new Point(
@@ -763,7 +763,7 @@ public sealed class StatsBarChart : FrameworkElement
                 Math.Max(0, y - tickText.Height / 2)));
         }
 
-        drawingContext.DrawLine(new Pen(AxisBrush, 1), new Point(_leftMargin, chartHeight + 0.5), new Point(width, chartHeight + 0.5));
+        drawingContext.DrawLine(ChartDrawCache.PenFor(AxisBrush, 1), new Point(_leftMargin, chartHeight + 0.5), new Point(width, chartHeight + 0.5));
 
         var columns = Columns(chartWidth, bars.Count);
         var brushes = SeriesBrushes;
@@ -794,7 +794,7 @@ public sealed class StatsBarChart : FrameworkElement
         {
             var (focusX, focusWidth) = columns[_focusedIndex];
             var ring = new Rect(focusX + _leftMargin - 2, 0.75, focusWidth + 4, Math.Max(0, chartHeight - 0.75));
-            drawingContext.DrawRectangle(null, new Pen(FocusBrush, 1.5), ring);
+            drawingContext.DrawRectangle(null, ChartDrawCache.PenFor(FocusBrush, 1.5), ring);
         }
 
         // X axis: a label under every Nth bar, never more than MaxAxisLabels of them. A label pushed

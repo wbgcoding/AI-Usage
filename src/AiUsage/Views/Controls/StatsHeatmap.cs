@@ -334,7 +334,7 @@ public sealed class StatsHeatmap : FrameworkElement
                 if (IsKeyboardFocused && _focusedCell == (row, column))
                 {
                     drawingContext.DrawRoundedRectangle(
-                        null, new Pen(AccentBrush, FocusRingThickness), FocusRingFor(rect), CellCorner + 1, CellCorner + 1);
+                        null, ChartDrawCache.PenFor(AccentBrush, FocusRingThickness), FocusRingFor(rect), CellCorner + 1, CellCorner + 1);
                 }
 
                 _cellHits.Add(new CellHit(rect, row, column));
