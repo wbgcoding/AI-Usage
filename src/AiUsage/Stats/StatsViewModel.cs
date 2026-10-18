@@ -1302,11 +1302,13 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
         }
 
+        var rebuild = BeginRebuildRequest();
+
         var source = _sourceRecords;
         var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, source);
         if (HeldFor(from, to) is { } held && IsFresh(held))
         {
-            await RecomputeFromAsync(source);
+            await RecomputeFromAsync(source, rebuild);
             return;
         }
 
@@ -1315,7 +1317,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var generation = ++_selectionGeneration;
         var inputs = await Task.Run(() => LoadLimitInputs(from, to));
         if (generation == _selectionGeneration && ReferenceEquals(source, _sourceRecords))
-            await RecomputeFromAsync(source, inputs);
+            await RecomputeFromAsync(source, rebuild, inputs);
     }
 
     // Bumped by every selection change and every rebuild (which is what replaces the source): a
@@ -1404,7 +1406,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 {
                     _allSessions = sessions;
                     Aliases = aliases;
-                    await RecomputeFromAsync(all, inputs);
+                    await RecomputeFromAsync(all, BeginRebuildRequest(), inputs);
                 }
                 else
                     AdoptFreshInputs(inputs);
@@ -1480,7 +1482,7 @@ public sealed partial class StatsViewModel : ObservableObject
         try
         {
             if (_sourceRecords.Count > 0)
-                await RecomputeFromAsync(_sourceRecords);
+                await RecomputeFromAsync(_sourceRecords, BeginRebuildRequest());
         }
         catch (Exception ex)
         {
@@ -1492,7 +1494,7 @@ public sealed partial class StatsViewModel : ObservableObject
     private void RecomputeFrom(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
     {
         var started = Stopwatch.GetTimestamp();
-        var input = PrepareRebuild(source, inputs);
+        var input = PrepareRebuild(source, inputs, BeginRebuildRequest());
         ApplyRebuild(input, ComputeRebuild(input));
         ReportRebuildDuration(Stopwatch.GetElapsedTime(started));
     }
@@ -1500,9 +1502,12 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The same rebuild with the aggregation on a pool thread, so a large history does not hold
     /// the window. Superseded by any rebuild started meanwhile; only the aggregation counts towards the
     /// slow-rebuild log. A failing aggregation is logged and dropped, the view keeps its previous state.</summary>
-    private async Task RecomputeFromAsync(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
+    private async Task RecomputeFromAsync(IReadOnlyList<StatsRecord> source, int generation, LimitInputs? inputs = null)
     {
-        var input = PrepareRebuild(source, inputs);
+        if (generation != _rebuildGeneration)
+            return;
+
+        var input = PrepareRebuild(source, inputs, generation);
         var started = Stopwatch.GetTimestamp();
         RebuildOutput output;
         try
@@ -1650,13 +1655,15 @@ public sealed partial class StatsViewModel : ObservableObject
         public string ActiveDaysOfText { get; set; } = "";
     }
 
-    // Bumped by every rebuild: one computed in the background is assigned only when nothing newer has
-    // started since.
+    // Bumped when a request that leads to a rebuild starts, before its first await: a rebuild is
+    // assigned only when no newer request has started since.
     private int _rebuildGeneration;
+
+    private int BeginRebuildRequest() => ++_rebuildGeneration;
 
     /// <summary>Takes the new source and everything the aggregation reads from this view model, on the
     /// window's thread.</summary>
-    private RebuildInput PrepareRebuild(IReadOnlyList<StatsRecord> source, LimitInputs? inputs)
+    private RebuildInput PrepareRebuild(IReadOnlyList<StatsRecord> source, LimitInputs? inputs, int generation)
     {
         _sourceRecords = source;
         ++_selectionGeneration;
@@ -1674,7 +1681,7 @@ public sealed partial class StatsViewModel : ObservableObject
             IsStackedByProvider, IsHeatmap, CanChooseColor, IsModelStack, IsAgentStack,
             new StatsCostView(_cost), Aliases, today, text,
             MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), today),
-            ++_rebuildGeneration);
+            generation);
     }
 
     /// <summary>The aggregation of a rebuild: pure over <paramref name="input"/>, so it can run off the
