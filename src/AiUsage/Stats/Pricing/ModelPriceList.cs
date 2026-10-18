@@ -30,6 +30,11 @@ public sealed class ModelPriceList
 
     private static readonly string[] MakerPrefixes = ["anthropic/", "openai/", "gemini/", "vertex_ai/"];
 
+    private static readonly ModelPrice FreePrice = new(0, 0, null, null);
+
+    private static readonly Regex FreeWord = new(@"(^|[-:_./@])free($|[-:_./@])",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
     private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly Func<string> _cacheDirectory;
@@ -218,7 +223,12 @@ public sealed class ModelPriceList
         }
     }
 
-    /// <summary>The price of <paramref name="model"/>, or null when the list has none. An unknown model
+    /// <summary>True when the model name carries the word "free" as its own token (<c>x/y:free</c>,
+    /// <c>nemotron-3-ultra-free</c>); such a model costs nothing.</summary>
+    internal static bool IsFree(string model) => FreeWord.IsMatch(model);
+
+    /// <summary>The price of <paramref name="model"/>, or null when the list has none. A free model costs
+    /// nothing once a list exists. An unknown model
     /// is reported once per run through the change log; an empty list reports nothing, since then no
     /// model is known.</summary>
     public ModelPrice? Find(string model)
@@ -233,7 +243,7 @@ public sealed class ModelPriceList
                 return cached;
         }
 
-        var price = Lookup(prices, model);
+        var price = IsFree(model) ? FreePrice : Lookup(prices, model);
         var report = false;
         lock (_gate)
         {
