@@ -1216,7 +1216,7 @@ public sealed class StatsStore
     {
         SetBusyTimeout(connection);
         Execute(connection, "BEGIN IMMEDIATE");
-        // True while a migration step runs; an exception then marks the instance as done with
+        // True while an older file is migrated; an exception then marks the instance as done with
         // migrating for this session, so a failed step (a full disk, a damaged page) is not retried
         // with another full copy of the database on every later open. Local to this call because
         // several opens run EnsureSchema at once.
@@ -1274,6 +1274,10 @@ public sealed class StatsStore
             return false;
         }
 
+        // From here to the COMMIT an older file is being changed: a failure anywhere in that span
+        // ends migrating for this session.
+        migrating = existingVersion is { } version && version < SchemaVersion;
+
         // Older files hold a plain version table without the id column; rebuild it as the
         // single-row table. The version itself is written again at the end.
         bool hasIdColumn;
@@ -1325,9 +1329,7 @@ public sealed class StatsStore
                 return false;
             }
 
-            migrating = true;
             MigrateToV7(connection);
-            migrating = false;
         }
 
         // A database written at an older schema version has usage rows this version cannot
