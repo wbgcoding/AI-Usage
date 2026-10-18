@@ -992,7 +992,7 @@
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Hotkey]}"
                                   IsChecked="{Binding Main.HotkeyEnabled}" Style="{StaticResource CheckBox.GapM}"/>
                         <StackPanel Visibility="{Binding Main.HotkeyEnabled, Converter={StaticResource BoolToVis}}">
-                        <TextBox x:Name="HotkeyCaptureBox" Width="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
+                        <TextBox x:Name="HotkeyCaptureBox" MinWidth="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
                                  IsReadOnly="True" Focusable="True"
                                  PreviewKeyDown="HotkeyCaptureBox_PreviewKeyDown"
                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}"
