@@ -109,26 +109,26 @@ public class ProjectAliasResolverTests
     public void Unrelated_subfolders_of_one_name_stay_apart()
     {
         var aliases = Build(
-            [@"E:\Claude\ArrowMaze\review"],
-            Record(@"C:\Claude\AI-Usage"), Record(@"C:\Claude\AI-Usage\review"), Record(@"C:\Claude\Prompt Saver"), Record(@"C:\Claude\Prompt Saver\review"),
-            Record(@"E:\Claude\ArrowMaze"), Record(@"E:\Claude\ArrowMaze\review"));
+            [@"E:\Dev\Maze\review"],
+            Record(@"C:\Dev\AI-Usage"), Record(@"C:\Dev\AI-Usage\review"), Record(@"C:\Dev\Note Keeper"), Record(@"C:\Dev\Note Keeper\review"),
+            Record(@"E:\Dev\Maze"), Record(@"E:\Dev\Maze\review"));
 
-        Assert.Equal(@"C:\Claude\AI-Usage\review", aliases.Resolve(@"C:\Claude\AI-Usage\review"));
-        Assert.Equal(@"C:\Claude\Prompt Saver\review", aliases.Resolve(@"C:\Claude\Prompt Saver\review"));
-        Assert.Equal(@"E:\Claude\ArrowMaze\review", aliases.Resolve(@"E:\Claude\ArrowMaze\review"));
-        Assert.Empty(aliases.FormerPaths(@"E:\Claude\ArrowMaze\review"));
+        Assert.Equal(@"C:\Dev\AI-Usage\review", aliases.Resolve(@"C:\Dev\AI-Usage\review"));
+        Assert.Equal(@"C:\Dev\Note Keeper\review", aliases.Resolve(@"C:\Dev\Note Keeper\review"));
+        Assert.Equal(@"E:\Dev\Maze\review", aliases.Resolve(@"E:\Dev\Maze\review"));
+        Assert.Empty(aliases.FormerPaths(@"E:\Dev\Maze\review"));
     }
 
     [Fact]
     public void A_subfolder_of_a_moved_project_follows_the_move()
     {
         var aliases = Build(
-            [@"E:\Claude\Prompt Saver", @"E:\Claude\Prompt Saver\review"],
-            Record(@"C:\Claude\Prompt Saver"), Record(@"E:\Claude\Prompt Saver"),
-            Record(@"C:\Claude\Prompt Saver\review"), Record(@"E:\Claude\Prompt Saver\review"));
+            [@"E:\Dev\Note Keeper", @"E:\Dev\Note Keeper\review"],
+            Record(@"C:\Dev\Note Keeper"), Record(@"E:\Dev\Note Keeper"),
+            Record(@"C:\Dev\Note Keeper\review"), Record(@"E:\Dev\Note Keeper\review"));
 
-        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Resolve(@"C:\Claude\Prompt Saver"));
-        Assert.Equal(@"E:\Claude\Prompt Saver\review", aliases.Resolve(@"C:\Claude\Prompt Saver\review"));
+        Assert.Equal(@"E:\Dev\Note Keeper", aliases.Resolve(@"C:\Dev\Note Keeper"));
+        Assert.Equal(@"E:\Dev\Note Keeper\review", aliases.Resolve(@"C:\Dev\Note Keeper\review"));
     }
 
     [Fact]
@@ -136,45 +136,45 @@ public class ProjectAliasResolverTests
     {
         var aliases = Build(
             [],
-            Record(@"C:\Claude\Claude-Messenger"), Record(@"C:\Claude\Claude-Messenger\android", dayOffset: 1),
-            Record(@"C:\Claude\IP-Scanner-App"), Record(@"C:\Claude\IP-Scanner-App\android", dayOffset: 2));
+            Record(@"C:\Dev\Messenger"), Record(@"C:\Dev\Messenger\android", dayOffset: 1),
+            Record(@"C:\Dev\Scanner"), Record(@"C:\Dev\Scanner\android", dayOffset: 2));
 
-        Assert.Equal(@"C:\Claude\Claude-Messenger\android", aliases.Resolve(@"C:\Claude\Claude-Messenger\android"));
-        Assert.Equal(@"C:\Claude\IP-Scanner-App\android", aliases.Resolve(@"C:\Claude\IP-Scanner-App\android"));
+        Assert.Equal(@"C:\Dev\Messenger\android", aliases.Resolve(@"C:\Dev\Messenger\android"));
+        Assert.Equal(@"C:\Dev\Scanner\android", aliases.Resolve(@"C:\Dev\Scanner\android"));
     }
 
     [Fact]
     public void A_subfolder_and_a_project_of_the_same_name_stay_apart()
     {
         var aliases = Build(
-            [@"E:\Claude\Tool"],
-            Record(@"C:\Claude\Other"), Record(@"C:\Claude\Other\Tool"), Record(@"E:\Claude\Tool"));
+            [@"E:\Dev\Tool"],
+            Record(@"C:\Dev\Other"), Record(@"C:\Dev\Other\Tool"), Record(@"E:\Dev\Tool"));
 
-        Assert.Equal(@"C:\Claude\Other\Tool", aliases.Resolve(@"C:\Claude\Other\Tool"));
+        Assert.Equal(@"C:\Dev\Other\Tool", aliases.Resolve(@"C:\Dev\Other\Tool"));
     }
 
     [Fact]
     public void A_bare_name_follows_the_merged_project()
     {
-        var aliases = Build([@"E:\Claude\Prompt Saver"], Record(@"C:\Claude\Prompt Saver"), Record(@"E:\Claude\Prompt Saver"), Record("Prompt Saver"));
+        var aliases = Build([@"E:\Dev\Note Keeper"], Record(@"C:\Dev\Note Keeper"), Record(@"E:\Dev\Note Keeper"), Record("Note Keeper"));
 
-        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Resolve("Prompt Saver"));
-        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Resolve("prompt saver"));
-        Assert.Equal([@"C:\Claude\Prompt Saver"], aliases.FormerPaths(@"E:\Claude\Prompt Saver"));
+        Assert.Equal(@"E:\Dev\Note Keeper", aliases.Resolve("Note Keeper"));
+        Assert.Equal(@"E:\Dev\Note Keeper", aliases.Resolve("note keeper"));
+        Assert.Equal([@"C:\Dev\Note Keeper"], aliases.FormerPaths(@"E:\Dev\Note Keeper"));
     }
 
     [Fact]
     public void A_bare_session_name_resolves_to_its_project()
     {
         var session = new StatsSessionRecord(
-            "codex", "", "s1", "Prompt Saver", new DateTimeOffset(2026, 12, 1, 8, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 12, 1, 9, 0, 0, TimeSpan.Zero),
+            "codex", "", "s1", "Note Keeper", new DateTimeOffset(2026, 12, 1, 8, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 12, 1, 9, 0, 0, TimeSpan.Zero),
             1, 0, 0, 0, "gpt-5", 0);
-        var present = new HashSet<string> { @"E:\Claude\Prompt Saver" };
+        var present = new HashSet<string> { @"E:\Dev\Note Keeper" };
 
         var aliases = ProjectAliasResolver.Build(
-            [Record(@"C:\Claude\Prompt Saver"), Record(@"E:\Claude\Prompt Saver")], [session], present.Contains);
+            [Record(@"C:\Dev\Note Keeper"), Record(@"E:\Dev\Note Keeper")], [session], present.Contains);
 
-        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Apply([session])[0].Project);
+        Assert.Equal(@"E:\Dev\Note Keeper", aliases.Apply([session])[0].Project);
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class ProjectAliasResolverTests
     [Fact]
     public void A_bare_name_stays_when_the_same_subfolder_name_belongs_to_two_projects()
     {
-        var aliases = Build([], Record(@"C:\Claude\One"), Record(@"C:\Claude\One\android"), Record(@"C:\Claude\Two"), Record(@"C:\Claude\Two\android"), Record("android"));
+        var aliases = Build([], Record(@"C:\Dev\One"), Record(@"C:\Dev\One\android"), Record(@"C:\Dev\Two"), Record(@"C:\Dev\Two\android"), Record("android"));
 
         Assert.Equal("android", aliases.Resolve("android"));
     }
@@ -223,10 +223,10 @@ public class ProjectAliasResolverTests
     {
         var records = new[]
         {
-            Record(@"C:\Claude\Prompt Saver", tokens: 10), Record(@"E:\Claude\Prompt Saver", tokens: 20), Record("Prompt Saver", tokens: 30),
-            Record(@"E:\Claude\Other", tokens: 5), Record("Unknown", tokens: 7), Record("", tokens: 3),
+            Record(@"C:\Dev\Note Keeper", tokens: 10), Record(@"E:\Dev\Note Keeper", tokens: 20), Record("Note Keeper", tokens: 30),
+            Record(@"E:\Dev\Other", tokens: 5), Record("Unknown", tokens: 7), Record("", tokens: 3),
         };
-        var aliases = Build([@"E:\Claude\Prompt Saver", @"E:\Claude\Other"], records);
+        var aliases = Build([@"E:\Dev\Note Keeper", @"E:\Dev\Other"], records);
 
         var before = StatsAggregator.TopProjectsDetailed(records, int.MaxValue, "none");
         var after = StatsAggregator.TopProjectsDetailed(aliases.Apply(records), int.MaxValue, "none");
@@ -234,7 +234,7 @@ public class ProjectAliasResolverTests
         Assert.Equal(75, before.Sum(row => row.Total));
         Assert.Equal(75, after.Sum(row => row.Total));
         Assert.Equal(4, after.Count);
-        Assert.Equal(60, after.Single(row => row.FullPath == @"E:\Claude\Prompt Saver").Total);
+        Assert.Equal(60, after.Single(row => row.FullPath == @"E:\Dev\Note Keeper").Total);
     }
 
     [Fact]
