@@ -236,6 +236,29 @@ public class StatsViewModelTests
     }
 
     [Fact]
+    public async Task Two_quick_range_picks_leave_the_state_of_the_second()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-quick-picks");
+        var store = new StatsStore(dataDir);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        store.AddDelta([
+            new StatsRecord("claude", today, "modelA", "projA", 100, 0, 0, 0),
+            new StatsRecord("claude", today.AddDays(-20), "modelA", "projA", 900, 0, 0, 0),
+        ]);
+        var viewModel = StatsVm.Create(store);
+        await viewModel.SetRangeCommand.ExecuteAsync("Year");
+        Assert.Equal(1000, viewModel.PeriodTotalRaw);
+
+        var month = viewModel.SetRangeCommand.ExecuteAsync("Month");
+        var week = viewModel.SetRangeCommand.ExecuteAsync("Week");
+        await Task.WhenAll(month, week);
+
+        Assert.Equal("Week", viewModel.SelectedRange);
+        Assert.Equal(100, viewModel.PeriodTotalRaw);
+        Assert.Equal(viewModel.PeriodTotalRaw, viewModel.DailyTotalsSeries.Sum());
+    }
+
+    [Fact]
     public async Task ProjectGroupingBundlesAllButTheTenLargestProjectsIntoOneBarButKeepsEveryTableRow()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-viewmodel-project-bundle");

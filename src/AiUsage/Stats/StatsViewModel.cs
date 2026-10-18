@@ -1002,7 +1002,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 if (context is null)
                     RefreshCost();
                 else
-                    context.Post(_ => RefreshCost(), null);
+                    context.Post(_ => _ = RefreshCostAsync(), null);
             };
         }
 
@@ -1131,35 +1131,13 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>Keeps what the active filters let through.</summary>
-    private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all)
-    {
-        all = Merged(all);
-        if (!HasProviderFilter && !HasAnyFilter)
-            return all;
+    private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all) => CurrentFilter().Apply(Merged(all));
 
-        return all.Where(record =>
-                (!HasProviderFilter || _selectedProviders.Contains(record.Provider))
-                && (!HasModelFilter || ModelDisplayNames.Resolve(record.Model) == SelectedModelFilter)
-                && (!HasProjectFilter || MatchesProject(record.Project)))
-            .ToList();
-    }
+    private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all) => CurrentFilter().Apply(Merged(all));
 
-    private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all)
-    {
-        all = Merged(all);
-        if (!HasProviderFilter && !HasAnyFilter)
-            return all;
+    private RowFilter CurrentFilter() => new([.. _selectedProviders], SelectedModelFilter, SelectedProjectFilter);
 
-        return all.Where(session =>
-                (!HasProviderFilter || _selectedProviders.Contains(session.Provider))
-                && (!HasModelFilter || ModelDisplayNames.Resolve(session.MainModel) == SelectedModelFilter)
-                && (!HasProjectFilter || MatchesProject(session.Project)))
-            .ToList();
-    }
-
-    private bool MatchesProject(string project) => string.Equals(
-        string.IsNullOrEmpty(project) ? NoProjectFilterKey : StatsAggregator.ProjectKey(project),
-        SelectedProjectFilter, StringComparison.OrdinalIgnoreCase);
+    private bool MatchesProject(string project) => RowFilter.MatchesProject(project, SelectedProjectFilter);
 
     /// <summary>A click on a model or a project: narrows every figure to it, or lifts that filter
     /// when it is already the one applied.</summary>
@@ -1328,7 +1306,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var (from, to) = LimitPeriod(SelectedRange, _customFrom, _customTo, source);
         if (HeldFor(from, to) is { } held && IsFresh(held))
         {
-            RecomputeFrom(source);
+            await RecomputeFromAsync(source);
             return;
         }
 
@@ -1337,7 +1315,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var generation = ++_selectionGeneration;
         var inputs = await Task.Run(() => LoadLimitInputs(from, to));
         if (generation == _selectionGeneration && ReferenceEquals(source, _sourceRecords))
-            RecomputeFrom(source, inputs);
+            await RecomputeFromAsync(source, inputs);
     }
 
     // Bumped by every selection change and every rebuild (which is what replaces the source): a
@@ -1426,7 +1404,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 {
                     _allSessions = sessions;
                     Aliases = aliases;
-                    RecomputeFrom(all, inputs);
+                    await RecomputeFromAsync(all, inputs);
                 }
                 else
                     AdoptFreshInputs(inputs);
@@ -1447,7 +1425,17 @@ public sealed partial class StatsViewModel : ObservableObject
     private bool MatchesShown(IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions) =>
         records.Count == _sourceRecords.Count
         && sessions.Count == _allSessions.Count
-        && records.Sum(record => record.TotalTokens) == _sourceRecords.Sum(record => record.TotalTokens);
+        && SameTokenTotal(records, _sourceRecords);
+
+    private static bool SameTokenTotal(IReadOnlyList<StatsRecord> first, IReadOnlyList<StatsRecord> second)
+    {
+        long difference = 0;
+        foreach (var record in first)
+            difference += record.TotalTokens;
+        foreach (var record in second)
+            difference -= record.TotalTokens;
+        return difference == 0;
+    }
 
     private async Task ShowLoadingAfterDelayAsync(int generation, CancellationToken cancellation)
     {
@@ -1487,13 +1475,42 @@ public sealed partial class StatsViewModel : ObservableObject
             RecomputeFrom(_sourceRecords);
     }
 
-    /// <summary>The rebuild itself, on records already read - the one half <see
-    /// cref="RecomputeAsync"/> keeps on the window's own thread.</summary>
+    private async Task RefreshCostAsync()
+    {
+        try
+        {
+            if (_sourceRecords.Count > 0)
+                await RecomputeFromAsync(_sourceRecords);
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Stats costs could not be refreshed ({ex.GetType().Name}): {ex.Message}");
+        }
+    }
+
+    /// <summary>The rebuild itself, on records already read, all on the calling thread.</summary>
     private void RecomputeFrom(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
     {
         var started = Stopwatch.GetTimestamp();
-        RebuildFrom(source, inputs);
+        var input = PrepareRebuild(source, inputs);
+        ApplyRebuild(input, ComputeRebuild(input));
         ReportRebuildDuration(Stopwatch.GetElapsedTime(started));
+    }
+
+    /// <summary>The same rebuild with the aggregation on a pool thread, so a large history does not hold
+    /// the window. Superseded by any rebuild started meanwhile; only the aggregation counts towards the
+    /// slow-rebuild log.</summary>
+    private async Task RecomputeFromAsync(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
+    {
+        var input = PrepareRebuild(source, inputs);
+        var started = Stopwatch.GetTimestamp();
+        var output = await Task.Run(() => ComputeRebuild(input));
+        var elapsed = Stopwatch.GetElapsedTime(started);
+        if (input.Generation != _rebuildGeneration)
+            return;
+
+        ApplyRebuild(input, output);
+        ReportRebuildDuration(elapsed);
     }
 
     /// <summary>Where a rebuild that took longer than <see cref="SlowRebuildThreshold"/> says so; the
@@ -1513,7 +1530,119 @@ public sealed partial class StatsViewModel : ObservableObject
             CultureInfo.InvariantCulture, $"stats view {SelectedGrouping}/{SelectedRange}: {(long)elapsed.TotalMilliseconds} ms"));
     }
 
-    private void RebuildFrom(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
+    /// <summary>Everything a rebuild reads from the view model, taken on the window's thread so the
+    /// aggregation itself can run anywhere.</summary>
+    private sealed record RebuildInput(
+        IReadOnlyList<StatsRecord> Source,
+        IReadOnlyList<StatsRecord> Records,
+        IReadOnlyList<StatsSessionRecord> Sessions,
+        RowFilter Filter,
+        string Range,
+        DateOnly CustomFrom,
+        DateOnly CustomTo,
+        StatsGrouping Grouping,
+        bool IsStackedByProvider,
+        bool IsHeatmap,
+        bool CanChooseColor,
+        bool IsModelStack,
+        bool IsAgentStack,
+        StatsCostView CostView,
+        ProjectAliases Aliases,
+        DateOnly Today,
+        CultureInfo DisplayCulture,
+        DateOnly MonthGridFrom,
+        int Generation);
+
+    /// <summary>The filters as they stood when a rebuild started.</summary>
+    private sealed record RowFilter(string[] Providers, string Model, string Project)
+    {
+        private bool Open => Providers.Length == 0 && Model.Length == 0 && Project.Length == 0;
+
+        public IReadOnlyList<StatsRecord> Apply(IReadOnlyList<StatsRecord> all) =>
+            Open ? all : all.Where(record => Keeps(record.Provider, record.Model, record.Project)).ToList();
+
+        public IReadOnlyList<StatsSessionRecord> Apply(IReadOnlyList<StatsSessionRecord> all) =>
+            Open ? all : all.Where(session => Keeps(session.Provider, session.MainModel, session.Project)).ToList();
+
+        private bool Keeps(string provider, string model, string project) =>
+            (Providers.Length == 0 || Providers.Contains(provider))
+            && (Model.Length == 0 || ModelDisplayNames.Resolve(model) == Model)
+            && (Project.Length == 0 || MatchesProject(project, Project));
+
+        public static bool MatchesProject(string project, string selectedKey) => string.Equals(
+            string.IsNullOrEmpty(project) ? NoProjectFilterKey : StatsAggregator.ProjectKey(project),
+            selectedKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>What a rebuild computed, kept apart from the bound properties until the window's thread
+    /// assigns it.</summary>
+    private sealed class RebuildOutput
+    {
+        public IReadOnlyList<StatsRecord> All { get; set; } = [];
+        public IReadOnlyList<StatsRecord> InRange { get; set; } = [];
+        public IReadOnlyList<StatsRecord> Previous { get; set; } = [];
+        public DateOnly From { get; set; }
+        public DateOnly To { get; set; }
+        public StatsHeadlineFigures Figures { get; set; }
+        public int PeriodDayCount { get; set; }
+        public StatsMonthGridBuilder.Result MonthGrid { get; set; }
+
+        public bool IsWeeklyPerDay { get; set; }
+        public IReadOnlyList<ChartSeriesInfo> ChartSeries { get; set; } = [];
+        public IReadOnlyList<double?> ChartOverlay { get; set; } = [];
+        public bool BarsFilterable { get; set; }
+        public List<(StatsFilterKind Kind, string Key)?> BarTargets { get; set; } = [];
+        public IReadOnlyList<Views.Controls.StatsBarChart.Bar> Bars { get; set; } = [];
+        public IReadOnlyList<StatsRowViewModel> Rows { get; set; } = [];
+        public IReadOnlyList<StatsSessionRowViewModel> SessionRows { get; set; } = [];
+        public IReadOnlyList<StatsProjectRow> SessionChartRows { get; set; } = [];
+        public IReadOnlyList<StatsProviderRowViewModel> ProviderRows { get; set; } = [];
+        public IReadOnlyList<Views.Controls.StatsRingChart.Slice> ProviderShareSlices { get; set; } = [];
+        public IReadOnlyList<Views.Controls.StatsRingChart.Slice> ModelShareSlices { get; set; } = [];
+        public IReadOnlyList<Views.Controls.StatsRingChart.Slice> EffortShareSlices { get; set; } = [];
+        public bool HasSubagentShare { get; set; }
+        public double SubagentTokensRaw { get; set; }
+        public double ClaudeTokensRaw { get; set; }
+        public string SubagentShareText { get; set; } = "";
+        public string SubagentShareCaption { get; set; } = "";
+        public IReadOnlyList<long> CacheShareValues { get; set; } = [];
+        public IReadOnlyList<string> CacheShareLabels { get; set; } = [];
+        public string CacheShareTooltip { get; set; } = "";
+        public IReadOnlyList<StatsProjectRow> TopProjectRows { get; set; } = [];
+        public DayOfWeek HeatmapFirstDay { get; set; }
+        public IReadOnlyList<long> HeatmapValues { get; set; } = [];
+        public IReadOnlyList<string> HeatmapCostLines { get; set; } = [];
+        public IReadOnlyList<string> HeatmapLeaderKeys { get; set; } = [];
+        public IReadOnlyList<string> HeatmapLeaderTexts { get; set; } = [];
+        public string TotalFigureText { get; set; } = "";
+        public string PerDayFigureText { get; set; } = "";
+        public string PerActiveDayFigureText { get; set; } = "";
+        public string BusiestDayFigureText { get; set; } = "";
+        public string BusiestDayDateText { get; set; } = "";
+        public string BusiestDayCostText { get; set; } = "";
+        public string PerDayCostText { get; set; } = "";
+        public string PerActiveDayCostText { get; set; } = "";
+        public bool HasPreviousPeriod { get; set; }
+        public string VsPreviousCaption { get; set; } = "";
+        public string ChangeFigureText { get; set; } = "";
+        public bool ChangeIsIncrease { get; set; }
+        public string TotalCostText { get; set; } = "";
+        public string TotalCostTooltip { get; set; } = "";
+        public IReadOnlyList<long> DailyTotalsSeries { get; set; } = [];
+        public long PeriodTotalRaw { get; set; }
+        public long PreviousPeriodTotalRaw { get; set; }
+        public double ActiveDayCountRaw { get; set; }
+        public double PeriodDayCountRaw { get; set; }
+        public string ActiveDaysOfText { get; set; } = "";
+    }
+
+    // Bumped by every rebuild: one computed in the background is assigned only when nothing newer has
+    // started since.
+    private int _rebuildGeneration;
+
+    /// <summary>Takes the new source and everything the aggregation reads from this view model, on the
+    /// window's thread.</summary>
+    private RebuildInput PrepareRebuild(IReadOnlyList<StatsRecord> source, LimitInputs? inputs)
     {
         _sourceRecords = source;
         ++_selectionGeneration;
@@ -1521,58 +1650,74 @@ public sealed partial class StatsViewModel : ObservableObject
             AdoptLimitInputs(inputs);
         OnPropertyChanged(nameof(ImportedFromText));
         OnPropertyChanged(nameof(HasImportedFrom));
-        var all = ApplyFilters(source);
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var period = ResolvePeriod(SelectedRange, today, _customFrom, _customTo, EarliestRecordDay(source));
+        var grouping = SelectedGrouping;
+        return new RebuildInput(
+            source, Merged(source), grouping == StatsGrouping.Session ? Merged(_allSessions) : [],
+            CurrentFilter(), SelectedRange, _customFrom, _customTo, grouping,
+            IsStackedByProvider, IsHeatmap, CanChooseColor, IsModelStack, IsAgentStack,
+            new StatsCostView(_cost), Aliases, today, LocalizationService.Instance.DisplayCulture,
+            MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), today),
+            ++_rebuildGeneration);
+    }
+
+    /// <summary>The aggregation of a rebuild: pure over <paramref name="input"/>, so it can run off the
+    /// window's thread.</summary>
+    private static RebuildOutput ComputeRebuild(RebuildInput input)
+    {
+        var o = new RebuildOutput();
+        var grouping = input.Grouping;
+        var all = input.Filter.Apply(input.Records);
+        var today = input.Today;
+        var period = ResolvePeriod(input.Range, today, input.CustomFrom, input.CustomTo, EarliestRecordDay(input.Source));
         var from = period.From;
         var to = period.To;
 
         var inRange = all.Where(record => record.Day >= from && record.Day <= to).ToList();
         var previous = PreviousPeriod(all, period);
-        var costView = new StatsCostView(_cost);
-        _currentPeriodRecords = inRange;
-        _allRecords = all;
-        // The selected day stays across a rebuild (an index refresh must not drop what the user
-        // clicked; a period or grouping change clears it before it gets here), but its detail was
-        // built from the previous records.
-        RebuildSelectedDayDetail();
+        var costView = input.CostView;
+        o.InRange = inRange;
+        o.All = all;
+        o.Previous = previous;
+        o.From = from;
+        o.To = to;
 
         // Starts at the earliest stored day: from an open lower bound it would build one bar per day
         // since year 1.
         var gapFillFrom = GapFillStart(from, inRange, to);
 
-        var weeklyPerDay = SelectedRange is "All" or CustomRange && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
-        IsWeeklyPerDay = weeklyPerDay;
+        var weeklyPerDay = input.Range is "All" or CustomRange && to.DayNumber - gapFillFrom.DayNumber + 1 > WeeklyPerDayThresholdDays;
+        o.IsWeeklyPerDay = weeklyPerDay;
 
         // The exported rows under the day grouping stay per day; only the bars are bundled per week.
-        var dayRows = SelectedGrouping == StatsGrouping.Day
+        var dayRows = grouping == StatsGrouping.Day
             ? StatsAggregator.Group(inRange, StatsGrouping.Day, gapFillFrom, to)
             : null;
         var weekRows = weeklyPerDay ? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, to) : null;
 
         // Week grouping keeps its empty weeks as zero rows, the same way the day bars keep empty days.
-        var groupedRows = SelectedGrouping switch
+        var groupedRows = grouping switch
         {
             StatsGrouping.Day => weekRows ?? dayRows!,
             StatsGrouping.Week => weekRows ?? StatsAggregator.Group(inRange, StatsGrouping.Week, gapFillFrom, to),
-            _ => StatsAggregator.Group(inRange, SelectedGrouping, noProjectLabel: LocalizationService.Instance["Stats.NoProject"]),
+            _ => StatsAggregator.Group(inRange, grouping, noProjectLabel: LocalizationService.Instance["Stats.NoProject"]),
         };
 
         // A model/effort/project bar gets its own color - the same one its ring slice (or, once
         // project colors exist, its own swatch) uses - rather than the flat theme accent every other
         // grouping keeps. A model row's label is already its display name, so the provider map below
         // is keyed by the display name too.
-        var barColorKeys = BuildBarColorKeys(SelectedGrouping, groupedRows, inRange);
+        var barColorKeys = BuildBarColorKeys(grouping, groupedRows, inRange);
 
         // What each row costs, found by the key the row was grouped under (before the effort rows are relabeled).
         var rowKeys = groupedRows.Select(row => row.Key ?? row.Label).ToList();
-        var groupCosts = costView.Active && SelectedGrouping != StatsGrouping.Session
+        var groupCosts = costView.Active && grouping != StatsGrouping.Session
             ? costView.ByKey(
-                inRange, record => BarCostKey(record, SelectedGrouping, weeklyPerDay),
-                SelectedGrouping == StatsGrouping.Project ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                inRange, record => BarCostKey(record, grouping, weeklyPerDay, input.DisplayCulture),
+                grouping == StatsGrouping.Project ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
             : new Dictionary<string, CostSummary>();
-        if (SelectedGrouping == StatsGrouping.Effort)
+        if (grouping == StatsGrouping.Effort)
             groupedRows = groupedRows.Select(row => row with { Label = ResolveEffortLabel(row.Label) }).ToList();
         // Only the bars are bundled: the exported rows keep every project.
         var barRows = groupedRows;
@@ -1580,7 +1725,7 @@ public sealed partial class StatsViewModel : ObservableObject
         string? otherTooltipLine = null;
         string? otherCostLine = null;
         var barCostKeys = rowKeys;
-        if (SelectedGrouping == StatsGrouping.Project && groupedRows.Count > MaxProjectBars + 1)
+        if (grouping == StatsGrouping.Project && groupedRows.Count > MaxProjectBars + 1)
         {
             var rest = groupedRows.Skip(MaxProjectBars).ToList();
             var restTotal = rest.Sum(row => row.Total);
@@ -1596,18 +1741,18 @@ public sealed partial class StatsViewModel : ObservableObject
         // The weekday by hour grid takes the same series for its cells' colors; its columns stay as they are.
         var series = new List<ChartSeriesInfo>();
         Func<StatsRecord, string>? heatmapKeyOf = null;
-        if (CanChooseColor && !IsModelStack && !IsAgentStack)
+        if (input.CanChooseColor && !input.IsModelStack && !input.IsAgentStack)
         {
             series.AddRange(StatsAggregator.StackedProviderOrder.Select(id =>
                 new ChartSeriesInfo(ProviderDisplayNames.GetValueOrDefault(id, id), id)));
             heatmapKeyOf = record => record.Provider;
         }
-        else if (IsModelStack)
+        else if (input.IsModelStack)
         {
             var modelOtherLabel = LocalizationService.Instance["Stats.Other"];
-            if (IsStackedByProvider)
+            if (input.IsStackedByProvider)
             {
-                var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+                var stackGrouping = grouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
                 barRows = StatsAggregator.GroupStackedByModel(inRange, stackGrouping, gapFillFrom, to, MaxStackedModels, modelOtherLabel).Rows;
                 barCostKeys = barRows.Select(row => row.Label).ToList();
             }
@@ -1616,13 +1761,13 @@ public sealed partial class StatsViewModel : ObservableObject
             series.AddRange(ranking.Series.Select((name, index) => new ChartSeriesInfo(name, ranking.SlotKeys[index])));
             heatmapKeyOf = ranking.KeyFor;
         }
-        else if (IsAgentStack)
+        else if (input.IsAgentStack)
         {
             var mainLabel = LocalizationService.Instance["Stats.Agent.Main"];
             var subagentLabel = LocalizationService.Instance["Stats.SubagentShare"];
-            if (IsStackedByProvider)
+            if (input.IsStackedByProvider)
             {
-                var stackGrouping = SelectedGrouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
+                var stackGrouping = grouping == StatsGrouping.Week || weeklyPerDay ? StatsGrouping.Week : StatsGrouping.Day;
                 barRows = StatsAggregator.GroupStackedByAgent(inRange, stackGrouping, gapFillFrom, to, mainLabel, subagentLabel).Rows;
                 barCostKeys = barRows.Select(row => row.Label).ToList();
             }
@@ -1631,28 +1776,28 @@ public sealed partial class StatsViewModel : ObservableObject
             series.Add(new ChartSeriesInfo(subagentLabel, "cat:1"));
             heatmapKeyOf = record => record.Subagent ? "cat:1" : "cat:0";
         }
-        ChartSeries = series;
-        ChartOverlay = SelectedGrouping == StatsGrouping.Day && !weeklyPerDay && barRows.Count >= OverlayMinDays
+        o.ChartSeries = series;
+        o.ChartOverlay = grouping == StatsGrouping.Day && !weeklyPerDay && barRows.Count >= OverlayMinDays
             ? StatsAggregator.TrailingMean(barRows.Select(row => row.Total).ToList(), 7)
             : [];
 
-        var filterKind = SelectedGrouping switch
+        var filterKind = grouping switch
         {
             StatsGrouping.Model => StatsFilterKind.Model,
             StatsGrouping.Project => StatsFilterKind.Project,
             _ => StatsFilterKind.None,
         };
-        BarsFilterable = filterKind != StatsFilterKind.None && !IsModelStack && !IsAgentStack;
+        o.BarsFilterable = filterKind != StatsFilterKind.None && !input.IsModelStack && !input.IsAgentStack;
         // The bundled "other projects" bar carries an empty key and names nothing to filter by.
-        _barTargets = BarsFilterable
+        o.BarTargets = o.BarsFilterable
             ? barRows.Select(row => row.Key is "" ? ((StatsFilterKind Kind, string Key)?)null : (filterKind, row.Key ?? row.Label)).ToList()
             : [];
 
         // A project bar is named by its folder; its tooltip opens with the full path.
-        var barProjectLabels = SelectedGrouping == StatsGrouping.Project
+        var barProjectLabels = grouping == StatsGrouping.Project
             ? ProjectLabels.For(barRows.Select(ProjectPathOf).OfType<string>())
             : null;
-        Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
+        o.Bars = barRows.Select((row, index) => new Views.Controls.StatsBarChart.Bar(
             barProjectLabels is not null && ProjectPathOf(row) is { } projectPath
                 ? StatsAggregator.MiddleEllipsis(barProjectLabels[projectPath], StatsAggregator.ProjectLabelMaxChars)
                 : row.Label,
@@ -1663,7 +1808,7 @@ public sealed partial class StatsViewModel : ObservableObject
                     ? otherCostLine
                     : index < barCostKeys.Count ? costView.LineFor(groupCosts, barCostKeys[index]) : null,
                 barProjectLabels is not null && barKeys[index].ProviderId != OtherProjectsColorKey && ProjectPathOf(row) is { } formerKey
-                    ? FormerPathsLine(formerKey)
+                    ? FormerPathsLine(input.Aliases, formerKey)
                     : null),
             barProjectLabels is not null ? ProjectPathOf(row) : null)).ToList();
 
@@ -1674,26 +1819,25 @@ public sealed partial class StatsViewModel : ObservableObject
         // StatsMonthGridBuilder, the one place this computation lives - the widget's own day-grid tile
         // (DayGridTileViewModel) reads the same store through the same builder, so the two never
         // disagree about a day's color or total.
-        _monthGridToday = DateOnly.FromDateTime(DateTime.Now);
-        _monthGridPeriodStart = from;
-        _monthGridPeriodEnd = to;
-        RebuildMonthGrid(all, colorScale: null);
+        o.MonthGrid = StatsMonthGridBuilder.Build(
+            all, today, from: input.MonthGridFrom, colorScale: null,
+            costLine: costView.Active ? records => costView.Line(records) : null);
 
         var exportCosts = dayRows is not null && weeklyPerDay && costView.Active
-            ? costView.ByKey(inRange, record => BarCostKey(record, StatsGrouping.Day, false))
+            ? costView.ByKey(inRange, record => BarCostKey(record, StatsGrouping.Day, false, input.DisplayCulture))
             : groupCosts;
-        var rowProjectLabels = SelectedGrouping == StatsGrouping.Project
+        var rowProjectLabels = grouping == StatsGrouping.Project
             ? ProjectLabels.For(groupedRows.Select(ProjectPathOf).OfType<string>())
             : null;
-        Rows = (dayRows ?? groupedRows)
+        o.Rows = (dayRows ?? groupedRows)
             .Select((row, rowIndex) =>
             {
                 var costKey = dayRows is not null ? row.Label : rowKeys[rowIndex];
                 var usd = exportCosts.TryGetValue(costKey, out var rowCost) ? StatsCostView.UsdForExport(rowCost) : "";
                 var totalText = row.Total.ToString("N0", CultureInfo.CurrentCulture);
-                if (SelectedGrouping == StatsGrouping.Model)
+                if (grouping == StatsGrouping.Model)
                     return new StatsRowViewModel(row.Label, row.Total, totalText, FilterKind: StatsFilterKind.Model, FilterKey: row.Label, CostUsd: usd);
-                if (SelectedGrouping != StatsGrouping.Project)
+                if (grouping != StatsGrouping.Project)
                     return new StatsRowViewModel(row.Label, row.Total, totalText, CostUsd: usd);
 
                 if (row.Key == NoProjectFilterKey)
@@ -1703,15 +1847,17 @@ public sealed partial class StatsViewModel : ObservableObject
             })
             .ToList();
 
-        var summary = StatsAggregator.Summarize(inRange, previous);
         var loc = LocalizationService.Instance;
 
-        if (SelectedGrouping == StatsGrouping.Session)
-            BuildSessionViews(from, to, loc, costView);
+        if (grouping == StatsGrouping.Session)
+        {
+            var sessions = StatsAggregator.SessionsInRange(input.Filter.Apply(input.Sessions), from, to);
+            (o.SessionRows, o.SessionChartRows, o.Rows) = BuildSessionViews(sessions, loc, costView);
+        }
         else
         {
-            SessionChartRows = [];
-            SessionRows = [];
+            o.SessionChartRows = [];
+            o.SessionRows = [];
         }
 
         // A provider without local token counts (Cursor, Copilot) is dropped
@@ -1719,7 +1865,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // legend or grouping either, since none of those ever aggregate a record this provider never
         // wrote to the store in the first place.
         var providerCosts = costView.ByKey(inRange, record => record.Provider);
-        ProviderRows = ProviderCoverage.AllProviderIds
+        o.ProviderRows = ProviderCoverage.AllProviderIds
             .Where(ProviderCoverage.HasLocalTokenData)
             .Select(providerId =>
             {
@@ -1731,15 +1877,6 @@ public sealed partial class StatsViewModel : ObservableObject
             })
             .ToList();
 
-        // The quota history is never read here: the inputs held for this period are used, and a period
-        // without fresh ones is read on a pool thread and filled in when it arrives.
-        _shownPeriod = (from, to);
-        var held = HeldFor(from, to);
-        if (held is not null)
-            LimitGroups = BuildLimitGroups(held, loc);
-        if (held is null || !IsFresh(held))
-            ScheduleLimitRefresh(source, from, to);
-
         // The share charts - provider stays in the fixed StackedProviderOrder (same color
         // convention the stacked charts already use), model is sorted by size with everything past
         // the largest six pooled into one "Other"/"Andere" entry.
@@ -1747,7 +1884,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var billion = loc["Number.Billion"];
 
         var providerShares = StatsAggregator.ShareByProvider(inRange);
-        ProviderShareSlices = providerShares
+        o.ProviderShareSlices = providerShares
             .Select(slice =>
             {
                 var name = ProviderDisplayNames.GetValueOrDefault(slice.Label, slice.Label);
@@ -1766,7 +1903,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var pooledModels = modelShares.Count > 6
             ? StatsAggregator.ShareByModel(inRange, topCount: int.MaxValue, otherLabel).Skip(6).ToList()
             : [];
-        ModelShareSlices = modelShares
+        o.ModelShareSlices = modelShares
             .Select(slice => new Views.Controls.StatsRingChart.Slice(
                 slice.Label, slice.Percent, slice.ProviderId, Total: slice.Total,
                 Tooltip: RingTooltip(
@@ -1783,7 +1920,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // same seam ShareByProvider's own ProviderId already serves for a provider slice.
         var effortShares = StatsAggregator.ShareByEffort(inRange);
         var effortCosts = costView.ByKey(inRange, record => record.Effort);
-        EffortShareSlices = effortShares
+        o.EffortShareSlices = effortShares
             .Select(slice =>
             {
                 var name = ResolveEffortLabel(slice.Label);
@@ -1796,68 +1933,147 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // The subagent share card: left out while the range holds no Claude tokens.
         var subagentShare = StatsAggregator.SubagentShare(inRange);
-        HasSubagentShare = subagentShare.HasClaudeTokens;
-        SubagentTokensRaw = subagentShare.SubagentTokens;
-        ClaudeTokensRaw = subagentShare.ClaudeTokens;
-        SubagentShareText = subagentShare.HasClaudeTokens
+        o.HasSubagentShare = subagentShare.HasClaudeTokens;
+        o.SubagentTokensRaw = subagentShare.SubagentTokens;
+        o.ClaudeTokensRaw = subagentShare.ClaudeTokens;
+        o.SubagentShareText = subagentShare.HasClaudeTokens
             ? StatusTextMap.FormatUsagePercent(subagentShare.Percent)
             : "";
-        SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
+        o.SubagentShareCaption = loc["Stats.SubagentShare.Caption"];
 
         var cacheShare = StatsAggregator.CacheShare(inRange);
-        CacheShareValues = cacheShare.AsValues;
-        CacheShareLabels = [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]];
-        CacheShareTooltip = costView.SplitTooltip(CacheShareLabels, CacheShareValues, inRange);
+        o.CacheShareValues = cacheShare.AsValues;
+        o.CacheShareLabels = [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]];
+        o.CacheShareTooltip = costView.SplitTooltip(o.CacheShareLabels, o.CacheShareValues, inRange);
 
         var projectCosts = costView.ByKey(inRange, record => StatsAggregator.ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase);
-        TopProjectRows = StatsAggregator.TopProjectsDetailed(
-            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), FormerPathsLine,
+        o.TopProjectRows = StatsAggregator.TopProjectsDetailed(
+            inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), key => FormerPathsLine(input.Aliases, key),
             key => costView.LabelFor(projectCosts, key));
-        RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
 
         // The weekday by hour grid, in the culture's own week order.
-        HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
-        HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), HeatmapFirstDay);
-        var firstDay = HeatmapFirstDay;
+        o.HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
+        o.HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), o.HeatmapFirstDay);
+        var firstDay = o.HeatmapFirstDay;
         var cellCosts = costView.ByKey(
             inRange.Where(record => StatsAggregator.WeekdayHourCell(record, firstDay) >= 0),
             record => StatsAggregator.WeekdayHourCell(record, firstDay).ToString(CultureInfo.InvariantCulture));
-        HeatmapCostLines = Enumerable.Range(0, 7 * 24)
+        o.HeatmapCostLines = Enumerable.Range(0, 7 * 24)
             .Select(cell => costView.LineFor(cellCosts, cell.ToString(CultureInfo.InvariantCulture)) ?? "")
             .ToList();
-        IReadOnlyList<StatsHeatmapCell> leaders = IsHeatmap && heatmapKeyOf is not null
-            ? StatsAggregator.WeekdayHourLeaders(inRange, heatmapKeyOf, HeatmapFirstDay)
+        IReadOnlyList<StatsHeatmapCell> leaders = input.IsHeatmap && heatmapKeyOf is not null
+            ? StatsAggregator.WeekdayHourLeaders(inRange, heatmapKeyOf, o.HeatmapFirstDay)
             : [];
         var seriesLabels = series.ToDictionary(item => item.ColorKey, item => item.Label);
-        HeatmapLeaderKeys = leaders.Select(cell => cell.LeaderKey).ToList();
-        HeatmapLeaderTexts = leaders
+        o.HeatmapLeaderKeys = leaders.Select(cell => cell.LeaderKey).ToList();
+        o.HeatmapLeaderTexts = leaders
             .Select(cell => cell.LeaderKey.Length > 0 && seriesLabels.TryGetValue(cell.LeaderKey, out var label)
                 ? string.Format(
                     CultureInfo.CurrentCulture, loc["Stats.Heatmap.Leader"], label,
-                    Views.Controls.StatsBarChart.PercentLabel(cell.LeaderTotal * 100.0 / cell.Total, CultureInfo.CurrentCulture))
+                    PercentLabel(cell.LeaderTotal * 100.0 / cell.Total, CultureInfo.CurrentCulture))
                 : "")
             .ToList();
 
-        var periodDayCount = PeriodDayCount(SelectedRange, from, to, all);
+        var periodDayCount = PeriodDayCount(input.Range, from, to, all);
         // The preceding period always has the range's fixed length, unlike periodDayCount, which a
         // short history can cut down.
         var figures = StatsAggregator.ComputeHeadlineFigures(
             inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
-        ApplyHeadlineFigures(figures, previous.Sum(record => record.TotalTokens), loc, costView, inRange, previous);
-        _exportScope = new ExportScope(from, to, previous, figures, periodDayCount);
+        WriteHeadlineFigures(o, figures, previous.Sum(record => record.TotalTokens), loc, costView, inRange, previous, input.DisplayCulture);
+        o.Figures = figures;
+        o.PeriodDayCount = periodDayCount;
         var totalCost = costView.Sum(inRange);
-        TotalCostText = costView.Text(totalCost);
-        TotalCostTooltip = costView.Line(totalCost) ?? "";
+        o.TotalCostText = costView.Text(totalCost);
+        o.TotalCostTooltip = costView.Line(totalCost) ?? "";
 
         // The figures bar's mini charts - see the raw properties' own doc comments.
         // Always the period's own last periodDayCount days: "from" is DateOnly.MinValue for the whole
         // history, which would put every record outside the series.
-        DailyTotalsSeries = StatsAggregator.DailyTotalsSeries(inRange, to.AddDays(-(Math.Max(1, periodDayCount) - 1)), periodDayCount);
-        PeriodTotalRaw = figures.Total;
-        PreviousPeriodTotalRaw = previous.Sum(record => record.TotalTokens);
-        ActiveDayCountRaw = figures.ActiveDayCount;
-        PeriodDayCountRaw = Math.Max(1, periodDayCount);
-        ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc[periodDayCount == 1 ? "Stats.ActiveDaysOf.One" : "Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
+        o.DailyTotalsSeries = StatsAggregator.DailyTotalsSeries(inRange, to.AddDays(-(Math.Max(1, periodDayCount) - 1)), periodDayCount);
+        o.PeriodTotalRaw = figures.Total;
+        o.PreviousPeriodTotalRaw = previous.Sum(record => record.TotalTokens);
+        o.ActiveDayCountRaw = figures.ActiveDayCount;
+        o.PeriodDayCountRaw = Math.Max(1, periodDayCount);
+        o.ActiveDaysOfText = string.Format(CultureInfo.CurrentCulture, loc[periodDayCount == 1 ? "Stats.ActiveDaysOf.One" : "Stats.ActiveDaysOf"], figures.ActiveDayCount, periodDayCount);
+        return o;
+    }
+
+    /// <summary>Assigns a computed rebuild to the bound properties, on the window's thread.</summary>
+    private void ApplyRebuild(RebuildInput input, RebuildOutput o)
+    {
+        var loc = LocalizationService.Instance;
+        _currentPeriodRecords = o.InRange;
+        _allRecords = o.All;
+        RebuildSelectedDayDetail();
+        IsWeeklyPerDay = o.IsWeeklyPerDay;
+        ChartSeries = o.ChartSeries;
+        ChartOverlay = o.ChartOverlay;
+        BarsFilterable = o.BarsFilterable;
+        _barTargets = o.BarTargets;
+        Bars = o.Bars;
+
+        _monthGridToday = input.Today;
+        _monthGridPeriodStart = o.From;
+        _monthGridPeriodEnd = o.To;
+        ShowMonthGrid(o.MonthGrid);
+        // The window may have been resized while this was computed.
+        if (DesiredMonthGridStart() != MonthGridRangeStart)
+            RebuildMonthGrid(_allRecords, MonthGridColorScale);
+
+        Rows = o.Rows;
+        SessionChartRows = o.SessionChartRows;
+        SessionRows = o.SessionRows;
+        ProviderRows = o.ProviderRows;
+
+        // The quota history is never read here: the inputs held for this period are used, and a period
+        // without fresh ones is read on a pool thread and filled in when it arrives.
+        _shownPeriod = (o.From, o.To);
+        var held = HeldFor(o.From, o.To);
+        if (held is not null)
+            LimitGroups = BuildLimitGroups(held, loc);
+        if (held is null || !IsFresh(held))
+            ScheduleLimitRefresh(input.Source, o.From, o.To);
+
+        ProviderShareSlices = o.ProviderShareSlices;
+        ModelShareSlices = o.ModelShareSlices;
+        EffortShareSlices = o.EffortShareSlices;
+        HasSubagentShare = o.HasSubagentShare;
+        SubagentTokensRaw = o.SubagentTokensRaw;
+        ClaudeTokensRaw = o.ClaudeTokensRaw;
+        SubagentShareText = o.SubagentShareText;
+        SubagentShareCaption = o.SubagentShareCaption;
+        CacheShareValues = o.CacheShareValues;
+        CacheShareLabels = o.CacheShareLabels;
+        CacheShareTooltip = o.CacheShareTooltip;
+        TopProjectRows = o.TopProjectRows;
+        RefreshProjectColors(TopProjectRows, CurrentBarProjectKeys());
+        HeatmapFirstDay = o.HeatmapFirstDay;
+        HeatmapValues = o.HeatmapValues;
+        HeatmapCostLines = o.HeatmapCostLines;
+        HeatmapLeaderKeys = o.HeatmapLeaderKeys;
+        HeatmapLeaderTexts = o.HeatmapLeaderTexts;
+
+        TotalFigureText = o.TotalFigureText;
+        PerDayFigureText = o.PerDayFigureText;
+        PerActiveDayFigureText = o.PerActiveDayFigureText;
+        BusiestDayFigureText = o.BusiestDayFigureText;
+        BusiestDayDateText = o.BusiestDayDateText;
+        BusiestDayCostText = o.BusiestDayCostText;
+        PerDayCostText = o.PerDayCostText;
+        PerActiveDayCostText = o.PerActiveDayCostText;
+        HasPreviousPeriod = o.HasPreviousPeriod;
+        VsPreviousCaption = o.VsPreviousCaption;
+        ChangeFigureText = o.ChangeFigureText;
+        ChangeIsIncrease = o.ChangeIsIncrease;
+        _exportScope = new ExportScope(o.From, o.To, o.Previous, o.Figures, o.PeriodDayCount);
+        TotalCostText = o.TotalCostText;
+        TotalCostTooltip = o.TotalCostTooltip;
+        DailyTotalsSeries = o.DailyTotalsSeries;
+        PeriodTotalRaw = o.PeriodTotalRaw;
+        PreviousPeriodTotalRaw = o.PreviousPeriodTotalRaw;
+        ActiveDayCountRaw = o.ActiveDayCountRaw;
+        PeriodDayCountRaw = o.PeriodDayCountRaw;
+        ActiveDaysOfText = o.ActiveDaysOfText;
     }
 
     /// <summary>The quota history a rebuild draws, read ahead of it: every provider's points for one
@@ -2063,7 +2279,7 @@ public sealed partial class StatsViewModel : ObservableObject
             string.Format(
                 CultureInfo.CurrentCulture, loc["Stats.Ring.SliceTooltip"], name,
                 slice.Total.ToString("N0", CultureInfo.CurrentCulture),
-                Views.Controls.StatsBarChart.PercentLabel(slice.Percent, CultureInfo.CurrentCulture)),
+                PercentLabel(slice.Percent, CultureInfo.CurrentCulture)),
         };
         if (costLine is not null)
             lines.AddRange(costLine.Split('\n'));
@@ -2109,9 +2325,9 @@ public sealed partial class StatsViewModel : ObservableObject
     /// sessions as bars, every session as a table row (and as the exported rows), the largest
     /// first. A bar is named by its project and start; its hover text and the table's first column
     /// carry the details.</summary>
-    private void BuildSessionViews(DateOnly from, DateOnly to, LocalizationService loc, StatsCostView costView)
+    private static (List<StatsSessionRowViewModel> Table, List<StatsProjectRow> Bars, List<StatsRowViewModel> Export) BuildSessionViews(
+        IReadOnlyList<StatsSessionRecord> sessions, LocalizationService loc, StatsCostView costView)
     {
-        var sessions = StatsAggregator.SessionsInRange(ApplyFilters(_allSessions), from, to);
         var grandTotal = sessions.Sum(session => session.TotalTokens);
 
         var tableRows = new List<StatsSessionRowViewModel>(sessions.Count);
@@ -2144,21 +2360,19 @@ public sealed partial class StatsViewModel : ObservableObject
             }
         }
 
-        SessionRows = tableRows;
-        SessionChartRows = barRows;
-        Rows = exportRows;
+        return (tableRows, barRows, exportRows);
     }
 
     /// <summary>The key a record is counted under in the cost figures of <paramref name="grouping"/>: the
     /// same text the grouped row of <see cref="StatsAggregator.Group"/> carries as its key or label.</summary>
-    private static string BarCostKey(StatsRecord record, StatsGrouping grouping, bool weeklyPerDay) => grouping switch
+    private static string BarCostKey(StatsRecord record, StatsGrouping grouping, bool weeklyPerDay, CultureInfo displayCulture) => grouping switch
     {
         StatsGrouping.Day => weeklyPerDay
             ? StatsAggregator.IsoWeekLabel(record.Day)
             : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         StatsGrouping.Week => StatsAggregator.IsoWeekLabel(record.Day),
         StatsGrouping.Weekday or StatsGrouping.WeekdayHour =>
-            LocalizationService.Instance.DisplayCulture.DateTimeFormat.AbbreviatedDayNames[(int)record.Day.DayOfWeek],
+            displayCulture.DateTimeFormat.AbbreviatedDayNames[(int)record.Day.DayOfWeek],
         StatsGrouping.Hour => new DateTime(2000, 1, 1, record.Hour, 0, 0).ToString("t", CultureInfo.CurrentCulture),
         StatsGrouping.Model => ModelDisplayNames.Resolve(record.Model),
         StatsGrouping.Project => StatsAggregator.ProjectGroupKey(record.Project),
@@ -2188,8 +2402,8 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>"Earlier also at: ..." for a project that moved folders and continues as <paramref name="project"/>;
     /// null when nothing was merged into it.</summary>
-    private string? FormerPathsLine(string project) =>
-        Aliases.FormerPaths(project) is { Count: > 0 } former
+    private static string? FormerPathsLine(ProjectAliases aliases, string project) =>
+        aliases.FormerPaths(project) is { Count: > 0 } former
             ? string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Project.Tip.FormerPaths"], string.Join(", ", former))
             : null;
 
@@ -2262,45 +2476,45 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Formats <see cref="StatsAggregator.ComputeHeadlineFigures"/>'s pure result into the
     /// four bound strings the view shows - the only place a shortened number or an em dash for "no
     /// figure to show" gets decided.</summary>
-    private void ApplyHeadlineFigures(
-        StatsHeadlineFigures figures, long previousTotal, LocalizationService loc,
-        StatsCostView costView, IReadOnlyList<StatsRecord> inRange, IReadOnlyList<StatsRecord> previous)
+    private static void WriteHeadlineFigures(
+        RebuildOutput o, StatsHeadlineFigures figures, long previousTotal, LocalizationService loc,
+        StatsCostView costView, IReadOnlyList<StatsRecord> inRange, IReadOnlyList<StatsRecord> previous, CultureInfo displayCulture)
     {
         var thousand = loc["Number.Thousand"];
         var million = loc["Number.Million"];
         var billion = loc["Number.Billion"];
 
-        TotalFigureText = StatsAggregator.ShortenTokenCount(figures.Total, thousand, million, billion);
+        o.TotalFigureText = StatsAggregator.ShortenTokenCount(figures.Total, thousand, million, billion);
         // Round-half-up by hand: figures.PerDayAverage is a token count divided by a positive day
         // count, so it is never negative, and every other rounding call in this codebase funnels
         // through one shared helper (StatusTextMapTests enforces it) - one built for a usage
         // percentage, not a plain token average, so it does not fit here.
-        PerDayFigureText = StatsAggregator.ShortenTokenCount((long)(figures.PerDayAverage + 0.5), thousand, million, billion);
+        o.PerDayFigureText = StatsAggregator.ShortenTokenCount((long)(figures.PerDayAverage + 0.5), thousand, million, billion);
 
-        PerActiveDayFigureText = figures.ActiveDayCount > 0
+        o.PerActiveDayFigureText = figures.ActiveDayCount > 0
             ? StatsAggregator.ShortenTokenCount((long)((double)figures.Total / figures.ActiveDayCount + 0.5), thousand, million, billion)
             : "–";
 
         if (figures.BusiestDay is { } busiestDay)
         {
-            BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
-            BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, LocalizationService.Instance.DisplayCulture);
-            BusiestDayCostText = costView.Text(costView.Sum(inRange.Where(record => record.Day == busiestDay)));
+            o.BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
+            o.BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, displayCulture);
+            o.BusiestDayCostText = costView.Text(costView.Sum(inRange.Where(record => record.Day == busiestDay)));
         }
         else
         {
-            BusiestDayFigureText = "–";
-            BusiestDayDateText = "";
-            BusiestDayCostText = "";
+            o.BusiestDayFigureText = "–";
+            o.BusiestDayDateText = "";
+            o.BusiestDayCostText = "";
         }
 
         // The averages carry the same share of the period's cost as of its tokens.
         var periodCost = costView.Sum(inRange);
-        PerDayCostText = figures.Total > 0 ? costView.Text(Scaled(periodCost, figures.PerDayAverage / figures.Total)) : "";
-        PerActiveDayCostText = figures.ActiveDayCount > 0 ? costView.Text(Scaled(periodCost, 1.0 / figures.ActiveDayCount)) : "";
+        o.PerDayCostText = figures.Total > 0 ? costView.Text(Scaled(periodCost, figures.PerDayAverage / figures.Total)) : "";
+        o.PerActiveDayCostText = figures.ActiveDayCount > 0 ? costView.Text(Scaled(periodCost, 1.0 / figures.ActiveDayCount)) : "";
 
-        HasPreviousPeriod = figures.HasPreviousPeriod;
-        VsPreviousCaption = figures.HasPreviousPeriod
+        o.HasPreviousPeriod = figures.HasPreviousPeriod;
+        o.VsPreviousCaption = figures.HasPreviousPeriod
             ? string.Format(CultureInfo.CurrentCulture, loc["Stats.VsPreviousValue"],
                 StatsAggregator.ShortenTokenCount(previousTotal, thousand, million, billion)
                     + (costView.Text(costView.Sum(previous)) is { Length: > 0 } previousCost ? " " + previousCost : ""))
@@ -2311,15 +2525,18 @@ public sealed partial class StatsViewModel : ObservableObject
             // from zero regardless of sign, which is exactly the "+12%"/"-8%" behaviour this figure
             // wants too.
             var rounded = StatusTextMap.UsagePercent(figures.ChangePercent);
-            ChangeFigureText = StatusTextMap.FormatPercent(rounded.ToString("+0;-0;+0", CultureInfo.CurrentCulture));
-            ChangeIsIncrease = rounded >= 0;
+            o.ChangeFigureText = StatusTextMap.FormatPercent(rounded.ToString("+0;-0;+0", CultureInfo.CurrentCulture));
+            o.ChangeIsIncrease = rounded >= 0;
         }
         else
         {
-            ChangeFigureText = "–";
-            ChangeIsIncrease = true;
+            o.ChangeFigureText = "–";
+            o.ChangeIsIncrease = true;
         }
     }
+
+    private static string PercentLabel(double percent, CultureInfo culture) =>
+        StatusTextMap.FormatPercent(percent.ToString("0.#", culture));
 
     private static CostSummary Scaled(CostSummary summary, double factor) =>
         summary with { Usd = summary.Usd * factor };
@@ -2502,12 +2719,14 @@ public sealed partial class StatsViewModel : ObservableObject
         }
     }
 
-    private DateOnly DesiredMonthGridStart()
+    private DateOnly DesiredMonthGridStart() =>
+        MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), _monthGridToday);
+
+    private static DateOnly MonthGridStart(int columns, DateOnly today)
     {
-        var columns = Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth);
-        var weekStart = StatsAggregator.WeekStart(_monthGridToday);
+        var weekStart = StatsAggregator.WeekStart(today);
         var widest = Math.Min(columns, Math.Max(1, (weekStart.DayNumber - DateOnly.MinValue.DayNumber) / 7));
-        return StatsMonthGridBuilder.FirstDay(_monthGridToday, weekStart.AddDays(-(widest - 1) * 7));
+        return StatsMonthGridBuilder.FirstDay(today, weekStart.AddDays(-(widest - 1) * 7));
     }
 
     private void RebuildMonthGrid(IReadOnlyList<StatsRecord> all, IReadOnlyList<long>? colorScale)
@@ -2516,6 +2735,11 @@ public sealed partial class StatsViewModel : ObservableObject
         var monthGrid = StatsMonthGridBuilder.Build(
             all, _monthGridToday, from: DesiredMonthGridStart(), colorScale: colorScale,
             costLine: costView.Active ? records => costView.Line(records) : null);
+        ShowMonthGrid(monthGrid);
+    }
+
+    private void ShowMonthGrid(StatsMonthGridBuilder.Result monthGrid)
+    {
         MonthGridDays = monthGrid.Days;
         MonthGridColorScale = monthGrid.ColorScaleTotals;
         MonthGridRangeStart = monthGrid.RangeStart;
