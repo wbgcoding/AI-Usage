@@ -258,7 +258,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ImportingAnotherCustomThresholdMovesTheBarMarkerAtOnce()
+    public async Task ImportingAnotherCustomThresholdMovesTheBarMarkerAtOnce()
     {
         var sourceSettings = new AppSettings();
         sourceSettings.Providers["codex"].Thresholds.UseCustom = true;
@@ -271,7 +271,7 @@ public class SettingsViewModelTests : IDisposable
         var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "codex");
         tile.Apply(FiveHourSnapshot(), Now, new ThresholdSettings { FiveHour = 85, FiveHourEnabled = true });
 
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(55, tile.Rows.Single().ThresholdPercent);
     }
@@ -700,7 +700,7 @@ public class SettingsViewModelTests : IDisposable
     // Only the user's own flip of the switch resumes a signed-out account; an import or reset that
     // sets the value must not.
     [Fact]
-    public void ImportingLocalOnlyKeepsASignedOutAccountSignedOut()
+    public async Task ImportingLocalOnlyKeepsASignedOutAccountSignedOut()
     {
         var sourceSettings = new AppSettings();
         sourceSettings.Providers["claude"] = new ProviderSettings { LocalOnly = true };
@@ -713,7 +713,7 @@ public class SettingsViewModelTests : IDisposable
         targetSettings.Providers["claude"] = new ProviderSettings { Disconnected = true };
         var (targetVm, _) = Build(targetSettings, askForSettingsImportPath: () => exportPath,
             providers: [new("claude", canSkipWebSession: true)]);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.True(targetSettings.Providers["claude"].LocalOnly);
         Assert.True(targetSettings.Providers["claude"].Disconnected);
@@ -722,7 +722,7 @@ public class SettingsViewModelTests : IDisposable
 
     // A stray LocalOnly on an account that cannot skip its web session must not reach the tile.
     [Fact]
-    public void ImportingLocalOnlyForAnAccountThatCannotSkipTheWebSessionLeavesTheTileOff()
+    public async Task ImportingLocalOnlyForAnAccountThatCannotSkipTheWebSessionLeavesTheTileOff()
     {
         var sourceSettings = new AppSettings();
         sourceSettings.Providers["claude"] = new ProviderSettings { LocalOnly = true };
@@ -732,7 +732,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, _) = Build(askForSettingsImportPath: () => exportPath, providers: [new("claude")]);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.False(targetVm.Main.Tiles.Single(t => t.ProviderId == "claude").LocalOnly);
     }
@@ -919,7 +919,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ExportSettingsThenImportRoundTripsEveryNonWindowSetting()
+    public async Task ExportSettingsThenImportRoundTripsEveryNonWindowSetting()
     {
         var sourceSettings = new AppSettings { RefreshSeconds = 300, Language = "en", DefaultThreshold = 77, HistoryRetentionDays = 90 };
         sourceSettings.Providers["claude"].Thresholds.FiveHour = 60;
@@ -933,7 +933,7 @@ public class SettingsViewModelTests : IDisposable
         targetSettings.Window.Left = 555; // deliberately not what the exported file carries
         var (targetVm, _) = Build(targetSettings, askForSettingsImportPath: () => exportPath);
 
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(300, targetSettings.RefreshSeconds);
         Assert.Equal("en", targetSettings.Language);
@@ -944,7 +944,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ExportedSettingsCarryNoMachineLocalState()
+    public async Task ExportedSettingsCarryNoMachineLocalState()
     {
         var sourceSettings = new AppSettings { RefreshSeconds = 300, DefaultThreshold = 77 };
         sourceSettings.Window.MonitorDeviceName = "DISPLAY7-monitor";
@@ -968,13 +968,13 @@ public class SettingsViewModelTests : IDisposable
         Assert.Single(sourceSettings.ImportedMachines);
 
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
         Assert.Equal(300, targetSettings.RefreshSeconds);
         Assert.Equal(77, targetSettings.DefaultThreshold);
     }
 
     [Fact]
-    public void TheOwnReadIntervalOfAProviderTravelsThroughExportAndImportAndResetClearsIt()
+    public async Task TheOwnReadIntervalOfAProviderTravelsThroughExportAndImportAndResetClearsIt()
     {
         var sourceSettings = new AppSettings { RemoteRefreshMinutes = 20 };
         sourceSettings.Providers["gemini"].RefreshMinutes = 30;
@@ -983,7 +983,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(30, targetSettings.Providers["gemini"].RefreshMinutes);
         var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "gemini");
@@ -999,7 +999,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheBarColorModeOfATileTravelsThroughExportAndImportAndResetClearsIt()
+    public async Task TheBarColorModeOfATileTravelsThroughExportAndImportAndResetClearsIt()
     {
         var sourceSettings = new AppSettings();
         sourceSettings.Providers["claude"].BarColorMode = BarColorModes.Agent;
@@ -1009,7 +1009,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(BarColorModes.Agent, targetSettings.Providers["claude"].BarColorMode);
         Assert.Equal(BarColorModes.Model, targetSettings.Providers["codex"].BarColorMode);
@@ -1025,7 +1025,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheLocalOnlySwitchTravelsThroughExportAndImportAndResetClearsIt()
+    public async Task TheLocalOnlySwitchTravelsThroughExportAndImportAndResetClearsIt()
     {
         var sourceSettings = new AppSettings();
         sourceSettings.Providers["claude"].LocalOnly = true;
@@ -1035,7 +1035,7 @@ public class SettingsViewModelTests : IDisposable
 
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath,
             providers: [new("codex"), new("claude", canSkipWebSession: true)]);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.True(targetSettings.Providers["claude"].LocalOnly);
         var tile = targetVm.Main.Tiles.Single(t => t.ProviderId == "claude");
@@ -1057,7 +1057,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheTimeMarkerSwitchHidesTheMarkerOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
+    public async Task TheTimeMarkerSwitchHidesTheMarkerOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
     {
         var (vm, settings) = Build();
         foreach (var tile in vm.Main.Tiles)
@@ -1077,7 +1077,7 @@ public class SettingsViewModelTests : IDisposable
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
         foreach (var tile in targetVm.Main.Tiles)
             tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.False(targetSettings.ShowPaceMarker);
         Assert.False(targetVm.ShowPaceMarker);
@@ -1090,7 +1090,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheBelowHintSwitchDropsThatSentenceOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
+    public async Task TheBelowHintSwitchDropsThatSentenceOnEveryTileAtOnceAndTravelsThroughExportImportAndReset()
     {
         var (vm, settings) = Build();
         foreach (var tile in vm.Main.Tiles)
@@ -1110,7 +1110,7 @@ public class SettingsViewModelTests : IDisposable
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
         foreach (var tile in targetVm.Main.Tiles)
             tile.Apply(FiveHourSnapshot(tile.ProviderId), DateTimeOffset.Now);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.False(targetSettings.ShowPaceBelowHint);
         Assert.False(targetVm.ShowPaceBelowHint);
@@ -1145,7 +1145,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheForecastLeadTravelsThroughExportAndImport()
+    public async Task TheForecastLeadTravelsThroughExportAndImport()
     {
         var sourceSettings = new AppSettings { ForecastLeadMinutes = 45 };
         var exportPath = Path.Combine(TempDirectory(), "export-forecast-lead.json");
@@ -1153,7 +1153,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(45, targetSettings.ForecastLeadMinutes);
         Assert.Equal(45, targetVm.SelectedForecastLeadChoice!.Value);
@@ -1195,7 +1195,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TheQuietDaysTravelThroughExportAndImportAndResetChecksAllDaysAgain()
+    public async Task TheQuietDaysTravelThroughExportAndImportAndResetChecksAllDaysAgain()
     {
         var sourceSettings = new AppSettings { AllDaysAllowed = false, QuietDays = ["Saturday", "Sunday"] };
         var exportPath = Path.Combine(TempDirectory(), "export-quiet-days.json");
@@ -1203,7 +1203,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.False(targetSettings.AllDaysAllowed);
         Assert.Equal(["Saturday", "Sunday"], targetSettings.QuietDays);
@@ -1270,7 +1270,7 @@ public class SettingsViewModelTests : IDisposable
         [new("codex"), new("claude"), new("claude", "claude#2"), new("gemini"), new("copilot")];
 
     [Fact]
-    public void ImportingKeepsThisPcsExtraAccountSettingsAndDropsTheOtherPcsAccountKeys()
+    public async Task ImportingKeepsThisPcsExtraAccountSettingsAndDropsTheOtherPcsAccountKeys()
     {
         var sourceSettings = new AppSettings();
         sourceSettings.Accounts["claude#3"] = "claude";
@@ -1285,7 +1285,7 @@ public class SettingsViewModelTests : IDisposable
         targetSettings.Providers["claude#2"] = new ProviderSettings { AccountName = "Work" };
         var (targetVm, _) = Build(targetSettings, providers: ProvidersWithSecondClaude(), askForSettingsImportPath: () => exportPath);
 
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(55, targetSettings.Providers["codex"].Thresholds.FiveHour);
         Assert.Equal("Work", targetSettings.Providers["claude#2"].AccountName);
@@ -1296,7 +1296,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ImportingAnotherTileOrderReordersTheTilesAtOnce()
+    public async Task ImportingAnotherTileOrderReordersTheTilesAtOnce()
     {
         var sourceSettings = new AppSettings();
         foreach (var (id, order) in new[] { ("copilot", 0), ("gemini", 1), ("codex", 2), ("claude", 3), ("cursor", 4) })
@@ -1306,14 +1306,14 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, _) = Build(askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(["copilot", "gemini", "codex", "claude", "daygrid"], RowIds(targetVm.Main));
         Assert.Equal(["copilot", "gemini", "codex", "claude"], targetVm.Main.Tiles.Select(tile => tile.ProviderId));
     }
 
     [Fact]
-    public void ImportedStatsWindowArrangementIsApplied()
+    public async Task ImportedStatsWindowArrangementIsApplied()
     {
         var sourceSettings = new AppSettings
         {
@@ -1325,7 +1325,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(new AppSettings(), askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         var row = Assert.Single(targetSettings.StatsSectionLayout!);
         Assert.Equal(["projects"], row.Left);
@@ -1334,7 +1334,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Reset_and_import_carry_the_token_usage_view_choices()
+    public async Task Reset_and_import_carry_the_token_usage_view_choices()
     {
         var sourceSettings = new AppSettings
         {
@@ -1350,7 +1350,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(new AppSettings(), askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal("Month", targetSettings.StatsRange);
         Assert.Equal("Model", targetSettings.StatsGrouping);
@@ -1371,7 +1371,7 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Reset_and_a_successful_import_each_raise_SettingsReplaced_once_a_refused_import_none()
+    public async Task Reset_and_a_successful_import_each_raise_SettingsReplaced_once_a_refused_import_none()
     {
         var sourceSettings = new AppSettings { StatsGrouping = "Model" };
         var exportPath = Path.Combine(TempDirectory(), "export-replaced.json");
@@ -1385,19 +1385,19 @@ public class SettingsViewModelTests : IDisposable
         var raised = 0;
         targetVm.SettingsReplaced += (_, _) => raised++;
 
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
         Assert.Equal(1, raised);
 
         targetVm.ResetToDefaults();
         Assert.Equal(2, raised);
 
         importPath = badPath;
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
         Assert.Equal(2, raised);
     }
 
     [Fact]
-    public void AnImportedThemeNameInAnyLetterCaseIsAppliedLive()
+    public async Task AnImportedThemeNameInAnyLetterCaseIsAppliedLive()
     {
         var sourceSettings = new AppSettings { Theme = "light" };
         var exportPath = Path.Combine(TempDirectory(), "export-theme.json");
@@ -1405,7 +1405,7 @@ public class SettingsViewModelTests : IDisposable
         sourceVm.ExportSettingsCommand.Execute(null);
 
         var (targetVm, targetSettings) = Build(new AppSettings { Theme = "Dark" }, askForSettingsImportPath: () => exportPath);
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(AppTheme.Light, targetVm.ThemeChoices.Single(c => c.IsSelected).Value);
         Assert.Equal("Light", targetSettings.Theme);
@@ -1941,16 +1941,31 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ImportSettingsLeavesEverythingUnchangedWhenTheFileIsNotUsable()
+    public async Task ImportSettingsLeavesEverythingUnchangedWhenTheFileIsNotUsable()
     {
         var targetSettings = new AppSettings { RefreshSeconds = 123 };
         var badPath = Path.Combine(TempDirectory(), "not-settings.json");
         File.WriteAllText(badPath, "{not valid json");
         var (targetVm, _) = Build(targetSettings, askForSettingsImportPath: () => badPath);
 
-        targetVm.ImportSettingsCommand.Execute(null);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
 
         Assert.Equal(123, targetSettings.RefreshSeconds);
+    }
+
+    [Fact]
+    public async Task ImportSettingsRefusesAFileOverOneMegabyte()
+    {
+        var targetSettings = new AppSettings { RefreshSeconds = 123 };
+        var bigPath = Path.Combine(TempDirectory(), "big.json");
+        File.WriteAllText(bigPath, "{\"RefreshSeconds\":45,\"pad\":\"" + new string('x', 1024 * 1024) + "\"}");
+        var messages = new List<string>();
+        var (targetVm, _) = Build(targetSettings, askForSettingsImportPath: () => bigPath, showMessage: messages.Add);
+
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
+
+        Assert.Equal(123, targetSettings.RefreshSeconds);
+        Assert.Equal([LocalizationService.Instance["Settings.ImportRefused"]], messages);
     }
 
     [Fact]

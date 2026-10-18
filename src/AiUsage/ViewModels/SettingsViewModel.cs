@@ -1405,7 +1405,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// immediately via <see cref="ApplyLoaded"/>, which never touches window position, size or monitor.
     /// </summary>
     [RelayCommand]
-    private void ImportSettings()
+    private async Task ImportSettingsAsync()
     {
         var path = _askForSettingsImportPath();
         if (path is null)
@@ -1414,7 +1414,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         string text;
         try
         {
-            text = File.ReadAllText(path);
+            text = await Task.Run(() => ReadImportFile(path));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1431,6 +1431,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         ApplyLoaded(loaded, keepLocalAccountSettings: true);
         _showMessage(LocalizationService.Instance["Settings.ImportDone"]);
+    }
+
+    /// <summary>A settings file is a few KB; anything past this is not one and is refused like an unreadable file.</summary>
+    private const long MaxImportBytes = 1024 * 1024;
+
+    private static string ReadImportFile(string path)
+    {
+        if (new FileInfo(path).Length > MaxImportBytes)
+            throw new IOException("Settings file too large.");
+        return File.ReadAllText(path);
     }
 
     private static string? ShowRealSettingsSaveDialog(string suggestedFileName)
