@@ -13,9 +13,10 @@ namespace AiUsage.Services;
 public static class QuietHours
 {
     public static bool IsQuiet(TimeOnly now, TimeOnly start, TimeOnly end) =>
-        start > end
+        start == end || // the same time twice reads as "all day", like a do-not-disturb schedule
+        (start > end
             ? now >= start || now < end // wraps over midnight, e.g. 22:00-08:00
-            : now >= start && now < end;
+            : now >= start && now < end);
 
     /// <summary>Whether notifications are quiet at <paramref name="now"/>: always on a day the person
     /// unchecked (see <see cref="AppSettings.AllDaysAllowed"/>), otherwise inside the daily window when

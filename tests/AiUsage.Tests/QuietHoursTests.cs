@@ -51,6 +51,24 @@ public class QuietHoursTests
         Assert.False(QuietHours.IsQuiet(new TimeOnly(8, 0), new TimeOnly(22, 0), new TimeOnly(8, 0)));
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(8, 0)]
+    [InlineData(12, 30)]
+    [InlineData(23, 59)]
+    public void StartEqualToEndIsQuietAllDay(int hour, int minute)
+    {
+        Assert.True(QuietHours.IsQuiet(new TimeOnly(hour, minute), new TimeOnly(8, 0), new TimeOnly(8, 0)));
+    }
+
+    [Fact]
+    public void EnabledSettingWithEqualStartAndEndIsQuietAtNoon()
+    {
+        var settings = new AppSettings { QuietHoursEnabled = true, QuietHoursStart = "08:00", QuietHoursEnd = "08:00" };
+
+        Assert.True(QuietHours.IsQuiet(settings, LocalNoon(5)));
+    }
+
     [Fact]
     public void DisabledSettingIsNeverQuietEvenWithAnAllDayWindow()
     {
