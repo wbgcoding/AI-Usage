@@ -194,6 +194,31 @@ public class ProjectAliasResolverTests
     }
 
     [Fact]
+    public void A_moved_project_with_a_child_of_its_own_name_merges_both_levels()
+    {
+        var aliases = Build(
+            [@"E:\Work\Tool", @"E:\Work\Tool\Tool"],
+            Record(@"C:\a\Tool"), Record(@"C:\a\Tool\Tool"), Record(@"E:\Work\Tool"), Record(@"E:\Work\Tool\Tool"));
+
+        Assert.Equal(@"E:\Work\Tool", aliases.Resolve(@"C:\a\Tool"));
+        Assert.Equal(@"E:\Work\Tool\Tool", aliases.Resolve(@"C:\a\Tool\Tool"));
+    }
+
+    [Fact]
+    public void Two_moved_projects_nested_in_each_other_under_swapped_names_both_merge()
+    {
+        var aliases = Build(
+            [@"E:\Work\Alpha", @"E:\Work\Alpha\Beta", @"E:\Work\Beta", @"E:\Work\Beta\Alpha"],
+            Record(@"C:\a\Alpha"), Record(@"C:\a\Alpha\Beta"), Record(@"C:\a\Beta"), Record(@"C:\a\Beta\Alpha"),
+            Record(@"E:\Work\Alpha"), Record(@"E:\Work\Alpha\Beta"), Record(@"E:\Work\Beta"), Record(@"E:\Work\Beta\Alpha"));
+
+        Assert.Equal(@"E:\Work\Alpha", aliases.Resolve(@"C:\a\Alpha"));
+        Assert.Equal(@"E:\Work\Beta", aliases.Resolve(@"C:\a\Beta"));
+        Assert.Equal(@"E:\Work\Alpha\Beta", aliases.Resolve(@"C:\a\Alpha\Beta"));
+        Assert.Equal(@"E:\Work\Beta\Alpha", aliases.Resolve(@"C:\a\Beta\Alpha"));
+    }
+
+    [Fact]
     public void A_moved_project_with_bare_rows_is_one_bar_holding_every_total()
     {
         var records = new[]

@@ -127,8 +127,6 @@ public static class ProjectAliasResolver
                 group => group.Key, group => group.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList(),
                 StringComparer.OrdinalIgnoreCase);
         var existence = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-        var settled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var running = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         bool Exists(string path)
         {
@@ -139,24 +137,27 @@ public static class ProjectAliasResolver
 
         string WinnerOf(string path) => target.TryGetValue(path, out var winner) ? winner : path;
 
-        // A group is settled after the groups of the project roots its paths sit in, so a path inside
-        // a root only pairs with one inside the same (already merged) root.
-        void Settle(string name)
+        // Each path's enclosing root is a strict ancestor, so the nesting depth is finite. Paths are
+        // settled one depth at a time, outermost first: a path inside a root then only pairs with one
+        // inside the same (already merged) root, however the folders are named.
+        var roots = lastUsed.Keys.ToDictionary(path => path, path => EnclosingRoot(lastUsed, path), StringComparer.OrdinalIgnoreCase);
+        var depths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        int DepthOf(string path)
         {
-            if (settled.Contains(name) || !running.Add(name))
-                return;
+            if (!depths.TryGetValue(path, out var depth))
+                depths[path] = depth = roots[path] is { } root ? DepthOf(root) + 1 : 0;
+            return depth;
+        }
 
-            var paths = groups[name];
-            var roots = paths.ToDictionary(path => path, path => EnclosingRoot(lastUsed, path), StringComparer.OrdinalIgnoreCase);
-            foreach (var root in roots.Values)
+        foreach (var level in lastUsed.Keys.GroupBy(DepthOf).OrderBy(level => level.Key))
+        {
+            var places = level.GroupBy(
+                path => (Name: ProjectLabels.Name(path), Root: roots[path] is { } root ? WinnerOf(root) : ""),
+                PlaceComparer.Instance);
+            foreach (var place in places)
             {
-                if (root is not null)
-                    Settle(ProjectLabels.Name(root));
-            }
-
-            foreach (var place in paths.GroupBy(path => roots[path] is { } root ? WinnerOf(root) : "", StringComparer.OrdinalIgnoreCase))
-            {
-                var members = place.ToList();
+                var members = place.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
                 if (members.Count < 2)
                     continue;
 
@@ -174,13 +175,7 @@ public static class ProjectAliasResolver
                     target[other] = winner;
                 former[winner] = others;
             }
-
-            running.Remove(name);
-            settled.Add(name);
         }
-
-        foreach (var name in groups.Keys.ToList())
-            Settle(name);
 
         // A bare folder name follows its project when only one project of that name is left.
         var bareNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -248,6 +243,18 @@ public static class ProjectAliasResolver
     }
 
     private static readonly char[] Separators = ['\\', '/'];
+
+    /// <summary>Compares a folder name and its enclosing root, both ignoring case.</summary>
+    private sealed class PlaceComparer : IEqualityComparer<(string Name, string Root)>
+    {
+        public static readonly PlaceComparer Instance = new();
+
+        public bool Equals((string Name, string Root) x, (string Name, string Root) y) =>
+            StringComparer.OrdinalIgnoreCase.Equals(x.Name, y.Name) && StringComparer.OrdinalIgnoreCase.Equals(x.Root, y.Root);
+
+        public int GetHashCode((string Name, string Root) place) =>
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(place.Name), StringComparer.OrdinalIgnoreCase.GetHashCode(place.Root));
+    }
 
     private static bool IsFullPath(string project) => project.AsSpan().IndexOfAny('\\', '/') >= 0;
 }
