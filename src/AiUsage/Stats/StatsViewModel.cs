@@ -1515,6 +1515,7 @@ public sealed partial class StatsViewModel : ObservableObject
             output = await Task.Run(() =>
             {
                 using var scope = LocalizationService.Enter(input.Text);
+                BeforeAggregate?.Invoke(input.Generation);
                 return ComputeRebuild(input);
             });
         }
@@ -1531,6 +1532,10 @@ public sealed partial class StatsViewModel : ObservableObject
         ApplyRebuild(input, output);
         ReportRebuildDuration(elapsed);
     }
+
+    /// <summary>Test seam: runs on the pool thread right before an aggregation, with its generation, so a
+    /// test can hold or fail one.</summary>
+    internal Action<int>? BeforeAggregate { get; set; }
 
     /// <summary>Where a rebuild that took longer than <see cref="SlowRebuildThreshold"/> says so; the
     /// app log by default.</summary>
