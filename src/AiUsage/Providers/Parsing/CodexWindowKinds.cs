@@ -33,7 +33,7 @@ internal static class CodexWindowKinds
     }
 
     /// <summary>No usage window runs longer than about a year.</summary>
-    private const long MaxWindowMinutes = 400L * 24 * 60;
+    private const long MaxWindowMinutes = UnixTimeConversion.MaxPlausibleDays * 24L * 60;
 
     /// <summary>A reported length as a positive minute count no longer than a year, otherwise unknown -
     /// an absurd length would push the window's start before the first representable instant.</summary>

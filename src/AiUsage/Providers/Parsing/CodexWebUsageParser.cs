@@ -125,7 +125,7 @@ public static class CodexWebUsageParser
     }
 
     // No usage window runs longer than a year; anything beyond reads as no reset at all.
-    private const long MaxCountdownSeconds = 400L * 24 * 60 * 60;
+    private const long MaxCountdownSeconds = UnixTimeConversion.MaxPlausibleDays * 24L * 60 * 60;
 
     /// <summary>Every spelling the rate-limit block is known to use: an absolute unix instant
     /// (<c>resets_at</c> in the session files, <c>reset_at</c> on the web) and a relative countdown

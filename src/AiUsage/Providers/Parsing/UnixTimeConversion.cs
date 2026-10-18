@@ -23,9 +23,12 @@ internal static class UnixTimeConversion
     internal static DateTimeOffset? FromUnixSecondsOrMillisecondsOrNull(long value) =>
         FromUnixSecondsOrNull(value >= 100_000_000_000 ? value / 1000 : value);
 
-    /// <summary>Null instead of the value itself when it falls more than 400 days from now - far
+    /// <summary>The furthest a countdown or window length may reach and still be believed.</summary>
+    internal const int MaxPlausibleDays = 400;
+
+    /// <summary>Null instead of the value itself when it falls more than <see cref="MaxPlausibleDays"/> days from now - far
     /// enough that a seconds/milliseconds unit mix-up can never slip through as a valid-looking but
     /// wildly wrong countdown.</summary>
     internal static DateTimeOffset? PlausibleOrNull(DateTimeOffset value) =>
-        Math.Abs((value - DateTimeOffset.UtcNow).TotalDays) <= 400 ? value : null;
+        Math.Abs((value - DateTimeOffset.UtcNow).TotalDays) <= MaxPlausibleDays ? value : null;
 }
