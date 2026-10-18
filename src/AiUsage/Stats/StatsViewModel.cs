@@ -1970,7 +1970,7 @@ public sealed partial class StatsViewModel : ObservableObject
             .Select(cell => cell.LeaderKey.Length > 0 && seriesLabels.TryGetValue(cell.LeaderKey, out var label)
                 ? string.Format(
                     CultureInfo.CurrentCulture, loc["Stats.Heatmap.Leader"], label,
-                    PercentLabel(cell.LeaderTotal * 100.0 / cell.Total, CultureInfo.CurrentCulture))
+                    StatusTextMap.FormatShare(cell.LeaderTotal * 100.0 / cell.Total, CultureInfo.CurrentCulture))
                 : "")
             .ToList();
 
@@ -2279,7 +2279,7 @@ public sealed partial class StatsViewModel : ObservableObject
             string.Format(
                 CultureInfo.CurrentCulture, loc["Stats.Ring.SliceTooltip"], name,
                 slice.Total.ToString("N0", CultureInfo.CurrentCulture),
-                PercentLabel(slice.Percent, CultureInfo.CurrentCulture)),
+                StatusTextMap.FormatShare(slice.Percent, CultureInfo.CurrentCulture)),
         };
         if (costLine is not null)
             lines.AddRange(costLine.Split('\n'));
@@ -2534,9 +2534,6 @@ public sealed partial class StatsViewModel : ObservableObject
             o.ChangeIsIncrease = true;
         }
     }
-
-    private static string PercentLabel(double percent, CultureInfo culture) =>
-        StatusTextMap.FormatPercent(percent.ToString("0.#", culture));
 
     private static CostSummary Scaled(CostSummary summary, double factor) =>
         summary with { Usd = summary.Usd * factor };

@@ -133,6 +133,10 @@ public static class StatusTextMap
     /// ("42%" in English, "42 %" in German). Callers format and round the number themselves.</summary>
     public static string FormatPercent(string number) => LocalizationService.Instance.Format("Number.Percent", number);
 
+    /// <summary>A share with one decimal at most, written in the active language's percent convention.</summary>
+    public static string FormatShare(double percent, CultureInfo culture) =>
+        FormatPercent(percent.ToString("0.#", culture));
+
     /// <summary><see cref="UsagePercent"/> rounded and shown with <see cref="FormatPercent"/>.</summary>
     public static string FormatUsagePercent(double percent) =>
         FormatPercent(UsagePercent(percent).ToString(CultureInfo.CurrentCulture));

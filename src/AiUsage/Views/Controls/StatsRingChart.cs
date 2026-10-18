@@ -71,7 +71,7 @@ public sealed class StatsRingChart : FrameworkElement
 
     /// <summary>Pure so the summary text is unit testable without a visual tree.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<Slice> slices) => string.Join(
-        "; ", slices.Select(slice => $"{slice.Label}: {slice.LegendText ?? StatsBarChart.PercentLabel(slice.Percent, CultureInfo.CurrentCulture)}"));
+        "; ", slices.Select(slice => $"{slice.Label}: {slice.LegendText ?? StatusTextMap.FormatShare(slice.Percent, CultureInfo.CurrentCulture)}"));
 
     /// <summary>The index of the largest slice by <see cref="Slice.Total"/> - the same slice the ring
     /// center draws by name and value, and the same one <see cref="RefreshAccessibleName"/> announces
@@ -647,7 +647,7 @@ public sealed class StatsRingChart : FrameworkElement
             var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
             dc.DrawRectangle(brush, null, new Rect(x, y + (rowHeight - swatch) / 2, swatch, swatch));
 
-            var percentText = slices[i].LegendText ?? StatsBarChart.PercentLabel(slices[i].Percent, CultureInfo.CurrentCulture);
+            var percentText = slices[i].LegendText ?? StatusTextMap.FormatShare(slices[i].Percent, CultureInfo.CurrentCulture);
             var legendWidth = Math.Max(1, width - x - swatch - 8);
             var fontSize = LegendBaseFontSize * textScale;
             var figure = LegendFigure(slices[i].Label, percentText, slices[i].CostText, legendWidth, dpi, typeface, fontSize);

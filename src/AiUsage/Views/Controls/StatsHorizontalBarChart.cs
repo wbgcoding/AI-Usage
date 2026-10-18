@@ -276,7 +276,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         {
             row.FullPath,
             string.IsNullOrEmpty(totalLabel) ? totalWithUnit : $"{totalLabel}: {totalWithUnit}",
-            StatsBarChart.PercentLabel(row.Percent, culture),
+            StatusTextMap.FormatShare(row.Percent, culture),
             string.IsNullOrEmpty(activeLabel) ? activeText : $"{activeLabel}: {activeText}",
         };
         if (!string.IsNullOrEmpty(row.FormerPathsLine))
@@ -793,7 +793,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         }
 
         var figureText = new FormattedText(
-            $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatsBarChart.PercentLabel(row.Percent, CultureInfo.CurrentCulture)}",
+            $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatusTextMap.FormatShare(row.Percent, CultureInfo.CurrentCulture)}",
             culture, FlowDirection.LeftToRight, regular, 11, TextBrush, dpi);
         var costText = string.IsNullOrEmpty(row.CostText)
             ? null

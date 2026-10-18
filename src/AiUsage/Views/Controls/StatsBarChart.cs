@@ -405,10 +405,6 @@ public sealed class StatsBarChart : FrameworkElement
         return day.Month == 1 ? name + " " + day.Year.ToString(culture) : name;
     }
 
-    /// <summary>A share with one decimal at most, written in the active language's percent convention.</summary>
-    internal static string PercentLabel(double percent, CultureInfo culture) =>
-        StatusTextMap.FormatPercent(percent.ToString("0.#", culture));
-
     /// <summary>The most gridlines the Y axis draws.</summary>
     private const int MaxGridLines = 4;
 

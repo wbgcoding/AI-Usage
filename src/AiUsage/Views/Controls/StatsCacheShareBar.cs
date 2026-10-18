@@ -51,7 +51,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         {
             var name = i < labels.Count ? labels[i] : "?";
             var percent = value * 100.0 / total;
-            return $"{name}: {StatsBarChart.PercentLabel(percent, CultureInfo.CurrentCulture)}";
+            return $"{name}: {StatusTextMap.FormatShare(percent, CultureInfo.CurrentCulture)}";
         }));
     }
 
@@ -171,7 +171,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         {
             var name = i < labels.Count ? labels[i] : "?";
             var percent = total > 0 ? values[i] * 100.0 / total : 0;
-            var text = $"{name} · {StatsBarChart.PercentLabel(percent, CultureInfo.CurrentCulture)}";
+            var text = $"{name} · {StatusTextMap.FormatShare(percent, CultureInfo.CurrentCulture)}";
             texts.Add(new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, pixelsPerDip));
         }
         return texts;

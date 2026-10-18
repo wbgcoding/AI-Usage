@@ -1137,7 +1137,7 @@ public class StatsViewModelTests
         Assert.Equal("claude", viewModel.HeatmapLeaderKeys[index]);
         var expected = string.Format(
             CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Heatmap.Leader"], "Claude",
-            AiUsage.Views.Controls.StatsBarChart.PercentLabel(70, CultureInfo.CurrentCulture));
+            AiUsage.Services.StatusTextMap.FormatShare(70, CultureInfo.CurrentCulture));
         Assert.Equal(expected, viewModel.HeatmapLeaderTexts[index]);
         Assert.Equal(168 - 3, viewModel.HeatmapLeaderKeys.Count(key => key.Length == 0));
         Assert.Equal(viewModel.HeatmapLeaderKeys.Select(key => key.Length == 0), viewModel.HeatmapLeaderTexts.Select(text => text.Length == 0));
@@ -2345,7 +2345,7 @@ public class StatsViewModelCaptionTests
             {
                 var expected = string.Format(
                     CultureInfo.CurrentCulture, loc["Stats.Ring.SliceTooltip"], slice.Label,
-                    slice.Total.ToString("N0", CultureInfo.CurrentCulture), AiUsage.Views.Controls.StatsBarChart.PercentLabel(slice.Percent, CultureInfo.CurrentCulture));
+                    slice.Total.ToString("N0", CultureInfo.CurrentCulture), AiUsage.Services.StatusTextMap.FormatShare(slice.Percent, CultureInfo.CurrentCulture));
                 Assert.Equal(expected, slice.Tooltip!.Split('\n')[0]);
             }
         }
