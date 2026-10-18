@@ -303,6 +303,7 @@ public sealed class StatsStore
     private RestorePlan PrepareWeeklyRestore(string fullPath, out PreparedRestore prepared)
     {
         prepared = default;
+        RemoveStaleRestoreLeftovers(fullPath);
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
@@ -335,7 +336,7 @@ public sealed class StatsStore
                     return RestorePlan.Wait;
                 }
 
-                var temporaryPath = fullPath + ".restore-tmp";
+                var temporaryPath = $"{fullPath}.restore-{Guid.NewGuid():N}.tmp";
                 try
                 {
                     File.Delete(temporaryPath);
@@ -856,6 +857,12 @@ public sealed class StatsStore
 
     private SqliteConnection Open()
     {
+        // A damage report that lost the race to another open's restore reads the restored file once more.
+        return OpenOnce(mayRetry: true) ?? OpenOnce(mayRetry: false)!;
+    }
+
+    private SqliteConnection? OpenOnce(bool mayRetry)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
         // Microsoft.Data.Sqlite retries a busy statement itself, bounded by "Default Timeout"
         // (whole seconds) rather than by the PRAGMA below - both are set so a contended write gives
@@ -867,7 +874,10 @@ public sealed class StatsStore
         }.ToString();
         var connection = new SqliteConnection(connectionString);
         var fullPath = Path.GetFullPath(DatabasePath);
+        if (CleanedRestoreLeftovers.TryAdd(fullPath, true))
+            RemoveStaleRestoreLeftovers(fullPath);
         SqliteException? damaged = null;
+        FileIdentity? identity = null;
         long generation;
         // Shared with every other open and exclusive against setting a damaged file aside and putting a
         // copy in its place: an open that came in between would create an empty index right where the
@@ -900,6 +910,7 @@ public sealed class StatsStore
             {
                 connection.Dispose();
                 damaged = ex;
+                identity = IdentityOf(fullPath);
             }
             catch
             {
@@ -917,7 +928,8 @@ public sealed class StatsStore
         {
             // Outside the shared hold: the quarantine takes the exclusive one.
             BeforeQuarantine?.Invoke();
-            QuarantineDamagedDatabase(connection, fullPath, damaged.SqliteErrorCode, generation);
+            if (QuarantineDamagedDatabase(connection, fullPath, damaged.SqliteErrorCode, generation, identity) && mayRetry)
+                return null;
             ExceptionDispatchInfo.Capture(damaged).Throw();
         }
 
@@ -935,34 +947,36 @@ public sealed class StatsStore
     /// <summary>A damaged index never heals and would leave the statistics empty for good. It is set
     /// aside (one copy is kept for inspection) so the next walk rebuilds it from the session logs.
     /// Best effort: a file another process still holds stays where it is until the next attempt.</summary>
-    private void QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode, long generation)
+    /// <returns>True when the damage report is stale (another open set the file aside, or it was
+    /// replaced meanwhile): the caller opens again instead of failing.</returns>
+    private bool QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode, long generation, FileIdentity? identity)
     {
         SqliteConnection.ClearPool(connection);
         ForgetDatabase(fullPath);
         // The copy is chosen and copied before the gate: a locked copy is waited for (seconds), and no
-        // open may wait with it. Another open already preparing this file's restore reports its damage
-        // and tries again next time.
+        // open of another file may wait with it. An open of this file queues behind the one preparing
+        // (bounded) and then reads what it restored.
         var prepareLock = PrepareLocks.GetOrAdd(fullPath, _ => new object());
-        if (!Monitor.TryEnter(prepareLock))
-            return;
+        if (!Monitor.TryEnter(prepareLock, PrepareWaitMilliseconds))
+            return false;
+        var plan = RestorePlan.NoCopy;
+        PreparedRestore prepared = default;
         try
         {
             if (!IsCurrentGeneration(fullPath, generation))
-                return;
-            var plan = PrepareWeeklyRestore(fullPath, out var prepared);
-            // Two threads can fail on the same file; the second one's report is about a file that is gone
-            // by now and must not set aside the index the first one put in its place.
+                return true;
+            plan = PrepareWeeklyRestore(fullPath, out prepared);
             StoreGate.EnterWriteLock();
             try
             {
-                if (FileGenerations.GetValueOrDefault(fullPath) != generation)
-                {
-                    if (plan == RestorePlan.Ready)
-                        DeleteRestoreLeftovers(prepared.TemporaryPath);
-                    return;
-                }
-
+                // The file is the one the damage was seen on: another thread's restore or a swap from
+                // outside (backup restore, settings copy) during the prepare leaves a different file.
+                if (IdentityOf(fullPath) != identity)
+                    return true;
+                // A bouncing open may have pooled a handle since the clear above; none may stay on the file.
+                SqliteConnection.ClearAllPools();
                 SetAsideAndRestore(fullPath, errorCode, plan, prepared);
+                return false;
             }
             finally
             {
@@ -971,7 +985,50 @@ public sealed class StatsStore
         }
         finally
         {
+            // Whatever ended the attempt, the index-sized temporary copy never stays (absent after a move).
+            if (plan == RestorePlan.Ready)
+                DeleteRestoreLeftovers(prepared.TemporaryPath);
             Monitor.Exit(prepareLock);
+        }
+    }
+
+    // How long an open of a damaged file waits for the restore another open is preparing.
+    internal int PrepareWaitMilliseconds { get; init; } = 8000;
+
+    private readonly record struct FileIdentity(long Length, long WriteTicks, long CreateTicks);
+
+    private static FileIdentity? IdentityOf(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? new FileIdentity(info.Length, info.LastWriteTimeUtc.Ticks, info.CreationTimeUtc.Ticks) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static readonly ConcurrentDictionary<string, bool> CleanedRestoreLeftovers = new(StringComparer.OrdinalIgnoreCase);
+
+    // A crash between the prepare and the move leaves an index-sized temporary copy (and maybe its
+    // journal); one an hour old belongs to no running restore.
+    private static void RemoveStaleRestoreLeftovers(string fullPath)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(fullPath)!;
+            var limit = DateTime.UtcNow.AddHours(-1);
+            foreach (var path in Directory.EnumerateFiles(directory, Path.GetFileName(fullPath) + ".restore-*"))
+            {
+                if (File.GetLastWriteTimeUtc(path) < limit)
+                    File.Delete(path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: the next process tries again.
         }
     }
 
@@ -1028,13 +1085,24 @@ public sealed class StatsStore
             // of the damage must never rotate it out, so nothing is removed then.
             if (!RecentlyRestored.Contains(fullPath))
             {
-                foreach (var older in Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
-                             .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
-                             .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1))
+                // Best effort per file: an old copy a scanner holds never stops the restore.
+                List<string> beyond;
+                try
                 {
-                    File.Delete(older);
+                    beyond = Directory.EnumerateFiles(directory, DatabaseFileName + ".corrupt-*")
+                        .Where(path => !SidecarSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(File.GetLastWriteTimeUtc).Skip(KeptDamagedCopies - 1).ToList();
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    beyond = [];
+                }
+
+                foreach (var older in beyond)
+                {
+                    TryRemoveOldCopy(older);
                     foreach (var suffix in SidecarSuffixes)
-                        File.Delete(older + suffix);
+                        TryRemoveOldCopy(older + suffix);
                 }
             }
             var setAside = $"{fullPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";

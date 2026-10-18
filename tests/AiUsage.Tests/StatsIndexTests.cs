@@ -1590,7 +1590,7 @@ public class StatsIndexTests
 
         Assert.True(store.TryLoadSourceFiles(out var states));
         Assert.Equal(["file-a", "file-b"], states.Keys.Order());
-        Assert.Empty(Directory.GetFiles(dataDir, "*.restore-tmp"));
+        Assert.Empty(Directory.GetFiles(dataDir, "*.restore-*"));
     }
 
     [Fact]
@@ -2077,6 +2077,119 @@ public class StatsIndexTests
         holder.Dispose();
         Assert.True(first.Wait(TimeSpan.FromSeconds(60)));
         Assert.True(finished, "an open of an unrelated index waited for the restore");
+    }
+
+    // Locks the newest weekly copy exclusively so a restore has to wait for it.
+    private static SqliteConnection HoldCopyExclusively(string copyPath)
+    {
+        var holder = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = copyPath, Pooling = false }.ToString());
+        holder.Open();
+        using var lockIt = holder.CreateCommand();
+        lockIt.CommandText = "PRAGMA locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE;";
+        lockIt.ExecuteNonQuery();
+        return holder;
+    }
+
+    [Fact]
+    public void An_open_of_the_same_index_during_a_restore_waits_and_reads_the_restored_copy()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-same-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-same");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        using var damageMet = new ManualResetEventSlim();
+        var restoring = new StatsStore(dataDir, logError: _ => { }) { BeforeQuarantine = damageMet.Set };
+        var holder = HoldCopyExclusively(Path.Combine(dataDir, "stats-backups", "stats-2026-10-01.db"));
+
+        var first = Task.Run(() => restoring.TryLoadSourceFiles(out _));
+        Assert.True(damageMet.Wait(TimeSpan.FromSeconds(30)));
+        Thread.Sleep(300);
+        var second = Task.Run(() =>
+        {
+            var ok = new StatsStore(dataDir, logError: _ => { }).TryLoadSourceFiles(out var states);
+            return (ok, keys: ok ? states.Keys.Order().ToArray() : []);
+        });
+        Thread.Sleep(500);
+        holder.Dispose();
+
+        Assert.True(second.Wait(TimeSpan.FromSeconds(60)));
+        first.Wait(TimeSpan.FromSeconds(60));
+        Assert.True(second.Result.ok, "the open of the same index failed instead of waiting for the restore");
+        Assert.Equal(["file-a", "file-b"], second.Result.keys);
+    }
+
+    [Fact]
+    public void An_index_replaced_outside_the_store_during_the_prepare_is_not_set_aside()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-swap-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-swap");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteGarbage(dbPath);
+        using var damageMet = new ManualResetEventSlim();
+        var store = new StatsStore(dataDir, logError: _ => { }) { BeforeQuarantine = damageMet.Set };
+        var holder = HoldCopyExclusively(Path.Combine(dataDir, "stats-backups", "stats-2026-10-01.db"));
+
+        var first = Task.Run(() =>
+        {
+            var ok = store.TryLoadSourceFiles(out var states);
+            return (ok, keys: ok ? states.Keys.Order().ToArray() : []);
+        });
+        Assert.True(damageMet.Wait(TimeSpan.FromSeconds(30)));
+        Thread.Sleep(300);
+        // A backup put back by the user (or a settings copy) while the restore is still choosing a copy.
+        File.Copy(Path.Combine(dataDir, "stats-backups", "stats-2026-09-24.db"), dbPath, overwrite: true);
+        holder.Dispose();
+
+        Assert.True(first.Wait(TimeSpan.FromSeconds(60)));
+        Assert.Empty(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+        Assert.Empty(Directory.GetFiles(dataDir, "*.restore-*"));
+        Assert.True(first.Result.ok);
+        Assert.Equal(["file-a"], first.Result.keys);
+    }
+
+    [Fact]
+    public void A_damaged_copy_that_cannot_be_pruned_does_not_stop_the_restore_or_leak_the_temporary_copy()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-prune-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-prune");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var oldest = Path.Combine(dataDir, "stats.db.corrupt-20260101-000000");
+        for (var i = 0; i < 3; i++)
+        {
+            var path = i == 0 ? oldest : Path.Combine(dataDir, $"stats.db.corrupt-2026010{i + 1}-000000");
+            WriteGarbage(path);
+            File.SetLastWriteTimeUtc(path, new DateTime(2026, 1, 1 + i, 0, 0, 0, DateTimeKind.Utc));
+        }
+
+        using var scanner = new FileStream(oldest, FileMode.Open, FileAccess.Read, FileShare.None);
+        var store = new StatsStore(dataDir, logError: _ => { });
+        store.TryLoadSourceFiles(out _);
+
+        Assert.Empty(Directory.GetFiles(dataDir, "*.restore-*"));
+        Assert.True(store.TryLoadSourceFiles(out var states));
+        Assert.Equal(["file-a", "file-b"], states.Keys.Order());
+    }
+
+    [Fact]
+    public void Stale_restore_leftovers_are_removed_and_a_fresh_one_stays()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-stale");
+        var stale = Path.Combine(dataDir, "stats.db.restore-old.tmp");
+        var staleJournal = stale + "-journal";
+        var fresh = Path.Combine(dataDir, "stats.db.restore-live.tmp");
+        foreach (var path in new[] { stale, staleJournal, fresh })
+            WriteGarbage(path);
+        foreach (var path in new[] { stale, staleJournal })
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-2));
+
+        // The first open of the index in this process clears them.
+        Assert.True(new StatsStore(dataDir, logError: _ => { }).TryLoadSourceFiles(out _));
+
+        Assert.False(File.Exists(stale));
+        Assert.False(File.Exists(staleJournal));
+        Assert.True(File.Exists(fresh));
     }
 
     [Fact]
