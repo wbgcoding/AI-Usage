@@ -31,6 +31,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 {
     private ProviderSnapshot? _lastSnapshot;
 
+    /// <summary>True once the tile has shown any reading, a held-over one from the history included.</summary>
+    internal bool HasReading => _lastSnapshot is not null;
+
     /// <summary>The window kinds this tile's provider has actually reported, from the last snapshot
     /// that carried any windows at all; null until then, so every switch stays offered while nothing
     /// is known yet.</summary>

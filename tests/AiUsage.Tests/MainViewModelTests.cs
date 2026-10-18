@@ -1849,7 +1849,7 @@ public class MainViewModelTests : IDisposable
     // After a restart the tile starts from the history's last reading; a read that then answers
     // "not signed in" must not empty it: the numbers stay, dimmed, with the hint and the sign-in button.
     [Fact]
-    public void A_not_signed_in_read_after_a_restart_keeps_the_last_recorded_numbers_dimmed_with_the_hint()
+    public async Task A_not_signed_in_read_after_a_restart_keeps_the_last_recorded_numbers_dimmed_with_the_hint()
     {
         var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
         var historyStore = new HistoryStore(TempDirectory(), () => DateTimeOffset.Now);
@@ -1857,6 +1857,7 @@ public class MainViewModelTests : IDisposable
         var providers = new List<IUsageProvider> { new FakeProvider("codex"), new SignInFakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
         var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, historyStore);
         var tile = vm.Tiles.Single(t => t.ProviderId == "claude");
+        await vm.StartupReadingsTask;
 
         vm.OnSnapshotReady(NotSignedInSnapshot("claude"));
 
