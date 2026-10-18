@@ -370,7 +370,7 @@ public partial class App : Application, IDisposable
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         var inner = e.Exception.Flatten().InnerExceptions.FirstOrDefault() ?? e.Exception;
-        _logService?.LogError($"A background task failed ({inner.GetType().Name}): {PathSanitizer.Sanitize(inner.Message)}");
+        _logService?.LogError($"A background task failed ({inner.GetType().Name}): {inner.Message}");
         e.SetObserved();
     }
 

@@ -20,7 +20,7 @@ internal static class UpdateDialogs
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            LogService.Shared.LogError($"Update install failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+            LogService.Shared.LogError($"Update install failed ({ex.GetType().Name}): {ex.Message}");
             result = new UpdateInstallResult(UpdateOutcome.DownloadFailed, update.ReleaseUrl);
         }
 

@@ -1898,7 +1898,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // One failed pass must not end the maintenance for the rest of the session.
-                (_logService ?? LogService.Shared).LogError($"History maintenance failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+                (_logService ?? LogService.Shared).LogError($"History maintenance failed ({ex.GetType().Name}): {ex.Message}");
             }
         }
         while (await timer.WaitForNextTickAsync(ct));

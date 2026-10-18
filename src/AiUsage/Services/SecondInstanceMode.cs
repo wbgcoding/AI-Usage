@@ -32,7 +32,7 @@ public static class SecondInstanceMode
         AppPaths.SetStartRedirect(directory, unreachable);
         if (unreachable is not null)
             LogService.AppendTo(Path.Combine(directory, "logs"),
-                $"The data folder {PathSanitizer.Sanitize(unreachable)} is not available; this session uses the default folder.");
+                $"The data folder {unreachable} is not available; this session uses the default folder.");
         WebViewHost.SetRootOverride(Path.Combine(WebViewHost.SharedRootFolder(), FolderName));
     }
 }

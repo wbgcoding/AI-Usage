@@ -343,7 +343,7 @@ public static class AppPaths
             {
                 unreachablePointerTarget = pointedDirectory;
                 LogService.AppendTo(Path.Combine(appDataCandidate, "logs"),
-                    $"The data folder {PathSanitizer.Sanitize(pointedDirectory)} is not available; this session uses the default folder.");
+                    $"The data folder {pointedDirectory} is not available; this session uses the default folder.");
             }
         }
 
