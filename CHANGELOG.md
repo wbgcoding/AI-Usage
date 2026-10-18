@@ -10,6 +10,16 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 
 ### Added
 
+- A Windows notification when an account's sign-in expires, once, with a "Sign in" button.
+- Usage notifications have a "Not again today" button that silences further notifications for that account until midnight.
+- Several notifications for one account that arrive within three seconds come as one.
+- The tray tooltip marks old values with the time they were read, or says that a sign-in is needed, and the tray icon turns grey.
+- The widget remembers its place for up to three display setups and returns there when you switch, for example when a second monitor is connected.
+- The token index is copied once a week (the last three copies are kept), and a damaged index is restored from the newest good copy. It can be switched off under Settings > System.
+- The first build of the token index shows how many session logs have been read so far.
+- Before a backup is restored, the confirmation says when it was made and which history it holds.
+- When a provider changes its answer and a value may be read wrongly, the tile says so and links to the log.
+- "Use local sources only" for Claude, Codex and Gemini: the tile then reads only the local tool's data and never the app's web session. Turning it off again needs no new sign-in.
 - The waiting mark also works for Gemini: the tile marks it when your latest Antigravity conversation ends with a finished answer you have not replied to yet.
 - The main Claude account can sign in through claude.ai in the app; Claude Code's own sign-in still comes first while it has numbers.
 - One backup file holds your settings, the usage history and the token index. Restoring it replaces everything and restarts the app; your previous state is kept aside until the restore has finished.
