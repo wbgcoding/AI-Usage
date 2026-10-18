@@ -739,10 +739,6 @@ public static class StatsAggregator
         new(@"^(?<root>.+?)[\\/](?:\.tmp|\.worktrees|\.claude[\\/]worktrees)(?:[\\/].*)?$",
             RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-    /// <summary>The key a project is grouped by. Agents work in throwaway folders below the project
-    /// (<c>.tmp</c>, <c>.worktrees</c>, <c>.claude\worktrees</c>), so everything from the first such
-    /// folder on is cut off and the work counts for the project itself. Trailing separators are
-    /// trimmed so the same folder always yields the same key.</summary>
     /// <summary>What the records without a project are grouped under: a value no folder can have, so a
     /// project whose name happens to read like the translated "no project" label stays its own row.</summary>
     public const string NoProjectKey = "\u0001";
@@ -750,6 +746,10 @@ public static class StatsAggregator
     internal static string ProjectGroupKey(string? project) =>
         string.IsNullOrEmpty(project) ? NoProjectKey : ProjectKey(project);
 
+    /// <summary>The key a project is grouped by. Agents work in throwaway folders below the project
+    /// (<c>.tmp</c>, <c>.worktrees</c>, <c>.claude\worktrees</c>), so everything from the first such
+    /// folder on is cut off and the work counts for the project itself. Trailing separators are
+    /// trimmed so the same folder always yields the same key.</summary>
     internal static string ProjectKey(string project)
     {
         var match = AgentWorkFolder.Match(project);
