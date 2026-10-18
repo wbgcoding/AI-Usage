@@ -31,79 +31,29 @@ public static class CopilotUserParser
         return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
     }
 
+    /// <summary>Everything one response holds, read from a single parse of it.</summary>
+    public sealed record Reading(
+        IReadOnlyList<UsageWindow> Windows,
+        string? Plan,
+        string? Login,
+        IReadOnlyList<string> ChangeNotes,
+        bool HasQuotaSnapshots)
+    {
+        public static readonly Reading Empty = new([], null, null, [], false);
+    }
+
     /// <summary>
-    /// What in the response no longer matches what this parser was written for: a quota id it has no
-    /// label for (shown under its own name), a quota that is neither unlimited nor absent yet has no
-    /// numeric <c>percent_remaining</c>, or one whose percentage lies outside 0..100 (both skipped).
-    /// Empty for a response that looks as expected, unlimited and absent quotas included. Ids only,
-    /// never a figure or an account detail.
+    /// Parses the response once: its windows, plan, login, the change notes and whether the
+    /// <c>quota_snapshots</c> object is there. A response that is empty or not JSON reads as
+    /// <see cref="Reading.Empty"/>. The change notes name what no longer matches what this parser
+    /// was written for: a quota id it has no label for (shown under its own name), a quota that is
+    /// neither unlimited nor absent yet has no numeric <c>percent_remaining</c>, or one whose
+    /// percentage lies outside 0..100 (both skipped). Ids only, never a figure or an account detail.
     /// </summary>
-    public static IReadOnlyList<string> ChangeNotes(string responseText)
-    {
-        var notes = new List<string>();
-        if (string.IsNullOrWhiteSpace(responseText))
-            return notes;
-
-        try
-        {
-            using var document = JsonDocument.Parse(responseText);
-            if (document.RootElement.ValueKind != JsonValueKind.Object
-                || !document.RootElement.TryGetProperty("quota_snapshots", out var snapshots) || snapshots.ValueKind != JsonValueKind.Object)
-                return notes;
-
-            foreach (var snapshot in snapshots.EnumerateObject())
-            {
-                if (snapshot.Value.ValueKind != JsonValueKind.Object)
-                    continue;
-
-                var id = ReadChangeLog.SafeName(snapshot.Name);
-                if (!KnownLabels.ContainsKey(snapshot.Name))
-                    notes.Add($"new quota id '{id}' found; it is shown under its own name, check that this is right.");
-
-                var bucket = snapshot.Value;
-                if (bucket.TryGetProperty("has_quota", out var hasQuota) && hasQuota.ValueKind == JsonValueKind.False)
-                    continue;
-                if (bucket.TryGetProperty("unlimited", out var unlimited) && unlimited.ValueKind == JsonValueKind.True)
-                    continue;
-
-                if (!bucket.TryGetProperty("percent_remaining", out var remainingEl)
-                    || remainingEl.ValueKind != JsonValueKind.Number || !remainingEl.TryGetDouble(out var remaining))
-                    notes.Add($"quota '{id}' has no numeric percent_remaining, so it is not shown.");
-                else if (remaining is < 0 or > 100)
-                    notes.Add($"quota '{id}' reports a percentage outside 0 to 100, so it is not shown.");
-            }
-        }
-        catch (JsonException)
-        {
-        }
-
-        return notes;
-    }
-
-    /// <summary>True when the response holds the <c>quota_snapshots</c> object this parser reads, even
-    /// if every bucket in it is unlimited or absent.</summary>
-    public static bool HasQuotaSnapshots(string responseText)
+    public static Reading Read(string responseText)
     {
         if (string.IsNullOrWhiteSpace(responseText))
-            return false;
-
-        try
-        {
-            using var document = JsonDocument.Parse(responseText);
-            return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("quota_snapshots", out var snapshots)
-                && snapshots.ValueKind == JsonValueKind.Object;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    public static IReadOnlyList<UsageWindow> Parse(string responseText)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-            return [];
+            return Reading.Empty;
 
         JsonDocument document;
         try
@@ -112,23 +62,38 @@ public static class CopilotUserParser
         }
         catch (JsonException)
         {
-            return [];
+            return Reading.Empty;
         }
 
         using (document)
         {
             var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("quota_snapshots", out var snapshots) || snapshots.ValueKind != JsonValueKind.Object)
-                return [];
+            if (root.ValueKind != JsonValueKind.Object)
+                return Reading.Empty;
+
+            var plan = root.TryGetProperty("copilot_plan", out var planEl) && planEl.ValueKind == JsonValueKind.String
+                ? planEl.GetString()
+                : null;
+            var login = root.TryGetProperty("login", out var loginEl) && loginEl.ValueKind == JsonValueKind.String
+                && loginEl.GetString() is { Length: > 0 } handle
+                ? handle
+                : null;
+            if (!root.TryGetProperty("quota_snapshots", out var snapshots) || snapshots.ValueKind != JsonValueKind.Object)
+                return new Reading([], plan, login, [], false);
 
             var resetsAt = ReadResetDate(root);
-
             var windows = new List<UsageWindow>();
+            var notes = new List<string>();
             foreach (var snapshot in snapshots.EnumerateObject())
             {
                 if (snapshot.Value.ValueKind != JsonValueKind.Object)
                     continue;
                 var bucket = snapshot.Value;
+
+                var id = ReadChangeLog.SafeName(snapshot.Name);
+                var knownLabel = KnownLabels.TryGetValue(snapshot.Name, out var known);
+                if (!knownLabel)
+                    notes.Add($"new quota id '{id}' found; it is shown under its own name, check that this is right.");
 
                 // A bucket the account does not actually have, or an unlimited one, carries no
                 // meaningful percentage to show.
@@ -138,69 +103,41 @@ public static class CopilotUserParser
                     continue;
                 if (!bucket.TryGetProperty("percent_remaining", out var remainingEl)
                     || remainingEl.ValueKind != JsonValueKind.Number || !remainingEl.TryGetDouble(out var remaining))
+                {
+                    notes.Add($"quota '{id}' has no numeric percent_remaining, so it is not shown.");
                     continue;
+                }
+
                 // A remaining percentage outside 0..100 cannot describe a real quota - the bucket is
                 // dropped rather than clamped into a false number.
                 if (remaining is < 0 or > 100)
+                {
+                    notes.Add($"quota '{id}' reports a percentage outside 0 to 100, so it is not shown.");
                     continue;
+                }
 
-                var label = KnownLabels.TryGetValue(snapshot.Name, out var known) ? known : Readable(snapshot.Name);
+                var label = knownLabel ? known! : Readable(snapshot.Name);
                 windows.Add(new UsageWindow(label, WindowKind.Other, 100 - remaining, resetsAt, windowMinutes: null));
             }
 
-            return windows;
+            return new Reading(windows, plan, login, notes, true);
         }
     }
 
-    /// <summary>The signed-in GitHub handle, when the response names one - the same document
-    /// <see cref="Parse"/> already reads, never a separate call and never an email address.</summary>
-    public static string? ParseLogin(string responseText)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-            return null;
+    public static IReadOnlyList<string> ChangeNotes(string responseText) => Read(responseText).ChangeNotes;
 
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(responseText);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+    /// <summary>True when the response holds the <c>quota_snapshots</c> object this parser reads, even
+    /// if every bucket in it is unlimited or absent.</summary>
+    public static bool HasQuotaSnapshots(string responseText) => Read(responseText).HasQuotaSnapshots;
 
-        using (document)
-        {
-            var root = document.RootElement;
-            return root.ValueKind == JsonValueKind.Object
-                && root.TryGetProperty("login", out var loginEl) && loginEl.ValueKind == JsonValueKind.String
-                && loginEl.GetString() is { Length: > 0 } login
-                ? login
-                : null;
-        }
-    }
+    public static IReadOnlyList<UsageWindow> Parse(string responseText) => Read(responseText).Windows;
 
-    /// <summary>The account's tier as the same response words it (<c>copilot_plan</c>, e.g.
-    /// "individual_pro" or "business"), or null - never a separate call.</summary>
-    public static string? ParsePlan(string responseText)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-            return null;
+    /// <summary>The signed-in GitHub handle, when the response names one, never an email address.</summary>
+    public static string? ParseLogin(string responseText) => Read(responseText).Login;
 
-        try
-        {
-            using var document = JsonDocument.Parse(responseText);
-            var root = document.RootElement;
-            return root.ValueKind == JsonValueKind.Object
-                && root.TryGetProperty("copilot_plan", out var plan) && plan.ValueKind == JsonValueKind.String
-                ? plan.GetString()
-                : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+    /// <summary>The account's tier as the response words it (<c>copilot_plan</c>, e.g.
+    /// "individual_pro" or "business"), or null.</summary>
+    public static string? ParsePlan(string responseText) => Read(responseText).Plan;
 
     private static DateTimeOffset? ReadResetDate(JsonElement root)
     {
