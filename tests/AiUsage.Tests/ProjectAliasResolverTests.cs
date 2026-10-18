@@ -106,6 +106,54 @@ public class ProjectAliasResolverTests
     }
 
     [Fact]
+    public void Unrelated_subfolders_of_one_name_stay_apart()
+    {
+        var aliases = Build(
+            [@"E:\Claude\ArrowMaze\review"],
+            Record(@"C:\Claude\AI-Usage"), Record(@"C:\Claude\AI-Usage\review"), Record(@"C:\Claude\Prompt Saver"), Record(@"C:\Claude\Prompt Saver\review"),
+            Record(@"E:\Claude\ArrowMaze"), Record(@"E:\Claude\ArrowMaze\review"));
+
+        Assert.Equal(@"C:\Claude\AI-Usage\review", aliases.Resolve(@"C:\Claude\AI-Usage\review"));
+        Assert.Equal(@"C:\Claude\Prompt Saver\review", aliases.Resolve(@"C:\Claude\Prompt Saver\review"));
+        Assert.Equal(@"E:\Claude\ArrowMaze\review", aliases.Resolve(@"E:\Claude\ArrowMaze\review"));
+        Assert.Empty(aliases.FormerPaths(@"E:\Claude\ArrowMaze\review"));
+    }
+
+    [Fact]
+    public void A_subfolder_of_a_moved_project_follows_the_move()
+    {
+        var aliases = Build(
+            [@"E:\Claude\Prompt Saver", @"E:\Claude\Prompt Saver\review"],
+            Record(@"C:\Claude\Prompt Saver"), Record(@"E:\Claude\Prompt Saver"),
+            Record(@"C:\Claude\Prompt Saver\review"), Record(@"E:\Claude\Prompt Saver\review"));
+
+        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Resolve(@"C:\Claude\Prompt Saver"));
+        Assert.Equal(@"E:\Claude\Prompt Saver\review", aliases.Resolve(@"C:\Claude\Prompt Saver\review"));
+    }
+
+    [Fact]
+    public void A_subfolder_name_under_two_different_projects_stays_two()
+    {
+        var aliases = Build(
+            [],
+            Record(@"C:\Claude\Claude-Messenger"), Record(@"C:\Claude\Claude-Messenger\android", dayOffset: 1),
+            Record(@"C:\Claude\IP-Scanner-App"), Record(@"C:\Claude\IP-Scanner-App\android", dayOffset: 2));
+
+        Assert.Equal(@"C:\Claude\Claude-Messenger\android", aliases.Resolve(@"C:\Claude\Claude-Messenger\android"));
+        Assert.Equal(@"C:\Claude\IP-Scanner-App\android", aliases.Resolve(@"C:\Claude\IP-Scanner-App\android"));
+    }
+
+    [Fact]
+    public void A_subfolder_and_a_project_of_the_same_name_stay_apart()
+    {
+        var aliases = Build(
+            [@"E:\Claude\Tool"],
+            Record(@"C:\Claude\Other"), Record(@"C:\Claude\Other\Tool"), Record(@"E:\Claude\Tool"));
+
+        Assert.Equal(@"C:\Claude\Other\Tool", aliases.Resolve(@"C:\Claude\Other\Tool"));
+    }
+
+    [Fact]
     public void Apply_renames_records_and_sessions_and_keeps_the_rest()
     {
         var aliases = Build([@"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Work\AI-Usage"));

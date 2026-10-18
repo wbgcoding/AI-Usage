@@ -92,8 +92,10 @@ public sealed class ProjectAliases
 
 /// <summary>
 /// Finds projects that moved folders. Full paths are grouped by their last folder name
-/// (case-insensitive). Within a group, paths whose folder no longer exists merge into the single one
-/// that does; with none left, into the most recently used; with two or more present they stay apart.
+/// (case-insensitive). A path inside another indexed project only pairs with paths inside that same
+/// project, so unrelated subfolders of one name stay apart. Within a pairing, paths whose folder no
+/// longer exists merge into the single one that does; with none left, into the most recently used;
+/// with two or more present they stay apart.
 /// </summary>
 public static class ProjectAliasResolver
 {
@@ -118,26 +120,66 @@ public static class ProjectAliasResolver
 
         var target = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var former = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var group in lastUsed.Keys.GroupBy(ProjectLabels.Name, StringComparer.OrdinalIgnoreCase))
+        var groups = lastUsed.Keys
+            .GroupBy(ProjectLabels.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key, group => group.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+        var existence = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var settled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var running = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        bool Exists(string path)
         {
-            var paths = group.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
-            if (paths.Count < 2)
-                continue;
-
-            var present = paths.Where(directoryExists).ToList();
-            string? winner;
-            if (present.Count == 1)
-                winner = present[0];
-            else if (present.Count == 0)
-                winner = paths.OrderByDescending(path => lastUsed[path]).First();
-            else
-                continue;
-
-            var others = paths.Where(path => !string.Equals(path, winner, StringComparison.OrdinalIgnoreCase)).ToList();
-            foreach (var other in others)
-                target[other] = winner;
-            former[winner] = others;
+            if (!existence.TryGetValue(path, out var found))
+                existence[path] = found = directoryExists(path);
+            return found;
         }
+
+        string WinnerOf(string path) => target.TryGetValue(path, out var winner) ? winner : path;
+
+        // A group is settled after the groups of the project roots its paths sit in, so a path inside
+        // a root only pairs with one inside the same (already merged) root.
+        void Settle(string name)
+        {
+            if (settled.Contains(name) || !running.Add(name))
+                return;
+
+            var paths = groups[name];
+            var roots = paths.ToDictionary(path => path, path => EnclosingRoot(lastUsed, path), StringComparer.OrdinalIgnoreCase);
+            foreach (var root in roots.Values)
+            {
+                if (root is not null)
+                    Settle(ProjectLabels.Name(root));
+            }
+
+            foreach (var place in paths.GroupBy(path => roots[path] is { } root ? WinnerOf(root) : "", StringComparer.OrdinalIgnoreCase))
+            {
+                var members = place.ToList();
+                if (members.Count < 2)
+                    continue;
+
+                var present = members.Where(Exists).ToList();
+                string winner;
+                if (present.Count == 1)
+                    winner = present[0];
+                else if (present.Count == 0)
+                    winner = members.OrderByDescending(path => lastUsed[path]).First();
+                else
+                    continue;
+
+                var others = members.Where(path => !string.Equals(path, winner, StringComparison.OrdinalIgnoreCase)).ToList();
+                foreach (var other in others)
+                    target[other] = winner;
+                former[winner] = others;
+            }
+
+            running.Remove(name);
+            settled.Add(name);
+        }
+
+        foreach (var name in groups.Keys.ToList())
+            Settle(name);
 
         return target.Count == 0 ? ProjectAliases.None : new ProjectAliases(target, former);
     }
@@ -164,6 +206,23 @@ public static class ProjectAliasResolver
         if (!lastUsed.TryGetValue(key, out var known) || when > known)
             lastUsed[key] = when;
     }
+
+    /// <summary>The nearest other indexed project folder that contains <paramref name="path"/>, or null.</summary>
+    private static string? EnclosingRoot(Dictionary<string, DateTime> roots, string path)
+    {
+        var end = path.LastIndexOfAny(Separators);
+        while (end > 0)
+        {
+            var parent = path[..end];
+            if (roots.ContainsKey(parent))
+                return parent;
+            end = parent.LastIndexOfAny(Separators);
+        }
+
+        return null;
+    }
+
+    private static readonly char[] Separators = ['\\', '/'];
 
     private static bool IsFullPath(string project) => project.AsSpan().IndexOfAny('\\', '/') >= 0;
 }
