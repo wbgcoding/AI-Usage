@@ -157,7 +157,6 @@
   <data name="StatsWindow.Title" xml:space="preserve"><value>Token usage</value></data>
   <data name="StatsWindow.Range.TwelveMonths" xml:space="preserve"><value>12 months</value></data>
   <data name="StatsWindow.ExportCsv" xml:space="preserve"><value>Save as CSV…</value></data>
-  <data name="StatsWindow.ColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="StatsWindow.ExportFailed" xml:space="preserve"><value>Could not save the file.</value></data>
   <data name="Stats.Section.Figures" xml:space="preserve"><value>Figures</value></data>
   <data name="Stats.Total" xml:space="preserve"><value>Total</value></data>
@@ -448,7 +447,7 @@
   <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>You are already signed in.</value></data>
   <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>This session already holds a valid sign-in. The tile reads its numbers through it from the next refresh on.</value></data>
   <data name="Stats.TokenUnit" xml:space="preserve"><value>tokens</value></data>
-  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Average per active day</value></data>
+  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Per active day</value></data>
   <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>The total divided by the days that actually saw tokens.</value></data>
   <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>on {0} of {1} days</value></data>
   <data name="Stats.ActiveDaysOf.One" xml:space="preserve"><value>on {0} of 1 day</value></data>

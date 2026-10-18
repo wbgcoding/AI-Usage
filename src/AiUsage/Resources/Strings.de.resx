@@ -157,7 +157,6 @@
   <data name="StatsWindow.Title" xml:space="preserve"><value>Tokenverbrauch</value></data>
   <data name="StatsWindow.Range.TwelveMonths" xml:space="preserve"><value>12 Monate</value></data>
   <data name="StatsWindow.ExportCsv" xml:space="preserve"><value>Als CSV speichern…</value></data>
-  <data name="StatsWindow.ColumnTotal" xml:space="preserve"><value>Gesamt</value></data>
   <data name="StatsWindow.ExportFailed" xml:space="preserve"><value>Die Datei konnte nicht gespeichert werden.</value></data>
   <data name="Stats.Section.Figures" xml:space="preserve"><value>Kennzahlen</value></data>
   <data name="Stats.Total" xml:space="preserve"><value>Gesamt</value></data>
@@ -447,7 +446,7 @@
   <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>Du bist schon angemeldet.</value></data>
   <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>Diese Sitzung ist bereits gültig angemeldet. Die Kachel holt ihre Zahlen ab der nächsten Aktualisierung darüber.</value></data>
   <data name="Stats.TokenUnit" xml:space="preserve"><value>Token</value></data>
-  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Schnitt pro aktivem Tag</value></data>
+  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Pro aktivem Tag</value></data>
   <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>Die Summe geteilt durch die Tage, an denen wirklich Token angefallen sind.</value></data>
   <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>an {0} von {1} Tagen</value></data>
   <data name="Stats.ActiveDaysOf.One" xml:space="preserve"><value>an {0} von 1 Tag</value></data>
