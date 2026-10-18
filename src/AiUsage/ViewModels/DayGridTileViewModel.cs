@@ -194,7 +194,7 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            LogService.Shared.LogError($"Day grid refresh failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+            LogService.Shared.LogError($"Day grid refresh failed ({ex.GetType().Name}): {ex.Message}");
         }
     }
 

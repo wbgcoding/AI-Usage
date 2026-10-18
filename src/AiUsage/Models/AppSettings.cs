@@ -129,10 +129,13 @@ public sealed class AppSettings
     /// the highest while the shown tiles report no window of that kind.</summary>
     public string TrayWindow { get; set; } = "Auto";
 
+    /// <summary>The usage percentage a notification threshold starts at.</summary>
+    public const double DefaultThresholdPercent = 85;
+
     /// <summary>The notification threshold every provider uses unless its own row ticks
     /// <see cref="ThresholdSettings.UseCustom"/> - one decision most people only ever make once,
     /// instead of the same slider repeated per provider and window.</summary>
-    public double DefaultThreshold { get; set; } = 85;
+    public double DefaultThreshold { get; set; } = DefaultThresholdPercent;
 
     public bool DefaultThresholdEnabled { get; set; } = true;
 
@@ -526,17 +529,17 @@ public sealed class ThresholdSettings
     /// instead of the three values below - most providers never need their own.</summary>
     public bool UseCustom { get; set; }
 
-    public double FiveHour { get; set; } = 85;
+    public double FiveHour { get; set; } = AppSettings.DefaultThresholdPercent;
 
     public bool FiveHourEnabled { get; set; } = true;
 
-    public double Weekly { get; set; } = 85;
+    public double Weekly { get; set; } = AppSettings.DefaultThresholdPercent;
 
     public bool WeeklyEnabled { get; set; } = true;
 
     /// <summary>Covers any window kind beyond the two above (<see cref="WindowKind.Other"/>) -
     /// Gemini's and Copilot's own windows, and a provider's per-model windows.</summary>
-    public double Other { get; set; } = 85;
+    public double Other { get; set; } = AppSettings.DefaultThresholdPercent;
 
     public bool OtherEnabled { get; set; } = true;
 }

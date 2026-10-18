@@ -215,10 +215,6 @@ public sealed class ClaudeProvider : IUsageProvider
         return existing.Count > 0 ? existing : [ClaudeConfigRoot.ProjectsRoot(candidates)];
     }
 
-    /// <summary>Same as the default, from a given variable value and profile folder.</summary>
-    internal static string ProjectsRootFor(string? configDirValue, string userProfile) =>
-        ClaudeConfigRoot.ProjectsRoot(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
-
     // Set during one fetch when the web session's usage address answered but nothing in it could be
     // read. That web answer is no candidate of its own (see BuildWebSnapshot), so the mark rides
     // on whichever snapshot the fetch ends with. A provider is fetched one run at a time.
@@ -240,6 +236,7 @@ public sealed class ClaudeProvider : IUsageProvider
         DateTimeOffset? waitingSince = null;
         long? sessionTokens = null;
         DateTimeOffset? sessionLastEventAt = null;
+        var anyRootExists = false;
         try
         {
             // This provider itself stays off the scheduler's thread-pool wrap (see RunsOnUiThread) so
@@ -248,8 +245,9 @@ public sealed class ClaudeProvider : IUsageProvider
             // just this call (and the attention read and token sum below, on the same file) to the
             // thread pool keeps the UI thread free without touching the web path.
             if (_projectsRoots.Count > 0)
-            (limit, isWaitingForUser, waitingSince, sessionTokens, sessionLastEventAt) = await Task.Run(() =>
+            (limit, isWaitingForUser, waitingSince, sessionTokens, sessionLastEventAt, anyRootExists) = await Task.Run(() =>
             {
+                var rootExists = _projectsRoots.Any(Directory.Exists);
                 var (found, newestFile) = ScanRoots(fetchedAt, ct);
                 var since = newestFile is not null ? WaitingSinceByNewestTurn(newestFile, fetchedAt, _attentionMaxAge()) : null;
 
@@ -268,7 +266,7 @@ public sealed class ClaudeProvider : IUsageProvider
                     }
                 }
 
-                return (found, since is not null, since, tokens, lastEventAt);
+                return (found, since is not null, since, tokens, lastEventAt, rootExists);
             }, ct);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -278,6 +276,8 @@ public sealed class ClaudeProvider : IUsageProvider
             waitingSince = null;
             sessionTokens = null;
             sessionLastEventAt = null;
+            // The walk failed on a folder that is there.
+            anyRootExists = true;
         }
 
         UsageWindow? limitWindow = limit is null
@@ -298,7 +298,7 @@ public sealed class ClaudeProvider : IUsageProvider
         if (FetchContext.NetworkHeld)
             return limitWindow is not null
                 ? await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct)
-                : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+                : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince, anyRootExists);
 
         if (_localLogin is not null)
             candidates.Add(await BuildLocalLoginSnapshot(fetchedAt, ct));
@@ -341,7 +341,7 @@ public sealed class ClaudeProvider : IUsageProvider
 
         return limitWindow is not null
             ? await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct)
-            : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince);
+            : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince, anyRootExists);
     }
 
     /// <summary>A usage reading taken after Claude Code logged the rejection already knows whether the
@@ -388,14 +388,14 @@ public sealed class ClaudeProvider : IUsageProvider
             WaitingSince: waitingSince);
     }
 
-    private ProviderSnapshot NoLocalDataSnapshot(DateTimeOffset fetchedAt, bool isWaitingForUser, DateTimeOffset? waitingSince)
+    private ProviderSnapshot NoLocalDataSnapshot(DateTimeOffset fetchedAt, bool isWaitingForUser, DateTimeOffset? waitingSince, bool anyRootExists)
     {
         var diagnostics = new ProviderDiagnostics();
         if (_projectsRoots.Count > 0)
         {
             foreach (var root in _projectsRoots)
                 diagnostics.SearchedIn(root);
-            if (!_projectsRoots.Any(Directory.Exists))
+            if (!anyRootExists)
                 diagnostics.DirectoryMissing();
             else
                 diagnostics.NothingFound();

@@ -91,27 +91,27 @@ public sealed class CopilotProvider : IUsageProvider
         switch (result.Outcome)
         {
             case GitHubCliOutcome.Ok:
-                foreach (var note in CopilotUserParser.ChangeNotes(result.Json))
+                var reading = CopilotUserParser.Read(result.Json);
+                foreach (var note in reading.ChangeNotes)
                     ReadChangeLog.Report(DisplayName, note);
-                var windows = CopilotUserParser.Parse(result.Json);
-                if (windows.Count == 0)
+                if (reading.Windows.Count == 0)
                 {
                     // An account whose buckets are all unlimited also gives no window, but its answer
                     // has the expected shape: only a shape this read does not know is a change.
                     return Empty(fetchedAt, ProviderStatus.Failed, error: null)
-                        with { UnreadableAnswer = !CopilotUserParser.HasQuotaSnapshots(result.Json) };
+                        with { UnreadableAnswer = !reading.HasQuotaSnapshots };
                 }
 
                 return new ProviderSnapshot(
                     ProviderId: AccountKey,
-                    Windows: windows,
-                    PlanType: CopilotUserParser.ParsePlan(result.Json),
+                    Windows: reading.Windows,
+                    PlanType: reading.Plan,
                     SourceKind: SourceKind.LocalLogin,
                     FetchedAt: fetchedAt,
                     DataTimestamp: fetchedAt,
                     Status: ProviderStatus.Ok,
                     Error: null,
-                    AccountLabel: CopilotUserParser.ParseLogin(result.Json));
+                    AccountLabel: reading.Login);
 
             case GitHubCliOutcome.NotSignedIn:
                 // The CLI is there but nothing is signed into it - the app must never run

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace AiUsage.Providers.LocalLogin;
@@ -188,11 +189,11 @@ internal static partial class GitHubCliUsage
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
 
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            var stderrTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            var stdoutTask = ReadBoundedAsync(process.StandardOutput, process, timeout.Token);
+            var stderrTask = ReadBoundedAsync(process.StandardError, process, timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            if (await stdoutTask is not { } stdout || await stderrTask is not { } stderr)
+                return (GitHubCliOutcome.Failed, "");
 
             // gh auth status writes its whole report to stderr, not stdout - the caller asks for both
             // combined rather than guessing which stream a given CLI version chose.
@@ -214,6 +215,27 @@ internal static partial class GitHubCliUsage
             TryKill(process);
             process.Dispose();
         }
+    }
+
+    /// <summary>Reads at most <see cref="LocalLoginHttp.MaxBodyBytes"/> characters; null when gh writes
+    /// more, after killing it so it does not sit blocked on a full pipe.</summary>
+    private static async Task<string?> ReadBoundedAsync(StreamReader reader, Process process, CancellationToken ct)
+    {
+        var text = new StringBuilder();
+        var chunk = new char[16 * 1024];
+        int read;
+        while ((read = await reader.ReadAsync(chunk.AsMemory(), ct)) > 0)
+        {
+            if (text.Length + read > LocalLoginHttp.MaxBodyBytes)
+            {
+                TryKill(process);
+                return null;
+            }
+
+            text.Append(chunk, 0, read);
+        }
+
+        return text.ToString();
     }
 
     /// <summary>gh prints an auth hint when the user is not logged in, and the API answers 401 for a

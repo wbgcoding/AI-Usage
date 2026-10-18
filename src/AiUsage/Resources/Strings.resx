@@ -124,6 +124,7 @@
   <data name="Crash.Headline" xml:space="preserve"><value>An unexpected error occurred.</value></data>
   <data name="Crash.Message" xml:space="preserve"><value>The application will now close. The details below can help find the cause.</value></data>
   <data name="Crash.CopyDetails" xml:space="preserve"><value>Copy details</value></data>
+  <data name="Crash.Details" xml:space="preserve"><value>Error details</value></data>
   <data name="Crash.OpenLogFolder" xml:space="preserve"><value>Open log folder</value></data>
   <data name="Crash.Close" xml:space="preserve"><value>Close</value></data>
   <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
@@ -136,6 +137,8 @@
   <data name="Tile.Menu.Details" xml:space="preserve"><value>Show details</value></data>
   <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Hide details</value></data>
   <data name="Tile.CopyDetails" xml:space="preserve"><value>Copy details</value></data>
+  <data name="Tile.Details" xml:space="preserve"><value>Details</value></data>
+  <data name="Confirm.Details" xml:space="preserve"><value>Technical details</value></data>
   <data name="Diag.SearchedIn" xml:space="preserve"><value>Searched in: {0}</value></data>
   <data name="Diag.FilesChecked" xml:space="preserve"><value>Files checked: {0}</value></data>
   <data name="Diag.NewestFile" xml:space="preserve"><value>Newest file: {0}</value></data>
@@ -205,6 +208,23 @@
   <data name="Key.Alt" xml:space="preserve"><value>Alt</value></data>
   <data name="Key.Shift" xml:space="preserve"><value>Shift</value></data>
   <data name="Key.Win" xml:space="preserve"><value>Win</value></data>
+  <data name="Key.PageUp" xml:space="preserve"><value>Page Up</value></data>
+  <data name="Key.PageDown" xml:space="preserve"><value>Page Down</value></data>
+  <data name="Key.Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Key.End" xml:space="preserve"><value>End</value></data>
+  <data name="Key.Insert" xml:space="preserve"><value>Insert</value></data>
+  <data name="Key.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Key.Space" xml:space="preserve"><value>Space</value></data>
+  <data name="Key.Enter" xml:space="preserve"><value>Enter</value></data>
+  <data name="Key.Backspace" xml:space="preserve"><value>Backspace</value></data>
+  <data name="Key.Tab" xml:space="preserve"><value>Tab</value></data>
+  <data name="Key.Escape" xml:space="preserve"><value>Esc</value></data>
+  <data name="Key.Left" xml:space="preserve"><value>Left</value></data>
+  <data name="Key.Right" xml:space="preserve"><value>Right</value></data>
+  <data name="Key.Up" xml:space="preserve"><value>Up</value></data>
+  <data name="Key.Down" xml:space="preserve"><value>Down</value></data>
+  <data name="Key.Pause" xml:space="preserve"><value>Pause</value></data>
+  <data name="Key.PrintScreen" xml:space="preserve"><value>Print</value></data>
   <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
   <data name="Theme.Terminal" xml:space="preserve"><value>Terminal</value></data>
   <data name="Theme.Dark" xml:space="preserve"><value>Dark</value></data>

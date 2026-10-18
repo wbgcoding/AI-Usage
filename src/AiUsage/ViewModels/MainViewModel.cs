@@ -907,8 +907,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             tile.TickCountdowns(now);
         // A provider whose snapshot landed before its minimum visible duration was up gets
         // re-checked here every second instead of on a real timer - see MinFetchingDuration.
-        foreach (var providerId in _pendingFetchClear.ToList())
-            TryClearFetching(providerId);
+        if (_pendingFetchClear.Count > 0)
+        {
+            foreach (var providerId in _pendingFetchClear.ToList())
+                TryClearFetching(providerId);
+        }
         PausedUntil = _scheduler.PausedUntil;
         _scheduler.Tick(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWindowTokens(now);
@@ -1875,7 +1878,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // One failed pass must not end the maintenance for the rest of the session.
-                (_logService ?? LogService.Shared).LogError($"History maintenance failed ({ex.GetType().Name}): {PathSanitizer.Sanitize(ex.Message)}");
+                (_logService ?? LogService.Shared).LogError($"History maintenance failed ({ex.GetType().Name}): {ex.Message}");
             }
         }
         while (await timer.WaitForNextTickAsync(ct));

@@ -651,7 +651,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     /// one, <paramref name="fallback"/> otherwise. Pure so it is unit testable without a visual
     /// tree.</summary>
     internal static Brush PlainRowBrush(StatsProjectRow row, Brush fallback) =>
-        row.Color == default ? fallback : new SolidColorBrush(row.Color);
+        row.Color == default ? fallback : ChartDrawCache.BrushFor(row.Color);
 
     /// <summary>As tall as its rows, so a panel with one project is one row high instead of a
     /// fixed block of empty space; with no rows, one row of height for the empty text.</summary>
@@ -788,7 +788,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         {
             var dotY = y + (textAreaHeight - RichDotSize) / 2;
             drawingContext.DrawEllipse(
-                new SolidColorBrush(row.Color), null,
+                ChartDrawCache.BrushFor(row.Color), null,
                 new Point(RichIconSize / 2, dotY + RichDotSize / 2), RichDotSize / 2, RichDotSize / 2);
         }
 
@@ -818,9 +818,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var barWidth = BarWidth(row.Total, maxValue, width);
         if (barWidth > 0)
-            drawingContext.DrawRectangle(new SolidColorBrush(row.Color), null, new Rect(0, y + textAreaHeight + RichBarGap, barWidth, RichBarHeight));
+            drawingContext.DrawRectangle(ChartDrawCache.BrushFor(row.Color), null, new Rect(0, y + textAreaHeight + RichBarGap, barWidth, RichBarHeight));
 
         if (isFocused)
-            drawingContext.DrawRectangle(null, new Pen(MutedBrush, 1), new Rect(0.5, y + 0.5, width - 1, RichRowHeight - 1));
+            drawingContext.DrawRectangle(null, ChartDrawCache.PenFor(MutedBrush, 1), new Rect(0.5, y + 0.5, width - 1, RichRowHeight - 1));
     }
 }

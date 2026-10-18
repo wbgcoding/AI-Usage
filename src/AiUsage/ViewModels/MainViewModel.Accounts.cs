@@ -336,7 +336,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _logService?.LogError($"Removing {accountKey} failed: {ex.GetType().Name}: {PathSanitizer.Sanitize(ex.Message)}");
+            _logService?.LogError($"Removing {accountKey} failed: {ex.GetType().Name}: {ex.Message}");
             return RemoveAccountResult.Failed;
         }
     }
@@ -372,7 +372,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _logService?.LogError($"Sign-out failed for {accountKey}: {ex.GetType().Name}: {PathSanitizer.Sanitize(ex.Message)}");
+            _logService?.LogError($"Sign-out failed for {accountKey}: {ex.GetType().Name}: {ex.Message}");
             return false;
         }
     }

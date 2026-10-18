@@ -822,13 +822,13 @@ public sealed class StatsMonthGrid : FrameworkElement
                 {
                     // Drawn as a halo just outside the cell itself.
                     var halo = new Rect(rect.X - 1.5, rect.Y - 1.5, rect.Width + 3, rect.Height + 3);
-                    dc.DrawRoundedRectangle(null, new Pen(AccentBrush, 2), halo, CellCorner + 1, CellCorner + 1);
+                    dc.DrawRoundedRectangle(null, ChartDrawCache.PenFor(AccentBrush, 2), halo, CellCorner + 1, CellCorner + 1);
                 }
 
                 if (IsKeyboardFocused && _focusedDay == cell.Day)
                 {
                     var ring = new Rect(rect.X - 2.5, rect.Y - 2.5, rect.Width + 5, rect.Height + 5);
-                    dc.DrawRoundedRectangle(null, new Pen(AccentBrush, 1.5), ring, CellCorner + 2, CellCorner + 2);
+                    dc.DrawRoundedRectangle(null, ChartDrawCache.PenFor(AccentBrush, 1.5), ring, CellCorner + 2, CellCorner + 2);
                 }
 
                 _cellHits.Add(new CellHit(rect, cell.Day, cell.Total, cell.ByProvider, cell.CostLine));

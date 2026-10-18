@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
 
@@ -39,6 +40,11 @@ public sealed class GlobalHotkey : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    private const uint MapVkToChar = 2;
+
+    [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
+    private static extern uint MapVirtualKey(uint code, uint mapType);
 
     private readonly IntPtr _hwnd;
     private readonly Func<IntPtr, int, uint, uint, bool> _register;
@@ -247,7 +253,51 @@ public sealed class GlobalHotkey : IDisposable
         if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add(loc["Key.Alt"]);
         if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add(loc["Key.Shift"]);
         if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add(loc["Key.Win"]);
-        parts.Add(key.ToString());
+        parts.Add(DisplayKeyName(key));
         return string.Join("+", parts);
+    }
+
+    /// <summary>The key as printed on a keycap: digits without the "D" prefix, numpad digits as
+    /// "Num 3", the punctuation keys as the character they type on the current layout, the named keys
+    /// in the active language, anything else (letters, F1-F24) as the key's own name.</summary>
+    internal static string DisplayKeyName(Key key)
+    {
+        if (key is >= Key.D0 and <= Key.D9)
+            return ((int)key - (int)Key.D0).ToString(CultureInfo.InvariantCulture);
+        if (key is >= Key.NumPad0 and <= Key.NumPad9)
+            return "Num " + ((int)key - (int)Key.NumPad0).ToString(CultureInfo.InvariantCulture);
+
+        var resourceKey = key switch
+        {
+            Key.Prior => "Key.PageUp",
+            Key.Next => "Key.PageDown",
+            Key.Home => "Key.Home",
+            Key.End => "Key.End",
+            Key.Insert => "Key.Insert",
+            Key.Delete => "Key.Delete",
+            Key.Space => "Key.Space",
+            Key.Return => "Key.Enter",
+            Key.Back => "Key.Backspace",
+            Key.Tab => "Key.Tab",
+            Key.Escape => "Key.Escape",
+            Key.Left => "Key.Left",
+            Key.Right => "Key.Right",
+            Key.Up => "Key.Up",
+            Key.Down => "Key.Down",
+            Key.Pause => "Key.Pause",
+            Key.Snapshot => "Key.PrintScreen",
+            _ => null,
+        };
+        if (resourceKey is not null)
+            return LocalizationService.Instance[resourceKey];
+
+        if (key is >= Key.Oem1 and <= Key.Oem102)
+        {
+            var typed = MapVirtualKey((uint)KeyInterop.VirtualKeyFromKey(key), MapVkToChar) & 0x7FFFFFFF;
+            if (typed > 0x20)
+                return char.ToUpperInvariant((char)typed).ToString();
+        }
+
+        return key.ToString();
     }
 }

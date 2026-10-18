@@ -156,4 +156,28 @@ public class GlobalHotkeyTests
             loc.SetLanguage("de");
         }
     }
+
+    [Theory]
+    [InlineData("de", "Ctrl+Alt+D1", "Strg+Alt+1")]
+    [InlineData("en", "Ctrl+Alt+NumPad7", "Ctrl+Alt+Num 7")]
+    [InlineData("de", "Ctrl+Next", "Strg+Bild ab")]
+    [InlineData("en", "Ctrl+Prior", "Ctrl+Page Up")]
+    [InlineData("de", "Win+Return", "Win+Eingabe")]
+    [InlineData("de", "Ctrl+Shift+Left", "Strg+Umschalt+Pfeil links")]
+    [InlineData("en", "Ctrl+Alt+Snapshot", "Ctrl+Alt+Print")]
+    [InlineData("en", "Shift+F13", "Shift+F13")]
+    [InlineData("en", "Ctrl+Alt+D", "Ctrl+Alt+D")]
+    public void The_display_form_names_the_key_as_printed_on_the_keycap(string language, string stored, string expected)
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage(language);
+        try
+        {
+            Assert.Equal(expected, GlobalHotkey.FormatForDisplay(stored));
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
 }

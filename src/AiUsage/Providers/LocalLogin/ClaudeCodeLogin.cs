@@ -55,10 +55,6 @@ internal static class ClaudeCodeLogin
 
     private static string CredentialsPath() => ClaudeConfigRoot.FilePath(ClaudeConfigRoot.Candidates(), CredentialsFileName);
 
-    /// <summary>Same as the default, from a given variable value and profile folder.</summary>
-    internal static string CredentialsPathFor(string? configDirValue, string userProfile) =>
-        ClaudeConfigRoot.FilePath(ClaudeConfigRoot.Candidates(configDirValue, userProfile), CredentialsFileName);
-
     public static Task<ClaudeCodeUsage> FetchAsync(CancellationToken ct) => FetchAsync(CredentialsPath(), ct);
 
     /// <summary>Test seam: a fixture credentials path instead of the real profile folder - everything

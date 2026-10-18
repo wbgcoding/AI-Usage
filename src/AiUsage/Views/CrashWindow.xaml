@@ -35,6 +35,7 @@
         <TextBlock x:Name="MessageText" Grid.Row="1" FontSize="{DynamicResource Font.Size.Body}" Foreground="{DynamicResource Text.Secondary}"
                    TextWrapping="Wrap" Margin="0,8,0,8"/>
         <TextBox x:Name="DetailsBox" Grid.Row="2" IsReadOnly="True" TextWrapping="NoWrap" AcceptsReturn="True"
+                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Crash.Details]}"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                  MinHeight="160" MaxHeight="360" FontFamily="{DynamicResource Font.Mono}" FontSize="{DynamicResource Font.Size.Micro}"
                  Background="{DynamicResource Bg.Raised}" Foreground="{DynamicResource Text.Primary}"

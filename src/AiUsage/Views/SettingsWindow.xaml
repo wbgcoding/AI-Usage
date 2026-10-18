@@ -992,7 +992,7 @@
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Hotkey]}"
                                   IsChecked="{Binding Main.HotkeyEnabled}" Style="{StaticResource CheckBox.GapM}"/>
                         <StackPanel Visibility="{Binding Main.HotkeyEnabled, Converter={StaticResource BoolToVis}}">
-                        <TextBox x:Name="HotkeyCaptureBox" Width="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
+                        <TextBox x:Name="HotkeyCaptureBox" MinWidth="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
                                  IsReadOnly="True" Focusable="True"
                                  PreviewKeyDown="HotkeyCaptureBox_PreviewKeyDown"
                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HotkeyCapture]}"
@@ -1157,13 +1157,14 @@
                     <TextBlock x:Name="AboutCopyrightText" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" HorizontalAlignment="Center" Margin="0,4,0,8"/>
                     <TextBlock x:Name="AboutDeliveryFormText" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" HorizontalAlignment="Center" Margin="0,0,0,0" Visibility="Collapsed"/>
 
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Repository]}" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                    <TextBlock x:Name="AboutRepositoryLabel" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Repository]}" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
                     <Grid Margin="0,4,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="AboutArchiveLinkBox" Grid.Column="0" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=AboutRepositoryLabel}"
                                  Foreground="{DynamicResource Accent}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center" Cursor="IBeam"/>
                         <Button x:Name="AboutOpenArchiveButton" Grid.Column="1" Style="{StaticResource AiUsageButton}" Padding="8,4" Click="AboutOpenArchive_Click"
                                 Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.Open]}"/>

@@ -1373,13 +1373,29 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
-            var json = JsonSerializer.Serialize(_settings, SettingsStore.JsonOptions);
+            var json = JsonSerializer.Serialize(WithoutMachineLocalState(_settings), SettingsStore.JsonOptions);
             File.WriteAllBytes(path, AppEncoding.Utf8NoBom.GetBytes(json));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
         }
+    }
+
+    /// <summary>A copy of <paramref name="settings"/> without what only means something on this PC and
+    /// what an import never takes over: the window block, the PC's id and the PCs imported from, the
+    /// discovered usage paths and the account bookkeeping.</summary>
+    internal static AppSettings WithoutMachineLocalState(AppSettings settings)
+    {
+        var copy = JsonSerializer.Deserialize<AppSettings>(
+            JsonSerializer.Serialize(settings, SettingsStore.JsonOptions), SettingsStore.JsonOptions) ?? new AppSettings();
+        copy.Window = new WindowSettings();
+        copy.MachineId = "";
+        copy.ImportedMachines = [];
+        copy.WebUsagePaths = [];
+        copy.Accounts = AppSettings.CreateDefaultAccounts();
+        copy.CopilotAccountLogins = [];
+        return copy;
     }
 
     /// <summary>
@@ -1389,7 +1405,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// immediately via <see cref="ApplyLoaded"/>, which never touches window position, size or monitor.
     /// </summary>
     [RelayCommand]
-    private void ImportSettings()
+    private async Task ImportSettingsAsync()
     {
         var path = _askForSettingsImportPath();
         if (path is null)
@@ -1398,7 +1414,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         string text;
         try
         {
-            text = File.ReadAllText(path);
+            text = await Task.Run(() => ReadImportFile(path));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1415,6 +1431,30 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         ApplyLoaded(loaded, keepLocalAccountSettings: true);
         _showMessage(LocalizationService.Instance["Settings.ImportDone"]);
+    }
+
+    /// <summary>A settings file is a few KB, even with many accounts; anything past this is not one and
+    /// is refused like an unreadable file.</summary>
+    internal const int MaxImportBytes = 16 * 1024 * 1024;
+
+    /// <summary>Reads at most <see cref="MaxImportBytes"/> from one open stream, so a file that grows
+    /// after it was picked cannot slip past the limit.</summary>
+    internal static string ReadImportFile(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var content = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            if (content.Length + read > MaxImportBytes)
+                throw new IOException("Settings file too large.");
+            content.Write(chunk, 0, read);
+        }
+
+        content.Position = 0;
+        using var reader = new StreamReader(content, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     private static string? ShowRealSettingsSaveDialog(string suggestedFileName)
