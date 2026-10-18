@@ -2046,6 +2046,40 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void An_open_elsewhere_is_not_held_up_by_a_restore_that_waits_for_a_busy_copy()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-busy-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-busy");
+        using var otherDir = TestPaths.CreateDisposableDirectory("stats-restore-busy-other");
+        SeedTwoWeeklyCopies(seedDir, dataDir);
+        var newest = Path.Combine(dataDir, "stats-backups", "stats-2026-10-01.db");
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        using var damageMet = new ManualResetEventSlim();
+        var restoring = new StatsStore(dataDir, logError: _ => { }) { BeforeQuarantine = damageMet.Set };
+
+        using var holder = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = newest, Pooling = false }.ToString());
+        holder.Open();
+        using (var lockIt = holder.CreateCommand())
+        {
+            lockIt.CommandText = "PRAGMA locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE;";
+            lockIt.ExecuteNonQuery();
+        }
+
+        var first = Task.Run(() => restoring.TryLoadSourceFiles(out _));
+        Assert.True(damageMet.Wait(TimeSpan.FromSeconds(30)));
+        // Long enough for the restore to be inside its wait on the locked copy.
+        Thread.Sleep(300);
+
+        // The window and the indexer open the index from the UI thread: a restore of another file never stalls them.
+        var other = Task.Run(() => new StatsStore(otherDir).TryLoadSourceFiles(out _));
+        var finished = other.Wait(TimeSpan.FromSeconds(5));
+
+        holder.Dispose();
+        Assert.True(first.Wait(TimeSpan.FromSeconds(60)));
+        Assert.True(finished, "an open of an unrelated index waited for the restore");
+    }
+
+    [Fact]
     public void A_move_that_keeps_failing_ends_the_restore_without_trying_an_older_copy()
     {
         using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-stop-seed");

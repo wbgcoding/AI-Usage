@@ -252,7 +252,14 @@ public sealed class StatsStore
     {
         try
         {
-            var connectionString = new SqliteConnectionStringBuilder { DataSource = copyPath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString();
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = copyPath,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false,
+                // Whole seconds, and the ADO default is 30: a locked copy must not hold the restore for minutes.
+                DefaultTimeout = 1,
+            }.ToString();
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
             Execute(connection, "PRAGMA trusted_schema = OFF");
@@ -302,7 +309,7 @@ public sealed class StatsStore
             foreach (var (date, copyPath) in ListWeeklyCopies(Path.Combine(directory, WeeklyCopyFolder), DateOnly.FromDateTime(DateTime.Now)))
             {
                 // A copy that carried a flaw (or was restored already) gets no second try per process.
-                if (TriedCopies.Contains(copyPath))
+                if (WasTried(copyPath))
                     continue;
 
                 var verdict = CopyVerdict.Transient;
@@ -315,7 +322,7 @@ public sealed class StatsStore
 
                 if (verdict == CopyVerdict.Corrupt)
                 {
-                    TriedCopies.Add(copyPath);
+                    MarkTried(copyPath);
                     continue;
                 }
 
@@ -332,12 +339,12 @@ public sealed class StatsStore
                 try
                 {
                     File.Delete(temporaryPath);
-                    SnapshotIndex(copyPath, temporaryPath);
+                    SnapshotIndex(copyPath, temporaryPath, WeeklyCopyPagesPerStep, () => Thread.Sleep(5));
                 }
                 catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
                 {
                     DeleteRestoreLeftovers(temporaryPath);
-                    TriedCopies.Add(copyPath);
+                    MarkTried(copyPath);
                     continue;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
@@ -391,7 +398,7 @@ public sealed class StatsStore
         }
 
         // Restored once per process: the same flaw would come back with the same copy.
-        TriedCopies.Add(prepared.CopyPath);
+        MarkTried(prepared.CopyPath);
         RecentlyRestored.Add(fullPath);
         _logError?.Invoke($"Statistics: the index was restored from the weekly copy of {prepared.Date.ToString(WeeklyCopyDateFormat, CultureInfo.InvariantCulture)}.");
         return true;
@@ -932,18 +939,39 @@ public sealed class StatsStore
     {
         SqliteConnection.ClearPool(connection);
         ForgetDatabase(fullPath);
-        // Two threads can fail on the same file; the second one's report is about a file that is gone
-        // by now and must not set aside the index the first one put in its place.
-        StoreGate.EnterWriteLock();
+        // The copy is chosen and copied before the gate: a locked copy is waited for (seconds), and no
+        // open may wait with it. Another open already preparing this file's restore reports its damage
+        // and tries again next time.
+        var prepareLock = PrepareLocks.GetOrAdd(fullPath, _ => new object());
+        if (!Monitor.TryEnter(prepareLock))
+            return;
         try
         {
-            if (FileGenerations.GetValueOrDefault(fullPath) != generation)
+            if (!IsCurrentGeneration(fullPath, generation))
                 return;
-            SetAsideAndRestore(fullPath, errorCode);
+            var plan = PrepareWeeklyRestore(fullPath, out var prepared);
+            // Two threads can fail on the same file; the second one's report is about a file that is gone
+            // by now and must not set aside the index the first one put in its place.
+            StoreGate.EnterWriteLock();
+            try
+            {
+                if (FileGenerations.GetValueOrDefault(fullPath) != generation)
+                {
+                    if (plan == RestorePlan.Ready)
+                        DeleteRestoreLeftovers(prepared.TemporaryPath);
+                    return;
+                }
+
+                SetAsideAndRestore(fullPath, errorCode, plan, prepared);
+            }
+            finally
+            {
+                StoreGate.ExitWriteLock();
+            }
         }
         finally
         {
-            StoreGate.ExitWriteLock();
+            Monitor.Exit(prepareLock);
         }
     }
 
@@ -953,17 +981,45 @@ public sealed class StatsStore
     private static readonly Dictionary<string, long> FileGenerations = new(StringComparer.OrdinalIgnoreCase);
     // Paths this process put a weekly copy back at.
     private static readonly HashSet<string> RecentlyRestored = new(StringComparer.OrdinalIgnoreCase);
-    // Weekly copies this process already tried to restore (guarded by the write side of the gate).
+    // Weekly copies this process already tried to restore (guarded by its own monitor: the copy is chosen outside the gate).
     private static readonly HashSet<string> TriedCopies = new(StringComparer.OrdinalIgnoreCase);
 
-    private void SetAsideAndRestore(string fullPath, int errorCode)
+    private static bool WasTried(string copyPath)
+    {
+        lock (TriedCopies)
+            return TriedCopies.Contains(copyPath);
+    }
+
+    private static void MarkTried(string copyPath)
+    {
+        lock (TriedCopies)
+            TriedCopies.Add(copyPath);
+    }
+
+    // One restore preparation per index file at a time; a second damaged open does not wait for it.
+    private static readonly ConcurrentDictionary<string, object> PrepareLocks = new(StringComparer.OrdinalIgnoreCase);
+
+    // False when the file was set aside since the damage was seen (a report about an older incarnation).
+    private static bool IsCurrentGeneration(string fullPath, long generation)
+    {
+        StoreGate.EnterReadLock();
+        try
+        {
+            return FileGenerations.GetValueOrDefault(fullPath) == generation;
+        }
+        finally
+        {
+            StoreGate.ExitReadLock();
+        }
+    }
+
+    private void SetAsideAndRestore(string fullPath, int errorCode, RestorePlan plan, PreparedRestore prepared)
     {
         try
         {
             var directory = Path.GetDirectoryName(fullPath)!;
-            // The copy is chosen and copied before the damaged file moves: a copy that is only busy
+            // The copy was chosen and copied before the damaged file moves: a copy that is only busy
             // leaves the index where it is, the next open meets the damage again and retries.
-            var plan = PrepareWeeklyRestore(fullPath, out var prepared);
             if (plan == RestorePlan.Wait)
                 return;
             // The index is the only copy of usage whose session logs are gone, so earlier copies are
