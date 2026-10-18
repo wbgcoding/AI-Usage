@@ -33,12 +33,33 @@ public sealed class ModelPriceList
     private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly Func<string> _cacheDirectory;
-    private readonly object _gate = new();
+    private readonly object _gate;
     private readonly Dictionary<string, ModelPrice?> _found = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reported;
     private Dictionary<string, ModelPrice> _prices = new();
 
-    public ModelPriceList(Func<string> cacheDirectory) => _cacheDirectory = cacheDirectory;
+    public ModelPriceList(Func<string> cacheDirectory)
+    {
+        _cacheDirectory = cacheDirectory;
+        _gate = new object();
+        _reported = new HashSet<string>(StringComparer.Ordinal);
+    }
+
+    private ModelPriceList(ModelPriceList source)
+    {
+        _cacheDirectory = source._cacheDirectory;
+        _gate = source._gate;
+        _reported = source._reported;
+        lock (_gate)
+        {
+            _prices = source._prices;
+            FetchedAt = source.FetchedAt;
+        }
+    }
+
+    /// <summary>The prices as they are now, unaffected by a later <see cref="Replace"/> on this list.
+    /// A model without a price is still reported once per run across both lists.</summary>
+    internal ModelPriceList Snapshot() => new(this);
 
     /// <summary>When the prices were last downloaded; null while there are none.</summary>
     public DateTimeOffset? FetchedAt { get; private set; }

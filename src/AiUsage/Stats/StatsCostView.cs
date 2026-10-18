@@ -7,12 +7,13 @@ namespace AiUsage.Stats;
 /// <summary>
 /// What the statistics view model asks for the cost estimate: a figure or a tooltip line for any set of
 /// usage rows, or nothing when the estimate is off, no prices are loaded yet or no service is attached.
-/// One instance is made per rebuild, so every figure of a rebuild reads the same switch and the same
-/// price list.
+/// One instance is made per rebuild and takes a fixed copy of the switch, the price list, the currency
+/// and the rate when it is made, so every figure of a rebuild agrees and it is safe to use off the UI
+/// thread. Make it on the UI thread.
 /// </summary>
 internal sealed class StatsCostView(CostService? service)
 {
-    private readonly CostService? _service = service is { Enabled: true } enabled && !enabled.Prices.IsEmpty ? service : null;
+    private readonly CostSnapshot? _service = service?.Snapshot();
 
     /// <summary>True when cost figures are shown at all.</summary>
     public bool Active => _service is not null;

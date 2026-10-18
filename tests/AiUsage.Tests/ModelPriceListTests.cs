@@ -35,6 +35,21 @@ public class ModelPriceListTests
     }
 
     [Fact]
+    public void Snapshot_keeps_its_prices_when_the_list_is_replaced()
+    {
+        var list = Loaded();
+        var snapshot = list.Snapshot();
+
+        list.Replace(ModelPriceList.Parse("""{ "other": { "input_cost_per_token": 0.000001, "output_cost_per_token": 0.000002 } }"""),
+            DateTimeOffset.UtcNow, persist: false);
+
+        Assert.NotNull(snapshot.Find("claude-sonnet-4-5"));
+        Assert.Null(snapshot.Find("other"));
+        Assert.Null(list.Find("claude-sonnet-4-5"));
+        Assert.False(snapshot.IsEmpty);
+    }
+
+    [Fact]
     public void Parse_keeps_chat_responses_and_unmarked_models_only()
     {
         var parsed = ModelPriceList.Parse(Sample);

@@ -156,15 +156,25 @@ public sealed class CostService
 
     /// <summary>The cost for the export: dollars, the same amount in the shown currency (a euro figure needs
     /// the rate, else the dollars show) and that currency's code. All empty when no price is known.</summary>
-    public (string Usd, string Cost, string Currency) ExportFigures(CostSummary summary)
+    public (string Usd, string Cost, string Currency) ExportFigures(CostSummary summary) =>
+        ExportFigures(summary, EffectiveCurrency, Rate.UsdPerEur);
+
+    internal static (string Usd, string Cost, string Currency) ExportFigures(CostSummary summary, CostCurrency currency, double? usdPerEur)
     {
         if (!summary.AnyPriced)
             return ("", "", "");
 
-        var euro = EffectiveCurrency == CostCurrency.Eur && Rate.UsdPerEur is > 0;
-        var shown = euro ? summary.Usd / Rate.UsdPerEur!.Value : summary.Usd;
+        var euro = currency == CostCurrency.Eur && usdPerEur is > 0;
+        var shown = euro ? summary.Usd / usdPerEur!.Value : summary.Usd;
         return (UsdForExport(summary), shown.ToString("0.######", CultureInfo.InvariantCulture), euro ? "EUR" : "USD");
     }
+
+    /// <summary>The inputs of the figures as they are now; null when the estimate is off or no prices
+    /// are loaded. Call it on the thread that owns the settings, then hand it to background work.</summary>
+    internal CostSnapshot? Snapshot() =>
+        Enabled && !Prices.IsEmpty
+            ? new CostSnapshot(Prices.Snapshot(), EffectiveCurrency, Rate.UsdPerEur, _culture())
+            : null;
 
     /// <summary>Called after the switch or the currency changed: open statistics redraw, then whatever
     /// is now needed (the rate after a change to euro) is loaded in the background.</summary>
