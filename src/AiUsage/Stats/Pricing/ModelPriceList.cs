@@ -35,6 +35,9 @@ public sealed class ModelPriceList
     private static readonly Regex FreeWord = new(@"(^|[-:_./@])free($|[-:_./@])",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
+    private static readonly Regex AliasSuffix = new(@"-(default|[a-z])$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
     private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly Func<string> _cacheDirectory;
@@ -264,6 +267,17 @@ public sealed class ModelPriceList
         if (name.Length == 0)
             return null;
 
+        if (Resolve(prices, name) is { } found)
+            return found;
+
+        // Last resort: a tool's own alias ("gemini-pro-default", "gemini-3-flash-a") is looked up as
+        // the plain model it stands for.
+        var plain = AliasSuffix.Replace(name, "");
+        return plain.Length > 0 && plain.Length != name.Length ? Resolve(prices, plain) : null;
+    }
+
+    private static ModelPrice? Resolve(Dictionary<string, ModelPrice> prices, string name)
+    {
         if (Direct(prices, name) is { } direct)
             return direct;
 
@@ -286,19 +300,13 @@ public sealed class ModelPriceList
 
     /// <summary>The list key whose name equals the model name or, failing that, the longest key that
     /// starts it (or the shortest key it starts), within the same maker family so a name never borrows
-    /// another maker's price. Among equal names the key filed under the model's own maker wins, then the
-    /// shortest key, then the first in ordinal order.</summary>
+    /// another maker's price. Among keys with the same name the one filed under the model's own maker
+    /// wins, then the shortest key, then the first in ordinal order.</summary>
     private static ModelPrice? ByPrefix(Dictionary<string, ModelPrice> prices, string name)
     {
         var lowered = name.ToLowerInvariant();
         var family = Family(lowered);
-        ModelPrice? equal = null;
-        string? equalKey = null;
-        var equalOwn = false;
-        ModelPrice? longest = null;
-        var longestLength = 0;
-        ModelPrice? shortest = null;
-        string? shortestKey = null;
+        Candidate? equal = null, longest = null, shortest = null;
 
         foreach (var (key, price) in prices)
         {
@@ -307,45 +315,43 @@ public sealed class ModelPriceList
             if (Family(bare) != family)
                 continue;
 
-            if (bare.Length == lowered.Length)
+            var candidate = new Candidate(price, bare, lowKey, string.Equals(MakerOf(lowKey), family, StringComparison.Ordinal));
+            if (string.Equals(bare, lowered, StringComparison.Ordinal))
             {
-                if (!string.Equals(bare, lowered, StringComparison.Ordinal))
-                    continue;
-                var own = string.Equals(MakerOf(lowKey), family, StringComparison.Ordinal);
-                if (equalKey is null || Preferred(own, lowKey, equalOwn, equalKey))
-                {
-                    equal = price;
-                    equalKey = lowKey;
-                    equalOwn = own;
-                }
+                if (equal is null || candidate.Beats(equal, 0))
+                    equal = candidate;
             }
             else if (bare.Length < lowered.Length && lowered.StartsWith(bare, StringComparison.Ordinal) && IsBoundary(lowered[bare.Length]))
             {
-                if (bare.Length > longestLength)
-                {
-                    longest = price;
-                    longestLength = bare.Length;
-                }
+                if (longest is null || candidate.Beats(longest, -1))
+                    longest = candidate;
             }
             else if (bare.Length > lowered.Length && bare.StartsWith(lowered, StringComparison.Ordinal) && IsBoundary(bare[lowered.Length]))
             {
-                if (shortestKey is null || bare.Length < shortestKey.Length
-                    || (bare.Length == shortestKey.Length && string.CompareOrdinal(bare, shortestKey) < 0))
-                {
-                    shortest = price;
-                    shortestKey = bare;
-                }
+                if (shortest is null || candidate.Beats(shortest, 1))
+                    shortest = candidate;
             }
         }
 
-        return equal ?? longest ?? shortest;
+        return (equal ?? longest ?? shortest)?.Price;
     }
 
-    private static bool Preferred(bool own, string key, bool otherOwn, string otherKey)
+    /// <summary>A list key that fits a model name. <see cref="Beats"/> orders two of them: by name length
+    /// (<c>direction</c> 1 = shorter first, -1 = longer first, 0 = ignore), then the name, then the key
+    /// under the model's own maker, then the shorter key, then the key itself.</summary>
+    private sealed record Candidate(ModelPrice Price, string Bare, string Key, bool Own)
     {
-        if (own != otherOwn)
-            return own;
-        return key.Length != otherKey.Length ? key.Length < otherKey.Length : string.CompareOrdinal(key, otherKey) < 0;
+        public bool Beats(Candidate other, int direction)
+        {
+            if (direction != 0 && Bare.Length != other.Bare.Length)
+                return direction > 0 ? Bare.Length < other.Bare.Length : Bare.Length > other.Bare.Length;
+            var byName = string.CompareOrdinal(Bare, other.Bare);
+            if (byName != 0)
+                return byName < 0;
+            if (Own != other.Own)
+                return Own;
+            return Key.Length != other.Key.Length ? Key.Length < other.Key.Length : string.CompareOrdinal(Key, other.Key) < 0;
+        }
     }
 
     private static bool IsBoundary(char c) => c is '-' or '.' or ':' or '@' or '_';

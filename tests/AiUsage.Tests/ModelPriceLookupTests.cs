@@ -120,4 +120,51 @@ public class ModelPriceLookupTests
         list.Replace(entries, DateTimeOffset.UtcNow, persist: false);
         Assert.Equal(0.000001, list.Find("minimax-m3")!.Input);
     }
+
+    // ---- alias suffixes ----
+
+    private static ModelPriceList GeminiList()
+    {
+        var entries = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["gemini/gemini-pro-latest"] = new(0.000001, 0.000002, null, null),
+            ["gemini-pro-latest"] = new(0.000001, 0.000002, null, null),
+            ["gemini/gemini-3-flash-preview"] = new(0.000003, 0.000004, null, null),
+            ["gemini-3-flash-preview"] = new(0.000003, 0.000004, null, null),
+            ["minimax/MiniMax-M3"] = new(0.000005, 0.000006, null, null),
+        };
+        var list = new ModelPriceList(TempDirectory);
+        list.Replace(entries, DateTimeOffset.UtcNow, persist: false);
+        return list;
+    }
+
+    [Theory]
+    [InlineData("gemini-pro-default", 0.000001)]
+    [InlineData("gemini-pro-d", 0.000001)]
+    [InlineData("gemini-3-flash-a", 0.000003)]
+    [InlineData("Gemini-Pro-Default", 0.000001)]
+    public void A_tool_alias_finds_the_plain_model(string alias, double input) =>
+        Assert.Equal(input, GeminiList().Find(alias)!.Input);
+
+    [Fact]
+    public void A_real_key_wins_over_the_alias_retry()
+    {
+        var entries = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["gemini-pro-default"] = new(0.000009, 0.000009, null, null),
+            ["gemini-pro-latest"] = new(0.000001, 0.000001, null, null),
+        };
+        var list = new ModelPriceList(TempDirectory);
+        list.Replace(entries, DateTimeOffset.UtcNow, persist: false);
+        Assert.Equal(0.000009, list.Find("gemini-pro-default")!.Input);
+    }
+
+    [Fact]
+    public void An_alias_without_a_plain_model_stays_unknown()
+    {
+        var list = GeminiList();
+        Assert.Null(list.Find("codex-auto-review"));
+        Assert.Null(list.Find("big-pickle-default"));
+        Assert.Null(list.Find("-d"));
+    }
 }
