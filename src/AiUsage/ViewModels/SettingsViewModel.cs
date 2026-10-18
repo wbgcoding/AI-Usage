@@ -560,7 +560,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// the account through <see cref="MainViewModel.RemoveAccountAsync"/> (its sign-in folder is
     /// deleted, its history only when asked) and says so, or says that it could not, through the same
     /// <see cref="_showMessage"/> seam every other Settings-window notice uses. Cancelling the confirmation changes nothing.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRemoveAccount))]
     private async Task RemoveAccountAsync(string accountKey)
     {
         var (confirmed, alsoHistory) = ConfirmRemoveAccount();
@@ -581,6 +581,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 break;
         }
     }
+
+    // Not while that account's sign-out is still clearing its session; the button follows
+    // MainViewModel.SigningOutChanged.
+    private bool CanRemoveAccount(string accountKey) => !Main.IsSigningOut(accountKey);
+
+    private void OnSigningOutChanged(object? sender, EventArgs e) => RemoveAccountCommand.NotifyCanExecuteChanged();
 
     public SettingsViewModel(MainViewModel main, AppSettings settings, SettingsStore store)
         : this(main, settings, store, AutostartService.IsEnabled, AutostartService.Enable, AutostartService.Disable,
@@ -692,6 +698,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Choice.Select(LayoutChoices, settings.Layout);
         Choice.Select(WindowLayerChoices, Main.WindowLayer);
         Main.WindowLayerChanged += OnMainWindowLayerChanged;
+        Main.SigningOutChanged += OnSigningOutChanged;
         Choice.Select(TileOrderChoices, settings.TileOrderMode);
         Choice.Select(CostCurrencyChoices, settings.CostCurrency);
         Choice.Select(AttentionMaxAgeChoices, AttentionMaxAgeSelection(settings));
@@ -718,6 +725,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
         Main.Tiles.CollectionChanged -= OnTilesChanged;
         Main.WindowLayerChanged -= OnMainWindowLayerChanged;
+        Main.SigningOutChanged -= OnSigningOutChanged;
         UnwatchTileNames();
     }
 

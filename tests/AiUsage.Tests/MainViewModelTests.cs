@@ -3068,25 +3068,72 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task ASignOutThatIsOvertakenByARemovalDoesNotRebuildTheAccount()
+    public async Task ARemovalWaitsForARunningSignOutAndThenRemovesTheRebuiltAccount()
     {
         var (vm, settings) = BuildTwoAccounts();
-        var rebuilt = new List<string>();
-        vm.CreateWebAccount = key => { rebuilt.Add(key); return (new FakeAccountProvider(key), new GatedRunner()); };
+        var events = new List<string>();
+        var rebuiltRunner = new GatedRunner();
+        rebuiltRunner.Release.SetResult();
+        var rebuilt = 0;
+        vm.CreateWebAccount = key => { rebuilt++; return (new FakeAccountProvider(key), rebuiltRunner); };
+        vm.SignOutWebView = key => { events.Add("delete"); return SignOutResult.Removed; };
         var runner = new GatedRunner();
         var runners = (Dictionary<string, IAsyncDisposable>)ReadPrivateField(vm, "_webRunners");
         runners["claude#2"] = runner;
         var signOut = vm.SignOutAsync("claude#2");
         Assert.False(signOut.IsCompleted);
+        Assert.True(vm.IsSigningOut("claude#2"));
 
-        Assert.Equal(RemoveAccountResult.Removed, await vm.RemoveAccountAsync("claude#2"));
+        var removal = vm.RemoveAccountAsync("claude#2");
+        Assert.False(removal.IsCompleted);
+        Assert.Empty(events);
         runner.Release.SetResult();
-        Assert.False(await signOut);
 
-        Assert.Empty(rebuilt);
+        Assert.True(await signOut);
+        Assert.Equal(RemoveAccountResult.Removed, await removal);
+
+        Assert.Equal(1, rebuilt);
+        Assert.True(runner.Disposed);
+        Assert.True(rebuiltRunner.Disposed);
+        Assert.Equal(["delete", "delete"], events);
         Assert.False(runners.ContainsKey("claude#2"));
         Assert.False(settings.Providers.ContainsKey("claude#2"));
         Assert.DoesNotContain(vm.Tiles, t => t.ProviderId == "claude#2");
+    }
+
+    [Fact]
+    public async Task AKeptAccountWithoutARunnerGetsAFreshOneWhenTheRemovalFails()
+    {
+        var (vm, _) = BuildTwoAccounts();
+        vm.SignOutWebView = _ => SignOutResult.StillOpen;
+        vm.SignOutRetryDelay = TimeSpan.Zero;
+        var rebuilt = new List<string>();
+        vm.CreateWebAccount = key => { rebuilt.Add(key); return (new FakeAccountProvider(key), new GatedRunner()); };
+        var runners = (Dictionary<string, IAsyncDisposable>)ReadPrivateField(vm, "_webRunners");
+        runners.Remove("claude#2");
+
+        Assert.Equal(RemoveAccountResult.SignInFilesLocked, await vm.RemoveAccountAsync("claude#2"));
+
+        Assert.Equal(["claude#2"], rebuilt);
+        Assert.True(runners.ContainsKey("claude#2"));
+        Assert.False(vm.IsAccountDisconnected("claude#2"));
+    }
+
+    [Fact]
+    public async Task SigningOutChangedIsRaisedWhenASignOutStartsAndEnds()
+    {
+        var (vm, _) = BuildTwoAccounts();
+        vm.CreateWebAccount = key => (new FakeAccountProvider(key), new GatedRunner());
+        var runner = new GatedRunner();
+        ((Dictionary<string, IAsyncDisposable>)ReadPrivateField(vm, "_webRunners"))["claude#2"] = runner;
+        var seen = new List<bool>();
+        vm.SigningOutChanged += (_, _) => seen.Add(vm.IsSigningOut("claude#2"));
+
+        var signOut = vm.SignOutAsync("claude#2");
+        runner.Release.SetResult();
+        await signOut;
+
+        Assert.Equal([true, false], seen);
     }
 
     [Theory]

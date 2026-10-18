@@ -2266,6 +2266,33 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task TheRemoveCommandIsOffWhileThatAccountIsSigningOut()
+    {
+        var (vm, _) = BuildWithSecondAccount();
+        var gate = new TaskCompletionSource();
+        vm.Main.CreateWebAccount = key => (new FakeProvider("claude", key), new NoopRunner());
+        ((Dictionary<string, IAsyncDisposable>)typeof(MainViewModel)
+            .GetField("_webRunners", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(vm.Main)!)["claude#2"] = new GateRunner(gate.Task);
+        var changes = 0;
+        vm.RemoveAccountCommand.CanExecuteChanged += (_, _) => changes++;
+
+        var signOut = vm.Main.SignOutAsync("claude#2");
+        Assert.False(vm.RemoveAccountCommand.CanExecute("claude#2"));
+        Assert.True(vm.RemoveAccountCommand.CanExecute("claude"));
+        gate.SetResult();
+        await signOut;
+
+        Assert.True(vm.RemoveAccountCommand.CanExecute("claude#2"));
+        Assert.Equal(2, changes);
+    }
+
+    private sealed class GateRunner(Task gate) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync() => await gate;
+    }
+
+    [Fact]
     public async Task WithoutAConfirmDialogNoAccountIsRemoved()
     {
         var (vm, deleted) = BuildWithSecondAccount();

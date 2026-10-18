@@ -174,6 +174,14 @@ public sealed partial class MainViewModel
     // start a fetch between the cancel and the persisted Disconnected flag.
     private readonly HashSet<string> _signingOutAccounts = [];
 
+    // The running sign-out per account, so a removal started meanwhile waits for it instead of
+    // tearing the same session and folder down a second time.
+    private readonly Dictionary<string, Task> _signOutTasks = [];
+
+    /// <summary>Raised when an account's sign-out starts or ends, so a control that must not act
+    /// meanwhile (the Settings remove button) can re-check <see cref="IsSigningOut"/>.</summary>
+    internal event EventHandler? SigningOutChanged;
+
     /// <summary>The Settings.RemoveAccount action for a second (or later) account -
     /// first stops its running fetch and shuts its browser session down, deletes the account's own
     /// browser sign-in folder through the same path the sign-out uses (with its guard against ever
@@ -187,6 +195,20 @@ public sealed partial class MainViewModel
     /// in depth only.</summary>
     internal async Task<RemoveAccountResult> RemoveAccountAsync(string accountKey, bool alsoHistory = false)
     {
+        // A sign-out of this account that is still running finishes first (and rebuilds its runner),
+        // so the removal never finds a half torn down session.
+        if (_signOutTasks.TryGetValue(accountKey, out var signOutTask))
+        {
+            try
+            {
+                await signOutTask;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // The sign-out's own caller logs it.
+            }
+        }
+
         if (!_tilesById.TryGetValue(accountKey, out var tile) || !tile.IsExtraAccount)
             return RemoveAccountResult.NotRemoved;
         if (SharesFolderNameWithAnotherAccount(accountKey))
@@ -270,7 +292,7 @@ public sealed partial class MainViewModel
             // Done before the account counts as live again so no sign-in sees it half-built.
             try
             {
-                if (hadWebSession && !accountGone)
+                if (!accountGone && (hadWebSession || (IsWebBackedAccount(accountKey) && !_webRunners.ContainsKey(accountKey))))
                 {
                     _scheduler.RemoveProvider(accountKey);
                     var (freshProvider, freshRunner) = CreateWebAccount(accountKey);
@@ -286,6 +308,10 @@ public sealed partial class MainViewModel
 
         return historyKept ? RemoveAccountResult.RemovedHistoryKept : RemoveAccountResult.Removed;
     }
+
+    // Copilot has no web session, so a removal that keeps its account has no runner to rebuild.
+    private static bool IsWebBackedAccount(string accountKey) =>
+        ProviderRegistry.BaseProviderId(accountKey) != "copilot";
 
     /// <summary>Whether another account (or a built-in provider id) cleans down to the same sign-in
     /// folder and history file name as <paramref name="accountKey"/>, compared without case because
@@ -363,11 +389,16 @@ public sealed partial class MainViewModel
 
         try
         {
-            return await SignOutCoreAsync(accountKey);
+            var signOut = SignOutCoreAsync(accountKey);
+            _signOutTasks[accountKey] = signOut;
+            SigningOutChanged?.Invoke(this, EventArgs.Empty);
+            return await signOut;
         }
         finally
         {
+            _signOutTasks.Remove(accountKey);
             _signingOutAccounts.Remove(accountKey);
+            SigningOutChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
