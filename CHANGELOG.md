@@ -210,6 +210,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The per-active-day figure has a shorter label that fits the narrow window beside its cost.
 - Read-only text boxes in dialogs and tiles have a name for screen readers.
 - The cost estimate found no price for several models that are in the price list, such as MiniMax M3, and for tool aliases like "gemini-pro-default". They are matched now.
+- Moved projects no longer merge with unrelated folders of the same name inside other projects (such as two different "android" folders), and older rows that carry only the project name now count toward the moved project instead of showing as a separate bar.
 
 ### Security
 
