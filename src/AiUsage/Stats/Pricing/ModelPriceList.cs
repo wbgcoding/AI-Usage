@@ -284,12 +284,17 @@ public sealed class ModelPriceList
         return null;
     }
 
-    /// <summary>The longest list key that starts the model name (or, failing that, the shortest key the
-    /// model name starts), within the same maker family so a name never borrows another maker's price.</summary>
+    /// <summary>The list key whose name equals the model name or, failing that, the longest key that
+    /// starts it (or the shortest key it starts), within the same maker family so a name never borrows
+    /// another maker's price. Among equal names the key filed under the model's own maker wins, then the
+    /// shortest key, then the first in ordinal order.</summary>
     private static ModelPrice? ByPrefix(Dictionary<string, ModelPrice> prices, string name)
     {
         var lowered = name.ToLowerInvariant();
         var family = Family(lowered);
+        ModelPrice? equal = null;
+        string? equalKey = null;
+        var equalOwn = false;
         ModelPrice? longest = null;
         var longestLength = 0;
         ModelPrice? shortest = null;
@@ -297,11 +302,24 @@ public sealed class ModelPriceList
 
         foreach (var (key, price) in prices)
         {
-            var bare = StripMaker(key.ToLowerInvariant());
+            var lowKey = key.ToLowerInvariant();
+            var bare = StripMaker(lowKey);
             if (Family(bare) != family)
                 continue;
 
-            if (bare.Length < lowered.Length && lowered.StartsWith(bare, StringComparison.Ordinal) && IsBoundary(lowered[bare.Length]))
+            if (bare.Length == lowered.Length)
+            {
+                if (!string.Equals(bare, lowered, StringComparison.Ordinal))
+                    continue;
+                var own = string.Equals(MakerOf(lowKey), family, StringComparison.Ordinal);
+                if (equalKey is null || Preferred(own, lowKey, equalOwn, equalKey))
+                {
+                    equal = price;
+                    equalKey = lowKey;
+                    equalOwn = own;
+                }
+            }
+            else if (bare.Length < lowered.Length && lowered.StartsWith(bare, StringComparison.Ordinal) && IsBoundary(lowered[bare.Length]))
             {
                 if (bare.Length > longestLength)
                 {
@@ -320,7 +338,14 @@ public sealed class ModelPriceList
             }
         }
 
-        return longest ?? shortest;
+        return equal ?? longest ?? shortest;
+    }
+
+    private static bool Preferred(bool own, string key, bool otherOwn, string otherKey)
+    {
+        if (own != otherOwn)
+            return own;
+        return key.Length != otherKey.Length ? key.Length < otherKey.Length : string.CompareOrdinal(key, otherKey) < 0;
     }
 
     private static bool IsBoundary(char c) => c is '-' or '.' or ':' or '@' or '_';
@@ -329,6 +354,17 @@ public sealed class ModelPriceList
     {
         var slash = key.LastIndexOf('/');
         return slash >= 0 ? key[(slash + 1)..] : key;
+    }
+
+    /// <summary>The path part just before the model name in a list key ("minimax" in
+    /// "minimax/minimax-m3"); empty when the key has no path.</summary>
+    private static string MakerOf(string key)
+    {
+        var slash = key.LastIndexOf('/');
+        if (slash < 0)
+            return "";
+        var before = key[..slash];
+        return before[(before.LastIndexOf('/') + 1)..];
     }
 
     /// <summary>The maker a model name belongs to, from its first word.</summary>

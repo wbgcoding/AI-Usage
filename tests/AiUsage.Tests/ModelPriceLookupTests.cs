@@ -68,4 +68,56 @@ public class ModelPriceLookupTests
         var summary = CostCalculator.Sum([Row("nemotron-3-ultra-free")], empty);
         Assert.False(summary.AnyPriced);
     }
+
+    // ---- equal names ----
+
+    [Fact]
+    public void A_key_whose_bare_name_equals_the_model_is_found()
+    {
+        var list = ListOf("minimax/MiniMax-M3");
+        Assert.NotNull(list.Find("minimax-m3"));
+        Assert.NotNull(list.Find("MiniMax-M3"));
+    }
+
+    [Fact]
+    public void Equal_names_prefer_the_models_own_maker()
+    {
+        var entries = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fireworks_ai/minimax-m3"] = new(0.000001, 0.000002, null, null),
+            ["minimax/MiniMax-M3"] = new(0.000003, 0.000004, null, null),
+            ["azure_ai/minimax-m3"] = new(0.000005, 0.000006, null, null),
+        };
+        var list = new ModelPriceList(TempDirectory);
+        list.Replace(entries, DateTimeOffset.UtcNow, persist: false);
+        Assert.Equal(0.000003, list.Find("minimax-m3")!.Input);
+    }
+
+    [Fact]
+    public void Equal_names_without_the_own_maker_take_the_shortest_key_then_ordinal_order()
+    {
+        var entries = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fireworks_ai/minimax-m3"] = new(0.000001, 0.000002, null, null),
+            ["az/minimax-m3"] = new(0.000003, 0.000004, null, null),
+            ["zz/minimax-m3"] = new(0.000005, 0.000006, null, null),
+        };
+        var list = new ModelPriceList(TempDirectory);
+        list.Replace(entries, DateTimeOffset.UtcNow, persist: false);
+        Assert.Equal(0.000003, list.Find("minimax-m3")!.Input);
+    }
+
+    [Fact]
+    public void An_equal_name_beats_a_longer_key_and_stays_inside_its_maker_family()
+    {
+        var entries = new Dictionary<string, ModelPrice>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["minimax/MiniMax-M3-highspeed"] = new(0.000009, 0.000009, null, null),
+            ["fireworks_ai/minimax-m3"] = new(0.000001, 0.000002, null, null),
+            ["other/minimax"] = new(0.000007, 0.000007, null, null),
+        };
+        var list = new ModelPriceList(TempDirectory);
+        list.Replace(entries, DateTimeOffset.UtcNow, persist: false);
+        Assert.Equal(0.000001, list.Find("minimax-m3")!.Input);
+    }
 }
