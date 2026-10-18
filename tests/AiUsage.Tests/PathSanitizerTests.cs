@@ -117,6 +117,20 @@ public class PathSanitizerTests
     }
 
     [Fact]
+    public void Sanitize_masks_a_token_value_with_escapes_and_the_refresh_and_id_tokens()
+    {
+        var text = PathSanitizer.Sanitize(
+            @"{""access_token"":""\u0041bc\/def"",""refresh_token"":""r-1"",""id_token"":""i\/2""}",
+            userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var nested = PathSanitizer.Sanitize(
+            @"{\""access_token\"":\""ab\\/cd\"",\""x\"":1}",
+            userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+
+        Assert.Equal(@"{""access_token"":""{token}"",""refresh_token"":""{token}"",""id_token"":""{token}""}", text);
+        Assert.Equal(@"{\""access_token\"":\""{token}\"",\""x\"":1}", nested);
+    }
+
+    [Fact]
     public void Sanitize_masks_the_real_user_name_and_profile_without_injected_values()
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

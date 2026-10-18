@@ -34,8 +34,9 @@ public static class PathSanitizer
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     // Also matches the JSON-escaped spelling (\"access_token\":\"...\") a nested payload has in a log line.
+    // The value runs to the closing quote; an escape inside it (\/ or +) is part of the token.
     private static readonly Regex AccessTokenField = new(
-        @"(?<key>\\?""access_token\\?""\s*:\s*\\?"")[^""\\]*",
+        @"(?<key>\\?""(?:access|refresh|id)_token\\?""\s*:\s*\\?"")(?:[^""\\]|\\(?!""))*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static string Sanitize(string text, string? userProfile = null, string? userName = null, string? shortProfile = null)
