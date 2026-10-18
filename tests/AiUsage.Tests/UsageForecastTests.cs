@@ -42,6 +42,30 @@ public class UsageForecastTests
         Assert.NotNull(result);
     }
 
+    // The fit runs from the last reading; a reading that is 20 minutes old has used that much of the projection.
+    [Fact]
+    public void TheProjectionCountsFromNowNotFromTheLastReading()
+    {
+        var points = RisingSeries(6, TimeSpan.FromMinutes(5), 10, 2);
+        var now = points[^1].At + TimeSpan.FromMinutes(20);
+
+        var result = UsageForecast.TimeToFull(points, now, resetsAt: now + TimeSpan.FromMinutes(190));
+
+        Assert.NotNull(result);
+        Assert.Equal(180, result.Value.TotalMinutes, 3);
+    }
+
+    [Fact]
+    public void AProjectionThatLiesBehindNowIsZero()
+    {
+        var points = RisingSeries(6, TimeSpan.FromMinutes(5), 10, 2);
+        var now = points[^1].At + TimeSpan.FromMinutes(300);
+
+        var result = UsageForecast.TimeToFull(points, now, resetsAt: null);
+
+        Assert.Equal(TimeSpan.Zero, result);
+    }
+
     [Fact]
     public void FewerThanMinimumPointsInsideTheLookbackReturnsNull()
     {

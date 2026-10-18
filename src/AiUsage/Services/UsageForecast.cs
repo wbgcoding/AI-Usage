@@ -72,10 +72,13 @@ public static class UsageForecast
         if (last.Percent >= 100)
             return TimeSpan.Zero;
 
+        // The fit runs from the last reading; the answer counts from now.
         var seconds = (100 - last.Percent) / slopePercentPerSecond;
         if (seconds >= TimeSpan.MaxValue.TotalSeconds)
             return null;
-        var projected = TimeSpan.FromSeconds(seconds);
+        var projected = TimeSpan.FromSeconds(seconds) - (now - last.At);
+        if (projected < TimeSpan.Zero)
+            projected = TimeSpan.Zero;
         if (resetsAt is { } reset && projected > reset - now)
             return null; // the window resets before it would ever fill
 
