@@ -10,22 +10,48 @@ namespace AiUsage.Services;
 /// spellings; the bare account name and the profile's own folder name (they differ after an account
 /// rename) are replaced only as whole words, so "Maximum" survives a user called "Max". The 8.3
 /// short form of the profile path, which temp paths can carry, is treated the same way. The real values are looked up lazily so a test can inject fakes instead.
+/// As a last safety net, e-mail addresses and bearer or access tokens that slipped into a message
+/// are masked too.
 /// </summary>
 public static class PathSanitizer
 {
-    private static readonly Lazy<string?> RealShortProfile = new(() =>
-        ShortPathOf(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+    private static readonly Lazy<string> RealProfile = new(() =>
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+
+    private static readonly Lazy<string?> RealShortProfile = new(() => ShortPathOf(RealProfile.Value));
+
+    private static readonly Lazy<string> RealUserName = new(() => Environment.UserName);
+
+    private static readonly Lazy<Regex?> RealNames = new(() =>
+        NamesPattern(RealProfile.Value, RealShortProfile.Value, RealUserName.Value));
+
+    private static readonly Regex EmailAddress = new(
+        @"(?<![\p{L}\p{N}._%+\-])[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}\-]+(?:\.[\p{L}\p{N}\-]+)+",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex BearerToken = new(
+        @"(?<=\bBearer\s+)[A-Za-z0-9\-._~+/]+=*",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    // Also matches the JSON-escaped spelling (\"access_token\":\"...\") a nested payload has in a log line.
+    private static readonly Regex AccessTokenField = new(
+        @"(?<key>\\?""access_token\\?""\s*:\s*\\?"")[^""\\]*",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static string Sanitize(string text, string? userProfile = null, string? userName = null, string? shortProfile = null)
     {
+        var real = userProfile is null && userName is null && shortProfile is null;
         if (userProfile is null)
         {
-            userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            userProfile = RealProfile.Value;
             shortProfile ??= RealShortProfile.Value;
         }
-        userName ??= Environment.UserName;
+        userName ??= RealUserName.Value;
 
-        var names = new List<string>();
+        text = EmailAddress.Replace(text, "{email}");
+        text = BearerToken.Replace(text, "{token}");
+        text = AccessTokenField.Replace(text, "${key}{token}");
+
         foreach (var profile in new[] { userProfile, shortProfile })
         {
             if (string.IsNullOrEmpty(profile))
@@ -35,15 +61,29 @@ public static class PathSanitizer
             foreach (var spelling in new[] { plain.Replace("\\", "\\\\", StringComparison.Ordinal), plain, plain.Replace('\\', '/') })
                 if (spelling.Length > 0)
                     text = text.Replace(spelling, "<user>", StringComparison.OrdinalIgnoreCase);
-
-            names.Add(Path.GetFileName(plain.Replace('/', '\\')));
         }
-        names.Add(userName);
 
-        foreach (var name in names.Where(name => !string.IsNullOrEmpty(name) && name.Length > 2).Distinct(StringComparer.OrdinalIgnoreCase))
-            text = Regex.Replace(text, $@"(?<![\p{{L}}\p{{N}}_]){Regex.Escape(name)}(?![\p{{L}}\p{{N}}_])", "<user>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var names = real ? RealNames.Value : NamesPattern(userProfile, shortProfile, userName);
+        return names?.Replace(text, "<user>") ?? text;
+    }
 
-        return text;
+    /// <summary>One whole-word pattern for the account name and the profile folder names (the long
+    /// and the short form), or null when none is longer than two characters.</summary>
+    private static Regex? NamesPattern(string? userProfile, string? shortProfile, string? userName)
+    {
+        var names = new List<string>();
+        foreach (var profile in new[] { userProfile, shortProfile })
+            if (!string.IsNullOrEmpty(profile))
+                names.Add(Path.GetFileName(profile.TrimEnd('\\', '/').Replace('/', '\\')));
+        names.Add(userName ?? "");
+
+        var distinct = names.Where(name => name.Length > 2).Distinct(StringComparer.OrdinalIgnoreCase).Select(Regex.Escape).ToList();
+        if (distinct.Count == 0)
+            return null;
+
+        return new Regex(
+            $@"(?<![\p{{L}}\p{{N}}_])(?:{string.Join('|', distinct)})(?![\p{{L}}\p{{N}}_])",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
