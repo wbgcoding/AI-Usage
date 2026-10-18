@@ -206,7 +206,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Shortcut keys show as printed on the keyboard ("Page Down", "1", "/") and a long combination is no longer cut off.
 - The settings export leaves out window positions, monitor names, the names of imported PCs and stored provider addresses.
 - A settings import refuses files over 16 MB instead of freezing the window.
-- "Average per active day" is called "Per active day" and fits the narrow window.
+- The per-active-day figure has a shorter label that fits the narrow window beside its cost.
 - Read-only text boxes in dialogs and tiles have a name for screen readers.
 
 ### Security
