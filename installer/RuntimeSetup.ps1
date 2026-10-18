@@ -60,7 +60,7 @@ $DownloadLimitMinutes = 10
 
 function Write-Log([string]$Message) {
     if ($script:LogFile) {
-        Add-Content -LiteralPath $script:LogFile -Value ('{0:u} {1}' -f (Get-Date), $Message) -ErrorAction SilentlyContinue
+        Add-Content -LiteralPath $script:LogFile -Value ('{0:u} {1}' -f (Get-Date).ToUniversalTime(), $Message) -ErrorAction SilentlyContinue
     }
 }
 
@@ -257,6 +257,35 @@ function Get-FolderProblem([string]$Work, [string]$Installer) {
     return $null
 }
 
+# Nobody running as the current user may add a file beside the installer before it starts elevated:
+# SYSTEM and the administrators keep full control, the user may read, run and remove, and the owner
+# (S-1-3-4) loses the implicit right to change the permissions again.
+function Protect-WorkFolder([string]$Work) {
+    try {
+        $user = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $security = New-Object Security.AccessControl.DirectorySecurity
+        $security.SetAccessRuleProtection($true, $false)
+        $inherit = [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
+        $none = [Security.AccessControl.PropagationFlags]::None
+        $allow = [Security.AccessControl.AccessControlType]::Allow
+        $grants = @(
+            @((New-Object Security.Principal.SecurityIdentifier 'S-1-5-18'), 'FullControl'),
+            @((New-Object Security.Principal.SecurityIdentifier 'S-1-5-32-544'), 'FullControl'),
+            @($user, 'ReadAndExecute, Delete, DeleteSubdirectoriesAndFiles'),
+            @((New-Object Security.Principal.SecurityIdentifier 'S-1-3-4'), 'ReadAndExecute')
+        )
+        foreach ($grant in $grants) {
+            $rights = [Security.AccessControl.FileSystemRights]$grant[1]
+            $security.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($grant[0], $rights, $inherit, $none, $allow)))
+        }
+        [IO.Directory]::SetAccessControl($Work, $security)
+        return $null
+    }
+    catch {
+        return "the download folder could not be locked: $($_.Exception.Message)"
+    }
+}
+
 function Invoke-Main {
     if ($VerifyFile) {
         $guard = $null
@@ -308,6 +337,7 @@ function Invoke-Main {
 
         $problem = Get-SignatureProblem $file
         if (-not $problem) { $problem = Get-ProductProblem $file }
+        if (-not $problem) { $problem = Protect-WorkFolder $work }
         if (-not $problem) { $problem = Get-FolderProblem $work $file }
         if ($problem) {
             Write-Log "installer refused: $problem"
@@ -340,8 +370,13 @@ function Invoke-Main {
     }
     finally {
         if ($guard) { $guard.Dispose() }
+        # The one known file, then the folder only when empty: nothing is followed through a link.
         if ($work -and (Test-Path -LiteralPath $work)) {
-            Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+            try {
+                if ($file) { [IO.File]::Delete($file) }
+                [IO.Directory]::Delete($work, $false)
+            }
+            catch { }
         }
     }
 }

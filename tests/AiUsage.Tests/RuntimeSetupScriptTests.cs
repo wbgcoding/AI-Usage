@@ -213,6 +213,31 @@ public class RuntimeSetupScriptTests
     }
 
     [Fact]
+    public void A_locked_work_folder_takes_no_new_file_but_the_installer_can_still_be_removed()
+    {
+        var folder = TestPaths.CreateDirectory("runtime-lock");
+        var installer = Path.Combine(folder, "windowsdesktop-runtime.exe");
+        File.WriteAllText(installer, "installer");
+
+        var answers = Evaluate(
+            $"$r = Protect-WorkFolder '{folder}'; 'P|' + [bool]$r; " +
+            $"try {{ [IO.File]::WriteAllText('{Path.Combine(folder, "version.dll")}', 'x'); 'W|written' }} catch [UnauthorizedAccessException] {{ 'W|denied' }}; " +
+            $"[IO.File]::Delete('{installer}'); [IO.Directory]::Delete('{folder}', $false); 'D|' + (Test-Path -LiteralPath '{folder}')");
+
+        Assert.Equal(["P|False", "W|denied", "D|False"], answers);
+    }
+
+    [Fact]
+    public void The_work_folder_is_removed_by_file_and_empty_folder_not_recursively()
+    {
+        var text = File.ReadAllText(Script);
+
+        Assert.DoesNotContain("-Recurse", text);
+        Assert.Contains("[IO.Directory]::Delete($work, $false)", text);
+        Assert.Contains("(Get-Date).ToUniversalTime()", text);
+    }
+
+    [Fact]
     public void The_trust_lists_stay_narrow()
     {
         var text = File.ReadAllText(Script);
