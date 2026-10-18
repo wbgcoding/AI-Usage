@@ -476,12 +476,13 @@ public sealed class RefreshScheduler
 
     /// <summary>CancelProvider stopped this attempt on purpose: report no reading and keep the
     /// interval (the owner is about to change or remove the account), but tell the subscribers the
-    /// attempt is over.</summary>
-    private void EndOwnerCancelled(IUsageProvider provider, ProviderState state)
+    /// attempt is over, unless they were already told so (a cancel during the retry pause).</summary>
+    private void EndOwnerCancelled(IUsageProvider provider, ProviderState state, bool fetchOpen = true)
     {
         lock (_gate)
             state.NextDueAt = _timeProvider.GetUtcNow() + state.CurrentInterval;
-        RaiseFetchEnded(provider.AccountKey);
+        if (fetchOpen)
+            RaiseFetchEnded(provider.AccountKey);
     }
 
     private bool OwnerCancelled(ProviderState state)
@@ -589,8 +590,7 @@ public sealed class RefreshScheduler
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))
                 {
-                    fetchOpen = false;
-                    EndOwnerCancelled(provider, state);
+                    EndOwnerCancelled(provider, state, fetchOpen: false);
                     return;
                 }
                 finally

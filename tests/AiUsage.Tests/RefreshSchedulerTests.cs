@@ -978,8 +978,8 @@ public class RefreshSchedulerTests
         await scheduler.CancelProvider("gemini");
         await run;
 
-        // Once when the pause starts (the tile stops showing work), once for the cancelled attempt.
-        Assert.Equal(["gemini", "gemini"], ended);
+        // Once when the pause starts (the tile stops showing work); the cancel during the pause adds none.
+        Assert.Equal(["gemini"], ended);
         Assert.Empty(reported);
         Assert.Equal(1, provider.FetchCount);
     }
