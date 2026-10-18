@@ -460,6 +460,62 @@ public class RefreshSchedulerTests
     }
 
     [Fact]
+    public async Task Cancelling_the_lifetime_token_during_a_fetch_still_raises_FetchEnded_once()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("claude", async ct =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return Ok("claude");
+        });
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
+            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30), retryDelay: TimeSpan.Zero);
+        var started = new List<string>();
+        var ended = new List<string>();
+        var reported = new List<ProviderSnapshot>();
+        scheduler.FetchStarted += started.Add;
+        scheduler.FetchEnded += ended.Add;
+        scheduler.SnapshotReady += reported.Add;
+        using var lifetime = new CancellationTokenSource();
+
+        var running = scheduler.Tick(ct: lifetime.Token);
+        lifetime.Cancel();
+        try
+        {
+            await Task.WhenAll(running);
+        }
+        catch (OperationCanceledException)
+        {
+            // The run ends with the caller's own cancellation.
+        }
+
+        Assert.Equal(["claude"], started);
+        Assert.Equal(["claude"], ended);
+        Assert.Empty(reported);
+    }
+
+    [Fact]
+    public async Task A_completed_fetch_raises_a_snapshot_and_no_FetchEnded()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("claude");
+        provider.NextResult = Ok("claude");
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock);
+        var started = new List<string>();
+        var ended = new List<string>();
+        var reported = new List<ProviderSnapshot>();
+        scheduler.FetchStarted += started.Add;
+        scheduler.FetchEnded += ended.Add;
+        scheduler.SnapshotReady += reported.Add;
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Equal(["claude"], started);
+        Assert.Empty(ended);
+        Assert.Single(reported);
+    }
+
+    [Fact]
     public async Task A_provider_that_swallows_the_owner_cancel_and_returns_Failed_reports_nothing_and_keeps_its_interval()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));

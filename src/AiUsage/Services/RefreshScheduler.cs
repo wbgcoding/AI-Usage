@@ -525,6 +525,9 @@ public sealed class RefreshScheduler
         // end before the linked cancellation has been passed on - a "using" disposal at that point
         // unregistered the link, and the provider's own token was never cancelled at all.
         var runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        // True between FetchStarted and the event that ends it (SnapshotReady or FetchEnded), so a
+        // run the caller's token cuts short still ends what it started.
+        var fetchOpen = false;
         try
         {
             // A disconnected account (the Settings.SignOut action) is read through no source at all - not
@@ -543,6 +546,7 @@ public sealed class RefreshScheduler
             }
 
             RaiseFetchStarted(provider.AccountKey);
+            fetchOpen = true;
 
             TimeSpan baseForTimeout;
             lock (_gate)
@@ -568,6 +572,7 @@ public sealed class RefreshScheduler
                     + $"{(long)_timeProvider.GetElapsedTime(attemptClock).TotalMilliseconds} ms, "
                     + $"last source {state.LastSource?.ToString() ?? "none"}, retrying once in {(int)_retryDelay.TotalSeconds} s.");
                 // The tile shows no working state while it only waits; it comes back with the retry.
+                fetchOpen = false;
                 RaiseFetchEnded(provider.AccountKey);
                 // The pause has its own token, so a refresh the person asks for can end it early
                 // without cancelling the run.
@@ -584,6 +589,7 @@ public sealed class RefreshScheduler
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && OwnerCancelled(state))
                 {
+                    fetchOpen = false;
                     EndOwnerCancelled(provider, state);
                     return;
                 }
@@ -594,6 +600,7 @@ public sealed class RefreshScheduler
                 }
 
                 RaiseFetchStarted(provider.AccountKey);
+                fetchOpen = true;
                 attemptClock = _timeProvider.GetTimestamp();
                 // The retry is its own attempt: a failure it ends in is stamped with its own start.
                 snapshot = await FetchAttemptAsync(provider, _timeProvider.GetUtcNow(), holdNetwork, timeout, runCts, state, ct);
@@ -604,6 +611,7 @@ public sealed class RefreshScheduler
 
             if (snapshot is null)
             {
+                fetchOpen = false;
                 EndOwnerCancelled(provider, state);
                 return;
             }
@@ -612,6 +620,7 @@ public sealed class RefreshScheduler
             // be reported or backed off either: the answer belongs to an attempt that was abandoned.
             if (!ct.IsCancellationRequested && OwnerCancelled(state))
             {
+                fetchOpen = false;
                 EndOwnerCancelled(provider, state);
                 return;
             }
@@ -634,6 +643,7 @@ public sealed class RefreshScheduler
             }
 
             ReportReadChanges(provider.DisplayName, snapshot);
+            fetchOpen = false;
             RaiseSnapshotReady(snapshot with { ReadChanged = readScope.Noted });
         }
         finally
@@ -650,6 +660,9 @@ public sealed class RefreshScheduler
             // caller cancelled) is told to stop before the source goes away.
             runCts.Cancel();
             runCts.Dispose();
+
+            if (fetchOpen)
+                RaiseFetchEnded(provider.AccountKey);
         }
     }
 
