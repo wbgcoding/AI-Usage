@@ -731,6 +731,10 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Every stored record before the filters; <see cref="_allRecords"/> is what they let through.</summary>
     private IReadOnlyList<StatsRecord> _sourceRecords = [];
 
+    // Set when the newest rebuild failed: what is shown no longer matches _sourceRecords, so the next
+    // read must rebuild even when its data is unchanged.
+    private bool _rebuildFailed;
+
     /// <summary>True when the selected day has any usage; the detail charts show only then.</summary>
     public bool SelectedDayHasUsage { get; private set; }
 
@@ -1425,7 +1429,8 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>True when a fresh read has the same row counts and the same token total as what is
     /// shown, both before any filter - a cheap stand-in for "nothing changed since the prepared data".</summary>
     private bool MatchesShown(IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions) =>
-        records.Count == _sourceRecords.Count
+        !_rebuildFailed
+        && records.Count == _sourceRecords.Count
         && sessions.Count == _allSessions.Count
         && SameTokenTotal(records, _sourceRecords);
 
@@ -1522,6 +1527,8 @@ public sealed partial class StatsViewModel : ObservableObject
         catch (Exception ex)
         {
             LogService.Shared.LogError($"Stats view could not be rebuilt ({ex.GetType().Name}): {ex.Message}");
+            if (input.Generation == _rebuildGeneration)
+                _rebuildFailed = true;
             return;
         }
 
@@ -2028,6 +2035,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>Assigns a computed rebuild to the bound properties, on the window's thread.</summary>
     private void ApplyRebuild(RebuildInput input, RebuildOutput o)
     {
+        _rebuildFailed = false;
         var loc = LocalizationService.Instance;
         _currentPeriodRecords = o.InRange;
         _allRecords = o.All;

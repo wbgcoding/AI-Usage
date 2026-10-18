@@ -79,6 +79,26 @@ public class StatsRebuildOverlapTests
     }
 
     [Fact]
+    public async Task A_quiet_refresh_after_a_failed_aggregation_rebuilds_the_unchanged_data()
+    {
+        var store = StoreWithHistory("stats-overlap-recover", out var directory);
+        using var _ = directory;
+        var viewModel = StatsVm.Create(store);
+        await viewModel.SetRangeCommand.ExecuteAsync("Year");
+        var calls = 0;
+        viewModel.BeforeAggregate = _ =>
+        {
+            if (++calls == 1)
+                throw new InvalidOperationException("first rebuild fails");
+        };
+
+        await viewModel.SetRangeCommand.ExecuteAsync("Week");
+        await viewModel.RecomputeAsync(showLoading: false);
+
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
     public async Task A_language_switch_during_an_aggregation_keeps_the_captured_texts()
     {
         var store = StoreWithHistory("stats-overlap-language", out var directory);
