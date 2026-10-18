@@ -220,8 +220,8 @@
   <data name="Key.Escape" xml:space="preserve"><value>Esc</value></data>
   <data name="Key.Left" xml:space="preserve"><value>Pfeil links</value></data>
   <data name="Key.Right" xml:space="preserve"><value>Pfeil rechts</value></data>
-  <data name="Key.Up" xml:space="preserve"><value>Pfeil oben</value></data>
-  <data name="Key.Down" xml:space="preserve"><value>Pfeil unten</value></data>
+  <data name="Key.Up" xml:space="preserve"><value>Pfeil hoch</value></data>
+  <data name="Key.Down" xml:space="preserve"><value>Pfeil runter</value></data>
   <data name="Key.Pause" xml:space="preserve"><value>Pause</value></data>
   <data name="Key.PrintScreen" xml:space="preserve"><value>Druck</value></data>
   <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
