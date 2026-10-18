@@ -2680,6 +2680,9 @@ public sealed class StatsStore
             using var reader = command.ExecuteReader();
 
             var results = new List<StatsRecord>();
+            // The text columns repeat across thousands of rows; one instance per distinct value.
+            var interned = new Dictionary<string, string>(StringComparer.Ordinal);
+            string Intern(string value) => interned.TryGetValue(value, out var known) ? known : interned[value] = value;
             while (reader.Read())
             {
                 // A row a future build wrote in some shape this one no longer parses is skipped
@@ -2689,17 +2692,17 @@ public sealed class StatsStore
                     continue;
 
                 results.Add(new StatsRecord(
-                    Provider: reader.GetString(0),
+                    Provider: Intern(reader.GetString(0)),
                     Day: day,
-                    Model: reader.GetString(2),
-                    Project: reader.GetString(3),
+                    Model: Intern(reader.GetString(2)),
+                    Project: Intern(reader.GetString(3)),
                     InputTokens: reader.GetInt64(4),
                     OutputTokens: reader.GetInt64(5),
                     CacheCreationTokens: reader.GetInt64(6),
                     CacheReadTokens: reader.GetInt64(7),
                     Hour: reader.GetInt32(8),
-                    Effort: reader.GetString(9),
-                    Machine: reader.GetString(10),
+                    Effort: Intern(reader.GetString(9)),
+                    Machine: Intern(reader.GetString(10)),
                     Subagent: reader.GetInt32(11) != 0));
             }
 

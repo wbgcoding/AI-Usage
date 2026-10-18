@@ -248,6 +248,26 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void LoadAll_shares_one_string_instance_between_rows_with_equal_text()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-intern-data");
+        var store = new StatsStore(dataDir);
+        store.AddDelta(
+        [
+            new StatsRecord("claude", new DateOnly(2026, 1, 1), "modelA", "proj", 1, 1, 0, 0),
+            new StatsRecord("claude", new DateOnly(2026, 1, 2), "modelA", "proj", 2, 2, 0, 0)
+        ]);
+
+        var all = store.LoadAll();
+
+        Assert.Equal(2, all.Count);
+        Assert.Equal("modelA", all[0].Model);
+        Assert.Same(all[0].Provider, all[1].Provider);
+        Assert.Same(all[0].Model, all[1].Model);
+        Assert.Same(all[0].Project, all[1].Project);
+    }
+
+    [Fact]
     public void Indexer_rereads_a_file_whose_size_or_write_time_changed_but_skips_an_unchanged_one()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-claude");
