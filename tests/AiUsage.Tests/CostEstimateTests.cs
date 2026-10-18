@@ -164,6 +164,14 @@ public class CostEstimateTests
     }
 
     [Fact]
+    public void Free_models_cost_exactly_zero_and_show_as_zero()
+    {
+        var de = CultureInfo.GetCultureInfo("de-DE");
+        Assert.Equal("~0,00 €", CostFormatter.Format(0, CostCurrency.Eur, 1.1, de));
+        Assert.Equal("~$0.00", CostFormatter.Format(0, CostCurrency.Usd, null, CultureInfo.GetCultureInfo("en-US")));
+    }
+
+    [Fact]
     public void Euro_without_a_rate_shows_dollars()
     {
         var de = CultureInfo.GetCultureInfo("de-DE");

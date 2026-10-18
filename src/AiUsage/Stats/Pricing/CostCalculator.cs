@@ -131,8 +131,8 @@ public static class CostFormatter
     };
 
     /// <summary>"~12,34 $" or "~12,34 €" in the currency format of <paramref name="culture"/> (position
-    /// and separators of that culture, the symbol of the shown currency); under a cent it shows the
-    /// cent. Euro needs <paramref name="usdPerEur"/>; without a rate the dollar figure shows.</summary>
+    /// and separators of that culture, the symbol of the shown currency); exactly 0 (free models) shows
+    /// as 0, anything under a cent as the cent. Euro needs <paramref name="usdPerEur"/>; without a rate the dollar figure shows.</summary>
     public static string Format(double usd, CostCurrency effective, double? usdPerEur, CultureInfo culture)
     {
         var euro = effective == CostCurrency.Eur && usdPerEur is > 0;
@@ -140,7 +140,7 @@ public static class CostFormatter
         var numbers = (NumberFormatInfo)culture.NumberFormat.Clone();
         numbers.CurrencySymbol = euro ? "€" : "$";
         // A no-break space keeps the figure and its symbol on one line.
-        return "~" + Math.Max(value, 0.01).ToString("C2", numbers).Replace(' ', ' ');
+        return "~" + (value <= 0 ? 0 : Math.Max(value, 0.01)).ToString("C2", numbers).Replace(' ', ' ');
     }
 
     /// <summary>The figure for a summary: the priced part, with a trailing <c>*</c> when some models
