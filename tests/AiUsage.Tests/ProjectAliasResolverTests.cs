@@ -71,10 +71,10 @@ public class ProjectAliasResolverTests
     [Fact]
     public void Different_folder_names_and_bare_names_never_merge()
     {
-        var aliases = Build([], Record(@"C:\a\Alpha"), Record(@"C:\a\Beta"), Record("Alpha"), Record(""));
+        var aliases = Build([], Record(@"C:\a\Alpha"), Record(@"C:\a\Beta"), Record("Gamma"), Record(""));
 
         Assert.Equal(@"C:\a\Alpha", aliases.Resolve(@"C:\a\Alpha"));
-        Assert.Equal("Alpha", aliases.Resolve("Alpha"));
+        Assert.Equal("Gamma", aliases.Resolve("Gamma"));
         Assert.Equal("", aliases.Resolve(""));
     }
 
@@ -151,6 +151,65 @@ public class ProjectAliasResolverTests
             Record(@"C:\Claude\Other"), Record(@"C:\Claude\Other\Tool"), Record(@"E:\Claude\Tool"));
 
         Assert.Equal(@"C:\Claude\Other\Tool", aliases.Resolve(@"C:\Claude\Other\Tool"));
+    }
+
+    [Fact]
+    public void A_bare_name_follows_the_merged_project()
+    {
+        var aliases = Build([@"E:\Claude\Prompt Saver"], Record(@"C:\Claude\Prompt Saver"), Record(@"E:\Claude\Prompt Saver"), Record("Prompt Saver"));
+
+        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Resolve("Prompt Saver"));
+        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Resolve("prompt saver"));
+        Assert.Equal([@"C:\Claude\Prompt Saver"], aliases.FormerPaths(@"E:\Claude\Prompt Saver"));
+    }
+
+    [Fact]
+    public void A_bare_session_name_resolves_to_its_project()
+    {
+        var session = new StatsSessionRecord(
+            "codex", "", "s1", "Prompt Saver", new DateTimeOffset(2026, 12, 1, 8, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 12, 1, 9, 0, 0, TimeSpan.Zero),
+            1, 0, 0, 0, "gpt-5", 0);
+        var present = new HashSet<string> { @"E:\Claude\Prompt Saver" };
+
+        var aliases = ProjectAliasResolver.Build(
+            [Record(@"C:\Claude\Prompt Saver"), Record(@"E:\Claude\Prompt Saver")], [session], present.Contains);
+
+        Assert.Equal(@"E:\Claude\Prompt Saver", aliases.Apply([session])[0].Project);
+    }
+
+    [Fact]
+    public void A_bare_name_stays_when_two_projects_of_that_name_exist()
+    {
+        var aliases = Build([@"C:\a\Tool", @"E:\Work\Tool"], Record(@"C:\a\Tool"), Record(@"E:\Work\Tool"), Record("Tool"));
+
+        Assert.Equal("Tool", aliases.Resolve("Tool"));
+    }
+
+    [Fact]
+    public void A_bare_name_stays_when_the_same_subfolder_name_belongs_to_two_projects()
+    {
+        var aliases = Build([], Record(@"C:\Claude\One"), Record(@"C:\Claude\One\android"), Record(@"C:\Claude\Two"), Record(@"C:\Claude\Two\android"), Record("android"));
+
+        Assert.Equal("android", aliases.Resolve("android"));
+    }
+
+    [Fact]
+    public void A_moved_project_with_bare_rows_is_one_bar_holding_every_total()
+    {
+        var records = new[]
+        {
+            Record(@"C:\Claude\Prompt Saver", tokens: 10), Record(@"E:\Claude\Prompt Saver", tokens: 20), Record("Prompt Saver", tokens: 30),
+            Record(@"E:\Claude\Other", tokens: 5), Record("Unknown", tokens: 7), Record("", tokens: 3),
+        };
+        var aliases = Build([@"E:\Claude\Prompt Saver", @"E:\Claude\Other"], records);
+
+        var before = StatsAggregator.TopProjectsDetailed(records, int.MaxValue, "none");
+        var after = StatsAggregator.TopProjectsDetailed(aliases.Apply(records), int.MaxValue, "none");
+
+        Assert.Equal(75, before.Sum(row => row.Total));
+        Assert.Equal(75, after.Sum(row => row.Total));
+        Assert.Equal(4, after.Count);
+        Assert.Equal(60, after.Single(row => row.FullPath == @"E:\Claude\Prompt Saver").Total);
     }
 
     [Fact]

@@ -95,7 +95,8 @@ public sealed class ProjectAliases
 /// (case-insensitive). A path inside another indexed project only pairs with paths inside that same
 /// project, so unrelated subfolders of one name stay apart. Within a pairing, paths whose folder no
 /// longer exists merge into the single one that does; with none left, into the most recently used;
-/// with two or more present they stay apart.
+/// with two or more present they stay apart. A bare folder name (older rows carry no path) continues
+/// as the project of that name when only one is left.
 /// </summary>
 public static class ProjectAliasResolver
 {
@@ -180,6 +181,30 @@ public static class ProjectAliasResolver
 
         foreach (var name in groups.Keys.ToList())
             Settle(name);
+
+        // A bare folder name follows its project when only one project of that name is left.
+        var bareNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var record in records)
+        {
+            if (record.Project.Length > 0 && !IsFullPath(record.Project))
+                bareNames.Add(record.Project);
+        }
+
+        foreach (var session in sessions)
+        {
+            if (session.Project.Length > 0 && !IsFullPath(session.Project))
+                bareNames.Add(session.Project);
+        }
+
+        foreach (var bare in bareNames)
+        {
+            if (!groups.TryGetValue(bare, out var paths))
+                continue;
+
+            var survivors = paths.Select(WinnerOf).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (survivors.Count == 1)
+                target[bare] = survivors[0];
+        }
 
         return target.Count == 0 ? ProjectAliases.None : new ProjectAliases(target, former);
     }
