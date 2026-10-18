@@ -56,7 +56,9 @@ public class MainViewModelTests : IDisposable
         var settingsStore = new SettingsStore(TempDirectory());
         var historyDir = TempDirectory();
         var historyStore = new HistoryStore(historyDir, () => Now);
-        var vm = new MainViewModel(settingsStore, settings, providers, historyStore, claudeRunner);
+        // Own notification state per test: a mute written by one test must not silence another.
+        var vm = new MainViewModel(settingsStore, settings, providers, historyStore, claudeRunner,
+            notifications: new NotificationService(TempDirectory()));
         return (vm, historyDir, providers);
     }
 

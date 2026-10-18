@@ -32,7 +32,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly RefreshScheduler _scheduler;
     // Account key -> provider, for the capabilities a tile re-reads when a setting flips.
     private readonly Dictionary<string, IUsageProvider> _providersByKey = new();
-    private readonly NotificationService _notifications = new();
+    private readonly NotificationService _notifications;
     private readonly Dictionary<string, ProviderTileViewModel> _tilesById;
     private readonly LogService? _logService;
 
@@ -550,8 +550,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal MainViewModel(
         SettingsStore settingsStore, AppSettings settings, IReadOnlyList<IUsageProvider> providers,
         HistoryStore historyStore, IAsyncDisposable? claudeRunner = null, LogService? logService = null,
-        TimeProvider? timeProvider = null, StatsStore? statsStore = null)
+        TimeProvider? timeProvider = null, StatsStore? statsStore = null, NotificationService? notifications = null)
     {
+        _notifications = notifications ?? new NotificationService();
         _logService = logService;
         _webRunners = new Dictionary<string, IAsyncDisposable>();
         if (claudeRunner is not null)
