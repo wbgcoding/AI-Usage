@@ -198,6 +198,16 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - An account name cut to its maximum length no longer ends in half an emoji.
 - Uninstalling removes the desktop shortcut of a per-machine install.
 - The portable setup no longer writes a setup log to the PC.
+- Removing an account while it is still signing out no longer leaves its tile without reads until a restart.
+- The "full in" forecast counts from now instead of from the last reading, so an older reading no longer pushes it late.
+- Quiet hours with the same start and end time now cover the whole day.
+- Tokens per percent is no longer doubled for the hour the clocks go back in autumn.
+- The token usage window computes a new range or grouping in the background instead of freezing for a moment on a large history.
+- Shortcut keys show as printed on the keyboard ("Page Down", "1", "/") and a long combination is no longer cut off.
+- The settings export leaves out window positions, monitor names, the names of imported PCs and stored provider addresses.
+- A settings import refuses files over 16 MB instead of freezing the window.
+- "Average per active day" is called "Per active day" and fits the narrow window.
+- Read-only text boxes in dialogs and tiles have a name for screen readers.
 
 ### Security
 
@@ -214,6 +224,10 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The address found for reading a provider is stored without account ids.
 - The WebView2 installer runs from its own new folder, its signer must chain to a pinned Microsoft root, and the sign-in window allows no downloads.
 - The build refuses a release whose signature does not match the key built into the app.
+- The folder an update or runtime setup runs from is locked before it starts with administrator rights, so no other program can place a file beside it, and it is removed without following links.
+- A Microsoft installer whose revocation check fails right after its download is refused.
+- The app log masks e-mail addresses and access, refresh and id tokens if one ever ends up in a message.
+- A new data folder is created readable only by your user, the administrators and the system.
 
 ## [1.1.0] - 2026-10-08
 
