@@ -134,7 +134,11 @@ public sealed class WebViewRuntimeInstaller
             if (!signature.IsValid)
                 return new WebViewInstallResult(WebViewInstallOutcome.SignatureInvalid, signature.Detail);
 
-            // Anything beside the checked file means the folder was tampered with after it was created.
+            // Sealed against additions first; anything beside the checked file means the folder was
+            // tampered with after it was created.
+            if (!FreshRunFolder.TrySeal(runFolder))
+                return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, Services.LocalizationService.Instance["WebView2.Detail.UntrustedFolder"]);
+
             if (!FreshRunFolder.HoldsOnly(runFolder, file))
                 return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, Services.LocalizationService.Instance["WebView2.Detail.ExtraFiles"]);
 

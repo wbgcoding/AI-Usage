@@ -37,6 +37,31 @@ public class FreshRunFolderTests
     }
 
     [Fact]
+    public void ASealedFolderTakesNoNewFileButStillCleansUp()
+    {
+        using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+        {
+            // An elevated process holds the administrators' full control and is not held back.
+            if (new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+                return;
+        }
+
+        var folder = FreshRunFolder.TryCreate(TestPaths.CreateDirectory("fresh-seal"))!;
+        var file = Path.Combine(folder, "setup.exe");
+        File.WriteAllBytes(file, Payload);
+
+        Assert.True(FreshRunFolder.TrySeal(folder));
+
+        Assert.Throws<UnauthorizedAccessException>(() => File.WriteAllText(Path.Combine(folder, "version.dll"), "x"));
+        Assert.True(FreshRunFolder.HoldsOnly(folder, file));
+        Assert.Equal("payload", File.ReadAllText(file));
+
+        File.Delete(file);
+        FreshRunFolder.TryRemoveEmpty(folder);
+        Assert.False(Directory.Exists(folder));
+    }
+
+    [Fact]
     public void ARemovalLeavesAFolderWithContentAlone()
     {
         var folder = FreshRunFolder.TryCreate(TestPaths.CreateDirectory("fresh-remove"))!;

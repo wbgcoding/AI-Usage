@@ -1,4 +1,6 @@
 ﻿using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Win32.SafeHandles;
 
 namespace AiUsage.Io;
@@ -40,6 +42,48 @@ internal static class FreshRunFolder
             return null;
         }
     }
+
+    /// <summary>Seals <paramref name="folder"/> against anyone who runs as the current user: SYSTEM and the
+    /// administrators keep full control, the user may read, run and remove what is inside but not add a
+    /// file, and the owner loses the implicit right to change the permissions again. A library planted
+    /// beside the file before the elevated start is thereby impossible. False when the permissions
+    /// could not be set; the run must not start then.</summary>
+    internal static bool TrySeal(string folder)
+    {
+        if (!OperatingSystem.IsWindows())
+            return true;
+
+        try
+        {
+            var security = new DirectorySecurity();
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            using (var identity = WindowsIdentity.GetCurrent())
+            {
+                if (identity.User is not { } user)
+                    return false;
+
+                Allow(security, new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl);
+                Allow(security, new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl);
+                Allow(security, user,
+                    FileSystemRights.ReadAndExecute | FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles);
+            }
+
+            // OWNER RIGHTS: without an entry of its own the owner always holds WRITE_DAC.
+            Allow(security, new SecurityIdentifier("S-1-3-4"), FileSystemRights.ReadAndExecute);
+            new DirectoryInfo(folder).SetAccessControl(security);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+            or InvalidOperationException or PlatformNotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static void Allow(DirectorySecurity security, SecurityIdentifier sid, FileSystemRights rights) =>
+        security.AddAccessRule(new FileSystemAccessRule(
+            sid, rights, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None, AccessControlType.Allow));
 
     /// <summary>True when <paramref name="folder"/> contains exactly <paramref name="file"/>: no other
     /// file, no subfolder.</summary>

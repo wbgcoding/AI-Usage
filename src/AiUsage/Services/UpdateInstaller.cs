@@ -253,7 +253,16 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             if (host.IsInstalled)
             {
                 // The setup runs with elevated rights from this folder, and a program loads libraries
-                // from its own folder: anything beside the verified file means the folder was tampered with.
+                // from its own folder: it is sealed against additions first, and anything beside the
+                // verified file means the folder was tampered with.
+                if (!FreshRunFolder.TrySeal(runFolder))
+                {
+                    log?.Invoke("Update refused: the download folder could not be locked.");
+                    held.Dispose();
+                    CleanUpRun(runFolder, filePath);
+                    return UpdateOutcome.DownloadFailed;
+                }
+
                 if (!FreshRunFolder.HoldsOnly(runFolder, filePath))
                 {
                     log?.Invoke("Update refused: the download folder holds more than the downloaded file.");

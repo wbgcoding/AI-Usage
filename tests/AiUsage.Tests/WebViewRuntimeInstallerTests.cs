@@ -49,7 +49,7 @@ public class WebViewRuntimeInstallerTests
             {
                 Calls.Add("run");
                 // Between the check and the run nobody else can open the file for writing or delete it.
-                Assert.Throws<IOException>(() => new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite).Dispose());
+                Assert.ThrowsAny<Exception>(() => new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite).Dispose());
                 Assert.Throws<IOException>(() => File.Delete(path));
                 RunPath = path;
                 RunArguments = arguments;

@@ -313,7 +313,7 @@ public class UpdateInstallerTests
         host.OnLaunch = path =>
         {
             try { File.WriteAllBytes(path, [.. "evil"u8]); }
-            catch (IOException) { overwriteFailed = true; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { overwriteFailed = true; }
             try { File.Delete(path); }
             catch (IOException) { deleteFailed = true; }
         };
@@ -758,7 +758,7 @@ public class UpdateInstallerTests
         host.OnInspect = path =>
         {
             try { File.WriteAllBytes(path, [.. "evil"u8]); }
-            catch (IOException) { overwriteFailed = true; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { overwriteFailed = true; }
             try { File.Move(path, path + ".moved"); }
             catch (IOException) { moveFailed = true; }
         };
