@@ -453,6 +453,16 @@ public class WebViewRuntimeInstallerTests
     }
 
     [Fact]
+    public void An_unreachable_revocation_server_never_passes_for_a_file_just_downloaded()
+    {
+        const int revocationFailure = unchecked((int)0x800B010E);
+
+        Assert.False(AuthenticodeSignature.IsTrustResultAcceptable(revocationFailure, hasInternet: false, justDownloaded: true));
+        Assert.False(AuthenticodeSignature.IsTrustResultAcceptable(revocationFailure, hasInternet: true, justDownloaded: true));
+        Assert.True(AuthenticodeSignature.IsTrustResultAcceptable(0, hasInternet: false, justDownloaded: true));
+    }
+
+    [Fact]
     public void Only_a_clean_result_passes_regardless_of_the_network()
     {
         Assert.True(AuthenticodeSignature.IsTrustResultAcceptable(0, hasInternet: true));

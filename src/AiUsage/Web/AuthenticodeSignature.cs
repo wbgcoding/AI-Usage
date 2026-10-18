@@ -10,7 +10,7 @@ namespace AiUsage.Web;
 /// since signing, the signer's name is the one expected - a valid signature of somebody else does
 /// not count - and the signer's chain ends in one of Microsoft's own root certificates, so a root added
 /// to this machine's store cannot vouch for a leaf that merely names Microsoft. An unreachable
-/// revocation server only passes while the machine has no internet.
+/// revocation server only passes while the machine has no internet and the file was not just downloaded.
 /// </summary>
 internal static class AuthenticodeSignature
 {
@@ -23,12 +23,15 @@ internal static class AuthenticodeSignature
         "8F43288AD272F3103B6FB1428485EA3014C0BCFE",
     ];
 
-    internal static SignatureCheckResult Check(string path) => Check(path, WebViewRuntimeInstaller.RequiredSigner);
+    /// <summary>The check for a file this run has just downloaded: an unreachable revocation server is
+    /// never accepted.</summary>
+    internal static SignatureCheckResult Check(string path) =>
+        Check(path, WebViewRuntimeInstaller.RequiredSigner, justDownloaded: true);
 
-    internal static SignatureCheckResult Check(string path, string requiredSigner)
+    internal static SignatureCheckResult Check(string path, string requiredSigner, bool justDownloaded = false)
     {
         var trust = VerifyTrust(path);
-        if (!IsTrustResultAcceptable(trust, Services.NetworkStatus.HasInternet()))
+        if (!IsTrustResultAcceptable(trust, Services.NetworkStatus.HasInternet(), justDownloaded))
             return new SignatureCheckResult(false, $"signature: WinVerifyTrust 0x{trust:X8}");
 
         if (!ReadSignerNames(path).Any(name => string.Equals(name, requiredSigner, StringComparison.OrdinalIgnoreCase)))
@@ -116,9 +119,10 @@ internal static class AuthenticodeSignature
 
     /// <summary>Maps the trust check's answer to pass or fail: only 0 passes, plus the one case where
     /// the revocation server could not be reached and the machine really is offline. Online, an
-    /// unreachable revocation server is a failure like any other.</summary>
-    internal static bool IsTrustResultAcceptable(int trustResult, bool hasInternet) =>
-        trustResult == 0 || (trustResult == CertERevocationFailure && !hasInternet);
+    /// unreachable revocation server is a failure like any other, and so is it for a file that was
+    /// just downloaded: that proves the machine reached the network a moment ago.</summary>
+    internal static bool IsTrustResultAcceptable(int trustResult, bool hasInternet, bool justDownloaded = false) =>
+        trustResult == 0 || (trustResult == CertERevocationFailure && !hasInternet && !justDownloaded);
 
     /// <summary>The signer's common name and organisation: Microsoft signs some products with the
     /// company name as the common name and others (the .NET runtime files) with a product name there
