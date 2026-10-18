@@ -215,6 +215,13 @@ public class RuntimeSetupScriptTests
     [Fact]
     public void A_locked_work_folder_takes_no_new_file_but_the_installer_can_still_be_removed()
     {
+        using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+        {
+            // An elevated process (a CI runner) holds the administrators' full control and is not held back.
+            if (new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+                return;
+        }
+
         var folder = TestPaths.CreateDirectory("runtime-lock");
         var installer = Path.Combine(folder, "windowsdesktop-runtime.exe");
         File.WriteAllText(installer, "installer");
