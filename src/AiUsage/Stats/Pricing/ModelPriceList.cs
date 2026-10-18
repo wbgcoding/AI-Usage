@@ -47,6 +47,9 @@ public sealed class ModelPriceList
     private readonly HashSet<string> _reported;
     private Dictionary<string, ModelPrice> _prices = new();
 
+    // A snapshot keeps the second table it was taken with; the live list reads the current one.
+    private readonly IReadOnlyDictionary<string, List<FallbackPriceList.Entry>>? _fallbackFrozen;
+
     public ModelPriceList(Func<string> cacheDirectory)
     {
         _cacheDirectory = cacheDirectory;
@@ -61,6 +64,7 @@ public sealed class ModelPriceList
         _gate = source._gate;
         _reported = source._reported;
         Fallback = source.Fallback;
+        _fallbackFrozen = source._fallbackFrozen ?? source.Fallback.Current;
         lock (_gate)
         {
             _prices = source._prices;
@@ -258,11 +262,13 @@ public sealed class ModelPriceList
     public ModelPrice? Find(string model)
     {
         Dictionary<string, ModelPrice> prices;
+        IReadOnlyDictionary<string, List<FallbackPriceList.Entry>> fallback;
         lock (_gate)
         {
             if (_prices.Count == 0)
                 return null;
             prices = _prices;
+            fallback = _fallbackFrozen ?? Fallback.Current;
             if (_found.TryGetValue(model, out var cached))
                 return cached;
         }
@@ -271,13 +277,16 @@ public sealed class ModelPriceList
         if (price is null)
         {
             Fallback.MarkWanted();
-            price = Fallback.Find(model);
+            price = FallbackPriceList.Find(fallback, model);
+            if (price is null && PlainAlias(model) is { } plain)
+                price = FallbackPriceList.Find(fallback, plain);
         }
 
         var report = false;
         lock (_gate)
         {
-            if (ReferenceEquals(prices, _prices))
+            // Remember the answer only while both tables are still the ones it was found in.
+            if (ReferenceEquals(prices, _prices) && ReferenceEquals(fallback, _fallbackFrozen ?? Fallback.Current))
                 _found[model] = price;
             if (price is null)
                 report = _reported.Add(model);
@@ -299,8 +308,15 @@ public sealed class ModelPriceList
 
         // Last resort: a tool's own alias ("gemini-pro-default", "gemini-3-flash-a") is looked up as
         // the plain model it stands for.
+        return PlainAlias(name) is { } plain ? Resolve(prices, plain) : null;
+    }
+
+    /// <summary>The model name without a tool's alias suffix, or null when it has none.</summary>
+    private static string? PlainAlias(string name)
+    {
+        name = name.Trim();
         var plain = AliasSuffix.Replace(name, "");
-        return plain.Length > 0 && plain.Length != name.Length ? Resolve(prices, plain) : null;
+        return plain.Length > 0 && plain.Length != name.Length ? plain : null;
     }
 
     private static ModelPrice? Resolve(Dictionary<string, ModelPrice> prices, string name)

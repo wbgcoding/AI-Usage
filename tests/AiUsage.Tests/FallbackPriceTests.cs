@@ -146,6 +146,22 @@ public class FallbackPriceTests
         Assert.True(list.IsEmpty);
     }
 
+    [Fact]
+    public void A_cache_file_too_big_to_be_ours_is_not_read()
+    {
+        var directory = TempDirectory();
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, FallbackPriceList.CacheFileName);
+        new FallbackPriceList(() => directory).Replace(FallbackPriceList.Parse(Fixture), DateTimeOffset.UtcNow);
+        using (var stream = new FileStream(path, FileMode.Open))
+            stream.SetLength(FallbackPriceList.MaxCacheBytes + 1);
+
+        var list = new FallbackPriceList(() => directory);
+        list.Load();
+
+        Assert.True(list.IsEmpty);
+    }
+
     // ---- through the main list ----
 
     private static ModelPriceList MainWith(params string[] keys)
@@ -191,6 +207,29 @@ public class FallbackPriceTests
         foreach (var model in priced)
             Assert.True(list.Find(model) is not null, model);
         Assert.Null(list.Find("codex-auto-review"));
+    }
+
+    [Fact]
+    public void A_snapshot_keeps_the_second_table_it_was_taken_with()
+    {
+        var list = MainWith("gpt-5");
+        var before = list.Snapshot();
+
+        list.ReplaceFallback(FallbackPriceList.Parse(Fixture), DateTimeOffset.UtcNow, persist: false);
+        var after = list.Snapshot();
+
+        Assert.Null(before.Find("minimax-m3"));
+        Assert.NotNull(after.Find("minimax-m3"));
+        Assert.NotNull(list.Find("minimax-m3"));
+    }
+
+    [Fact]
+    public void A_tool_alias_is_retried_in_the_second_table()
+    {
+        var list = MainWith("gpt-5");
+        list.ReplaceFallback(FallbackPriceList.Parse(Fixture), DateTimeOffset.UtcNow, persist: false);
+
+        Assert.Equal(list.Find("minimax-m3")!.Input, list.Find("minimax-m3-default")!.Input, 12);
     }
 
     [Fact]

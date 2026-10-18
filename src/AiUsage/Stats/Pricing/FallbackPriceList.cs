@@ -21,6 +21,9 @@ internal sealed class FallbackPriceList
     private const int MaxEntries = 100_000;
     private const int MaxIdLength = 200;
 
+    /// <summary>The trimmed cache is far smaller than the download; a bigger file is not ours.</summary>
+    internal const long MaxCacheBytes = 16L * 1024 * 1024;
+
     private static readonly ModelPrice FreePrice = new(0, 0, null, null);
 
     private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -199,7 +202,8 @@ internal sealed class FallbackPriceList
         try
         {
             var path = Path.Combine(_cacheDirectory(), CacheFileName);
-            if (!File.Exists(path))
+            var file = new FileInfo(path);
+            if (!file.Exists || file.Length > MaxCacheBytes)
                 return;
 
             using var document = JsonDocument.Parse(File.ReadAllText(path, Encoding.UTF8), new JsonDocumentOptions { MaxDepth = 8 });
@@ -249,16 +253,24 @@ internal sealed class FallbackPriceList
     /// ignoring case; a date suffix is tried only when the plain name matches nothing. Entries that cost
     /// nothing are ignored unless every match is free (then the model is free). An entry filed under the
     /// model's own maker wins; otherwise the match with the median input price is taken.</summary>
-    internal ModelPrice? Find(string model)
+    internal ModelPrice? Find(string model) => Find(Current, model);
+
+    /// <summary>The table as it is now. A later <see cref="Replace"/> swaps in a new one and never
+    /// changes this one, so a caller can keep it for a consistent run.</summary>
+    internal IReadOnlyDictionary<string, List<Entry>> Current
+    {
+        get
+        {
+            lock (_gate)
+                return _index;
+        }
+    }
+
+    /// <summary><see cref="Find(string)"/> against a table taken earlier from <see cref="Current"/>.</summary>
+    internal static ModelPrice? Find(IReadOnlyDictionary<string, List<Entry>> index, string model)
     {
         var name = model.Trim().ToLowerInvariant();
-        if (name.Length == 0)
-            return null;
-
-        Dictionary<string, List<Entry>> index;
-        lock (_gate)
-            index = _index;
-        if (index.Count == 0)
+        if (name.Length == 0 || index.Count == 0)
             return null;
 
         var last = LastSegment(name);
@@ -291,7 +303,7 @@ internal sealed class FallbackPriceList
         return before[(before.LastIndexOf('/') + 1)..];
     }
 
-    private static List<Entry> Collect(Dictionary<string, List<Entry>> index, string first, string second)
+    private static List<Entry> Collect(IReadOnlyDictionary<string, List<Entry>> index, string first, string second)
     {
         var found = new List<Entry>();
         foreach (var key in first == second ? [first] : new[] { first, second })
