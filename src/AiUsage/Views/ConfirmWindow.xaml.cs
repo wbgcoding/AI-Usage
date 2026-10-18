@@ -66,7 +66,6 @@ public partial class ConfirmWindow : Window
         {
             DetailBox.Text = detailText;
             DetailBox.Visibility = Visibility.Visible;
-            System.Windows.Automation.AutomationProperties.SetName(DetailBox, detailText);
             // One click puts the whole line in the selection, ready to copy.
             DetailBox.GotKeyboardFocus += (_, _) => DetailBox.SelectAll();
             DetailBox.PreviewMouseLeftButtonUp += (_, _) => DetailBox.SelectAll();

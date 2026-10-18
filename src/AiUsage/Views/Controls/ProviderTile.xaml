@@ -490,6 +490,7 @@
                 <StackPanel Grid.Row="1" Margin="0,8,0,0" Visibility="{Binding HasDiagnostics, Converter={StaticResource BoolToVis}}">
                     <StackPanel Visibility="{Binding DetailsExpanded, Converter={StaticResource BoolToVis}}">
                         <TextBox Text="{Binding DiagnosticsText, Mode=OneWay}" IsReadOnly="True"
+                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.Details]}"
                                  TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Small}" MaxHeight="120"
                                  VerticalScrollBarVisibility="Auto" Background="Transparent"
                                  BorderThickness="0" Padding="0"

@@ -124,6 +124,7 @@
   <data name="Crash.Headline" xml:space="preserve"><value>Es ist ein unerwarteter Fehler aufgetreten.</value></data>
   <data name="Crash.Message" xml:space="preserve"><value>Die Anwendung wird jetzt beendet. Die Einzelheiten unten helfen bei der Ursachensuche.</value></data>
   <data name="Crash.CopyDetails" xml:space="preserve"><value>Einzelheiten kopieren</value></data>
+  <data name="Crash.Details" xml:space="preserve"><value>Fehlerdetails</value></data>
   <data name="Crash.OpenLogFolder" xml:space="preserve"><value>Protokollordner öffnen</value></data>
   <data name="Crash.Close" xml:space="preserve"><value>Schließen</value></data>
   <data name="Settings.Title" xml:space="preserve"><value>Einstellungen</value></data>
@@ -136,6 +137,8 @@
   <data name="Tile.Menu.Details" xml:space="preserve"><value>Einzelheiten anzeigen</value></data>
   <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Einzelheiten ausblenden</value></data>
   <data name="Tile.CopyDetails" xml:space="preserve"><value>Einzelheiten kopieren</value></data>
+  <data name="Tile.Details" xml:space="preserve"><value>Details</value></data>
+  <data name="Confirm.Details" xml:space="preserve"><value>Technische Details</value></data>
   <data name="Diag.SearchedIn" xml:space="preserve"><value>Gesucht in: {0}</value></data>
   <data name="Diag.FilesChecked" xml:space="preserve"><value>Geprüfte Dateien: {0}</value></data>
   <data name="Diag.NewestFile" xml:space="preserve"><value>Neueste Datei: {0}</value></data>

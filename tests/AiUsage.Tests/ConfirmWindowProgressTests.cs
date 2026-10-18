@@ -114,7 +114,7 @@ public class ConfirmWindowProgressTests
         Assert.Equal(Visibility.Visible, detail.Item1);
         Assert.Equal("install: exit code 5", detail.Item2);
         Assert.True(detail.Item3);
-        Assert.Equal("install: exit code 5", detail.Item4);
+        Assert.Equal(AiUsage.Services.LocalizationService.Instance["Confirm.Details"], detail.Item4);
         Assert.Equal(Visibility.Collapsed, detail.Item5);
     }
 
