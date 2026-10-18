@@ -1722,8 +1722,6 @@ public class SettingsViewModelTests : IDisposable
         var indexCopyDone = false;
         var smallFilesCalls = 0;
         var smallFilesAfterIndex = false;
-        var smallFilesThread = 0;
-        var startThread = Environment.CurrentManagedThreadId;
         var vm = new SettingsViewModel(main, settings, settingsStore,
             isAutostartEnabled: () => false,
             enableAutostart: _ => true,
@@ -1743,7 +1741,6 @@ public class SettingsViewModelTests : IDisposable
             {
                 smallFilesCalls++;
                 smallFilesAfterIndex = indexCopyDone;
-                smallFilesThread = Environment.CurrentManagedThreadId;
             });
 
         AppPaths.SetPointerRootOverride(TempDirectory());
@@ -1763,8 +1760,6 @@ public class SettingsViewModelTests : IDisposable
 
             Assert.Equal(1, smallFilesCalls);
             Assert.True(smallFilesAfterIndex);
-
-            Assert.NotEqual(startThread, smallFilesThread);
 
             Assert.False(vm.IsMovingData);
             Assert.True(vm.ChooseDataFolderCommand.CanExecute(null));

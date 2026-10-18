@@ -1539,9 +1539,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             try
             {
                 await Task.Run(() => _copyIndex(source, destination));
-                // Back on the UI thread: flush the settings, then copy the small files on the pool.
+                // Back on the UI thread: flush the settings, then copy the small files while nothing
+                // else writes them.
                 _store.SaveNow(_settings);
-                await Task.Run(() => _copySmallFiles(source, destination));
+                _copySmallFiles(source, destination);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
             {
