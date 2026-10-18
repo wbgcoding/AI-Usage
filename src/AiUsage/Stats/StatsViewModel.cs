@@ -1499,12 +1499,26 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The same rebuild with the aggregation on a pool thread, so a large history does not hold
     /// the window. Superseded by any rebuild started meanwhile; only the aggregation counts towards the
-    /// slow-rebuild log.</summary>
+    /// slow-rebuild log. A failing aggregation is logged and dropped, the view keeps its previous state.</summary>
     private async Task RecomputeFromAsync(IReadOnlyList<StatsRecord> source, LimitInputs? inputs = null)
     {
         var input = PrepareRebuild(source, inputs);
         var started = Stopwatch.GetTimestamp();
-        var output = await Task.Run(() => ComputeRebuild(input));
+        RebuildOutput output;
+        try
+        {
+            output = await Task.Run(() =>
+            {
+                using var scope = LocalizationService.Enter(input.Text);
+                return ComputeRebuild(input);
+            });
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Stats view could not be rebuilt ({ex.GetType().Name}): {ex.Message}");
+            return;
+        }
+
         var elapsed = Stopwatch.GetElapsedTime(started);
         if (input.Generation != _rebuildGeneration)
             return;
@@ -1549,7 +1563,7 @@ public sealed partial class StatsViewModel : ObservableObject
         StatsCostView CostView,
         ProjectAliases Aliases,
         DateOnly Today,
-        CultureInfo DisplayCulture,
+        LocalizationService.Captured Text,
         DateOnly MonthGridFrom,
         int Generation);
 
@@ -1653,11 +1667,12 @@ public sealed partial class StatsViewModel : ObservableObject
         // Days are bucketed in local time, so "today" is the local calendar day too.
         var today = DateOnly.FromDateTime(DateTime.Now);
         var grouping = SelectedGrouping;
+        var text = LocalizationService.Instance.Capture();
         return new RebuildInput(
             source, Merged(source), grouping == StatsGrouping.Session ? Merged(_allSessions) : [],
             CurrentFilter(), SelectedRange, _customFrom, _customTo, grouping,
             IsStackedByProvider, IsHeatmap, CanChooseColor, IsModelStack, IsAgentStack,
-            new StatsCostView(_cost), Aliases, today, LocalizationService.Instance.DisplayCulture,
+            new StatsCostView(_cost), Aliases, today, text,
             MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), today),
             ++_rebuildGeneration);
     }
@@ -1714,7 +1729,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var rowKeys = groupedRows.Select(row => row.Key ?? row.Label).ToList();
         var groupCosts = costView.Active && grouping != StatsGrouping.Session
             ? costView.ByKey(
-                inRange, record => BarCostKey(record, grouping, weeklyPerDay, input.DisplayCulture),
+                inRange, record => BarCostKey(record, grouping, weeklyPerDay, input.Text.Display),
                 grouping == StatsGrouping.Project ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
             : new Dictionary<string, CostSummary>();
         if (grouping == StatsGrouping.Effort)
@@ -1824,7 +1839,7 @@ public sealed partial class StatsViewModel : ObservableObject
             costLine: costView.Active ? records => costView.Line(records) : null);
 
         var exportCosts = dayRows is not null && weeklyPerDay && costView.Active
-            ? costView.ByKey(inRange, record => BarCostKey(record, StatsGrouping.Day, false, input.DisplayCulture))
+            ? costView.ByKey(inRange, record => BarCostKey(record, StatsGrouping.Day, false, input.Text.Display))
             : groupCosts;
         var rowProjectLabels = grouping == StatsGrouping.Project
             ? ProjectLabels.For(groupedRows.Select(ProjectPathOf).OfType<string>())
@@ -1979,7 +1994,7 @@ public sealed partial class StatsViewModel : ObservableObject
         // short history can cut down.
         var figures = StatsAggregator.ComputeHeadlineFigures(
             inRange, previous, periodDayCount, period.HasPrevious ? period.PreviousTo.DayNumber - period.PreviousFrom.DayNumber + 1 : 0);
-        WriteHeadlineFigures(o, figures, previous.Sum(record => record.TotalTokens), loc, costView, inRange, previous, input.DisplayCulture);
+        WriteHeadlineFigures(o, figures, previous.Sum(record => record.TotalTokens), loc, costView, inRange, previous, input.Text.Display);
         o.Figures = figures;
         o.PeriodDayCount = periodDayCount;
         var totalCost = costView.Sum(inRange);

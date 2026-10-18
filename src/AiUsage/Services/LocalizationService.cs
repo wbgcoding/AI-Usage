@@ -67,19 +67,26 @@ public sealed class LocalizationService : INotifyPropertyChanged
 
     /// <summary>Empty for an unknown key rather than throwing - a placeholder tile must never crash
     /// the window over a typo'd resource key.</summary>
-    public string this[string key] => _active.GetString(key, CultureInfo.InvariantCulture) ?? "";
+    public string this[string key] => (s_scope.Value?.Resources ?? _active).GetString(key, CultureInfo.InvariantCulture) ?? "";
 
     /// <summary>The active UI language's own display name ("English"/"Deutsch") - "System" resolved
     /// the same way <see cref="SetLanguage"/> already resolves it, never the literal setting value.
     /// Used by <see cref="SupportReport"/>, which has no other way to name the active language: it is
     /// handed only a tile list, exactly like every other view model reads this ambient singleton
     /// instead of a language parameter of its own.</summary>
-    public string ActiveLanguageDisplayName => this[Languages.First(l => l.Resources == _active).LabelKey];
+    public string ActiveLanguageDisplayName => this[ActiveOption().LabelKey];
 
     /// <summary>The culture of the active UI language ("en", "de"), "System" resolved like <see
     /// cref="SetLanguage"/> does - for the one thing the resource files cannot hold: names the .NET
     /// calendar already knows (the days of the week).</summary>
-    public CultureInfo ActiveCulture => CultureInfo.GetCultureInfo(Languages.First(l => l.Resources == _active).Code);
+    public CultureInfo ActiveCulture => s_scope.Value?.Language ?? CultureInfo.GetCultureInfo(ActiveOption().Code);
+
+    // Reads the active resources once, so a switch in between cannot leave the lookup without a match.
+    private LanguageOption ActiveOption()
+    {
+        var active = s_scope.Value?.Resources ?? _active;
+        return Languages.First(l => l.Resources == active);
+    }
 
     private sealed record DisplayEntry(CultureInfo Regional, CultureInfo Language, CultureInfo Display);
 
@@ -94,14 +101,57 @@ public sealed class LocalizationService : INotifyPropertyChanged
     {
         get
         {
-            var regional = CultureInfo.CurrentCulture;
-            var language = ActiveCulture;
-            if (_display is { } cached && ReferenceEquals(cached.Regional, regional) && ReferenceEquals(cached.Language, language))
-                return cached.Display;
+            if (s_scope.Value is { } scoped)
+                return scoped.Display;
 
-            var display = DisplayCultureFor(regional, language);
-            _display = new DisplayEntry(regional, language, display);
-            return display;
+            return DisplayFor(CultureInfo.CurrentCulture, ActiveCulture);
+        }
+    }
+
+    private CultureInfo DisplayFor(CultureInfo regional, CultureInfo language)
+    {
+        if (_display is { } cached && ReferenceEquals(cached.Regional, regional) && ReferenceEquals(cached.Language, language))
+            return cached.Display;
+
+        var display = DisplayCultureFor(regional, language);
+        _display = new DisplayEntry(regional, language, display);
+        return display;
+    }
+
+    private static readonly AsyncLocal<Captured?> s_scope = new();
+
+    /// <summary>The language and cultures as they stood at one moment, immutable, so work on another
+    /// thread reads the same texts and names whatever is switched meanwhile.</summary>
+    public sealed record Captured(ResourceManager Resources, CultureInfo Regional, CultureInfo Language, CultureInfo Display);
+
+    /// <summary>Takes the current language and cultures. Call it on the window's thread.</summary>
+    public Captured Capture()
+    {
+        var resources = _active;
+        var language = CultureInfo.GetCultureInfo(Languages.First(l => l.Resources == resources).Code);
+        var regional = CultureInfo.CurrentCulture;
+        return new Captured(resources, regional, language, DisplayFor(regional, language));
+    }
+
+    /// <summary>Makes this thread, and whatever it starts, read <paramref name="captured"/> through the
+    /// service and format with its regional culture, until the returned scope is disposed.</summary>
+    public static IDisposable Enter(Captured captured) => new Scope(captured);
+
+    private sealed class Scope : IDisposable
+    {
+        private readonly Captured? _previous = s_scope.Value;
+        private readonly CultureInfo _previousCulture = CultureInfo.CurrentCulture;
+
+        public Scope(Captured captured)
+        {
+            s_scope.Value = captured;
+            CultureInfo.CurrentCulture = captured.Regional;
+        }
+
+        public void Dispose()
+        {
+            s_scope.Value = _previous;
+            CultureInfo.CurrentCulture = _previousCulture;
         }
     }
 
