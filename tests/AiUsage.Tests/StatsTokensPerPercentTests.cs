@@ -196,6 +196,37 @@ public class StatsTokensPerPercentTests
     }
 
     [Fact]
+    public void The_hour_that_happens_twice_when_the_clocks_go_back_is_skipped()
+    {
+        var berlin = FindBerlin();
+        // 25 Oct 2026: 03:00 CEST turns back to 02:00 CET, so the 02:00 bucket holds two real hours.
+        var midnight = new DateTime(2026, 10, 25, 0, 0, 0, DateTimeKind.Unspecified);
+        var begin = new DateTimeOffset(midnight, berlin.GetUtcOffset(midnight));
+        var reset = begin.AddDays(3);
+        var points = Enumerable.Range(0, 8)
+            .Select(h => new HistoryPoint(1, begin.AddHours(h), WindowKind.Weekly, h * 0.5, reset))
+            .ToList();
+        var records = Enumerable.Range(0, 6).Select(h => Record(midnight.AddHours(h), ModelA, 1000)).ToList();
+
+        var intervals = StatsTokensPerPercent.BuildIntervals(records, points, berlin);
+
+        Assert.Equal(5, intervals.Count);
+        Assert.All(intervals, interval => Assert.Equal(0.5, interval.DeltaPercent, 6));
+    }
+
+    private static TimeZoneInfo FindBerlin()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("W. Europe Standard Time");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+        }
+    }
+
+    [Fact]
     public void An_hour_without_a_recent_reading_at_either_end_is_skipped()
     {
         var start = new DateTime(2026, 10, 5, 8, 0, 0, DateTimeKind.Local);

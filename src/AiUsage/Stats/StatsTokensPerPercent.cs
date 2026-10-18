@@ -49,7 +49,13 @@ public static class StatsTokensPerPercent
     /// <summary>Builds the hourly intervals of <paramref name="weeklyPoints"/> (one provider's weekly
     /// quota history) against that provider's token <paramref name="records"/>. Hours without tokens, or
     /// without a reading at both ends, are left out.</summary>
-    public static IReadOnlyList<PerPercentInterval> BuildIntervals(IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints)
+    public static IReadOnlyList<PerPercentInterval> BuildIntervals(IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints) =>
+        BuildIntervals(records, weeklyPoints, TimeZoneInfo.Local);
+
+    /// <summary>The same for the clock hours of <paramref name="zone"/>. An hour that happens twice when
+    /// the clocks go back is left out: the index files both real hours under one bucket.</summary>
+    internal static IReadOnlyList<PerPercentInterval> BuildIntervals(
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints, TimeZoneInfo zone)
     {
         var models = new Dictionary<DateTime, Dictionary<string, long>>();
         var cacheReads = new Dictionary<DateTime, long>();
@@ -78,20 +84,20 @@ public static class StatsTokensPerPercent
                 continue;
 
             var readings = period.OrderBy(point => point.Timestamp).ToList();
-            var first = readings[0].Timestamp.LocalDateTime;
-            var last = readings[^1].Timestamp.LocalDateTime;
+            var first = TimeZoneInfo.ConvertTime(readings[0].Timestamp, zone).DateTime;
+            var last = TimeZoneInfo.ConvertTime(readings[^1].Timestamp, zone).DateTime;
             var hour = new DateTime(first.Year, first.Month, first.Day, first.Hour, 0, 0, DateTimeKind.Unspecified);
             if (hour < first)
                 hour = hour.AddHours(1);
             for (; hour.AddHours(1) <= last; hour = hour.AddHours(1))
             {
-                if (!models.TryGetValue(hour, out var perModel))
+                if (!models.TryGetValue(hour, out var perModel) || zone.IsAmbiguousTime(hour))
                     continue;
                 var cacheRead = cacheReads.GetValueOrDefault(hour);
                 if (perModel.Values.Sum() + cacheRead == 0)
                     continue;
-                if (ReadingAt(readings, new DateTimeOffset(hour)) is not { } before
-                    || ReadingAt(readings, new DateTimeOffset(hour.AddHours(1))) is not { } after
+                if (ReadingAt(readings, new DateTimeOffset(hour, zone.GetUtcOffset(hour))) is not { } before
+                    || ReadingAt(readings, EndOfHour(hour, zone)) is not { } after
                     || after < before)
                 {
                     continue;
@@ -102,6 +108,15 @@ public static class StatsTokensPerPercent
         }
 
         return intervals;
+    }
+
+    /// <summary>The moment the wall-clock <paramref name="hour"/> ends. When the clocks go back at that
+    /// instant, the hour that just passed ended at the first of the two matching times.</summary>
+    private static DateTimeOffset EndOfHour(DateTime hour, TimeZoneInfo zone)
+    {
+        var end = hour.AddHours(1);
+        var offset = zone.IsAmbiguousTime(end) ? zone.GetAmbiguousTimeOffsets(end).Max() : zone.GetUtcOffset(end);
+        return new DateTimeOffset(end, offset);
     }
 
     /// <summary>The quota at <paramref name="moment"/>: the newest reading at or before it, if it is recent enough.</summary>
