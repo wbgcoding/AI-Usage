@@ -1,0 +1,88 @@
+{
+  "opencode": {
+    "id": "opencode",
+    "name": "OpenCode",
+    "models": {
+      "big-pickle": {
+        "id": "big-pickle",
+        "name": "Big Pickle",
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        }
+      }
+    }
+  },
+  "minimax-coding-plan": {
+    "id": "minimax-coding-plan",
+    "name": "MiniMax Token Plan (minimax.io)",
+    "models": {
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        }
+      }
+    }
+  },
+  "nano-gpt": {
+    "id": "nano-gpt",
+    "name": "NanoGPT",
+    "models": {
+      "minimax/minimax-m3": {
+        "id": "minimax/minimax-m3",
+        "name": "MiniMax M3",
+        "cost": {
+          "input": 0.23,
+          "output": 0.96,
+          "cache_read": 0.05
+        }
+      },
+      "inclusionai/ling-3.0-flash-vl": {
+        "id": "inclusionai/ling-3.0-flash-vl",
+        "name": "Ling 3.0 Flash VL",
+        "cost": {
+          "input": 0.06,
+          "output": 0.18,
+          "cache_read": 0.012
+        }
+      }
+    }
+  },
+  "deepinfra": {
+    "id": "deepinfra",
+    "name": "Deep Infra",
+    "models": {
+      "MiniMaxAI/MiniMax-M3": {
+        "id": "MiniMaxAI/MiniMax-M3",
+        "name": "MiniMax-M3",
+        "cost": {
+          "input": 0.28,
+          "output": 1.1,
+          "cache_read": 0.056
+        }
+      }
+    }
+  },
+  "kilo": {
+    "id": "kilo",
+    "name": "Kilo Gateway",
+    "models": {
+      "nvidia/nemotron-3-ultra-550b-a55b": {
+        "id": "nvidia/nemotron-3-ultra-550b-a55b",
+        "name": "Nemotron 3 Ultra 550B A55B",
+        "cost": {
+          "input": 0.4,
+          "output": 1.76,
+          "cache_read": 0.08
+        }
+      }
+    }
+  }
+}

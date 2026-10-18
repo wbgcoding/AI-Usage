@@ -6,7 +6,7 @@ using AiUsage.Services;
 
 namespace AiUsage.Stats.Pricing;
 
-/// <summary>The two downloads behind the cost estimate. Each goes through the app's one allow-listed
+/// <summary>The downloads behind the cost estimate. Each goes through the app's one allow-listed
 /// downloader, so the host is fixed, only https is used, redirects are checked per hop and the body is
 /// capped.</summary>
 internal static class PriceDownloader
@@ -14,6 +14,10 @@ internal static class PriceDownloader
     internal const string PriceListUrl = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
     internal const string PriceListHost = "raw.githubusercontent.com";
     internal const long PriceListMaxBytes = 16L * 1024 * 1024;
+
+    internal const string FallbackUrl = "https://models.dev/api.json";
+    internal const string FallbackHost = "models.dev";
+    internal const long FallbackMaxBytes = 16L * 1024 * 1024;
 
     internal const string RateUrl = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
     internal const string RateHost = "www.ecb.europa.eu";
@@ -78,7 +82,9 @@ public sealed class CostService
     private readonly HttpMessageHandler? _handler;
     private DateTimeOffset _priceAttempt = DateTimeOffset.MinValue;
     private DateTimeOffset _rateAttempt = DateTimeOffset.MinValue;
+    private DateTimeOffset _fallbackAttempt = DateTimeOffset.MinValue;
     private int _refreshing;
+    private int _fallbackRefreshing;
 
     internal CostService(
         Func<bool> enabled, Func<CostCurrency> currency, string? cacheDirectory = null, Func<CultureInfo>? culture = null,
@@ -97,7 +103,11 @@ public sealed class CostService
         Rate = new EurRate(() => _cacheDirectory);
         Prices.Load();
         Rate.Load();
+        Prices.Fallback.WantedRaised += () => FallbackTask = RefreshFallbackAsync();
     }
+
+    /// <summary>The latest background load of the second price table.</summary>
+    internal Task FallbackTask { get; private set; } = Task.CompletedTask;
 
     public ModelPriceList Prices { get; }
 
@@ -234,10 +244,49 @@ public sealed class CostService
 
             if (changed)
                 Changed?.Invoke();
+
+            await RefreshFallbackAsync(ct);
         }
         finally
         {
             Interlocked.Exchange(ref _refreshing, 0);
+        }
+    }
+
+    /// <summary>Loads the second price table when it is stale, but only once the main list has met a
+    /// model without a price this run. Does nothing when the estimate is off or the network is held back.
+    /// A failed download keeps the old cache and is tried again after an hour.</summary>
+    internal async Task RefreshFallbackAsync(CancellationToken ct = default)
+    {
+        var fallback = Prices.Fallback;
+        if (!Enabled || !_networkAllowed() || !fallback.Wanted)
+            return;
+
+        var now = _now();
+        if (!fallback.IsStale(now) || now - _fallbackAttempt < RetryAfterFailure
+            || Interlocked.Exchange(ref _fallbackRefreshing, 1) == 1)
+            return;
+
+        try
+        {
+            _fallbackAttempt = now;
+            var text = await PriceDownloader.FetchTextAsync(
+                PriceDownloader.FallbackUrl, PriceDownloader.FallbackHost, PriceDownloader.FallbackMaxBytes, _cacheDirectory, ct, _handler);
+            var parsed = text is null ? null : FallbackPriceList.Parse(text);
+            if (parsed is { Count: > 0 })
+            {
+                Prices.ReplaceFallback(parsed, now);
+                _fallbackAttempt = DateTimeOffset.MinValue;
+                Changed?.Invoke();
+            }
+            else if (text is not null)
+            {
+                LogService.Shared.Log("WARN", "The downloaded second price list held no usable prices; the earlier one stays.");
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _fallbackRefreshing, 0);
         }
     }
 }

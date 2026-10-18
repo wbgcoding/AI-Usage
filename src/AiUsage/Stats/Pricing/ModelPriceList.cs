@@ -15,7 +15,8 @@ public sealed record ModelPrice(double Input, double Output, double? CacheRead, 
 /// machine-local cache folder. The table is foreign text, so it is read defensively: only four price
 /// fields and two labels per entry are looked at, every price must be a finite number in a sane range,
 /// and anything else is dropped. No table ships with the app; before the first download there are no
-/// prices and nothing is estimated.
+/// prices and nothing is estimated. A model this list does not know is looked up in a second, lazily
+/// downloaded table (<see cref="FallbackPriceList"/>).
 /// </summary>
 public sealed class ModelPriceList
 {
@@ -51,6 +52,7 @@ public sealed class ModelPriceList
         _cacheDirectory = cacheDirectory;
         _gate = new object();
         _reported = new HashSet<string>(StringComparer.Ordinal);
+        Fallback = new FallbackPriceList(cacheDirectory);
     }
 
     private ModelPriceList(ModelPriceList source)
@@ -58,6 +60,7 @@ public sealed class ModelPriceList
         _cacheDirectory = source._cacheDirectory;
         _gate = source._gate;
         _reported = source._reported;
+        Fallback = source.Fallback;
         lock (_gate)
         {
             _prices = source._prices;
@@ -68,6 +71,18 @@ public sealed class ModelPriceList
     /// <summary>The prices as they are now, unaffected by a later <see cref="Replace"/> on this list.
     /// A model without a price is still reported once per run across both lists.</summary>
     internal ModelPriceList Snapshot() => new(this);
+
+    /// <summary>The second table, asked only for a model this list has no price for. Shared with every
+    /// snapshot.</summary>
+    internal FallbackPriceList Fallback { get; }
+
+    /// <summary>Swaps in a new second table; remembered answers are dropped so the models it prices are found.</summary>
+    internal void ReplaceFallback(IReadOnlyList<FallbackPriceList.Entry> entries, DateTimeOffset fetchedAt, bool persist = true)
+    {
+        Fallback.Replace(entries, fetchedAt, persist);
+        lock (_gate)
+            _found.Clear();
+    }
 
     /// <summary>When the prices were last downloaded; null while there are none.</summary>
     public DateTimeOffset? FetchedAt { get; private set; }
@@ -191,6 +206,12 @@ public sealed class ModelPriceList
     /// list empty.</summary>
     public void Load()
     {
+        LoadPrices();
+        Fallback.Load();
+    }
+
+    private void LoadPrices()
+    {
         try
         {
             var path = Path.Combine(_cacheDirectory(), CacheFileName);
@@ -247,6 +268,12 @@ public sealed class ModelPriceList
         }
 
         var price = IsFree(model) ? FreePrice : Lookup(prices, model);
+        if (price is null)
+        {
+            Fallback.MarkWanted();
+            price = Fallback.Find(model);
+        }
+
         var report = false;
         lock (_gate)
         {
@@ -374,7 +401,7 @@ public sealed class ModelPriceList
     }
 
     /// <summary>The maker a model name belongs to, from its first word.</summary>
-    private static string Family(string name)
+    internal static string Family(string name)
     {
         var end = name.IndexOfAny(['-', '.', ':', '_', '@']);
         var word = end < 0 ? name : name[..end];
