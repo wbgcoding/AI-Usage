@@ -69,7 +69,7 @@ public sealed partial class MainViewModel
         GetOrCreateProviderSettings(accountKey);
         _webRunners[accountKey] = runner;
 
-        _ = ApplyRecordedReadingsAsync([BuildTile(provider)]);
+        BuildTile(provider);
         _scheduler.AddProvider(provider);
         RenumberRowOrders();
         ApplyTileOrder();
@@ -139,7 +139,7 @@ public sealed partial class MainViewModel
         GetOrCreateProviderSettings(accountKey);
 
         var provider = ProviderRegistry.CreateCopilotAccount(accountKey, _settings);
-        _ = ApplyRecordedReadingsAsync([BuildTile(provider)]);
+        BuildTile(provider);
         _scheduler.AddProvider(provider);
         RenumberRowOrders();
         ApplyTileOrder();

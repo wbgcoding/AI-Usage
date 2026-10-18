@@ -589,7 +589,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // through SettingsStore.Load) keep the caller's own order instead of being shuffled by a tie.
         foreach (var provider in providers.OrderBy(GetProviderOrder))
             BuildTile(provider);
-        StartupReadingsTask = ApplyRecordedReadingsAsync([.. Tiles]);
         RebuildTrayProviderChoices();
         Tiles.CollectionChanged += (_, _) =>
         {
@@ -636,7 +635,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <see cref="Services.IUsageProvider.Id"/> - two accounts of the same provider share an Id) and
     /// <see cref="Tiles"/>. Used by the constructor for every provider ProviderRegistry built at
     /// startup, and again by <see cref="AddAccount"/> for one built afterward.</summary>
-    private ProviderTileViewModel BuildTile(IUsageProvider provider)
+    private void BuildTile(IUsageProvider provider)
     {
         var visible = !_settings.Providers.TryGetValue(provider.AccountKey, out var providerSettings) || providerSettings.Visible;
         var canSkipWebSession = provider.CanSkipWebSession && provider.AccountKey == provider.Id;
@@ -688,6 +687,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 RebuildTrayWindowChoices();
         };
         _tilesById[provider.AccountKey] = tile;
+        if (!IsAccountDisconnected(provider.AccountKey) && LastRecordedReading(provider.AccountKey, DateTimeOffset.Now) is { } lastReading)
+            tile.Apply(lastReading, DateTimeOffset.Now, ResolvedThresholds(provider.AccountKey), _settings.ShowAttentionMark, advanceSilenceClock: false);
         tile.LevelAnnounced += text => LevelAnnounced?.Invoke(text);
         Tiles.Add(tile);
         // Mirrors Tiles.Add: a freshly built tile (startup, or a further account added later) always
@@ -695,27 +696,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // only) then re-sorts everything, including this one, by each row's own persisted Order.
         DisplayRows.Add(tile);
         _ownRows.Add(tile);
-        return tile;
-    }
-
-    /// <summary>Ends when the tiles built at startup have their last recorded numbers (or none).</summary>
-    internal Task StartupReadingsTask { get; private set; } = Task.CompletedTask;
-
-    /// <summary>Loads the last recorded reading of every given tile in one worker pass and shows each as
-    /// it lands, so building the tiles never waits on the history files. A tile that already got a
-    /// live reading meanwhile, or whose account was disconnected, keeps what it has.</summary>
-    private async Task ApplyRecordedReadingsAsync(IReadOnlyList<ProviderTileViewModel> tiles)
-    {
-        var accountKeys = tiles.Select(tile => tile.ProviderId).ToList();
-        var now = DateTimeOffset.Now;
-        var readings = await Task.Run(() => accountKeys.Select(key => LastRecordedReading(key, now)).ToList());
-        for (var index = 0; index < tiles.Count; index++)
-        {
-            var tile = tiles[index];
-            if (readings[index] is not { } reading || tile.HasReading || IsAccountDisconnected(tile.ProviderId))
-                continue;
-            tile.Apply(reading, now, ResolvedThresholds(tile.ProviderId), _settings.ShowAttentionMark, advanceSilenceClock: false);
-        }
     }
 
     /// <summary>How far back the start of the app looks for the last recorded numbers of a tile.</summary>
