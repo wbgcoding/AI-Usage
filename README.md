@@ -133,7 +133,7 @@ dashboard for any period you pick: 7 days, 30 days, a year or everything.
 - **Limits:** how often you hit each agent's limit, with the highest value and the average peak,
   and an estimate of how many tokens one percent of a window holds for each model, from your own
   usage.
-- **API cost estimate:** what your tokens would cost at API prices, shown next to the token figures with a leading ~ because it is an estimate (a star marks sums that include a model without a known price). It can show dollars, euros or follow your region, and can be switched off in the settings. The price list comes from raw.githubusercontent.com and the exchange rate (euro only) from www.ecb.europa.eu; each is fetched at most once a day, and nothing is downloaded while the estimate is off.
+- **API cost estimate:** what your tokens would cost at API prices, shown next to the token figures with a leading ~ because it is an estimate (a star marks sums that include a model without a known price). It can show dollars, euros or follow your region, and can be switched off in the settings. The price list comes from raw.githubusercontent.com, a second price list for models missing there from models.dev (only when such a model shows up) and the exchange rate (euro only) from www.ecb.europa.eu; each is fetched at most once a day, and nothing is downloaded while the estimate is off. Models with "free" in their name count as 0.
 - **CSV export** for your own spreadsheets.
 - **Your layout:** drag a section by its heading above, below or beside another one, or move it
   with Alt+Up and Alt+Down. The layout is remembered and can be reset.

@@ -55,6 +55,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - A portable exe for ARM64, `AI-Usage-arm64.exe`, joins the downloads.
 - Settings > Refresh: each account can read at most every 5, 10, 15, 30 or 60 minutes, or follow the default. The slider under Refresh now applies to every provider read over the internet; a browser session is never read more often than every 5 minutes.
 - Picking a data folder on a network drive, a removable drive or in a cloud sync folder asks first, since the token index can be damaged there. When the chosen folder is not available at start, the data folder row says so.
+- Models with "free" in their name now count as 0 in the cost estimate, and a model the main price list lacks is looked up in a second public list (models.dev) before it is left out.
 
 ### Changed
 
@@ -208,6 +209,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - A settings import refuses files over 16 MB instead of freezing the window.
 - The per-active-day figure has a shorter label that fits the narrow window beside its cost.
 - Read-only text boxes in dialogs and tiles have a name for screen readers.
+- The cost estimate found no price for several models that are in the price list, such as MiniMax M3, and for tool aliases like "gemini-pro-default". They are matched now.
 
 ### Security
 
