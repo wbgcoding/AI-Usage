@@ -111,6 +111,31 @@ public class SignInNavigationPolicyTests
     }
 
     [Fact]
+    public void A_unicode_host_is_judged_by_its_punycode_form()
+    {
+        var allowed = new[] { "xn--bcher-kva.example" };
+
+        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://b\u00FCcher.example/login", allowed));
+        Assert.True(SignInNavigationPolicy.IsAllowedUri("https://xn--bcher-kva.example/login", allowed));
+        Assert.False(SignInNavigationPolicy.IsAllowedUri("https://bucher.example/login", allowed));
+    }
+
+    [Fact]
+    public void A_unicode_look_alike_of_an_allowed_host_is_rejected()
+    {
+        Assert.False(SignInNavigationPolicy.IsAllowedUri("https://cl\u0430ude.ai/login", AllowedHosts));
+        Assert.False(SignInNavigationPolicy.IsUsageOrigin("https://cl\u0430ude.ai/api/usage", "claude.ai"));
+    }
+
+    [Fact]
+    public void IsUsageOrigin_reads_a_unicode_origin_as_punycode()
+    {
+        Assert.True(SignInNavigationPolicy.IsUsageOrigin("https://b\u00FCcher.example/api", "xn--bcher-kva.example"));
+        Assert.True(SignInNavigationPolicy.IsUsageOrigin("https://www.b\u00FCcher.example/api", "xn--bcher-kva.example"));
+        Assert.False(SignInNavigationPolicy.IsUsageOrigin("https://bucher.example/api", "xn--bcher-kva.example"));
+    }
+
+    [Fact]
     public void Rejects_a_relative_string_that_is_not_an_absolute_uri()
     {
         Assert.False(SignInNavigationPolicy.IsAllowedUri("/login", AllowedHosts));

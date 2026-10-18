@@ -110,7 +110,7 @@ public static class SignInNavigationPolicy
     public static bool IsAllowedUri(string url, IReadOnlyList<string> allowedHosts) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps
-        && (IsAllowedHost(uri.Host, allowedHosts)
+        && (IsAllowedHost(uri.IdnHost, allowedHosts)
             || (allowedHosts.Contains(GoogleTrafficCheck) && IsGoogleTrafficCheck(url)));
 
     /// <summary>True for Google's unusual-traffic check page: https, exactly www.google.com (no
@@ -139,6 +139,6 @@ public static class SignInNavigationPolicy
     public static bool IsUsageOrigin(string url, string expectedOrigin) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps
-        && (uri.Host.Equals(expectedOrigin, StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith("." + expectedOrigin, StringComparison.OrdinalIgnoreCase));
+        && (uri.IdnHost.Equals(expectedOrigin, StringComparison.OrdinalIgnoreCase)
+            || uri.IdnHost.EndsWith("." + expectedOrigin, StringComparison.OrdinalIgnoreCase));
 }
