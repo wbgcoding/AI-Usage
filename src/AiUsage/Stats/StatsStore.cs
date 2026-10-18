@@ -844,16 +844,23 @@ public sealed class StatsStore
     /// <summary>False once an existing database names a schema version newer than <see
     /// cref="SchemaVersion"/> - every read answers empty and every write is refused rather than
     /// touching a file a newer build understands better than this one does.</summary>
-    public bool IsUsable { get; private set; } = true;
+    public bool IsUsable
+    {
+        get => Volatile.Read(ref _usable);
+        private set => Volatile.Write(ref _usable, value);
+    }
+
+    private bool _usable = true;
 
     // Set once a migration backup could not be written: this instance then stays unusable instead of
     // copying the whole database again on every later open (the indexer opens once per file).
-    private bool _backupFailed;
+    private bool BackupFailed
+    {
+        get => Volatile.Read(ref _backupFailed);
+        set => Volatile.Write(ref _backupFailed, value);
+    }
 
-    // True while a migration step runs inside EnsureSchema; an exception then marks the instance as
-    // done with migrating for this session, so a failed step (a full disk, a damaged page) is not
-    // retried with another full copy of the database on every later open.
-    private bool _migrating;
+    private bool _backupFailed;
 
     private SqliteConnection Open()
     {
@@ -1209,9 +1216,14 @@ public sealed class StatsStore
     {
         SetBusyTimeout(connection);
         Execute(connection, "BEGIN IMMEDIATE");
+        // True while a migration step runs; an exception then marks the instance as done with
+        // migrating for this session, so a failed step (a full disk, a damaged page) is not retried
+        // with another full copy of the database on every later open. Local to this call because
+        // several opens run EnsureSchema at once.
+        var migrating = false;
         try
         {
-            if (!ApplySchema(connection))
+            if (!ApplySchema(connection, ref migrating))
             {
                 Execute(connection, "ROLLBACK");
                 return;
@@ -1222,8 +1234,8 @@ public sealed class StatsStore
         }
         catch
         {
-            if (_migrating)
-                _backupFailed = true;
+            if (migrating)
+                BackupFailed = true;
 
             try
             {
@@ -1240,7 +1252,7 @@ public sealed class StatsStore
     /// <summary>The schema work itself, run inside <see cref="EnsureSchema"/>'s transaction. False
     /// means nothing may change: a newer build's file, or a migration backup that could not be written
     /// (this instance then sits out the session instead of changing rows that exist nowhere else).</summary>
-    private bool ApplySchema(SqliteConnection connection)
+    private bool ApplySchema(SqliteConnection connection, ref bool migrating)
     {
         Execute(connection, "CREATE TABLE IF NOT EXISTS schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);");
 
@@ -1285,9 +1297,9 @@ public sealed class StatsStore
         var originalVersion = existingVersion;
         if (existingVersion == 4)
         {
-            if (_backupFailed || !MigrateFromV4(connection))
+            if (BackupFailed || !MigrateFromV4(connection))
             {
-                _backupFailed = true;
+                BackupFailed = true;
                 IsUsable = false;
                 return false;
             }
@@ -1297,25 +1309,25 @@ public sealed class StatsStore
 
         // The v4 step already left a backup of the untouched file; v5 and v6 files get theirs here.
         // A v7 or v8 file gets one too: the owner pass subtracts from rows that exist nowhere else.
-        if (existingVersion is 7 or 8 && (_backupFailed || !BackUpBeforeMigration(originalVersion!.Value)))
+        if (existingVersion is 7 or 8 && (BackupFailed || !BackUpBeforeMigration(originalVersion!.Value)))
         {
-            _backupFailed = true;
+            BackupFailed = true;
             IsUsable = false;
             return false;
         }
 
         if (existingVersion is 5 or 6)
         {
-            if (_backupFailed || (originalVersion != 4 && !BackUpBeforeMigration(originalVersion!.Value)))
+            if (BackupFailed || (originalVersion != 4 && !BackUpBeforeMigration(originalVersion!.Value)))
             {
-                _backupFailed = true;
+                BackupFailed = true;
                 IsUsable = false;
                 return false;
             }
 
-            _migrating = true;
+            migrating = true;
             MigrateToV7(connection);
-            _migrating = false;
+            migrating = false;
         }
 
         // A database written at an older schema version has usage rows this version cannot

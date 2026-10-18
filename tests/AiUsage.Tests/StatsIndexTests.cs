@@ -1282,6 +1282,23 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void Store_stays_usable_when_many_first_opens_migrate_at_once()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-concurrent");
+        WriteV4Database(Path.Combine(dataDir, "stats.db"));
+
+        var store = new StatsStore(dataDir);
+        var loads = Enumerable.Range(0, 8)
+            .Select(_ => Task.Run(() => store.LoadAll().Count))
+            .ToArray();
+        Task.WaitAll(loads);
+
+        Assert.True(store.IsUsable);
+        Assert.All(loads, load => Assert.Equal(1, load.Result));
+        Assert.True(File.Exists(Path.Combine(dataDir, "stats.v4.bak")));
+    }
+
+    [Fact]
     public void Store_migrates_v4_to_v5_keeping_codex_rows_clearing_claude_and_backing_up()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-migrate");
