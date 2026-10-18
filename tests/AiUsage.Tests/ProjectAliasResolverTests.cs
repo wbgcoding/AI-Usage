@@ -213,6 +213,15 @@ public class ProjectAliasResolverTests
     }
 
     [Fact]
+    public void Former_paths_are_found_from_an_agent_work_folder_of_the_project()
+    {
+        var aliases = Build([@"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Work\AI-Usage"));
+
+        Assert.Equal([@"C:\a\AI-Usage"], aliases.FormerPaths(@"E:\Work\AI-Usage\.tmp\wt-x"));
+        Assert.Empty(aliases.FormerPaths(""));
+    }
+
+    [Fact]
     public void Apply_renames_records_and_sessions_and_keeps_the_rest()
     {
         var aliases = Build([@"E:\Work\AI-Usage"], Record(@"C:\a\AI-Usage"), Record(@"E:\Work\AI-Usage"));

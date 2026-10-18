@@ -32,7 +32,7 @@ public sealed class ProjectAliases
 
     /// <summary>The older paths merged into <paramref name="project"/>, empty when none.</summary>
     public IReadOnlyList<string> FormerPaths(string project) =>
-        _former.TryGetValue(project, out var paths) ? paths : [];
+        !string.IsNullOrEmpty(project) && _former.TryGetValue(StatsAggregator.ProjectKey(project), out var paths) ? paths : [];
 
     /// <summary>The records with every merged path replaced; the same list when nothing changes.</summary>
     public IReadOnlyList<StatsRecord> Apply(IReadOnlyList<StatsRecord> records)
