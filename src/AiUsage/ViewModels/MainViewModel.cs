@@ -927,8 +927,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             tile.TickCountdowns(now);
         // A provider whose snapshot landed before its minimum visible duration was up gets
         // re-checked here every second instead of on a real timer - see MinFetchingDuration.
-        foreach (var providerId in _pendingFetchClear.ToList())
-            TryClearFetching(providerId);
+        if (_pendingFetchClear.Count > 0)
+        {
+            foreach (var providerId in _pendingFetchClear.ToList())
+                TryClearFetching(providerId);
+        }
         PausedUntil = _scheduler.PausedUntil;
         _scheduler.Tick(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWindowTokens(now);
