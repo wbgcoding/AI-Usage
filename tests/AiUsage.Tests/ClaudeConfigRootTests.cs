@@ -70,8 +70,10 @@ public class ClaudeConfigRootTests
         var value = $"{missing}, {custom.Path}";
 
         Assert.Equal([Path.Combine(custom, "projects")], StatsIndexer.ClaudeProjectsRootsFor(value, profile));
-        Assert.Equal(Path.Combine(custom, "projects"), ClaudeProvider.ProjectsRootFor(value, profile));
-        Assert.Equal(Path.Combine(custom, ".credentials.json"), ClaudeCodeLogin.CredentialsPathFor(value, profile));
+        var candidates = ClaudeConfigRoot.Candidates(value, profile);
+        Assert.Equal([Path.Combine(custom, "projects")], ClaudeConfigRoot.ExistingProjectsRoots(candidates));
+        Assert.Equal(Path.Combine(custom, "projects"), ClaudeConfigRoot.ProjectsRoot(candidates));
+        Assert.Equal(Path.Combine(custom, ".credentials.json"), ClaudeConfigRoot.FilePath(candidates, ".credentials.json"));
     }
 
     [Fact]
@@ -81,8 +83,9 @@ public class ClaudeConfigRootTests
         Directory.CreateDirectory(Path.Combine(profile, ".claude", "projects"));
 
         Assert.Equal([Path.Combine(profile, ".claude", "projects")], StatsIndexer.ClaudeProjectsRootsFor(null, profile));
-        Assert.Equal(Path.Combine(profile, ".claude", "projects"), ClaudeProvider.ProjectsRootFor(null, profile));
-        Assert.Equal(Path.Combine(profile, ".claude", ".credentials.json"), ClaudeCodeLogin.CredentialsPathFor(null, profile));
+        var candidates = ClaudeConfigRoot.Candidates(null, profile);
+        Assert.Equal(Path.Combine(profile, ".claude", "projects"), ClaudeConfigRoot.ProjectsRoot(candidates));
+        Assert.Equal(Path.Combine(profile, ".claude", ".credentials.json"), ClaudeConfigRoot.FilePath(candidates, ".credentials.json"));
     }
 
     [Fact]

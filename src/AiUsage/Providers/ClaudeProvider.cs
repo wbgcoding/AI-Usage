@@ -215,10 +215,6 @@ public sealed class ClaudeProvider : IUsageProvider
         return existing.Count > 0 ? existing : [ClaudeConfigRoot.ProjectsRoot(candidates)];
     }
 
-    /// <summary>Same as the default, from a given variable value and profile folder.</summary>
-    internal static string ProjectsRootFor(string? configDirValue, string userProfile) =>
-        ClaudeConfigRoot.ProjectsRoot(ClaudeConfigRoot.Candidates(configDirValue, userProfile));
-
     // Set during one fetch when the web session's usage address answered but nothing in it could be
     // read. That web answer is no candidate of its own (see BuildWebSnapshot), so the mark rides
     // on whichever snapshot the fetch ends with. A provider is fetched one run at a time.
