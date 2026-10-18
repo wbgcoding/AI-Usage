@@ -265,7 +265,7 @@ public static class StatsAggregator
 
     /// <summary>The provider that contributed the most tokens to one model's records; on a tie, the
     /// first one met.</summary>
-    private static string DominantProvider(IEnumerable<StatsRecord> modelRecords) =>
+    internal static string DominantProvider(IEnumerable<StatsRecord> modelRecords) =>
         modelRecords.GroupBy(record => record.Provider)
             .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))
             .First().Key;
@@ -959,9 +959,7 @@ public static class StatsAggregator
             .Select(group => (
                 Label: group.Key,
                 Total: group.Sum(record => record.TotalTokens),
-                ProviderId: group.GroupBy(record => record.Provider)
-                    .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))
-                    .First().Key))
+                ProviderId: DominantProvider(group)))
             .OrderByDescending(entry => entry.Total)
             .Select(entry => new StatsShareSlice(entry.Label, entry.Total, Percent(entry.Total), entry.ProviderId))
             .ToList();

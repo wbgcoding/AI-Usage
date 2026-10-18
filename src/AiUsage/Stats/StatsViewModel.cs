@@ -2463,9 +2463,7 @@ public sealed partial class StatsViewModel : ObservableObject
                 .GroupBy(record => ModelDisplayNames.Resolve(record.Model))
                 .ToDictionary(
                     group => group.Key,
-                    group => group.GroupBy(record => record.Provider)
-                        .OrderByDescending(providerGroup => providerGroup.Sum(record => record.TotalTokens))
-                        .First().Key);
+                    group => StatsAggregator.DominantProvider(group));
 
             var rankByProvider = new Dictionary<string, int>();
             var keys = new List<BarColorKey>();
