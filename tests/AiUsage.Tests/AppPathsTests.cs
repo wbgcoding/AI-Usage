@@ -1,3 +1,5 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
 using AiUsage.Storage;
 
 namespace AiUsage.Tests;
@@ -169,6 +171,38 @@ public class AppPathsTests : IDisposable
         var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot);
 
         Assert.Equal(Path.Combine(appDataRoot, "AI-Usage"), resolved);
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_creates_a_new_default_folder_closed_to_other_accounts()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+
+        var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot);
+
+        var security = new DirectoryInfo(resolved).GetAccessControl();
+        Assert.True(security.AreAccessRulesProtected);
+        var sids = security.GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>()
+            .Select(rule => rule.IdentityReference.Value).ToList();
+        Assert.Contains("S-1-5-18", sids);
+        Assert.Contains("S-1-5-32-544", sids);
+        Assert.DoesNotContain("S-1-5-32-545", sids);
+        Assert.DoesNotContain("S-1-5-11", sids);
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_leaves_the_permissions_of_an_existing_default_folder_alone()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        var existing = Path.Combine(appDataRoot, "AI-Usage");
+        Directory.CreateDirectory(existing);
+
+        var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot);
+
+        Assert.Equal(existing, resolved);
+        Assert.False(new DirectoryInfo(existing).GetAccessControl().AreAccessRulesProtected);
     }
 
     [Fact]

@@ -347,6 +347,7 @@ public static class AppPaths
             }
         }
 
+        TryCreatePrivateDirectory(appDataCandidate);
         if (TryEnsureWritableDirectory(appDataCandidate))
             return appDataCandidate;
 
