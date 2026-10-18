@@ -1373,13 +1373,29 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
-            var json = JsonSerializer.Serialize(_settings, SettingsStore.JsonOptions);
+            var json = JsonSerializer.Serialize(WithoutMachineLocalState(_settings), SettingsStore.JsonOptions);
             File.WriteAllBytes(path, AppEncoding.Utf8NoBom.GetBytes(json));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
         }
+    }
+
+    /// <summary>A copy of <paramref name="settings"/> without what only means something on this PC and
+    /// what an import never takes over: the window block, the PC's id and the PCs imported from, the
+    /// discovered usage paths and the account bookkeeping.</summary>
+    internal static AppSettings WithoutMachineLocalState(AppSettings settings)
+    {
+        var copy = JsonSerializer.Deserialize<AppSettings>(
+            JsonSerializer.Serialize(settings, SettingsStore.JsonOptions), SettingsStore.JsonOptions) ?? new AppSettings();
+        copy.Window = new WindowSettings();
+        copy.MachineId = "";
+        copy.ImportedMachines = [];
+        copy.WebUsagePaths = [];
+        copy.Accounts = AppSettings.CreateDefaultAccounts();
+        copy.CopilotAccountLogins = [];
+        return copy;
     }
 
     /// <summary>

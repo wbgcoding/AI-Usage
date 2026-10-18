@@ -944,6 +944,36 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ExportedSettingsCarryNoMachineLocalState()
+    {
+        var sourceSettings = new AppSettings { RefreshSeconds = 300, DefaultThreshold = 77 };
+        sourceSettings.Window.MonitorDeviceName = "DISPLAY7-monitor";
+        sourceSettings.Window.Left = 4321;
+        sourceSettings.MachineId = "machine-id-of-this-pc";
+        sourceSettings.ImportedMachines.Add(new ImportedMachine { Id = "other", Name = "OFFICE-PC-42", Imported = DateTimeOffset.UnixEpoch });
+        sourceSettings.WebUsagePaths["claude"] = "/api/organizations/org-secret-id/usage";
+        sourceSettings.CopilotAccountLogins["copilot#2"] = "someone-else";
+        var exportPath = Path.Combine(TempDirectory(), "export-no-local.json");
+        var (sourceVm, _) = Build(sourceSettings, askForSettingsExportPath: _ => exportPath);
+
+        sourceVm.ExportSettingsCommand.Execute(null);
+
+        var json = File.ReadAllText(exportPath);
+        Assert.DoesNotContain("DISPLAY7-monitor", json);
+        Assert.DoesNotContain("OFFICE-PC-42", json);
+        Assert.DoesNotContain("org-secret-id", json);
+        Assert.DoesNotContain("machine-id-of-this-pc", json);
+        Assert.DoesNotContain("someone-else", json);
+        Assert.Equal(4321, sourceSettings.Window.Left);
+        Assert.Single(sourceSettings.ImportedMachines);
+
+        var (targetVm, targetSettings) = Build(askForSettingsImportPath: () => exportPath);
+        targetVm.ImportSettingsCommand.Execute(null);
+        Assert.Equal(300, targetSettings.RefreshSeconds);
+        Assert.Equal(77, targetSettings.DefaultThreshold);
+    }
+
+    [Fact]
     public void TheOwnReadIntervalOfAProviderTravelsThroughExportAndImportAndResetClearsIt()
     {
         var sourceSettings = new AppSettings { RemoteRefreshMinutes = 20 };
