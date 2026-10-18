@@ -1433,14 +1433,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _showMessage(LocalizationService.Instance["Settings.ImportDone"]);
     }
 
-    /// <summary>A settings file is a few KB; anything past this is not one and is refused like an unreadable file.</summary>
-    private const long MaxImportBytes = 1024 * 1024;
+    /// <summary>A settings file is a few KB, even with many accounts; anything past this is not one and
+    /// is refused like an unreadable file.</summary>
+    internal const int MaxImportBytes = 16 * 1024 * 1024;
 
-    private static string ReadImportFile(string path)
+    /// <summary>Reads at most <see cref="MaxImportBytes"/> from one open stream, so a file that grows
+    /// after it was picked cannot slip past the limit.</summary>
+    internal static string ReadImportFile(string path)
     {
-        if (new FileInfo(path).Length > MaxImportBytes)
-            throw new IOException("Settings file too large.");
-        return File.ReadAllText(path);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var content = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            if (content.Length + read > MaxImportBytes)
+                throw new IOException("Settings file too large.");
+            content.Write(chunk, 0, read);
+        }
+
+        content.Position = 0;
+        using var reader = new StreamReader(content, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     private static string? ShowRealSettingsSaveDialog(string suggestedFileName)

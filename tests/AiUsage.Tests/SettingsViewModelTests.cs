@@ -1958,7 +1958,7 @@ public class SettingsViewModelTests : IDisposable
     {
         var targetSettings = new AppSettings { RefreshSeconds = 123 };
         var bigPath = Path.Combine(TempDirectory(), "big.json");
-        File.WriteAllText(bigPath, "{\"RefreshSeconds\":45,\"pad\":\"" + new string('x', 1024 * 1024) + "\"}");
+        File.WriteAllText(bigPath, "{\"RefreshSeconds\":45,\"pad\":\"" + new string('x', SettingsViewModel.MaxImportBytes) + "\"}");
         var messages = new List<string>();
         var (targetVm, _) = Build(targetSettings, askForSettingsImportPath: () => bigPath, showMessage: messages.Add);
 
