@@ -58,6 +58,7 @@ See what your tokens would cost at API prices, safer token history with weekly c
 - Read-only text boxes in dialogs and tiles have a name for screen readers.
 - After a damaged statistics file is replaced by its backup, the token usage window opens right away instead of failing once.
 - The first opening of the token usage window no longer stutters while the price list loads.
+- Cost figures of 100 or more are shown without cents, so they fit their tiles instead of being cut off.
 
 ### Security
 

@@ -404,7 +404,7 @@ internal static class Program
         File.WriteAllText(Path.Combine(cacheDirectory, "model-prices.json"), $"{{\"fetchedAt\":\"{stamp}\",\"models\":{{{models}}}}}");
         // usdPerEur: about 0.92 euro per dollar.
         File.WriteAllText(Path.Combine(cacheDirectory, "eur-rate.json"), $"{{\"usdPerEur\":{N(1 / 0.92)},\"fetchedAt\":\"{stamp}\"}}");
-        return new CostService(() => true, () => CostCurrency.Auto, cacheDirectory, networkAllowed: () => false);
+        return new CostService(() => true, () => CostCurrency.Usd, cacheDirectory, networkAllowed: () => false);
     }
 
     /// <summary>The statistics window on its 30 day range with the busy day selected, never shown.</summary>

@@ -157,7 +157,7 @@ Cursor and Copilot keep no token counts on your PC, so the window says so instea
 Gemini counts come from the local conversations of the Antigravity CLI.
 
 <div align="center">
-<img src=".github/images/token-usage.png" width="820" alt="The token usage window with the activity grid, figures and charts, dark theme">
+<img src=".github/images/token-usage.png" width="820" alt="The token usage window with the activity grid, figures with estimated API cost and charts, dark theme">
 <br><sub>The token usage window</sub>
 </div>
 
