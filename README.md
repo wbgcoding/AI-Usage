@@ -54,8 +54,8 @@ before the first number shows up.
   <tr>
     <td><b>Google Gemini</b><br><sub>Antigravity</sub></td>
     <td>Gemini quota windows with their reset times</td>
-    <td>The account the Antigravity CLI (<code>agy</code>) is signed in with; a signed-in browser
-      session for the extra figures</td>
+    <td>The account the Antigravity CLI (<code>agy</code>) is signed in with, and Google's Gemini
+      usage page through a signed-in browser session</td>
   </tr>
   <tr>
     <td><b>GitHub Copilot</b></td>
@@ -92,6 +92,11 @@ browser.
 - Error messages that name the cause (no answer in time, HTTP code, no connection), keep the last
   numbers in view and link to the agent's status page on outages
 - Your own name per account, such as "Work", on the tile, in the tooltip and in notifications
+- A notification when a sign-in expires, a "Not again today" button on usage notifications, and
+  alerts for one account that arrive together come as one
+- A hint on the tile when an agent changes its answer and a value may be read wrongly
+- "Use local sources only" per account for Claude, Codex and Gemini: the tile then reads only the
+  local tool's data and never the app's web session
 
 **Made for your desktop**
 - Tiles below each other or side by side; the window sizes itself and switches between the full
@@ -104,6 +109,10 @@ browser.
 - Autostart, timed refresh, update check, and "Pause for 1 hour" in the tray menu
 - One backup file for settings, history and the token index; restore it on a new PC, or import the
   token history of a second PC next to your own
+- A weekly copy of the token index (the last three are kept); a damaged index is restored from the
+  newest good copy on its own
+- Remembers its place for up to three display setups and returns there when you plug in or remove
+  a monitor
 - Light on your PC: while the screen is locked the widget slows down and catches up once you are
   back; on battery it fetches half as often; the hidden sign-in browser is released after 15 idle
   minutes
@@ -133,8 +142,14 @@ dashboard for any period you pick: 7 days, 30 days, a year or everything.
 - **Limits:** how often you hit each agent's limit, with the highest value and the average peak,
   and an estimate of how many tokens one percent of a window holds for each model, from your own
   usage.
-- **API cost estimate:** what your tokens would cost at API prices, shown next to the token figures with a leading ~ because it is an estimate (a star marks sums that include a model without a known price). It can show dollars, euros or follow your region, and can be switched off in the settings. The price list comes from raw.githubusercontent.com, a second price list for models missing there from models.dev (only when such a model shows up) and the exchange rate (euro only) from www.ecb.europa.eu; each is fetched at most once a day, and nothing is downloaded while the estimate is off. Models with "free" in their name count as 0.
-- **CSV export** for your own spreadsheets.
+- **API cost estimate:** what your tokens would cost at public API prices, next to the token
+  figures, in tooltips, per session and per project, with a leading ~ because it is an estimate (a
+  star marks sums that include a model without a known price). It shows dollars or euros, or
+  follows your region. Models with "free" in their name count as 0. Switch it off under
+  **Settings > Display > Show API cost**: every cost figure disappears and nothing is downloaded.
+- **CSV export** of all statistics in one file for your own spreadsheets.
+- **Moved projects** count as one: a project you moved to another folder keeps one bar, named
+  after its folder.
 - **Your layout:** drag a section by its heading above, below or beside another one, or move it
   with Alt+Up and Alt+Down. The layout is remembered and can be reset.
 
@@ -248,6 +263,10 @@ account name a provider reports, and it stays on your PC.
   Google token refresh for an expired Antigravity CLI sign-in, the update check and, only when you
   agree to it, the download of Microsoft's WebView2 installer, nothing leaves your computer. No
   telemetry.
+- **Downloads only what the cost estimate needs.** While the API cost estimate is on, AI-Usage
+  fetches a public price list from raw.githubusercontent.com, a second one from models.dev only
+  when a model is missing from the first, and the euro exchange rate from www.ecb.europa.eu when
+  you show euros; each at most once a day. Nothing about you or your usage is sent.
 - **Speaks like your CLI.** To read your limits, the Claude usage request identifies as Claude
   Code, and the Antigravity token refresh uses the client id and secret that ship inside your
   installed Antigravity CLI. Nothing else is sent, and nothing is read from the CLIs' files except
@@ -288,7 +307,7 @@ Uninstalling asks whether to remove your data too (settings, history and saved s
 
 ### Coming from version 1.1.0
 
-Up to version 1.1.0 every download carried its own copy of .NET, which made it about 136 MB. From this version on AI-Usage uses the .NET 10 Desktop Runtime installed on your PC, and the downloads shrink to a fraction of that.
+Up to version 1.1.0 every download carried its own copy of .NET, which made it about 136 MB. From version 1.2.0 on AI-Usage uses the .NET 10 Desktop Runtime installed on your PC, and the downloads shrink to a fraction of that.
 
 **Installed copy:** the update runs the new setup, which checks for the runtime and, if it is missing, downloads it from Microsoft and installs it. Windows asks once for permission.
 

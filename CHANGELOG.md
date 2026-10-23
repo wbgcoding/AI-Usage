@@ -4,12 +4,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-10-16
+## [1.3.0] - 2026-10-23
 
-Backups, history from a second PC, real Windows notifications and a much deeper token usage window, a far smaller download, and a long list of fixes from a full review of the app.
+See what your tokens would cost at API prices, safer token history with weekly copies, notifications that know when to stay quiet, Gemini read from Google's own usage page, and many fixes.
 
 ### Added
 
+- **API cost estimate:** the token usage window shows what your tokens would cost at public API prices: next to the totals, in tooltips, under the ring charts, per session, in the top projects list and in the daily usage tile. It shows dollars or euros, or follows your region. Models with "free" in their name count as 0, and a model the main price list lacks is looked up in a second public list before it is left out. Turn it off under Settings > Display > "Show API cost": every cost figure disappears and nothing is downloaded.
+- Export all statistics as one CSV file from the header of the token usage window.
+- Projects you moved to another folder show as one bar, named after their folder.
 - A Windows notification when an account's sign-in expires, once, with a "Sign in" button.
 - Usage notifications have a "Not again today" button that silences further notifications for that account until midnight.
 - Several notifications for one account that arrive within three seconds come as one.
@@ -20,6 +23,53 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Before a backup is restored, the confirmation says when it was made and which history it holds.
 - When a provider changes its answer and a value may be read wrongly, the tile says so and links to the log.
 - "Use local sources only" for Claude, Codex and Gemini: the tile then reads only the local tool's data and never the app's web session. Turning it off again needs no new sign-in.
+- "Say when usage is below the time" in the settings switches the pace sentence under a bar off.
+
+### Changed
+
+- Gemini is read from Google's usage page through the same answer the Gemini app uses, and that reading wins over the Antigravity CLI when both have numbers.
+- Claude's newer limit windows, such as the weekly limit for all models, are recognized and shown.
+- When the weekly limit is reached, the five-hour bar shows it as full as well.
+- The read interval can be set below five minutes.
+- The token usage window always opens centered on the widget, like Settings, instead of where it was last left. It still keeps its size.
+- The token usage window computes a new period or grouping in the background instead of freezing for a moment on a large history.
+- The texts in the middle of the ring charts grow with the ring.
+- Long tooltips wrap at a fixed width instead of running across the screen.
+- Shortcut keys show as printed on the keyboard ("Page Down", "1", "/") and a long combination is no longer cut off.
+- The settings export leaves out window positions, monitor names, the names of imported PCs and stored provider addresses.
+- A settings import refuses files over 16 MB instead of freezing the window.
+
+### Fixed
+
+- Texts in the token usage window no longer jump a pixel up and down while the window is resized, and dragging its top or left edge no longer makes the content twitch.
+- The cost estimate found no price for several models that are in the price list, such as MiniMax M3, and for tool aliases like "gemini-pro-default". They are matched now.
+- Moved projects no longer merge with unrelated folders of the same name inside other projects (such as two different "android" folders), and older rows that carry only the project name now count toward the moved project.
+- A Claude session log that was rewritten instead of extended is read again, so its tokens are neither lost nor counted twice.
+- The Codex cache share can no longer exceed the input that actually arrived.
+- Google's traffic check during the Gemini sign-in no longer blocks it; when it does appear, the tile asks for a new sign-in instead of showing an error.
+- Removing an account while it is still signing out no longer leaves its tile without reads until a restart.
+- The "full in" forecast counts from now instead of from the last reading, so an older reading no longer pushes it late.
+- Quiet hours with the same start and end time now cover the whole day.
+- Tokens per percent is no longer doubled for the hour the clocks go back in autumn.
+- A small wobble in a reset time no longer sets off the same notification again.
+- The tray number stays current while the widget is hidden.
+- Escape closes the provider list in the token usage window.
+- The per-active-day figure has a shorter label that fits the narrow window beside its cost.
+- Read-only text boxes in dialogs and tiles have a name for screen readers.
+
+### Security
+
+- The folder an update or runtime setup runs from is locked before it starts with administrator rights, so no other program can place a file beside it, and it is removed without following links.
+- A Microsoft installer whose revocation check fails right after its download is refused.
+- The app log masks e-mail addresses and access, refresh and id tokens if one ever ends up in a message.
+- A new data folder is created readable only by your user, the administrators and the system.
+
+## [1.2.0] - 2026-10-16
+
+Backups, history from a second PC, real Windows notifications and a much deeper token usage window, a far smaller download, and a long list of fixes from a full review of the app.
+
+### Added
+
 - The waiting mark also works for Gemini: the tile marks it when your latest Antigravity conversation ends with a finished answer you have not replied to yet.
 - The main Claude account can sign in through claude.ai in the app; Claude Code's own sign-in still comes first while it has numbers.
 - One backup file holds your settings, the usage history and the token index. Restoring it replaces everything and restarts the app; your previous state is kept aside until the restore has finished.
@@ -55,7 +105,6 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - A portable exe for ARM64, `AI-Usage-arm64.exe`, joins the downloads.
 - Settings > Refresh: each account can read at most every 5, 10, 15, 30 or 60 minutes, or follow the default. The slider under Refresh now applies to every provider read over the internet; a browser session is never read more often than every 5 minutes.
 - Picking a data folder on a network drive, a removable drive or in a cloud sync folder asks first, since the token index can be damaged there. When the chosen folder is not available at start, the data folder row says so.
-- Models with "free" in their name now count as 0 in the cost estimate, and a model the main price list lacks is looked up in a second public list (models.dev) before it is left out.
 
 ### Changed
 
@@ -99,9 +148,6 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - While an update downloads, the widget says so beside the install button. A release without a file for your copy and a release that is not newer get their own messages.
 - In a narrow widget the reset clock time gives way before a window name is shortened.
 - Removing the app with "also remove data" now also removes the browser sign-ins of the providers.
-- The token usage window always opens centered on the widget, like Settings, instead of where it was last left. It still keeps its size.
-- The cost switch in Settings is called "Show API cost"; turned off, it hides every cost figure.
-- Texts in the token usage window no longer jump a pixel up and down while the window is resized, and dragging its top or left edge no longer makes the content twitch.
 
 ### Fixed
 
@@ -202,18 +248,6 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - An account name cut to its maximum length no longer ends in half an emoji.
 - Uninstalling removes the desktop shortcut of a per-machine install.
 - The portable setup no longer writes a setup log to the PC.
-- Removing an account while it is still signing out no longer leaves its tile without reads until a restart.
-- The "full in" forecast counts from now instead of from the last reading, so an older reading no longer pushes it late.
-- Quiet hours with the same start and end time now cover the whole day.
-- Tokens per percent is no longer doubled for the hour the clocks go back in autumn.
-- The token usage window computes a new range or grouping in the background instead of freezing for a moment on a large history.
-- Shortcut keys show as printed on the keyboard ("Page Down", "1", "/") and a long combination is no longer cut off.
-- The settings export leaves out window positions, monitor names, the names of imported PCs and stored provider addresses.
-- A settings import refuses files over 16 MB instead of freezing the window.
-- The per-active-day figure has a shorter label that fits the narrow window beside its cost.
-- Read-only text boxes in dialogs and tiles have a name for screen readers.
-- The cost estimate found no price for several models that are in the price list, such as MiniMax M3, and for tool aliases like "gemini-pro-default". They are matched now.
-- Moved projects no longer merge with unrelated folders of the same name inside other projects (such as two different "android" folders), and older rows that carry only the project name now count toward the moved project instead of showing as a separate bar.
 
 ### Security
 
@@ -230,10 +264,6 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - The address found for reading a provider is stored without account ids.
 - The WebView2 installer runs from its own new folder, its signer must chain to a pinned Microsoft root, and the sign-in window allows no downloads.
 - The build refuses a release whose signature does not match the key built into the app.
-- The folder an update or runtime setup runs from is locked before it starts with administrator rights, so no other program can place a file beside it, and it is removed without following links.
-- A Microsoft installer whose revocation check fails right after its download is refused.
-- The app log masks e-mail addresses and access, refresh and id tokens if one ever ends up in a message.
-- A new data folder is created readable only by your user, the administrators and the system.
 
 ## [1.1.0] - 2026-10-08
 
