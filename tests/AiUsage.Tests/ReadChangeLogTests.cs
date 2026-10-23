@@ -127,4 +127,19 @@ public class ReadChangeLogTests
         ReadChangeLog.Report("Example", "outer");
         Assert.True(outer.Noted);
     }
+
+    [Fact]
+    public void The_once_per_run_memory_stops_growing_at_its_cap_but_still_reports_new_lines()
+    {
+        var seen = new HashSet<string>();
+        for (var i = 0; i < ReadChangeLog.MaxRemembered; i++)
+            Assert.True(ReadChangeLog.FirstSighting(seen, "line " + i));
+        Assert.Equal(ReadChangeLog.MaxRemembered, seen.Count);
+
+        // Full: a new line is still reported (logged) but not kept; known lines stay quiet; nothing is cleared.
+        Assert.True(ReadChangeLog.FirstSighting(seen, "one more"));
+        Assert.True(ReadChangeLog.FirstSighting(seen, "one more"));
+        Assert.False(ReadChangeLog.FirstSighting(seen, "line 0"));
+        Assert.Equal(ReadChangeLog.MaxRemembered, seen.Count);
+    }
 }

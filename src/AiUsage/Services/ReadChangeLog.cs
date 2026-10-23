@@ -16,6 +16,10 @@ public static class ReadChangeLog
     // Notes already written by this process: each change is logged once per run, not on every read.
     private static readonly HashSet<string> Written = [];
 
+    // Most distinct lines remembered. Notes carry only ids and names, so this is far above a real run;
+    // it only keeps a pathological answer (endless new keys) from growing the set without bound.
+    internal const int MaxRemembered = 500;
+
     // Providers that already wrote a note of their own this run (see ReportGeneral).
     private static readonly HashSet<string> ProvidersWithNote = new(StringComparer.Ordinal);
 
@@ -82,12 +86,24 @@ public static class ReadChangeLog
         {
             if (general && ProvidersWithNote.Contains(providerName))
                 return;
-            if (!Written.Add(line))
+            if (!FirstSighting(Written, line))
                 return;
             if (!general)
                 ProvidersWithNote.Add(providerName);
         }
         LogService.Shared.Log("WARN", line);
+    }
+
+    /// <summary>True when <paramref name="line"/> has not been seen yet. Remembers it only while the set
+    /// holds fewer than <see cref="MaxRemembered"/> lines: once full, a new line is still reported as
+    /// new (so it is logged) but is not kept, and the set is never cleared.</summary>
+    internal static bool FirstSighting(HashSet<string> seen, string line)
+    {
+        if (seen.Contains(line))
+            return false;
+        if (seen.Count < MaxRemembered)
+            seen.Add(line);
+        return true;
     }
 
     /// <summary>Starts watching this flow for notes: <see cref="ReadScope.Noted"/> turns true once any
