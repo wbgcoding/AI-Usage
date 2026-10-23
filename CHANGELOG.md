@@ -56,6 +56,8 @@ See what your tokens would cost at API prices, safer token history with weekly c
 - Escape closes the provider list in the token usage window.
 - The per-active-day figure has a shorter label that fits the narrow window beside its cost.
 - Read-only text boxes in dialogs and tiles have a name for screen readers.
+- After a damaged statistics file is replaced by its backup, the token usage window opens right away instead of failing once.
+- The first opening of the token usage window no longer stutters while the price list loads.
 
 ### Security
 
