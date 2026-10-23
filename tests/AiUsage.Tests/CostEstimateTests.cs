@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using AiUsage.Models;
@@ -152,7 +152,9 @@ public class CostEstimateTests
     {
         var en = CultureInfo.GetCultureInfo("en-US");
         Assert.Equal("~$2.00", CostFormatter.Format(2.0, CostCurrency.Usd, null, en));
-        Assert.Equal("~$1,234.50", CostFormatter.Format(1234.5, CostCurrency.Usd, null, en));
+        Assert.Equal("~$1,235", CostFormatter.Format(1234.6, CostCurrency.Usd, null, en));
+        Assert.Equal("~$99.99", CostFormatter.Format(99.99, CostCurrency.Usd, null, en));
+        Assert.Equal("~$100", CostFormatter.Format(99.996, CostCurrency.Usd, null, en));
     }
 
     [Fact]
