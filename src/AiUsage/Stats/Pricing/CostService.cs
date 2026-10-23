@@ -89,7 +89,7 @@ public sealed class CostService
     internal CostService(
         Func<bool> enabled, Func<CostCurrency> currency, string? cacheDirectory = null, Func<CultureInfo>? culture = null,
         Func<RegionInfo>? region = null, Func<DateTimeOffset>? now = null, Func<bool>? networkAllowed = null,
-        HttpMessageHandler? handler = null)
+        HttpMessageHandler? handler = null, bool loadPricesInBackground = false)
     {
         _enabled = enabled;
         _currency = currency;
@@ -101,10 +101,27 @@ public sealed class CostService
         _handler = handler;
         Prices = new ModelPriceList(() => _cacheDirectory);
         Rate = new EurRate(() => _cacheDirectory);
-        Prices.Load();
         Rate.Load();
         Prices.Fallback.WantedRaised += () => FallbackTask = RefreshFallbackAsync();
+        // The cache is a megabyte of JSON: the app loads it off the UI thread, and a figure asked for
+        // before it is in simply has no prices yet, as with an empty cache.
+        if (loadPricesInBackground)
+        {
+            PricesLoaded = Task.Run(() =>
+            {
+                Prices.Load();
+                if (!Prices.IsEmpty)
+                    Changed?.Invoke();
+            });
+        }
+        else
+        {
+            Prices.Load();
+        }
     }
+
+    /// <summary>Completes when the cached price list is loaded (and <see cref="Changed"/> raised for it).</summary>
+    internal Task PricesLoaded { get; } = Task.CompletedTask;
 
     /// <summary>The latest background load of the second price table.</summary>
     internal Task FallbackTask { get; private set; } = Task.CompletedTask;
@@ -205,6 +222,8 @@ public sealed class CostService
 
         try
         {
+            // A download replaced by the older cache arriving late would lose its prices.
+            await PricesLoaded;
             var changed = false;
             var now = _now();
             if (Prices.IsStale(now) && now - _priceAttempt >= RetryAfterFailure)

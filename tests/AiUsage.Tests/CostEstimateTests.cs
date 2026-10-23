@@ -282,6 +282,22 @@ public class CostEstimateTests
     }
 
     [Fact]
+    public async Task A_background_load_brings_the_cached_prices_in_after_it_completes()
+    {
+        var directory = TempDirectory();
+        await Service(new FakeHandler(ForUrl), directory).RefreshAsync();
+
+        var service = new CostService(
+            () => true, () => CostCurrency.Usd, directory, () => CultureInfo.GetCultureInfo("en-US"), () => new RegionInfo("US"),
+            networkAllowed: () => false, loadPricesInBackground: true);
+        await service.PricesLoaded;
+
+        Assert.False(service.Prices.IsEmpty);
+        Assert.NotNull(service.Snapshot());
+        Assert.True(service.Sum([Row("gpt-5", 1_000_000, 0)]).AnyPriced);
+    }
+
+    [Fact]
     public async Task Refresh_does_nothing_when_off_or_when_the_network_is_held()
     {
         var off = new FakeHandler(ForUrl);

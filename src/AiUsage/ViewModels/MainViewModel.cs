@@ -1777,8 +1777,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private CostService? _cost;
 
     /// <summary>The cost estimate of the token statistics: one instance per process, created on first
-    /// use so nothing is read from disk before the statistics are wanted.</summary>
-    internal CostService Cost => _cost ??= new CostService(() => _settings.ShowCostEstimate, () => _settings.CostCurrency);
+    /// use so nothing is read from disk before the statistics are wanted. Its price cache loads in the
+    /// background, open statistics redraw when it is in.</summary>
+    internal CostService Cost => _cost ??= new CostService(() => _settings.ShowCostEstimate, () => _settings.CostCurrency, loadPricesInBackground: true);
 
     /// <summary>Settings window calls this after the estimate switch or its currency changed, so open
     /// statistics redraw and a needed download starts.</summary>
