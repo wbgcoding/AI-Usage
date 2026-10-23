@@ -46,19 +46,6 @@ public class WindowPlacementTests
         Assert.Equal((900.0, 650.0), second.RememberedStatsWindowSize);
     }
 
-    [Fact]
-    public void A_remembered_stats_position_survives_a_fresh_instance_and_starts_out_null()
-    {
-        var settings = new AppSettings();
-        Assert.Null(new WindowPlacementService(settings).RememberedStatsWindowPosition);
-
-        new WindowPlacementService(settings).RememberedStatsWindowPosition = (120.5, 80);
-
-        Assert.Equal((120.5, 80.0), new WindowPlacementService(settings).RememberedStatsWindowPosition);
-
-        new WindowPlacementService(settings).RememberedStatsWindowPosition = null;
-        Assert.Null(new WindowPlacementService(settings).RememberedStatsWindowPosition);
-    }
 
     [Fact]
     public void An_instance_with_nothing_remembered_yet_reports_null()

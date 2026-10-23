@@ -347,12 +347,6 @@ public sealed class WindowSettings
 
     public double StatsHeight { get; set; }
 
-    /// <summary>Where the Stats window was left; null means it has not been moved yet and opens
-    /// centered on the widget.</summary>
-    public double? StatsLeft { get; set; }
-
-    public double? StatsTop { get; set; }
-
     public string MonitorDeviceName { get; set; } = @"\\.\DISPLAY1";
 
     public bool Collapsed { get; set; }

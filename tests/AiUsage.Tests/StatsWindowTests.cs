@@ -371,25 +371,21 @@ public class StatsWindowTests
     }
 
     [Fact]
-    public void ResolveStatsWindowPosition_centers_on_the_owner_until_the_window_was_moved()
+    public void ResolveStatsWindowPosition_centers_on_the_owner()
     {
         var area = new MonitorArea("test", 0, 0, 1920, 1040);
 
-        Assert.Equal((500.0, 150.0), WindowPlacementService.ResolveStatsWindowPosition(null, (800, 600), new WindowRect(700, 300, 400, 300), area));
+        Assert.Equal((500.0, 150.0), WindowPlacementService.ResolveStatsWindowPosition((800, 600), new WindowRect(700, 300, 400, 300), area));
         // An owner docked at the screen edge would leave it partly off screen: pulled back in.
-        Assert.Equal((0.0, 0.0), WindowPlacementService.ResolveStatsWindowPosition(null, (800, 600), new WindowRect(100, 100, 400, 300), area));
+        Assert.Equal((0.0, 0.0), WindowPlacementService.ResolveStatsWindowPosition((800, 600), new WindowRect(100, 100, 400, 300), area));
     }
 
     [Fact]
-    public void ResolveStatsWindowPosition_keeps_a_remembered_position_and_pulls_an_off_screen_one_back()
+    public void ResolveStatsWindowPosition_without_an_owner_takes_the_middle_of_the_work_area()
     {
         var area = new MonitorArea("test", 0, 0, 1920, 1040);
 
-        Assert.Equal((300.0, 200.0), WindowPlacementService.ResolveStatsWindowPosition((300, 200), (800, 600), null, area));
-        Assert.Equal((1120.0, 440.0), WindowPlacementService.ResolveStatsWindowPosition((5000, 4000), (800, 600), null, area));
-        Assert.Equal((0.0, 0.0), WindowPlacementService.ResolveStatsWindowPosition((-3000, -3000), (800, 600), null, area));
-        // No owner and nothing remembered: the middle of the work area.
-        Assert.Equal((560.0, 220.0), WindowPlacementService.ResolveStatsWindowPosition(null, (800, 600), null, area));
+        Assert.Equal((560.0, 220.0), WindowPlacementService.ResolveStatsWindowPosition((800, 600), null, area));
     }
 
     // a ComboBox binds SelectedItem to these two view-model properties instead of the

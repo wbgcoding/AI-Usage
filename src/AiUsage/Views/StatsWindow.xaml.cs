@@ -461,16 +461,14 @@ public partial class StatsWindow : Window
     }
 
     /// <summary>Takes the opening size before the first layout pass, so the open does not lay out
-    /// every chart again at a new size. Without a remembered position the monitor is the widget's;
-    /// <see cref="StatsWindow_Loaded"/> still corrects the size should the window land elsewhere.</summary>
+    /// every chart again at a new size. The monitor is the widget's; <see cref="PlaceOnOwner"/>
+    /// still corrects the size should the window land elsewhere.</summary>
     private void ApplyRememberedSizeAhead()
     {
         var placement = WindowPlacementService.Shared;
-        var probe = placement?.RememberedStatsWindowPosition is { } position
-            ? new WindowRect(position.Left + 1, position.Top + 1, 0, 0)
-            : Application.Current?.MainWindow is { } main && !double.IsNaN(main.Left)
-                ? new WindowRect(main.Left + main.ActualWidth / 2, main.Top + main.ActualHeight / 2, 0, 0)
-                : new WindowRect(0, 0, 0, 0);
+        var probe = Application.Current?.MainWindow is { } main && !double.IsNaN(main.Left)
+            ? new WindowRect(main.Left + main.ActualWidth / 2, main.Top + main.ActualHeight / 2, 0, 0)
+            : new WindowRect(0, 0, 0, 0);
         var area = MainWindow.PickArea(NativeMonitors.WorkAreas(), null, probe);
         var size = WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight);
         Width = size.Width;
@@ -601,14 +599,24 @@ public partial class StatsWindow : Window
         _openDataMs = Stopwatch.GetElapsedTime(dataStart).TotalMilliseconds;
         _ = hadSnapshot ? RecomputeLoggedAsync(showLoading: false) : RecomputeLoggedAsync();
 
-        var placement = WindowPlacementService.Shared;
-        var rememberedPosition = placement?.RememberedStatsWindowPosition;
-        var monitors = NativeMonitors.WorkAreas();
+        PlaceOnOwner();
+    }
 
-        // A remembered position names its monitor by where it lies; otherwise the monitor the window
-        // opened on. By handle first there: with mixed scaling the per-monitor areas overlap.
-        var area = rememberedPosition is { } position
-            ? MainWindow.PickArea(monitors, null, new WindowRect(position.Left + 1, position.Top + 1, 0, 0))
+    /// <summary>Centers the window on the widget, the same as Settings, on every open: a window
+    /// hidden on close and shown again moves along with the widget too. The size is the remembered
+    /// one, fitted to the widget's monitor; the window always lands fully on that monitor.</summary>
+    internal void PlaceOnOwner()
+    {
+        var placement = WindowPlacementService.Shared;
+        var monitors = NativeMonitors.WorkAreas();
+        var owner = Owner is { } o && !double.IsNaN(o.Left) ? o : null;
+
+        // The widget's monitor, by handle first: with mixed scaling the per-monitor areas overlap.
+        var area = owner is not null
+            ? MainWindow.PickArea(
+                monitors,
+                NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(owner).Handle),
+                new WindowRect(owner.Left + owner.ActualWidth / 2, owner.Top + owner.ActualHeight / 2, 0, 0))
             : MainWindow.PickArea(
                 monitors,
                 NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
@@ -619,14 +627,14 @@ public partial class StatsWindow : Window
         {
             Width = size.Width;
             Height = size.Height;
-            UpdateLayout();
+            if (IsLoaded)
+                UpdateLayout();
         }
 
-        // Centered on the widget until the window was moved once; always fully on a monitor.
-        WindowRect? ownerBounds = Owner is { WindowState: WindowState.Normal } owner && !double.IsNaN(owner.Left)
+        WindowRect? ownerBounds = owner is { WindowState: WindowState.Normal }
             ? new WindowRect(owner.Left, owner.Top, owner.ActualWidth, owner.ActualHeight)
             : null;
-        var (left, top) = WindowPlacementService.ResolveStatsWindowPosition(rememberedPosition, size, ownerBounds, area);
+        var (left, top) = WindowPlacementService.ResolveStatsWindowPosition(size, ownerBounds, area);
         Left = left;
         Top = top;
     }
@@ -687,18 +695,14 @@ public partial class StatsWindow : Window
         _ = hadSnapshot ? RecomputeLoggedAsync(showLoading: false) : RecomputeLoggedAsync();
     }
 
-    /// <summary>The size and place for the next open and the data for the next start.</summary>
+    /// <summary>The size for the next open and the data for the next start.</summary>
     private void KeepForNextOpen()
     {
         if (!_opened)
             return;
 
         if (WindowPlacementService.Shared is { } placement)
-        {
             placement.RememberedStatsWindowSize = (Width, Height);
-            if (!double.IsNaN(Left) && !double.IsNaN(Top))
-                placement.RememberedStatsWindowPosition = (Left, Top);
-        }
 
         // Only a window that was shown has seen the data worth keeping for the next start; a
         // prepared one closing at exit leaves that to the app's own exit. Off the UI thread.

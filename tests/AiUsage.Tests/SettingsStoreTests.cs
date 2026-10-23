@@ -299,8 +299,6 @@ public class SettingsStoreTests : IDisposable
             StatsCustomFrom = new DateOnly(2026, 9, 1),
             StatsCustomTo = new DateOnly(2026, 9, 30),
         };
-        original.Window.StatsLeft = 140.5;
-        original.Window.StatsTop = 60;
 
         store.SaveNow(original);
         using var reloadStore = new SettingsStore(directory);
@@ -312,12 +310,10 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal("codex", loaded.StatsProvider);
         Assert.Equal(new DateOnly(2026, 9, 1), loaded.StatsCustomFrom);
         Assert.Equal(new DateOnly(2026, 9, 30), loaded.StatsCustomTo);
-        Assert.Equal(140.5, loaded.Window.StatsLeft);
-        Assert.Equal(60.0, loaded.Window.StatsTop);
     }
 
     [Fact]
-    public void Load_gives_an_older_file_the_default_stats_choices_and_no_remembered_position()
+    public void Load_gives_an_older_file_the_default_stats_choices()
     {
         var directory = TempDirectory();
         File.WriteAllText(Path.Combine(directory, "settings.json"), "{\"schemaVersion\":1,\"refreshSeconds\":45}");
@@ -330,7 +326,6 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal("Provider", loaded.StatsColorBy);
         Assert.Equal("", loaded.StatsProvider);
         Assert.Null(loaded.StatsCustomFrom);
-        Assert.Null(loaded.Window.StatsLeft);
     }
 
     [Fact]

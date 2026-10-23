@@ -1737,6 +1737,7 @@ public partial class MainWindow : Window, IDisposable
         }
         else if (!_statsWindow.IsVisible)
         {
+            _statsWindow.PlaceOnOwner();
             _statsWindow.BeginOpenMeasurement(clicked);
         }
         _statsWindow.Show();

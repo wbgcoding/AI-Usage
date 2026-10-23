@@ -91,20 +91,6 @@ public class WindowPlacementService
         }
     }
 
-    /// <summary>Where the Stats window was left, or null while it has never been moved.</summary>
-    public (double Left, double Top)? RememberedStatsWindowPosition
-    {
-        get => _settings.Window is { StatsLeft: { } left, StatsTop: { } top } && double.IsFinite(left) && double.IsFinite(top)
-            ? (left, top)
-            : null;
-        set
-        {
-            _settings.Window.StatsLeft = value?.Left;
-            _settings.Window.StatsTop = value?.Top;
-            _store?.RequestSave(_settings);
-        }
-    }
-
     /// <summary>
     /// Resolves a remembered window rectangle against the monitors that exist now: unchanged if it
     /// fully fits one of them, clamped into the nearest one if it only partially overlaps, or
@@ -255,19 +241,14 @@ public class WindowPlacementService
         return (Math.Min(width, area.Width), Math.Min(height, area.Height));
     }
 
-    /// <summary>Where the Stats window of the given size opens: where it was left, or centered on
-    /// its owner (on the work area while there is none), and in both cases pulled fully into <paramref
-    /// name="area"/> - a remembered position on a monitor that is gone still ends up on screen.</summary>
+    /// <summary>Where the Stats window of the given size opens: centered on its owner (on the work
+    /// area while there is none), pulled fully into <paramref name="area"/>.</summary>
     public static (double Left, double Top) ResolveStatsWindowPosition(
-        (double Left, double Top)? remembered, (double Width, double Height) size, WindowRect? owner, MonitorArea area)
+        (double Width, double Height) size, WindowRect? owner, MonitorArea area)
     {
         double left;
         double top;
-        if (remembered is { } position)
-        {
-            (left, top) = position;
-        }
-        else if (owner is { } bounds)
+        if (owner is { } bounds)
         {
             left = bounds.Left + (bounds.Width - size.Width) / 2;
             top = bounds.Top + (bounds.Height - size.Height) / 2;
