@@ -607,6 +607,25 @@ public partial class StatsWindow : Window
     /// one, fitted to the widget's monitor; the window always lands fully on that monitor.</summary>
     internal void PlaceOnOwner()
     {
+        PlaceOnOwner(resize: true);
+
+        // Moved onto a monitor of another scaling, the window takes that monitor's DPI only after the
+        // move, so the first position was worked out at the old one: place it once more when that happens.
+        _recenterOnDpiChange = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => _recenterOnDpiChange = false);
+    }
+
+    private bool _recenterOnDpiChange;
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        if (_recenterOnDpiChange)
+            PlaceOnOwner(resize: false);
+    }
+
+    private void PlaceOnOwner(bool resize)
+    {
         var placement = WindowPlacementService.Shared;
         var monitors = NativeMonitors.WorkAreas();
         var owner = Owner is { } o && !double.IsNaN(o.Left) ? o : null;
@@ -622,7 +641,9 @@ public partial class StatsWindow : Window
                 NativeMonitors.DeviceNameOfWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle),
                 new WindowRect(Left + Width / 2, Top + Height / 2, 0, 0));
 
-        var size = WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight);
+        var size = resize
+            ? WindowPlacementService.ResolveStatsWindowSize(placement?.RememberedStatsWindowSize, area, MinWidth, MinHeight)
+            : (Width, Height);
         if (size.Width != Width || size.Height != Height)
         {
             Width = size.Width;
@@ -631,7 +652,8 @@ public partial class StatsWindow : Window
                 UpdateLayout();
         }
 
-        WindowRect? ownerBounds = owner is { WindowState: WindowState.Normal }
+        // A widget hidden in the tray keeps its old place: then the middle of its monitor instead.
+        WindowRect? ownerBounds = owner is { WindowState: WindowState.Normal, IsVisible: true }
             ? new WindowRect(owner.Left, owner.Top, owner.ActualWidth, owner.ActualHeight)
             : null;
         var (left, top) = WindowPlacementService.ResolveStatsWindowPosition(size, ownerBounds, area);
