@@ -653,8 +653,8 @@ public sealed class StatsRingChart : FrameworkElement
             var figure = LegendFigure(slices[i].Label, percentText, slices[i].CostText, legendWidth, dpi, typeface, fontSize);
             var (label, percent) = LegendEntryTexts(slices[i].Label, figure, legendWidth, dpi, typeface, TextBrush, fontSize);
             var textX = x + swatch + 4 * textScale;
-            dc.DrawText(label, new Point(textX, y + (rowHeight - label.Height) / 2));
-            dc.DrawText(percent, new Point(textX + label.Width, y + (rowHeight - percent.Height) / 2));
+            dc.DrawText(label, ChartDrawCache.Snap(textX, y + (rowHeight - label.Height) / 2, dpi));
+            dc.DrawText(percent, ChartDrawCache.Snap(textX + label.Width, y + (rowHeight - percent.Height) / 2, dpi));
 
             y += rowHeight;
         }

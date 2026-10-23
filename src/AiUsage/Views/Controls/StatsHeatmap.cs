@@ -309,7 +309,7 @@ public sealed class StatsHeatmap : FrameworkElement
             var x = LeftLabelWidth + column * (cellWidth + CellGap);
             var label = new FormattedText(
                 column.ToString(culture), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, LabelFontSize, TextBrush, dpi);
-            drawingContext.DrawText(label, new Point(x, (TopLabelHeight - label.Height) / 2));
+            drawingContext.DrawText(label, ChartDrawCache.Snap(x, (TopLabelHeight - label.Height) / 2, dpi));
         }
 
         for (var row = 0; row < Rows; row++)
@@ -319,7 +319,7 @@ public sealed class StatsHeatmap : FrameworkElement
             var rowLabel = new FormattedText(
                 culture.DateTimeFormat.AbbreviatedDayNames[(int)day], CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
                 typeface, LabelFontSize, TextBrush, dpi);
-            drawingContext.DrawText(rowLabel, new Point(0, y + (cellHeight - rowLabel.Height) / 2));
+            drawingContext.DrawText(rowLabel, ChartDrawCache.Snap(0, y + (cellHeight - rowLabel.Height) / 2, dpi));
 
             for (var column = 0; column < Columns; column++)
             {

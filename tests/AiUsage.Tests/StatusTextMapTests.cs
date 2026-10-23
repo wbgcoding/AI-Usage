@@ -116,8 +116,10 @@ public class StatusTextMapTests
                      && !f.EndsWith("StatusTextMap.cs")
                      // These round something that is not a usage percentage (a duration in
                      // years, a chart's mid-gridline pixel, a chart's column count, the tray icon's
-                     // digit box in whole pixels) and legitimately stay on bare Math.Round.
+                     // digit box in whole pixels, a chart text origin on whole device pixels)
+                     // and legitimately stay on bare Math.Round.
                      && !f.EndsWith("DurationFormatter.cs")
+                     && !f.EndsWith("ChartDrawCache.cs")
                      && !f.EndsWith("HistoryChart.cs")
                      && !f.EndsWith("TrayIconRenderer.cs"))
             .SelectMany(f => System.IO.File.ReadLines(f).Select((line, i) => (file: f, line: i + 1, text: line)))

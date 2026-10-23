@@ -746,7 +746,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             return;
 
         var contentWidth = ContentWidth(layout.Columns.Count, layout.Fit);
-        var legendY = ContentHeight(layout.Fit) + LegendGapTop;
+        var legendY = ChartDrawCache.Snap(0, ContentHeight(layout.Fit) + LegendGapTop, dpi).Y;
         DrawIntensityScale(drawingContext, legendY, contentWidth, dpi, typeface, layout.ProviderLegend);
         if (layout.ProviderLegend.Count > 0)
         {
@@ -769,7 +769,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             var y = EffectiveTopLabelHeight + row * (cellSize + fit.Gap);
             var text = new FormattedText(
                 dayAbbreviations[(int)dayOfWeek], CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 8, EmptyTextBrush, dpi);
-            dc.DrawText(text, new Point(0, y + (cellSize - text.Height) / 2));
+            dc.DrawText(text, ChartDrawCache.Snap(0, y + (cellSize - text.Height) / 2, dpi));
         }
     }
 
@@ -783,7 +783,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             // name reads worse than none.
             if (x + text.Width > ActualWidth)
                 continue;
-            dc.DrawText(text, new Point(x, 0));
+            dc.DrawText(text, ChartDrawCache.Snap(x, 0, dpi));
         }
     }
 

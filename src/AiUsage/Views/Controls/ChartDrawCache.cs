@@ -18,6 +18,11 @@ internal static class ChartDrawCache
 
     private readonly record struct PenEntry(double Thickness, bool Dotted, bool Round, Pen Pen);
 
+    /// <summary>A text origin on whole device pixels. A position that drifts by fractions while the
+    /// window is resized otherwise lets the text snap a pixel up and back down from one frame to the next.</summary>
+    internal static System.Windows.Point Snap(double x, double y, double pixelsPerDip) =>
+        new(Math.Round(x * pixelsPerDip) / pixelsPerDip, Math.Round(y * pixelsPerDip) / pixelsPerDip);
+
     /// <summary>A frozen brush of one solid color, shared by every chart.</summary>
     internal static SolidColorBrush BrushFor(Color color) =>
         ColorBrushes.GetOrAdd(color, c =>

@@ -7,6 +7,7 @@
         Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.Title]}"
         Icon="pack://application:,,,/AI-Usage;component/Assets/app.ico"
         RenderOptions.BitmapScalingMode="HighQuality"
+        UseLayoutRounding="True"
         WindowStyle="None"
         Background="{DynamicResource Bg.Window}"
         FontFamily="{DynamicResource Font.Ui}"

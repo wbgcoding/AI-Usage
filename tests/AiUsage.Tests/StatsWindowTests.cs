@@ -381,6 +381,28 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void The_window_lays_out_on_whole_pixels_so_texts_hold_still_while_it_is_resized()
+    {
+        var xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Views", "StatsWindow.xaml"));
+        var tagEnd = xaml.IndexOf('>', xaml.IndexOf("<Window", StringComparison.Ordinal));
+
+        Assert.Contains("UseLayoutRounding=\"True\"", xaml[..tagEnd], StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(1.25)]
+    [InlineData(1.5)]
+    public void A_chart_text_origin_lands_on_whole_device_pixels(double pixelsPerDip)
+    {
+        var point = AiUsage.Views.Controls.ChartDrawCache.Snap(10.37, 52.81, pixelsPerDip);
+
+        Assert.Equal(Math.Round(point.X * pixelsPerDip), point.X * pixelsPerDip, 9);
+        Assert.Equal(Math.Round(point.Y * pixelsPerDip), point.Y * pixelsPerDip, 9);
+        Assert.InRange(Math.Abs(point.Y - 52.81), 0, 0.5 / pixelsPerDip + 1e-9);
+    }
+
+    [Fact]
     public void ResolveStatsWindowPosition_without_an_owner_takes_the_middle_of_the_work_area()
     {
         var area = new MonitorArea("test", 0, 0, 1920, 1040);
