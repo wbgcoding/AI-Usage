@@ -101,6 +101,7 @@ Backups, history from a second PC, real Windows notifications and a much deeper 
 - Removing the app with "also remove data" now also removes the browser sign-ins of the providers.
 - The token usage window always opens centered on the widget, like Settings, instead of where it was last left. It still keeps its size.
 - The cost switch in Settings is called "Show API cost"; turned off, it hides every cost figure.
+- Texts in the token usage window no longer jump a pixel up and down while the window is resized, and dragging its top or left edge no longer makes the content twitch.
 
 ### Fixed
 
