@@ -528,9 +528,9 @@
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Kein Preis bekannt für: {0}. Nicht mitgezählt.</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Preise noch nicht geladen.</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>Token-Statistik</value></data>
-  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Kostenbilanz zeigen</value></data>
-  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Zeigt, was die Tokens zu öffentlichen API-Preisen kosten würden. Die Preisliste wird einmal täglich von GitHub (LiteLLM) geladen.</value></data>
-  <data name="Settings.CostCurrency" xml:space="preserve"><value>Währung der Kostenbilanz</value></data>
+  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>API-Kosten zeigen</value></data>
+  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Zeigt, was die Tokens zu öffentlichen API-Preisen kosten würden. Die Preisliste wird einmal täglich von GitHub (LiteLLM) geladen. Aus: Kosten sind überall ausgeblendet und nichts wird heruntergeladen.</value></data>
+  <data name="Settings.CostCurrency" xml:space="preserve"><value>Währung der API-Kosten</value></data>
   <data name="Settings.CostCurrency.Usd" xml:space="preserve"><value>US-Dollar</value></data>
   <data name="Settings.CostCurrency.Eur" xml:space="preserve"><value>Euro</value></data>
   <data name="Settings.CostCurrency.Auto" xml:space="preserve"><value>Automatisch (Systemregion)</value></data>

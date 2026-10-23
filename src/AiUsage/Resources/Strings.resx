@@ -529,8 +529,8 @@
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* No price known for: {0}. Not counted.</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prices not loaded yet.</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>Token statistics</value></data>
-  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Show cost estimate</value></data>
-  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Shows what the tokens would cost at public API prices. The price list is loaded once a day from GitHub (LiteLLM).</value></data>
+  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Show API cost</value></data>
+  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Shows what the tokens would cost at public API prices. The price list is loaded once a day from GitHub (LiteLLM). Off: costs are hidden everywhere and nothing is downloaded.</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>Cost currency</value></data>
   <data name="Settings.CostCurrency.Usd" xml:space="preserve"><value>US dollar</value></data>
   <data name="Settings.CostCurrency.Eur" xml:space="preserve"><value>Euro</value></data>
