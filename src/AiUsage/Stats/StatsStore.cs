@@ -954,8 +954,9 @@ public sealed class StatsStore
     /// <summary>A damaged index never heals and would leave the statistics empty for good. It is set
     /// aside (one copy is kept for inspection) so the next walk rebuilds it from the session logs.
     /// Best effort: a file another process still holds stays where it is until the next attempt.</summary>
-    /// <returns>True when the damage report is stale (another open set the file aside, or it was
-    /// replaced meanwhile): the caller opens again instead of failing.</returns>
+    /// <returns>True when opening again can succeed: the damage report is stale (another open set the
+    /// file aside, or it was replaced meanwhile) or this call set the file aside and put a copy (or
+    /// nothing, to be rebuilt) in its place. False when the damaged file is still there.</returns>
     private bool QuarantineDamagedDatabase(SqliteConnection connection, string fullPath, int errorCode, long generation, FileIdentity? identity)
     {
         SqliteConnection.ClearPool(connection);
@@ -982,8 +983,7 @@ public sealed class StatsStore
                     return true;
                 // A bouncing open may have pooled a handle since the clear above; none may stay on the file.
                 SqliteConnection.ClearAllPools();
-                SetAsideAndRestore(fullPath, errorCode, plan, prepared);
-                return false;
+                return SetAsideAndRestore(fullPath, errorCode, plan, prepared);
             }
             finally
             {
@@ -1077,7 +1077,8 @@ public sealed class StatsStore
         }
     }
 
-    private void SetAsideAndRestore(string fullPath, int errorCode, RestorePlan plan, PreparedRestore prepared)
+    // True when the damaged file was moved away: the index is then restored or empty, and an open works again.
+    private bool SetAsideAndRestore(string fullPath, int errorCode, RestorePlan plan, PreparedRestore prepared)
     {
         try
         {
@@ -1085,7 +1086,7 @@ public sealed class StatsStore
             // The copy was chosen and copied before the damaged file moves: a copy that is only busy
             // leaves the index where it is, the next open meets the damage again and retries.
             if (plan == RestorePlan.Wait)
-                return;
+                return false;
             // The index is the only copy of usage whose session logs are gone, so earlier copies are
             // kept too: only those beyond the newest few are removed.
             // After a restore in this process the file set aside first holds the newest rows: a repeat
@@ -1121,15 +1122,17 @@ public sealed class StatsStore
                 if (plan == RestorePlan.Ready)
                     DeleteRestoreLeftovers(prepared.TemporaryPath);
                 _logError?.Invoke($"Statistics: the index is damaged (SQLite error {errorCode}) and could not be set aside (a file is in use).");
-                return;
+                return false;
             }
             FileGenerations[fullPath] = FileGenerations.GetValueOrDefault(fullPath) + 1;
             if (plan != RestorePlan.Ready || !FinishWeeklyRestore(fullPath, prepared))
                 _logError?.Invoke($"Statistics: the index was damaged (SQLite error {errorCode}) and is rebuilt from the session logs.");
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logError?.Invoke($"Statistics: the index is damaged (SQLite error {errorCode}) and could not be set aside ({ex.GetType().Name}).");
+            return false;
         }
     }
 
@@ -1190,7 +1193,7 @@ public sealed class StatsStore
     }
 
     // The file at this path is about to be replaced: its schema and structure are unknown again.
-    private static void ForgetDatabase(string fullPath)
+    internal static void ForgetDatabase(string fullPath)
     {
         EnsuredDatabases.TryRemove(fullPath, out _);
         VerifiedDatabases.TryRemove(fullPath, out _);

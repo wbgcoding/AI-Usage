@@ -578,7 +578,7 @@ public class StatsIndexTests
             .ToList();
         File.WriteAllBytes(dbPath, Enumerable.Repeat((byte)'x', 8192).ToArray());
 
-        Assert.False(new StatsStore(dataDir).TryLoadSourceFiles(out _));
+        Assert.True(new StatsStore(dataDir).TryLoadSourceFiles(out _));
 
         var kept = Directory.GetFiles(dataDir, "stats.db.corrupt-*");
         Assert.Equal(3, kept.Length);
@@ -596,7 +596,7 @@ public class StatsIndexTests
         var logged = new List<string>();
         var store = new StatsStore(dataDir, logError: logged.Add);
 
-        Assert.False(store.TryLoadSourceFiles(out _));
+        Assert.True(store.TryLoadSourceFiles(out _));
         Assert.Single(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
         Assert.Contains(logged, line => line.Contains("damaged", StringComparison.Ordinal));
 
@@ -1631,6 +1631,25 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void The_call_that_meets_a_damaged_index_succeeds_on_the_restored_file()
+    {
+        using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-retry-seed");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-restore-retry");
+        SeedIndex(seedDir, "file-a");
+        new StatsStore(seedDir).WriteWeeklyCopy(seedDir, WeekStart);
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        File.Copy(Path.Combine(seedDir, "stats-backups", "stats-2026-10-01.db"), Path.Combine(folder, "stats-2026-10-01.db"));
+        WriteGarbage(Path.Combine(dataDir, "stats.db"));
+        var store = new StatsStore(dataDir, logError: _ => { });
+
+        // The very first call hits the damage, sets the file aside and reads the restored copy at once.
+        Assert.True(store.TryLoadSourceFiles(out var states));
+
+        Assert.Equal(["file-a"], states.Keys.ToArray());
+        Assert.Single(Directory.GetFiles(dataDir, "stats.db.corrupt-*"));
+    }
+
+    [Fact]
     public void A_corrupt_newest_weekly_copy_falls_back_to_the_older_one()
     {
         using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-fallback-seed");
@@ -1843,9 +1862,10 @@ public class StatsIndexTests
         var first = Directory.GetFiles(dataDir, "stats.db.corrupt-*")
             .Single(path => new FileInfo(path).Length == 8192);
 
-        // The same damage shows up again in the restored file.
+        // The same damage shows up again in the restored file (found by the first open of a later run).
         SqliteConnection.ClearAllPools();
         File.WriteAllText(dbPath, new string('y', 8192));
+        StatsStore.ForgetDatabase(dbPath);
         logged.Clear();
         store.TryLoadSourceFiles(out _);
 
