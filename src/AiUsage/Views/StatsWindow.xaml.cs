@@ -1017,8 +1017,7 @@ public partial class StatsWindow : Window
     private void GrowLeft(double dx)
     {
         var newWidth = Math.Max(MinWidth, Width - dx);
-        Left += Width - newWidth;
-        Width = newWidth;
+        MoveAndResize(Left + Width - newWidth, Top, newWidth, Height);
     }
 
     private void GrowDown(double dy) => Height = Math.Max(MinHeight, Height + dy);
@@ -1026,9 +1025,36 @@ public partial class StatsWindow : Window
     private void GrowUp(double dy)
     {
         var newHeight = Math.Max(MinHeight, Height - dy);
-        Top += Height - newHeight;
-        Height = newHeight;
+        MoveAndResize(Left, Top + Height - newHeight, Width, newHeight);
     }
+
+    /// <summary>Place and size in one native call. Setting Top and then Height shows the window moved at
+    /// its old size for a frame, so its content jumps down and back up while the top edge is dragged.</summary>
+    private void MoveAndResize(double left, double top, double width, double height)
+    {
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero || PresentationSource.FromVisual(this)?.CompositionTarget is not { } target)
+        {
+            Left = left;
+            Top = top;
+            Width = width;
+            Height = height;
+            return;
+        }
+
+        var toDevice = target.TransformToDevice;
+        var origin = toDevice.Transform(new Point(left, top));
+        var size = toDevice.Transform(new Vector(width, height));
+        SetWindowPos(handle, IntPtr.Zero, Convert.ToInt32(origin.X), Convert.ToInt32(origin.Y),
+            Convert.ToInt32(size.X), Convert.ToInt32(size.Y), SwpNoZOrder | SwpNoActivate);
+    }
+
+    private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoActivate = 0x0010;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 
     private void ResizeTop_DragDelta(object sender, DragDeltaEventArgs e) => GrowUp(e.VerticalChange);
 
