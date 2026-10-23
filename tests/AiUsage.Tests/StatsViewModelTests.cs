@@ -10,7 +10,9 @@ namespace AiUsage.Tests;
 /// <see cref="StatsViewModel"/>'s own logic, as opposed to <see cref="StatsWindowTests"/> (the
 /// window's visual tree) or <see cref="StatsAggregatorTests"/> (the pure grouping math). First test
 /// class for this view model - later items in Batch BC add to it rather than creating a second one.
+/// Its date texts follow the global UI language, which other shared-state tests switch.
 /// </summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class StatsViewModelTests
 {
     // a provider without local token counts (Cursor, Copilot) is dropped entirely
