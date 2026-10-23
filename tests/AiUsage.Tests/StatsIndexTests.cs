@@ -1607,6 +1607,41 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void The_sidecars_of_a_failed_snapshot_are_swept_with_the_temporary_copy()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-sidecars");
+        SeedIndex(dataDir, "file-a");
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        var leftovers = new[] { ".tmp", ".tmp-journal", ".tmp-wal", ".tmp-shm" }
+            .Select(suffix => Path.Combine(folder, "stats-2026-09-24.db" + suffix)).ToList();
+        foreach (var leftover in leftovers)
+            File.WriteAllText(leftover, "half");
+
+        new StatsStore(dataDir).WriteWeeklyCopy(dataDir, WeekStart);
+
+        Assert.All(leftovers, leftover => Assert.False(File.Exists(leftover), leftover));
+        Assert.Contains("stats-2026-10-01.db", WeeklyCopyNames(dataDir));
+    }
+
+    [Fact]
+    public void A_failed_snapshot_cleans_up_and_logs_the_original_failure()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-weekly-failed");
+        SeedIndex(dataDir, "file-a");
+        var folder = Directory.CreateDirectory(Path.Combine(dataDir, "stats-backups")).FullName;
+        // A directory where the temporary file belongs: the snapshot cannot open it, and it cannot be deleted as a file.
+        Directory.CreateDirectory(Path.Combine(folder, "stats-2026-10-01.db.tmp"));
+        File.WriteAllText(Path.Combine(folder, "stats-2026-10-01.db.tmp-journal"), "half");
+        var logged = new List<string>();
+
+        new StatsStore(dataDir, logError: logged.Add).WriteWeeklyCopy(dataDir, WeekStart);
+
+        Assert.Contains(logged, line => line.Contains("could not be written", StringComparison.Ordinal));
+        Assert.DoesNotContain(logged, line => line.Contains("UnauthorizedAccessException", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(folder, "stats-2026-10-01.db.tmp-journal")));
+    }
+
+    [Fact]
     public void A_damaged_index_is_set_aside_and_the_newest_valid_weekly_copy_is_restored_with_its_rows()
     {
         using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-seed");

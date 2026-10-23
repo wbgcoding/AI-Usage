@@ -188,7 +188,8 @@ public sealed class StatsStore
             var folder = Path.Combine(dataDirectory, WeeklyCopyFolder);
             if (Directory.Exists(folder))
             {
-                foreach (var leftover in Directory.EnumerateFiles(folder, "stats-*.db.tmp").ToList())
+                // The sidecars of a failed snapshot (-journal, -wal, -shm) share the prefix.
+                foreach (var leftover in Directory.EnumerateFiles(folder, "stats-*.db.tmp*").ToList())
                     TryRemoveOldCopy(leftover);
             }
 
@@ -212,7 +213,7 @@ public sealed class StatsStore
                 // as damaged as it is. The copy is checked in full, the source is not held for it.
                 if (TryReadSchemaVersion(temporaryPath, thorough: true) is null)
                 {
-                    File.Delete(temporaryPath);
+                    DeleteRestoreLeftovers(temporaryPath);
                     _logError?.Invoke("Statistics: the weekly copy of the index failed its check and was not kept.");
                     return;
                 }
@@ -221,7 +222,8 @@ public sealed class StatsStore
             }
             catch
             {
-                File.Delete(temporaryPath);
+                // Guarded: a leftover that cannot be deleted must not hide the failure that got us here.
+                DeleteRestoreLeftovers(temporaryPath);
                 throw;
             }
 
@@ -424,7 +426,7 @@ public sealed class StatsStore
 
     private static void DeleteRestoreLeftovers(string temporaryPath)
     {
-        foreach (var path in new[] { temporaryPath, temporaryPath + "-journal" })
+        foreach (var path in new[] { temporaryPath }.Concat(SidecarSuffixes.Select(suffix => temporaryPath + suffix)))
         {
             try
             {
