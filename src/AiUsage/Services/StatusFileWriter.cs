@@ -7,9 +7,11 @@ using AiUsage.Models;
 namespace AiUsage.Services;
 
 /// <summary>One provider tile as the status file shows it. <see cref="Account"/> is only ever the
-/// person's own name for the account, never the label the provider reported.</summary>
+/// person's own name for the account, never the label the provider reported. <see cref="Extra"/> is
+/// Claude's extra usage of the month, null when the provider has none to report.</summary>
 public sealed record StatusEntry(
-    string Id, string Name, string? Account, ProviderStatus Status, IReadOnlyList<UsageWindow> Windows);
+    string Id, string Name, string? Account, ProviderStatus Status, IReadOnlyList<UsageWindow> Windows,
+    ClaudeExtraUsage? Extra = null);
 
 /// <summary>
 /// The small <c>status.json</c> other programs read (a terminal prompt, a status line): one entry per
@@ -154,6 +156,8 @@ public sealed class StatusFileWriter : IDisposable
                 }
 
                 json.WriteEndArray();
+                if (entry.Extra is { } extra)
+                    WriteExtra(json, extra);
                 json.WriteEndObject();
             }
 
@@ -162,6 +166,27 @@ public sealed class StatusFileWriter : IDisposable
         }
 
         return AppEncoding.Utf8NoBom.GetString(stream.ToArray());
+    }
+
+    // Added key only: a reader that never heard of "extra" ignores it. Amounts are major units.
+    private static void WriteExtra(Utf8JsonWriter json, ClaudeExtraUsage extra)
+    {
+        json.WriteStartObject("extra");
+        json.WriteBoolean("enabled", extra.Enabled);
+        if (extra.UsedPercent is { } percent)
+            json.WriteNumber("usedPercent", StatusTextMap.UsagePercent(percent));
+        else
+            json.WriteNull("usedPercent");
+        if (extra.Used is { } used)
+            json.WriteNumber("used", used);
+        else
+            json.WriteNull("used");
+        if (extra.Limit is { } limit)
+            json.WriteNumber("limit", limit);
+        else
+            json.WriteNull("limit");
+        json.WriteString("currency", extra.Currency);
+        json.WriteEndObject();
     }
 
     /// <summary>Writes <paramref name="json"/> to a temp file beside <paramref name="path"/> and moves

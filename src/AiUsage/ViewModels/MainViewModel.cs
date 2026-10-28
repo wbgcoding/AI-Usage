@@ -42,7 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     // What the status file shows per account: the newest state and the newest windows that carried
     // any, so a failed read still lists the last numbers next to its state, like the tile does.
-    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows)> _statusReadings = new();
+    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows, ClaudeExtraUsage? Extra)> _statusReadings = new();
 
     /// <summary>Writes <c>status.json</c> after snapshots; null (no file) in every test and design-time path.</summary>
     internal StatusFileWriter? StatusFile { get; set; }
@@ -1455,7 +1455,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             .Where(tile => _statusReadings.ContainsKey(tile.ProviderId))
             .Select(tile => new StatusEntry(
                 tile.ProviderId, tile.DisplayName, tile.HasOwnAccountName ? tile.AccountName : null,
-                _statusReadings[tile.ProviderId].Status, _statusReadings[tile.ProviderId].Windows));
+                _statusReadings[tile.ProviderId].Status, _statusReadings[tile.ProviderId].Windows, _statusReadings[tile.ProviderId].Extra));
         writer.Schedule(StatusFileWriter.BuildJson(entries, now));
     }
 
@@ -1551,12 +1551,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
             // Like the tile, a failed read or a lost sign-in keeps the last numbers; a missing source has
             // none to show, and a sign-out in this app already cleared them.
-            var windows = snapshot.Windows.Count > 0
-                || snapshot.Status is not (ProviderStatus.Failed or ProviderStatus.Stale or ProviderStatus.NotSignedIn)
-                || !_statusReadings.TryGetValue(snapshot.ProviderId, out var before)
-                ? snapshot.Windows
-                : before.Windows;
-            _statusReadings[snapshot.ProviderId] = (snapshot.Status, windows);
+            var keepLast = snapshot.Windows.Count == 0
+                && snapshot.Status is ProviderStatus.Failed or ProviderStatus.Stale or ProviderStatus.NotSignedIn
+                && _statusReadings.ContainsKey(snapshot.ProviderId);
+            var before = keepLast ? _statusReadings[snapshot.ProviderId] : default;
+            _statusReadings[snapshot.ProviderId] = keepLast
+                ? (snapshot.Status, before.Windows, before.Extra)
+                : (snapshot.Status, snapshot.Windows, snapshot.Extra);
             QueueStatusFile(now);
             SnapshotApplied?.Invoke();
         }

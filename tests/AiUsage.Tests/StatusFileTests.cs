@@ -65,6 +65,38 @@ public sealed class StatusFileTests : IDisposable
         Assert.Equal("other", provider.GetProperty("windows")[0].GetProperty("kind").GetString());
     }
 
+    [Fact]
+    public void AnExtraUsageBlockIsAnAddedKeyAndAbsentWithoutOne()
+    {
+        var plain = Claude();
+        var withExtra = plain with { Extra = new ClaudeExtraUsage(true, 24.68, 12.34m, 50m, "USD") };
+
+        using var without = JsonDocument.Parse(StatusFileWriter.BuildJson([plain], Now));
+        using var with = JsonDocument.Parse(StatusFileWriter.BuildJson([withExtra], Now));
+
+        Assert.False(without.RootElement.GetProperty("providers")[0].TryGetProperty("extra", out _));
+        var extra = with.RootElement.GetProperty("providers")[0].GetProperty("extra");
+        Assert.Equal(["enabled", "usedPercent", "used", "limit", "currency"], extra.EnumerateObject().Select(p => p.Name));
+        Assert.True(extra.GetProperty("enabled").GetBoolean());
+        Assert.Equal(25, extra.GetProperty("usedPercent").GetInt32());
+        Assert.Equal(12.34m, extra.GetProperty("used").GetDecimal());
+        Assert.Equal(50m, extra.GetProperty("limit").GetDecimal());
+        Assert.Equal("USD", extra.GetProperty("currency").GetString());
+    }
+
+    [Fact]
+    public void ADisabledExtraUsageBlockWritesNullFigures()
+    {
+        var entry = Claude() with { Extra = new ClaudeExtraUsage(false, null, null, null, "USD") };
+
+        using var document = JsonDocument.Parse(StatusFileWriter.BuildJson([entry], Now));
+
+        var extra = document.RootElement.GetProperty("providers")[0].GetProperty("extra");
+        Assert.False(extra.GetProperty("enabled").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, extra.GetProperty("usedPercent").ValueKind);
+        Assert.Equal(JsonValueKind.Null, extra.GetProperty("limit").ValueKind);
+    }
+
     [Theory]
     [InlineData(ProviderStatus.Ok, "ok")]
     [InlineData(ProviderStatus.Stale, "stale")]
