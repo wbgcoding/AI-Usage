@@ -52,4 +52,7 @@ public sealed record ProviderSnapshot(
     bool UnreadableAnswer = false,
     // True when the read that produced this snapshot wrote a change note (see ReadChangeLog), also
     // when that very line had been logged before. The tile then says so and links to the log.
-    bool ReadChanged = false);
+    bool ReadChanged = false,
+    // Claude's extra usage of the month when the answer carried that block, null for every other
+    // provider and for an answer without it. Only the status file publishes it.
+    ClaudeExtraUsage? Extra = null);

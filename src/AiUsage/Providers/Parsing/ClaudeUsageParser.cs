@@ -10,7 +10,7 @@ public enum ClaudeUsageOutcome { Ok, Blocked, Failed }
 
 /// <summary>Outcome of one Claude web-usage fetch: either windows worth showing, a challenge page
 /// (<see cref="ClaudeUsageOutcome.Blocked"/>), or a shape this parser does not recognise.</summary>
-public sealed record ClaudeUsageResult(ClaudeUsageOutcome Outcome, IReadOnlyList<UsageWindow> Windows)
+public sealed record ClaudeUsageResult(ClaudeUsageOutcome Outcome, IReadOnlyList<UsageWindow> Windows, ClaudeExtraUsage? Extra = null)
 {
     public static readonly ClaudeUsageResult Failed = new(ClaudeUsageOutcome.Failed, []);
     public static readonly ClaudeUsageResult Blocked = new(ClaudeUsageOutcome.Blocked, []);
@@ -67,10 +67,33 @@ public static class ClaudeUsageParser
             windows.AddRange(ReadScopedWindows(root));
 
             return windows.Count > 0
-                ? new ClaudeUsageResult(ClaudeUsageOutcome.Ok, windows)
+                ? new ClaudeUsageResult(ClaudeUsageOutcome.Ok, windows, ReadExtraUsage(root))
                 : ClaudeUsageResult.Failed;
         }
     }
+
+    /// <summary>The "extra_usage" block: <c>is_enabled</c>, <c>monthly_limit</c> and <c>used_credits</c> in
+    /// minor units (cents), <c>utilization</c> in percent, an optional <c>currency</c> code (USD when
+    /// absent). Null when the answer has no such object, so a reader can tell "no block" from "switched off".</summary>
+    private static ClaudeExtraUsage? ReadExtraUsage(JsonElement root)
+    {
+        if (!root.TryGetProperty("extra_usage", out var node) || node.ValueKind != JsonValueKind.Object)
+            return null;
+
+        var enabled = node.TryGetProperty("is_enabled", out var enabledEl) && enabledEl.ValueKind == JsonValueKind.True;
+        var currency = node.TryGetProperty("currency", out var currencyEl) && currencyEl.ValueKind == JsonValueKind.String
+            && currencyEl.GetString() is { Length: > 0 } code ? code.ToUpperInvariant() : "USD";
+        return new ClaudeExtraUsage(
+            enabled, ReadNumber(node, "utilization"), MinorToMajor(ReadNumber(node, "used_credits")),
+            MinorToMajor(ReadNumber(node, "monthly_limit")), currency);
+    }
+
+    private static double? ReadNumber(JsonElement node, string key) =>
+        node.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number)
+            ? number
+            : null;
+
+    private static decimal? MinorToMajor(double? minor) => minor is { } cents ? (decimal)cents / 100m : null;
 
     // The window names and limit kinds this read was written for. Anything else the answer carries
     // is named in ChangeNotes instead of being skipped without a trace.

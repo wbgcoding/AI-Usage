@@ -25,7 +25,7 @@ public sealed class ClaudeUsageEndpoint : IWebUsageEndpoint
         var parsed = ClaudeUsageParser.Parse(body);
         return parsed.Outcome switch
         {
-            ClaudeUsageOutcome.Ok => new WebUsageResult(WebUsageOutcome.Ok, parsed.Windows),
+            ClaudeUsageOutcome.Ok => new WebUsageResult(WebUsageOutcome.Ok, parsed.Windows, Extra: parsed.Extra),
             ClaudeUsageOutcome.Blocked => WebUsageResult.Blocked,
             _ => WebUsageResult.Failed,
         };

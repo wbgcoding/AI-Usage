@@ -514,7 +514,8 @@ public sealed class ClaudeProvider : IUsageProvider
                 Status: ProviderStatus.Ok,
                 Error: null,
                 AccountLabel: accountLabel,
-                SkipReasonWord: null),
+                SkipReasonWord: null,
+                Extra: usage.Extra),
             LocalLoginOutcome.NotSignedIn => new ProviderSnapshot(
                 ProviderId: AccountKey, Windows: [], PlanType: null, SourceKind: SourceKind.None,
                 FetchedAt: fetchedAt, DataTimestamp: null, Status: ProviderStatus.NotSignedIn,

@@ -110,7 +110,8 @@ internal static class ProviderSnapshots
         DataTimestamp: fetchedAt,
         Status: ProviderStatus.Ok,
         Error: null,
-        AccountLabel: web.AccountLabel);
+        AccountLabel: web.AccountLabel,
+        Extra: web.Extra);
 
     /// <summary>The browser session's signed-in state after a read. Blocked or failed says nothing
     /// about the session itself, so the last known value stands rather than flipping the tile's

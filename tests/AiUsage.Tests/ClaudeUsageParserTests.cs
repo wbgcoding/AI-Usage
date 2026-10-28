@@ -307,4 +307,52 @@ public class ClaudeUsageParserTests
 
         Assert.Equal(WindowKind.FiveHour, Assert.Single(result.Windows).Kind);
     }
+
+    [Fact]
+    public void An_enabled_extra_usage_block_is_read_in_major_units()
+    {
+        var result = ClaudeUsageParser.Parse(
+            """{"five_hour":{"utilization":10},"extra_usage":{"is_enabled":true,"monthly_limit":5000,"used_credits":1234,"utilization":24.68,"currency":"eur"}}""");
+
+        var extra = Assert.IsType<ClaudeExtraUsage>(result.Extra);
+        Assert.True(extra.Enabled);
+        Assert.Equal(24.68, extra.UsedPercent);
+        Assert.Equal(12.34m, extra.Used);
+        Assert.Equal(50m, extra.Limit);
+        Assert.Equal("EUR", extra.Currency);
+    }
+
+    [Fact]
+    public void A_disabled_extra_usage_block_is_reported_as_switched_off()
+    {
+        var result = ClaudeUsageParser.Parse(
+            """{"five_hour":{"utilization":10},"extra_usage":{"is_enabled":false,"monthly_limit":null,"used_credits":null,"utilization":null}}""");
+
+        var extra = Assert.IsType<ClaudeExtraUsage>(result.Extra);
+        Assert.False(extra.Enabled);
+        Assert.Null(extra.UsedPercent);
+        Assert.Null(extra.Used);
+        Assert.Null(extra.Limit);
+        Assert.Equal("USD", extra.Currency);
+    }
+
+    [Fact]
+    public void An_answer_without_an_extra_usage_block_has_no_extra()
+    {
+        Assert.Null(ClaudeUsageParser.Parse("""{"five_hour":{"utilization":10}}""").Extra);
+        Assert.Null(ClaudeUsageParser.Parse("""{"five_hour":{"utilization":10},"extra_usage":null}""").Extra);
+    }
+
+    [Fact]
+    public void An_enabled_extra_usage_block_with_a_null_utilization_keeps_the_percent_empty()
+    {
+        var result = ClaudeUsageParser.Parse(
+            """{"five_hour":{"utilization":10},"extra_usage":{"is_enabled":true,"monthly_limit":5000,"used_credits":0,"utilization":null}}""");
+
+        var extra = Assert.IsType<ClaudeExtraUsage>(result.Extra);
+        Assert.True(extra.Enabled);
+        Assert.Null(extra.UsedPercent);
+        Assert.Equal(0m, extra.Used);
+        Assert.Equal(50m, extra.Limit);
+    }
 }

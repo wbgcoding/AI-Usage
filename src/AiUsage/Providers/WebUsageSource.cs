@@ -15,7 +15,7 @@ public enum WebUsageOutcome { Ok, NotSignedIn, Blocked, Failed }
 /// answer carries none. <see cref="Services.PlanTier"/> turns it into the name the tile shows.</param>
 public sealed record WebUsageResult(
     WebUsageOutcome Outcome, IReadOnlyList<UsageWindow> Windows, string? AccountLabel = null, bool SessionSignedIn = false,
-    string? PlanType = null)
+    string? PlanType = null, ClaudeExtraUsage? Extra = null)
 {
     public static readonly WebUsageResult NotSignedIn = new(WebUsageOutcome.NotSignedIn, []);
     public static readonly WebUsageResult Blocked = new(WebUsageOutcome.Blocked, []);
