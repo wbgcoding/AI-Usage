@@ -329,8 +329,8 @@ signing key is present (`.signing\ai-usage-update.pem`, never committed, or the 
 `AIUSAGE_SIGNING_KEY`) it also signs each exe; without one the build says so and the in-app update
 refuses that build.
 
-Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Found a security issue? Please
-follow [SECURITY.md](SECURITY.md).
+How to report a bug or propose a change: [CONTRIBUTING.md](CONTRIBUTING.md). Found a security issue?
+Please follow [SECURITY.md](SECURITY.md).
 
 ## FAQ
 
