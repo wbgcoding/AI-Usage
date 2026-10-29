@@ -388,6 +388,7 @@
                             <controls:CollapsibleSection x:Name="FiguresSection" SectionKey="figures"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Figures]}"
                                     Summary="{Binding TotalFigureText}">
+                            <!-- A figure wider than its card (a monospace theme, a long number) is scaled down to fit instead of cut off. -->
                             <UniformGrid Margin="0,0,-8,-8">
                                 <UniformGrid.Columns>
                                     <MultiBinding Converter="{StaticResource FigureCardColumns}">
@@ -398,9 +399,10 @@
                                 <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
                                         ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Total]}">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding TotalFigureText}" FontFamily="{DynamicResource Font.Numeric}"
-                                                   FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding TotalFigureText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                       FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                        </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total], Mode=OneWay}"/>
@@ -414,9 +416,10 @@
                                 <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
                                         ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.PerDay]}">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding PerDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
-                                                   FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding PerDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                       FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                        </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerDay], Mode=OneWay}"/>
@@ -427,9 +430,10 @@
                                 </Border>
                                 <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding BusiestDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
-                                                   FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding BusiestDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                       FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                        </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.BusiestDay], Mode=OneWay}"/>
@@ -464,9 +468,10 @@
                                         Visibility="{Binding ShowPerActiveDay, Converter={StaticResource BoolToVis}}"
                                         ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.PerActiveDay]}">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding PerActiveDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
-                                                   FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding PerActiveDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                       FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                        </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerActiveDay], Mode=OneWay}"/>
