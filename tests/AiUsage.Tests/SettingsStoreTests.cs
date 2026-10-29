@@ -498,8 +498,10 @@ public class SettingsStoreTests : IDisposable
         var slowWrite = Task.Run(() => store.SaveNow(new AppSettings { RefreshSeconds = 30 }));
         Assert.True(writeStarted.Wait(TimeSpan.FromSeconds(10)));
 
+        // The write stays held until after this wait, so a request that blocked behind it could never
+        // finish here; the generous limit only absorbs a busy machine's thread-pool start-up.
         var request = Task.Run(() => store.RequestSave(new AppSettings { RefreshSeconds = 45 }));
-        var finishedInTime = request.Wait(TimeSpan.FromMilliseconds(100));
+        var finishedInTime = request.Wait(TimeSpan.FromSeconds(5));
 
         releaseWrite.Set();
         Assert.True(await slowWrite);
