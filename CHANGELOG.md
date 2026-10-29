@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Signing in to Claude again is recognised right away. The sign-in window asks the site whether the session really works before it closes. A stored session the site no longer accepts is cleared, and the login page opens again instead of the window reporting "already signed in". A read that still finds no sign-in five seconds after the window closed is repeated once.
+- A new Claude Code login is read within seconds of Claude Code saving it, not at the next scheduled read.
+- The log now records when a provider works again and through which source, why the Claude Code sign-in could not be read, and how each sign-in window ended.
+
 ## [1.3.0] - 2026-10-23
 
 See what your tokens would cost at API prices, safer token history with weekly copies, notifications that know when to stay quiet, Gemini read from Google's own usage page, and many fixes.

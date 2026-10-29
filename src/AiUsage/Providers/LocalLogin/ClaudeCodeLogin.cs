@@ -52,7 +52,7 @@ internal static class ClaudeCodeLogin
     // rather than none.
     private const string UserAgent = "claude-code/1.0.0";
 
-    private const string CredentialsFileName = ".credentials.json";
+    internal const string CredentialsFileName = ".credentials.json";
 
     private static string CredentialsPath() => ClaudeConfigRoot.FilePath(ClaudeConfigRoot.Candidates(), CredentialsFileName);
 
@@ -95,8 +95,8 @@ internal static class ClaudeCodeLogin
     /// numbers are held over until Claude Code renews the file. A 403 stays a plain refusal.</summary>
     internal static ClaudeCodeUsage? DeniedUsage(int statusCode) => statusCode switch
     {
-        401 => new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.TokenExpired),
-        403 => new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NonOkResponse),
+        401 => new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.TokenExpired, HttpStatus: 401),
+        403 => new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], ClaudeCodeLoginReason.NonOkResponse, HttpStatus: 403),
         _ => null,
     };
 

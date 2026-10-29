@@ -32,6 +32,12 @@ public sealed class ClaudeProvider : IUsageProvider
     // numbers and their real age instead of asking to sign in to a sign-in that is not gone.
     private ProviderSnapshot? _lastLocalLogin;
 
+    /// <summary>Where a change in the Claude Code sign-in read is reported (the app log in
+    /// production). The web session can answer for the tile while that read fails, so without this
+    /// line a broken local read never shows up anywhere.</summary>
+    internal Action<string>? LocalLoginLog { get; init; }
+    private string? _lastLocalLoginWord;
+
     public ClaudeProvider() : this(DefaultProjectsRoots(), now: null)
     {
     }
@@ -492,6 +498,7 @@ public sealed class ClaudeProvider : IUsageProvider
         // the finished result comes back to the calling thread.
         var login = _localLogin!;
         var usage = await Task.Run(() => login(ct), ct);
+        ReportLocalLoginChange(usage);
         var accountLabel = usage.Outcome == LocalLoginOutcome.Ok ? await Task.Run(_readAccountLabel, ct) : null;
         if (usage.Outcome == LocalLoginOutcome.NotSignedIn && usage.Reason == ClaudeCodeLoginReason.TokenExpired
             && _lastLocalLogin is { } last)
@@ -534,6 +541,27 @@ public sealed class ClaudeProvider : IUsageProvider
         else if (snapshot.Status == ProviderStatus.NotSignedIn)
             _lastLocalLogin = null;
         return snapshot;
+    }
+
+    private void ReportLocalLoginChange(ClaudeCodeUsage usage)
+    {
+        var word = LocalLoginWord(usage);
+        if (word == _lastLocalLoginWord)
+            return;
+        _lastLocalLoginWord = word;
+        LocalLoginLog?.Invoke($"Claude Code sign-in read: {word}.");
+    }
+
+    /// <summary>One read's outcome as the log names it: "ok", or the reason word with the failure
+    /// kind and HTTP code when there is one. Never a token or a path.</summary>
+    internal static string LocalLoginWord(ClaudeCodeUsage usage)
+    {
+        if (usage.Outcome == LocalLoginOutcome.Ok)
+            return "ok";
+        var word = ReasonWord(usage.Reason) ?? "failed";
+        if (usage.Outcome == LocalLoginOutcome.Failed && usage.FailureKind != FailureKind.Other)
+            word += $" [{usage.FailureKind}]";
+        return usage.HttpStatus is { } code ? $"{word} (HTTP {code})" : word;
     }
 
     /// <summary>The last good local read standing in while Claude Code's token is expired or its

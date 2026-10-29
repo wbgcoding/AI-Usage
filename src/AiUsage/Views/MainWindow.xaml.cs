@@ -28,6 +28,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly SettingsStore _settingsStore;
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _tickTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+    private Providers.LocalLogin.ClaudeCredentialsWatcher? _claudeSignInWatcher;
     private readonly TrayService _tray;
     private readonly ToastNotifier _toasts;
     private readonly AlertBundler _alerts;
@@ -248,6 +249,11 @@ public partial class MainWindow : Window, IDisposable
         // history file. Runs forever on the view model's own lifetime
         // token; Dispose() below is the only thing that ever stops it.
         _ = Task.Run(() => ViewModel.RunMaintenanceForeverAsync());
+
+        // A new Claude Code login is read as soon as its file lands, not at the next scheduled read.
+        // The provider starts its reads on the UI thread, so the callback goes there first.
+        _claudeSignInWatcher = Providers.LocalLogin.ClaudeCredentialsWatcher.ForThisMachine(
+            () => Dispatcher.BeginInvoke(ViewModel.RefreshClaudeCodeSignIn));
 
         // The handle otherwise only exists at the first Show(), which a tray start never reaches: the
         // hotkey, the full-screen watcher and the click-through style are set up when the handle appears.
@@ -2005,6 +2011,7 @@ public partial class MainWindow : Window, IDisposable
         _globalHotkey?.Dispose();
         _desktopLayer?.Dispose();
         _fullscreenWatcher?.Dispose();
+        _claudeSignInWatcher?.Dispose();
         _alerts.FlushAll();
         _tray.Dispose();
         // Blocking is safe here: this only ever runs from MainWindow_Closing on the UI thread, and

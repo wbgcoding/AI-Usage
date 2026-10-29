@@ -37,6 +37,14 @@ public partial class SignInWindow : Window
     // left the provider's own host on its way through the login/OAuth path.
     private DateTimeOffset _openedAt;
     private bool _sawForeignHost;
+    private readonly string _accountKey;
+    // The provider's own discovery script, asked on the landing page whether the session is real
+    // (see SignInSessionCheck); null leaves the address alone to decide.
+    private readonly string? _sessionCheckScript;
+    private bool _checkingSession;
+    // A login page that bounced straight back on a session the site no longer accepts gets its
+    // cookies cleared and the login page loaded again, once per window.
+    private bool _clearedStaleSession;
 
     /// <summary>True once this window's own session came back off the login path and landed on the
     /// provider's own site again - the same moment the window decides it has finished and closes
@@ -44,13 +52,16 @@ public partial class SignInWindow : Window
     /// session of, so the tile takes it as "signed in" until one of its own reads says otherwise.</summary>
     public bool SignedIn { get; private set; }
 
-    public SignInWindow(WebSessionDescriptor descriptor) : this(descriptor, new WebViewHost(descriptor))
+    public SignInWindow(WebSessionDescriptor descriptor)
+        : this(descriptor, new WebViewHost(descriptor), ProviderRegistry.SessionCheckScriptFor(descriptor.ProviderId))
     {
     }
 
-    internal SignInWindow(WebSessionDescriptor descriptor, WebViewHost host)
+    internal SignInWindow(WebSessionDescriptor descriptor, WebViewHost host, string? sessionCheckScript = null)
     {
         _host = host;
+        _accountKey = descriptor.ProviderId;
+        _sessionCheckScript = sessionCheckScript;
         _signInUrl = descriptor.SignInUrl;
         _providerHost = new Uri(descriptor.BaseUrl).Host;
         _startPath = new Uri(descriptor.BaseUrl).AbsolutePath;
@@ -82,6 +93,8 @@ public partial class SignInWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _closed = true;
+        if (!SignedIn && _sawLoginPage)
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}' closed before the sign-in finished.");
         if (Browser.CoreWebView2 is { } coreWebView2)
         {
             coreWebView2.NavigationStarting -= CoreWebView2_NavigationStarting;
@@ -448,15 +461,98 @@ public partial class SignInWindow : Window
         // Only closes once the flow has actually been ON the login/OAuth path at least once -
         // otherwise the very first navigation to the provider's own start page (before the user has
         // done anything) would close the window instantly.
-        if (_sawLoginPage && isSuccess && !SignedIn && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
+        if (_sawLoginPage && isSuccess && !SignedIn && !_checkingSession && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
+            _ = ConfirmSignInAsync();
+    }
+
+    /// <summary>How often and how far apart the landing page is asked: a session cookie can land a
+    /// moment after the page that set it, so one "not signed in" right away is not the last word. A
+    /// quick bounce is a stored session the site either takes or not, so it gets fewer tries than a
+    /// real sign-in that may still be settling.</summary>
+    internal static int SessionCheckAttempts(bool quickBounce) => quickBounce ? 2 : 8;
+    internal static readonly TimeSpan SessionCheckPause = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan SessionCheckTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>The landing looks like a finished sign-in; the site itself confirms it before the
+    /// window says so. A confirmed or unclear session closes the window as before. A session the site
+    /// rejects keeps it open: on a quick bounce (a stale session the login page waved through) the
+    /// window clears this account's cookies and shows the login page again, otherwise the user is
+    /// still mid-flow on a page that only looks finished.</summary>
+    private async Task ConfirmSignInAsync()
+    {
+        _checkingSession = true;
+        try
         {
+            var quickBounce = IsAlreadySignedIn(_sawLoginPage, _sawForeignHost, DateTimeOffset.UtcNow - _openedAt);
+            var state = await CheckSessionAsync(SessionCheckAttempts(quickBounce));
+            if (_closed || SignedIn || Browser.CoreWebView2?.Source is not { } source
+                || !Uri.TryCreate(source, UriKind.Absolute, out var now) || IsOnLoginOrOAuthPage(now, _providerHost))
+                return;
+
+            switch (NextStep(state, quickBounce, _clearedStaleSession))
+            {
+                case SignInLandingStep.RetryWithoutSession:
+                    _clearedStaleSession = true;
+                    LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the site no longer accepts the stored session, loading the login page again.");
+                    Browser.CoreWebView2.CookieManager.DeleteAllCookies();
+                    _sawLoginPage = false;
+                    _sawForeignHost = false;
+                    _openedAt = DateTimeOffset.UtcNow;
+                    Browser.CoreWebView2.Navigate(_signInUrl);
+                    return;
+                case SignInLandingStep.StayOpen:
+                    LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the page left the login, but the site reports no session yet; the window stays open.");
+                    return;
+            }
+
             SignedIn = true;
-            if (IsAlreadySignedIn(_sawLoginPage, _sawForeignHost, DateTimeOffset.UtcNow - _openedAt))
+            LogService.Shared.LogInfo(state == SignInSessionState.SignedIn
+                ? $"Sign-in window for '{_accountKey}': signed in, session confirmed."
+                : $"Sign-in window for '{_accountKey}': signed in, the site gave no clear answer on the session.");
+            if (quickBounce)
                 ShowAlreadySignedIn();
             else
                 Close();
         }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
+        {
+            // The browser went away while the check ran: the window is closing anyway.
+        }
+        finally
+        {
+            _checkingSession = false;
+        }
     }
+
+    private async Task<SignInSessionState> CheckSessionAsync(int attempts)
+    {
+        if (_sessionCheckScript is null)
+            return SignInSessionState.Unknown;
+
+        var state = SignInSessionState.Unknown;
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            // Closed, or the user went back to the login page: the next landing asks again.
+            if (_closed || Browser.CoreWebView2 is not { } core
+                || !Uri.TryCreate(core.Source, UriKind.Absolute, out var page) || IsOnLoginOrOAuthPage(page, _providerHost))
+                return state;
+            state = await SignInSessionCheck.RunAsync(core, _sessionCheckScript, _providerHost, SessionCheckTimeout);
+            if (state != SignInSessionState.NotSignedIn)
+                return state;
+            if (attempt < attempts)
+                await Task.Delay(SessionCheckPause);
+        }
+        return state;
+    }
+
+    /// <summary>What a landing does with the site's answer. Pure so the rule is testable without a
+    /// WebView2 instance.</summary>
+    internal static SignInLandingStep NextStep(SignInSessionState state, bool quickBounce, bool alreadyCleared) => state switch
+    {
+        SignInSessionState.NotSignedIn when quickBounce && !alreadyCleared => SignInLandingStep.RetryWithoutSession,
+        SignInSessionState.NotSignedIn => SignInLandingStep.StayOpen,
+        _ => SignInLandingStep.Finish,
+    };
 
     /// <summary>True when the flow's own return off the login/OAuth path was never a login at all: it
     /// bounced back almost instantly (within two seconds of the window opening) without ever passing
@@ -485,4 +581,12 @@ public partial class SignInWindow : Window
     }
 
     private void CloseAlreadySignedIn_Click(object sender, RoutedEventArgs e) => Close();
+}
+
+/// <summary>What the sign-in window does after asking the site about a landing.</summary>
+internal enum SignInLandingStep
+{
+    Finish,
+    StayOpen,
+    RetryWithoutSession,
 }

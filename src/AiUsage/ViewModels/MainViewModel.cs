@@ -1484,6 +1484,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 : "";
             _logService?.LogInfo($"Provider '{snapshot.ProviderId}' {snapshot.Status}: {snapshot.Error?.ReasonKey ?? "(default)"}{reasonWord}{failure}.");
         }
+        else if (snapshot.Status == ProviderStatus.Ok && previousStatus is ProviderStatus.NotSignedIn or ProviderStatus.Failed or ProviderStatus.Blocked)
+        {
+            // The way back is worth a line too: without it a log cannot tell when, or through which
+            // source, a provider started answering again.
+            _logService?.LogInfo($"Provider '{snapshot.ProviderId}' Ok again (source {snapshot.SourceKind}).");
+        }
 
         void Tail()
         {

@@ -129,6 +129,18 @@ public static class ProviderRegistry
             };
     }
 
+    /// <summary>The script the sign-in window runs on its landing page to ask the provider's own site
+    /// whether the session is real: the account's own discovery script, which answers
+    /// "not_signed_in" for a session the site rejects. None for Gemini: its script reads a value only
+    /// the Gemini app page carries, so any other Google page it lands on would read as signed out.</summary>
+    internal static string? SessionCheckScriptFor(string accountKey) => BaseProviderId(accountKey) switch
+    {
+        "codex" => new CodexUsageEndpoint().Discover(),
+        "cursor" => new CursorUsageEndpoint().Discover(),
+        "gemini" => null,
+        _ => new ClaudeUsageEndpoint().Discover(),
+    };
+
     /// <summary>Claude's own session shape - same fixed URL/allowed-hosts shape the other three
     /// providers' own constants above carry, kept as a plain descriptor (never itself handed out
     /// directly) so <see cref="WebSessionFor"/> can derive every Claude account's own descriptor from
@@ -168,6 +180,9 @@ public static class ProviderRegistry
         Func<TimeSpan> attentionMaxAge = () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes);
         return accountKey == ClaudeWebSession.ProviderId
             ? new ClaudeProvider(accountKey, settings, saveSettings, webSource, ClaudeCodeLogin.FetchAsync, attentionMaxAge)
+            {
+                LocalLoginLog = LogService.Shared.LogInfo,
+            }
             : new ClaudeProvider(accountKey, settings, saveSettings, webSource, attentionMaxAge);
     }
 

@@ -494,8 +494,42 @@ public sealed partial class MainViewModel
             // Reconnect starts, or that read would still be throttled to the old answer.
             MarkSignedIn(accountKey);
             Reconnect(accountKey);
+            _ = ReadAgainAfterSignInAsync(accountKey);
         }
 
         RefreshNow();
+    }
+
+    /// <summary>How long after a finished sign-in a read that still says "not signed in" is tried
+    /// once more: a fresh session can take a moment to reach the hidden reader.</summary>
+    internal static readonly TimeSpan SignInFollowUpDelay = TimeSpan.FromSeconds(5);
+
+    private async Task ReadAgainAfterSignInAsync(string accountKey)
+    {
+        try
+        {
+            await Task.Delay(SignInFollowUpDelay, _lifetimeCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (!IsLiveAccount(accountKey) || IsAccountDisconnected(accountKey)
+            || !_lastStatusById.TryGetValue(accountKey, out var status) || status == ProviderStatus.Ok)
+            return;
+
+        _logService?.LogInfo($"Provider '{accountKey}' still {status} {SignInFollowUpDelay.TotalSeconds:0} s after the sign-in, reading again.");
+        _scheduler.RefreshNow(accountKey, _lifetimeCts.Token);
+    }
+
+    /// <summary>Claude Code just rewrote its sign-in file: the primary Claude account reads it now
+    /// instead of at its next scheduled read. Nothing for a disconnected or removed account.</summary>
+    public void RefreshClaudeCodeSignIn()
+    {
+        const string accountKey = "claude";
+        if (!IsLiveAccount(accountKey) || IsAccountDisconnected(accountKey))
+            return;
+        _scheduler.RefreshNow(accountKey, _lifetimeCts.Token);
     }
 }
