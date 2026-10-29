@@ -439,15 +439,18 @@
                     </ItemsControl>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Stats]}" Style="{StaticResource GroupHeading}"/>
-                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowCostEstimate]}"
-                              IsChecked="{Binding ShowCostEstimate}" Style="{StaticResource CheckBox.GapS}"
-                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ShowCostEstimate]}"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.CostCurrency]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ComboBox ItemsSource="{Binding CostCurrencyChoices}"
-                              SelectedItem="{Binding SelectedCostCurrencyChoice, Mode=TwoWay}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.CostCurrency]}"
-                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.CostCurrency]}"
-                              HorizontalAlignment="Left" MinWidth="200"/>
+                    <!-- The currency sits beside the switch it belongs to, so the pair reads as one setting. -->
+                    <WrapPanel>
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ShowCostEstimate]}"
+                                  IsChecked="{Binding ShowCostEstimate}"
+                                  VerticalAlignment="Center" Margin="0,4,16,4"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ShowCostEstimate]}"/>
+                        <ComboBox ItemsSource="{Binding CostCurrencyChoices}"
+                                  SelectedItem="{Binding SelectedCostCurrencyChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.CostCurrency]}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.CostCurrency]}"
+                                  VerticalAlignment="Center" MinWidth="200"/>
+                    </WrapPanel>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Window]}" Style="{StaticResource GroupHeading}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}" Style="{StaticResource FieldLabel.Top8}"/>
