@@ -37,13 +37,13 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- SQLite access: Antigravity IDE's local state.vscdb (read only) and the statistics index.
          MIT licensed (dotnet/efcore). -->
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <!-- The native SQLite build behind Microsoft.Data.Sqlite, pinned here to a release without the
          high-severity advisory (GHSA-2m69-gcr7-jv3q) that the library's own default carries. -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <!-- The sign-in browser behind the web-backed providers: a dedicated, persistent session separate
          from the user's real browser profile. -->
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
   </ItemGroup>
 
   <ItemGroup>
