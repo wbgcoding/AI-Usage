@@ -170,6 +170,18 @@ public class WindowActivationTests : IDisposable
     }
 
     [Fact]
+    public void The_refresh_after_a_show_from_the_tray_waits_for_the_first_frame()
+    {
+        var source = Source("Views", "MainWindow.xaml.cs");
+        var start = source.IndexOf("private void ShowAndActivate(bool userInitiated)", StringComparison.Ordinal);
+        var body = source[start..source.IndexOf("/// <summary>The tray menu's recovery entry", start, StringComparison.Ordinal)];
+
+        // Before: "ViewModel.RefreshNow();" ran synchronously, ahead of the window's own render.
+        Assert.Contains("Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => ViewModel.RefreshNow()));", body);
+        Assert.DoesNotContain("            ViewModel.RefreshNow();", body);
+    }
+
+    [Fact]
     public void The_fullscreen_return_and_the_prebuild_never_activate()
     {
         var main = Source("Views", "MainWindow.xaml.cs");

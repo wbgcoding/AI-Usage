@@ -110,6 +110,8 @@ public partial class MainWindow : Window, IDisposable
     internal MainWindow(SettingsStore settingsStore, AppSettings? settings, LogService? logService = null)
     {
         InitializeComponent();
+        if (logService is not null)
+            MeasureFirstFrame(logService);
         _settingsStore = settingsStore;
         _settings = settings ?? _settingsStore.Load();
         ViewModel = new MainViewModel(_settingsStore, _settings, logService)
@@ -426,8 +428,10 @@ public partial class MainWindow : Window, IDisposable
         }
         ViewModel.WindowVisible = true;
 
+        // Below render priority, so the widget paints first: a web read builds its hidden browser on
+        // this thread, and several at once would otherwise hold the window back.
         if (wasHidden)
-            ViewModel.RefreshNow();
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => ViewModel.RefreshNow()));
     }
 
     /// <summary>The tray menu's recovery entry for a window that ended up somewhere it should not have
@@ -1136,6 +1140,28 @@ public partial class MainWindow : Window, IDisposable
             });
     }
 
+    /// <summary>One log line per run: how long the first show took, from the moment the window was
+    /// asked to appear (at start, or the first tray click after a <c>--tray</c> start).</summary>
+    private void MeasureFirstFrame(LogService logService)
+    {
+        long shown = 0;
+        void OnVisible(object? sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!IsVisible)
+                return;
+            IsVisibleChanged -= OnVisible;
+            shown = Stopwatch.GetTimestamp();
+        }
+        void OnRendered(object? sender, EventArgs e)
+        {
+            ContentRendered -= OnRendered;
+            var sinceStart = DateTime.Now - Process.GetCurrentProcess().StartTime;
+            logService.LogInfo($"Widget: first frame {Stopwatch.GetElapsedTime(shown).TotalMilliseconds:0} ms after show, {sinceStart.TotalMilliseconds:0} ms after start.");
+        }
+        IsVisibleChanged += OnVisible;
+        ContentRendered += OnRendered;
+    }
+
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
     {
         _monitorAreas.Refresh();
@@ -1803,7 +1829,9 @@ public partial class MainWindow : Window, IDisposable
             if (step == PrebuildStep.Build)
             {
                 WindowActivation.RecordAutomaticShow("StatsWindow prebuild (built, not shown)");
+                var started = Stopwatch.GetTimestamp();
                 _preparedStatsWindow = CreatePreparedStatsWindow();
+                LogService.Shared.LogInfo($"Statistics window: prepared in {Stopwatch.GetElapsedTime(started).TotalMilliseconds:0} ms.");
             }
         };
         // Started at the first idle moment after the window exists, not at its construction.
