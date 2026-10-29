@@ -6,11 +6,9 @@ Claude, Codex, Cursor, Gemini and Copilot side by side, with a countdown to ever
 so the next "usage limit reached" never catches you mid-flow.
 
 [![Release](https://img.shields.io/github/v/release/wbgcoding/AI-Usage?label=release&color=2EA043)](../../releases/latest)
-[![CI](https://github.com/wbgcoding/AI-Usage/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
 ![x64 | ARM64](https://img.shields.io/badge/arch-x64%20%7C%20ARM64-555555)
-![Languages](https://img.shields.io/badge/UI-English%20%7C%20German-6E56CF)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2EA043)](LICENSE)
 
 <img src=".github/images/home-claude-full.png" width="420" alt="AI-Usage showing Claude in the full layout, dark theme">
