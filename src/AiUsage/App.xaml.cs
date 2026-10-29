@@ -288,6 +288,13 @@ public partial class App : Application, IDisposable
         // start has to reach the everyday copy, never this one.
         _singleInstance?.RegisterShowRequestHandler(() =>
             Dispatcher.BeginInvoke(() => _mainWindow?.ShowAndActivate()));
+        // Setup about to replace the program file: quit the ordinary way so nothing keeps it open.
+        _singleInstance?.RegisterExitRequestHandler(() =>
+            Dispatcher.BeginInvoke(() =>
+            {
+                _logService?.LogInfo("Setup asked this copy to quit.");
+                RequestShutdown();
+            }));
 
 #if DEBUG
         // Test-only, undocumented: forces a real DispatcherUnhandledException after startup so the

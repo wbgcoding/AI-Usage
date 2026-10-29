@@ -6,7 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
+- The README is shorter.
+
 ### Fixed
+
+- Installing or updating while AI-Usage runs no longer stops with "DeleteFile failed; code 5". Setup asks the running copy to quit (it saves first), ends it if it does not, and waits until Windows releases the file. The uninstaller closes it the same way.
+- Opening the widget from the tray draws it first and only then starts the fresh readings, so it appears at once. The log records how long the first show took.
 
 - Signing in to Claude again is recognised right away. The sign-in window asks the site whether the session really works before it closes. A stored session the site no longer accepts is cleared, and the login page opens again instead of the window reporting "already signed in". A read that still finds no sign-in five seconds after the window closed is repeated once.
 - A new Claude Code login is read within seconds of Claude Code saving it, not at the next scheduled read.

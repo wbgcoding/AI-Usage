@@ -10,7 +10,8 @@ namespace AiUsage.Services;
 /// </summary>
 public sealed class SingleInstanceService(
     string mutexName = SingleInstanceService.DefaultMutexName,
-    string showEventName = SingleInstanceService.ShowEventName) : IDisposable
+    string showEventName = SingleInstanceService.ShowEventName,
+    string exitEventName = SingleInstanceService.ExitEventName) : IDisposable
 {
     // "Local\", not "Global\": settings/history/logs already live per-user under %APPDATA%, so a
     // second Windows user (a different login, or another session over Remote Desktop) must be able
@@ -19,10 +20,15 @@ public sealed class SingleInstanceService(
     // Separate name from the mutex above: the mutex decides ownership once at startup, this event
     // is signalled repeatedly (once per later start) and must never be confused with it.
     internal const string ShowEventName = "Local\\AI-Usage-Show-9F3B2C7A";
+    // Signalled by Setup before it replaces the program file: the owner shuts down the ordinary way
+    // (settings and index saved) instead of being killed. installer/AiUsage.iss names it verbatim.
+    internal const string ExitEventName = "Local\\AI-Usage-Exit-9F3B2C7A";
 
     private Mutex? _mutex;
     private EventWaitHandle? _showEvent;
+    private EventWaitHandle? _exitEvent;
     private RegisteredWaitHandle? _registeredWait;
+    private RegisteredWaitHandle? _registeredExitWait;
 
     /// <summary>True when this process should proceed as the one and only instance.</summary>
     public bool AcquireOwnership(string[] args) => AcquireOwnership(args, NewInstanceAllowed,
@@ -84,7 +90,9 @@ public sealed class SingleInstanceService(
         }
         catch (UnauthorizedAccessException)
         {
+            _showEvent?.Dispose();
             _showEvent = null;
+            _exitEvent = null;
             LogService.Shared.LogInfo("Single instance: the show event belongs to a more privileged copy; a second start cannot raise this window.");
         }
     }
@@ -95,8 +103,11 @@ public sealed class SingleInstanceService(
     /// registered against this event) actually existing. Created for every path that returns true
     /// above, since every one of them is later followed by a <see cref="RegisterShowRequestHandler"/>
     /// call.</summary>
-    private void CreateShowEvent() =>
+    private void CreateShowEvent()
+    {
         _showEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset, showEventName);
+        _exitEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset, exitEventName);
+    }
 
 #if DEBUG
     internal const bool NewInstanceAllowed = true;
@@ -124,6 +135,16 @@ public sealed class SingleInstanceService(
             return;
         _registeredWait = ThreadPool.RegisterWaitForSingleObject(
             _showEvent, (_, _) => onShowRequested(), state: null, Timeout.Infinite, executeOnlyOnce: false);
+    }
+
+    /// <summary>Wakes <paramref name="onExitRequested"/> (on a pool thread) once Setup asks this copy
+    /// to quit so it can replace the program file.</summary>
+    public void RegisterExitRequestHandler(Action onExitRequested)
+    {
+        if (_exitEvent is null)
+            return;
+        _registeredExitWait = ThreadPool.RegisterWaitForSingleObject(
+            _exitEvent, (_, _) => onExitRequested(), state: null, Timeout.Infinite, executeOnlyOnce: true);
     }
 
     /// <summary>Called by a second instance that lost <see cref="AcquireOwnership(string[])"/>: asks the
@@ -172,7 +193,9 @@ public sealed class SingleInstanceService(
     public void Dispose()
     {
         _registeredWait?.Unregister(null);
+        _registeredExitWait?.Unregister(null);
         _showEvent?.Dispose();
+        _exitEvent?.Dispose();
         _mutex?.Dispose();
     }
 }

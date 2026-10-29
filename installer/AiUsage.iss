@@ -150,6 +150,7 @@ en.RuntimeInstalling=Downloading and installing the .NET 10 Desktop Runtime. Win
 en.RuntimeFailed=The .NET Desktop Runtime could not be installed. Install it from https://dotnet.microsoft.com/download/dotnet/10.0 and start setup again.
 en.UpdateDirDescription={#AppName} is already installed on this PC and will be updated in the folder shown below.
 en.RemoveDataQuestion=Also remove {#AppName}'s saved settings, history and browser sign-ins for the current user (%APPDATA%\{#AppName}\ and %LOCALAPPDATA%\{#AppName}\)?
+en.AppStillRunning={#AppName} is still running and could not be closed. Quit {#AppName} from its notification area icon (right-click, Exit), then start setup again.
 en.DowngradeQuestion=Version {0} is already installed, and this installer carries the older version {1}. Continue anyway?
 de.AutostartTask={#AppName} automatisch bei der Windows-Anmeldung starten
 de.DesktopShortcutTask=Verknüpfung auf dem Desktop erstellen
@@ -163,6 +164,7 @@ de.RuntimeInstalling=Die .NET 10 Desktop Runtime wird heruntergeladen und instal
 de.RuntimeFailed=Die .NET Desktop Runtime ließ sich nicht installieren. Installieren Sie sie von https://dotnet.microsoft.com/download/dotnet/10.0 und starten Sie das Setup erneut.
 de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wird im unten angezeigten Ordner aktualisiert.
 de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen, der Verlauf und die Browser-Anmeldungen von {#AppName} für den aktuellen Benutzer (%APPDATA%\{#AppName}\ und %LOCALAPPDATA%\{#AppName}\) entfernt werden?
+de.AppStillRunning={#AppName} läuft noch und ließ sich nicht beenden. Beenden Sie {#AppName} über das Symbol im Infobereich (Rechtsklick, Beenden) und starten Sie das Setup dann erneut.
 de.DowngradeQuestion=Version {0} ist bereits installiert, dieses Installationsprogramm enthält die ältere Version {1}. Trotzdem fortfahren?
 
 [Files]
@@ -308,7 +310,18 @@ function SetWindowPos(Wnd: HWND; WndInsertAfter: Longint; X, Y, Cx, Cy: Integer;
 function AllowSetForegroundWindow(dwProcessId: DWORD): BOOL;
   external 'AllowSetForegroundWindow@user32.dll stdcall';
 
+function OpenEventW(dwDesiredAccess: DWORD; bInheritHandle: BOOL; lpName: String): THandle;
+  external 'OpenEventW@kernel32.dll stdcall';
+
+function SetEvent(hEvent: THandle): BOOL;
+  external 'SetEvent@kernel32.dll stdcall';
+
+function CloseHandle(hObject: THandle): BOOL;
+  external 'CloseHandle@kernel32.dll stdcall';
+
 const
+  EVENT_MODIFY_STATE = $2;
+  AppExitEventName = 'Local\AI-Usage-Exit-9F3B2C7A';
   HWND_TOPMOST = -1;
   HWND_NOTOPMOST = -2;
   SWP_NOMOVE = $2;
@@ -611,15 +624,99 @@ begin
   Result := (RuntimePage <> nil) and (PageID = RuntimePage.ID) and DesktopRuntimeInstalled;
 end;
 
-{ Last chance before any file is written. A missing runtime is fetched and installed here, in a
-  wizard run and in a silent one (an in-app update) alike; a failure returns the message and Setup
-  stops with the app untouched. }
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+{ Wrapped in quotes for a PowerShell single-quoted string. }
+function PsQuote(const Value: String): String;
 begin
-  Result := '';
-  if DesktopRuntimeInstalled then
+  Result := Value;
+  StringChangeEx(Result, '''', '''''', True);
+end;
+
+{ An exclusive open fails while any process runs the file or still maps it. }
+function ProgramFileInUse(const Path: String): Boolean;
+var
+  Stream: TFileStream;
+begin
+  Result := False;
+  if not FileExists(Path) then
+    Exit;
+  try
+    Stream := TFileStream.Create(Path, fmOpenReadWrite or fmShareExclusive);
+    Stream.Free;
+  except
+    Result := True;
+  end;
+end;
+
+function WaitUntilProgramFileFree(const Path: String; TimeoutMs: Integer): Boolean;
+var
+  Waited: Integer;
+begin
+  Waited := 0;
+  while ProgramFileInUse(Path) and (Waited < TimeoutMs) do
+  begin
+    Sleep(250);
+    Waited := Waited + 250;
+  end;
+  Result := not ProgramFileInUse(Path);
+end;
+
+{ The running copy listens on this event (SingleInstanceService.ExitEventName) and quits the
+  ordinary way, saving its settings and index. False when no copy listens, e.g. an older version. }
+function AskAppToQuit: Boolean;
+var
+  Handle: THandle;
+begin
+  Handle := OpenEventW(EVENT_MODIFY_STATE, False, AppExitEventName);
+  Result := Handle <> 0;
+  if Result then
+  begin
+    Result := SetEvent(Handle);
+    CloseHandle(Handle);
+  end;
+end;
+
+{ Matched by full path rather than image name: by name alone this would also end an unrelated
+  portable copy running from a stick or another folder. }
+procedure EndCopiesRunningFrom(const Exe: String);
+var
+  ResultCode: Integer;
+  Script: String;
+begin
+  Script :=
+    '$p = ''' + PsQuote(Exe) + '''; ' +
+    'Get-Process -ErrorAction SilentlyContinue | ' +
+    'Where-Object { $_.Path -eq $p } | Stop-Process -Force -ErrorAction SilentlyContinue';
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+       '-NoProfile -NonInteractive -Command "' + Script + '"', '',
+       SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+{ The Restart Manager gives up as soon as anything else touches the file too (an antivirus scan
+  shows up as "System"), and the copy then stops on "DeleteFile failed; code 5". So the running copy
+  is closed here first: asked to quit, then ended, then the file is given time to be released. }
+function FreeProgramFile(const Exe: String): Boolean;
+begin
+  Result := True;
+  if not ProgramFileInUse(Exe) then
     Exit;
 
+  Log('Program file in use; asking the running copy to quit.');
+  if AskAppToQuit and WaitUntilProgramFileFree(Exe, 15000) then
+    Exit;
+
+  Log('Program file still in use; ending copies running from it.');
+  EndCopiesRunningFrom(Exe);
+  Result := WaitUntilProgramFileFree(Exe, 15000);
+  if not Result then
+    Log('Program file still in use after ending the running copy.');
+end;
+
+{ Last chance before any file is written. A missing runtime is fetched and installed here, in a
+  wizard run and in a silent one (an in-app update) alike; a failure returns the message and Setup
+  stops with the app untouched. A copy still running from the target folder is closed as well. }
+function PrepareRuntime: String;
+begin
+  Result := '';
   if not WizardSilent then
   begin
     RuntimeProgress.SetText(CustomMessage('RuntimeInstalling'), '');
@@ -632,6 +729,15 @@ begin
     if not WizardSilent then
       RuntimeProgress.Hide;
   end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  if not DesktopRuntimeInstalled then
+    Result := PrepareRuntime;
+  if (Result = '') and not FreeProgramFile(ExpandConstant('{app}\{#AppExeName}')) then
+    Result := CustomMessage('AppStillRunning');
 end;
 
 procedure WizardActivated(Sender: TObject);
@@ -741,28 +847,11 @@ begin
 end;
 
 { Uninstalling while the app runs blocks on files that cannot be deleted, and a silent uninstall
-  has nobody to ask - so it is closed first, always, by folder rather than by image name: matching
-  by name alone would also close an unrelated portable copy running from a stick or another
-  folder. Only a copy inside the installation folder can hold this uninstall's files. }
-function PsQuote(const Value: String): String;
-begin
-  Result := Value;
-  StringChangeEx(Result, '''', '''''', True);
-end;
-
+  has nobody to ask - so it is closed first, always (see FreeProgramFile). }
 function InitializeUninstall: Boolean;
-var
-  ResultCode: Integer;
-  Script: String;
 begin
   Result := True;
-  Script :=
-    '$p = ''' + PsQuote(ExpandConstant('{app}\{#AppExeName}')) + '''; ' +
-    'Get-Process -ErrorAction SilentlyContinue | ' +
-    'Where-Object { $_.Path -eq $p } | Stop-Process -Force -ErrorAction SilentlyContinue';
-  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-       '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + Script + '"', '',
-       SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  FreeProgramFile(ExpandConstant('{app}\{#AppExeName}'));
 end;
 
 const

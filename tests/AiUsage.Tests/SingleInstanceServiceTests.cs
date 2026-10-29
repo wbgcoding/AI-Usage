@@ -150,6 +150,37 @@ public class SingleInstanceServiceTests
     }
 
     [Fact]
+    public async Task An_exit_request_from_setup_reaches_the_owner_and_not_the_show_handler()
+    {
+        var showName = $"Local\\AI-Usage-Test-Show-{Guid.NewGuid():N}";
+        var exitName = $"Local\\AI-Usage-Test-Exit-{Guid.NewGuid():N}";
+        using var service = new SingleInstanceService(UniqueMutexName(), showName, exitName);
+        Assert.True(service.AcquireOwnership([]));
+
+        var exitRan = new TaskCompletionSource();
+        var showRan = false;
+        service.RegisterExitRequestHandler(() => exitRan.TrySetResult());
+        service.RegisterShowRequestHandler(() => showRan = true);
+
+        // What installer/AiUsage.iss does through OpenEventW + SetEvent.
+        Assert.True(SingleInstanceService.RequestShow(exitName));
+
+        var completed = await Task.WhenAny(exitRan.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(exitRan.Task, completed);
+        Assert.False(showRan);
+    }
+
+    [Fact]
+    public void Setup_signals_the_exit_event_the_app_listens_on()
+    {
+        var iss = File.ReadAllText(Path.Combine(RepoRoot.Find(), "installer", "AiUsage.iss"));
+
+        Assert.Contains($"AppExitEventName = '{SingleInstanceService.ExitEventName}';", iss, StringComparison.Ordinal);
+        Assert.Contains("if (Result = '') and not FreeProgramFile(ExpandConstant('{app}\\{#AppExeName}')) then", iss, StringComparison.Ordinal);
+        Assert.Contains("FreeProgramFile(ExpandConstant('{app}\\{#AppExeName}'));", iss, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_show_event_name_and_the_mutex_name_are_different()
     {
         Assert.NotEqual(SingleInstanceService.DefaultMutexName, SingleInstanceService.ShowEventName);
