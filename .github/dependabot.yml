@@ -16,3 +16,8 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /.github
+    schedule:
+      interval: monthly
