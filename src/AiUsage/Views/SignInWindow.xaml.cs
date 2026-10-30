@@ -107,6 +107,7 @@ public partial class SignInWindow : Window
             coreWebView2.NavigationCompleted -= CoreWebView2_NavigationCompleted;
             coreWebView2.SourceChanged -= CoreWebView2_SourceChanged;
         }
+        ClosePopup();
         Browser.Dispose();
         CursorRestore.Reset();
     }
@@ -116,45 +117,16 @@ public partial class SignInWindow : Window
         _openedAt = DateTimeOffset.UtcNow;
         try
         {
-            var environment = await _host.EnsureEnvironmentAsync();
-            await Browser.EnsureCoreWebView2Async(environment);
-            // The user works in this window (typing a password, clicking a consent screen), so its
-            // own right-click menu stays - only the developer tools go, the same as the hidden reader
-            // session this window shares a profile with.
-            Browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
-            // The email typed at sign-in must not land in the profile's autofill store, and a
-            // permission click here (notifications, location) must not be saved where the hidden
-            // reader session inherits it: every request gets a no that is not remembered.
-            Browser.CoreWebView2.Settings.IsGeneralAutofillEnabled = false;
-            Browser.CoreWebView2.Settings.IsPasswordAutosaveEnabled = false;
-            Browser.CoreWebView2.PermissionRequested += (_, args) =>
-            {
-                args.State = Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Deny;
-                args.SavesInProfile = false;
-            };
-            // No provider sign-in needs a file: every download the page starts is cancelled.
-            Browser.CoreWebView2.DownloadStarting += (_, args) => args.Cancel = true;
+            _environment = await _host.EnsureEnvironmentAsync();
+            await Browser.EnsureCoreWebView2Async(_environment);
+            Harden(Browser.CoreWebView2);
             Browser.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             Browser.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
             Browser.CoreWebView2.SourceChanged += CoreWebView2_SourceChanged;
-            // A real popup window has nowhere to render inside this minimal dialog - "Sign in with
-            // Google" needs one anyway, so its content is redirected into this same, already
-            // host-checked WebView2 instance instead of being silently dropped.
-            Browser.CoreWebView2.NewWindowRequested += (_, args) =>
-            {
-                try
-                {
-                    args.NewWindow = Browser.CoreWebView2;
-                    args.Handled = true;
-                }
-                catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
-                {
-                    // The opener refused to be its own popup target: load the address in it directly
-                    // (NavigationStarting still applies the allow-list).
-                    args.Handled = true;
-                    Browser.CoreWebView2.Navigate(args.Uri);
-                }
-            };
+            Browser.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
+            // The page that started the sign-in asked to close; the window decides that itself.
+            Browser.CoreWebView2.WindowCloseRequested += (_, _) =>
+                LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the page asked to close, ignored.");
             Browser.CoreWebView2.Navigate(_signInUrl);
             if (_sessionCheckScript is not null)
                 _loginPagePoll.Start();
@@ -186,6 +158,145 @@ public partial class SignInWindow : Window
     /// the first navigation has resolved, successfully or not - the page itself, or the runtime-missing
     /// panel, takes over from there.</summary>
     internal static bool ShouldShowLoadingIndicator(bool firstNavigationCompleted) => !firstNavigationCompleted;
+
+    /// <summary>The settings every browser in this window gets, the page and any popup alike.</summary>
+    private static void Harden(CoreWebView2 core)
+    {
+        // The user works in this window (typing a password, clicking a consent screen), so its
+        // own right-click menu stays - only the developer tools go, the same as the hidden reader
+        // session this window shares a profile with.
+        core.Settings.AreDevToolsEnabled = false;
+        // The email typed at sign-in must not land in the profile's autofill store, and a
+        // permission click here (notifications, location) must not be saved where the hidden
+        // reader session inherits it: every request gets a no that is not remembered.
+        core.Settings.IsGeneralAutofillEnabled = false;
+        core.Settings.IsPasswordAutosaveEnabled = false;
+        core.PermissionRequested += (_, args) =>
+        {
+            args.State = CoreWebView2PermissionState.Deny;
+            args.SavesInProfile = false;
+        };
+        // No provider sign-in needs a file: every download the page starts is cancelled.
+        core.DownloadStarting += (_, args) => args.Cancel = true;
+    }
+
+    private CoreWebView2Environment? _environment;
+    private Microsoft.Web.WebView2.Wpf.WebView2? _popup;
+
+    /// <summary>"Sign in with Google" opens a popup and waits for its answer through the popup's link
+    /// back to the page that opened it. The popup gets its own browser over the page, on the same
+    /// profile and allow-list; loading it in place of the page would cut that link, and the sign-in
+    /// would never finish. One popup at a time: a further one loads in the open popup.</summary>
+    private async void CoreWebView2_NewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs args)
+    {
+        if (_closed)
+            return;
+
+        if (!IsPopupAddressAllowed(args.Uri))
+        {
+            args.Handled = true;
+            if (IsWorthExplaining(args.Uri))
+            {
+                LogBlocked(args.Uri);
+                ShowBlockedNotice(args.Uri);
+            }
+            return;
+        }
+
+        if (_popup?.CoreWebView2 is { } open)
+        {
+            args.Handled = true;
+            open.Navigate(args.Uri);
+            return;
+        }
+
+        var deferral = args.GetDeferral();
+        try
+        {
+            var popup = new Microsoft.Web.WebView2.Wpf.WebView2();
+            _popup = popup;
+            PopupHost.Children.Add(popup);
+            PopupHost.Visibility = Visibility.Visible;
+            // Both browsers are native child windows, and the first one created stays on top: the
+            // page steps aside while the popup stands (it keeps running and gets the answer).
+            Browser.Visibility = Visibility.Hidden;
+            await popup.EnsureCoreWebView2Async(_environment);
+            if (_closed || _popup != popup)
+            {
+                args.Handled = true;
+                return;
+            }
+
+            Harden(popup.CoreWebView2);
+            popup.CoreWebView2.NavigationStarting += Popup_NavigationStarting;
+            popup.CoreWebView2.NewWindowRequested += (_, inner) =>
+            {
+                // A popup of the popup loads in the popup itself.
+                inner.Handled = true;
+                if (IsPopupAddressAllowed(inner.Uri))
+                    popup.CoreWebView2.Navigate(inner.Uri);
+            };
+            popup.CoreWebView2.WindowCloseRequested += (_, _) => ClosePopup();
+            // The title names the host the popup stands on, the same way it does for the page.
+            popup.CoreWebView2.SourceChanged += (_, _) =>
+            {
+                if (_popup == popup)
+                    TitleHost = TitleHostFor(popup.CoreWebView2.Source, _providerHost);
+            };
+            args.NewWindow = popup.CoreWebView2;
+            args.Handled = true;
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the page opened a popup.");
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+        {
+            // No popup browser: the address loads in the page itself, as a last resort.
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the popup failed ({ex.GetType().Name}), loading it in the page.");
+            ClosePopup();
+            args.Handled = true;
+            Browser.CoreWebView2?.Navigate(args.Uri);
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    /// <summary>A popup starts blank more often than not and is then sent on by script; the address
+    /// it finally loads still has to pass the allow-list.</summary>
+    private bool IsPopupAddressAllowed(string uri) =>
+        uri is "" or "about:blank" || IsAllowed(uri, _allowedHosts, _hostsAllowedByUser);
+
+    private void Popup_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (IsPopupAddressAllowed(e.Uri))
+            return;
+
+        e.Cancel = true;
+        if (!IsWorthExplaining(e.Uri))
+            return;
+        LogBlocked(e.Uri);
+        ClosePopup();
+        ShowBlockedNotice(e.Uri);
+    }
+
+    /// <summary>The popup closed itself (its answer went to the page) or is given up: the page shows again.</summary>
+    private void ClosePopup()
+    {
+        if (_popup is not { } popup)
+            return;
+
+        _popup = null;
+        PopupHost.Children.Remove(popup);
+        PopupHost.Visibility = Visibility.Collapsed;
+        // A notice standing in the page's place keeps the page hidden.
+        if (BlockedPanel.Visibility != Visibility.Visible && AlreadySignedInPanel.Visibility != Visibility.Visible)
+            Browser.Visibility = Visibility.Visible;
+        popup.Dispose();
+        if (_popup is null)
+            TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _providerHost);
+        if (!_closed)
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the popup closed.");
+    }
 
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
@@ -283,7 +394,8 @@ public partial class SignInWindow : Window
     /// sites such as claude.ai move from their login form to the app by script alone.</summary>
     private void CoreWebView2_SourceChanged(object? sender, CoreWebView2SourceChangedEventArgs e)
     {
-        TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _providerHost);
+        if (_popup is null)
+            TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _providerHost);
         if (!e.IsNewDocument)
             EvaluateLanding(isSuccess: true);
     }

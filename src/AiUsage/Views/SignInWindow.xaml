@@ -89,6 +89,9 @@
              was, and the page's own cursor request must not carry over onto them. -->
         <Grid Cursor="Arrow">
             <wv2:WebView2 x:Name="Browser"/>
+            <!-- A popup the page opens (Google's account picker) stands over the page that opened it, so
+                 the opener stays alive and receives the answer when the popup closes itself. -->
+            <Grid x:Name="PopupHost" Visibility="Collapsed"/>
             <StackPanel x:Name="LoadingPanel" Margin="{StaticResource Space.Xl}" VerticalAlignment="Center">
                 <ProgressBar Style="{StaticResource LoadingProgressBarStyle}" HorizontalAlignment="Center"/>
                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Loading]}"
