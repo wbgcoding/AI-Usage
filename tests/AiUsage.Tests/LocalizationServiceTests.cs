@@ -23,15 +23,15 @@ public class LocalizationServiceTests
     [Fact]
     public void System_falls_back_to_english_for_a_language_with_no_resources()
     {
-        Assert.Equal(EnglishDisplaySection, DisplaySectionUnder("fr-FR", language: "System"));
+        Assert.Equal(EnglishDisplaySection, DisplaySectionUnder("sv-SE", language: "System"));
     }
 
     [Fact]
     public void A_hand_typed_uppercase_code_selects_that_language_instead_of_falling_through()
     {
-        // German picked explicitly, on a machine displaying French - only a case-insensitive
+        // German picked explicitly, on a machine displaying Swedish - only a case-insensitive
         // comparison of the stored code can produce the German text here.
-        Assert.Equal(GermanDisplaySection, DisplaySectionUnder("fr-FR", language: "DE"));
+        Assert.Equal(GermanDisplaySection, DisplaySectionUnder("sv-SE", language: "DE"));
         Assert.Equal(EnglishDisplaySection, DisplaySectionUnder("de-AT", language: "EN"));
     }
 
