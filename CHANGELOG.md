@@ -9,14 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
+- Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
 ### Changed
 
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
 - The README is shorter.
+- The build window started by a double-click is smaller, carries the app name and closes itself ten seconds after a successful build.
+- A model without a public price (such as the Codex review model) no longer writes a warning to the log at every start.
 
 ### Fixed
 
+- The build stops at a failed step even when the tool reports a negative exit code.
 - Installing or updating while AI-Usage runs no longer stops with "DeleteFile failed; code 5". Setup asks the running copy to quit (it saves first), ends it if it does not, and waits until Windows releases the file. The uninstaller closes it the same way.
 - Opening the widget from the tray draws it first and only then starts the fresh readings, so it appears at once. The log records how long the first show took.
 
