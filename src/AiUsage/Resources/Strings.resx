@@ -235,6 +235,16 @@
   <data name="Language.System" xml:space="preserve"><value>System language</value></data>
   <data name="Language.German" xml:space="preserve"><value>Deutsch</value></data>
   <data name="Language.English" xml:space="preserve"><value>English</value></data>
+  <data name="Language.Spanish" xml:space="preserve"><value>Español</value></data>
+  <data name="Language.French" xml:space="preserve"><value>Français</value></data>
+  <data name="Language.Italian" xml:space="preserve"><value>Italiano</value></data>
+  <data name="Language.Dutch" xml:space="preserve"><value>Nederlands</value></data>
+  <data name="Language.Polish" xml:space="preserve"><value>Polski</value></data>
+  <data name="Language.PortugueseBrazil" xml:space="preserve"><value>Português (Brasil)</value></data>
+  <data name="Language.Romanian" xml:space="preserve"><value>Română</value></data>
+  <data name="Language.Turkish" xml:space="preserve"><value>Türkçe</value></data>
+  <data name="Language.Japanese" xml:space="preserve"><value>日本語</value></data>
+  <data name="Language.ChineseSimplified" xml:space="preserve"><value>简体中文</value></data>
   <data name="Settings.Section.Display" xml:space="preserve"><value>Display</value></data>
   <data name="Settings.Section.Updates" xml:space="preserve"><value>Refresh</value></data>
   <data name="Settings.Section.Notifications" xml:space="preserve"><value>Notifications</value></data>

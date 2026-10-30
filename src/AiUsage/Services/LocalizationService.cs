@@ -31,8 +31,21 @@ public sealed class LocalizationService : INotifyPropertyChanged
     [
         new("System", "Language.System", null),
         new("en", "Language.English", new ResourceManager("AiUsage.Resources.Strings", typeof(LocalizationService).Assembly)),
-        new("de", "Language.German", new ResourceManager("AiUsage.Resources.Strings.de", typeof(LocalizationService).Assembly)),
+        new("de", "Language.German", Manager("de")),
+        new("es", "Language.Spanish", Manager("es")),
+        new("fr", "Language.French", Manager("fr")),
+        new("it", "Language.Italian", Manager("it")),
+        new("nl", "Language.Dutch", Manager("nl")),
+        new("pl", "Language.Polish", Manager("pl")),
+        new("pt-BR", "Language.PortugueseBrazil", Manager("pt-BR")),
+        new("ro", "Language.Romanian", Manager("ro")),
+        new("tr", "Language.Turkish", Manager("tr")),
+        new("ja", "Language.Japanese", Manager("ja")),
+        new("zh-Hans", "Language.ChineseSimplified", Manager("zh-Hans")),
     ];
+
+    private static ResourceManager Manager(string code) =>
+        new($"AiUsage.Resources.Strings.{code}", typeof(LocalizationService).Assembly);
 
     /// <summary>The one instance every window/view-model binds against - same pattern as
     /// <see cref="ThemeService"/> applying to the one live <c>Application.Current</c>.</summary>
@@ -79,7 +92,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
     /// <summary>The culture of the active UI language ("en", "de"), "System" resolved like <see
     /// cref="SetLanguage"/> does - for the one thing the resource files cannot hold: names the .NET
     /// calendar already knows (the days of the week).</summary>
-    public CultureInfo ActiveCulture => s_scope.Value?.Language ?? CultureInfo.GetCultureInfo(ActiveOption().Code);
+    public CultureInfo ActiveCulture => s_scope.Value?.Language ?? FormatCultureFor(ActiveOption().Code);
 
     // Reads the active resources once, so a switch in between cannot leave the lookup without a match.
     private LanguageOption ActiveOption()
@@ -128,7 +141,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
     public Captured Capture()
     {
         var resources = _active;
-        var language = CultureInfo.GetCultureInfo(Languages.First(l => l.Resources == resources).Code);
+        var language = FormatCultureFor(Languages.First(l => l.Resources == resources).Code);
         var regional = CultureInfo.CurrentCulture;
         return new Captured(resources, regional, language, DisplayFor(regional, language));
     }
@@ -155,6 +168,16 @@ public sealed class LocalizationService : INotifyPropertyChanged
         }
     }
 
+    /// <summary>The culture a language code stands for. zh-Hans is a script, not a region, and
+    /// en/de need one for the regional defaults; every other code is used as it is.</summary>
+    internal static CultureInfo FormatCultureFor(string code) => code switch
+    {
+        "zh-Hans" => CultureInfo.GetCultureInfo("zh-CN"),
+        "en" => CultureInfo.GetCultureInfo("en-US"),
+        "de" => CultureInfo.GetCultureInfo("de-DE"),
+        _ => CultureInfo.GetCultureInfo(code),
+    };
+
     internal static CultureInfo DisplayCultureFor(CultureInfo regional, CultureInfo language)
     {
         if (string.Equals(regional.TwoLetterISOLanguageName, language.TwoLetterISOLanguageName, StringComparison.OrdinalIgnoreCase))
@@ -177,6 +200,10 @@ public sealed class LocalizationService : INotifyPropertyChanged
     // format string follow the OS regional format, independent of which UI language is active.
     public string Format(string key, params object[] args) => string.Format(CultureInfo.CurrentCulture, this[key], args);
 
+    private static ResourceManager? Concrete(string code) =>
+        Languages.FirstOrDefault(l => l.Resources is not null &&
+            string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase))?.Resources;
+
     /// <summary>Internal rather than private so a test can resolve a language without going
     /// through the shared instance.</summary>
     internal static ResourceManager ResourceManagerFor(string language)
@@ -192,9 +219,17 @@ public sealed class LocalizationService : INotifyPropertyChanged
         // a user can change at any time - not the one Windows was set up with, which a fixed choice
         // would otherwise be stuck on. Falls back to the first registered language (English) when
         // that OS language has no resources of its own here.
-        var systemCode = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        return Languages.FirstOrDefault(l => l.Resources is not null &&
-            string.Equals(l.Code, systemCode, StringComparison.OrdinalIgnoreCase))?.Resources
+        // Order: exact name, then each parent (zh-CN -> zh-Hans), then the two-letter code
+        // (es-MX -> es). pt-PT matches nothing on purpose: it is not offered Brazilian Portuguese.
+        var ui = CultureInfo.CurrentUICulture;
+        for (var culture = ui; !string.IsNullOrEmpty(culture.Name); culture = culture.Parent)
+        {
+            var match = Concrete(culture.Name);
+            if (match is not null)
+                return match;
+        }
+
+        return Concrete(ui.TwoLetterISOLanguageName)
             ?? Languages.First(l => l.Resources is not null).Resources!;
     }
 }

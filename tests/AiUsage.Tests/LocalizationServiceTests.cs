@@ -36,15 +36,56 @@ public class LocalizationServiceTests
     }
 
     [Fact]
-    public void The_language_table_has_exactly_the_three_prepared_entries_and_each_resolves_a_known_key()
+    public void The_language_table_has_the_thirteen_entries_in_order_and_each_resolves_a_known_key()
     {
-        Assert.Equal(["System", "en", "de"], LocalizationService.Languages.Select(l => l.Code));
+        Assert.Equal(
+            ["System", "en", "de", "es", "fr", "it", "nl", "pl", "pt-BR", "ro", "tr", "ja", "zh-Hans"],
+            LocalizationService.Languages.Select(l => l.Code));
+        Assert.Equal(
+            ["Language.System", "Language.English", "Language.German", "Language.Spanish", "Language.French",
+             "Language.Italian", "Language.Dutch", "Language.Polish", "Language.PortugueseBrazil",
+             "Language.Romanian", "Language.Turkish", "Language.Japanese", "Language.ChineseSimplified"],
+            LocalizationService.Languages.Select(l => l.LabelKey));
 
         foreach (var language in LocalizationService.Languages)
         {
             var resolved = Resolve(language.Code).GetString("Settings.Section.Display", CultureInfo.InvariantCulture);
             Assert.False(string.IsNullOrEmpty(resolved));
         }
+    }
+
+    [Theory]
+    [InlineData("zh-CN", "zh-Hans")]
+    [InlineData("zh-Hans", "zh-Hans")]
+    [InlineData("pt-PT", "en")]
+    [InlineData("pt-BR", "pt-BR")]
+    [InlineData("es-MX", "es")]
+    [InlineData("ja-JP", "ja")]
+    [InlineData("zh-TW", "en")]
+    public void System_picks_the_exact_then_parent_then_two_letter_match_else_english(string uiCulture, string expected)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = new CultureInfo(uiCulture);
+            var manager = Resolve("System");
+            Assert.Same(LocalizationService.Languages.Single(l => l.Code == expected).Resources, manager);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = previous;
+        }
+    }
+
+    [Theory]
+    [InlineData("zh-Hans", "zh-CN")]
+    [InlineData("en", "en-US")]
+    [InlineData("de", "de-DE")]
+    [InlineData("es", "es")]
+    [InlineData("pt-BR", "pt-BR")]
+    public void The_format_culture_maps_each_code_to_a_specific_culture(string code, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.FormatCultureFor(code).Name);
     }
 
     private static string? DisplaySectionUnder(string uiCulture, string language)
