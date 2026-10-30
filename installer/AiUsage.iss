@@ -136,6 +136,16 @@ LanguageDetectionMethod=uilanguage
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
+Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
+Name: "nl"; MessagesFile: "compiler:Languages\Dutch.isl"
+Name: "pl"; MessagesFile: "compiler:Languages\Polish.isl"
+Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "ro"; MessagesFile: "Languages\Romanian.isl"
+Name: "tr"; MessagesFile: "compiler:Languages\Turkish.isl"
+Name: "ja"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "zhhans"; MessagesFile: "Languages\ChineseSimplified.isl"
 
 [CustomMessages]
 en.AutostartTask=Start {#AppName} automatically when I sign in to Windows
@@ -166,6 +176,146 @@ de.UpdateDirDescription={#AppName} ist auf diesem PC bereits installiert und wir
 de.RemoveDataQuestion=Sollen auch die gespeicherten Einstellungen, der Verlauf und die Browser-Anmeldungen von {#AppName} für den aktuellen Benutzer (%APPDATA%\{#AppName}\ und %LOCALAPPDATA%\{#AppName}\) entfernt werden?
 de.AppStillRunning={#AppName} läuft noch und ließ sich nicht beenden. Beenden Sie {#AppName} über das Symbol im Infobereich (Rechtsklick, Beenden) und starten Sie das Setup dann erneut.
 de.DowngradeQuestion=Version {0} ist bereits installiert, dieses Installationsprogramm enthält die ältere Version {1}. Trotzdem fortfahren?
+es.AutostartTask=Iniciar {#AppName} automáticamente al iniciar sesión en Windows
+es.DesktopShortcutTask=Crear un acceso directo en el escritorio
+es.LaunchAfter=Iniciar {#AppName} ahora
+es.PortableCheck=Portátil
+es.PortableDirDescription=Elija una carpeta para la copia portátil de {#AppName}. El instalador propone una carpeta propia junto a este instalador y coloca {#AppExeName} en ella. No se escribe nada más en este equipo.
+es.SourceLink=Código fuente e incidencias: github.com/wbgcoding/AI-Usage
+es.RuntimeComponent=Componente necesario
+es.RuntimeNeeded=AI-Usage necesita .NET 10 Desktop Runtime de Microsoft. El instalador lo descarga e instala ahora (unos 60 MB).
+es.RuntimeInstalling=Descargando e instalando .NET 10 Desktop Runtime. Windows pedirá permiso cuando termine la descarga.
+es.RuntimeFailed=No se pudo instalar .NET Desktop Runtime. Instálelo desde https://dotnet.microsoft.com/download/dotnet/10.0 y vuelva a iniciar el instalador.
+es.UpdateDirDescription={#AppName} ya está instalado en este equipo y se actualizará en la carpeta indicada abajo.
+es.RemoveDataQuestion=¿Eliminar también la configuración guardada, el historial y los inicios de sesión del navegador de {#AppName} para el usuario actual (%APPDATA%\{#AppName}\ y %LOCALAPPDATA%\{#AppName}\)?
+es.AppStillRunning={#AppName} sigue en ejecución y no se pudo cerrar. Cierre {#AppName} desde su icono en el área de notificación (clic derecho, Salir) y vuelva a iniciar el instalador.
+es.DowngradeQuestion=La versión {0} ya está instalada y este instalador contiene la versión anterior {1}. ¿Continuar de todos modos?
+fr.AutostartTask=Démarrer {#AppName} automatiquement à l'ouverture de session Windows
+fr.DesktopShortcutTask=Créer un raccourci sur le bureau
+fr.LaunchAfter=Lancer {#AppName} maintenant
+fr.PortableCheck=Portable
+fr.PortableDirDescription=Choisissez un dossier pour la copie portable de {#AppName}. L'installation propose un dossier dédié à côté de ce programme d'installation et y place {#AppExeName}. Rien d'autre n'est écrit sur ce PC.
+fr.SourceLink=Code source et signalements : github.com/wbgcoding/AI-Usage
+fr.RuntimeComponent=Composant requis
+fr.RuntimeNeeded=AI-Usage a besoin du .NET 10 Desktop Runtime de Microsoft. L'installation le télécharge et l'installe maintenant (environ 60 Mo).
+fr.RuntimeInstalling=Téléchargement et installation du .NET 10 Desktop Runtime. Windows demande l'autorisation une fois le téléchargement terminé.
+fr.RuntimeFailed=Le .NET Desktop Runtime n'a pas pu être installé. Installez-le depuis https://dotnet.microsoft.com/download/dotnet/10.0 puis relancez l'installation.
+fr.UpdateDirDescription={#AppName} est déjà installé sur ce PC et sera mis à jour dans le dossier ci-dessous.
+fr.RemoveDataQuestion=Supprimer aussi les paramètres enregistrés, l'historique et les connexions du navigateur de {#AppName} pour l'utilisateur actuel (%APPDATA%\{#AppName}\ et %LOCALAPPDATA%\{#AppName}\) ?
+fr.AppStillRunning={#AppName} est toujours en cours d'exécution et n'a pas pu être fermé. Quittez {#AppName} depuis son icône dans la zone de notification (clic droit, Quitter), puis relancez l'installation.
+fr.DowngradeQuestion=La version {0} est déjà installée et ce programme d'installation contient la version plus ancienne {1}. Continuer quand même ?
+it.AutostartTask=Avvia {#AppName} automaticamente all'accesso a Windows
+it.DesktopShortcutTask=Crea un collegamento sul desktop
+it.LaunchAfter=Avvia {#AppName} ora
+it.PortableCheck=Portatile
+it.PortableDirDescription=Scegli una cartella per la copia portatile di {#AppName}. L'installazione propone una cartella dedicata accanto a questo programma di installazione e vi inserisce {#AppExeName}. Nient'altro viene scritto su questo PC.
+it.SourceLink=Codice sorgente e segnalazioni: github.com/wbgcoding/AI-Usage
+it.RuntimeComponent=Componente necessario
+it.RuntimeNeeded=AI-Usage richiede .NET 10 Desktop Runtime di Microsoft. L'installazione lo scarica e lo installa ora (circa 60 MB).
+it.RuntimeInstalling=Download e installazione di .NET 10 Desktop Runtime in corso. Windows chiederà l'autorizzazione al termine del download.
+it.RuntimeFailed=Impossibile installare .NET Desktop Runtime. Installalo da https://dotnet.microsoft.com/download/dotnet/10.0 e riavvia l'installazione.
+it.UpdateDirDescription={#AppName} è già installato su questo PC e verrà aggiornato nella cartella indicata qui sotto.
+it.RemoveDataQuestion=Rimuovere anche le impostazioni salvate, la cronologia e gli accessi del browser di {#AppName} per l'utente corrente (%APPDATA%\{#AppName}\ e %LOCALAPPDATA%\{#AppName}\)?
+it.AppStillRunning={#AppName} è ancora in esecuzione e non è stato possibile chiuderlo. Chiudi {#AppName} dalla sua icona nell'area di notifica (clic destro, Esci), poi riavvia l'installazione.
+it.DowngradeQuestion=La versione {0} è già installata e questo programma di installazione contiene la versione precedente {1}. Continuare comunque?
+nl.AutostartTask={#AppName} automatisch starten bij aanmelden bij Windows
+nl.DesktopShortcutTask=Een snelkoppeling op het bureaublad maken
+nl.LaunchAfter={#AppName} nu starten
+nl.PortableCheck=Draagbaar
+nl.PortableDirDescription=Kies een map voor de draagbare versie van {#AppName}. Setup stelt een eigen map naast dit installatieprogramma voor en plaatst {#AppExeName} daarin. Verder wordt niets op deze pc opgeslagen.
+nl.SourceLink=Broncode en meldingen: github.com/wbgcoding/AI-Usage
+nl.RuntimeComponent=Vereist onderdeel
+nl.RuntimeNeeded=AI-Usage heeft de .NET 10 Desktop Runtime van Microsoft nodig. Setup downloadt en installeert die nu (ongeveer 60 MB).
+nl.RuntimeInstalling=De .NET 10 Desktop Runtime wordt gedownload en geïnstalleerd. Windows vraagt om toestemming zodra de download klaar is.
+nl.RuntimeFailed=De .NET Desktop Runtime kon niet worden geïnstalleerd. Installeer die via https://dotnet.microsoft.com/download/dotnet/10.0 en start Setup opnieuw.
+nl.UpdateDirDescription={#AppName} is al op deze pc geïnstalleerd en wordt bijgewerkt in de map hieronder.
+nl.RemoveDataQuestion=Ook de opgeslagen instellingen, geschiedenis en browseraanmeldingen van {#AppName} voor de huidige gebruiker verwijderen (%APPDATA%\{#AppName}\ en %LOCALAPPDATA%\{#AppName}\)?
+nl.AppStillRunning={#AppName} is nog actief en kon niet worden afgesloten. Sluit {#AppName} af via het pictogram in het systeemvak (rechtsklik, Afsluiten) en start Setup daarna opnieuw.
+nl.DowngradeQuestion=Versie {0} is al geïnstalleerd en dit installatieprogramma bevat de oudere versie {1}. Toch doorgaan?
+pl.AutostartTask=Uruchamiaj {#AppName} automatycznie po zalogowaniu do systemu Windows
+pl.DesktopShortcutTask=Utwórz skrót na pulpicie
+pl.LaunchAfter=Uruchom {#AppName} teraz
+pl.PortableCheck=Wersja przenośna
+pl.PortableDirDescription=Wybierz folder dla przenośnej kopii {#AppName}. Instalator proponuje osobny folder obok tego instalatora i umieszcza w nim {#AppExeName}. Nic więcej nie jest zapisywane na tym komputerze.
+pl.SourceLink=Kod źródłowy i zgłoszenia: github.com/wbgcoding/AI-Usage
+pl.RuntimeComponent=Wymagany składnik
+pl.RuntimeNeeded=AI-Usage wymaga środowiska .NET 10 Desktop Runtime firmy Microsoft. Instalator pobierze je i zainstaluje teraz (około 60 MB).
+pl.RuntimeInstalling=Trwa pobieranie i instalowanie .NET 10 Desktop Runtime. Po zakończeniu pobierania system Windows poprosi o zgodę.
+pl.RuntimeFailed=Nie udało się zainstalować .NET Desktop Runtime. Zainstaluj je ze strony https://dotnet.microsoft.com/download/dotnet/10.0 i uruchom instalator ponownie.
+pl.UpdateDirDescription={#AppName} jest już zainstalowany na tym komputerze i zostanie zaktualizowany w folderze pokazanym poniżej.
+pl.RemoveDataQuestion=Czy usunąć także zapisane ustawienia, historię i logowania przeglądarki {#AppName} dla bieżącego użytkownika (%APPDATA%\{#AppName}\ i %LOCALAPPDATA%\{#AppName}\)?
+pl.AppStillRunning={#AppName} nadal działa i nie udało się go zamknąć. Zamknij {#AppName} za pomocą ikony w obszarze powiadomień (prawy przycisk, Zakończ), a następnie uruchom instalator ponownie.
+pl.DowngradeQuestion=Wersja {0} jest już zainstalowana, a ten instalator zawiera starszą wersję {1}. Czy mimo to kontynuować?
+ptbr.AutostartTask=Iniciar o {#AppName} automaticamente ao entrar no Windows
+ptbr.DesktopShortcutTask=Criar um atalho na área de trabalho
+ptbr.LaunchAfter=Iniciar o {#AppName} agora
+ptbr.PortableCheck=Portátil
+ptbr.PortableDirDescription=Escolha uma pasta para a cópia portátil do {#AppName}. O instalador sugere uma pasta própria ao lado deste instalador e coloca o {#AppExeName} nela. Nada mais é gravado neste PC.
+ptbr.SourceLink=Código-fonte e relatos de problemas: github.com/wbgcoding/AI-Usage
+ptbr.RuntimeComponent=Componente necessário
+ptbr.RuntimeNeeded=O AI-Usage precisa do .NET 10 Desktop Runtime da Microsoft. O instalador vai baixá-lo e instalá-lo agora (cerca de 60 MB).
+ptbr.RuntimeInstalling=Baixando e instalando o .NET 10 Desktop Runtime. O Windows pedirá permissão quando o download terminar.
+ptbr.RuntimeFailed=Não foi possível instalar o .NET Desktop Runtime. Instale-o em https://dotnet.microsoft.com/download/dotnet/10.0 e inicie o instalador novamente.
+ptbr.UpdateDirDescription=O {#AppName} já está instalado neste PC e será atualizado na pasta mostrada abaixo.
+ptbr.RemoveDataQuestion=Remover também as configurações salvas, o histórico e os logins do navegador do {#AppName} para o usuário atual (%APPDATA%\{#AppName}\ e %LOCALAPPDATA%\{#AppName}\)?
+ptbr.AppStillRunning=O {#AppName} ainda está em execução e não pôde ser fechado. Feche o {#AppName} pelo ícone na área de notificação (clique direito, Sair) e inicie o instalador novamente.
+ptbr.DowngradeQuestion=A versão {0} já está instalada e este instalador contém a versão mais antiga {1}. Continuar mesmo assim?
+ro.AutostartTask=Pornește {#AppName} automat la conectarea în Windows
+ro.DesktopShortcutTask=Creează o comandă rapidă pe desktop
+ro.LaunchAfter=Pornește {#AppName} acum
+ro.PortableCheck=Portabil
+ro.PortableDirDescription=Alegeți un dosar pentru copia portabilă a {#AppName}. Instalarea propune un dosar separat lângă acest program de instalare și pune {#AppExeName} în el. Nimic altceva nu este scris pe acest PC.
+ro.SourceLink=Cod sursă și raportări: github.com/wbgcoding/AI-Usage
+ro.RuntimeComponent=Componentă necesară
+ro.RuntimeNeeded=AI-Usage are nevoie de .NET 10 Desktop Runtime de la Microsoft. Instalarea îl descarcă și îl instalează acum (aproximativ 60 MB).
+ro.RuntimeInstalling=Se descarcă și se instalează .NET 10 Desktop Runtime. Windows va cere permisiunea după terminarea descărcării.
+ro.RuntimeFailed=Nu s-a putut instala .NET Desktop Runtime. Instalați-l de la https://dotnet.microsoft.com/download/dotnet/10.0 și porniți din nou instalarea.
+ro.UpdateDirDescription={#AppName} este deja instalat pe acest PC și va fi actualizat în dosarul de mai jos.
+ro.RemoveDataQuestion=Eliminați și setările salvate, istoricul și autentificările din browser ale {#AppName} pentru utilizatorul curent (%APPDATA%\{#AppName}\ și %LOCALAPPDATA%\{#AppName}\)?
+ro.AppStillRunning={#AppName} încă rulează și nu a putut fi închis. Închideți {#AppName} din pictograma din zona de notificare (clic dreapta, Ieșire), apoi porniți din nou instalarea.
+ro.DowngradeQuestion=Versiunea {0} este deja instalată, iar acest program de instalare conține versiunea mai veche {1}. Continuați oricum?
+tr.AutostartTask=Windows'ta oturum açtığımda {#AppName} otomatik olarak başlasın
+tr.DesktopShortcutTask=Masaüstü kısayolu oluştur
+tr.LaunchAfter={#AppName} şimdi başlat
+tr.PortableCheck=Taşınabilir
+tr.PortableDirDescription={#AppName} taşınabilir kopyası için bir klasör seçin. Kurulum, bu yükleyicinin yanında ayrı bir klasör önerir ve {#AppExeName} dosyasını oraya koyar. Bu bilgisayara başka hiçbir şey yazılmaz.
+tr.SourceLink=Kaynak kod ve sorun bildirimleri: github.com/wbgcoding/AI-Usage
+tr.RuntimeComponent=Gerekli bileşen
+tr.RuntimeNeeded=AI-Usage, Microsoft'un .NET 10 Desktop Runtime bileşenine ihtiyaç duyar. Kurulum bunu şimdi indirip yükler (yaklaşık 60 MB).
+tr.RuntimeInstalling=.NET 10 Desktop Runtime indiriliyor ve yükleniyor. İndirme bittiğinde Windows izin isteyecek.
+tr.RuntimeFailed=.NET Desktop Runtime yüklenemedi. https://dotnet.microsoft.com/download/dotnet/10.0 adresinden yükleyin ve kurulumu yeniden başlatın.
+tr.UpdateDirDescription={#AppName} bu bilgisayarda zaten yüklü ve aşağıda gösterilen klasörde güncellenecek.
+tr.RemoveDataQuestion={#AppName} uygulamasının geçerli kullanıcı için kayıtlı ayarları, geçmişi ve tarayıcı oturumları da kaldırılsın mı (%APPDATA%\{#AppName}\ ve %LOCALAPPDATA%\{#AppName}\)?
+tr.AppStillRunning={#AppName} hâlâ çalışıyor ve kapatılamadı. {#AppName} uygulamasını bildirim alanındaki simgesinden kapatın (sağ tık, Çıkış) ve kurulumu yeniden başlatın.
+tr.DowngradeQuestion=Sürüm {0} zaten yüklü ve bu yükleyici daha eski olan {1} sürümünü içeriyor. Yine de devam edilsin mi?
+ja.AutostartTask=Windows へのサインイン時に {#AppName} を自動的に起動する
+ja.DesktopShortcutTask=デスクトップにショートカットを作成する
+ja.LaunchAfter={#AppName} を今すぐ起動する
+ja.PortableCheck=ポータブル
+ja.PortableDirDescription={#AppName} のポータブル版を置くフォルダーを選んでください。セットアップはこのインストーラーの隣に専用のフォルダーを提案し、そこに {#AppExeName} を置きます。この PC にはほかに何も書き込みません。
+ja.SourceLink=ソースコードと問題の報告: github.com/wbgcoding/AI-Usage
+ja.RuntimeComponent=必要なコンポーネント
+ja.RuntimeNeeded=AI-Usage には Microsoft の .NET 10 Desktop Runtime が必要です。セットアップが今すぐダウンロードしてインストールします (約 60 MB)。
+ja.RuntimeInstalling=.NET 10 Desktop Runtime をダウンロードしてインストールしています。ダウンロードが終わると Windows が許可を求めます。
+ja.RuntimeFailed=.NET Desktop Runtime をインストールできませんでした。https://dotnet.microsoft.com/download/dotnet/10.0 からインストールし、セットアップをもう一度起動してください。
+ja.UpdateDirDescription={#AppName} はこの PC に既にインストールされています。下のフォルダーで更新されます。
+ja.RemoveDataQuestion=現在のユーザーの {#AppName} の保存済み設定、履歴、ブラウザーのサインイン (%APPDATA%\{#AppName}\ と %LOCALAPPDATA%\{#AppName}\) も削除しますか?
+ja.AppStillRunning={#AppName} はまだ実行中で、終了できませんでした。通知領域のアイコンから {#AppName} を終了し (右クリック、終了)、セットアップをもう一度起動してください。
+ja.DowngradeQuestion=バージョン {0} が既にインストールされていますが、このインストーラーには古いバージョン {1} が含まれています。続行しますか?
+zhhans.AutostartTask=登录 Windows 时自动启动 {#AppName}
+zhhans.DesktopShortcutTask=创建桌面快捷方式
+zhhans.LaunchAfter=立即启动 {#AppName}
+zhhans.PortableCheck=便携版
+zhhans.PortableDirDescription=请为 {#AppName} 的便携版选择一个文件夹。安装程序会在此安装程序旁建议一个单独的文件夹，并将 {#AppExeName} 放入其中。不会向此电脑写入其他任何内容。
+zhhans.SourceLink=源代码和问题反馈: github.com/wbgcoding/AI-Usage
+zhhans.RuntimeComponent=必需组件
+zhhans.RuntimeNeeded=AI-Usage 需要 Microsoft 的 .NET 10 Desktop Runtime。安装程序现在会下载并安装它 (约 60 MB)。
+zhhans.RuntimeInstalling=正在下载并安装 .NET 10 Desktop Runtime。下载完成后 Windows 会请求权限。
+zhhans.RuntimeFailed=无法安装 .NET Desktop Runtime。请从 https://dotnet.microsoft.com/download/dotnet/10.0 安装，然后重新启动安装程序。
+zhhans.UpdateDirDescription={#AppName} 已安装在此电脑上，将在下方显示的文件夹中更新。
+zhhans.RemoveDataQuestion=是否同时删除当前用户的 {#AppName} 已保存设置、历史记录和浏览器登录 (%APPDATA%\{#AppName}\ 和 %LOCALAPPDATA%\{#AppName}\)?
+zhhans.AppStillRunning={#AppName} 仍在运行，无法关闭。请通过通知区域中的图标退出 {#AppName} (右键单击，退出)，然后重新启动安装程序。
+zhhans.DowngradeQuestion=已安装版本 {0}，而此安装程序包含较旧的版本 {1}。仍要继续吗?
 
 [Files]
 ; The published single-file exe for the architecture being installed, taken from the build stage.
