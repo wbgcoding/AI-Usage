@@ -123,8 +123,8 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             var step = Step.NotSignedIn;
             if (_siteRun is not null)
             {
-                step = await TryReadAsync(_siteRun, ct);
-                outcome.Add("claude.ai " + Word(step));
+                (step, var stage) = await TryReadAsync(_siteRun, ct);
+                outcome.Add("claude.ai " + Word(step) + stage);
                 if (step is Step.Ok or Step.Blocked)
                     return;
             }
@@ -145,8 +145,8 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
                 console = _console ??= _createConsoleRunner();
             }
 
-            step = await TryReadAsync(console.Run, ct);
-            outcome.Add("console " + Word(step));
+            (step, var consoleStage) = await TryReadAsync(console.Run, ct);
+            outcome.Add("console " + Word(step) + consoleStage);
             if (step == Step.NotSignedIn)
             {
                 lock (_gate)
@@ -195,34 +195,38 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             return _consoleBlockedUntil is { } until && _time.GetUtcNow() < until;
     }
 
-    private async Task<Step> TryReadAsync(Func<string, CancellationToken, Task<string>> run, CancellationToken ct)
+    /// <summary>One route's answer, and for a failure which of its two requests it came from (" at
+    /// organizations" or " at credits"), for the log line.</summary>
+    private async Task<(Step Step, string Stage)> TryReadAsync(Func<string, CancellationToken, Task<string>> run, CancellationToken ct)
     {
+        const string AtOrganizations = " at organizations";
+        const string AtCredits = " at credits";
         var organizations = ReadEnvelope(await run(ClaudeConsoleCreditScript.ListOrganizations(), ct));
         if (organizations.Step != Step.Ok)
-            return organizations.Step;
+            return (organizations.Step, AtOrganizations);
 
         var pick = ClaudeConsoleCreditParser.PickOrganization(organizations.Body, organizations.LastActiveOrg);
         if (pick.Outcome == ClaudeConsoleOrgOutcome.NoApiOrganization)
-            return Step.NoApiOrganization;
+            return (Step.NoApiOrganization, "");
         if (pick.Outcome != ClaudeConsoleOrgOutcome.Found || pick.OrganizationId is not { } organizationId)
         {
             Report(ClaudeConsoleCreditParser.ChangeNotes(organizations.Body, null));
-            return Step.Failed;
+            return (Step.Failed, AtOrganizations);
         }
 
         var credits = ReadEnvelope(await run(ClaudeConsoleCreditScript.FetchCredits(ClaudeConsoleCreditScript.CreditPath(organizationId)), ct));
         if (credits.Step != Step.Ok)
-            return credits.Step;
+            return (credits.Step, AtCredits);
 
         var reading = ClaudeConsoleCreditParser.Parse(credits.Body);
         if (reading.Outcome != ClaudeConsoleCreditOutcome.Ok || reading.Credit is not { } credit)
         {
             Report(ClaudeConsoleCreditParser.ChangeNotes(null, credits.Body));
-            return Step.Failed;
+            return (Step.Failed, AtCredits);
         }
 
         Store(credit);
-        return Step.Ok;
+        return (Step.Ok, "");
     }
 
     private void Store(ClaudeApiCredit credit)
