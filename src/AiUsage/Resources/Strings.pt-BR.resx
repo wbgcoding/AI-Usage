@@ -232,7 +232,7 @@
   <data name="Theme.System" xml:space="preserve"><value>Sistema</value></data>
   <data name="Layout.Vertical" xml:space="preserve"><value>Vertical</value></data>
   <data name="Layout.Horizontal" xml:space="preserve"><value>Horizontal</value></data>
-  <data name="Language.System" xml:space="preserve"><value>System language</value></data>
+  <data name="Language.System" xml:space="preserve"><value>Idioma do sistema</value></data>
   <data name="Language.German" xml:space="preserve"><value>Deutsch</value></data>
   <data name="Language.English" xml:space="preserve"><value>English</value></data>
   <data name="Language.Spanish" xml:space="preserve"><value>Español</value></data>

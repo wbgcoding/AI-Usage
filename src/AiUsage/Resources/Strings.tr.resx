@@ -433,7 +433,7 @@
   <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>Aşağı taşı</value></data>
   <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Up</value></data>
   <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Down</value></data>
-  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Up, Alt+Down</value></data>
+  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Yukarı, Alt+Aşağı</value></data>
   <data name="Stats.Layout.Reset" xml:space="preserve"><value>Düzeni sıfırla</value></data>
   <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Her bölümü özgün yerine geri koyar.</value></data>
   <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Grafiğin ve aşağıdaki tablonun neye göre gruplanacağını belirler.</value></data>
@@ -588,7 +588,7 @@
   <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>Bu ay</value></data>
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Geçen ay</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Özel aralık…</value></data>
-  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} - {1}</value></data>
+  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} ile {1} arası</value></data>
   <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Tüm sağlayıcılar</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Sağlayıcı</value></data>
   <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} sağlayıcı</value></data>
@@ -647,8 +647,8 @@
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Token dizinini haftalık yedekle</value></data>
   <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Son üç kopya veri klasöründe stats-backups altında saklanır. Hasarlı bir dizin bunlardan geri yüklenir.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Oturum günlükleri okunuyor: {1} dosyadan {0}</value></data>
-  <data name="Settings.Backup.Preview" xml:space="preserve"><value>{0} tarihli yedek. {3} hesap için {1} - {2} arası geçmiş.</value></data>
-  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>{0} tarihli yedek. 1 hesap için {1} - {2} arası geçmiş.</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>{0} tarihli yedek. {3} hesap için {1} ile {2} arası geçmiş.</value></data>
+  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>{0} tarihli yedek. 1 hesap için {1} ile {2} arası geçmiş.</value></data>
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>{0} tarihli yedek. Geçmiş yok.</value></data>
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Sağlayıcı bir şeyi değiştirdi; değerler eksik olabilir.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Günlüğü aç</value></data>

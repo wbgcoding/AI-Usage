@@ -588,7 +588,7 @@
   <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>Questo mese</value></data>
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Mese scorso</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Periodo personalizzato…</value></data>
-  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} - {1}</value></data>
+  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>da {0} a {1}</value></data>
   <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Tutti i provider</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Provider</value></data>
   <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} provider</value></data>

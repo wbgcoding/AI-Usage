@@ -48,6 +48,44 @@ public class LocalizationParityTests
         }
     }
 
+    // Values that read the same in that language as in English: product names, and words the language
+    // borrowed unchanged.
+    private static readonly HashSet<string> SameAsEnglishOnPurpose =
+    [
+        "fr:Settings.Section.Notifications", "fr:Settings.Via.ClaudeCode", "nl:Settings.Via.ClaudeCode",
+        "it:Stats.Project.Tip.InputOutputCache",
+    ];
+
+    private static readonly Regex Placeholder = new(@"\{\d+[^}]*\}", RegexOptions.Compiled);
+
+    [Fact]
+    public void EveryTranslationIsFilledAndLongTextsAreActuallyTranslated()
+    {
+        var english = Values(LocalizationService.Languages.Single(l => l.Code == "en").Resources!);
+        var offenders = new List<string>();
+        foreach (var language in LocalizationService.Languages.Where(l => l.Resources is not null && l.Code is not "en"))
+        {
+            var isNew = language.Code is not "de";
+            foreach (var (key, value) in Values(language.Resources!))
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    offenders.Add($"{language.Code}:{key} is empty");
+                // Formats like "{0} min {1} s" stay as they are; only real text counts.
+                else if (isNew && !key.StartsWith("Language.", StringComparison.Ordinal)
+                    && english.TryGetValue(key, out var source) && source == value
+                    && Placeholder.Replace(value, "").Count(char.IsLetter) >= 12
+                    && !SameAsEnglishOnPurpose.Contains($"{language.Code}:{key}"))
+                    offenders.Add($"{language.Code}:{key} is still English");
+            }
+        }
+
+        Assert.True(offenders.Count == 0, string.Join(", ", offenders));
+    }
+
+    private static Dictionary<string, string> Values(ResourceManager manager) =>
+        manager.GetResourceSet(CultureInfo.InvariantCulture, createIfNotExists: true, tryParents: false)!
+            .Cast<DictionaryEntry>().ToDictionary(e => (string)e.Key!, e => e.Value as string ?? "");
+
     [Fact]
     public void NoTooltipSaysWhenASettingTakesEffect()
     {

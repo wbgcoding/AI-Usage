@@ -433,7 +433,7 @@
   <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>W dół</value></data>
   <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Up</value></data>
   <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Down</value></data>
-  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Up, Alt+Down</value></data>
+  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Strzałka w górę, Alt+Strzałka w dół</value></data>
   <data name="Stats.Layout.Reset" xml:space="preserve"><value>Przywróć układ</value></data>
   <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Przywraca każdą sekcję na pierwotne miejsce.</value></data>
   <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Określa, według czego pogrupowane są wykres i tabela poniżej.</value></data>
