@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Oturum açma {0} adresini açmaya çalıştı, ancak bu, bu pencerenin ziyaret edebileceği sitelerden biri değil. Hiçbir şey yüklenmedi. Oturum açma o siteyi gerektiriyorsa onu bu pencere için buraya yükleyebilirsin; bir sonraki pencere yine olağan listeyle başlar.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Anladım</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Sayfayı yine de yükle</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>Giriş e-postasındaki bağlantı tarayıcınızda açılır ve orada bir doğrulama kodu gösterir. Bu kodu buraya girin. Google ile giriş doğrudan bu pencerede çalışır.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Düz http sayfaları bu pencerede hiçbir zaman yüklenmez.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} sn</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} dk</value></data>

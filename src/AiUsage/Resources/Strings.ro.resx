@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Conectarea a încercat să deschidă {0}, care nu este unul dintre site-urile pe care le poate vizita această fereastră. Nu s-a încărcat nimic. Dacă conectarea are nevoie de acel site, îl poți încărca aici pentru această fereastră; următoarea pornește din nou de la lista obișnuită.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Am înțeles</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Încarcă pagina oricum</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>Linkul din e-mailul de conectare se deschide în browser și afișează acolo un cod de verificare. Introdu acel cod aici. Conectarea cu Google funcționează direct în această fereastră.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Paginile http simple nu sunt niciodată încărcate în această fereastră.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>

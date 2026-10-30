@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>La connexion a essayé d'ouvrir {0}, qui ne fait pas partie des sites que cette fenêtre peut visiter. Rien n'a été chargé. Si la connexion a besoin de ce site, tu peux le charger ici pour cette fenêtre ; la suivante repart de la liste habituelle.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Compris</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Charger quand même la page</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>Le lien de l'e-mail de connexion s'ouvre dans votre navigateur et y affiche un code de vérification. Saisissez ce code ici. La connexion avec Google fonctionne directement dans cette fenêtre.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Les pages http simples ne sont jamais chargées dans cette fenêtre.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>

@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>サインイン処理が {0} を開こうとしましたが、このウィンドウで閲覧を許可しているサイトではありません。何も読み込まれていません。サインインにそのサイトが必要な場合は、このウィンドウに限って読み込めます。次のウィンドウでは通常の一覧に戻ります。</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>了解</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>それでもページを読み込む</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>サインインメールのリンクはブラウザーで開き、そこに確認コードが表示されます。そのコードをここに入力してください。Google でのサインインはこのウィンドウで直接行えます。</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>暗号化されていないhttpページは、このウィンドウでは読み込まれません。</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0}秒</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0}分</value></data>

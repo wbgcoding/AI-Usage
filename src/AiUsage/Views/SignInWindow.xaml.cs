@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using AiUsage.Services;
 using AiUsage.Storage;
 using AiUsage.Web;
@@ -45,6 +46,9 @@ public partial class SignInWindow : Window
     // A login page that bounced straight back on a session the site no longer accepts gets its
     // cookies cleared and the login page loaded again, once per window.
     private bool _clearedStaleSession;
+    // Asks the site now and then while its login page stands: a sign-in that finishes without leaving
+    // the login address (a code typed into the page) is still noticed.
+    private readonly DispatcherTimer _loginPagePoll = new() { Interval = LoginPagePollInterval };
 
     /// <summary>True once this window's own session came back off the login path and landed on the
     /// provider's own site again - the same moment the window decides it has finished and closes
@@ -67,6 +71,9 @@ public partial class SignInWindow : Window
         _startPath = new Uri(descriptor.BaseUrl).AbsolutePath;
         _allowedHosts = descriptor.AllowedHosts;
         InitializeComponent();
+        if (ProviderRegistry.IsConsoleSession(_accountKey))
+            ConsoleHint.Visibility = Visibility.Visible;
+        _loginPagePoll.Tick += LoginPagePoll_Tick;
         TitleBarControl.SetBinding(Controls.TitleBar.TitleTextProperty, NewTitleBinding());
         SetBinding(TitleProperty, NewTitleBinding());
         WindowChromeNative.Bootstrap(this);
@@ -93,6 +100,7 @@ public partial class SignInWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _closed = true;
+        _loginPagePoll.Stop();
         if (!SignedIn && _sawLoginPage)
             LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}' closed before the sign-in finished.");
         if (Browser.CoreWebView2 is { } coreWebView2)
@@ -150,6 +158,8 @@ public partial class SignInWindow : Window
                 }
             };
             Browser.CoreWebView2.Navigate(_signInUrl);
+            if (_sessionCheckScript is not null)
+                _loginPagePoll.Start();
         }
         catch (Exception ex)
         {
@@ -543,6 +553,43 @@ public partial class SignInWindow : Window
                 await Task.Delay(SessionCheckPause);
         }
         return state;
+    }
+
+    internal static readonly TimeSpan LoginPagePollInterval = TimeSpan.FromSeconds(4);
+
+    /// <summary>Whether the timer asks the site on this page: only on the provider's own login page, and
+    /// not in the first seconds, where a stored session bounces through on its own. Pure so the rule is
+    /// testable without a WebView2 instance.</summary>
+    internal static bool ShouldPollLoginPage(Uri page, string providerHost, TimeSpan sinceOpened) =>
+        sinceOpened >= TimeSpan.FromSeconds(2) && IsOnProviderLoginPage(page, providerHost);
+
+    private async void LoginPagePoll_Tick(object? sender, EventArgs e)
+    {
+        if (_closed || SignedIn || _checkingSession || _sessionCheckScript is null
+            || Browser.CoreWebView2 is not { } core || !Uri.TryCreate(core.Source, UriKind.Absolute, out var page)
+            || !ShouldPollLoginPage(page, _providerHost, DateTimeOffset.UtcNow - _openedAt))
+            return;
+
+        _checkingSession = true;
+        try
+        {
+            // Only a clear "ok" counts here: the page itself still says "log in".
+            if (await SignInSessionCheck.RunAsync(core, _sessionCheckScript, _providerHost, SessionCheckTimeout) != SignInSessionState.SignedIn
+                || _closed || SignedIn)
+                return;
+
+            SignedIn = true;
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': signed in while the login page stood, session confirmed.");
+            Close();
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
+        {
+            // The browser went away while the check ran: the window is closing anyway.
+        }
+        finally
+        {
+            _checkingSession = false;
+        }
     }
 
     /// <summary>What a landing does with the site's answer. Pure so the rule is testable without a

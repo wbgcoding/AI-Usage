@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>El inicio de sesión intentó abrir {0}, que no es uno de los sitios que esta ventana puede visitar. No se cargó nada. Si el inicio de sesión necesita ese sitio, puedes cargarlo aquí solo para esta ventana; la siguiente vuelve a empezar con la lista habitual.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Entendido</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Cargar la página igualmente</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>El enlace del correo de inicio de sesión se abre en tu navegador y muestra allí un código de verificación. Introduce ese código aquí. El inicio de sesión con Google funciona directamente en esta ventana.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Las páginas http sin cifrar nunca se cargan en esta ventana.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>

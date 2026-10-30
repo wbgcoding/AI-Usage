@@ -49,6 +49,23 @@ public class SignInDetectionTests
     }
 
     [Theory]
+    [InlineData("https://platform.claude.com/login", 5, true)]
+    [InlineData("https://platform.claude.com/login?returnTo=%2Fsettings", 30, true)]
+    [InlineData("https://platform.claude.com/login", 1, false)]
+    [InlineData("https://platform.claude.com/settings/billing", 30, false)]
+    [InlineData("https://accounts.google.com/signin", 30, false)]
+    public void The_login_page_is_asked_now_and_then_only_while_it_stands(string page, int secondsOpen, bool expected)
+    {
+        Assert.Equal(expected, SignInWindow.ShouldPollLoginPage(new Uri(page), "platform.claude.com", TimeSpan.FromSeconds(secondsOpen)));
+    }
+
+    [Fact]
+    public void The_console_sign_in_checks_its_session()
+    {
+        Assert.NotNull(ProviderRegistry.SessionCheckScriptFor("claude~console"));
+    }
+
+    [Theory]
     [InlineData("claude")]
     [InlineData("claude#2")]
     [InlineData("codex")]

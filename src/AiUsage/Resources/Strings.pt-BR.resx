@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>O login tentou abrir {0}, que não é um dos sites que esta janela pode visitar. Nada foi carregado. Se o login precisar desse site, você pode carregá-lo aqui somente para esta janela; a próxima volta a usar a lista habitual.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Entendi</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Carregar a página mesmo assim</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>O link do e-mail de login abre no seu navegador e mostra lá um código de verificação. Digite esse código aqui. O login com o Google funciona direto nesta janela.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Páginas http sem criptografia nunca são carregadas nesta janela.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>

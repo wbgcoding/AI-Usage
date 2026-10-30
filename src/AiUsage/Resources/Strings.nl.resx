@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Het inloggen probeerde {0} te openen, wat niet een van de sites is die dit venster mag bezoeken. Er is niets geladen. Als het inloggen die site nodig heeft, kun je hem hier voor dit venster laden; het volgende venster begint weer met de gebruikelijke lijst.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Begrepen</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Pagina toch laden</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>De link in de aanmeldmail opent in je browser en toont daar een verificatiecode. Voer die code hier in. Aanmelden met Google werkt direct in dit venster.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Gewone http-pagina's worden in dit venster nooit geladen.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>

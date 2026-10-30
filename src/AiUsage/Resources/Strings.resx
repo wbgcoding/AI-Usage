@@ -354,6 +354,7 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>The sign-in tried to open {0}, which is not one of the sites this window may visit. Nothing was loaded. If the sign-in needs that site, you can load it here for this window; the next one starts from the usual list again.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Got it</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Load the page anyway</value></data>
+  <data name="SignIn.Console.Hint" xml:space="preserve"><value>The link in the sign-in email opens in your browser and shows a verification code there. Enter that code here. Signing in with Google works right in this window.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Plain http pages are never loaded in this window.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
