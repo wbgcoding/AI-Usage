@@ -455,6 +455,29 @@ public class MainViewModelTests : IDisposable
         Assert.Null(vm.LastRecordedReading("gemini", Now));
     }
 
+    // The history skips a window whose value did not change, so the weekly point can be older than the newest
+    // 5 hour point; the restored tile must still carry both bars from its first frame.
+    [Fact]
+    public void The_last_recorded_reading_keeps_a_steady_weekly_window_behind_a_newer_five_hour_point()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var written = Now.AddHours(-3);
+        var historyStore = new HistoryStore(TempDirectory(), () => written);
+        historyStore.Append("claude", WindowKind.Weekly, 44, Now.AddDays(3), label: "Window_Weekly");
+        historyStore.Append("claude", WindowKind.FiveHour, 20, Now.AddHours(1), label: "Window_FiveHour");
+        written = Now.AddMinutes(-30);
+        historyStore.Append("claude", WindowKind.FiveHour, 35, Now.AddHours(1), label: "Window_FiveHour");
+        var providers = new List<IUsageProvider> { new FakeProvider("codex"), new FakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, historyStore);
+
+        var reading = vm.LastRecordedReading("claude", Now);
+
+        Assert.NotNull(reading);
+        Assert.Equal([WindowKind.FiveHour, WindowKind.Weekly], reading.Windows.Select(window => window.Kind));
+        Assert.Equal(35, reading.Windows[0].UsedPercent);
+        Assert.Equal(44, reading.Windows[1].UsedPercent);
+    }
+
     // A snapshot that only repeats an hour-old reading (a held-over expired token, a cached web read)
     // still refreshes the tile but is not a new data point for the chart.
     [Fact]

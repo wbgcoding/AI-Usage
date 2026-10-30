@@ -714,11 +714,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return null;
 
         var newest = points.Max(point => point.Timestamp);
-        // One read writes all its windows within a few milliseconds; a minute keeps them together.
+        // The history writes a window only when its value changed (or after a while), so one read does not
+        // always leave all its windows within the same minute: a steady weekly figure sits behind the newer
+        // 5 hour point. Each window therefore counts by its own newest point - a point of the newest read
+        // (a minute keeps the windows of one read together) or one whose reset time still lies ahead. A
+        // window that stopped being reported long ago has neither.
         var windows = points
-            .Where(point => point.Timestamp >= newest - TimeSpan.FromMinutes(1) && point.CompactionLevel is null)
+            .Where(point => point.CompactionLevel is null)
             .GroupBy(point => (point.Window, point.Label))
             .Select(group => group.MaxBy(point => point.Timestamp)!)
+            .Where(point => point.Timestamp >= newest - TimeSpan.FromMinutes(1) || point.ResetsAt > now)
+            .OrderBy(point => point.Window)
             .Select(point => new UsageWindow(
                 point.Label is { Length: > 0 } label ? label : $"Window_{point.Window}", point.Window, point.Percent,
                 point.ResetsAt, windowMinutes: null, point.Tokens is { } tokens ? new TokenUsage(tokens) : null))
