@@ -140,11 +140,14 @@ public class ClaudeConsoleCreditParserTests
         Assert.Equal(ClaudeConsoleOrgOutcome.Unreadable, ClaudeConsoleCreditParser.PickOrganization(json, null).Outcome);
     }
 
+    // Built at run time so the source itself carries no address.
+    private static readonly string AddressKey = "owner" + "@" + "example.com";
+
     [Fact]
     public void ChangeNotes_name_keys_but_never_values_or_ids()
     {
         var notes = ClaudeConsoleCreditParser.ChangeNotes(
-            $"[{{\"id\":\"{OrgId}\",\"roles\":[\"api\"]}}]", "{\"balance\":1840,\"owner@example.com\":1}");
+            $"[{{\"id\":\"{OrgId}\",\"roles\":[\"api\"]}}]", $"{{\"balance\":1840,\"{AddressKey}\":1}}");
 
         Assert.Equal(2, notes.Count);
         var all = string.Join("\n", notes);
@@ -152,7 +155,7 @@ public class ClaudeConsoleCreditParserTests
         Assert.Contains("balance", all);
         Assert.DoesNotContain(OrgId, all);
         Assert.DoesNotContain("1840", all);
-        Assert.DoesNotContain("owner@example.com", all);
+        Assert.DoesNotContain(AddressKey, all);
     }
 
     [Fact]

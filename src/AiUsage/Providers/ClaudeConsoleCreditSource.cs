@@ -49,13 +49,19 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
     /// has none in use.</param>
     /// <param name="createConsoleRunner">Builds the runner on the console's site, called at most once and
     /// only when the first route did not deliver; null when no console route exists.</param>
+    /// <param name="hasProfile">False while the account has no browser profile at all: no sign-in exists on
+    /// either site, so no hidden browser is started just to learn that.</param>
     internal ClaudeConsoleCreditSource(
-        Func<string, CancellationToken, Task<string>>? siteRun, Func<ConsoleRunner>? createConsoleRunner, TimeProvider? time = null)
+        Func<string, CancellationToken, Task<string>>? siteRun, Func<ConsoleRunner>? createConsoleRunner, TimeProvider? time = null,
+        Func<bool>? hasProfile = null)
     {
         _siteRun = siteRun;
         _createConsoleRunner = createConsoleRunner;
         _time = time ?? TimeProvider.System;
+        _hasProfile = hasProfile ?? (() => true);
     }
+
+    private readonly Func<bool> _hasProfile;
 
     /// <summary>Raised on the thread that finished a read, whenever the balance shown changed.</summary>
     internal event Action? Changed;
@@ -79,6 +85,8 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             if (_disposed || !_running.IsCompleted)
                 return _running;
             if (_lastAttemptAt is { } last && _time.GetUtcNow() - last < ReadInterval)
+                return Task.CompletedTask;
+            if (!_hasProfile())
                 return Task.CompletedTask;
 
             return _running = ReadAsync();

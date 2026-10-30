@@ -203,7 +203,7 @@ public static class ProviderRegistry
         {
             var consoleRunner = new WebSessionScriptRunner(ConsoleSessionFor(accountKey));
             return new ClaudeConsoleCreditSource.ConsoleRunner(consoleRunner.ExecuteScriptAsync, consoleRunner);
-        });
+        }, hasProfile: () => Web.WebViewHost.ProfileExists(WebSessionFor(accountKey).ProfileFolderName));
         runner.AttachCompanion(credit);
 
         return accountKey == ClaudeWebSession.ProviderId

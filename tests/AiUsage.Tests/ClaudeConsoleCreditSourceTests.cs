@@ -63,6 +63,22 @@ public class ClaudeConsoleCreditSourceTests
     }
 
     [Fact]
+    public async Task Starts_no_browser_while_the_account_has_no_browser_profile()
+    {
+        var site = new FakeRunner();
+        var hasProfile = false;
+        var source = new ClaudeConsoleCreditSource(site.Run, null, new ManualTime(), () => hasProfile);
+
+        await source.RefreshIfDueAsync();
+        Assert.Equal(0, site.Calls);
+        Assert.Null(source.Current);
+
+        hasProfile = true;
+        await source.RefreshIfDueAsync();
+        Assert.Equal(new ClaudeApiCredit(18.40m, "USD"), source.Current);
+    }
+
+    [Fact]
     public async Task Reads_at_most_every_thirty_minutes()
     {
         var time = new ManualTime();
