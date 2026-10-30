@@ -195,7 +195,12 @@ internal static class ReviewSurfaces
         Program.RenderStatistics(
             folder, context.Records, context.BusyDay, fullHeight: true,
             context.OutputPath("stats.window"), minWidth: context.Size == SizeKind.Min,
-            seed: _ => SampleLimits.Seed(folder, context.Now));
+            seed: _ => SampleLimits.Seed(folder, context.Now, context.Records),
+            configure: viewModel =>
+            {
+                viewModel.PlanOf = key => key == "claude" ? "Max 5x" : key == "codex" ? "Plus" : null;
+                viewModel.Recompute();
+            });
     }
 
     /// <summary>The weekday by hour grid colored by one "Color by" choice, with subagent work so the agent split shows.</summary>
