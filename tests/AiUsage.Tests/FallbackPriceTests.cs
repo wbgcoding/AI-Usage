@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using AiUsage.Models;
+using AiUsage.Services;
 using AiUsage.Stats;
 using AiUsage.Stats.Pricing;
 
@@ -207,6 +208,20 @@ public class FallbackPriceTests
         foreach (var model in priced)
             Assert.True(list.Find(model) is not null, model);
         Assert.Null(list.Find("codex-auto-review"));
+    }
+
+    [Fact]
+    public void A_model_known_to_have_no_public_price_stays_out_of_the_change_log()
+    {
+        var list = MainWith("gpt-5");
+        list.ReplaceFallback(FallbackPriceList.Parse(Fixture), DateTimeOffset.UtcNow, persist: false);
+        using var capture = ReadChangeLog.BeginCapture();
+
+        Assert.Null(list.Find("codex-auto-review"));
+        Assert.Empty(capture.Lines);
+
+        Assert.Null(list.Find("mystery-model-9"));
+        Assert.Contains("mystery-model-9", Assert.Single(capture.Lines));
     }
 
     [Fact]

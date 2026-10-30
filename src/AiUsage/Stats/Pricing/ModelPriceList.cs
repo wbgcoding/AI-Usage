@@ -33,6 +33,10 @@ public sealed class ModelPriceList
 
     private static readonly ModelPrice FreePrice = new(0, 0, null, null);
 
+    // Models no price table will ever list (internal tool models without a public API price): their
+    // tokens stay unpriced, but a warning at every start would only be noise.
+    private static readonly HashSet<string> KnownUnpriced = new(StringComparer.OrdinalIgnoreCase) { "codex-auto-review" };
+
     private static readonly Regex FreeWord = new(@"(^|[-:_./@])free($|[-:_./@])",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
@@ -288,7 +292,7 @@ public sealed class ModelPriceList
             // Remember the answer only while both tables are still the ones it was found in.
             if (ReferenceEquals(prices, _prices) && ReferenceEquals(fallback, _fallbackFrozen ?? Fallback.Current))
                 _found[model] = price;
-            if (price is null)
+            if (price is null && !KnownUnpriced.Contains(model))
                 report = _reported.Add(model);
         }
 
