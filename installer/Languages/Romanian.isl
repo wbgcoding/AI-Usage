@@ -1,5 +1,5 @@
 ; *** Inno Setup version 6.1.0+ Romanian messages ***
-; Translator : Alexandru Bogdan Munteanu (muntealb@gmail.com)
+; Translator : Alexandru Bogdan Munteanu
 ;
 ; To download user-contributed translations of this file, go to:
 ;   https://jrsoftware.org/files/istrans/
