@@ -1,10 +1,15 @@
 using AiUsage.Models;
+using AiUsage.Stats.Pricing;
 
 namespace AiUsage.Stats;
 
-/// <summary>One whole hour inside a weekly quota period: how far the quota moved during it and which
-/// tokens were used in it. Cache reads are kept apart because they weigh far less than other tokens.</summary>
-public sealed record PerPercentInterval(double DeltaPercent, IReadOnlyDictionary<string, long> TokensByModel, long CacheReadTokens);
+/// <summary>One whole hour inside a quota period: how far the quota moved during it and which tokens
+/// were used in it. Cache reads are kept apart because they weigh far less than other tokens. With a
+/// price function, <see cref="CostUsd"/> is the API price of the hour's tokens (<see cref="AnyPriced"/>
+/// when at least one was priced) and <see cref="UnpricedModels"/> names the models without a price.</summary>
+public sealed record PerPercentInterval(
+    double DeltaPercent, IReadOnlyDictionary<string, long> TokensByModel, long CacheReadTokens,
+    double CostUsd = 0, bool AnyPriced = false, IReadOnlyList<string>? UnpricedModels = null);
 
 /// <summary>One model's share of the estimate: how many of its tokens fill one percent of the week.</summary>
 public sealed record PerPercentItem(string Model, bool IsOther, long TokensPerPercent);
@@ -27,8 +32,8 @@ public sealed record PerPercentResult(
 }
 
 /// <summary>
-/// Estimates how many tokens one percent of a provider's weekly quota costs. Every whole hour inside
-/// one weekly period with a quota reading at both ends gives one equation: the quota's rise in that
+/// Estimates how many tokens one percent of a provider's quota window (weekly or five-hour) costs.
+/// Every whole hour inside one period with a quota reading at both ends gives one equation: the quota's rise in that
 /// hour equals the tokens of each model times that model's cost per token, plus the cache reads times
 /// their own cost. Solving all hours at once (non-negative least squares) gives the costs; the inverse
 /// is the tokens per percent. The fit is only trusted when it explains most of the variation.
@@ -46,19 +51,30 @@ public static class StatsTokensPerPercent
     /// <summary>A quota reading further than this before a whole hour no longer stands for that hour.</summary>
     private static readonly TimeSpan MaxReadingAge = TimeSpan.FromMinutes(15);
 
-    /// <summary>Builds the hourly intervals of <paramref name="weeklyPoints"/> (one provider's weekly
-    /// quota history) against that provider's token <paramref name="records"/>. Hours without tokens, or
-    /// without a reading at both ends, are left out.</summary>
+    /// <summary>Builds the hourly intervals of <paramref name="weeklyPoints"/> (one provider's quota
+    /// history of one window kind) against that provider's token <paramref name="records"/>. Hours
+    /// without tokens, or without a reading at both ends, are left out.</summary>
     public static IReadOnlyList<PerPercentInterval> BuildIntervals(IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints) =>
         BuildIntervals(records, weeklyPoints, TimeZoneInfo.Local);
 
     /// <summary>The same for the clock hours of <paramref name="zone"/>. An hour that happens twice when
     /// the clocks go back is left out: the index files both real hours under one bucket.</summary>
     internal static IReadOnlyList<PerPercentInterval> BuildIntervals(
-        IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints, TimeZoneInfo zone)
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints, TimeZoneInfo zone) =>
+        BuildPooledIntervals(records, [weeklyPoints], zone, null);
+
+    /// <summary>Intervals for several accounts of one provider whose usage is mixed in the logs: an
+    /// hour's movement is the SUM of the accounts' movements over it, so tokens per percent then mean
+    /// one account's percent. An account takes part in the hours between its own first and last reading;
+    /// an hour one of those accounts has no reading pair for is left out. With
+    /// <paramref name="pricer"/>, each interval also carries the API cost of its tokens.</summary>
+    internal static IReadOnlyList<PerPercentInterval> BuildPooledIntervals(
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<IReadOnlyList<HistoryPoint>> accounts, TimeZoneInfo zone,
+        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer)
     {
         var models = new Dictionary<DateTime, Dictionary<string, long>>();
         var cacheReads = new Dictionary<DateTime, long>();
+        var rowsByHour = pricer is null ? null : new Dictionary<DateTime, List<StatsRecord>>();
         foreach (var record in records)
         {
             // A row with an hour outside the day (a damaged index) cannot be placed.
@@ -75,10 +91,65 @@ public static class StatsTokensPerPercent
             var model = ModelDisplayNames.Resolve(record.Model);
             perModel[model] = perModel.GetValueOrDefault(model) + record.InputTokens + record.OutputTokens + record.CacheCreationTokens;
             cacheReads[hour] = cacheReads.GetValueOrDefault(hour) + record.CacheReadTokens;
+            if (rowsByHour is not null)
+            {
+                if (!rowsByHour.TryGetValue(hour, out var rows))
+                    rowsByHour[hour] = rows = [];
+                rows.Add(record);
+            }
         }
 
+        var perAccount = accounts.Select(points => DeltasOf(points, zone, models)).OfType<AccountDeltas>().ToList();
         var intervals = new List<PerPercentInterval>();
-        foreach (var period in StatsLimitsAggregator.SplitIntoPeriods(weeklyPoints))
+        foreach (var hour in models.Keys.Order())
+        {
+            var perModel = models[hour];
+            var cacheRead = cacheReads.GetValueOrDefault(hour);
+            if (perModel.Values.Sum() + cacheRead == 0)
+                continue;
+
+            double delta = 0;
+            var covered = 0;
+            var complete = true;
+            foreach (var account in perAccount)
+            {
+                if (hour < account.First || hour.AddHours(1) > account.Last)
+                    continue;
+                covered++;
+                if (account.ByHour.TryGetValue(hour, out var accountDelta))
+                    delta += accountDelta;
+                else
+                    complete = false;
+            }
+
+            if (covered == 0 || !complete)
+                continue;
+
+            if (pricer is null)
+            {
+                intervals.Add(new PerPercentInterval(delta, perModel, cacheRead));
+                continue;
+            }
+
+            var cost = pricer(rowsByHour![hour]);
+            intervals.Add(new PerPercentInterval(
+                delta, perModel, cacheRead, cost.Usd, cost.AnyPriced, cost.HasUnpriced ? cost.UnpricedModels : null));
+        }
+
+        return intervals;
+    }
+
+    /// <summary>One account's quota movement per whole hour with a reading pair, and the first and last
+    /// moment its readings span (wall clock of the zone).</summary>
+    private sealed record AccountDeltas(Dictionary<DateTime, double> ByHour, DateTime First, DateTime Last);
+
+    private static AccountDeltas? DeltasOf(
+        IReadOnlyList<HistoryPoint> points, TimeZoneInfo zone, Dictionary<DateTime, Dictionary<string, long>> hoursWithTokens)
+    {
+        var byHour = new Dictionary<DateTime, double>();
+        DateTime? spanFirst = null;
+        DateTime? spanLast = null;
+        foreach (var period in StatsLimitsAggregator.SplitIntoPeriods(points))
         {
             if (period[0].ResetsAt is null)
                 continue;
@@ -86,15 +157,17 @@ public static class StatsTokensPerPercent
             var readings = period.OrderBy(point => point.Timestamp).ToList();
             var first = TimeZoneInfo.ConvertTime(readings[0].Timestamp, zone).DateTime;
             var last = TimeZoneInfo.ConvertTime(readings[^1].Timestamp, zone).DateTime;
+            if (spanFirst is null || first < spanFirst)
+                spanFirst = first;
+            if (spanLast is null || last > spanLast)
+                spanLast = last;
+
             var hour = new DateTime(first.Year, first.Month, first.Day, first.Hour, 0, 0, DateTimeKind.Unspecified);
             if (hour < first)
                 hour = hour.AddHours(1);
             for (; hour.AddHours(1) <= last; hour = hour.AddHours(1))
             {
-                if (!models.TryGetValue(hour, out var perModel) || zone.IsAmbiguousTime(hour))
-                    continue;
-                var cacheRead = cacheReads.GetValueOrDefault(hour);
-                if (perModel.Values.Sum() + cacheRead == 0)
+                if (!hoursWithTokens.ContainsKey(hour) || zone.IsAmbiguousTime(hour))
                     continue;
                 if (ReadingAt(readings, new DateTimeOffset(hour, zone.GetUtcOffset(hour))) is not { } before
                     || ReadingAt(readings, EndOfHour(hour, zone)) is not { } after
@@ -103,11 +176,11 @@ public static class StatsTokensPerPercent
                     continue;
                 }
 
-                intervals.Add(new PerPercentInterval(after - before, perModel, cacheRead));
+                byHour[hour] = after - before;
             }
         }
 
-        return intervals;
+        return spanFirst is { } from && spanLast is { } to ? new AccountDeltas(byHour, from, to) : null;
     }
 
     /// <summary>The moment the wall-clock <paramref name="hour"/> ends. When the clocks go back at that
