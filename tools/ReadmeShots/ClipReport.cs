@@ -51,7 +51,7 @@ internal static class ClipReport
             return null;
 
         var formatted = new FormattedText(
-            text.Text, CultureInfo.CurrentUICulture, text.FlowDirection,
+            text.Text, text.Language.GetSpecificCulture(), text.FlowDirection,
             new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch),
             text.FontSize, Brushes.Black, 1.0);
         var needed = formatted.WidthIncludingTrailingWhitespace + text.Padding.Left + text.Padding.Right;
