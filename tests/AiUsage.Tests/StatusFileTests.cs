@@ -85,6 +85,22 @@ public sealed class StatusFileTests : IDisposable
     }
 
     [Fact]
+    public void AnApiCreditBlockIsAnAddedKeyAndAbsentWithoutOne()
+    {
+        var plain = Claude();
+        var withCredit = plain with { ApiCredit = new ClaudeApiCredit(18.40m, "USD") };
+
+        using var without = JsonDocument.Parse(StatusFileWriter.BuildJson([plain], Now));
+        using var with = JsonDocument.Parse(StatusFileWriter.BuildJson([withCredit], Now));
+
+        Assert.False(without.RootElement.GetProperty("providers")[0].TryGetProperty("apiCredit", out _));
+        var credit = with.RootElement.GetProperty("providers")[0].GetProperty("apiCredit");
+        Assert.Equal(["amount", "currency"], credit.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(18.40m, credit.GetProperty("amount").GetDecimal());
+        Assert.Equal("USD", credit.GetProperty("currency").GetString());
+    }
+
+    [Fact]
     public void ADisabledExtraUsageBlockWritesNullFigures()
     {
         var entry = Claude() with { Extra = new ClaudeExtraUsage(false, null, null, null, "USD") };

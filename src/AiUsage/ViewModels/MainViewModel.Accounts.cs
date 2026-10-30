@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Linq;
 using AiUsage.Models;
+using AiUsage.Providers;
 using AiUsage.Services;
 using AiUsage.Stats;
 using AiUsage.Storage;
@@ -453,7 +454,7 @@ public sealed partial class MainViewModel
             var now = DateTimeOffset.Now;
             tile.Apply(new ProviderSnapshot(accountKey, [], null, SourceKind.None, now, null, ProviderStatus.NotSignedIn, null), now, keepLastValues: false);
             // The status file must not keep the numbers of an account that is no longer connected.
-            _statusReadings[accountKey] = (ProviderStatus.NotSignedIn, [], null);
+            _statusReadings[accountKey] = (ProviderStatus.NotSignedIn, [], null, null);
             // Nor may a chart refresh before the next read raise a forecast on its old numbers.
             _forecastInputs.Remove(accountKey);
             QueueStatusFile(now);
@@ -498,6 +499,16 @@ public sealed partial class MainViewModel
         }
 
         RefreshNow();
+    }
+
+    /// <summary>The sign-in window of the account's Claude Console closed: after a real sign-in the
+    /// balance is read at once instead of at the next due time.</summary>
+    public void CompleteConsoleSignIn(string accountKey, bool signedIn)
+    {
+        if (!signedIn || !IsLiveAccount(accountKey) || _providersByKey[accountKey] is not ClaudeProvider claude)
+            return;
+
+        _ = claude.ReadApiCreditNowAsync();
     }
 
     /// <summary>How long after a finished sign-in a read that still says "not signed in" is tried

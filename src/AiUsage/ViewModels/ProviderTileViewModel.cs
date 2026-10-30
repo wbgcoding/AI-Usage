@@ -292,6 +292,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowSignOut))]
     [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     [NotifyPropertyChangedFor(nameof(HasAction))]
+    [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleSignIn))]
     private bool localOnly;
 
     public event EventHandler<bool>? LocalOnlyChanged;
@@ -448,6 +450,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(HasNumbers))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
@@ -510,6 +513,35 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// only, and only while numbers are on show.</summary>
     public bool ShowReadChangeNotice => ReadChanged && ShowRows;
 
+    // The Claude Console balance last read for this account; null until one was read.
+    private ClaudeApiCredit? _apiCredit;
+
+    /// <summary>The "API credits: $18.40" line, empty while there is no balance above zero.</summary>
+    public string ApiCreditText => _apiCredit is { Amount: > 0 } credit
+        ? LocalizationService.Instance.Format(
+            "Format.LabelValue", LocalizationService.Instance["Tile.ApiCredit.Label"],
+            credit.FormatAmount(LocalizationService.Instance.DisplayCulture))
+        : "";
+
+    /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
+    public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
+
+    /// <summary>The settings offer to sign in to the Claude Console: a Claude account that reads the
+    /// web and has no balance yet.</summary>
+    public bool ShowConsoleSignIn => RealProviderId == "claude" && !LocalOnly && _apiCredit is null;
+
+    /// <summary>Takes the balance read for this account (null = none); the tile keeps showing it between reads.</summary>
+    public void SetApiCredit(ClaudeApiCredit? credit)
+    {
+        if (Equals(_apiCredit, credit))
+            return;
+
+        _apiCredit = credit;
+        OnPropertyChanged(nameof(ApiCreditText));
+        OnPropertyChanged(nameof(ShowApiCredit));
+        OnPropertyChanged(nameof(ShowConsoleSignIn));
+    }
+
     /// <summary>The status page link under the failure line that sits above the last values.</summary>
     public bool ShowFailureLink => ShowFailureNotice && ShowStatusLink;
 
@@ -539,6 +571,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowHeader))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
@@ -1253,6 +1286,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(SettingsRowText));
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
+        OnPropertyChanged(nameof(ApiCreditText));
+        OnPropertyChanged(nameof(ShowApiCredit));
         foreach (var choice in BarColorChoices)
             choice.RefreshLabel();
         // The chart's legend and hover caption are otherwise only rebuilt with the next history load.
@@ -1280,6 +1315,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         bool showAttentionMark = true, bool advanceSilenceClock = true, TimeSpan? refreshInterval = null,
         bool keepLastValues = true)
     {
+        SetApiCredit(snapshot.ApiCredit);
         var staleSignedOut = IsSignedOutVerdictFromBeforeTheSignIn(snapshot);
         // An answer that carries nothing but that stale verdict has nothing else to show either: the
         // read that follows the sign-in replaces it.

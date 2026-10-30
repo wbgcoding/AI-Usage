@@ -8,10 +8,11 @@ namespace AiUsage.Services;
 
 /// <summary>One provider tile as the status file shows it. <see cref="Account"/> is only ever the
 /// person's own name for the account, never the label the provider reported. <see cref="Extra"/> is
-/// Claude's extra usage of the month, null when the provider has none to report.</summary>
+/// Claude's extra usage of the month, null when the provider has none to report; <see cref="ApiCredit"/>
+/// the API credit balance of the account's Claude Console, null while none was read.</summary>
 public sealed record StatusEntry(
     string Id, string Name, string? Account, ProviderStatus Status, IReadOnlyList<UsageWindow> Windows,
-    ClaudeExtraUsage? Extra = null);
+    ClaudeExtraUsage? Extra = null, ClaudeApiCredit? ApiCredit = null);
 
 /// <summary>
 /// The small <c>status.json</c> other programs read (a terminal prompt, a status line): one entry per
@@ -158,6 +159,8 @@ public sealed class StatusFileWriter : IDisposable
                 json.WriteEndArray();
                 if (entry.Extra is { } extra)
                     WriteExtra(json, extra);
+                if (entry.ApiCredit is { } credit)
+                    WriteApiCredit(json, credit);
                 json.WriteEndObject();
             }
 
@@ -186,6 +189,15 @@ public sealed class StatusFileWriter : IDisposable
         else
             json.WriteNull("limit");
         json.WriteString("currency", extra.Currency);
+        json.WriteEndObject();
+    }
+
+    // Added key only, like "extra": the balance in major units.
+    private static void WriteApiCredit(Utf8JsonWriter json, ClaudeApiCredit credit)
+    {
+        json.WriteStartObject("apiCredit");
+        json.WriteNumber("amount", credit.Amount);
+        json.WriteString("currency", credit.Currency);
         json.WriteEndObject();
     }
 

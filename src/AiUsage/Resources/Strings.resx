@@ -642,6 +642,9 @@
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Backup from {0}. No history.</value></data>
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>The provider changed something; values may be incomplete.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Open log</value></data>
+  <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API credits</value></data>
+  <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
+  <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Shows the API credit balance of your Claude Console on the tile. Only the balance is read.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Use local sources only</value></data>
   <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Without the web session the app reads only Claude Code's sign-in. If Claude Code is signed out, the tile stays empty.</value></data>
   <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Without the web session values come only from Codex's session files and stand still while you don't use Codex. The plan is not shown.</value></data>

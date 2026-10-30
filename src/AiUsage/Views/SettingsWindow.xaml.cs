@@ -282,6 +282,26 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>Opens the Claude Console's sign-in for this Claude account; the balance is read right
+    /// after a finished sign-in.</summary>
+    private void ConsoleSignIn_Click(object sender, RoutedEventArgs e)
+    {
+        var button = (Button)sender;
+        if (button.DataContext is not ProviderTileViewModel tile || tile.LocalOnly)
+            return;
+
+        button.IsEnabled = false;
+        try
+        {
+            WebSignInFlow.Open(this, ProviderRegistry.ConsoleSessionFor(tile.ProviderId),
+                signedIn => _viewModel.Main.CompleteConsoleSignIn(tile.ProviderId, signedIn));
+        }
+        finally
+        {
+            button.IsEnabled = true;
+        }
+    }
+
     /// <summary>Same two calls MainWindow.xaml.cs's own SignOutRequested handler makes
     /// (<see cref="MainViewModel.TrySignOutAsync"/>, and on a false result
     /// <see cref="MainViewModel.ShowSignOutIncomplete"/>) - the button stays disabled and the spinner

@@ -42,7 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     // What the status file shows per account: the newest state and the newest windows that carried
     // any, so a failed read still lists the last numbers next to its state, like the tile does.
-    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows, ClaudeExtraUsage? Extra)> _statusReadings = new();
+    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows, ClaudeExtraUsage? Extra, ClaudeApiCredit? ApiCredit)> _statusReadings = new();
 
     /// <summary>Writes <c>status.json</c> after snapshots; null (no file) in every test and design-time path.</summary>
     internal StatusFileWriter? StatusFile { get; set; }
@@ -669,6 +669,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.RefreshMinutesChanged += (_, value) => SetRefreshMinutes(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
         _providersByKey[provider.AccountKey] = provider;
+        if (provider is ClaudeProvider claude)
+            claude.ApiCreditChanged += () => OnApiCreditChanged(provider.AccountKey);
         tile.LocalOnlyChanged += (_, value) => SetLocalOnly(tile.ProviderId, value);
         tile.BarColorModeChanged += (_, value) => SetBarColorMode(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
@@ -1455,7 +1457,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             .Where(tile => _statusReadings.ContainsKey(tile.ProviderId))
             .Select(tile => new StatusEntry(
                 tile.ProviderId, tile.DisplayName, tile.HasOwnAccountName ? tile.AccountName : null,
-                _statusReadings[tile.ProviderId].Status, _statusReadings[tile.ProviderId].Windows, _statusReadings[tile.ProviderId].Extra));
+                _statusReadings[tile.ProviderId].Status, _statusReadings[tile.ProviderId].Windows, _statusReadings[tile.ProviderId].Extra,
+                _statusReadings[tile.ProviderId].ApiCredit));
         writer.Schedule(StatusFileWriter.BuildJson(entries, now));
     }
 
@@ -1562,8 +1565,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 && _statusReadings.ContainsKey(snapshot.ProviderId);
             var before = keepLast ? _statusReadings[snapshot.ProviderId] : default;
             _statusReadings[snapshot.ProviderId] = keepLast
-                ? (snapshot.Status, before.Windows, before.Extra)
-                : (snapshot.Status, snapshot.Windows, snapshot.Extra);
+                ? (snapshot.Status, before.Windows, before.Extra, snapshot.ApiCredit)
+                : (snapshot.Status, snapshot.Windows, snapshot.Extra, snapshot.ApiCredit);
             QueueStatusFile(now);
             SnapshotApplied?.Invoke();
         }
@@ -1573,6 +1576,31 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             dispatcher.BeginInvoke(Tail);
         else
             Tail();
+    }
+
+    /// <summary>A balance read landed between two usage reads: the tile and the status file take it at once.
+    /// Raised on a pool thread, so the work moves to the UI thread like a snapshot does.</summary>
+    private void OnApiCreditChanged(string accountKey)
+    {
+        void Apply()
+        {
+            if (!_tilesById.TryGetValue(accountKey, out var tile) || _providersByKey[accountKey] is not ClaudeProvider claude)
+                return;
+
+            var credit = claude.CurrentApiCredit;
+            tile.SetApiCredit(credit);
+            if (_statusReadings.TryGetValue(accountKey, out var reading))
+            {
+                _statusReadings[accountKey] = reading with { ApiCredit = credit };
+                QueueStatusFile(DateTimeOffset.Now);
+            }
+        }
+
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+            dispatcher.BeginInvoke(Apply);
+        else
+            Apply();
     }
 
     // Raised for whichever provider RunOneAsync just started - Tick, RefreshNow() and

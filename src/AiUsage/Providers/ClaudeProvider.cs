@@ -267,6 +267,9 @@ public sealed class ClaudeProvider : IUsageProvider
         return source.Current is { } credit ? snapshot with { ApiCredit = credit } : snapshot;
     }
 
+    /// <summary>The balance the tile may show right now: none for an account kept off the web session.</summary>
+    internal ClaudeApiCredit? CurrentApiCredit => _webSource is null || LocalOnly ? null : CreditSource?.Current;
+
     private async Task<ProviderSnapshot> FetchSourcesAsync(CancellationToken ct)
     {
         var fetchedAt = _now();

@@ -1205,6 +1205,41 @@ public class MainViewModelTests : IDisposable
         Assert.Equal(JsonValueKind.Null, providers["codex"].GetProperty("account").ValueKind);
     }
 
+    private const string CreditOrgsEnvelope =
+        "{\"status\":\"ok\",\"body\":\"[{\\\"uuid\\\":\\\"2f1c8a90-4b3e-4c1a-9d77-0b6a5e3f21cc\\\",\\\"capabilities\\\":[\\\"api\\\"]}]\",\"lastActiveOrg\":null}";
+
+    [Fact]
+    public async Task ABalanceReadBetweenTwoUsageReadsReachesTheTileAndTheStatusFile()
+    {
+        var settings = SettingsWithVisibility(("claude", true));
+        var source = new AiUsage.Providers.ClaudeConsoleCreditSource(
+            (script, _) => Task.FromResult(script.Contains("'/api/organizations'", StringComparison.Ordinal)
+                ? CreditOrgsEnvelope
+                : "{\"status\":\"ok\",\"body\":\"{\\\"amount\\\":1840}\"}"),
+            () => throw new InvalidOperationException("no console runner needed"));
+        var webSource = new AiUsage.Providers.WebUsageSource(
+            new WebSessionDescriptor("claude", "https://claude.ai/", "https://claude.ai/login", ["claude.ai"], "claude"),
+            new AiUsage.Providers.ClaudeUsageEndpoint(), (_, _) => Task.FromResult("{\"status\":\"not_signed_in\"}"));
+        var claude = new AiUsage.Providers.ClaudeProvider(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "does-not-exist"), now: null, webSource, settings, _ => { }) { CreditSource = source };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [claude], new HistoryStore(TempDirectory(), () => Now),
+            notifications: new NotificationService(TempDirectory()));
+        var path = Path.Combine(TempDirectory(), StatusFileWriter.FileName);
+        vm.StatusFile = new StatusFileWriter(() => path, TimeSpan.FromHours(1));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null));
+        var tile = vm.Tiles.Single();
+        Assert.False(tile.ShowApiCredit);
+
+        await claude.ReadApiCreditNowAsync();
+
+        Assert.NotEqual("", tile.ApiCreditText);
+        vm.StatusFile.Flush();
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var entry = document.RootElement.GetProperty("providers").EnumerateArray().Single();
+        Assert.Equal(18.40m, entry.GetProperty("apiCredit").GetProperty("amount").GetDecimal());
+    }
+
     [Fact]
     public void TheStatusFileListsAHiddenTileAndKeepsTheLastNumbersThroughAFailedRead()
     {

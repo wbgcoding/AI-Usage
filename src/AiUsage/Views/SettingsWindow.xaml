@@ -960,6 +960,18 @@
                                             </TextBlock.Style>
                                         </TextBlock>
                                     </StackPanel>
+                                    <!-- Claude only: the API balance lives on the Claude Console, a second
+                                         site with its own sign-in. Offered while no balance was read. -->
+                                    <StackPanel Style="{StaticResource Gap.Top4}"
+                                                Visibility="{Binding ShowConsoleSignIn, Converter={StaticResource BoolToVis}}">
+                                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignIn]}"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" HorizontalAlignment="Left"
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignIn]}"
+                                                Click="ConsoleSignIn_Click"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignIn.Note]}"
+                                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

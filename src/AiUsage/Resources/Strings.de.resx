@@ -641,6 +641,9 @@
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Sicherung vom {0}. Ohne Verlauf.</value></data>
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Der Anbieter hat etwas geändert, Werte evtl. unvollständig.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Protokoll öffnen</value></data>
+  <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API-Guthaben</value></data>
+  <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Bei platform.claude.com anmelden</value></data>
+  <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Zeigt das API-Guthaben deiner Claude Console auf der Kachel. Gelesen wird nur das Guthaben.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Nur lokale Quellen nutzen</value></data>
   <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Ohne Websitzung liest die App nur die Anmeldung von Claude Code. Ist Claude Code abgemeldet, bleibt die Kachel leer.</value></data>
   <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Ohne Websitzung kommen die Werte nur aus den Sitzungsdateien von Codex und bleiben stehen, solange du Codex nicht nutzt. Der Tarif fehlt dann.</value></data>

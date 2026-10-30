@@ -399,6 +399,11 @@
                         </ItemsControl.Style>
                     </ItemsControl>
 
+                    <!-- Claude only: the prepaid API balance of the account's console, one muted line. -->
+                    <TextBlock Text="{Binding ApiCreditText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               Margin="0,0,0,6" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
+                               Visibility="{Binding ShowApiCredit, Converter={StaticResource BoolToVis}}"/>
+
                     <!-- The provider's answer changed shape: values may be incomplete, with the log one click away. -->
                     <TextBlock FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                Margin="0,4,0,8" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
