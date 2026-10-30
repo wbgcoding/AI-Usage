@@ -145,7 +145,9 @@ public class LocalizationParityTests
         var resourcesDir = Path.Combine(SrcDir, "Resources");
         var offenders = new List<string>();
 
-        foreach (var file in new[] { "Strings.resx", "Strings.de.resx" })
+        var files = LocalizationService.Languages.Where(l => l.Resources is not null)
+            .Select(l => l.Code == "en" ? "Strings.resx" : $"Strings.{l.Code}.resx");
+        foreach (var file in files)
         {
             var doc = XDocument.Load(Path.Combine(resourcesDir, file));
             foreach (var data in doc.Root!.Elements("data"))
