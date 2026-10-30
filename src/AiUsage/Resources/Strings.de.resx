@@ -353,7 +353,6 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Die Anmeldung wollte {0} öffnen. Diese Seite gehört nicht zu den erlaubten Zielen dieses Fensters, geladen wurde nichts. Gehört sie zur Anmeldung, kannst du sie hier für dieses Fenster laden; beim nächsten Öffnen gilt wieder die übliche Liste.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Verstanden</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Seite trotzdem laden</value></data>
-  <data name="SignIn.Console.Hint" xml:space="preserve"><value>Der Link aus der Anmelde-E-Mail öffnet sich im Browser und zeigt dort einen Bestätigungscode. Gib diesen Code hier ein. Die Anmeldung mit Google klappt direkt in diesem Fenster.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Unverschlüsselte http-Seiten lädt dieses Fenster nie.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
@@ -558,7 +557,7 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Abrufe 1 Stunde pausieren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Abrufe fortsetzen (pausiert bis {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausiert bis {0}</value></data>
-  <data name="Settings.Mica" xml:space="preserve"><value>Mica-Hintergrund</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Gefunden</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Liest das Konto der Antigravity-CLI (agy). Melde dich dort an oder hier über den Browser.</value></data>
   <data name="Welcome.CopilotHint" xml:space="preserve"><value>Braucht die angemeldete GitHub-CLI (gh): führe gh auth login aus.</value></data>

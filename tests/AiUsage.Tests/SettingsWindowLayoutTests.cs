@@ -71,7 +71,7 @@ public class SettingsWindowLayoutTests
     }
 
     [Fact]
-    public void Size_and_Mica_sit_right_of_the_theme_picker_one_above_the_other()
+    public void Theme_size_and_Mica_share_one_row()
     {
         RunOnSta(window =>
         {
@@ -83,9 +83,24 @@ public class SettingsWindowLayoutTests
             var zoom = window.ZoomCombo.TranslatePoint(new Point(0, 0), root);
             var mica = window.MicaCheck.TranslatePoint(new Point(0, 0), root);
             Assert.True(zoom.X >= themes.X + window.ThemeSwatches.ActualWidth, "The size picker must sit right of the theme swatches");
+            Assert.True(mica.X >= zoom.X + window.ZoomCombo.ActualWidth, "Mica must sit right of the size picker");
             Assert.True(zoom.Y < themes.Y + window.ThemeSwatches.ActualHeight, "The size picker must share the theme row");
-            Assert.True(mica.Y >= zoom.Y + window.ZoomCombo.ActualHeight, "Mica must sit below the size picker");
-            Assert.InRange(mica.X, zoom.X - 1, zoom.X + 1);
+            Assert.True(mica.Y < zoom.Y + window.ZoomCombo.ActualHeight && mica.Y + window.MicaCheck.ActualHeight > zoom.Y,
+                "Mica must sit level with the size picker");
+        });
+    }
+
+    [Fact]
+    public void At_the_default_width_all_theme_swatches_fit_one_line()
+    {
+        RunOnSta(window =>
+        {
+            window.MicaCheck.Visibility = Visibility.Visible;
+            var root = Lay(window, 560);
+            var first = (FrameworkElement)window.ThemeSwatches.ItemContainerGenerator.ContainerFromIndex(0);
+            var last = (FrameworkElement)window.ThemeSwatches.ItemContainerGenerator.ContainerFromIndex(window.ThemeSwatches.Items.Count - 1);
+            var widths = string.Join("/", Enumerable.Range(0, window.ThemeSwatches.Items.Count).Select(i => ((FrameworkElement)window.ThemeSwatches.ItemContainerGenerator.ContainerFromIndex(i)).ActualWidth.ToString("0")));
+            Assert.True(Math.Abs(first.TranslatePoint(new Point(0, 0), root).Y - last.TranslatePoint(new Point(0, 0), root).Y) < 1, $"panel {window.ThemeSwatches.ActualWidth:0}, swatches {widths}, zoom {window.ZoomCombo.ActualWidth:0}, mica {window.MicaCheck.ActualWidth:0}");
         });
     }
 

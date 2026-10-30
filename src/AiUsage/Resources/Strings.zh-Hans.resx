@@ -354,7 +354,6 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>登录流程尝试打开 {0},但它不在此窗口允许访问的网站之列,因此没有加载任何内容。如果登录需要该网站,你可以仅在此窗口中加载它;下一个窗口会恢复为常规列表。</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>知道了</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>仍然加载该页面</value></data>
-  <data name="SignIn.Console.Hint" xml:space="preserve"><value>登录邮件中的链接会在浏览器中打开，并在那里显示验证码。请在此处输入该验证码。使用 Google 登录可直接在此窗口中完成。</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>此窗口绝不会加载纯 http 页面。</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} 秒</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} 分钟</value></data>
@@ -559,7 +558,7 @@
   <data name="Tray.Pause" xml:space="preserve"><value>暂停获取 1 小时</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>恢复获取(已暂停至 {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>已暂停至 {0}</value></data>
-  <data name="Settings.Mica" xml:space="preserve"><value>Mica 背景</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>已找到</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>读取 Antigravity CLI(agy)的账号。请在那里登录,或在此通过浏览器登录。</value></data>
   <data name="Welcome.CopilotHint" xml:space="preserve"><value>需要已登录的 GitHub CLI(gh):运行 gh auth login。</value></data>

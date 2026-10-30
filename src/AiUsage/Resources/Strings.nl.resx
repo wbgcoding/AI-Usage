@@ -354,7 +354,6 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Het inloggen probeerde {0} te openen, wat niet een van de sites is die dit venster mag bezoeken. Er is niets geladen. Als het inloggen die site nodig heeft, kun je hem hier voor dit venster laden; het volgende venster begint weer met de gebruikelijke lijst.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Begrepen</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Pagina toch laden</value></data>
-  <data name="SignIn.Console.Hint" xml:space="preserve"><value>De link in de aanmeldmail opent in je browser en toont daar een verificatiecode. Voer die code hier in. Aanmelden met Google werkt direct in dit venster.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Gewone http-pagina's worden in dit venster nooit geladen.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
@@ -559,7 +558,7 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Ophalen 1 uur pauzeren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Ophalen hervatten (gepauzeerd tot {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Gepauzeerd tot {0}</value></data>
-  <data name="Settings.Mica" xml:space="preserve"><value>Mica-achtergrond</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Gevonden</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Leest het account van de Antigravity CLI (agy). Log daar in, of hier via de browser.</value></data>
   <data name="Welcome.CopilotHint" xml:space="preserve"><value>Vereist de aangemelde GitHub CLI (gh): voer gh auth login uit.</value></data>

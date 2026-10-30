@@ -61,7 +61,8 @@
             <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Padding" Value="0,4"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -231,14 +232,19 @@
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Display]}" Style="{StaticResource CardHeading}"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Appearance]}" Style="{StaticResource GroupHeading.First}"/>
-                    <!-- Theme on the left; size and the Mica backdrop stacked on the right, so the
-                         swatches keep the room they need and wrap only in a narrow window. -->
+                    <!-- Theme, size and the Mica backdrop share one row to keep the card short. The
+                         swatches take what is left and wrap only in a narrow window. -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Column="0" Grid.RowSpan="2">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Theme]}" Style="{StaticResource FieldLabel}"/>
                             <ItemsControl x:Name="ThemeSwatches" ItemsSource="{Binding ThemeChoices}">
                                 <ItemsControl.ItemsPanel>
@@ -262,22 +268,18 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
-                        <!-- Narrow on purpose: a long Mica label wraps instead of pushing the fifth
-                             theme swatch into a second row. -->
-                        <StackPanel Grid.Column="1" Margin="8,0,0,0" MaxWidth="112">
-                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}"
-                                      SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
-                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
-                                      HorizontalAlignment="Left"/>
-                            <CheckBox x:Name="MicaCheck" IsChecked="{Binding MicaEnabled}"
-                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
-                                      ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
-                                      Margin="0,8,0,0"
-                                      Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}" TextWrapping="Wrap"/>
-                            </CheckBox>
-                        </StackPanel>
+                        <TextBlock Grid.Column="1" Grid.Row="0" Margin="8,0,0,0"
+                                   Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="ZoomCombo" Grid.Column="1" Grid.Row="1" Margin="8,0,0,0" VerticalAlignment="Top"
+                                  ItemsSource="{Binding ZoomChoices}"
+                                  SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
+                                  HorizontalAlignment="Left"/>
+                        <CheckBox x:Name="MicaCheck" Grid.Column="2" Grid.Row="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
+                                  IsChecked="{Binding MicaEnabled}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
+                                  VerticalAlignment="Top" Margin="8,4,0,0"
+                                  Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
                     </Grid>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}" Style="{StaticResource FieldLabel.Top8}"/>
                     <Grid>

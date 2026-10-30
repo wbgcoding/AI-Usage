@@ -354,7 +354,6 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Logowanie próbowało otworzyć {0}, a to nie jest jedna ze stron, które to okno może odwiedzać. Nic nie zostało wczytane. Jeśli logowanie wymaga tej strony, możesz ją tu wczytać tylko dla tego okna; następne zacznie znów od zwykłej listy.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Rozumiem</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Mimo to wczytaj stronę</value></data>
-  <data name="SignIn.Console.Hint" xml:space="preserve"><value>Link z e-maila logowania otwiera się w przeglądarce i pokazuje tam kod weryfikacyjny. Wpisz ten kod tutaj. Logowanie przez Google działa bezpośrednio w tym oknie.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Zwykłe strony http nigdy nie są wczytywane w tym oknie.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
@@ -559,7 +558,7 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Wstrzymaj pobieranie na 1 godzinę</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Wznów pobieranie (wstrzymane do {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Wstrzymane do {0}</value></data>
-  <data name="Settings.Mica" xml:space="preserve"><value>Tło Mica</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Znaleziono</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Odczytuje konto Antigravity CLI (agy). Zaloguj się tam albo tutaj przez przeglądarkę.</value></data>
   <data name="Welcome.CopilotHint" xml:space="preserve"><value>Wymaga zalogowanego GitHub CLI (gh): uruchom gh auth login.</value></data>

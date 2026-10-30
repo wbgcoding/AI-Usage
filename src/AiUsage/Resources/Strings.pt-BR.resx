@@ -354,7 +354,6 @@
   <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>O login tentou abrir {0}, que não é um dos sites que esta janela pode visitar. Nada foi carregado. Se o login precisar desse site, você pode carregá-lo aqui somente para esta janela; a próxima volta a usar a lista habitual.</value></data>
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Entendi</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Carregar a página mesmo assim</value></data>
-  <data name="SignIn.Console.Hint" xml:space="preserve"><value>O link do e-mail de login abre no seu navegador e mostra lá um código de verificação. Digite esse código aqui. O login com o Google funciona direto nesta janela.</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Páginas http sem criptografia nunca são carregadas nesta janela.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
@@ -559,7 +558,7 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Pausar a busca por 1 hora</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Retomar a busca (pausada até {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausado até {0}</value></data>
-  <data name="Settings.Mica" xml:space="preserve"><value>Fundo Mica</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Encontrado</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Lê a conta da CLI do Antigravity (agy). Entre nela ou aqui pelo navegador.</value></data>
   <data name="Welcome.CopilotHint" xml:space="preserve"><value>Precisa da CLI do GitHub (gh) conectada: execute gh auth login.</value></data>
