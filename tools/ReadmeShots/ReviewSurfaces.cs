@@ -283,11 +283,15 @@ internal sealed class ReviewOptions
 {
     private const string Usage =
         "Options after --review <folder>: --surfaces <ids and/or @groups, comma separated> (default all), "
-        + "--lang en|de|all (default all), --size min|default|both (default both), --theme <name>|all (default all).";
+        + "--lang <code>|all (default all), --size min|default|both (default both), --theme <name>|all (default all).";
 
     internal IReadOnlyList<string> SurfaceTokens { get; private set; } = [];
 
-    internal IReadOnlyList<string> Languages { get; private set; } = ["en", "de"];
+    // Every registered language, so a new one needs no change here.
+    private static List<string> AllLanguages() =>
+        LocalizationService.Languages.Where(l => l.Resources is not null).Select(l => l.Code).ToList();
+
+    internal IReadOnlyList<string> Languages { get; private set; } = AllLanguages();
 
     internal IReadOnlyList<SizeKind> Sizes { get; private set; } = [SizeKind.Min, SizeKind.Default];
 
@@ -320,9 +324,9 @@ internal sealed class ReviewOptions
                     options.SurfaceTokens = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                     break;
                 case "--lang":
-                    if (value is "en" or "de") options.Languages = [value];
-                    else if (value == "all") options.Languages = ["en", "de"];
-                    else { error = $"Unknown --lang value '{value}'. Valid: en, de, all."; return null; }
+                    if (AllLanguages().Contains(value)) options.Languages = [value];
+                    else if (value == "all") options.Languages = AllLanguages();
+                    else { error = $"Unknown --lang value '{value}'. Valid: {string.Join(", ", AllLanguages())}, all."; return null; }
                     break;
                 case "--size":
                     if (value == "min") options.Sizes = [SizeKind.Min];

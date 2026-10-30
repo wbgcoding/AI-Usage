@@ -18,7 +18,7 @@
 //   --surfaces <list>   surface ids and/or @groups, comma separated (default: all). Groups: @widget,
 //                       @stats, @settings, @tiles, @dialogs, @menus. An unknown value exits with 2
 //                       and lists every valid id and group.
-//   --lang en|de|all    language (default: all)
+//   --lang <code>|all   a language code (en, de, es, fr, it, nl, pl, pt-BR, ro, tr, ja, zh-Hans) or all twelve (default: all)
 //   --size min|default|both
 //                       min = the window's smallest width, default = its normal width (default: both)
 //   --theme <name>|all  Dark, Light, Nebula, Terminal or HighContrast (default: all)
@@ -147,7 +147,7 @@ internal static class Program
 
     private static void SetLanguage(string code)
     {
-        var culture = new CultureInfo(code == "de" ? "de-DE" : "en-US");
+        var culture = LocalizationService.FormatCultureFor(code);
         CultureInfo.CurrentCulture = culture;
         CultureInfo.CurrentUICulture = culture;
         CultureInfo.DefaultThreadCurrentCulture = culture;
