@@ -23,186 +23,186 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
 
-  <data name="Window.FiveHour" xml:space="preserve"><value>5 hours</value></data>
-  <data name="Window.Weekly" xml:space="preserve"><value>7 days</value></data>
-  <data name="Level.WarnName" xml:space="preserve"><value>running low</value></data>
-  <data name="Level.CritName" xml:space="preserve"><value>almost at the limit</value></data>
-  <data name="Window.Other" xml:space="preserve"><value>Other</value></data>
-  <data name="Window.TokensThisSession" xml:space="preserve"><value>{0} tokens in this window</value></data>
-  <data name="Window.TokensInline" xml:space="preserve"><value>{0} tokens</value></data>
-  <data name="Window.ForecastFull" xml:space="preserve"><value>full in about {0}</value></data>
-  <data name="Window.UsedPercent" xml:space="preserve"><value>{0}% used</value></data>
-  <data name="Window.Allowance" xml:space="preserve"><value>{0}% of {2} {3} used ({1} so far)</value></data>
-  <data name="Reset.InHoursMinutes" xml:space="preserve"><value>resets in {0}h {1}m</value></data>
-  <data name="Reset.InMinutes" xml:space="preserve"><value>resets in {0}m</value></data>
-  <data name="Reset.LessThanMinute" xml:space="preserve"><value>resets in &lt;1m</value></data>
-  <data name="Reset.Now" xml:space="preserve"><value>resetting now</value></data>
-  <data name="Reset.InDays" xml:space="preserve"><value>resets in {0}d</value></data>
-  <data name="Reset.InHours" xml:space="preserve"><value>resets in {0}h</value></data>
-  <data name="Reset.InDaysHours" xml:space="preserve"><value>resets in {0}d {1}h</value></data>
-  <data name="Source.Local" xml:space="preserve"><value>local files</value></data>
-  <data name="Source.Web" xml:space="preserve"><value>web session</value></data>
-  <data name="Source.None" xml:space="preserve"><value>not connected</value></data>
-  <data name="Source.LocalLogin" xml:space="preserve"><value>CLI sign-in</value></data>
-  <data name="State.NoLocalData.Head" xml:space="preserve"><value>No local data yet</value></data>
-  <data name="State.NoLocalData.Reason" xml:space="preserve"><value>Nothing to read on this PC yet. Checking again automatically.</value></data>
-  <data name="State.SourceUnavailable.Head" xml:space="preserve"><value>No readable source</value></data>
-  <data name="State.SourceUnavailable.Reason" xml:space="preserve"><value>This provider keeps its usage figures on its servers, so there is nothing to read locally.</value></data>
-  <data name="State.GitHubCliMissing.Reason" xml:space="preserve"><value>This tile reads Copilot usage through the GitHub CLI, which is not installed on this PC. Install it from cli.github.com and sign in with "gh auth login".</value></data>
-  <data name="State.GitHubCliMissing.Head" xml:space="preserve"><value>GitHub CLI missing</value></data>
-  <data name="State.GitHubCliMissing.Action" xml:space="preserve"><value>Open download page</value></data>
-  <data name="State.GitHubCliNotSignedIn.Reason" xml:space="preserve"><value>The GitHub CLI is installed but nobody is signed into it. Run "gh auth login" in a terminal, then use Sign in again.</value></data>
-  <data name="State.NotSignedIn.Head" xml:space="preserve"><value>Sign-in needed</value></data>
-  <data name="State.NotSignedIn.Reason" xml:space="preserve"><value>Sign in once to read your limits. The session stays on this PC.</value></data>
-  <data name="State.NotSignedIn.Action" xml:space="preserve"><value>Sign in</value></data>
-  <data name="State.NotSignedIn.ClaudeCode" xml:space="preserve"><value>Claude Code is not signed in on this PC. Sign in there and the numbers appear here.</value></data>
-  <data name="State.NotSignedIn.WebSession" xml:space="preserve"><value>This account is read through your browser. Sign in and the numbers appear.</value></data>
-  <data name="State.NotSignedIn.ClaudeExpired" xml:space="preserve"><value>Claude Code's sign-in on this PC has expired. Claude Code renews it by itself the next time it runs; only if that fails, sign in there again.</value></data>
-  <data name="State.Blocked.Head" xml:space="preserve"><value>Request turned away</value></data>
-  <data name="State.Blocked.Reason" xml:space="preserve"><value>The provider turned the request away, usually because the sign-in expired or a bot check appeared. Signing in again usually fixes it.</value></data>
-  <data name="State.Offline.Reason" xml:space="preserve"><value>This PC has no internet connection right now. The tile fills itself in as soon as the connection is back.</value></data>
-  <data name="State.Silent.Reason" xml:space="preserve"><value>No usable answer since {0}. The tile keeps trying.</value></data>
-  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>The browser session is still closing. Try again in a few seconds.</value></data>
-  <data name="State.RuntimeMissing.Head" xml:space="preserve"><value>Browser runtime missing</value></data>
-  <data name="State.RuntimeMissing.Reason" xml:space="preserve"><value>Reading this provider needs the WebView2 runtime. Install it, then use Refresh.</value></data>
-  <data name="State.RuntimeMissing.Action" xml:space="preserve"><value>Open download page</value></data>
-  <data name="WebView2.Install.Prompt" xml:space="preserve"><value>Signing in needs the Microsoft WebView2 Runtime, which is missing on this PC. Install it now?</value></data>
-  <data name="WebView2.Install.Confirm" xml:space="preserve"><value>Install</value></data>
-  <data name="WebView2.Install.Downloading" xml:space="preserve"><value>Downloading the WebView2 Runtime…</value></data>
-  <data name="WebView2.Install.Installing" xml:space="preserve"><value>Installing the WebView2 Runtime…</value></data>
-  <data name="WebView2.Install.Failed" xml:space="preserve"><value>The WebView2 Runtime could not be installed. You can download it from Microsoft and then sign in again.</value></data>
-  <data name="WebView2.Install.OpenDownloadPage" xml:space="preserve"><value>Open download page</value></data>
-  <data name="WebView2.Detail.UntrustedFolder" xml:space="preserve"><value>Preparing: the download folder cannot be trusted.</value></data>
-  <data name="WebView2.Detail.Link" xml:space="preserve"><value>Preparing: the downloaded file is a link.</value></data>
-  <data name="WebView2.Detail.ExtraFiles" xml:space="preserve"><value>Preparing: the download folder holds more than the installer.</value></data>
-  <data name="WebView2.Detail.ExitCode" xml:space="preserve"><value>Setup ended with exit code {0}.</value></data>
-  <data name="WebView2.Detail.StillMissing" xml:space="preserve"><value>The runtime is still missing after setup.</value></data>
-  <data name="State.Stale.Head" xml:space="preserve"><value>Data is out of date</value></data>
-  <data name="State.Stale.Reason" xml:space="preserve"><value>Last update {0} ago</value></data>
-  <data name="State.Stale.Meaning" xml:space="preserve"><value>These numbers come from a window that has since expired.</value></data>
-  <data name="State.Stale.Action" xml:space="preserve"><value>Fetch now</value></data>
-  <data name="State.Failed.Head" xml:space="preserve"><value>Could not read usage</value></data>
-  <data name="State.Failed.Reason" xml:space="preserve"><value>The usage request failed. The next attempt follows automatically.</value></data>
-  <data name="State.Failed.ReasonWithDetail" xml:space="preserve"><value>The usage request failed ({0}). The next attempt follows automatically.</value></data>
-  <data name="State.Failed.Detail.Timeout" xml:space="preserve"><value>no answer in time</value></data>
+  <data name="Window.FiveHour" xml:space="preserve"><value>5 ore</value></data>
+  <data name="Window.Weekly" xml:space="preserve"><value>7 zile</value></data>
+  <data name="Level.WarnName" xml:space="preserve"><value>aproape epuizat</value></data>
+  <data name="Level.CritName" xml:space="preserve"><value>aproape de limită</value></data>
+  <data name="Window.Other" xml:space="preserve"><value>Altele</value></data>
+  <data name="Window.TokensThisSession" xml:space="preserve"><value>{0} tokeni în această fereastră</value></data>
+  <data name="Window.TokensInline" xml:space="preserve"><value>{0} tokeni</value></data>
+  <data name="Window.ForecastFull" xml:space="preserve"><value>plin în aprox. {0}</value></data>
+  <data name="Window.UsedPercent" xml:space="preserve"><value>{0}% folosit</value></data>
+  <data name="Window.Allowance" xml:space="preserve"><value>{0}% din {2} {3} folosit ({1} până acum)</value></data>
+  <data name="Reset.InHoursMinutes" xml:space="preserve"><value>resetare în {0}h {1}m</value></data>
+  <data name="Reset.InMinutes" xml:space="preserve"><value>resetare în {0}m</value></data>
+  <data name="Reset.LessThanMinute" xml:space="preserve"><value>resetare în &lt;1m</value></data>
+  <data name="Reset.Now" xml:space="preserve"><value>se resetează acum</value></data>
+  <data name="Reset.InDays" xml:space="preserve"><value>resetare în {0}z</value></data>
+  <data name="Reset.InHours" xml:space="preserve"><value>resetare în {0}h</value></data>
+  <data name="Reset.InDaysHours" xml:space="preserve"><value>resetare în {0}z {1}h</value></data>
+  <data name="Source.Local" xml:space="preserve"><value>fișiere locale</value></data>
+  <data name="Source.Web" xml:space="preserve"><value>sesiune web</value></data>
+  <data name="Source.None" xml:space="preserve"><value>neconectat</value></data>
+  <data name="Source.LocalLogin" xml:space="preserve"><value>conectare CLI</value></data>
+  <data name="State.NoLocalData.Head" xml:space="preserve"><value>Încă fără date locale</value></data>
+  <data name="State.NoLocalData.Reason" xml:space="preserve"><value>Nu există încă nimic de citit pe acest PC. Se verifică din nou automat.</value></data>
+  <data name="State.SourceUnavailable.Head" xml:space="preserve"><value>Nicio sursă lizibilă</value></data>
+  <data name="State.SourceUnavailable.Reason" xml:space="preserve"><value>Acest furnizor își păstrează cifrele de consum pe serverele proprii, deci nu există nimic de citit local.</value></data>
+  <data name="State.GitHubCliMissing.Reason" xml:space="preserve"><value>Acest card citește consumul Copilot prin GitHub CLI, care nu este instalat pe acest PC. Instalează-l de la cli.github.com și conectează-te cu "gh auth login".</value></data>
+  <data name="State.GitHubCliMissing.Head" xml:space="preserve"><value>GitHub CLI lipsește</value></data>
+  <data name="State.GitHubCliMissing.Action" xml:space="preserve"><value>Deschide pagina de descărcare</value></data>
+  <data name="State.GitHubCliNotSignedIn.Reason" xml:space="preserve"><value>GitHub CLI este instalat, dar nimeni nu este conectat în el. Rulează "gh auth login" într-un terminal, apoi alege din nou Conectare.</value></data>
+  <data name="State.NotSignedIn.Head" xml:space="preserve"><value>Conectare necesară</value></data>
+  <data name="State.NotSignedIn.Reason" xml:space="preserve"><value>Conectează-te o dată pentru a citi limitele. Sesiunea rămâne pe acest PC.</value></data>
+  <data name="State.NotSignedIn.Action" xml:space="preserve"><value>Conectare</value></data>
+  <data name="State.NotSignedIn.ClaudeCode" xml:space="preserve"><value>Claude Code nu este conectat pe acest PC. Conectează-te acolo și cifrele apar aici.</value></data>
+  <data name="State.NotSignedIn.WebSession" xml:space="preserve"><value>Acest cont este citit prin browser. Conectează-te și cifrele apar.</value></data>
+  <data name="State.NotSignedIn.ClaudeExpired" xml:space="preserve"><value>Conectarea Claude Code de pe acest PC a expirat. Claude Code o reînnoiește singur la următoarea pornire; conectează-te acolo din nou doar dacă nu reușește.</value></data>
+  <data name="State.Blocked.Head" xml:space="preserve"><value>Cerere respinsă</value></data>
+  <data name="State.Blocked.Reason" xml:space="preserve"><value>Furnizorul a respins cererea, de obicei fiindcă conectarea a expirat sau a apărut o verificare anti-bot. Conectarea din nou rezolvă de obicei problema.</value></data>
+  <data name="State.Offline.Reason" xml:space="preserve"><value>Acest PC nu are acum conexiune la internet. Cardul se completează singur imediat ce conexiunea revine.</value></data>
+  <data name="State.Silent.Reason" xml:space="preserve"><value>Niciun răspuns utilizabil din {0}. Cardul continuă să încerce.</value></data>
+  <data name="State.SignOutIncomplete.Reason" xml:space="preserve"><value>Sesiunea din browser se mai închide. Încearcă din nou peste câteva secunde.</value></data>
+  <data name="State.RuntimeMissing.Head" xml:space="preserve"><value>Lipsește runtime-ul browserului</value></data>
+  <data name="State.RuntimeMissing.Reason" xml:space="preserve"><value>Citirea acestui furnizor necesită WebView2 Runtime. Instalează-l, apoi alege Reîmprospătare.</value></data>
+  <data name="State.RuntimeMissing.Action" xml:space="preserve"><value>Deschide pagina de descărcare</value></data>
+  <data name="WebView2.Install.Prompt" xml:space="preserve"><value>Conectarea necesită Microsoft WebView2 Runtime, care lipsește de pe acest PC. Îl instalezi acum?</value></data>
+  <data name="WebView2.Install.Confirm" xml:space="preserve"><value>Instalează</value></data>
+  <data name="WebView2.Install.Downloading" xml:space="preserve"><value>Se descarcă WebView2 Runtime…</value></data>
+  <data name="WebView2.Install.Installing" xml:space="preserve"><value>Se instalează WebView2 Runtime…</value></data>
+  <data name="WebView2.Install.Failed" xml:space="preserve"><value>WebView2 Runtime nu a putut fi instalat. Îl poți descărca de la Microsoft și apoi te poți conecta din nou.</value></data>
+  <data name="WebView2.Install.OpenDownloadPage" xml:space="preserve"><value>Deschide pagina de descărcare</value></data>
+  <data name="WebView2.Detail.UntrustedFolder" xml:space="preserve"><value>Pregătire: folderul de descărcare nu este de încredere.</value></data>
+  <data name="WebView2.Detail.Link" xml:space="preserve"><value>Pregătire: fișierul descărcat este o legătură.</value></data>
+  <data name="WebView2.Detail.ExtraFiles" xml:space="preserve"><value>Pregătire: folderul de descărcare conține mai mult decât programul de instalare.</value></data>
+  <data name="WebView2.Detail.ExitCode" xml:space="preserve"><value>Programul de instalare s-a încheiat cu codul de ieșire {0}.</value></data>
+  <data name="WebView2.Detail.StillMissing" xml:space="preserve"><value>Runtime-ul lipsește în continuare după instalare.</value></data>
+  <data name="State.Stale.Head" xml:space="preserve"><value>Datele sunt învechite</value></data>
+  <data name="State.Stale.Reason" xml:space="preserve"><value>Ultima actualizare acum {0}</value></data>
+  <data name="State.Stale.Meaning" xml:space="preserve"><value>Aceste cifre provin dintr-o fereastră care a expirat între timp.</value></data>
+  <data name="State.Stale.Action" xml:space="preserve"><value>Preia acum</value></data>
+  <data name="State.Failed.Head" xml:space="preserve"><value>Consumul nu a putut fi citit</value></data>
+  <data name="State.Failed.Reason" xml:space="preserve"><value>Cererea de consum a eșuat. Următoarea încercare urmează automat.</value></data>
+  <data name="State.Failed.ReasonWithDetail" xml:space="preserve"><value>Cererea de consum a eșuat ({0}). Următoarea încercare urmează automat.</value></data>
+  <data name="State.Failed.Detail.Timeout" xml:space="preserve"><value>niciun răspuns la timp</value></data>
   <data name="State.Failed.Detail.Http" xml:space="preserve"><value>HTTP {0}</value></data>
-  <data name="State.Failed.Detail.Network" xml:space="preserve"><value>no connection</value></data>
-  <data name="State.LimitReached" xml:space="preserve"><value>Limit reached</value></data>
-  <data name="Chart.Empty" xml:space="preserve"><value>The chart appears once there are two readings.</value></data>
-  <data name="Stats.Chart.Empty" xml:space="preserve"><value>No tokens counted for this period yet.</value></data>
-  <data name="Chart.Summary" xml:space="preserve"><value>History {0}: {1} values, highest {2}%.</value></data>
-  <data name="Settings.ResetConfirm" xml:space="preserve"><value>Reset all settings to their defaults? This cannot be undone. To keep a copy, choose Export… first.</value></data>
-  <data name="Settings.NewerFile" xml:space="preserve"><value>The settings file comes from a newer version. It is left untouched and nothing is saved this session; defaults are in use.</value></data>
-  <data name="Notify.Threshold" xml:space="preserve"><value>{0}: {1} at {2}% ({3})</value></data>
-  <data name="Notify.ThresholdNoReset" xml:space="preserve"><value>{0}: {1} at {2}%</value></data>
-  <data name="Notify.Reset" xml:space="preserve"><value>{0}: the “{1}” window is free again.</value></data>
-  <data name="Empty.AllHidden.Head" xml:space="preserve"><value>Every provider is hidden</value></data>
-  <data name="Empty.AllHidden.Reason" xml:space="preserve"><value>Data keeps being collected in the background. Show a provider again to see it.</value></data>
-  <data name="Empty.AllHidden.Action" xml:space="preserve"><value>Open settings</value></data>
+  <data name="State.Failed.Detail.Network" xml:space="preserve"><value>fără conexiune</value></data>
+  <data name="State.LimitReached" xml:space="preserve"><value>Limită atinsă</value></data>
+  <data name="Chart.Empty" xml:space="preserve"><value>Graficul apare după două citiri.</value></data>
+  <data name="Stats.Chart.Empty" xml:space="preserve"><value>Încă nu au fost numărați tokeni pentru această perioadă.</value></data>
+  <data name="Chart.Summary" xml:space="preserve"><value>Istoric {0}: {1} valori, maxim {2}%.</value></data>
+  <data name="Settings.ResetConfirm" xml:space="preserve"><value>Resetezi toate setările la valorile implicite? Acțiunea nu poate fi anulată. Pentru a păstra o copie, alege mai întâi Exportă….</value></data>
+  <data name="Settings.NewerFile" xml:space="preserve"><value>Fișierul de setări provine dintr-o versiune mai nouă. Rămâne neatins și nimic nu se salvează în această sesiune; se folosesc valorile implicite.</value></data>
+  <data name="Notify.Threshold" xml:space="preserve"><value>{0}: {1} la {2}% ({3})</value></data>
+  <data name="Notify.ThresholdNoReset" xml:space="preserve"><value>{0}: {1} la {2}%</value></data>
+  <data name="Notify.Reset" xml:space="preserve"><value>{0}: fereastra „{1}” este din nou liberă.</value></data>
+  <data name="Empty.AllHidden.Head" xml:space="preserve"><value>Toți furnizorii sunt ascunși</value></data>
+  <data name="Empty.AllHidden.Reason" xml:space="preserve"><value>Datele continuă să fie colectate în fundal. Afișează din nou un furnizor ca să-l vezi.</value></data>
+  <data name="Empty.AllHidden.Action" xml:space="preserve"><value>Deschide setările</value></data>
   <data name="About.Repository" xml:space="preserve"><value>GitHub</value></data>
-  <data name="About.Version" xml:space="preserve"><value>Version {0}</value></data>
-  <data name="About.Open" xml:space="preserve"><value>Open</value></data>
-  <data name="About.License" xml:space="preserve"><value>MIT license</value></data>
-  <data name="About.CopyAll" xml:space="preserve"><value>Copy all details</value></data>
-  <data name="About.ReadLocationWebSession" xml:space="preserve"><value>a signed-in web session</value></data>
-  <data name="About.ReadLocationClaudeCode" xml:space="preserve"><value>the Claude Code sign-in on this PC</value></data>
-  <data name="About.ReadLocationAntigravity" xml:space="preserve"><value>the Antigravity CLI sign-in on this PC</value></data>
-  <data name="About.ReadLocationGitHubCli" xml:space="preserve"><value>the GitHub CLI sign-in on this PC</value></data>
-  <data name="About.WhatThisReads" xml:space="preserve"><value>What this program reads</value></data>
+  <data name="About.Version" xml:space="preserve"><value>Versiunea {0}</value></data>
+  <data name="About.Open" xml:space="preserve"><value>Deschide</value></data>
+  <data name="About.License" xml:space="preserve"><value>Licență MIT</value></data>
+  <data name="About.CopyAll" xml:space="preserve"><value>Copiază toate detaliile</value></data>
+  <data name="About.ReadLocationWebSession" xml:space="preserve"><value>o sesiune web conectată</value></data>
+  <data name="About.ReadLocationClaudeCode" xml:space="preserve"><value>conectarea Claude Code de pe acest PC</value></data>
+  <data name="About.ReadLocationAntigravity" xml:space="preserve"><value>conectarea Antigravity CLI de pe acest PC</value></data>
+  <data name="About.ReadLocationGitHubCli" xml:space="preserve"><value>conectarea GitHub CLI de pe acest PC</value></data>
+  <data name="About.WhatThisReads" xml:space="preserve"><value>Ce citește acest program</value></data>
   <data name="About.ProviderSource" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="About.ProviderSourceSkipped" xml:space="preserve"><value>{0}: {1} ({2})</value></data>
-  <data name="About.UpdateAvailable" xml:space="preserve"><value>Version {0} is available.</value></data>
-  <data name="About.OpenReleasePage" xml:space="preserve"><value>Open download page</value></data>
-  <data name="Update.InstallNow" xml:space="preserve"><value>Install now</value></data>
-  <data name="Update.Later" xml:space="preserve"><value>Later</value></data>
-  <data name="Update.NotNewer" xml:space="preserve"><value>The downloaded file is not newer than the version you have, so it was not installed. The release page has the details.</value></data>
-  <data name="Update.NotVerified" xml:space="preserve"><value>This update could not be verified as genuine and was not installed. Check on the release page that the source is right before you install it by hand.</value></data>
-  <data name="Update.InstalledRestart" xml:space="preserve"><value>The update is installed. Start AI-Usage again to use the new version.</value></data>
-  <data name="Update.NotLoaded" xml:space="preserve"><value>The update could not be downloaded. You can download it by hand from the release page.</value></data>
-  <data name="About.UpToDate" xml:space="preserve"><value>This is the newest version.</value></data>
-  <data name="Crash.Title" xml:space="preserve"><value>Unexpected error</value></data>
-  <data name="Crash.Headline" xml:space="preserve"><value>An unexpected error occurred.</value></data>
-  <data name="Crash.Message" xml:space="preserve"><value>The application will now close. The details below can help find the cause.</value></data>
-  <data name="Crash.CopyDetails" xml:space="preserve"><value>Copy details</value></data>
-  <data name="Crash.Details" xml:space="preserve"><value>Error details</value></data>
-  <data name="Crash.OpenLogFolder" xml:space="preserve"><value>Open log folder</value></data>
-  <data name="Crash.Close" xml:space="preserve"><value>Close</value></data>
-  <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
-  <data name="Settings.Retention" xml:space="preserve"><value>Keep history for {0}</value></data>
-  <data name="Settings.RetentionLabel" xml:space="preserve"><value>History retention</value></data>
-  <data name="Settings.HistorySize" xml:space="preserve"><value>History size on disk: {0}</value></data>
-  <data name="Slider.Decrease" xml:space="preserve"><value>Lower the value</value></data>
-  <data name="Slider.Increase" xml:space="preserve"><value>Raise the value</value></data>
-  <data name="Tile.Menu.OpenUsagePage" xml:space="preserve"><value>Open usage page</value></data>
-  <data name="Tile.Menu.Details" xml:space="preserve"><value>Show details</value></data>
-  <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Hide details</value></data>
-  <data name="Tile.CopyDetails" xml:space="preserve"><value>Copy details</value></data>
-  <data name="Tile.Details" xml:space="preserve"><value>Details</value></data>
-  <data name="Confirm.Details" xml:space="preserve"><value>Technical details</value></data>
-  <data name="Diag.SearchedIn" xml:space="preserve"><value>Searched in: {0}</value></data>
-  <data name="Diag.FilesChecked" xml:space="preserve"><value>Files checked: {0}</value></data>
-  <data name="Diag.NewestFile" xml:space="preserve"><value>Newest file: {0}</value></data>
-  <data name="Diag.NothingFound" xml:space="preserve"><value>No usable entry found in those files.</value></data>
-  <data name="Diag.DirectoryMissing" xml:space="preserve"><value>That folder does not exist on this PC.</value></data>
-  <data name="Dialog.Filter.Json" xml:space="preserve"><value>JSON files (*.json)|*.json</value></data>
-  <data name="Dialog.Filter.Csv" xml:space="preserve"><value>CSV files (*.csv)|*.csv</value></data>
-  <data name="Error.StatusSuffix" xml:space="preserve"><value>status {0}</value></data>
-  <data name="Duration.Day" xml:space="preserve"><value>1 day</value></data>
-  <data name="Duration.Days" xml:space="preserve"><value>{0} days</value></data>
-  <data name="Duration.Year" xml:space="preserve"><value>1 year</value></data>
-  <data name="Duration.Years" xml:space="preserve"><value>{0} years</value></data>
-  <data name="Age.Bare" xml:space="preserve"><value>{0} ago</value></data>
-  <data name="Chart.Range.Day" xml:space="preserve"><value>24 hours</value></data>
-  <data name="Chart.Range.Week" xml:space="preserve"><value>7 days</value></data>
-  <data name="Chart.Range.Month" xml:space="preserve"><value>30 days</value></data>
-  <data name="Chart.Range.Year" xml:space="preserve"><value>1 year</value></data>
-  <data name="Chart.Range.All" xml:space="preserve"><value>Everything</value></data>
-  <data name="StatsWindow.Title" xml:space="preserve"><value>Token usage</value></data>
-  <data name="StatsWindow.Range.TwelveMonths" xml:space="preserve"><value>12 months</value></data>
-  <data name="StatsWindow.ExportCsv" xml:space="preserve"><value>Save as CSV…</value></data>
-  <data name="StatsWindow.ExportFailed" xml:space="preserve"><value>Could not save the file.</value></data>
-  <data name="Stats.Section.Figures" xml:space="preserve"><value>Figures</value></data>
+  <data name="About.UpdateAvailable" xml:space="preserve"><value>Versiunea {0} este disponibilă.</value></data>
+  <data name="About.OpenReleasePage" xml:space="preserve"><value>Deschide pagina de descărcare</value></data>
+  <data name="Update.InstallNow" xml:space="preserve"><value>Instalează acum</value></data>
+  <data name="Update.Later" xml:space="preserve"><value>Mai târziu</value></data>
+  <data name="Update.NotNewer" xml:space="preserve"><value>Fișierul descărcat nu este mai nou decât versiunea ta, deci nu a fost instalat. Pagina versiunii conține detaliile.</value></data>
+  <data name="Update.NotVerified" xml:space="preserve"><value>Această actualizare nu a putut fi verificată ca autentică și nu a fost instalată. Verifică pe pagina versiunii dacă sursa este corectă înainte de a o instala manual.</value></data>
+  <data name="Update.InstalledRestart" xml:space="preserve"><value>Actualizarea este instalată. Pornește din nou AI-Usage pentru a folosi noua versiune.</value></data>
+  <data name="Update.NotLoaded" xml:space="preserve"><value>Actualizarea nu a putut fi descărcată. O poți descărca manual de pe pagina versiunii.</value></data>
+  <data name="About.UpToDate" xml:space="preserve"><value>Aceasta este cea mai nouă versiune.</value></data>
+  <data name="Crash.Title" xml:space="preserve"><value>Eroare neașteptată</value></data>
+  <data name="Crash.Headline" xml:space="preserve"><value>A apărut o eroare neașteptată.</value></data>
+  <data name="Crash.Message" xml:space="preserve"><value>Aplicația se va închide acum. Detaliile de mai jos pot ajuta la găsirea cauzei.</value></data>
+  <data name="Crash.CopyDetails" xml:space="preserve"><value>Copiază detaliile</value></data>
+  <data name="Crash.Details" xml:space="preserve"><value>Detaliile erorii</value></data>
+  <data name="Crash.OpenLogFolder" xml:space="preserve"><value>Deschide folderul de jurnale</value></data>
+  <data name="Crash.Close" xml:space="preserve"><value>Închide</value></data>
+  <data name="Settings.Title" xml:space="preserve"><value>Setări</value></data>
+  <data name="Settings.Retention" xml:space="preserve"><value>Păstrează istoricul {0}</value></data>
+  <data name="Settings.RetentionLabel" xml:space="preserve"><value>Păstrarea istoricului</value></data>
+  <data name="Settings.HistorySize" xml:space="preserve"><value>Dimensiunea istoricului pe disc: {0}</value></data>
+  <data name="Slider.Decrease" xml:space="preserve"><value>Scade valoarea</value></data>
+  <data name="Slider.Increase" xml:space="preserve"><value>Crește valoarea</value></data>
+  <data name="Tile.Menu.OpenUsagePage" xml:space="preserve"><value>Deschide pagina de consum</value></data>
+  <data name="Tile.Menu.Details" xml:space="preserve"><value>Arată detaliile</value></data>
+  <data name="Tile.Menu.HideDetails" xml:space="preserve"><value>Ascunde detaliile</value></data>
+  <data name="Tile.CopyDetails" xml:space="preserve"><value>Copiază detaliile</value></data>
+  <data name="Tile.Details" xml:space="preserve"><value>Detalii</value></data>
+  <data name="Confirm.Details" xml:space="preserve"><value>Detalii tehnice</value></data>
+  <data name="Diag.SearchedIn" xml:space="preserve"><value>Căutat în: {0}</value></data>
+  <data name="Diag.FilesChecked" xml:space="preserve"><value>Fișiere verificate: {0}</value></data>
+  <data name="Diag.NewestFile" xml:space="preserve"><value>Cel mai nou fișier: {0}</value></data>
+  <data name="Diag.NothingFound" xml:space="preserve"><value>Nicio intrare utilizabilă în aceste fișiere.</value></data>
+  <data name="Diag.DirectoryMissing" xml:space="preserve"><value>Acest folder nu există pe acest PC.</value></data>
+  <data name="Dialog.Filter.Json" xml:space="preserve"><value>Fișiere JSON (*.json)|*.json</value></data>
+  <data name="Dialog.Filter.Csv" xml:space="preserve"><value>Fișiere CSV (*.csv)|*.csv</value></data>
+  <data name="Error.StatusSuffix" xml:space="preserve"><value>stare {0}</value></data>
+  <data name="Duration.Day" xml:space="preserve"><value>1 zi</value></data>
+  <data name="Duration.Days" xml:space="preserve"><value>{0} zile</value></data>
+  <data name="Duration.Year" xml:space="preserve"><value>1 an</value></data>
+  <data name="Duration.Years" xml:space="preserve"><value>{0} ani</value></data>
+  <data name="Age.Bare" xml:space="preserve"><value>acum {0}</value></data>
+  <data name="Chart.Range.Day" xml:space="preserve"><value>24 de ore</value></data>
+  <data name="Chart.Range.Week" xml:space="preserve"><value>7 zile</value></data>
+  <data name="Chart.Range.Month" xml:space="preserve"><value>30 de zile</value></data>
+  <data name="Chart.Range.Year" xml:space="preserve"><value>1 an</value></data>
+  <data name="Chart.Range.All" xml:space="preserve"><value>Tot</value></data>
+  <data name="StatsWindow.Title" xml:space="preserve"><value>Consum de tokeni</value></data>
+  <data name="StatsWindow.Range.TwelveMonths" xml:space="preserve"><value>12 luni</value></data>
+  <data name="StatsWindow.ExportCsv" xml:space="preserve"><value>Salvează ca CSV…</value></data>
+  <data name="StatsWindow.ExportFailed" xml:space="preserve"><value>Fișierul nu a putut fi salvat.</value></data>
+  <data name="Stats.Section.Figures" xml:space="preserve"><value>Cifre</value></data>
   <data name="Stats.Total" xml:space="preserve"><value>Total</value></data>
-  <data name="Stats.Section.Breakdown" xml:space="preserve"><value>Breakdown</value></data>
-  <data name="Stats.ByDay" xml:space="preserve"><value>Day</value></data>
-  <data name="Stats.ByWeek" xml:space="preserve"><value>Week</value></data>
+  <data name="Stats.Section.Breakdown" xml:space="preserve"><value>Detaliere</value></data>
+  <data name="Stats.ByDay" xml:space="preserve"><value>Zi</value></data>
+  <data name="Stats.ByWeek" xml:space="preserve"><value>Săptămână</value></data>
   <data name="Stats.ByModel" xml:space="preserve"><value>Model</value></data>
-  <data name="Stats.ByProject" xml:space="preserve"><value>Project</value></data>
+  <data name="Stats.ByProject" xml:space="preserve"><value>Proiect</value></data>
   <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
-  <data name="Stats.BySession" xml:space="preserve"><value>Session</value></data>
-  <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Unknown</value></data>
-  <data name="Tile.Hide" xml:space="preserve"><value>Hide this provider</value></data>
-  <data name="Tile.Show" xml:space="preserve"><value>Show this provider</value></data>
-  <data name="Tile.SourceTip" xml:space="preserve"><value>Source: {0}</value></data>
+  <data name="Stats.BySession" xml:space="preserve"><value>Sesiune</value></data>
+  <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Necunoscut</value></data>
+  <data name="Tile.Hide" xml:space="preserve"><value>Ascunde acest furnizor</value></data>
+  <data name="Tile.Show" xml:space="preserve"><value>Arată acest furnizor</value></data>
+  <data name="Tile.SourceTip" xml:space="preserve"><value>Sursă: {0}</value></data>
   <data name="Tile.BarSegment" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="Format.LabelValue" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="Format.Pair" xml:space="preserve"><value>{0} / {1}</value></data>
-  <data name="Eye.Menu" xml:space="preserve"><value>Providers and layout</value></data>
-  <data name="Eye.HiddenCount" xml:space="preserve"><value>{0} hidden</value></data>
-  <data name="Eye.MoveUp" xml:space="preserve"><value>Move up</value></data>
-  <data name="Eye.MoveDown" xml:space="preserve"><value>Move down</value></data>
-  <data name="Density.Auto" xml:space="preserve"><value>Automatic</value></data>
-  <data name="Density.Full" xml:space="preserve"><value>Full</value></data>
-  <data name="Density.Mini" xml:space="preserve"><value>Small</value></data>
+  <data name="Eye.Menu" xml:space="preserve"><value>Furnizori și aspect</value></data>
+  <data name="Eye.HiddenCount" xml:space="preserve"><value>{0} ascunși</value></data>
+  <data name="Eye.MoveUp" xml:space="preserve"><value>Mută în sus</value></data>
+  <data name="Eye.MoveDown" xml:space="preserve"><value>Mută în jos</value></data>
+  <data name="Density.Auto" xml:space="preserve"><value>Automat</value></data>
+  <data name="Density.Full" xml:space="preserve"><value>Complet</value></data>
+  <data name="Density.Mini" xml:space="preserve"><value>Mic</value></data>
 
-  <data name="Action.RefreshNow" xml:space="preserve"><value>Refresh</value></data>
-  <data name="Action.Cancel" xml:space="preserve"><value>Cancel</value></data>
-  <data name="Tray.Settings" xml:space="preserve"><value>Settings</value></data>
-  <data name="Tray.Stats" xml:space="preserve"><value>Token usage</value></data>
-  <data name="Tray.Exit" xml:space="preserve"><value>Exit</value></data>
+  <data name="Action.RefreshNow" xml:space="preserve"><value>Reîmprospătează</value></data>
+  <data name="Action.Cancel" xml:space="preserve"><value>Anulează</value></data>
+  <data name="Tray.Settings" xml:space="preserve"><value>Setări</value></data>
+  <data name="Tray.Stats" xml:space="preserve"><value>Consum de tokeni</value></data>
+  <data name="Tray.Exit" xml:space="preserve"><value>Ieșire</value></data>
   <data name="Tray.Short.FiveHour" xml:space="preserve"><value>5h</value></data>
-  <data name="Tray.Short.Week" xml:space="preserve"><value>7d</value></data>
-  <data name="Tray.ResetPosition" xml:space="preserve"><value>Move to screen center</value></data>
-  <data name="Tray.ClickThrough" xml:space="preserve"><value>Click-through</value></data>
-  <data name="Chart.PreviousWeek" xml:space="preserve"><value>Last week</value></data>
+  <data name="Tray.Short.Week" xml:space="preserve"><value>7z</value></data>
+  <data name="Tray.ResetPosition" xml:space="preserve"><value>Mută în centrul ecranului</value></data>
+  <data name="Tray.ClickThrough" xml:space="preserve"><value>Transparent la clic</value></data>
+  <data name="Chart.PreviousWeek" xml:space="preserve"><value>Săptămâna trecută</value></data>
   <data name="Tray.Widget" xml:space="preserve"><value>Widget</value></data>
-  <data name="Tray.Hide" xml:space="preserve"><value>Hide widget</value></data>
-  <data name="Tray.Show" xml:space="preserve"><value>Show widget</value></data>
-  <data name="Tray.StillRunning" xml:space="preserve"><value>AI-Usage keeps running in the notification area.</value></data>
-  <data name="TitleBar.Minimize" xml:space="preserve"><value>Minimize</value></data>
-  <data name="TitleBar.Close" xml:space="preserve"><value>Close</value></data>
-  <data name="TitleBar.Collapse" xml:space="preserve"><value>Collapse</value></data>
-  <data name="TitleBar.Expand" xml:space="preserve"><value>Expand</value></data>
+  <data name="Tray.Hide" xml:space="preserve"><value>Ascunde widgetul</value></data>
+  <data name="Tray.Show" xml:space="preserve"><value>Arată widgetul</value></data>
+  <data name="Tray.StillRunning" xml:space="preserve"><value>AI-Usage rulează în continuare în zona de notificare.</value></data>
+  <data name="TitleBar.Minimize" xml:space="preserve"><value>Minimizează</value></data>
+  <data name="TitleBar.Close" xml:space="preserve"><value>Închide</value></data>
+  <data name="TitleBar.Collapse" xml:space="preserve"><value>Restrânge</value></data>
+  <data name="TitleBar.Expand" xml:space="preserve"><value>Extinde</value></data>
   <data name="TitleBar.WithShortcut" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Key.Ctrl" xml:space="preserve"><value>Ctrl</value></data>
   <data name="Key.Alt" xml:space="preserve"><value>Alt</value></data>
@@ -214,25 +214,25 @@
   <data name="Key.End" xml:space="preserve"><value>End</value></data>
   <data name="Key.Insert" xml:space="preserve"><value>Insert</value></data>
   <data name="Key.Delete" xml:space="preserve"><value>Delete</value></data>
-  <data name="Key.Space" xml:space="preserve"><value>Space</value></data>
+  <data name="Key.Space" xml:space="preserve"><value>Spațiu</value></data>
   <data name="Key.Enter" xml:space="preserve"><value>Enter</value></data>
   <data name="Key.Backspace" xml:space="preserve"><value>Backspace</value></data>
   <data name="Key.Tab" xml:space="preserve"><value>Tab</value></data>
   <data name="Key.Escape" xml:space="preserve"><value>Esc</value></data>
-  <data name="Key.Left" xml:space="preserve"><value>Left</value></data>
-  <data name="Key.Right" xml:space="preserve"><value>Right</value></data>
-  <data name="Key.Up" xml:space="preserve"><value>Up</value></data>
-  <data name="Key.Down" xml:space="preserve"><value>Down</value></data>
+  <data name="Key.Left" xml:space="preserve"><value>Stânga</value></data>
+  <data name="Key.Right" xml:space="preserve"><value>Dreapta</value></data>
+  <data name="Key.Up" xml:space="preserve"><value>Sus</value></data>
+  <data name="Key.Down" xml:space="preserve"><value>Jos</value></data>
   <data name="Key.Pause" xml:space="preserve"><value>Pause</value></data>
   <data name="Key.PrintScreen" xml:space="preserve"><value>Print</value></data>
   <data name="Theme.Nebula" xml:space="preserve"><value>Nebula</value></data>
   <data name="Theme.Terminal" xml:space="preserve"><value>Terminal</value></data>
-  <data name="Theme.Dark" xml:space="preserve"><value>Dark</value></data>
-  <data name="Theme.Light" xml:space="preserve"><value>Light</value></data>
-  <data name="Theme.System" xml:space="preserve"><value>System</value></data>
+  <data name="Theme.Dark" xml:space="preserve"><value>Întunecat</value></data>
+  <data name="Theme.Light" xml:space="preserve"><value>Luminos</value></data>
+  <data name="Theme.System" xml:space="preserve"><value>Sistem</value></data>
   <data name="Layout.Vertical" xml:space="preserve"><value>Vertical</value></data>
-  <data name="Layout.Horizontal" xml:space="preserve"><value>Horizontal</value></data>
-  <data name="Language.System" xml:space="preserve"><value>System language</value></data>
+  <data name="Layout.Horizontal" xml:space="preserve"><value>Orizontal</value></data>
+  <data name="Language.System" xml:space="preserve"><value>Limba sistemului</value></data>
   <data name="Language.German" xml:space="preserve"><value>Deutsch</value></data>
   <data name="Language.English" xml:space="preserve"><value>English</value></data>
   <data name="Language.Spanish" xml:space="preserve"><value>Español</value></data>
@@ -245,136 +245,136 @@
   <data name="Language.Turkish" xml:space="preserve"><value>Türkçe</value></data>
   <data name="Language.Japanese" xml:space="preserve"><value>日本語</value></data>
   <data name="Language.ChineseSimplified" xml:space="preserve"><value>简体中文</value></data>
-  <data name="Settings.Section.Display" xml:space="preserve"><value>Display</value></data>
-  <data name="Settings.Section.Updates" xml:space="preserve"><value>Refresh</value></data>
-  <data name="Settings.Section.Notifications" xml:space="preserve"><value>Notifications</value></data>
-  <data name="Settings.Section.Providers" xml:space="preserve"><value>Providers</value></data>
-  <data name="Settings.Section.System" xml:space="preserve"><value>System</value></data>
-  <data name="Settings.Section.About" xml:space="preserve"><value>About</value></data>
-  <data name="Settings.Group.Appearance" xml:space="preserve"><value>Appearance</value></data>
-  <data name="Settings.Group.Tiles" xml:space="preserve"><value>Tiles</value></data>
-  <data name="Settings.Group.Chart" xml:space="preserve"><value>Chart</value></data>
-  <data name="Settings.Group.Window" xml:space="preserve"><value>Window</value></data>
-  <data name="Settings.WindowLayer" xml:space="preserve"><value>Window level</value></data>
-  <data name="WindowLayer.OnTop" xml:space="preserve"><value>Always on top</value></data>
+  <data name="Settings.Section.Display" xml:space="preserve"><value>Afișare</value></data>
+  <data name="Settings.Section.Updates" xml:space="preserve"><value>Reîmprospătare</value></data>
+  <data name="Settings.Section.Notifications" xml:space="preserve"><value>Notificări</value></data>
+  <data name="Settings.Section.Providers" xml:space="preserve"><value>Furnizori</value></data>
+  <data name="Settings.Section.System" xml:space="preserve"><value>Sistem</value></data>
+  <data name="Settings.Section.About" xml:space="preserve"><value>Despre</value></data>
+  <data name="Settings.Group.Appearance" xml:space="preserve"><value>Aspect</value></data>
+  <data name="Settings.Group.Tiles" xml:space="preserve"><value>Carduri</value></data>
+  <data name="Settings.Group.Chart" xml:space="preserve"><value>Grafic</value></data>
+  <data name="Settings.Group.Window" xml:space="preserve"><value>Fereastră</value></data>
+  <data name="Settings.WindowLayer" xml:space="preserve"><value>Nivelul ferestrei</value></data>
+  <data name="WindowLayer.OnTop" xml:space="preserve"><value>Mereu deasupra</value></data>
   <data name="WindowLayer.Normal" xml:space="preserve"><value>Normal</value></data>
-  <data name="WindowLayer.Desktop" xml:space="preserve"><value>On the desktop</value></data>
-  <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Stays behind all windows, visible when you look at the desktop.</value></data>
-  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Hide while a full-screen app runs</value></data>
-  <data name="Settings.Zoom" xml:space="preserve"><value>Size</value></data>
-  <data name="Settings.Group.Tray" xml:space="preserve"><value>Notification area</value></data>
-  <data name="Settings.Theme" xml:space="preserve"><value>Theme</value></data>
-  <data name="Settings.Layout" xml:space="preserve"><value>Layout</value></data>
-  <data name="Settings.VisibilityPerProvider" xml:space="preserve"><value>Visibility per provider</value></data>
-  <data name="Settings.AddAccount" xml:space="preserve"><value>Add another account</value></data>
-  <data name="Settings.RemoveAccount" xml:space="preserve"><value>Remove this account</value></data>
-  <data name="Settings.Via.WebSession" xml:space="preserve"><value>via the web session</value></data>
-  <data name="Settings.Via.ClaudeCode" xml:space="preserve"><value>via Claude Code</value></data>
-  <data name="Settings.Via.Antigravity" xml:space="preserve"><value>via the Antigravity CLI</value></data>
-  <data name="Settings.Via.GitHubCli" xml:space="preserve"><value>via the GitHub CLI</value></data>
-  <data name="Settings.Via.CodexFiles" xml:space="preserve"><value>via Codex session files</value></data>
-  <data name="Settings.Via.ClaudeFiles" xml:space="preserve"><value>via Claude Code's files</value></data>
-  <data name="Settings.Via.None" xml:space="preserve"><value>not connected yet</value></data>
-  <data name="Settings.Via.WebAlsoSignedIn" xml:space="preserve"><value>web session signed in</value></data>
-  <data name="Settings.Copilot.NoCandidates" xml:space="preserve"><value>Every account signed into the GitHub CLI is already added here. To add another one, run "gh auth login" in a terminal first, then try again.</value></data>
-  <data name="Settings.Copilot.ConfirmLogin" xml:space="preserve"><value>Add the GitHub CLI account "{0}" as a further Copilot account?</value></data>
+  <data name="WindowLayer.Desktop" xml:space="preserve"><value>Pe desktop</value></data>
+  <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Rămâne în spatele tuturor ferestrelor, vizibil când te uiți la desktop.</value></data>
+  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Ascunde cât timp rulează o aplicație pe tot ecranul</value></data>
+  <data name="Settings.Zoom" xml:space="preserve"><value>Dimensiune</value></data>
+  <data name="Settings.Group.Tray" xml:space="preserve"><value>Zona de notificare</value></data>
+  <data name="Settings.Theme" xml:space="preserve"><value>Temă</value></data>
+  <data name="Settings.Layout" xml:space="preserve"><value>Aranjare</value></data>
+  <data name="Settings.VisibilityPerProvider" xml:space="preserve"><value>Vizibilitate pe furnizor</value></data>
+  <data name="Settings.AddAccount" xml:space="preserve"><value>Adaugă alt cont</value></data>
+  <data name="Settings.RemoveAccount" xml:space="preserve"><value>Elimină acest cont</value></data>
+  <data name="Settings.Via.WebSession" xml:space="preserve"><value>prin sesiunea web</value></data>
+  <data name="Settings.Via.ClaudeCode" xml:space="preserve"><value>prin Claude Code</value></data>
+  <data name="Settings.Via.Antigravity" xml:space="preserve"><value>prin Antigravity CLI</value></data>
+  <data name="Settings.Via.GitHubCli" xml:space="preserve"><value>prin GitHub CLI</value></data>
+  <data name="Settings.Via.CodexFiles" xml:space="preserve"><value>prin fișierele de sesiune Codex</value></data>
+  <data name="Settings.Via.ClaudeFiles" xml:space="preserve"><value>prin fișierele Claude Code</value></data>
+  <data name="Settings.Via.None" xml:space="preserve"><value>încă neconectat</value></data>
+  <data name="Settings.Via.WebAlsoSignedIn" xml:space="preserve"><value>sesiune web conectată</value></data>
+  <data name="Settings.Copilot.NoCandidates" xml:space="preserve"><value>Fiecare cont conectat în GitHub CLI este deja adăugat aici. Ca să adaugi altul, rulează mai întâi "gh auth login" într-un terminal, apoi încearcă din nou.</value></data>
+  <data name="Settings.Copilot.ConfirmLogin" xml:space="preserve"><value>Adaugi contul GitHub CLI "{0}" ca alt cont Copilot?</value></data>
   <data name="Action.Ok" xml:space="preserve"><value>OK</value></data>
-  <data name="Settings.AccountRemoved" xml:space="preserve"><value>The account is removed.</value></data>
-  <data name="Settings.RemoveAccount.Confirm" xml:space="preserve"><value>Remove this account from AI-Usage? Its sign-in in AI-Usage is deleted. The account at the provider stays untouched.</value></data>
-  <data name="Settings.RemoveAccount.AlsoHistory" xml:space="preserve"><value>Also delete its recorded history</value></data>
-  <data name="Settings.RemoveAccount.HistoryFailed" xml:space="preserve"><value>The account is removed, but its recorded history could not be deleted.</value></data>
-  <data name="Settings.RemoveAccount.Failed" xml:space="preserve"><value>The account was not removed: its sign-in files could not be deleted. Try again in a moment.</value></data>
-  <data name="Settings.TileDensity" xml:space="preserve"><value>Tile density</value></data>
-  <data name="Settings.ClickThrough" xml:space="preserve"><value>Click-through</value></data>
-  <data name="Settings.ClickThroughHint" xml:space="preserve"><value>While this is on, the widget ignores the mouse. Switch it off again from the tray icon.</value></data>
-  <data name="Settings.ChartRange" xml:space="preserve"><value>Chart range</value></data>
-  <data name="Settings.TrayProvider" xml:space="preserve"><value>Tray icon shows</value></data>
-  <data name="Settings.TrayProvider.Auto" xml:space="preserve"><value>Automatic</value></data>
-  <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>App icon</value></data>
-  <data name="Settings.TrayWindow" xml:space="preserve"><value>Time window shown in the tray icon</value></data>
-  <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Automatic</value></data>
-  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Show last week as a comparison line</value></data>
-  <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Show chart for</value></data>
-  <data name="Settings.WindowOpacity" xml:space="preserve"><value>Window opacity</value></data>
+  <data name="Settings.AccountRemoved" xml:space="preserve"><value>Contul a fost eliminat.</value></data>
+  <data name="Settings.RemoveAccount.Confirm" xml:space="preserve"><value>Elimini acest cont din AI-Usage? Conectarea lui din AI-Usage se șterge. Contul de la furnizor rămâne neatins.</value></data>
+  <data name="Settings.RemoveAccount.AlsoHistory" xml:space="preserve"><value>Șterge și istoricul înregistrat</value></data>
+  <data name="Settings.RemoveAccount.HistoryFailed" xml:space="preserve"><value>Contul a fost eliminat, dar istoricul înregistrat nu a putut fi șters.</value></data>
+  <data name="Settings.RemoveAccount.Failed" xml:space="preserve"><value>Contul nu a fost eliminat: fișierele lui de conectare nu au putut fi șterse. Încearcă din nou peste puțin timp.</value></data>
+  <data name="Settings.TileDensity" xml:space="preserve"><value>Densitatea cardurilor</value></data>
+  <data name="Settings.ClickThrough" xml:space="preserve"><value>Transparent la clic</value></data>
+  <data name="Settings.ClickThroughHint" xml:space="preserve"><value>Cât timp este activat, widgetul ignoră mouse-ul. Dezactivează-l din nou din pictograma din zona de notificare.</value></data>
+  <data name="Settings.ChartRange" xml:space="preserve"><value>Intervalul graficului</value></data>
+  <data name="Settings.TrayProvider" xml:space="preserve"><value>Pictograma arată</value></data>
+  <data name="Settings.TrayProvider.Auto" xml:space="preserve"><value>Automat</value></data>
+  <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>Pictograma aplicației</value></data>
+  <data name="Settings.TrayWindow" xml:space="preserve"><value>Fereastra de timp din pictogramă</value></data>
+  <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Automat</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Arată săptămâna trecută ca linie de comparație</value></data>
+  <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Arată graficul pentru</value></data>
+  <data name="Settings.WindowOpacity" xml:space="preserve"><value>Opacitatea ferestrei</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="Settings.RefreshInterval" xml:space="preserve"><value>Refresh interval</value></data>
-  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Online reads at most every {0} min</value></data>
-  <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Last successful update</value></data>
-  <data name="Settings.NeverUpdated" xml:space="preserve"><value>never</value></data>
-  <data name="Settings.On" xml:space="preserve"><value>On</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Notify when a limit becomes free again after a warning</value></data>
-  <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Notifications for {0}</value></data>
-  <data name="Settings.PerProvider" xml:space="preserve"><value>Per provider</value></data>
-  <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Notifications for this provider</value></data>
-  <data name="Settings.NotifySummary.Off" xml:space="preserve"><value>Off</value></data>
-  <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Default value</value></data>
-  <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Own values</value></data>
-  <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Also notify when it is free again</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Check once a day for a newer version</value></data>
-  <data name="Settings.QuietHours" xml:space="preserve"><value>No notifications between</value></data>
-  <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>and</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Use the form 22:00.</value></data>
-  <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Notify from {0}%</value></data>
-  <data name="Settings.OwnThreshold" xml:space="preserve"><value>Own value for this provider</value></data>
-  <data name="Settings.LevelExplainer" xml:space="preserve"><value>The bar turns yellow above {0} and red above {1}. The default notification matches red.</value></data>
-  <data name="Settings.SignOut" xml:space="preserve"><value>Sign out</value></data>
-  <data name="Settings.Autostart" xml:space="preserve"><value>Start with Windows</value></data>
-  <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows refused to change the autostart entry.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Global shortcut to show/hide the window</value></data>
-  <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Click, then press the new key combination</value></data>
-  <data name="Settings.HotkeyTaken" xml:space="preserve"><value>This combination is already used by another program.</value></data>
-  <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Hold Ctrl, Alt or Win as well.</value></data>
-  <data name="Settings.Language" xml:space="preserve"><value>Language</value></data>
-  <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Open logs folder</value></data>
-  <data name="Settings.ExportHistory" xml:space="preserve"><value>Save history as CSV…</value></data>
-  <data name="Settings.ExportFailed" xml:space="preserve"><value>The file could not be written. Pick a different folder.</value></data>
-  <data name="Settings.ResetButton" xml:space="preserve"><value>Reset settings</value></data>
-  <data name="Settings.ResetShort" xml:space="preserve"><value>Reset…</value></data>
-  <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Also delete the recorded history</value></data>
-  <data name="Settings.Export" xml:space="preserve"><value>Export…</value></data>
-  <data name="Settings.Import" xml:space="preserve"><value>Import…</value></data>
-  <data name="Settings.ImportDone" xml:space="preserve"><value>Settings applied. Window position and size were kept.</value></data>
-  <data name="Settings.ImportRefused" xml:space="preserve"><value>This file is not a usable settings file.</value></data>
-  <data name="Settings.DataFolder" xml:space="preserve"><value>Data folder</value></data>
-  <data name="Settings.ChooseDataFolder" xml:space="preserve"><value>Choose folder…</value></data>
-  <data name="Settings.MovingData" xml:space="preserve"><value>Moving data…</value></data>
-  <data name="Settings.OpenDataFolder" xml:space="preserve"><value>Open data folder</value></data>
-  <data name="Settings.DataFolderMoved" xml:space="preserve"><value>Data now lives in {0}. The old folder can be deleted by hand.</value></data>
-  <data name="Settings.DataFolderRefused" xml:space="preserve"><value>That folder cannot be written to. Nothing was changed.</value></data>
-  <data name="Settings.DataFolderTemp" xml:space="preserve"><value>Windows empties temporary folders. Choose another folder; nothing was changed.</value></data>
-  <data name="Settings.DataFolderHoldsData" xml:space="preserve"><value>This folder already holds AI-Usage data. Pick an empty folder.</value></data>
-  <data name="About.Installed" xml:space="preserve"><value>Installed copy</value></data>
-  <data name="About.Portable" xml:space="preserve"><value>Portable copy</value></data>
-  <data name="About.DataFolder" xml:space="preserve"><value>Data folder: {0}</value></data>
-  <data name="About.DataFolder.Chosen" xml:space="preserve"><value>Folder you chose</value></data>
-  <data name="About.DataFolder.Fallback" xml:space="preserve"><value>Fallback folder, because your user profile was not writable</value></data>
-  <data name="SignIn.Title" xml:space="preserve"><value>Sign in</value></data>
-  <data name="SignIn.Loading" xml:space="preserve"><value>Opening the sign-in page…</value></data>
-  <data name="SignIn.Blocked.Head" xml:space="preserve"><value>Page blocked</value></data>
-  <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>The sign-in tried to open {0}, which is not one of the sites this window may visit. Nothing was loaded. If the sign-in needs that site, you can load it here for this window; the next one starts from the usual list again.</value></data>
-  <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Got it</value></data>
-  <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Load the page anyway</value></data>
-  <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Plain http pages are never loaded in this window.</value></data>
+  <data name="Settings.RefreshInterval" xml:space="preserve"><value>Interval de reîmprospătare</value></data>
+  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Citire online cel mult la {0} min</value></data>
+  <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Ultima actualizare reușită</value></data>
+  <data name="Settings.NeverUpdated" xml:space="preserve"><value>niciodată</value></data>
+  <data name="Settings.On" xml:space="preserve"><value>Activat</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Notifică când o limită se eliberează din nou după un avertisment</value></data>
+  <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Notificări pentru {0}</value></data>
+  <data name="Settings.PerProvider" xml:space="preserve"><value>Pe furnizor</value></data>
+  <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Notificări pentru acest furnizor</value></data>
+  <data name="Settings.NotifySummary.Off" xml:space="preserve"><value>Dezactivat</value></data>
+  <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Valoare implicită</value></data>
+  <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Valori proprii</value></data>
+  <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Notifică și când se eliberează din nou</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Caută o versiune mai nouă o dată pe zi</value></data>
+  <data name="Settings.QuietHours" xml:space="preserve"><value>Fără notificări între</value></data>
+  <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>și</value></data>
+  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Folosește forma 22:00.</value></data>
+  <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Notifică de la {0}%</value></data>
+  <data name="Settings.OwnThreshold" xml:space="preserve"><value>Valoare proprie pentru acest furnizor</value></data>
+  <data name="Settings.LevelExplainer" xml:space="preserve"><value>Bara devine galbenă peste {0} și roșie peste {1}. Notificarea implicită corespunde roșului.</value></data>
+  <data name="Settings.SignOut" xml:space="preserve"><value>Deconectare</value></data>
+  <data name="Settings.Autostart" xml:space="preserve"><value>Pornește cu Windows</value></data>
+  <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows a refuzat modificarea intrării de pornire automată.</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Comandă rapidă globală pentru afișarea/ascunderea ferestrei</value></data>
+  <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Fă clic, apoi apasă noua combinație de taste</value></data>
+  <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Această combinație este deja folosită de alt program.</value></data>
+  <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Ține apăsat și Ctrl, Alt sau Win.</value></data>
+  <data name="Settings.Language" xml:space="preserve"><value>Limbă</value></data>
+  <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Deschide folderul de jurnale</value></data>
+  <data name="Settings.ExportHistory" xml:space="preserve"><value>Salvează istoricul ca CSV…</value></data>
+  <data name="Settings.ExportFailed" xml:space="preserve"><value>Fișierul nu a putut fi scris. Alege alt folder.</value></data>
+  <data name="Settings.ResetButton" xml:space="preserve"><value>Resetează setările</value></data>
+  <data name="Settings.ResetShort" xml:space="preserve"><value>Resetează…</value></data>
+  <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Șterge și istoricul înregistrat</value></data>
+  <data name="Settings.Export" xml:space="preserve"><value>Exportă…</value></data>
+  <data name="Settings.Import" xml:space="preserve"><value>Importă…</value></data>
+  <data name="Settings.ImportDone" xml:space="preserve"><value>Setările au fost aplicate. Poziția și dimensiunea ferestrei au fost păstrate.</value></data>
+  <data name="Settings.ImportRefused" xml:space="preserve"><value>Acest fișier nu este un fișier de setări utilizabil.</value></data>
+  <data name="Settings.DataFolder" xml:space="preserve"><value>Folder de date</value></data>
+  <data name="Settings.ChooseDataFolder" xml:space="preserve"><value>Alege folderul…</value></data>
+  <data name="Settings.MovingData" xml:space="preserve"><value>Se mută datele…</value></data>
+  <data name="Settings.OpenDataFolder" xml:space="preserve"><value>Deschide folderul de date</value></data>
+  <data name="Settings.DataFolderMoved" xml:space="preserve"><value>Datele se află acum în {0}. Folderul vechi poate fi șters manual.</value></data>
+  <data name="Settings.DataFolderRefused" xml:space="preserve"><value>În acel folder nu se poate scrie. Nimic nu a fost modificat.</value></data>
+  <data name="Settings.DataFolderTemp" xml:space="preserve"><value>Windows golește folderele temporare. Alege alt folder; nimic nu a fost modificat.</value></data>
+  <data name="Settings.DataFolderHoldsData" xml:space="preserve"><value>Acest folder conține deja date AI-Usage. Alege un folder gol.</value></data>
+  <data name="About.Installed" xml:space="preserve"><value>Copie instalată</value></data>
+  <data name="About.Portable" xml:space="preserve"><value>Copie portabilă</value></data>
+  <data name="About.DataFolder" xml:space="preserve"><value>Folder de date: {0}</value></data>
+  <data name="About.DataFolder.Chosen" xml:space="preserve"><value>Folderul ales de tine</value></data>
+  <data name="About.DataFolder.Fallback" xml:space="preserve"><value>Folder de rezervă, deoarece profilul tău de utilizator nu era inscriptibil</value></data>
+  <data name="SignIn.Title" xml:space="preserve"><value>Conectare</value></data>
+  <data name="SignIn.Loading" xml:space="preserve"><value>Se deschide pagina de conectare…</value></data>
+  <data name="SignIn.Blocked.Head" xml:space="preserve"><value>Pagină blocată</value></data>
+  <data name="SignIn.Blocked.Reason" xml:space="preserve"><value>Conectarea a încercat să deschidă {0}, care nu este unul dintre site-urile pe care le poate vizita această fereastră. Nu s-a încărcat nimic. Dacă conectarea are nevoie de acel site, îl poți încărca aici pentru această fereastră; următoarea pornește din nou de la lista obișnuită.</value></data>
+  <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Am înțeles</value></data>
+  <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Încarcă pagina oricum</value></data>
+  <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Paginile http simple nu sunt niciodată încărcate în această fereastră.</value></data>
   <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
   <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Duration.MinutesSeconds" xml:space="preserve"><value>{0} min {1} s</value></data>
   <data name="Duration.LessThanMinute" xml:space="preserve"><value>&lt;1 min</value></data>
   <data name="Duration.Hours" xml:space="preserve"><value>{0} h</value></data>
   <data name="Duration.HoursMinutes" xml:space="preserve"><value>{0} h {1} min</value></data>
-  <data name="Unit.Messages" xml:space="preserve"><value>messages</value></data>
-  <data name="Unit.Requests" xml:space="preserve"><value>requests</value></data>
-  <data name="Welcome.Title" xml:space="preserve"><value>Welcome to AI-Usage</value></data>
-  <data name="Welcome.WhatItDoes" xml:space="preserve"><value>This widget shows how much of your usage window is left at each provider. It also shows when that window resets.</value></data>
-  <data name="Welcome.WhatItReads" xml:space="preserve"><value>It reads the usage files these tools already keep on this PC. Where you sign in below, it also reads your own usage page at that provider.</value></data>
-  <data name="Welcome.WhatItNever" xml:space="preserve"><value>Your usage data stays on this PC. AI-Usage only talks to each provider's own usage page, to Google to renew an expired Antigravity sign-in and to GitHub for the update check. It never calls a chat endpoint, so it can never spend any of your quota.</value></data>
-  <data name="Welcome.Start" xml:space="preserve"><value>Done</value></data>
-  <data name="StatsWindow.Loading" xml:space="preserve"><value>Loading data…</value></data>
-  <data name="StatsWindow.RangeLabel" xml:space="preserve"><value>Range</value></data>
-  <data name="StatsWindow.GroupingLabel" xml:space="preserve"><value>Group by</value></data>
-  <data name="Stats.PerDay" xml:space="preserve"><value>Per day</value></data>
-  <data name="Stats.BusiestDay" xml:space="preserve"><value>Busiest day</value></data>
-  <data name="Stats.VsPrevious" xml:space="preserve"><value>vs. previous period</value></data>
-  <data name="Stats.VsPreviousValue" xml:space="preserve"><value>vs. {0} in the previous period</value></data>
+  <data name="Unit.Messages" xml:space="preserve"><value>mesaje</value></data>
+  <data name="Unit.Requests" xml:space="preserve"><value>cereri</value></data>
+  <data name="Welcome.Title" xml:space="preserve"><value>Bun venit în AI-Usage</value></data>
+  <data name="Welcome.WhatItDoes" xml:space="preserve"><value>Acest widget arată cât din fereastra ta de consum a mai rămas la fiecare furnizor. Arată și când se resetează acea fereastră.</value></data>
+  <data name="Welcome.WhatItReads" xml:space="preserve"><value>Citește fișierele de consum pe care aceste instrumente le păstrează deja pe acest PC. Acolo unde te conectezi mai jos, citește și propria ta pagină de consum la furnizorul respectiv.</value></data>
+  <data name="Welcome.WhatItNever" xml:space="preserve"><value>Datele tale de consum rămân pe acest PC. AI-Usage comunică doar cu pagina de consum a fiecărui furnizor, cu Google pentru a reînnoi o conectare Antigravity expirată și cu GitHub pentru verificarea actualizărilor. Nu apelează niciodată un endpoint de chat, deci nu poate consuma niciodată din cota ta.</value></data>
+  <data name="Welcome.Start" xml:space="preserve"><value>Gata</value></data>
+  <data name="StatsWindow.Loading" xml:space="preserve"><value>Se încarcă datele…</value></data>
+  <data name="StatsWindow.RangeLabel" xml:space="preserve"><value>Interval</value></data>
+  <data name="StatsWindow.GroupingLabel" xml:space="preserve"><value>Grupează după</value></data>
+  <data name="Stats.PerDay" xml:space="preserve"><value>Pe zi</value></data>
+  <data name="Stats.BusiestDay" xml:space="preserve"><value>Cea mai aglomerată zi</value></data>
+  <data name="Stats.VsPrevious" xml:space="preserve"><value>față de perioada anterioară</value></data>
+  <data name="Stats.VsPreviousValue" xml:space="preserve"><value>față de {0} în perioada anterioară</value></data>
   <data name="Number.Thousand" xml:space="preserve"><value>K</value></data>
   <data name="Number.Million" xml:space="preserve"><value>M</value></data>
   <data name="Number.Billion" xml:space="preserve"><value>B</value></data>
@@ -382,281 +382,281 @@
   <data name="Stats.RingCompact.Thousand" xml:space="preserve"><value>K</value></data>
   <data name="Stats.RingCompact.Million" xml:space="preserve"><value>M</value></data>
   <data name="Stats.RingCompact.Billion" xml:space="preserve"><value>B</value></data>
-  <data name="Stats.Ring.Largest" xml:space="preserve"><value>Largest share: {0}, {1}</value></data>
-  <data name="Tile.SnapshotAge" xml:space="preserve"><value>Data from {0} ago</value></data>
-  <data name="Stats.Chart.ByProvider" xml:space="preserve"><value>Share per provider</value></data>
-  <data name="Stats.Chart.ByModel" xml:space="preserve"><value>Share per model</value></data>
-  <data name="Stats.Chart.ByEffort" xml:space="preserve"><value>Share per effort level</value></data>
-  <data name="Stats.Other" xml:space="preserve"><value>Other</value></data>
-  <data name="Stats.Chart.CacheShare" xml:space="preserve"><value>Cache share</value></data>
-  <data name="Stats.Cache.New" xml:space="preserve"><value>New input</value></data>
-  <data name="Stats.Cache.Write" xml:space="preserve"><value>Cache write</value></data>
-  <data name="Stats.Cache.Read" xml:space="preserve"><value>Cache read</value></data>
-  <data name="Stats.Cache.Output" xml:space="preserve"><value>Output</value></data>
-  <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Top projects</value></data>
-  <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× at the limit</value></data>
-  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>never at the limit</value></data>
-  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Peak {0} · avg. peak {1}</value></data>
-  <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Peak: the highest level in the range. Avg. peak: the mean of each window's highest level, marked as a line on the bar.</value></data>
-  <data name="Stats.Limits.Empty" xml:space="preserve"><value>No quota history in this period yet.</value></data>
-  <data name="Stats.PerPercent" xml:space="preserve"><value>1% of the week ≈ {0}</value></data>
-  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} tokens {1}</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimate from {0} hours of your own usage. Cache reads count separately: 1% ≈ {1} cached tokens.</value></data>
-  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1% of the week ≈ {0} tokens (all models)</value></data>
-  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Not enough data yet for tokens per percent.</value></data>
-  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Not available with more than one account.</value></data>
-  <data name="Stats.NoProject" xml:space="preserve"><value>No project</value></data>
-  <data name="Stats.OtherProjects" xml:space="preserve"><value>Other projects</value></data>
-  <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projects</value></data>
-  <data name="Stats.Ring.SliceTooltip" xml:space="preserve"><value>{0}: {1} tokens ({2})</value></data>
-  <data name="Stats.Ring.MoreCount" xml:space="preserve"><value>+{0} more</value></data>
-  <data name="Stats.Project.Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Stats.Ring.Largest" xml:space="preserve"><value>Cea mai mare pondere: {0}, {1}</value></data>
+  <data name="Tile.SnapshotAge" xml:space="preserve"><value>Date de acum {0}</value></data>
+  <data name="Stats.Chart.ByProvider" xml:space="preserve"><value>Pondere pe furnizor</value></data>
+  <data name="Stats.Chart.ByModel" xml:space="preserve"><value>Pondere pe model</value></data>
+  <data name="Stats.Chart.ByEffort" xml:space="preserve"><value>Pondere pe nivel de effort</value></data>
+  <data name="Stats.Other" xml:space="preserve"><value>Altele</value></data>
+  <data name="Stats.Chart.CacheShare" xml:space="preserve"><value>Ponderea cache</value></data>
+  <data name="Stats.Cache.New" xml:space="preserve"><value>Intrare nouă</value></data>
+  <data name="Stats.Cache.Write" xml:space="preserve"><value>Scriere cache</value></data>
+  <data name="Stats.Cache.Read" xml:space="preserve"><value>Citire cache</value></data>
+  <data name="Stats.Cache.Output" xml:space="preserve"><value>Ieșire</value></data>
+  <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Cele mai mari proiecte</value></data>
+  <data name="Stats.Limits" xml:space="preserve"><value>Limite</value></data>
+  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× la limită</value></data>
+  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>niciodată la limită</value></data>
+  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Vârf {0} · vârf mediu {1}</value></data>
+  <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Vârf: cel mai înalt nivel din interval. Vârf mediu: media celui mai înalt nivel al fiecărei ferestre, marcată ca linie pe bară.</value></data>
+  <data name="Stats.Limits.Empty" xml:space="preserve"><value>Încă niciun istoric de cotă în această perioadă.</value></data>
+  <data name="Stats.PerPercent" xml:space="preserve"><value>1% din săptămână ≈ {0}</value></data>
+  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} tokeni {1}</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din {0} ore de consum propriu. Citirile din cache se numără separat: 1% ≈ {1} tokeni din cache.</value></data>
+  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1% din săptămână ≈ {0} tokeni (toate modelele)</value></data>
+  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Încă nu sunt destule date pentru tokeni pe procent.</value></data>
+  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Indisponibil cu mai mult de un cont.</value></data>
+  <data name="Stats.NoProject" xml:space="preserve"><value>Fără proiect</value></data>
+  <data name="Stats.OtherProjects" xml:space="preserve"><value>Alte proiecte</value></data>
+  <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} proiecte</value></data>
+  <data name="Stats.Ring.SliceTooltip" xml:space="preserve"><value>{0}: {1} tokeni ({2})</value></data>
+  <data name="Stats.Ring.MoreCount" xml:space="preserve"><value>încă {0}</value></data>
+  <data name="Stats.Project.Active" xml:space="preserve"><value>Activ</value></data>
   <data name="Stats.Project.Tip.Folder" xml:space="preserve"><value>Folder: {0}</value></data>
-  <data name="Stats.Project.Tip.Tokens" xml:space="preserve"><value>Tokens: {0} ({1}%)</value></data>
-  <data name="Stats.Project.Tip.InputOutputCache" xml:space="preserve"><value>Input {0} · Output {1} · Cache {2}</value></data>
-  <data name="Stats.Project.Tip.Providers" xml:space="preserve"><value>Providers: {0}</value></data>
-  <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Main model: {0}</value></data>
-  <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Active: {0}</value></data>
-  <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sessions: {0}</value></data>
-  <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>Earlier also at: {0}</value></data>
-  <data name="Stats.Hour.Axis0" xml:space="preserve"><value>12a</value></data>
-  <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6a</value></data>
-  <data name="Stats.Hour.Axis12" xml:space="preserve"><value>12p</value></data>
-  <data name="Stats.Hour.Axis18" xml:space="preserve"><value>6p</value></data>
-  <data name="Settings.SignIn" xml:space="preserve"><value>Sign in</value></data>
-  <data name="Tip.Stats.Total" xml:space="preserve"><value>Every token counted in the selected period, across all providers shown.</value></data>
-  <data name="Tip.Stats.PerDay" xml:space="preserve"><value>The total divided by the days in the period, counted from the first recorded day, not only by the days you actually worked.</value></data>
-  <data name="Tip.Stats.VsPrevious" xml:space="preserve"><value>Compared with the period of the same length directly before this one.</value></data>
-  <data name="Tip.Stats.Range" xml:space="preserve"><value>Sets how far back the figures and the charts reach.</value></data>
-  <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>Move up</value></data>
-  <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>Move down</value></data>
-  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Up</value></data>
-  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Down</value></data>
-  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Up, Alt+Down</value></data>
-  <data name="Stats.Layout.Reset" xml:space="preserve"><value>Reset layout</value></data>
-  <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Puts every section back in its original place.</value></data>
-  <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Sets what the chart and the table below are grouped by.</value></data>
-  <data name="Tip.Stats.Chart.PerDay" xml:space="preserve"><value>One column per day, split by provider.</value></data>
-  <data name="Tip.Stats.Chart.PerWeek" xml:space="preserve"><value>One column per week, split by provider.</value></data>
-  <data name="Tip.Stats.Chart.ByModel" xml:space="preserve"><value>How the tokens split across the models. The six largest are named, the rest are pooled.</value></data>
-  <data name="Tip.Stats.Chart.CacheShare" xml:space="preserve"><value>How much of the total was new text, written to the cache, read from the cache, or produced as output.</value></data>
-  <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>The projects with the most tokens. Sessions without a folder are pooled.</value></data>
-  <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>Which weekdays the tokens fall on, added up over the whole period.</value></data>
-  <data name="Tip.Stats.Chart.ByHour" xml:space="preserve"><value>Which hours of the day the tokens fall on.</value></data>
-  <data name="Tip.Settings.Mica" xml:space="preserve"><value>Mica is a Windows 11 material: the window background takes on a soft tint of your desktop wallpaper and shifts slightly as you move the window. It only shows with the "System" theme at full opacity and uses a little graphics power.</value></data>
-  <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Sets how tall one tile is. When set to Automatic, the tiles fit themselves to the window height.</value></data>
-  <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Picks whose usage the icon in the taskbar notification area shows. When set to Automatic, it shows the highest usage of all tiles.</value></data>
-  <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Picks which time window the icon shows, for example 5 hours or 7 days. When set to Automatic, it shows the highest value.</value></data>
-  <data name="Tip.Settings.DataFolder" xml:space="preserve"><value>Where your settings, your history and the token index are stored.</value></data>
-  <data name="Tip.Settings.SignIn" xml:space="preserve"><value>Opens this provider's sign-in page in a window of its own. The session stays on this PC.</value></data>
-  <data name="Tip.Settings.SignOut" xml:space="preserve"><value>Deletes this provider's saved browser session from this PC.</value></data>
-  <data name="Tip.Settings.Visibility" xml:space="preserve"><value>Shows or hides this provider's tile in the main window. Its data keeps being collected either way.</value></data>
-  <data name="Settings.AttentionMaxAge" xml:space="preserve"><value>Show the waiting mark for</value></data>
-  <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>After this long without an answer, the tile stops marking the provider as waiting. When set to Off, nothing is marked.</value></data>
-  <data name="Settings.AttentionMaxAge.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Stats.Project.Tip.Tokens" xml:space="preserve"><value>Tokeni: {0} ({1}%)</value></data>
+  <data name="Stats.Project.Tip.InputOutputCache" xml:space="preserve"><value>Intrare {0} · Ieșire {1} · Cache {2}</value></data>
+  <data name="Stats.Project.Tip.Providers" xml:space="preserve"><value>Furnizori: {0}</value></data>
+  <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Model principal: {0}</value></data>
+  <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Activ: {0}</value></data>
+  <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sesiuni: {0}</value></data>
+  <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>Anterior și la: {0}</value></data>
+  <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0h</value></data>
+  <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6h</value></data>
+  <data name="Stats.Hour.Axis12" xml:space="preserve"><value>12h</value></data>
+  <data name="Stats.Hour.Axis18" xml:space="preserve"><value>18h</value></data>
+  <data name="Settings.SignIn" xml:space="preserve"><value>Conectare</value></data>
+  <data name="Tip.Stats.Total" xml:space="preserve"><value>Fiecare token numărat în perioada aleasă, la toți furnizorii afișați.</value></data>
+  <data name="Tip.Stats.PerDay" xml:space="preserve"><value>Totalul împărțit la zilele din perioadă, numărate de la prima zi înregistrată, nu doar la zilele în care ai lucrat efectiv.</value></data>
+  <data name="Tip.Stats.VsPrevious" xml:space="preserve"><value>Comparat cu perioada de aceeași lungime de dinaintea acesteia.</value></data>
+  <data name="Tip.Stats.Range" xml:space="preserve"><value>Stabilește cât de departe în urmă ajung cifrele și graficele.</value></data>
+  <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>Mută în sus</value></data>
+  <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>Mută în jos</value></data>
+  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Sus</value></data>
+  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Jos</value></data>
+  <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Sus, Alt+Jos</value></data>
+  <data name="Stats.Layout.Reset" xml:space="preserve"><value>Resetează aranjarea</value></data>
+  <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Pune fiecare secțiune înapoi la locul ei inițial.</value></data>
+  <data name="Tip.Stats.Grouping" xml:space="preserve"><value>Stabilește după ce sunt grupate graficul și tabelul de mai jos.</value></data>
+  <data name="Tip.Stats.Chart.PerDay" xml:space="preserve"><value>O coloană pe zi, împărțită pe furnizori.</value></data>
+  <data name="Tip.Stats.Chart.PerWeek" xml:space="preserve"><value>O coloană pe săptămână, împărțită pe furnizori.</value></data>
+  <data name="Tip.Stats.Chart.ByModel" xml:space="preserve"><value>Cum se împart tokenii între modele. Cele mai mari șase sunt numite, restul sunt grupate.</value></data>
+  <data name="Tip.Stats.Chart.CacheShare" xml:space="preserve"><value>Cât din total a fost text nou, scris în cache, citit din cache sau produs ca ieșire.</value></data>
+  <data name="Tip.Stats.Chart.TopProjects" xml:space="preserve"><value>Proiectele cu cei mai mulți tokeni. Sesiunile fără folder sunt grupate.</value></data>
+  <data name="Tip.Stats.Chart.ByWeekday" xml:space="preserve"><value>În ce zile ale săptămânii cad tokenii, adunați pe întreaga perioadă.</value></data>
+  <data name="Tip.Stats.Chart.ByHour" xml:space="preserve"><value>În ce ore ale zilei cad tokenii.</value></data>
+  <data name="Tip.Settings.Mica" xml:space="preserve"><value>Mica este un material Windows 11: fundalul ferestrei preia o nuanță fină din imaginea de fundal a desktopului și se deplasează ușor când muți fereastra. Se vede doar cu tema "Sistem" la opacitate completă și folosește puțină putere grafică.</value></data>
+  <data name="Tip.Settings.TileDensity" xml:space="preserve"><value>Stabilește cât de înalt este un card. La Automat, cardurile se adaptează la înălțimea ferestrei.</value></data>
+  <data name="Tip.Settings.TrayProvider" xml:space="preserve"><value>Alege al cui consum îl arată pictograma din zona de notificare a barei de activități. La Automat, arată cel mai mare consum dintre toate cardurile.</value></data>
+  <data name="Tip.Settings.TrayWindow" xml:space="preserve"><value>Alege ce fereastră de timp arată pictograma, de exemplu 5 ore sau 7 zile. La Automat, arată cea mai mare valoare.</value></data>
+  <data name="Tip.Settings.DataFolder" xml:space="preserve"><value>Unde sunt stocate setările, istoricul și indexul de tokeni.</value></data>
+  <data name="Tip.Settings.SignIn" xml:space="preserve"><value>Deschide pagina de conectare a acestui furnizor într-o fereastră separată. Sesiunea rămâne pe acest PC.</value></data>
+  <data name="Tip.Settings.SignOut" xml:space="preserve"><value>Șterge de pe acest PC sesiunea de browser salvată a acestui furnizor.</value></data>
+  <data name="Tip.Settings.Visibility" xml:space="preserve"><value>Arată sau ascunde cardul acestui furnizor în fereastra principală. Datele continuă să fie colectate în ambele cazuri.</value></data>
+  <data name="Settings.AttentionMaxAge" xml:space="preserve"><value>Arată marcajul de așteptare timp de</value></data>
+  <data name="Settings.AttentionMaxAge.Tip" xml:space="preserve"><value>După atâta timp fără răspuns, cardul nu mai marchează furnizorul ca fiind în așteptare. La Dezactivat nu se marchează nimic.</value></data>
+  <data name="Settings.AttentionMaxAge.Off" xml:space="preserve"><value>Dezactivat</value></data>
   <data name="Settings.AttentionMaxAge.1h" xml:space="preserve"><value>1 h</value></data>
   <data name="Settings.AttentionMaxAge.2h" xml:space="preserve"><value>2 h</value></data>
   <data name="Settings.AttentionMaxAge.4h" xml:space="preserve"><value>4 h</value></data>
   <data name="Settings.AttentionMaxAge.8h" xml:space="preserve"><value>8 h</value></data>
   <data name="Settings.AttentionMaxAge.24h" xml:space="preserve"><value>24 h</value></data>
-  <data name="Settings.AttentionPerProvider" xml:space="preserve"><value>Show the waiting mark on</value></data>
-  <data name="Tip.Settings.AttentionPerProvider" xml:space="preserve"><value>Marks this provider's tile when an agent is waiting for your answer.</value></data>
+  <data name="Settings.AttentionPerProvider" xml:space="preserve"><value>Arată marcajul de așteptare la</value></data>
+  <data name="Tip.Settings.AttentionPerProvider" xml:space="preserve"><value>Marchează cardul acestui furnizor când un agent așteaptă răspunsul tău.</value></data>
   <data name="Window.CopilotChat" xml:space="preserve"><value>Chat</value></data>
-  <data name="Window.CopilotCompletions" xml:space="preserve"><value>Completions</value></data>
-  <data name="Window.CopilotPremium" xml:space="preserve"><value>Premium requests</value></data>
-  <data name="Window.Month" xml:space="preserve"><value>Month</value></data>
-  <data name="Window.CursorModels" xml:space="preserve"><value>Cursor models</value></data>
-  <data name="Window.OtherModels" xml:space="preserve"><value>API models</value></data>
+  <data name="Window.CopilotCompletions" xml:space="preserve"><value>Completări</value></data>
+  <data name="Window.CopilotPremium" xml:space="preserve"><value>Cereri premium</value></data>
+  <data name="Window.Month" xml:space="preserve"><value>Lună</value></data>
+  <data name="Window.CursorModels" xml:space="preserve"><value>Modele Cursor</value></data>
+  <data name="Window.OtherModels" xml:space="preserve"><value>Modele API</value></data>
   <data name="Window.GrokBotWeekly" xml:space="preserve"><value>Grok Bot</value></data>
-  <data name="About.ProviderGroupHeader" xml:space="preserve"><value>Reads: {0}</value></data>
-  <data name="About.ReadsOnly" xml:space="preserve"><value>AI-Usage only reads these files and pages.</value></data>
+  <data name="About.ProviderGroupHeader" xml:space="preserve"><value>Citește: {0}</value></data>
+  <data name="About.ReadsOnly" xml:space="preserve"><value>AI-Usage citește doar aceste fișiere și pagini.</value></data>
   <data name="Settings.SizeKilobytes" xml:space="preserve"><value>{0:0} kB</value></data>
   <data name="Settings.SizeMegabytes" xml:space="preserve"><value>{0:0.#} MB</value></data>
-  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>The provider has changed its page. As soon as a fixed version is out, the widget offers it as an update.</value></data>
-  <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>You are already signed in.</value></data>
-  <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>This session already holds a valid sign-in. The tile reads its numbers through it from the next refresh on.</value></data>
-  <data name="Stats.TokenUnit" xml:space="preserve"><value>tokens</value></data>
-  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Per active day</value></data>
-  <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>The total divided by the days that actually saw tokens.</value></data>
-  <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>on {0} of {1} days</value></data>
-  <data name="Stats.ActiveDaysOf.One" xml:space="preserve"><value>on {0} of 1 day</value></data>
-  <data name="Stats.MonthGrid.Head" xml:space="preserve"><value>Usage per day</value></data>
-  <data name="Stats.MonthGrid.Empty" xml:space="preserve"><value>No days counted for this period yet.</value></data>
-  <data name="Stats.MonthGrid.LegendLess" xml:space="preserve"><value>less</value></data>
-  <data name="Stats.MonthGrid.LegendMore" xml:space="preserve"><value>more</value></data>
-  <data name="Stats.MonthGrid.NoUsage" xml:space="preserve"><value>no usage</value></data>
-  <data name="Stats.DayDetail.ByProvider" xml:space="preserve"><value>Provider</value></data>
+  <data name="State.UnreadableAnswer.Reason" xml:space="preserve"><value>Furnizorul și-a schimbat pagina. Imediat ce apare o versiune corectată, widgetul o oferă ca actualizare.</value></data>
+  <data name="SignIn.AlreadySignedIn.Head" xml:space="preserve"><value>Ești deja conectat.</value></data>
+  <data name="SignIn.AlreadySignedIn.Reason" xml:space="preserve"><value>Această sesiune conține deja o conectare validă. Cardul își citește cifrele prin ea de la următoarea reîmprospătare.</value></data>
+  <data name="Stats.TokenUnit" xml:space="preserve"><value>tokeni</value></data>
+  <data name="Stats.PerActiveDay" xml:space="preserve"><value>Pe zi activă</value></data>
+  <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>Totalul împărțit la zilele în care au existat efectiv tokeni.</value></data>
+  <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>în {0} din {1} zile</value></data>
+  <data name="Stats.ActiveDaysOf.One" xml:space="preserve"><value>în {0} din 1 zi</value></data>
+  <data name="Stats.MonthGrid.Head" xml:space="preserve"><value>Consum pe zi</value></data>
+  <data name="Stats.MonthGrid.Empty" xml:space="preserve"><value>Încă nu au fost numărate zile pentru această perioadă.</value></data>
+  <data name="Stats.MonthGrid.LegendLess" xml:space="preserve"><value>mai puțin</value></data>
+  <data name="Stats.MonthGrid.LegendMore" xml:space="preserve"><value>mai mult</value></data>
+  <data name="Stats.MonthGrid.NoUsage" xml:space="preserve"><value>fără consum</value></data>
+  <data name="Stats.DayDetail.ByProvider" xml:space="preserve"><value>Furnizor</value></data>
   <data name="Stats.DayDetail.ByModel" xml:space="preserve"><value>Model</value></data>
-  <data name="Stats.DayDetail.ByProject" xml:space="preserve"><value>Project</value></data>
-  <data name="Stats.DayDetail.ByHour" xml:space="preserve"><value>Hour</value></data>
-  <data name="Stats.DayDetail.NoUsage" xml:space="preserve"><value>No usage on this day.</value></data>
-  <data name="Stats.DayDetail.Hint" xml:space="preserve"><value>Click a day to see its detail.</value></data>
-  <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Selected day · {0}</value></data>
-  <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Close day detail</value></data>
-  <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Waiting for an answer. Click to dismiss.</value></data>
-  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0}% of the time has passed, usage is ahead of it.</value></data>
-  <data name="Tile.Pace.On" xml:space="preserve"><value>{0}% of the time has passed, usage is on pace.</value></data>
-  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0}% of the time has passed, usage is below it.</value></data>
-  <data name="State.Failed.Server.Head" xml:space="preserve"><value>{0} is having problems</value></data>
-  <data name="State.Failed.Server.Reason" xml:space="preserve"><value>The server answered with an error (HTTP {1}). The next attempt follows automatically.</value></data>
-  <data name="State.Failed.Refused.Head" xml:space="preserve"><value>{0} refused the request</value></data>
-  <data name="State.Failed.Refused.Reason" xml:space="preserve"><value>HTTP {1}. The next attempt follows automatically.</value></data>
-  <data name="State.Failed.Timeout.Head" xml:space="preserve"><value>{0} is not answering</value></data>
-  <data name="State.Failed.Timeout.Reason" xml:space="preserve"><value>No answer in time. The next attempt follows automatically.</value></data>
-  <data name="State.Failed.Network.Head" xml:space="preserve"><value>No connection</value></data>
-  <data name="State.Failed.Network.Reason" xml:space="preserve"><value>AI-Usage cannot reach {0}. Check your internet connection.</value></data>
-  <data name="Tile.CheckStatus" xml:space="preserve"><value>Check {0} status</value></data>
-  <data name="Tile.NameTooltip" xml:space="preserve"><value>Click for details</value></data>
-  <data name="Tile.Menu.HideChart" xml:space="preserve"><value>Hide chart</value></data>
-  <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Show chart</value></data>
-  <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Updates the next time Codex runs. For live values, sign in on the web.</value></data>
-  <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Sign in on the web</value></data>
-  <data name="Settings.TileOrder" xml:space="preserve"><value>Order</value></data>
-  <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Colors this provider's bars by each model's or the main and subagents' share of the tokens in that window.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>By usage level</value></data>
-  <data name="Settings.BarColor" xml:space="preserve"><value>Bar color</value></data>
-  <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokens since this window last reset</value></data>
-  <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Custom</value></data>
-  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>By usage</value></data>
-  <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>
-  <data name="Settings.AccountName.Hint" xml:space="preserve"><value>e.g. Work</value></data>
-  <data name="Update.RestoreNeeded" xml:space="preserve"><value>The update could not finish. Your program file is now at {0}. Rename it back to AI-Usage.exe to start the app again.</value></data>
-  <data name="Update.NotStarted" xml:space="preserve"><value>The installer did not start. If you closed the administrator prompt, try again.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warn before a limit will likely be reached</value></data>
+  <data name="Stats.DayDetail.ByProject" xml:space="preserve"><value>Proiect</value></data>
+  <data name="Stats.DayDetail.ByHour" xml:space="preserve"><value>Oră</value></data>
+  <data name="Stats.DayDetail.NoUsage" xml:space="preserve"><value>Niciun consum în această zi.</value></data>
+  <data name="Stats.DayDetail.Hint" xml:space="preserve"><value>Fă clic pe o zi pentru detalii.</value></data>
+  <data name="Stats.DayDetail.Title" xml:space="preserve"><value>Ziua selectată · {0}</value></data>
+  <data name="Stats.DayDetail.Close" xml:space="preserve"><value>Închide detaliile zilei</value></data>
+  <data name="Tile.WaitingForAnswer.Dismiss" xml:space="preserve"><value>Așteaptă un răspuns. Fă clic pentru a închide.</value></data>
+  <data name="Tile.Pace.Above" xml:space="preserve"><value>{0}% din timp a trecut, consumul este înaintea lui.</value></data>
+  <data name="Tile.Pace.On" xml:space="preserve"><value>{0}% din timp a trecut, consumul este în ritm.</value></data>
+  <data name="Tile.Pace.Below" xml:space="preserve"><value>{0}% din timp a trecut, consumul este sub el.</value></data>
+  <data name="State.Failed.Server.Head" xml:space="preserve"><value>{0} are probleme</value></data>
+  <data name="State.Failed.Server.Reason" xml:space="preserve"><value>Serverul a răspuns cu o eroare (HTTP {1}). Următoarea încercare urmează automat.</value></data>
+  <data name="State.Failed.Refused.Head" xml:space="preserve"><value>{0} a respins cererea</value></data>
+  <data name="State.Failed.Refused.Reason" xml:space="preserve"><value>HTTP {1}. Următoarea încercare urmează automat.</value></data>
+  <data name="State.Failed.Timeout.Head" xml:space="preserve"><value>{0} nu răspunde</value></data>
+  <data name="State.Failed.Timeout.Reason" xml:space="preserve"><value>Niciun răspuns la timp. Următoarea încercare urmează automat.</value></data>
+  <data name="State.Failed.Network.Head" xml:space="preserve"><value>Fără conexiune</value></data>
+  <data name="State.Failed.Network.Reason" xml:space="preserve"><value>AI-Usage nu poate ajunge la {0}. Verifică conexiunea la internet.</value></data>
+  <data name="Tile.CheckStatus" xml:space="preserve"><value>Verifică starea {0}</value></data>
+  <data name="Tile.NameTooltip" xml:space="preserve"><value>Fă clic pentru detalii</value></data>
+  <data name="Tile.Menu.HideChart" xml:space="preserve"><value>Ascunde graficul</value></data>
+  <data name="Tile.Menu.ShowChart" xml:space="preserve"><value>Arată graficul</value></data>
+  <data name="Tile.CodexLocalHint" xml:space="preserve"><value>Se actualizează la următoarea rulare Codex. Pentru valori live, conectează-te pe web.</value></data>
+  <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Conectare pe web</value></data>
+  <data name="Settings.TileOrder" xml:space="preserve"><value>Ordine</value></data>
+  <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Colorează barele acestui furnizor după ponderea fiecărui model sau a agentului principal și a subagenților în tokenii acelei ferestre.</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>După nivelul de consum</value></data>
+  <data name="Settings.BarColor" xml:space="preserve"><value>Culoarea barei</value></data>
+  <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokeni de la ultima resetare a acestei ferestre</value></data>
+  <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Personalizat</value></data>
+  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>După consum</value></data>
+  <data name="Settings.AccountName" xml:space="preserve"><value>Nume</value></data>
+  <data name="Settings.AccountName.Hint" xml:space="preserve"><value>ex. Serviciu</value></data>
+  <data name="Update.RestoreNeeded" xml:space="preserve"><value>Actualizarea nu a putut fi finalizată. Fișierul programului se află acum la {0}. Redenumește-l înapoi în AI-Usage.exe pentru a porni din nou aplicația.</value></data>
+  <data name="Update.NotStarted" xml:space="preserve"><value>Programul de instalare nu a pornit. Dacă ai închis solicitarea de administrator, încearcă din nou.</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Avertizează înainte ca o limită să fie probabil atinsă</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
-  <data name="Settings.ForecastLead" xml:space="preserve"><value>Warning lead time</value></data>
-  <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} will likely be full in about {2} (now {3}%)</value></data>
-  <data name="Settings.AllDays" xml:space="preserve"><value>Allow notifications on every day</value></data>
-  <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Turn off to pick weekdays without notifications: unchecked days stay completely quiet.</value></data>
-  <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Show the time marker in the bars</value></data>
-  <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>A short line in each bar shows how much of the time window has passed. If the fill reaches past it, usage is running ahead of time.</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Say when usage is below the time</value></data>
-  <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>The bar's tooltip says when usage is below the share of the window that has passed. Off leaves out only that sentence; ahead and on pace stay.</value></data>
-  <data name="Stats.Cost.Column" xml:space="preserve"><value>API cost:</value></data>
-  <data name="Stats.Cost.Tip" xml:space="preserve"><value>Approximate cost had these tokens been billed at the public API list prices (LiteLLM price list, as of {0}). Subscriptions are billed differently.</value></data>
-  <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* No price known for: {0}. Not counted.</value></data>
-  <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prices not loaded yet.</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>Token statistics</value></data>
-  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Show API cost</value></data>
-  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Shows what the tokens would cost at public API prices. The price list is loaded once a day from GitHub (LiteLLM). Off: costs are hidden everywhere and nothing is downloaded.</value></data>
-  <data name="Settings.CostCurrency" xml:space="preserve"><value>Cost currency</value></data>
-  <data name="Settings.CostCurrency.Usd" xml:space="preserve"><value>US dollar</value></data>
+  <data name="Settings.ForecastLead" xml:space="preserve"><value>Timp de avertizare în avans</value></data>
+  <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} va fi probabil plin în aprox. {2} (acum {3}%)</value></data>
+  <data name="Settings.AllDays" xml:space="preserve"><value>Permite notificări în fiecare zi</value></data>
+  <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Dezactivează pentru a alege zilele săptămânii fără notificări: zilele debifate rămân complet liniștite.</value></data>
+  <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Arată marcajul de timp în bare</value></data>
+  <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>O linie scurtă în fiecare bară arată cât din fereastra de timp a trecut. Dacă umplerea o depășește, consumul merge înaintea timpului.</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Spune când consumul este sub timp</value></data>
+  <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Sfatul barei spune când consumul este sub partea din fereastră care a trecut. Dezactivat omite doar această propoziție; înainte și în ritm rămân.</value></data>
+  <data name="Stats.Cost.Column" xml:space="preserve"><value>Cost API:</value></data>
+  <data name="Stats.Cost.Tip" xml:space="preserve"><value>Cost aproximativ dacă acești tokeni ar fi fost facturați la prețurile publice de listă ale API-ului (lista de prețuri LiteLLM, la data de {0}). Abonamentele sunt facturate diferit.</value></data>
+  <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Preț necunoscut pentru: {0}. Nu este inclus.</value></data>
+  <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prețurile nu sunt încă încărcate.</value></data>
+  <data name="Settings.Group.Stats" xml:space="preserve"><value>Statistici tokeni</value></data>
+  <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Arată costul API</value></data>
+  <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Arată cât ar costa tokenii la prețurile publice ale API-ului. Lista de prețuri se încarcă o dată pe zi de pe GitHub (LiteLLM). Dezactivat: costurile sunt ascunse peste tot și nu se descarcă nimic.</value></data>
+  <data name="Settings.CostCurrency" xml:space="preserve"><value>Moneda costului</value></data>
+  <data name="Settings.CostCurrency.Usd" xml:space="preserve"><value>Dolar american</value></data>
   <data name="Settings.CostCurrency.Eur" xml:space="preserve"><value>Euro</value></data>
-  <data name="Settings.CostCurrency.Auto" xml:space="preserve"><value>Automatic (system region)</value></data>
-  <data name="Tip.Settings.CostCurrency" xml:space="preserve"><value>Prices are in US dollars. For euro the app converts with the European Central Bank's daily reference rate.</value></data>
-  <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, running low</value></data>
-  <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limit almost reached</value></data>
-  <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit reached</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notify when a limit is reached (100%)</value></data>
-  <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limit reached for {1}, {2}</value></data>
-  <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
-  <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
-  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Save energy on battery</value></data>
-  <data name="Tip.Settings.SaveEnergy" xml:space="preserve"><value>Fetch half as often, and only local sources while energy saver is on.</value></data>
-  <data name="Tray.Pause" xml:space="preserve"><value>Pause fetching for 1 hour</value></data>
-  <data name="Tray.Resume" xml:space="preserve"><value>Resume fetching (paused until {0})</value></data>
-  <data name="Tray.PausedUntil" xml:space="preserve"><value>Paused until {0}</value></data>
-  <data name="Settings.Mica" xml:space="preserve"><value>Mica background</value></data>
-  <data name="Welcome.Found" xml:space="preserve"><value>Found</value></data>
-  <data name="Welcome.GeminiHint" xml:space="preserve"><value>Reads the account of the Antigravity CLI (agy). Sign in there, or here through the browser.</value></data>
-  <data name="Welcome.CopilotHint" xml:space="preserve"><value>Needs the GitHub CLI (gh) signed in: run gh auth login.</value></data>
-  <data name="About.Help" xml:space="preserve"><value>Help and FAQ</value></data>
-  <data name="Tile.Menu.Help" xml:space="preserve"><value>Help</value></data>
-  <data name="Stats.ByWeekday" xml:space="preserve"><value>Weekday</value></data>
-  <data name="Stats.ByHour" xml:space="preserve"><value>Hour</value></data>
-  <data name="Stats.ByWeekdayHour" xml:space="preserve"><value>Weekday × hour</value></data>
-  <data name="Stats.Heatmap.Tooltip" xml:space="preserve"><value>{0}, {1}-{2}: {3} tokens</value></data>
-  <data name="Tip.Stats.Chart.ByWeekdayHour" xml:space="preserve"><value>Which weekdays and hours of the day the tokens fall on.</value></data>
-  <data name="Stats.Heatmap.Leader" xml:space="preserve"><value>Mostly {0} ({1})</value></data>
-  <data name="Stats.ColorBy" xml:space="preserve"><value>Color by</value></data>
-  <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Provider</value></data>
+  <data name="Settings.CostCurrency.Auto" xml:space="preserve"><value>Automat (regiunea sistemului)</value></data>
+  <data name="Tip.Settings.CostCurrency" xml:space="preserve"><value>Prețurile sunt în dolari americani. Pentru euro, aplicația convertește cu cursul de referință zilnic al Băncii Centrale Europene.</value></data>
+  <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, aproape epuizat</value></data>
+  <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limita este aproape atinsă</value></data>
+  <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limită atinsă</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notifică la atingerea unei limite (100%)</value></data>
+  <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limită atinsă pentru {1}, {2}</value></data>
+  <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: limita {1} a fost atinsă</value></data>
+  <data name="Toast.ShowWidget" xml:space="preserve"><value>Arată widgetul</value></data>
+  <data name="Settings.SaveEnergy" xml:space="preserve"><value>Economisește energie pe baterie</value></data>
+  <data name="Tip.Settings.SaveEnergy" xml:space="preserve"><value>Preia de două ori mai rar și doar din surse locale cât timp economisirea energiei este activă.</value></data>
+  <data name="Tray.Pause" xml:space="preserve"><value>Pune preluarea pe pauză 1 oră</value></data>
+  <data name="Tray.Resume" xml:space="preserve"><value>Reia preluarea (pauză până la {0})</value></data>
+  <data name="Tray.PausedUntil" xml:space="preserve"><value>Pauză până la {0}</value></data>
+  <data name="Settings.Mica" xml:space="preserve"><value>Fundal Mica</value></data>
+  <data name="Welcome.Found" xml:space="preserve"><value>Găsit</value></data>
+  <data name="Welcome.GeminiHint" xml:space="preserve"><value>Citește contul din Antigravity CLI (agy). Conectează-te acolo sau aici prin browser.</value></data>
+  <data name="Welcome.CopilotHint" xml:space="preserve"><value>Necesită GitHub CLI (gh) conectat: rulează gh auth login.</value></data>
+  <data name="About.Help" xml:space="preserve"><value>Ajutor și întrebări frecvente</value></data>
+  <data name="Tile.Menu.Help" xml:space="preserve"><value>Ajutor</value></data>
+  <data name="Stats.ByWeekday" xml:space="preserve"><value>Zi a săptămânii</value></data>
+  <data name="Stats.ByHour" xml:space="preserve"><value>Oră</value></data>
+  <data name="Stats.ByWeekdayHour" xml:space="preserve"><value>Zi a săptămânii × oră</value></data>
+  <data name="Stats.Heatmap.Tooltip" xml:space="preserve"><value>{0}, {1}-{2}: {3} tokeni</value></data>
+  <data name="Tip.Stats.Chart.ByWeekdayHour" xml:space="preserve"><value>În ce zile ale săptămânii și ore ale zilei cad tokenii.</value></data>
+  <data name="Stats.Heatmap.Leader" xml:space="preserve"><value>Mai ales {0} ({1})</value></data>
+  <data name="Stats.ColorBy" xml:space="preserve"><value>Colorează după</value></data>
+  <data name="Stats.ColorBy.Provider" xml:space="preserve"><value>Furnizor</value></data>
   <data name="Stats.ColorBy.Model" xml:space="preserve"><value>Model</value></data>
-  <data name="Stats.ColorBy.Agent" xml:space="preserve"><value>Main or subagent</value></data>
-  <data name="Stats.Session.Tooltip" xml:space="preserve"><value>{0} · {1} · {2} · {3} tokens · {4}</value></data>
-  <data name="Stats.Col.Project" xml:space="preserve"><value>Project</value></data>
-  <data name="Stats.Col.Start" xml:space="preserve"><value>Start</value></data>
-  <data name="Stats.Col.Duration" xml:space="preserve"><value>Duration</value></data>
-  <data name="Stats.Col.Tokens" xml:space="preserve"><value>Tokens</value></data>
+  <data name="Stats.ColorBy.Agent" xml:space="preserve"><value>Agent principal sau subagent</value></data>
+  <data name="Stats.Session.Tooltip" xml:space="preserve"><value>{0} · {1} · {2} · {3} tokeni · {4}</value></data>
+  <data name="Stats.Col.Project" xml:space="preserve"><value>Proiect</value></data>
+  <data name="Stats.Col.Start" xml:space="preserve"><value>Început</value></data>
+  <data name="Stats.Col.Duration" xml:space="preserve"><value>Durată</value></data>
+  <data name="Stats.Col.Tokens" xml:space="preserve"><value>Tokeni</value></data>
   <data name="Stats.Col.Model" xml:space="preserve"><value>Model</value></data>
-  <data name="Stats.Agent.Main" xml:space="preserve"><value>Main agent</value></data>
-  <data name="Stats.SubagentShare" xml:space="preserve"><value>Subagents</value></data>
-  <data name="Stats.SubagentShare.Caption" xml:space="preserve"><value>of Claude tokens</value></data>
-  <data name="Tip.Stats.SubagentShare" xml:space="preserve"><value>The share of the Claude tokens that subagents used.</value></data>
-  <data name="Stats.Average7" xml:space="preserve"><value>7-day average</value></data>
-  <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>This month</value></data>
-  <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Last month</value></data>
-  <data name="Stats.Range.Custom" xml:space="preserve"><value>Custom range…</value></data>
-  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} to {1}</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>All providers</value></data>
-  <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Provider</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} providers</value></data>
+  <data name="Stats.Agent.Main" xml:space="preserve"><value>Agent principal</value></data>
+  <data name="Stats.SubagentShare" xml:space="preserve"><value>Subagenți</value></data>
+  <data name="Stats.SubagentShare.Caption" xml:space="preserve"><value>din tokenii Claude</value></data>
+  <data name="Tip.Stats.SubagentShare" xml:space="preserve"><value>Partea din tokenii Claude folosită de subagenți.</value></data>
+  <data name="Stats.Average7" xml:space="preserve"><value>Media pe 7 zile</value></data>
+  <data name="Stats.Range.ThisMonth" xml:space="preserve"><value>Luna aceasta</value></data>
+  <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Luna trecută</value></data>
+  <data name="Stats.Range.Custom" xml:space="preserve"><value>Interval propriu…</value></data>
+  <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} - {1}</value></data>
+  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Toți furnizorii</value></data>
+  <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Furnizor</value></data>
+  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} furnizori</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>Model: {0}</value></data>
-  <data name="Stats.Filter.Project" xml:space="preserve"><value>Project: {0}</value></data>
-  <data name="Stats.Filter.Remove" xml:space="preserve"><value>Remove filter</value></data>
-  <data name="Tip.Stats.Provider" xml:space="preserve"><value>Limits every figure and chart to the chosen providers.</value></data>
-  <data name="Stats.Range.From" xml:space="preserve"><value>From</value></data>
-  <data name="Stats.Range.To" xml:space="preserve"><value>To</value></data>
-  <data name="Stats.Range.Apply" xml:space="preserve"><value>Apply</value></data>
-  <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Previous month</value></data>
-  <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Next month</value></data>
-  <data name="Settings.Group.Data" xml:space="preserve"><value>Data</value></data>
-  <data name="Settings.Backup.Heading" xml:space="preserve"><value>Backup</value></data>
-  <data name="Settings.Transfer.Heading" xml:space="preserve"><value>Settings</value></data>
-  <data name="Settings.Backup.Create" xml:space="preserve"><value>Create…</value></data>
-  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Restore…</value></data>
-  <data name="Settings.Backup.Filter" xml:space="preserve"><value>AI-Usage backup (*.zip)|*.zip</value></data>
-  <data name="Backup.Restored" xml:space="preserve"><value>Backup restored. The previous data is in {0}.</value></data>
-  <data name="Backup.RestoreFailed" xml:space="preserve"><value>The backup could not be restored. Your data is unchanged.</value></data>
-  <data name="Settings.Machine.Unknown" xml:space="preserve"><value>Unknown PC</value></data>
-  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Restoring replaces all current settings, history and token index with the backup. Anything newer than the backup is set aside in the folder {0} and is no longer shown.</value></data>
-  <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restore</value></data>
-  <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup saved.</value></data>
-  <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import history…</value></data>
-  <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Reads the token history from another PC's backup and merges it with the history here. This PC's own data stays untouched; importing the same PC again replaces its earlier copy.</value></data>
-  <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
-  <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
-  <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>Imported 1 day of token history from {1}.</value></data>
-  <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>
-  <data name="Stats.ImportedFrom" xml:space="preserve"><value>Includes history from: {0}</value></data>
-  <data name="State.Failed.RateLimited.Head" xml:space="preserve"><value>{0} asks for fewer requests</value></data>
-  <data name="State.Failed.RateLimited.Reason" xml:space="preserve"><value>Too many requests right now (HTTP {1}). The next attempt waits a little longer.</value></data>
-  <data name="Update.Downloading" xml:space="preserve"><value>Downloading the update…</value></data>
-  <data name="Update.NoMatchingFile" xml:space="preserve"><value>This release has no file for your copy of AI-Usage. The release page has the details.</value></data>
-  <data name="Settings.QuietHours.From" xml:space="preserve"><value>No notifications from</value></data>
-  <data name="Settings.QuietHours.Until" xml:space="preserve"><value>No notifications until</value></data>
-  <data name="Settings.DataFolder.Unreachable" xml:space="preserve"><value>Your chosen folder {0} is not available right now, so this session uses the default folder.</value></data>
-  <data name="Settings.DataFolder.Risky.Title" xml:space="preserve"><value>Use this folder?</value></data>
-  <data name="Settings.DataFolder.Risky.Body" xml:space="preserve"><value>This folder is on a network drive, a removable drive or in a cloud sync folder. The token index can be damaged there when the connection drops or a sync runs while it is written, and it is the only copy of your past usage. Use it anyway?</value></data>
-  <data name="Settings.DataFolder.Risky.UseAnyway" xml:space="preserve"><value>Use anyway</value></data>
-  <data name="Settings.DataFolder.Replace.Body" xml:space="preserve"><value>This folder holds an older copy of your AI-Usage data. Replace it with the current data?</value></data>
-  <data name="Settings.DataFolder.Replace.Button" xml:space="preserve"><value>Replace</value></data>
-  <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Read at most every</value></data>
-  <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Default ({0} min)</value></data>
+  <data name="Stats.Filter.Project" xml:space="preserve"><value>Proiect: {0}</value></data>
+  <data name="Stats.Filter.Remove" xml:space="preserve"><value>Elimină filtrul</value></data>
+  <data name="Tip.Stats.Provider" xml:space="preserve"><value>Limitează fiecare cifră și fiecare grafic la furnizorii aleși.</value></data>
+  <data name="Stats.Range.From" xml:space="preserve"><value>De la</value></data>
+  <data name="Stats.Range.To" xml:space="preserve"><value>Până la</value></data>
+  <data name="Stats.Range.Apply" xml:space="preserve"><value>Aplică</value></data>
+  <data name="Stats.Range.PreviousMonth" xml:space="preserve"><value>Luna anterioară</value></data>
+  <data name="Stats.Range.NextMonth" xml:space="preserve"><value>Luna următoare</value></data>
+  <data name="Settings.Group.Data" xml:space="preserve"><value>Date</value></data>
+  <data name="Settings.Backup.Heading" xml:space="preserve"><value>Copie de rezervă</value></data>
+  <data name="Settings.Transfer.Heading" xml:space="preserve"><value>Setări</value></data>
+  <data name="Settings.Backup.Create" xml:space="preserve"><value>Creează…</value></data>
+  <data name="Settings.Backup.Restore" xml:space="preserve"><value>Restaurează…</value></data>
+  <data name="Settings.Backup.Filter" xml:space="preserve"><value>Copie de rezervă AI-Usage (*.zip)|*.zip</value></data>
+  <data name="Backup.Restored" xml:space="preserve"><value>Copia de rezervă a fost restaurată. Datele anterioare se află în {0}.</value></data>
+  <data name="Backup.RestoreFailed" xml:space="preserve"><value>Copia de rezervă nu a putut fi restaurată. Datele tale sunt neschimbate.</value></data>
+  <data name="Settings.Machine.Unknown" xml:space="preserve"><value>PC necunoscut</value></data>
+  <data name="Settings.Backup.RestoreConfirm" xml:space="preserve"><value>Restaurarea înlocuiește toate setările, istoricul și indexul de tokeni curente cu copia de rezervă. Tot ce este mai nou decât copia de rezervă este pus deoparte în folderul {0} și nu mai este afișat.</value></data>
+  <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restaurează</value></data>
+  <data name="Settings.Backup.Saved" xml:space="preserve"><value>Copia de rezervă a fost salvată.</value></data>
+  <data name="Settings.Backup.Refused" xml:space="preserve"><value>Acest fișier nu este o copie de rezervă AI-Usage sau provine dintr-o versiune mai nouă.</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importă istoric…</value></data>
+  <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Citește istoricul de tokeni din copia de rezervă a altui PC și îl îmbină cu istoricul de aici. Datele proprii ale acestui PC rămân neatinse; importarea aceluiași PC din nou îi înlocuiește copia anterioară.</value></data>
+  <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Această copie de rezervă provine de pe acest PC.</value></data>
+  <data name="Settings.Backup.Imported" xml:space="preserve"><value>Au fost importate {0} zile de istoric de tokeni de la {1}.</value></data>
+  <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>A fost importată 1 zi de istoric de tokeni de la {1}.</value></data>
+  <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Elimină</value></data>
+  <data name="Stats.ImportedFrom" xml:space="preserve"><value>Include istoric de la: {0}</value></data>
+  <data name="State.Failed.RateLimited.Head" xml:space="preserve"><value>{0} cere mai puține solicitări</value></data>
+  <data name="State.Failed.RateLimited.Reason" xml:space="preserve"><value>Prea multe cereri chiar acum (HTTP {1}). Următoarea încercare așteaptă puțin mai mult.</value></data>
+  <data name="Update.Downloading" xml:space="preserve"><value>Se descarcă actualizarea…</value></data>
+  <data name="Update.NoMatchingFile" xml:space="preserve"><value>Această versiune nu are niciun fișier pentru copia ta de AI-Usage. Pagina versiunii conține detaliile.</value></data>
+  <data name="Settings.QuietHours.From" xml:space="preserve"><value>Fără notificări de la</value></data>
+  <data name="Settings.QuietHours.Until" xml:space="preserve"><value>Fără notificări până la</value></data>
+  <data name="Settings.DataFolder.Unreachable" xml:space="preserve"><value>Folderul ales de tine, {0}, nu este disponibil acum, așa că această sesiune folosește folderul implicit.</value></data>
+  <data name="Settings.DataFolder.Risky.Title" xml:space="preserve"><value>Folosești acest folder?</value></data>
+  <data name="Settings.DataFolder.Risky.Body" xml:space="preserve"><value>Acest folder se află pe o unitate de rețea, pe o unitate amovibilă sau într-un folder sincronizat cu cloudul. Indexul de tokeni se poate deteriora acolo dacă se pierde conexiunea sau rulează o sincronizare în timp ce este scris, iar el este singura copie a consumului tău anterior. Îl folosești oricum?</value></data>
+  <data name="Settings.DataFolder.Risky.UseAnyway" xml:space="preserve"><value>Folosește oricum</value></data>
+  <data name="Settings.DataFolder.Replace.Body" xml:space="preserve"><value>Acest folder conține o copie mai veche a datelor tale AI-Usage. O înlocuiești cu datele curente?</value></data>
+  <data name="Settings.DataFolder.Replace.Button" xml:space="preserve"><value>Înlocuiește</value></data>
+  <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Citește cel mult la</value></data>
+  <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Implicit ({0} min)</value></data>
   <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
-  <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>How often AI-Usage asks this provider at most. Default follows the slider under Refresh.</value></data>
-  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Applies to every provider read over the internet; each provider can override it under Providers.</value></data>
-  <data name="Toast.SignInNeeded.Title" xml:space="preserve"><value>{0}: sign-in needed</value></data>
-  <data name="Toast.SignInNeeded.Body" xml:space="preserve"><value>The sign-in has expired. Values stay frozen until you sign in again.</value></data>
-  <data name="Toast.SignIn" xml:space="preserve"><value>Sign in</value></data>
-  <data name="Toast.MuteToday" xml:space="preserve"><value>Not again today</value></data>
-  <data name="Tray.Note.SignIn" xml:space="preserve"><value>Sign-in needed</value></data>
-  <data name="Tray.Note.AsOf" xml:space="preserve"><value>(as of {0})</value></data>
-  <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Back up the token index weekly</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>The last three copies are kept in the data folder under stats-backups. A damaged index is restored from them.</value></data>
-  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Reading session logs: {0} of {1} files</value></data>
-  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Backup from {0}. History from {1} to {2} for {3} accounts.</value></data>
-  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Backup from {0}. History from {1} to {2} for 1 account.</value></data>
-  <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Backup from {0}. No history.</value></data>
-  <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>The provider changed something; values may be incomplete.</value></data>
-  <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Open log</value></data>
-  <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API credits</value></data>
-  <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
-  <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Shows the API credit balance of your Claude Console on the tile. Only the balance is read.</value></data>
-  <data name="Settings.LocalOnly" xml:space="preserve"><value>Use local sources only</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Without the web session the app reads only Claude Code's sign-in. If Claude Code is signed out, the tile stays empty.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Without the web session values come only from Codex's session files and stand still while you don't use Codex. The plan is not shown.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Without the web session values come only from Antigravity's sign-in. If Antigravity is not signed in, the tile stays empty.</value></data>
+  <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>Cât de des interoghează AI-Usage cel mult acest furnizor. Implicit urmează cursorul de sub Reîmprospătare.</value></data>
+  <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Se aplică fiecărui furnizor citit prin internet; fiecare furnizor îl poate suprascrie la Furnizori.</value></data>
+  <data name="Toast.SignInNeeded.Title" xml:space="preserve"><value>{0}: conectare necesară</value></data>
+  <data name="Toast.SignInNeeded.Body" xml:space="preserve"><value>Conectarea a expirat. Valorile rămân înghețate până te conectezi din nou.</value></data>
+  <data name="Toast.SignIn" xml:space="preserve"><value>Conectare</value></data>
+  <data name="Toast.MuteToday" xml:space="preserve"><value>Nu mai azi</value></data>
+  <data name="Tray.Note.SignIn" xml:space="preserve"><value>Conectare necesară</value></data>
+  <data name="Tray.Note.AsOf" xml:space="preserve"><value>(la {0})</value></data>
+  <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Fă copie de rezervă a indexului de tokeni săptămânal</value></data>
+  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Ultimele trei copii sunt păstrate în folderul de date, în stats-backups. Un index deteriorat este restaurat din ele.</value></data>
+  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Se citesc jurnalele de sesiune: {0} din {1} fișiere</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru {3} conturi.</value></data>
+  <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru 1 cont.</value></data>
+  <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Copie de rezervă din {0}. Fără istoric.</value></data>
+  <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Furnizorul a schimbat ceva; valorile pot fi incomplete.</value></data>
+  <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Deschide jurnalul</value></data>
+  <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>Credite API</value></data>
+  <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Conectare la platform.claude.com</value></data>
+  <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Arată pe card soldul de credite API al Claude Console. Se citește doar soldul.</value></data>
+  <data name="Settings.LocalOnly" xml:space="preserve"><value>Folosește doar surse locale</value></data>
+  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Fără sesiunea web, aplicația citește doar conectarea Claude Code. Dacă Claude Code este deconectat, cardul rămâne gol.</value></data>
+  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Fără sesiunea web, valorile provin doar din fișierele de sesiune Codex și rămân neschimbate cât timp nu folosești Codex. Planul nu este afișat.</value></data>
+  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Fără sesiunea web, valorile provin doar din conectarea Antigravity. Dacă Antigravity nu este conectat, cardul rămâne gol.</value></data>
 </root>
