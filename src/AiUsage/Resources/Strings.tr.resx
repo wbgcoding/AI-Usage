@@ -645,7 +645,7 @@
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Oturum açmak gerekiyor</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>({0} itibarıyla)</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Token dizinini haftalık yedekle</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Son üç kopya veri klasöründe stats-backups altında saklanır. Hasarlı bir dizin bunlardan geri yüklenir.</value></data>
+  <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>stats-backups klasöründe üç kopya tutar. Bozulan bir dizin bunlardan geri yüklenir.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Oturum günlükleri okunuyor: {1} dosyadan {0}</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>{0} tarihli yedek. {3} hesap için {1} ile {2} arası geçmiş.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>{0} tarihli yedek. 1 hesap için {1} ile {2} arası geçmiş.</value></data>

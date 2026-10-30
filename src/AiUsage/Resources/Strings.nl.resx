@@ -645,7 +645,7 @@
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Inloggen nodig</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(per {0})</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Tokenindex wekelijks back-uppen</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>De laatste drie kopieën blijven bewaard in de gegevensmap onder stats-backups. Een beschadigde index wordt daaruit hersteld.</value></data>
+  <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Bewaart drie kopieën in de map stats-backups. Een beschadigde index wordt daaruit hersteld.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Sessielogs lezen: {0} van {1} bestanden</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>Back-up van {0}. Geschiedenis van {1} tot {2} voor {3} accounts.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Back-up van {0}. Geschiedenis van {1} tot {2} voor 1 account.</value></data>

@@ -645,7 +645,7 @@
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>サインインが必要</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>({0}時点)</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>トークンインデックスを毎週バックアップ</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>直近3つのコピーをデータフォルダー内の stats-backups に保存します。インデックスが破損した場合は、そこから復元されます。</value></data>
+  <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>stats-backups フォルダーに 3 つのコピーを保持します。破損したインデックスはそこから復元されます。</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>セッションログを読み取り中: {1} ファイル中 {0}</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>{0} のバックアップ。{3} 件のアカウントの {1} から {2} までの履歴。</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>{0} のバックアップ。1 件のアカウントの {1} から {2} までの履歴。</value></data>

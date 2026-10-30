@@ -645,7 +645,7 @@
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Wymagane logowanie</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(stan z {0})</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Co tydzień kopiuj indeks tokenów</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Trzy ostatnie kopie są przechowywane w folderze danych w stats-backups. Uszkodzony indeks jest z nich przywracany.</value></data>
+  <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Przechowuje trzy kopie w folderze stats-backups. Uszkodzony indeks zostanie z nich przywrócony.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Odczyt dzienników sesji: {0} z {1} plików</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>Kopia z {0}. Historia od {1} do {2} dla {3} kont.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Kopia z {0}. Historia od {1} do {2} dla 1 konta.</value></data>

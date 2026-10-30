@@ -645,7 +645,7 @@
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>需要登录</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(截至 {0})</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>每周备份令牌索引</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>最近三份副本保存在数据文件夹的 stats-backups 下。索引损坏时会从中恢复。</value></data>
+  <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>在 stats-backups 文件夹中保留三份副本。索引损坏时会从中恢复。</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>正在读取会话日志:{0} / {1} 个文件</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>{0} 的备份。{3} 个账号 {1} 至 {2} 的历史。</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>{0} 的备份。1 个账号 {1} 至 {2} 的历史。</value></data>

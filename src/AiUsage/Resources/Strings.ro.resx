@@ -645,7 +645,7 @@
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Conectare necesară</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(la {0})</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Fă copie de rezervă a indexului de tokeni săptămânal</value></data>
-  <data name="Settings.Backup.WeeklyCopy.Note" xml:space="preserve"><value>Ultimele trei copii sunt păstrate în folderul de date, în stats-backups. Un index deteriorat este restaurat din ele.</value></data>
+  <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Păstrează trei copii în folderul stats-backups. Un index deteriorat este restaurat din ele.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Se citesc jurnalele de sesiune: {0} din {1} fișiere</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru {3} conturi.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru 1 cont.</value></data>
