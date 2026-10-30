@@ -1,5 +1,16 @@
 @echo off
+title AI-Usage
 setlocal enabledelayedexpansion
+
+rem A double-click in Explorer runs this as cmd /c "...", and only then the window is the build's
+rem own: it starts small, stays open on a failure and closes itself ten seconds after a success. An
+rem automated caller sets AIUSAGE_NOPAUSE=1, and a run from an existing console never carries /c,
+rem so neither is resized or kept waiting.
+set DOUBLECLICK=0
+if not "%AIUSAGE_NOPAUSE%"=="1" (
+    echo %CMDCMDLINE% | findstr /i /c:"/c" >nul && set DOUBLECLICK=1
+)
+if "%DOUBLECLICK%"=="1" mode con cols=100 lines=25
 
 rem Single authoritative build. Builds, tests, publishes
 rem both architectures, builds the installer and refreshes dist\ - every run fills dist\ fresh.
@@ -256,19 +267,14 @@ if not "%AIUSAGE_NOSTART%"=="1" (
 
 echo.
 echo BUILD OK - artifacts are in dist\.
+if "%DOUBLECLICK%"=="1" timeout /t 10
 endlocal
 exit /b 0
 
 :error
 echo.
 echo BUILD FAILED
-rem Keep the window open on failure so the error stays readable, but ONLY when build.bat was
-rem launched by a double-click in Explorer (which runs it as cmd /c "..."), never in an automated
-rem run: an automated caller sets AIUSAGE_NOPAUSE=1, and a run started from an existing console
-rem keeps its own window open anyway. CMDCMDLINE carries the /c switch only in the double-click
-rem case, and findstr looks for that literal switch.
-if not "%AIUSAGE_NOPAUSE%"=="1" (
-    echo %CMDCMDLINE% | findstr /i /c:"/c" >nul && pause
-)
+rem Keep a double-clicked window open on failure so the error stays readable (see the top).
+if "%DOUBLECLICK%"=="1" pause
 endlocal
 exit /b 1
