@@ -404,6 +404,7 @@
   <data name="Stats.Forecast.Average" xml:space="preserve"><value>La tua media: {0}</value></data>
   <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
   <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>settimana ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Con un solo modello: {0}</value></data>
   <data name="Stats.Forecast.Month" xml:space="preserve"><value>Mese: {0}</value></data>
   <data name="Stats.Forecast.Plan" xml:space="preserve"><value>piano ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Ancora pochi dati</value></data>

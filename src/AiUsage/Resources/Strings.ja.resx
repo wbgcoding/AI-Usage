@@ -404,6 +404,7 @@
   <data name="Stats.Forecast.Average" xml:space="preserve"><value>あなたの平均: {0}</value></data>
   <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5時間 ≈ {0} ({1})</value></data>
   <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>週 ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>1 つのモデルのみ: {0}</value></data>
   <data name="Stats.Forecast.Month" xml:space="preserve"><value>月: {0}</value></data>
   <data name="Stats.Forecast.Plan" xml:space="preserve"><value>プラン ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>データがまだ足りません</value></data>

@@ -403,6 +403,7 @@
   <data name="Stats.Forecast.Average" xml:space="preserve"><value>Dein Schnitt: {0}</value></data>
   <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5h ≈ {0} ({1})</value></data>
   <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>Woche ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Nur mit einem Modell: {0}</value></data>
   <data name="Stats.Forecast.Month" xml:space="preserve"><value>Monat: {0}</value></data>
   <data name="Stats.Forecast.Plan" xml:space="preserve"><value>Abo ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Noch zu wenig Daten</value></data>

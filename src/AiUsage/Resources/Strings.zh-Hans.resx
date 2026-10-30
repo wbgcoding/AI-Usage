@@ -404,6 +404,7 @@
   <data name="Stats.Forecast.Average" xml:space="preserve"><value>你的平均: {0}</value></data>
   <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 小时 ≈ {0} ({1})</value></data>
   <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>每周 ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>仅用一个模型：{0}</value></data>
   <data name="Stats.Forecast.Month" xml:space="preserve"><value>每月: {0}</value></data>
   <data name="Stats.Forecast.Plan" xml:space="preserve"><value>套餐 ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>数据还不够</value></data>

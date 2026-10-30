@@ -404,6 +404,7 @@
   <data name="Stats.Forecast.Average" xml:space="preserve"><value>Jouw gemiddelde: {0}</value></data>
   <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 u ≈ {0} ({1})</value></data>
   <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>week ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Met één model: {0}</value></data>
   <data name="Stats.Forecast.Month" xml:space="preserve"><value>Maand: {0}</value></data>
   <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonnement ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Nog te weinig gegevens</value></data>

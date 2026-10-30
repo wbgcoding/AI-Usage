@@ -178,8 +178,10 @@ public sealed partial class StatsViewModel
                 text += " · " + loc.Format("Stats.Forecast.ApiValue", money);
 
             var detail = window.Result.Status == PerPercentStatus.PerModel
-                ? string.Join(" · ", window.Result.Items.Select(item => loc.Format(
-                    "Stats.PerPercent.Item", ShortenTokens(item.TokensPerPercent * 100, loc), item.IsOther ? loc["Stats.Other"] : item.Model)))
+                // Each figure is what that model alone would fill the window with, so it can exceed the
+                // mixed total above; the label says so.
+                ? loc.Format("Stats.Forecast.ModelsAlone", string.Join(" · ", window.Result.Items.Select(item => loc.Format(
+                    "Stats.PerPercent.Item", ShortenTokens(item.TokensPerPercent * 100, loc), item.IsOther ? loc["Stats.Other"] : item.Model))))
                 : loc["Stats.Forecast.AllModels"];
             var cached = window.Result.CacheReadPerPercent > 0 ? ShortenTokens(window.Result.CacheReadPerPercent, loc) : "–";
             var lines = new List<string> { loc.Format("Stats.PerPercent.Tip", window.Result.IntervalCount, cached) };

@@ -404,6 +404,7 @@
   <data name="Stats.Forecast.Average" xml:space="preserve"><value>Ortalaman: {0}</value></data>
   <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 sa ≈ {0} ({1})</value></data>
   <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>hafta ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Yalnızca tek modelle: {0}</value></data>
   <data name="Stats.Forecast.Month" xml:space="preserve"><value>Ay: {0}</value></data>
   <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonelik ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Henüz yeterli veri yok</value></data>
