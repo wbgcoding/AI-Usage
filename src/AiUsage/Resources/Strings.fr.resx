@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Se connecter à platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Affiche sur la tuile le solde de crédits API de ta Claude Console. Seul le solde est lu.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Utiliser uniquement les sources locales</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Sans la session web, l'app ne lit que la connexion de Claude Code. Si Claude Code est déconnecté, la tuile reste vide.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Sans la session web, les valeurs viennent uniquement des fichiers de session de Codex et restent figées tant que tu n'utilises pas Codex. Le forfait n'est pas affiché.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Sans la session web, les valeurs viennent uniquement de la connexion d'Antigravity. Si Antigravity n'est pas connecté, la tuile reste vide.</value></data>
 </root>

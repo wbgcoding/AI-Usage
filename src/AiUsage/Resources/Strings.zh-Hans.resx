@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>在磁贴上显示你的 Claude Console 的 API 额度余额。只读取余额。</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>仅使用本地来源</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>没有网页会话时,应用只读取 Claude Code 的登录。如果 Claude Code 已退出登录,磁贴会保持为空。</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>没有网页会话时,数值只来自 Codex 的会话文件,并在你不使用 Codex 期间保持不变。不显示套餐。</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>没有网页会话时,数值只来自 Antigravity 的登录。如果 Antigravity 未登录,磁贴会保持为空。</value></data>
 </root>

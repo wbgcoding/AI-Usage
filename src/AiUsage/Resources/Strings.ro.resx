@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Conectare la platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Arată pe card soldul de credite API al Claude Console. Se citește doar soldul.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Folosește doar surse locale</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Fără sesiunea web, aplicația citește doar conectarea Claude Code. Dacă Claude Code este deconectat, cardul rămâne gol.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Fără sesiunea web, valorile provin doar din fișierele de sesiune Codex și rămân neschimbate cât timp nu folosești Codex. Planul nu este afișat.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Fără sesiunea web, valorile provin doar din conectarea Antigravity. Dacă Antigravity nu este conectat, cardul rămâne gol.</value></data>
 </root>

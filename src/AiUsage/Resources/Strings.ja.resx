@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>ローカルのソースのみ使用</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Webセッションがない場合、アプリはClaude Codeのサインインだけを読み取ります。Claude Codeがサインアウトしていると、タイルは空のままです。</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Webセッションがない場合、値はCodexのセッションファイルからのみ取得され、Codexを使っていない間は変化しません。プランは表示されません。</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Webセッションがない場合、値はAntigravityのサインインからのみ取得されます。Antigravityがサインインしていないと、タイルは空のままです。</value></data>
 </root>

@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com'da oturum aç</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude Console'unun API kredi bakiyesini kutucukta gösterir. Yalnızca bakiye okunur.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Yalnızca yerel kaynakları kullan</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Web oturumu olmadan uygulama yalnızca Claude Code'un girişini okur. Claude Code'da oturum kapalıysa kutucuk boş kalır.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Web oturumu olmadan değerler yalnızca Codex'in oturum dosyalarından gelir ve Codex'i kullanmadığın sürece sabit kalır. Plan gösterilmez.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Web oturumu olmadan değerler yalnızca Antigravity'nin girişinden gelir. Antigravity'de oturum açık değilse kutucuk boş kalır.</value></data>
 </root>

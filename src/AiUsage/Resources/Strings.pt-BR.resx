@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Entrar em platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Mostra no bloco o saldo de créditos de API do seu Claude Console. Somente o saldo é lido.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Usar somente fontes locais</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Sem a sessão web, o app lê apenas o login do Claude Code. Se o Claude Code estiver desconectado, o bloco fica vazio.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Sem a sessão web, os valores vêm apenas dos arquivos de sessão do Codex e ficam parados enquanto você não usa o Codex. O plano não é exibido.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Sem a sessão web, os valores vêm apenas do login do Antigravity. Se o Antigravity não estiver conectado, o bloco fica vazio.</value></data>
 </root>

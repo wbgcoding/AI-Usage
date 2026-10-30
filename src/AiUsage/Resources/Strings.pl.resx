@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Zaloguj do platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Pokazuje na kafelku saldo środków API Twojego Claude Console. Odczytywane jest tylko saldo.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Używaj tylko źródeł lokalnych</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Bez sesji w sieci aplikacja odczytuje tylko logowanie Claude Code. Jeśli Claude Code jest wylogowany, kafelek pozostaje pusty.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Bez sesji w sieci wartości pochodzą tylko z plików sesji Codex i stoją w miejscu, gdy nie używasz Codex. Plan nie jest pokazywany.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Bez sesji w sieci wartości pochodzą tylko z logowania Antigravity. Jeśli Antigravity nie jest zalogowany, kafelek pozostaje pusty.</value></data>
 </root>

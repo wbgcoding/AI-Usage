@@ -656,7 +656,4 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Inloggen bij platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Alleen lokale bronnen gebruiken</value></data>
-  <data name="Settings.LocalOnly.Note.Claude" xml:space="preserve"><value>Zonder de websessie leest de app alleen de aanmelding van Claude Code. Als Claude Code is uitgelogd, blijft de tegel leeg.</value></data>
-  <data name="Settings.LocalOnly.Note.Codex" xml:space="preserve"><value>Zonder de websessie komen waarden alleen uit de sessiebestanden van Codex en staan ze stil zolang je Codex niet gebruikt. Het abonnement wordt niet getoond.</value></data>
-  <data name="Settings.LocalOnly.Note.Gemini" xml:space="preserve"><value>Zonder de websessie komen waarden alleen uit de aanmelding van Antigravity. Als Antigravity niet is aangemeld, blijft de tegel leeg.</value></data>
 </root>
