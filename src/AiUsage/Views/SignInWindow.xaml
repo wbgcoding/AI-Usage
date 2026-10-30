@@ -85,13 +85,6 @@
                            ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
                            TitleText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Title]}"
                            CloseRequested="TitleBarControl_CloseRequested"/>
-        <!-- Console sign-in only: its email link opens in the default browser, which then shows a
-             code meant for this window. -->
-        <Border x:Name="ConsoleHint" DockPanel.Dock="Top" Visibility="Collapsed" Background="{DynamicResource Bg.Raised}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="{StaticResource Space.M}">
-            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Console.Hint]}"
-                       TextWrapping="Wrap" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
-        </Border>
         <!-- An explicit arrow for everything the app draws here: the notices stand where the page
              was, and the page's own cursor request must not carry over onto them. -->
         <Grid Cursor="Arrow">

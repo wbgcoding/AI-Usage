@@ -71,8 +71,6 @@ public partial class SignInWindow : Window
         _startPath = new Uri(descriptor.BaseUrl).AbsolutePath;
         _allowedHosts = descriptor.AllowedHosts;
         InitializeComponent();
-        if (ProviderRegistry.IsConsoleSession(_accountKey))
-            ConsoleHint.Visibility = Visibility.Visible;
         _loginPagePoll.Tick += LoginPagePoll_Tick;
         TitleBarControl.SetBinding(Controls.TitleBar.TitleTextProperty, NewTitleBinding());
         SetBinding(TitleProperty, NewTitleBinding());
