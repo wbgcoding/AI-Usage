@@ -44,6 +44,7 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
     private ConsoleRunner? _console;
     private Task _running = Task.CompletedTask;
     private bool _disposed;
+    private string? _lastOutcome;
 
     /// <param name="siteRun">Runs a script in the account's claude.ai session; null when the account
     /// has none in use.</param>
@@ -112,6 +113,7 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
     {
         // A note about the console's answer is no reason for the usage tile to say its read changed.
         using var scope = ReadChangeLog.BeginReadScope();
+        var outcome = new List<string>();
         try
         {
             lock (_gate)
@@ -122,12 +124,18 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             if (_siteRun is not null)
             {
                 step = await TryReadAsync(_siteRun, ct);
+                outcome.Add("claude.ai " + Word(step));
                 if (step is Step.Ok or Step.Blocked)
                     return;
             }
 
-            if (_createConsoleRunner is null || ConsoleIsPaused())
+            if (_createConsoleRunner is null)
                 return;
+            if (ConsoleIsPaused())
+            {
+                outcome.Add("console paused after not_signed_in");
+                return;
+            }
 
             ConsoleRunner console;
             lock (_gate)
@@ -138,16 +146,47 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             }
 
             step = await TryReadAsync(console.Run, ct);
+            outcome.Add("console " + Word(step));
             if (step == Step.NotSignedIn)
             {
                 lock (_gate)
                     _consoleBlockedUntil = _time.GetUtcNow() + ConsoleBackoff;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // A balance that cannot be read is simply not shown; the cache ages out by itself.
+            outcome.Add("failed (" + ex.GetType().Name + ")");
         }
+        finally
+        {
+            LogOutcome(outcome);
+        }
+    }
+
+    private static string Word(Step step) => step switch
+    {
+        Step.Ok => "ok",
+        Step.NotSignedIn => "not_signed_in",
+        Step.NoApiOrganization => "no_api_organization",
+        Step.Blocked => "blocked",
+        _ => "failed",
+    };
+
+    /// <summary>One line per change of what each route answered, so a balance that never shows can be
+    /// traced to its route; status words only, never a value or an id.</summary>
+    private void LogOutcome(List<string> outcome)
+    {
+        if (outcome.Count == 0)
+            return;
+        var line = string.Join(", ", outcome);
+        lock (_gate)
+        {
+            if (line == _lastOutcome)
+                return;
+            _lastOutcome = line;
+        }
+        LogService.Shared.LogInfo("Claude API credit read: " + line + ".");
     }
 
     private bool ConsoleIsPaused()
