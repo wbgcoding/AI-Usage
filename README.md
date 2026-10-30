@@ -26,7 +26,7 @@ no API keys to paste, nothing to configure before the first number shows up.
 
 | Agent | What you see | Where the numbers come from |
 | --- | --- | --- |
-| **Claude** (Claude Code) | 5-hour and weekly limits, every extra window the account reports, token statistics | The sign-in Claude Code already has on this PC and its local session logs; an optional browser session for further accounts |
+| **Claude** (Claude Code) | 5-hour and weekly limits, every extra window the account reports, token statistics, the API credit balance of your Claude Console | The sign-in Claude Code already has on this PC and its local session logs; an optional browser session for further accounts and for the credit balance |
 | **OpenAI Codex** | 5-hour and weekly limits, token statistics | Codex's local session files; a signed-in browser session as a fallback |
 | **Cursor** | Monthly plan usage, split into Cursor's own models and API models where the plan reports it | A signed-in browser session |
 | **Google Gemini** (Antigravity) | Quota windows with their reset times, token statistics | The account the Antigravity CLI (`agy`) is signed in with, and Google's usage page through a signed-in browser session |
@@ -69,7 +69,7 @@ More than one account per agent? Add it, and it gets its own tile, name and hist
 - Removing an account removes its sign-in in AI-Usage, and its history if you tick it
 - Light on your PC: slows down while the screen is locked and on battery; the hidden sign-in
   browser is released after 15 idle minutes
-- English and German
+- 12 languages: English, German, Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese
 
 ## Token usage window
 
@@ -136,7 +136,8 @@ date, always written as a whole file:
 ```
 
 `status` is `ok`, `stale`, `failed`, `signin` or `unavailable`; `kind` is `fiveHour`, `weekly` or
-`other`; `resetsAt`, `tokens` and `account` are `null` when unknown. The file holds only numbers and
+`other`; `resetsAt`, `tokens` and `account` are `null` when unknown. A Claude entry also carries
+`apiCredit` (`amount`, `currency`) once a Claude Console credit balance was read. The file holds only numbers and
 the names you chose, never an e-mail address.
 
 `AI-Usage.exe --status` prints one line per provider and exits (`--status --json` prints the file;
