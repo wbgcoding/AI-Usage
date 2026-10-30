@@ -49,12 +49,12 @@ if not errorlevel 1 if exist "%ROOT%.git" (
 
 echo === build ===
 dotnet build "%ROOT%AiUsage.slnx" -c %CONFIG%
-if errorlevel 1 goto :error
+if !errorlevel! neq 0 goto :error
 
 echo.
 echo === test ===
 dotnet test "%ROOT%tests\AiUsage.Tests\AiUsage.Tests.csproj" -c %CONFIG% --no-build
-if errorlevel 1 goto :error
+if !errorlevel! neq 0 goto :error
 
 rem A copy running OUT OF dist\ holds that one file open, and only that one file: an installed copy
 rem elsewhere never blocks anything here. Windows allows renaming a running executable, so the old
@@ -142,7 +142,7 @@ for %%a in (x64 arm64) do (
         -p:IncludeNativeLibrariesForSelfExtract=true ^
         -p:DebugType=pdbonly ^
         -o "%STAGE%\win-%%a"
-    if errorlevel 1 goto :error
+    if !errorlevel! neq 0 goto :error
 
     if not exist "%STAGE%\win-%%a\AI-Usage.exe" (
         echo ERROR: publish produced no executable for win-%%a.
@@ -185,7 +185,7 @@ if not defined ISCC (
     rem Quoted: the default "Program Files (x86)" path ends this block early at its ")" otherwise.
     echo Using "%ISCC%"
     "%ISCC%" /DAppVersion=%VERSION% "%ROOT%installer\AiUsage.iss"
-    if errorlevel 1 goto :error
+    if !errorlevel! neq 0 goto :error
 )
 
 echo.
@@ -193,7 +193,7 @@ echo === file versions ===
 rem The in-app update compares the version resource of the downloaded exe or setup with the running
 rem version, so the built files have to carry the csproj version.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%tools\CheckFileVersions.ps1" -Version "%VERSION%" -Dist "%DIST%"
-if errorlevel 1 goto :error
+if !errorlevel! neq 0 goto :error
 
 echo.
 echo === sign ===
@@ -208,10 +208,10 @@ if not exist "%SIGNKEY%" (
 ) else (
     rem Built once here, then run per file; "dotnet run" would build it again for every exe.
     dotnet build "%ROOT%tools\UpdateSigner\UpdateSigner.csproj" -c %CONFIG%
-    if errorlevel 1 goto :error
+    if !errorlevel! neq 0 goto :error
     for %%f in ("%DIST%\*.exe") do (
         dotnet "%ROOT%tools\UpdateSigner\bin\%CONFIG%\net10.0\UpdateSigner.dll" sign --key "%SIGNKEY%" "%%f"
-        if errorlevel 1 goto :error
+        if !errorlevel! neq 0 goto :error
         if not exist "%%f.sig" (
             echo ERROR: no signature was produced for %%~nxf.
             goto :error
@@ -231,7 +231,7 @@ rem One SHA256SUMS.txt over every shipped artifact. Get-FileHash is used rather 
 rem whose output is localized and would break parsing.
 powershell -NoProfile -Command ^
     "Get-ChildItem -Path '%DIST%\*.exe' | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } | Set-Content -Path '%DIST%\SHA256SUMS.txt' -Encoding ascii"
-if errorlevel 1 goto :error
+if !errorlevel! neq 0 goto :error
 if not exist "%DIST%\SHA256SUMS.txt" (
     echo ERROR: no checksum file was produced.
     goto :error
@@ -261,7 +261,7 @@ if not "%AIUSAGE_NOSTART%"=="1" (
         "$null = $p.CloseMainWindow();" ^
         "if (-not $p.WaitForExit(5000)) { $p.Kill(); $null = $p.WaitForExit(5000) };" ^
         "exit 0"
-    if errorlevel 1 goto :error
+    if !errorlevel! neq 0 goto :error
     echo The fresh copy started, stayed up for 8 seconds and was closed again.
 )
 
