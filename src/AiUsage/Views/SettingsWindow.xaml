@@ -231,28 +231,54 @@
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Display]}" Style="{StaticResource CardHeading}"/>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Appearance]}" Style="{StaticResource GroupHeading.First}"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Theme]}" Style="{StaticResource FieldLabel}"/>
-                    <ItemsControl ItemsSource="{Binding ThemeChoices}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Style="{StaticResource ThemeSwatch}"
-                                        Command="{Binding DataContext.SetThemeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding Value}"
-                                        AutomationProperties.Name="{Binding Label}">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <Ellipse Width="14" Height="14" Fill="{Binding BgPreview}" Margin="0,0,4,0"/>
-                                            <Ellipse Width="14" Height="14" Fill="{Binding AccentPreview}"/>
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Label}" FontSize="{StaticResource Font.Size.Micro}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- Theme on the left; size and the Mica backdrop stacked on the right, so the
+                         swatches keep the room they need and wrap only in a narrow window. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Theme]}" Style="{StaticResource FieldLabel}"/>
+                            <ItemsControl x:Name="ThemeSwatches" ItemsSource="{Binding ThemeChoices}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource ThemeSwatch}"
+                                                Command="{Binding DataContext.SetThemeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding Value}"
+                                                AutomationProperties.Name="{Binding Label}">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Ellipse Width="14" Height="14" Fill="{Binding BgPreview}" Margin="0,0,4,0"/>
+                                                    <Ellipse Width="14" Height="14" Fill="{Binding AccentPreview}"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Label}" FontSize="{StaticResource Font.Size.Micro}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                        <!-- Narrow on purpose: a long Mica label wraps instead of pushing the fifth
+                             theme swatch into a second row. -->
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0" MaxWidth="112">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}"
+                                      SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
+                                      HorizontalAlignment="Left"/>
+                            <CheckBox x:Name="MicaCheck" IsChecked="{Binding MicaEnabled}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
+                                      ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
+                                      Margin="0,8,0,0"
+                                      Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}" TextWrapping="Wrap"/>
+                            </CheckBox>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}" Style="{StaticResource FieldLabel.Top8}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -283,27 +309,6 @@
                             <TextBlock Grid.Column="2" Text="100" HorizontalAlignment="Right"
                                        FontSize="{StaticResource Font.Size.Micro}" Foreground="{DynamicResource Text.Secondary}"/>
                         </Grid>
-                    </Grid>
-
-                    <!-- Size and the Mica backdrop share one row: two short controls. Without the
-                         Mica option the right column stays empty and nothing moves. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel.Top8}"/>
-                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}"
-                                      SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
-                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
-                                      HorizontalAlignment="Left"/>
-                        </StackPanel>
-                        <CheckBox x:Name="MicaCheck" Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Mica]}"
-                                  IsChecked="{Binding MicaEnabled}"
-                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Mica]}"
-                                  VerticalAlignment="Bottom" Margin="0,0,0,4"
-                                  Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
                     </Grid>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tiles]}" Style="{StaticResource GroupHeading}"/>
@@ -1090,11 +1095,10 @@
                                 ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.ImportPc]}" Command="{Binding ImportPcCommand}"/>
                     </Grid>
                     <CheckBox IsChecked="{Binding StatsWeeklyCopy}" Style="{StaticResource CheckBox.GapS}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.WeeklyCopy]}">
+                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.WeeklyCopy]}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.WeeklyCopy]}">
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.WeeklyCopy]}" TextWrapping="Wrap"/>
                     </CheckBox>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.WeeklyCopy.Note]}" TextWrapping="Wrap"
-                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}" Margin="0,2,0,0"/>
                     <!-- The PCs whose token history was imported, each removable again. -->
                     <ItemsControl ItemsSource="{Binding ImportedPcs}"
                                   Visibility="{Binding HasImportedPcs, Converter={StaticResource BoolToVis}}">

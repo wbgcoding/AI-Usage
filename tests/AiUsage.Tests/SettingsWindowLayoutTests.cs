@@ -71,20 +71,21 @@ public class SettingsWindowLayoutTests
     }
 
     [Fact]
-    public void Size_sits_left_of_the_Mica_option_in_one_row()
+    public void Size_and_Mica_sit_right_of_the_theme_picker_one_above_the_other()
     {
         RunOnSta(window =>
         {
-            // Mica is hidden for the test theme; show it so its place in the row can be measured.
+            // Mica is hidden for the test theme; show it so its place can be measured.
             window.MicaCheck.Visibility = Visibility.Visible;
             var root = Lay(window, 560);
 
+            var themes = window.ThemeSwatches.TranslatePoint(new Point(0, 0), root);
             var zoom = window.ZoomCombo.TranslatePoint(new Point(0, 0), root);
             var mica = window.MicaCheck.TranslatePoint(new Point(0, 0), root);
-            Assert.True(mica.X > zoom.X + window.ZoomCombo.ActualWidth, "Mica must sit right of the size picker");
-            var zoomBottom = zoom.Y + window.ZoomCombo.ActualHeight;
-            var micaBottom = mica.Y + window.MicaCheck.ActualHeight;
-            Assert.InRange(micaBottom, zoomBottom - 5, zoomBottom);
+            Assert.True(zoom.X >= themes.X + window.ThemeSwatches.ActualWidth, "The size picker must sit right of the theme swatches");
+            Assert.True(zoom.Y < themes.Y + window.ThemeSwatches.ActualHeight, "The size picker must share the theme row");
+            Assert.True(mica.Y >= zoom.Y + window.ZoomCombo.ActualHeight, "Mica must sit below the size picker");
+            Assert.InRange(mica.X, zoom.X - 1, zoom.X + 1);
         });
     }
 
