@@ -55,4 +55,7 @@ public sealed record ProviderSnapshot(
     bool ReadChanged = false,
     // Claude's extra usage of the month when the answer carried that block, null for every other
     // provider and for an answer without it. Only the status file publishes it.
-    ClaudeExtraUsage? Extra = null);
+    ClaudeExtraUsage? Extra = null,
+    // The API credit balance of the Claude Console account behind a Claude sign-in, when one was read
+    // recently. Rides on whatever snapshot the fetch ends with; null for every other provider.
+    ClaudeApiCredit? ApiCredit = null);
