@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- "Plan forecast" in the token usage window: for each provider the detected plan, how many tokens a full 5 hour window and a full week bring (per model too), your own average, the API value of that capacity and the plan price beside it. Based on the last 12 weeks; several accounts of one provider count together.
 - The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
 ### Changed
 
+- In the settings, theme, size and the Mica option share one row; the note under "Use local sources only" is gone, and the weekly index copy explains itself in its tooltip.
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
 - The README is shorter.
 - The build window started by a double-click is smaller, carries the app name and closes itself ten seconds after a successful build.
@@ -20,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Right after the start the Claude tile shows the weekly bar together with the 5 hour bar, not seconds later.
+- Signing in to platform.claude.com with Google works: the Google window opens over the sign-in page instead of replacing it.
 - The build stops at a failed step even when the tool reports a negative exit code.
 - Installing or updating while AI-Usage runs no longer stops with "DeleteFile failed; code 5". Setup asks the running copy to quit (it saves first), ends it if it does not, and waits until Windows releases the file. The uninstaller closes it the same way.
 - Opening the widget from the tray draws it first and only then starts the fresh readings, so it appears at once. The log records how long the first show took.
