@@ -1779,6 +1779,7 @@ public partial class MainWindow : Window, IDisposable
     private StatsWindow CreateStatsWindow() => new StatsWindow(new StatsViewModel(new StatsStore(), history: ViewModel.HistoryStore, cost: ViewModel.Cost)
     {
         ImportedMachineNames = () => _settings.ImportedMachines.Select(machine => machine.Name).ToList(),
+        PlanOf = key => ViewModel.Tiles.FirstOrDefault(tile => tile.ProviderId == key)?.PlanText,
     }, _settings, _settingsStore);
 
     private StatsWindow CreatePreparedStatsWindow()

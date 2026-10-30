@@ -395,6 +395,21 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Output</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Top projects</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
+  <data name="Stats.Forecast" xml:space="preserve"><value>Plan forecast</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} accounts</value></data>
+  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Full 5h window ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Full week ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>All models together</value></data>
+  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API value ≈ {0}</value></data>
+  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Your average: {0}</value></data>
+  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5h ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>week ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Month: {0}</value></data>
+  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>plan ≈ {0}</value></data>
+  <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Not enough data yet</value></data>
+  <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Based on your own usage of the last 12 weeks. The time range above does not apply here.</value></data>
+  <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>A month is counted as about 4.3 weeks. Plan prices are public list prices; taxes and regional prices differ.</value></data>
+  <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens in an average window with any use, and the highest quota it reached on average.</value></data>
   <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× at the limit</value></data>
   <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>never at the limit</value></data>
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Peak {0} · avg. peak {1}</value></data>

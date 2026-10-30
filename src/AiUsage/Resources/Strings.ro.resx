@@ -395,6 +395,21 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Ieșire</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Cele mai mari proiecte</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limite</value></data>
+  <data name="Stats.Forecast" xml:space="preserve"><value>Prognoza abonamentului</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} conturi</value></data>
+  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Fereastră de 5 h completă ≈ {0} tokeni</value></data>
+  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Săptămână completă ≈ {0} tokeni</value></data>
+  <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Toate modelele împreună</value></data>
+  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>Valoare API ≈ {0}</value></data>
+  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Media ta: {0}</value></data>
+  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>săptămână ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Lună: {0}</value></data>
+  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonament ≈ {0}</value></data>
+  <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Încă prea puține date</value></data>
+  <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Pe baza consumului tău din ultimele 12 săptămâni. Intervalul de sus nu se aplică aici.</value></data>
+  <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>O lună se numără ca aproximativ 4,3 săptămâni. Prețurile abonamentelor sunt prețuri de listă publice; taxele și prețurile regionale pot diferi.</value></data>
+  <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokeni dintr-o fereastră medie cu consum și vârful mediu atins al cotei.</value></data>
   <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× la limită</value></data>
   <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>niciodată la limită</value></data>
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Vârf {0} · vârf mediu {1}</value></data>

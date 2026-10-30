@@ -395,6 +395,21 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Output</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Progetti principali</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limiti</value></data>
+  <data name="Stats.Forecast" xml:space="preserve"><value>Previsione del piano</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} account</value></data>
+  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Finestra da 5 h completa ≈ {0} token</value></data>
+  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Settimana completa ≈ {0} token</value></data>
+  <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Tutti i modelli insieme</value></data>
+  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>Valore API ≈ {0}</value></data>
+  <data name="Stats.Forecast.Average" xml:space="preserve"><value>La tua media: {0}</value></data>
+  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>settimana ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Mese: {0}</value></data>
+  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>piano ≈ {0}</value></data>
+  <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Ancora pochi dati</value></data>
+  <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Basato sul tuo utilizzo delle ultime 12 settimane. L'intervallo di tempo sopra non si applica qui.</value></data>
+  <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Un mese è calcolato come circa 4,3 settimane. I prezzi dei piani sono prezzi di listino pubblici; tasse e prezzi regionali possono variare.</value></data>
+  <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Token di una finestra media con utilizzo e picco di quota raggiunto in media.</value></data>
   <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× al limite</value></data>
   <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>mai al limite</value></data>
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Picco {0} · picco medio {1}</value></data>

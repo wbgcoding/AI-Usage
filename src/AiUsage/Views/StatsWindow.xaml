@@ -938,6 +938,51 @@
                                 </Border>
                             </controls:CollapsibleSection>
 
+                            <!-- What a full 5h window and a full week of the plan amount to (tokens, API value),
+                                 the own average and the month against the plan price; fixed 12-week lookback. -->
+                            <controls:CollapsibleSection x:Name="PlanForecastSection" SectionKey="planforecast"
+                                    Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Forecast]}"
+                                    HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Forecast]}"
+                                    Visibility="{Binding HasForecast, Converter={StaticResource BoolToVis}}">
+                                <Border Padding="{StaticResource Space.M}"
+                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
+                                    <ItemsControl ItemsSource="{Binding ForecastGroups}">
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="AutomationProperties.Name" Value="{Binding Heading}"/>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,0,0,8">
+                                                    <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                    <ItemsControl ItemsSource="{Binding Rows}">
+                                                        <ItemsControl.ItemContainerStyle>
+                                                            <Style TargetType="ContentPresenter">
+                                                                <Setter Property="AutomationProperties.Name" Value="{Binding Text}"/>
+                                                            </Style>
+                                                        </ItemsControl.ItemContainerStyle>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,4,0,0" Background="Transparent"
+                                                                            ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}">
+                                                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap"
+                                                                               Foreground="{DynamicResource Text.Secondary}"
+                                                                               FontSize="{StaticResource Font.Size.Micro}"
+                                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </controls:CollapsibleSection>
+
                             <!-- the twelve projects with the most tokens, longest bar at the top. -->
                             <controls:CollapsibleSection x:Name="ProjectsSection" SectionKey="projects"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.TopProjects]}"

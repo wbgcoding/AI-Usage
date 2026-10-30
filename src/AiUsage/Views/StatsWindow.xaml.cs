@@ -56,6 +56,8 @@ public partial class StatsWindow : Window
         {
             _viewModel.AccountCountOf = providerId =>
                 settings.Providers.Keys.Count(key => ProviderRegistry.BaseProviderId(key) == providerId);
+            _viewModel.AccountKeysOf = providerId =>
+                [.. settings.Providers.Keys.Where(key => ProviderRegistry.BaseProviderId(key) == providerId)];
         }
 
         InitializeComponent();
@@ -356,7 +358,7 @@ public partial class StatsWindow : Window
     private IEnumerable<Controls.CollapsibleSection> Sections =>
     [
         FiguresSection, BreakdownSection, ProviderSection, ModelSection, EffortSection,
-        LimitsSection, ProjectsSection, MonthGridSection,
+        LimitsSection, PlanForecastSection, ProjectsSection, MonthGridSection,
     ];
 
     /// <summary>Sets every section to its remembered state (missing from the dictionary counts as

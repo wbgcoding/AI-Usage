@@ -2065,7 +2065,10 @@ public sealed partial class StatsViewModel : ObservableObject
         _shownPeriod = (o.From, o.To);
         var held = HeldFor(o.From, o.To);
         if (held is not null)
+        {
             LimitGroups = BuildLimitGroups(held, loc);
+            RefreshForecast(held, loc);
+        }
         if (held is null || !IsFresh(held))
             ScheduleLimitRefresh(input.Source, o.From, o.To);
 
@@ -2118,10 +2121,18 @@ public sealed partial class StatsViewModel : ObservableObject
         DateOnly From, DateOnly To,
         IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Series,
         IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> Weekly,
+        IReadOnlyDictionary<string, IReadOnlyList<AccountHistory>> Accounts,
         DateTime LoadedUtc)
     {
         public bool SameDataAs(LimitInputs other) =>
-            From == other.From && To == other.To && SameLists(Series, other.Series) && SameLists(Weekly, other.Weekly);
+            From == other.From && To == other.To && SameLists(Series, other.Series) && SameLists(Weekly, other.Weekly)
+            && SameAccountsAs(other);
+
+        /// <summary>True when both hold the same accounts with the same history, for the plan forecast.</summary>
+        public bool SameAccountsAs(LimitInputs other) =>
+            Accounts.Count == other.Accounts.Count
+            && Accounts.All(pair => other.Accounts.TryGetValue(pair.Key, out var theirs) && pair.Value.Count == theirs.Count
+                && pair.Value.Zip(theirs).All(both => both.First.Key == both.Second.Key && both.First.Points.SequenceEqual(both.Second.Points)));
 
         private static bool SameLists(
             IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> a, IReadOnlyDictionary<string, IReadOnlyList<HistoryPoint>> b) =>
@@ -2157,7 +2168,10 @@ public sealed partial class StatsViewModel : ObservableObject
         var changed = _limitInputs is not { } held || !held.SameDataAs(inputs);
         AdoptLimitInputs(inputs);
         if (changed)
+        {
             LimitGroups = BuildLimitGroups(inputs, LocalizationService.Instance);
+            RefreshForecast(inputs, LocalizationService.Instance);
+        }
     }
 
     /// <summary>Reads the quota history of a period on a pool thread and, if nothing has been rebuilt
@@ -2180,6 +2194,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
             AdoptLimitInputs(inputs);
             LimitGroups = BuildLimitGroups(inputs, LocalizationService.Instance);
+            RefreshForecast(inputs, LocalizationService.Instance);
         }
         catch (Exception ex)
         {
@@ -2209,7 +2224,7 @@ public sealed partial class StatsViewModel : ObservableObject
         var now = DateTimeOffset.Now;
         var weekly = new[] { StatsIndexer.ClaudeProviderId, StatsIndexer.CodexProviderId }
             .ToDictionary(id => id, id => load(id, now.AddDays(-StatsTokensPerPercent.LookbackDays), now));
-        return new LimitInputs(from, to, series, weekly, DateTime.UtcNow);
+        return new LimitInputs(from, to, series, weekly, LoadAccountHistory(load, now, weekly), DateTime.UtcNow);
     }
 
     /// <summary>The limits section: the quota history of the shown providers (the filtered one, else

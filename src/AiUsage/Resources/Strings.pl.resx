@@ -395,6 +395,21 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Wyjście</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Najlepsze projekty</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limity</value></data>
+  <data name="Stats.Forecast" xml:space="preserve"><value>Prognoza abonamentu</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>Konta: {0}</value></data>
+  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Pełne okno 5 h ≈ {0} tokenów</value></data>
+  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Pełny tydzień ≈ {0} tokenów</value></data>
+  <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Wszystkie modele razem</value></data>
+  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>Wartość API ≈ {0}</value></data>
+  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Twoja średnia: {0}</value></data>
+  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>tydzień ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Miesiąc: {0}</value></data>
+  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonament ≈ {0}</value></data>
+  <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Na razie za mało danych</value></data>
+  <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Na podstawie Twojego użycia z ostatnich 12 tygodni. Zakres czasu powyżej nie ma tu zastosowania.</value></data>
+  <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Miesiąc liczony jest jako około 4,3 tygodnia. Ceny abonamentów to publiczne ceny katalogowe; podatki i ceny regionalne mogą się różnić.</value></data>
+  <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokeny w przeciętnym oknie z użyciem oraz średnio osiągnięty szczyt limitu.</value></data>
   <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× przy limicie</value></data>
   <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>nigdy przy limicie</value></data>
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Szczyt {0} · śr. szczyt {1}</value></data>

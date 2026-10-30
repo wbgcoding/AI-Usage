@@ -394,6 +394,21 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Ausgabe</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Stärkste Projekte</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
+  <data name="Stats.Forecast" xml:space="preserve"><value>Abo-Prognose</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} Konten</value></data>
+  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Volles 5h-Fenster ≈ {0} Token</value></data>
+  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Volle Woche ≈ {0} Token</value></data>
+  <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Alle Modelle zusammen</value></data>
+  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API-Wert ≈ {0}</value></data>
+  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Dein Schnitt: {0}</value></data>
+  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5h ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>Woche ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Monat: {0}</value></data>
+  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>Abo ≈ {0}</value></data>
+  <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Noch zu wenig Daten</value></data>
+  <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Auf Basis deiner Nutzung der letzten 12 Wochen. Der Zeitraum oben gilt hier nicht.</value></data>
+  <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Ein Monat wird mit etwa 4,3 Wochen gerechnet. Abo-Preise sind öffentliche Listenpreise; Steuern und regionale Preise weichen ab.</value></data>
+  <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Token in einem durchschnittlichen Fenster mit Nutzung und die dort im Schnitt erreichte Spitze der Quote.</value></data>
   <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× am Limit</value></data>
   <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>nie am Limit</value></data>
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Spitze {0} · Ø Spitze {1}</value></data>

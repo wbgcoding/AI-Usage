@@ -395,6 +395,21 @@
   <data name="Stats.Cache.Output" xml:space="preserve"><value>Uitvoer</value></data>
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Top-projecten</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limieten</value></data>
+  <data name="Stats.Forecast" xml:space="preserve"><value>Abonnementsprognose</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} accounts</value></data>
+  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Volledig 5-uursvenster ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Volledige week ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Alle modellen samen</value></data>
+  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API-waarde ≈ {0}</value></data>
+  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Jouw gemiddelde: {0}</value></data>
+  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 u ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>week ≈ {0} ({1})</value></data>
+  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Maand: {0}</value></data>
+  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonnement ≈ {0}</value></data>
+  <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Nog te weinig gegevens</value></data>
+  <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Gebaseerd op je eigen verbruik van de afgelopen 12 weken. De periode hierboven geldt hier niet.</value></data>
+  <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Een maand wordt gerekend als ongeveer 4,3 weken. Abonnementsprijzen zijn openbare lijstprijzen; belasting en regionale prijzen kunnen afwijken.</value></data>
+  <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens in een gemiddeld venster met verbruik en de gemiddeld bereikte piek van het quotum.</value></data>
   <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× aan de limiet</value></data>
   <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>nooit aan de limiet</value></data>
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Piek {0} · gem. piek {1}</value></data>
