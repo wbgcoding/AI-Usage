@@ -76,6 +76,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
         // changed" - this is what makes a language switch apply to the whole open window at once,
         // with no window recreation and no per-control refresh call.
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Item[]"));
+        ThemeService.RefreshFonts();
     }
 
     /// <summary>Empty for an unknown key rather than throwing - a placeholder tile must never crash
@@ -93,6 +94,9 @@ public sealed class LocalizationService : INotifyPropertyChanged
     /// cref="SetLanguage"/> does - for the one thing the resource files cannot hold: names the .NET
     /// calendar already knows (the days of the week).</summary>
     public CultureInfo ActiveCulture => s_scope.Value?.Language ?? FormatCultureFor(ActiveOption().Code);
+
+    /// <summary>The code of the active UI language, "System" resolved.</summary>
+    internal string ActiveCode => ActiveOption().Code;
 
     // Reads the active resources once, so a switch in between cannot leave the lookup without a match.
     private LanguageOption ActiveOption()

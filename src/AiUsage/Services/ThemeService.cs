@@ -86,6 +86,22 @@ public static class ThemeService
         Applied?.Invoke(null, EventArgs.Empty);
     }
 
+    /// <summary>Re-fits the fonts of the live theme to the UI language after a language switch; the
+    /// CJK fonts depend on the language, so the theme's own values are not enough.</summary>
+    internal static void RefreshFonts()
+    {
+        var app = Application.Current;
+        if (app is null || !app.Dispatcher.CheckAccess())
+            return;
+
+        var theme = app.Resources.MergedDictionaries.FirstOrDefault(IsThemeDictionary);
+        if (theme is null)
+            return;
+
+        CjkFontFallback.ApplyTo(theme, LocalizationService.Instance.ActiveCode);
+        Applied?.Invoke(null, EventArgs.Empty);
+    }
+
     /// <summary>Raised after a theme swap on the live resources. A theme can change fonts and with
     /// them the height of the title bar and the tiles, so a window that sizes itself to its content
     /// measures again.</summary>
@@ -124,6 +140,7 @@ public static class ThemeService
         dictionary[MarkerKey] = theme;
         mergedDictionaries.Add(dictionary);
         CurrentTheme = theme;
+        CjkFontFallback.ApplyTo(dictionary, LocalizationService.Instance.ActiveCode);
 
         // Built here, from whichever base colour just became active, rather than baked into each
         // theme file: a value living in a theme file could not be swapped out per-call. Always fully

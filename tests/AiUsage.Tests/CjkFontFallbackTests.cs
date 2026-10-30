@@ -37,3 +37,19 @@ public class CjkFontFallbackTests
         Assert.Equal("Segoe UI, Arial", ((FontFamily)theme["Font.Ui"]).Source);
     }
 }
+
+public class ThemeFontWiringTests
+{
+    [Fact]
+    public void Theme_apply_keeps_the_fonts_for_a_non_cjk_language()
+    {
+        var merged = new System.Collections.ObjectModel.Collection<ResourceDictionary>();
+        ThemeService.Apply(AppTheme.Dark, merged,
+            _ => new ResourceDictionary { ["Font.Ui"] = new FontFamily("Segoe UI, Arial"), ["Font.Numeric"] = new FontFamily("Segoe UI, Arial") },
+            () => false);
+
+        var theme = Assert.Single(merged);
+        Assert.Equal("Segoe UI, Arial", ((FontFamily)theme["Font.Ui"]).Source);
+        Assert.Equal("Segoe UI, Arial", ((FontFamily)theme["Font.Numeric"]).Source);
+    }
+}
