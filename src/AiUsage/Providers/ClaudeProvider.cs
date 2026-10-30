@@ -230,7 +230,41 @@ public sealed class ClaudeProvider : IUsageProvider
     {
         _webAnswerUnread = false;
         var snapshot = await FetchSourcesAsync(ct);
-        return _webAnswerUnread ? snapshot with { UnreadableAnswer = true } : snapshot;
+        return WithApiCredit(_webAnswerUnread ? snapshot with { UnreadableAnswer = true } : snapshot);
+    }
+
+    /// <summary>Where the Claude Console's credit balance comes from; null for an account without a web
+    /// session (tests, the read-locations panel).</summary>
+    internal ClaudeConsoleCreditSource? CreditSource { get; init; }
+
+    /// <summary>Raised when the balance behind the tile changed between two usage reads.</summary>
+    internal event Action? ApiCreditChanged
+    {
+        add
+        {
+            if (CreditSource is { } source)
+                source.Changed += value;
+        }
+        remove
+        {
+            if (CreditSource is { } source)
+                source.Changed -= value;
+        }
+    }
+
+    /// <summary>The user just signed in on the console: reads the balance now instead of at the next due time.</summary>
+    internal Task ReadApiCreditNowAsync() => CreditSource?.ReadNowAsync() ?? Task.CompletedTask;
+
+    /// <summary>Puts the last balance read on <paramref name="snapshot"/> and, when one is due, starts the
+    /// next read without waiting for it: a balance that is slow or missing never delays or changes the
+    /// usage read. Nothing for an account kept off the web session.</summary>
+    private ProviderSnapshot WithApiCredit(ProviderSnapshot snapshot)
+    {
+        if (CreditSource is not { } source || _webSource is null || LocalOnly)
+            return snapshot;
+
+        _ = source.RefreshIfDueAsync();
+        return source.Current is { } credit ? snapshot with { ApiCredit = credit } : snapshot;
     }
 
     private async Task<ProviderSnapshot> FetchSourcesAsync(CancellationToken ct)

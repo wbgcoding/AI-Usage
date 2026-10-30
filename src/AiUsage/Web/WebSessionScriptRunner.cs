@@ -79,6 +79,35 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     // are waiting on. Cancelled by DisposeAsync.
     private readonly CancellationTokenSource _lifetime = new();
 
+    // A second session owned by the same account (the Claude Console's), closed together with this one so
+    // a sign-out or shutdown leaves no browser open on the account's profile folder.
+    private IAsyncDisposable? _companion;
+
+    /// <summary>Hands <paramref name="companion"/> to this runner: it is disposed with it, before this
+    /// runner's own browser closes. Closed at once when the runner is already disposed.</summary>
+    internal void AttachCompanion(IAsyncDisposable companion)
+    {
+        _companion = companion;
+        if (_disposed)
+            _ = DisposeCompanionAsync();
+    }
+
+    private async Task DisposeCompanionAsync()
+    {
+        var companion = Interlocked.Exchange(ref _companion, null);
+        if (companion is null)
+            return;
+
+        try
+        {
+            await companion.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Disposing the companion hidden browser failed ({ex.GetType().Name}).");
+        }
+    }
+
     public WebSessionScriptRunner(WebSessionDescriptor descriptor)
         : this(() => new WebView2HiddenBrowserHost(new WebViewHost(descriptor), descriptor),
             providerId: descriptor.ProviderId, timingLog: WebReadTimingLog.Shared,
@@ -462,6 +491,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     {
         _disposed = true;
         DisarmIdleTimer();
+        await DisposeCompanionAsync();
         var pendingStart = _ready;
         _lifetime.Cancel();
         _ready = null;

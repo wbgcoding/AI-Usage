@@ -129,11 +129,29 @@ public static class ProviderRegistry
             };
     }
 
+    // "~" never occurs in an account key ("claude", "claude#2"), so no account can own this id.
+    private const string ConsoleMarker = "~console";
+
+    /// <summary>True for the id of a <see cref="ConsoleSessionFor"/> descriptor.</summary>
+    internal static bool IsConsoleSession(string sessionId) => sessionId.EndsWith(ConsoleMarker, StringComparison.Ordinal);
+
+    /// <summary>The Claude Console's session for one Claude account: its own site and sign-in page, but
+    /// the account's own browser profile folder, so one sign-out removes both sign-ins. Its id carries a
+    /// marker no account key can have, which tells the sign-in window which check to run.</summary>
+    internal static WebSessionDescriptor ConsoleSessionFor(string accountKey) => new(
+        ProviderId: accountKey + ConsoleMarker,
+        BaseUrl: "https://platform.claude.com/settings/billing",
+        SignInUrl: "https://platform.claude.com/login",
+        AllowedHosts: ["platform.claude.com", "claude.com", "anthropic.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
+        ProfileFolderName: WebSessionFor(accountKey).ProfileFolderName);
+
     /// <summary>The script the sign-in window runs on its landing page to ask the provider's own site
     /// whether the session is real: the account's own discovery script, which answers
     /// "not_signed_in" for a session the site rejects. None for Gemini: its script reads a value only
     /// the Gemini app page carries, so any other Google page it lands on would read as signed out.</summary>
-    internal static string? SessionCheckScriptFor(string accountKey) => BaseProviderId(accountKey) switch
+    internal static string? SessionCheckScriptFor(string accountKey) => IsConsoleSession(accountKey)
+        ? ClaudeConsoleCreditScript.ListOrganizations()
+        : BaseProviderId(accountKey) switch
     {
         "codex" => new CodexUsageEndpoint().Discover(),
         "cursor" => new CursorUsageEndpoint().Discover(),
@@ -178,12 +196,26 @@ public static class ProviderRegistry
     {
         var webSource = new WebUsageSource(WebSessionFor(accountKey), new ClaudeUsageEndpoint(), runner.ExecuteScriptAsync);
         Func<TimeSpan> attentionMaxAge = () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes);
+
+        // The balance of the account's Claude Console: asked through the claude.ai session first, the
+        // console's own session (built only when needed) second. It is closed with the account's runner.
+        var credit = new ClaudeConsoleCreditSource(runner.ExecuteScriptAsync, () =>
+        {
+            var consoleRunner = new WebSessionScriptRunner(ConsoleSessionFor(accountKey));
+            return new ClaudeConsoleCreditSource.ConsoleRunner(consoleRunner.ExecuteScriptAsync, consoleRunner);
+        });
+        runner.AttachCompanion(credit);
+
         return accountKey == ClaudeWebSession.ProviderId
             ? new ClaudeProvider(accountKey, settings, saveSettings, webSource, ClaudeCodeLogin.FetchAsync, attentionMaxAge)
             {
                 LocalLoginLog = LogService.Shared.LogInfo,
+                CreditSource = credit,
             }
-            : new ClaudeProvider(accountKey, settings, saveSettings, webSource, attentionMaxAge);
+            : new ClaudeProvider(accountKey, settings, saveSettings, webSource, attentionMaxAge)
+            {
+                CreditSource = credit,
+            };
     }
 
     /// <summary>Codex's provider and its own web-session runner. <paramref name="accountKey"/>'s
