@@ -951,13 +951,31 @@
                                                   IsChecked="{Binding LocalOnly}"/>
                                     </StackPanel>
                                     <!-- Claude only: the API balance lives on the Claude Console, a second
-                                         site with its own sign-in. Offered while no balance was read. -->
+                                         site with its own sign-in. The row is always there: its status
+                                         says whether and how the balance is read, and the button next to
+                                         it signs in or, while a console session exists, signs out of the
+                                         console only (the Claude sign-in above stays). -->
                                     <StackPanel Style="{StaticResource Gap.Top4}"
-                                                Visibility="{Binding ShowConsoleSignIn, Converter={StaticResource BoolToVis}}">
+                                                Visibility="{Binding ShowConsoleRow, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleRow.Title]}"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding ConsoleStatusText}"
+                                                   AutomationProperties.AutomationId="ConsoleStatusText"
+                                                   Foreground="{DynamicResource Text.Secondary}"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignIn]}"
-                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" HorizontalAlignment="Left"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                Visibility="{Binding ShowConsoleSignIn, Converter={StaticResource BoolToVis}}"
+                                                AutomationProperties.AutomationId="ConsoleSignInButton"
                                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignIn]}"
                                                 Click="ConsoleSignIn_Click"/>
+                                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.SignOut]}"
+                                                Style="{StaticResource AiUsageQuietButton}" Padding="8,4" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                Visibility="{Binding ShowConsoleSignOut, Converter={StaticResource BoolToVis}}"
+                                                AutomationProperties.AutomationId="ConsoleSignOutButton"
+                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignOut]}"
+                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignOut]}"
+                                                Click="ConsoleSignOut_Click"/>
                                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ConsoleSignIn.Note]}"
                                                    FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                                    TextWrapping="Wrap" Margin="0,4,0,0"/>

@@ -302,6 +302,25 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>Signs out of the Claude Console only: its own browser profile and the balance it read go,
+    /// the Claude sign-in of the account stays. The button stays disabled for the whole await.</summary>
+    private async void ConsoleSignOut_Click(object sender, RoutedEventArgs e)
+    {
+        var button = (Button)sender;
+        if (button.DataContext is not ProviderTileViewModel tile || tile.LocalOnly)
+            return;
+
+        button.IsEnabled = false;
+        try
+        {
+            await _viewModel.Main.SignOutConsoleAsync(tile.ProviderId);
+        }
+        finally
+        {
+            button.IsEnabled = true;
+        }
+    }
+
     /// <summary>Same two calls MainWindow.xaml.cs's own SignOutRequested handler makes
     /// (<see cref="MainViewModel.TrySignOutAsync"/>, and on a false result
     /// <see cref="MainViewModel.ShowSignOutIncomplete"/>) - the button stays disabled and the spinner
