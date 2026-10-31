@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- "Plan forecast" in the token usage window, one provider at a time behind buttons: the detected plan, two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars when only one model is used) and a month card that compares the API value with the plan price. Based on the last 12 weeks; several accounts of one provider count together.
+- "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that compares the API value with the plan price. Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
 - The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Right after the start the Claude tile shows the weekly bar together with the 5 hour bar, not seconds later.
 - Signing in to platform.claude.com with Google works: the Google window opens over the sign-in page instead of replacing it.
+- The platform.claude.com sign-in window no longer closes the moment the Google window finishes; only the Google window closes, and the balance is read right after the sign-in window closes.
 - When the Google sign-in for platform.claude.com finishes inside its own window instead of answering the sign-in page, the sign-in page takes it over and closes as signed in. The session is also checked the moment the Google window closes.
+- The Gemini plan stays known when the web reading wins over the Antigravity sign-in, so the plan forecast finds its price.
 - Gemini reads the usage page's request token from the page itself when the page no longer hands it over, so the web reading with the weekly limit works again instead of falling back to the five-hour figure of the Antigravity sign-in.
 - The build stops at a failed step even when the tool reports a negative exit code.
 - The build no longer stops when its staging folder is held open; it moves the folder aside. It ends by starting the fresh copy as a second instance and leaves it running, closing the one an earlier build left open.
