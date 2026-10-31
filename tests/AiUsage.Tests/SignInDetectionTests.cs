@@ -59,6 +59,18 @@ public class SignInDetectionTests
         Assert.Equal(expected, SignInWindow.ShouldPollLoginPage(new Uri(page), "platform.claude.com", TimeSpan.FromSeconds(secondsOpen)));
     }
 
+    [Theory]
+    [InlineData("https://platform.claude.com/dashboard", true)]
+    [InlineData("https://platform.claude.com/settings/billing", true)]
+    [InlineData("https://platform.claude.com/login", false)]
+    [InlineData("https://platform.claude.com/auth/google/callback", false)]
+    [InlineData("https://accounts.google.com/v3/signin/identifier", false)]
+    [InlineData("https://claude.ai/new", false)]
+    public void A_popup_that_lands_on_the_provider_app_ends_the_sign_in(string landing, bool expected)
+    {
+        Assert.Equal(expected, SignInWindow.PopupFinishedOnProvider(new Uri(landing), "platform.claude.com"));
+    }
+
     [Fact]
     public void The_console_sign_in_checks_its_session()
     {

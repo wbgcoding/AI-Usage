@@ -229,6 +229,7 @@ public partial class SignInWindow : Window
 
             Harden(popup.CoreWebView2);
             popup.CoreWebView2.NavigationStarting += Popup_NavigationStarting;
+            popup.CoreWebView2.NavigationCompleted += Popup_NavigationCompleted;
             popup.CoreWebView2.NewWindowRequested += (_, inner) =>
             {
                 // A popup of the popup loads in the popup itself.
@@ -269,7 +270,12 @@ public partial class SignInWindow : Window
     private void Popup_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
         if (IsPopupAddressAllowed(e.Uri))
+        {
+            // Where a popup sign-in stopped is otherwise invisible in a report: scheme, host and path only.
+            if (IsWorthExplaining(e.Uri))
+                LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the popup loads {BlockedDetail(e.Uri)}.");
             return;
+        }
 
         e.Cancel = true;
         if (!IsWorthExplaining(e.Uri))
@@ -278,6 +284,36 @@ public partial class SignInWindow : Window
         ClosePopup();
         ShowBlockedNotice(e.Uri);
     }
+
+    /// <summary>Some sign-ins finish inside the popup instead of answering the page that opened it: the
+    /// identity provider sends the popup itself back to the provider's site, which sets the session and
+    /// shows its app there. The page would then wait forever on its login form, so the popup's landing
+    /// is taken over by the page, which is judged like any other landing.</summary>
+    private void Popup_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (_closed || _popup?.CoreWebView2 is not { } popup)
+            return;
+
+        if (!e.IsSuccess)
+        {
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the popup could not load a page ({e.WebErrorStatus}).");
+            return;
+        }
+
+        if (!Uri.TryCreate(popup.Source, UriKind.Absolute, out var landing) || !PopupFinishedOnProvider(landing, _providerHost))
+            return;
+
+        LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the sign-in finished in the popup, the page takes it over.");
+        var target = popup.Source;
+        ClosePopup();
+        Browser.CoreWebView2?.Navigate(target);
+    }
+
+    /// <summary>True when a popup stands on the provider's own site off its login and OAuth paths: the
+    /// sign-in is done there. Pure so the rule is testable without a WebView2 instance.</summary>
+    internal static bool PopupFinishedOnProvider(Uri landing, string providerHost) =>
+        SignInNavigationPolicy.IsUsageOrigin(landing.GetLeftPart(UriPartial.Path), providerHost)
+        && !IsOnLoginOrOAuthPage(landing, providerHost);
 
     /// <summary>The popup closed itself (its answer went to the page) or is given up: the page shows again.</summary>
     private void ClosePopup()
@@ -295,7 +331,12 @@ public partial class SignInWindow : Window
         if (_popup is null)
             TitleHost = TitleHostFor(Browser.CoreWebView2?.Source, _providerHost);
         if (!_closed)
+        {
             LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the popup closed.");
+            // The popup's answer may already have signed the session in while the page still shows its
+            // login form: ask the site now instead of at the next poll.
+            LoginPagePoll_Tick(null, EventArgs.Empty);
+        }
     }
 
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
