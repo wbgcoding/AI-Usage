@@ -811,7 +811,7 @@ public class WebSessionScriptRunnerTests
         var envelope = WebView2HiddenBrowserHost.OffOriginEnvelope(
             source, ProviderRegistry.WebSessionFor("cursor").AllowedHosts);
 
-        Assert.Equal(notSignedIn ? """{"status":"not_signed_in"}""" : """{"status":"blocked"}""", envelope);
+        Assert.Equal(notSignedIn ? """{"status":"not_signed_in","reason":"sign_in_page"}""" : """{"status":"blocked","reason":"foreign_page"}""", envelope);
     }
 
     [Fact]
@@ -995,9 +995,9 @@ public class WebSessionScriptRunnerTests
         // The guard hands the address back; the classification is the one the pre-check already uses.
         IReadOnlyList<string> allowed = ["claude.ai", "accounts.google.com"];
 
-        Assert.Equal("""{"status":"not_signed_in"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://accounts.google.com/x", allowed));
-        Assert.Equal("""{"status":"blocked"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://elsewhere.example/", allowed));
-        Assert.Equal("""{"status":"blocked"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("http://claude.ai/", allowed));
+        Assert.Equal("""{"status":"not_signed_in","reason":"sign_in_page"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://accounts.google.com/x", allowed));
+        Assert.Equal("""{"status":"blocked","reason":"foreign_page"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://elsewhere.example/", allowed));
+        Assert.Equal("""{"status":"blocked","reason":"foreign_page"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("http://claude.ai/", allowed));
     }
 
     [Theory]

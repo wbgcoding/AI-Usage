@@ -41,6 +41,8 @@ public sealed class WebUsageSource
     // The kind of the last thrown read that was logged: a session that keeps failing the same way
     // writes one line, not one per tick.
     private string? _loggedFailureKind;
+    // The outcome the last answered read was logged with; a change is logged once, not every read.
+    private WebUsageOutcome? _loggedOutcome = WebUsageOutcome.Ok;
     private readonly AccountExtrasCache _extras;
 
     // The account ids a discovered usage path carries (the Claude organisation, Cursor's account).
@@ -532,7 +534,40 @@ public sealed class WebUsageSource
         }
 
         _loggedFailureKind = null;
-        return (envelopeJson, Interpret(envelopeJson));
+        var interpreted = Interpret(envelopeJson);
+        LogOutcomeChange(interpreted.Result.Outcome, envelopeJson);
+        return (envelopeJson, interpreted);
+    }
+
+    /// <summary>Names the answer of a read whenever it differs from the last one: a session that
+    /// silently stopped answering (signed out, a page that lost its request token) otherwise leaves
+    /// only a fast read time in the log. The script's own short reason word is added when it gives
+    /// one, never any part of a body.</summary>
+    private void LogOutcomeChange(WebUsageOutcome outcome, string envelopeJson)
+    {
+        if (_log is null || outcome == _loggedOutcome)
+            return;
+
+        _loggedOutcome = outcome;
+        var reason = ReadReason(envelopeJson);
+        _log($"{Descriptor.ProviderId}: web read answered {outcome}{(reason is null ? "" : " (" + reason + ")")}");
+    }
+
+    /// <summary>The optional "reason" word of an envelope, made safe for the log; null when there is none.</summary>
+    internal static string? ReadReason(string envelopeJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(envelopeJson);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("reason", out var reasonEl) && reasonEl.ValueKind == JsonValueKind.String
+                ? ReadChangeLog.SafeName(reasonEl.GetString())
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     // A label loose enough to have come from a page script must look at least roughly like an email

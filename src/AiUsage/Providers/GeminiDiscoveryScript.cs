@@ -60,12 +60,28 @@ internal static class GeminiDiscoveryScript
     /// <c>{status, code, body}</c>: <c>code</c> is the HTTP status (000 when none was received), and
     /// <c>body</c> the payload string when <c>status</c> is 'ok'.</summary>
     private const string ReadFunction = """
-        const readUsage = async (path) => {
+        const pageValues = async () => {
             const data = window.WIZ_global_data || {};
-            if (!data.SNlM0e) return {status: 'not_signed_in', code: '000'};
-            const url = path + '&source-path=%2Fusage&bl=' + encodeURIComponent(data.cfb2h || '')
+            if (data.SNlM0e) return {at: data.SNlM0e, bl: data.cfb2h || ''};
+            // A page that no longer hands its values to the window still serves them in its own HTML:
+            // read this same page once more, on this origin only, and take them from there.
+            try {
+                const res = await fetch(location.origin + location.pathname, {method: 'GET', credentials: 'include'});
+                if (!res.ok || new URL(res.url).origin !== location.origin) return null;
+                const html = await res.text();
+                const at = (html.match(/"SNlM0e":"([^"]+)"/) || [])[1];
+                const bl = (html.match(/"cfb2h":"([^"]+)"/) || [])[1];
+                return at ? {at: at, bl: bl || ''} : null;
+            } catch (e) {
+                return null;
+            }
+        };
+        const readUsage = async (path) => {
+            const values = await pageValues();
+            if (!values) return {status: 'not_signed_in', code: '000', reason: 'no_page_token'};
+            const url = path + '&source-path=%2Fusage&bl=' + encodeURIComponent(values.bl)
                 + '&hl=' + encodeURIComponent(document.documentElement.lang || 'en') + '&rt=c';
-            const form = new URLSearchParams({'f.req': '[[["jSf9Qc","[]",null,"generic"]]]', 'at': data.SNlM0e});
+            const form = new URLSearchParams({'f.req': '[[["jSf9Qc","[]",null,"generic"]]]', 'at': values.at});
             let res;
             try {
                 res = await fetch(url, {method: 'POST', credentials: 'include',
@@ -76,14 +92,14 @@ internal static class GeminiDiscoveryScript
                 // A signed-out session is redirected to the Google sign-in page, which the browser
                 // refuses to hand to this page: the fetch throws instead of answering. A network
                 // failure throws the same way and is not a sign-in problem.
-                return {status: await reachable() ? 'not_signed_in' : 'failed', code: '000'};
+                return {status: await reachable() ? 'not_signed_in' : 'failed', code: '000', reason: 'fetch_refused'};
             }
             const code = String(res.status);
             try {
-                if (res.type === 'opaqueredirect' || (res.redirected && new URL(res.url).origin !== location.origin)) return {status: 'not_signed_in', code: code};
-                if (res.status === 401 || res.status === 403) return {status: 'not_signed_in', code: code};
+                if (res.type === 'opaqueredirect' || (res.redirected && new URL(res.url).origin !== location.origin)) return {status: 'not_signed_in', code: code, reason: 'redirect'};
+                if (res.status === 401 || res.status === 403) return {status: 'not_signed_in', code: code, reason: 'http_' + code};
                 if (res.status === 429) return {status: 'blocked', code: code};
-                if (!res.ok) return {status: 'failed', code: code};
+                if (!res.ok) return {status: 'failed', code: code, reason: 'http_' + code};
                 const text = (await res.text()).replace(/^\)\]\}'/, '');
                 for (const line of text.split('\n')) {
                     const trimmed = line.trim();
@@ -95,9 +111,9 @@ internal static class GeminiDiscoveryScript
                         if (Array.isArray(e) && e[0] === 'wrb.fr' && e[1] === 'jSf9Qc' && typeof e[2] === 'string') return {status: 'ok', code: code, body: e[2]};
                     }
                 }
-                return {status: 'failed', code: code};
+                return {status: 'failed', code: code, reason: 'no_usage_entry'};
             } catch (e) {
-                return {status: 'failed', code: code};
+                return {status: 'failed', code: code, reason: 'unreadable'};
             }
         };
         """;
@@ -117,16 +133,17 @@ internal static class GeminiDiscoveryScript
                 const attempts = [];
                 try {
                     let sawAuthFailure = false;
+                    let reason = null;
                     const results = [];
                     for (const path of [{{candidates}}]) {
                         const r = await readUsage(path);
                         attempts.push(path + ' ' + r.code);
                         if (r.status === 'blocked') return {status: 'blocked', attempts: attempts};
-                        if (r.status === 'not_signed_in') { sawAuthFailure = true; continue; }
+                        if (r.status === 'not_signed_in') { sawAuthFailure = true; reason = r.reason || reason; continue; }
                         if (r.status === 'ok') results.push({path: path, body: r.body});
                     }
                     if (results.length > 0) return {status: 'ok', results: results, attempts: attempts};
-                    if (sawAuthFailure) return {status: 'not_signed_in', attempts: attempts};
+                    if (sawAuthFailure) return {status: 'not_signed_in', reason: reason, attempts: attempts};
                     return {status: 'failed', attempts: attempts};
                 } catch (e) {
                     return {status: 'failed', attempts: attempts};
@@ -153,7 +170,7 @@ internal static class GeminiDiscoveryScript
                 try {
                     const r = await readUsage({{pathJson}});
                     if (r.status === 'ok') return {status: 'ok', path: {{pathJson}}, body: r.body};
-                    return {status: r.status};
+                    return {status: r.status, reason: r.reason};
                 } catch (e) {
                     return {status: 'failed'};
                 }

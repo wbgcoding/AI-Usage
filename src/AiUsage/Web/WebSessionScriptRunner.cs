@@ -907,8 +907,8 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     /// other host is a session steered somewhere it was never meant to go, which stays "blocked".</summary>
     internal static string OffOriginEnvelope(string source, IReadOnlyList<string> allowedHosts) =>
         SignInNavigationPolicy.IsAllowedUri(source, allowedHosts)
-            ? """{"status":"not_signed_in"}"""
-            : """{"status":"blocked"}""";
+            ? """{"status":"not_signed_in","reason":"sign_in_page"}"""
+            : """{"status":"blocked","reason":"foreign_page"}""";
 
     /// <summary>The script's own returned value as JSON text, out of a Runtime.evaluate response;
     /// empty (read as a failed fetch) for a thrown script or an unexpected shape.</summary>

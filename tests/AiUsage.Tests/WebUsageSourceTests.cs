@@ -286,6 +286,30 @@ public class WebUsageSourceTests
         Assert.Equal(WebUsageOutcome.Failed, result.Outcome);
     }
 
+    [Theory]
+    [InlineData("""{"status":"not_signed_in","reason":"no_page_token"}""", "no_page_token")]
+    [InlineData("""{"status":"not_signed_in"}""", null)]
+    [InlineData("""{"status":"failed","reason":"a@b.example"}""", "{id}")]
+    [InlineData("not json", null)]
+    [InlineData("[]", null)]
+    public void The_reason_word_of_an_answer_is_read_safely_for_the_log(string envelope, string? expected)
+    {
+        Assert.Equal(expected, WebUsageSource.ReadReason(envelope));
+    }
+
+    [Fact]
+    public async Task A_change_in_the_answer_is_logged_once_with_its_reason()
+    {
+        var lines = new List<string>();
+        var answer = """{"status":"not_signed_in","reason":"no_page_token"}""";
+        var source = new WebUsageSource(Descriptor, new ClaudeUsageEndpoint(), (_, _) => Task.FromResult(answer), log: lines.Add);
+
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+        await source.FetchAsync(new AppSettings(), _ => { }, CancellationToken.None);
+
+        Assert.Single(lines, line => line.EndsWith("web read answered NotSignedIn (no_page_token)", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Interpret_rejects_a_malformed_envelope_instead_of_throwing()
     {
