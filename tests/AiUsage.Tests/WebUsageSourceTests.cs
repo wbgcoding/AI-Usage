@@ -289,12 +289,17 @@ public class WebUsageSourceTests
     [Theory]
     [InlineData("""{"status":"not_signed_in","reason":"no_page_token"}""", "no_page_token")]
     [InlineData("""{"status":"not_signed_in"}""", null)]
-    [InlineData("""{"status":"failed","reason":"a@b.example"}""", "{id}")]
     [InlineData("not json", null)]
     [InlineData("[]", null)]
     public void The_reason_word_of_an_answer_is_read_safely_for_the_log(string envelope, string? expected)
     {
         Assert.Equal(expected, WebUsageSource.ReadReason(envelope));
+    }
+
+    [Fact]
+    public void An_address_given_as_the_reason_never_reaches_the_log()
+    {
+        Assert.Equal("{id}", WebUsageSource.ReadReason("{\"status\":\"failed\",\"reason\":\"" + FakeEmail + "\"}"));
     }
 
     [Fact]
