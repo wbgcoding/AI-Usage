@@ -958,9 +958,32 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <RadioButton Style="{StaticResource PillRadioButton}" GroupName="PlanForecastProvider"
-                                                             Content="{Binding Name}" Tag="{Binding Brush}"
+                                                             Tag="{Binding Brush}"
                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                             AutomationProperties.Name="{Binding Name}"/>
+                                                             AutomationProperties.Name="{Binding Name}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"/>
+                                                        <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center"
+                                                                   FontWeight="Normal" FontSize="{StaticResource Font.Size.Small}"
+                                                                   Foreground="{DynamicResource Text.Secondary}"
+                                                                   Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
+                                                    </StackPanel>
+                                                </RadioButton>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <!-- One provider only: no choice to make, so one compact line with its plan stands in for the buttons. -->
+                                    <ItemsControl ItemsSource="{Binding ForecastButtons}" Margin="0,0,0,8"
+                                                  Visibility="{Binding HasSingleForecast, Converter={StaticResource BoolToVis}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}">
+                                                    <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Brush}"/>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center"
+                                                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -968,20 +991,6 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel>
-                                                    <!-- The plan(s) of the provider's accounts as a badge, and the account count. -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8"
-                                                                Visibility="{Binding HasPlanLine, Converter={StaticResource BoolToVis}}">
-                                                        <Border Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
-                                                                BorderThickness="1" CornerRadius="{StaticResource Radius.S}" Padding="8,4"
-                                                                Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="{Binding PlanText}" FontWeight="SemiBold" TextWrapping="NoWrap"
-                                                                       FontSize="{StaticResource Font.Size.Small}"/>
-                                                        </Border>
-                                                        <TextBlock Text="{Binding AccountsText}" Margin="8,0,0,0" VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource Text.Secondary}" TextWrapping="NoWrap"
-                                                                   FontSize="{StaticResource Font.Size.Small}"
-                                                                   Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVis}}"/>
-                                                    </StackPanel>
                                                     <!-- 5-hour window and week side by side; stacked once the section is narrower than two cards. -->
                                                     <ItemsControl ItemsSource="{Binding Windows}" Margin="0,0,-8,0">
                                                         <ItemsControl.ItemsPanel>

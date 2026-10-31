@@ -281,8 +281,8 @@ public class StatsPlanForecastTests
             var begin = new DateTimeOffset(Start).AddDays(-21 + period * 7);
             var reset = begin.AddDays(7);
             var peak = period switch { 0 => 20, 1 => 40, _ => 0 };
-            points.Add(new HistoryPoint(1, begin.AddHours(1), WindowKind.Weekly, 0, reset));
-            points.Add(new HistoryPoint(1, begin.AddHours(30), WindowKind.Weekly, peak, reset));
+            points.Add(new HistoryPoint(1, begin.AddHours(5), WindowKind.Weekly, 0, reset));
+            points.Add(new HistoryPoint(1, begin.AddHours(6), WindowKind.Weekly, peak, reset));
             var each = period switch { 0 => 12_000, 1 => 24_000, _ => 0 };
             if (each > 0)
                 tokens.Add(RecordAt(begin.LocalDateTime.AddHours(5), each));
@@ -299,6 +299,43 @@ public class StatsPlanForecastTests
 
     private static StatsRecord RecordAt(DateTime at, long tokens) =>
         new("claude", DateOnly.FromDateTime(at), Sonnet, "", tokens, 0, 0, 0, at.Hour);
+
+    [Fact]
+    public void Tokens_of_hours_without_a_reading_pair_are_scaled_to_the_percent_the_period_reached()
+    {
+        // One week: 10 000 tokens in an hour read at both ends (0 to 10 %), then 50 000 tokens in hours the
+        // limit was not read for, ending at 30 %. The period cost 1 000 tokens per percent, so 30 000, not 60 000.
+        var now = new DateTimeOffset(Start).AddDays(3);
+        var begin = new DateTimeOffset(Start).AddDays(-7);
+        var reset = begin.AddDays(7);
+        List<HistoryPoint> points =
+        [
+            new(1, begin.AddHours(5), WindowKind.Weekly, 0, reset),
+            new(1, begin.AddHours(6), WindowKind.Weekly, 10, reset),
+            new(1, begin.AddHours(60), WindowKind.Weekly, 30, reset),
+        ];
+        var tokens = new[] { RecordAt(begin.LocalDateTime.AddHours(5), 10_000), RecordAt(begin.LocalDateTime.AddHours(30), 50_000) };
+
+        var average = StatsPlanForecast.AveragePeriod([points], WindowKind.Weekly, tokens, now.AddDays(-84), now, TimeZoneInfo.Local);
+
+        Assert.Equal(30_000, average!.AverageTokens);
+        Assert.Equal(30, average.AveragePeak, 6);
+    }
+
+    [Fact]
+    public void Without_any_hour_read_at_both_ends_there_is_no_average()
+    {
+        var now = new DateTimeOffset(Start).AddDays(3);
+        var begin = new DateTimeOffset(Start).AddDays(-7);
+        List<HistoryPoint> points =
+        [
+            new(1, begin.AddHours(1), WindowKind.Weekly, 0, begin.AddDays(7)),
+            new(1, begin.AddHours(60), WindowKind.Weekly, 30, begin.AddDays(7)),
+        ];
+        var tokens = new[] { RecordAt(begin.LocalDateTime.AddHours(30), 50_000) };
+
+        Assert.Null(StatsPlanForecast.AveragePeriod([points], WindowKind.Weekly, tokens, now.AddDays(-84), now, TimeZoneInfo.Local));
+    }
 
     [Fact]
     public void A_period_that_started_before_the_lookback_or_has_not_ended_is_not_averaged()
@@ -318,7 +355,7 @@ public class StatsPlanForecastTests
         var now = new DateTimeOffset(Start).AddDays(30);
         var begin = new DateTimeOffset(Start).AddDays(-14);
         List<HistoryPoint> Account(double peak) =>
-            [new(1, begin.AddHours(1), WindowKind.Weekly, 0, begin.AddDays(7)), new(1, begin.AddHours(30), WindowKind.Weekly, peak, begin.AddDays(7))];
+            [new(1, begin.AddHours(5), WindowKind.Weekly, 0, begin.AddDays(7)), new(1, begin.AddHours(6), WindowKind.Weekly, peak, begin.AddDays(7))];
         var tokens = new[] { RecordAt(begin.LocalDateTime.AddHours(5), 20_000) };
 
         var average = StatsPlanForecast.AveragePeriod(

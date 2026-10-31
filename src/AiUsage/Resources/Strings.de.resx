@@ -402,7 +402,6 @@
   <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API-Wert</value></data>
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Dein Schnitt: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Wenn nur ein Modell genutzt wird</value></data>
-  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} allein · {1}</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>API-Wert pro Monat ≈ {0}</value></data>
   <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Abo-Preis ≈ {0}</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>Wert deines Abos</value></data>

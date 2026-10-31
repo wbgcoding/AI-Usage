@@ -93,9 +93,10 @@ public static class StatsPlanForecast
 
     /// <summary>
     /// The user's average window: over the periods that ended inside the lookback and saw any use (a
-    /// peak above 0), the tokens used during one period and the mean peak percent. Tokens are counted
-    /// once per hour even when pooled accounts' periods overlap, then divided by the number of periods.
-    /// Null when no period qualifies.
+    /// peak above 0), the tokens used during one period and the mean peak percent. The tokens come from
+    /// the hours with a reading pair (tokens per percent there, times the percent the periods reached),
+    /// each hour once even when pooled accounts' periods overlap. Null when no period qualifies or no
+    /// hour of them has a reading pair.
     /// </summary>
     public static ForecastAverage? AveragePeriod(
         IReadOnlyList<IReadOnlyList<HistoryPoint>> accountsPoints, WindowKind kind, IReadOnlyList<StatsRecord> records,
@@ -134,7 +135,7 @@ public static class StatsPlanForecast
                 merged.Add(range);
         }
 
-        long tokens = 0;
+        var inRanges = new List<StatsRecord>();
         foreach (var record in records)
         {
             if (record.Hour is < 0 or > 23)
@@ -143,9 +144,20 @@ public static class StatsPlanForecast
             var middle = record.Day.ToDateTime(new TimeOnly(record.Hour, 30));
             var moment = new DateTimeOffset(middle, zone.GetUtcOffset(middle));
             if (merged.Any(range => moment >= range.Start && moment < range.End))
-                tokens += record.InputTokens + record.OutputTokens + record.CacheCreationTokens;
+                inRanges.Add(record);
         }
 
-        return new ForecastAverage(peaks.Count, (long)((double)tokens / peaks.Count + 0.5), peaks.Average());
+        // Only hours with a reading pair at both ends tell how many tokens a percent cost, so the tokens
+        // of the periods are estimated from those hours (the same ones the capacity is fitted on) and
+        // scaled to the percent the periods really reached. Counting every logged token instead would
+        // include hours the limit was never read for, and the average could exceed the capacity.
+        var covered = StatsTokensPerPercent.BuildPooledIntervals(inRanges, accountsPoints, zone, null);
+        var coveredPercent = covered.Sum(interval => interval.DeltaPercent);
+        var coveredTokens = covered.Sum(interval => interval.TokensByModel.Values.Sum());
+        if (!(coveredPercent > 0) || coveredTokens <= 0)
+            return null;
+
+        var tokens = coveredTokens / coveredPercent * peaks.Sum();
+        return new ForecastAverage(peaks.Count, (long)(tokens / peaks.Count + 0.5), peaks.Average());
     }
 }

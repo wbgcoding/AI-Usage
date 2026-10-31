@@ -42,6 +42,9 @@ public sealed partial class StatsViewModel
     /// <summary>The buttons are only worth showing when there is a choice.</summary>
     public bool HasForecastChoice => ForecastButtons.Count > 1;
 
+    /// <summary>With one provider only, a compact name and plan line stands in for the button row.</summary>
+    public bool HasSingleForecast => ForecastButtons.Count == 1;
+
     /// <summary>The provider the user picked in the forecast section; empty until one is picked, and
     /// again once it has no forecast. Kept only while the window is open.</summary>
     private string _pickedForecastProvider = "";
@@ -81,10 +84,15 @@ public sealed partial class StatsViewModel
         }
 
         foreach (var button in ForecastButtons)
+        {
             button.Mark(button.ProviderId == SelectedForecastProvider);
+            button.SetDetail(ForecastProviders.FirstOrDefault(provider => provider.ProviderId == button.ProviderId)?.Detail ?? "");
+        }
+
         OnPropertyChanged(nameof(SelectedForecastProvider));
         OnPropertyChanged(nameof(ShownForecast));
         OnPropertyChanged(nameof(HasForecastChoice));
+        OnPropertyChanged(nameof(HasSingleForecast));
     }
 
     private ForecastState? _forecastState;
@@ -179,7 +187,8 @@ public sealed partial class StatsViewModel
         Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer = cost.Active ? rows => cost.Sum(rows) : null;
         foreach (var (providerId, accounts) in held.Accounts)
         {
-            var providerRecords = records.Where(record => record.Provider == providerId && record.Day >= since).ToList();
+            // Models of another vendor (a tool pointed at a foreign API) were not paid for by this provider's quota.
+            var providerRecords = ProviderModelFilter.Own(providerId, records.Where(record => record.Provider == providerId && record.Day >= since));
             if (providerRecords.Count == 0)
                 continue;
 
@@ -236,8 +245,14 @@ public sealed partial class StatsViewModel
         var averageFraction = 0.0;
         if (window.Average is { } found)
         {
-            average = loc.Format("Stats.Forecast.AverageLine", ShortenTokens(found.AverageTokens, loc), FormatLimitPercent(found.AveragePeak));
-            averageFraction = Math.Clamp(found.AveragePeak / 100, 0, 1);
+            // The average is estimated from hours the limit was read for. When a period still cost more per
+            // percent than the whole fit, its tokens can exceed the full-window capacity; the line then shows
+            // the share of that capacity the tokens make up instead of a smaller measured peak.
+            var percent = window.CapacityTokens > 0 && found.AverageTokens > window.CapacityTokens
+                ? (double)found.AverageTokens / window.CapacityTokens * 100
+                : found.AveragePeak;
+            average = loc.Format("Stats.Forecast.AverageLine", ShortenTokens(found.AverageTokens, loc), FormatLimitPercent(percent));
+            averageFraction = Math.Clamp(percent / 100, 0, 1);
         }
 
         // Each bar is what that model alone would fill the window with, so one can exceed the mixed
@@ -250,7 +265,7 @@ public sealed partial class StatsViewModel
             {
                 var name = item.IsOther ? loc["Stats.Other"] : item.Model;
                 models.Add(new StatsForecastModelBar(
-                    loc.Format("Stats.Forecast.ModelAlone", name, ShortenTokens(item.TokensPerPercent * 100, loc)),
+                    $"{name} · {ShortenTokens(item.TokensPerPercent * 100, loc)}",
                     longest > 0 ? (double)item.TokensPerPercent / longest : 0));
             }
         }

@@ -38,16 +38,13 @@ public sealed record StatsForecastProviderViewModel(
     string ProviderId, string Name, Brush Brush, string PlanText, string AccountsText,
     IReadOnlyList<StatsForecastWindowViewModel> Windows, StatsForecastMonthViewModel? Month)
 {
-    public bool HasPlan => PlanText.Length > 0;
-
-    public bool HasAccounts => AccountsText.Length > 0;
-
-    public bool HasPlanLine => HasPlan || HasAccounts;
+    /// <summary>The small text beside the provider name: plan(s), then the account count when there are several.</summary>
+    public string Detail => PlanText.Length > 0 && AccountsText.Length > 0 ? PlanText + " · " + AccountsText : PlanText + AccountsText;
 
     public bool HasMonth => Month is not null;
 }
 
-/// <summary>One provider button above the forecast: the provider's name and colour and whether it is the
+/// <summary>One provider button above the forecast: the provider's name, its plan beside it, its colour and whether it is the
 /// shown one. <see cref="IsChecked"/> is what the radio button binds to, so a click or an arrow key both land in the owner.</summary>
 public sealed partial class StatsForecastButtonViewModel(string providerId, string name, Brush brush, Action<string> pick) : ObservableObject
 {
@@ -58,6 +55,21 @@ public sealed partial class StatsForecastButtonViewModel(string providerId, stri
     public string Name { get; } = name;
 
     public Brush Brush { get; } = brush;
+
+    /// <summary>The plan (and account count) shown small beside the name; empty when unknown.</summary>
+    public string Detail { get; private set; } = "";
+
+    public bool HasDetail => Detail.Length > 0;
+
+    internal void SetDetail(string detail)
+    {
+        if (Detail == detail)
+            return;
+
+        Detail = detail;
+        OnPropertyChanged(nameof(Detail));
+        OnPropertyChanged(nameof(HasDetail));
+    }
 
     public bool IsChecked
     {

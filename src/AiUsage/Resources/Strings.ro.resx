@@ -403,7 +403,6 @@
   <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} valoare API</value></data>
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Media ta: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Dacă se folosește un singur model</value></data>
-  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} singur · {1}</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valoare API pe lună ≈ {0}</value></data>
   <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Prețul abonamentului ≈ {0}</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valoarea abonamentului tău</value></data>

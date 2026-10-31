@@ -159,8 +159,7 @@
                         <Border x:Name="Tint" CornerRadius="{StaticResource Radius.Control}" Background="{TemplateBinding Tag}" Opacity="0.22" Visibility="Collapsed"/>
                         <StackPanel Orientation="Horizontal" Margin="12,4,12,4">
                             <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{TemplateBinding Tag}"/>
-                            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
-                                       FontWeight="{TemplateBinding FontWeight}" TextWrapping="NoWrap" VerticalAlignment="Center"/>
+                            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False"/>
                         </StackPanel>
                     </Grid>
                     <ControlTemplate.Triggers>

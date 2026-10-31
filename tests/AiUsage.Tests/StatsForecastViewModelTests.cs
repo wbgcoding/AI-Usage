@@ -27,7 +27,7 @@ public class StatsForecastViewModelTests
             var moment = start.AddHours(h);
             points.Add(new HistoryPoint(1, new DateTimeOffset(moment), WindowKind.Weekly, percent, reset));
             var tokens = random.Next(100_000, 900_000);
-            records.Add(new StatsRecord(provider, DateOnly.FromDateTime(moment), "claude-opus-4-8", "p", tokens, 0, 0, 0, moment.Hour));
+            records.Add(new StatsRecord(provider, DateOnly.FromDateTime(moment), provider == "codex" ? "gpt-5.5" : "claude-opus-4-8", "p", tokens, 0, 0, 0, moment.Hour));
             percent += tokens / 2e6;
         }
 
@@ -37,12 +37,15 @@ public class StatsForecastViewModelTests
 
     private static async Task<(StatsViewModel ViewModel, IDisposable Directory)> CreateAsync(
         int hours, Func<string, IReadOnlyList<string>>? accountKeys = null, Func<string, string?>? plan = null,
-        Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>>? history = null, bool withCodex = false)
+        Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>>? history = null, bool withCodex = false,
+        Func<List<StatsRecord>, IEnumerable<StatsRecord>>? extraRecords = null)
     {
         var directory = TestPaths.CreateDisposableDirectory("stats-forecast");
         var store = new StatsStore(directory);
         var (records, points) = History(hours, "claude");
         store.AddDelta(records);
+        if (extraRecords is not null)
+            store.AddDelta([.. extraRecords(records)]);
         var codexPoints = new List<HistoryPoint>();
         if (withCodex)
         {
@@ -101,9 +104,28 @@ public class StatsForecastViewModelTests
             Assert.Equal("claude", provider.ProviderId);
             Assert.Equal("Claude", provider.Name);
             Assert.Equal("Max 5x", provider.PlanText);
-            Assert.False(provider.HasAccounts);
+            Assert.Equal("Max 5x", provider.Detail);
+            Assert.Equal("Max 5x", Assert.Single(viewModel.ForecastButtons).Detail);
+            Assert.True(viewModel.HasSingleForecast);
+            Assert.False(viewModel.HasForecastChoice);
             Assert.All(provider.Windows, window => Assert.False(string.IsNullOrEmpty(window.ToolTip)));
             Assert.Same(provider, Assert.Single(viewModel.ShownForecast));
+        }
+    }
+
+    [Fact]
+    public async Task Tokens_of_another_vendors_models_do_not_count_toward_the_forecast()
+    {
+        var (plain, plainDirectory) = await CreateAsync(100);
+        var (mixed, mixedDirectory) = await CreateAsync(
+            100, extraRecords: records => records.Select(record => record with { Model = "minimax-m3", InputTokens = record.InputTokens * 7 }));
+        using (plainDirectory)
+        using (mixedDirectory)
+        {
+            var expected = Assert.Single(plain.ForecastProviders).Windows.Select(window => window.CapacityText);
+            var actual = Assert.Single(mixed.ForecastProviders).Windows.Select(window => window.CapacityText);
+            Assert.Equal(expected, actual);
+            Assert.All(Assert.Single(mixed.ForecastProviders).Windows.SelectMany(window => window.Models), bar => Assert.DoesNotContain("minimax", bar.Label));
         }
     }
 
@@ -114,7 +136,8 @@ public class StatsForecastViewModelTests
         using (directory)
         {
             var provider = Assert.Single(viewModel.ForecastProviders);
-            Assert.False(provider.HasPlanLine);
+            Assert.Equal("", provider.Detail);
+            Assert.False(Assert.Single(viewModel.ForecastButtons).HasDetail);
         }
     }
 
@@ -129,6 +152,7 @@ public class StatsForecastViewModelTests
             var provider = Assert.Single(viewModel.ForecastProviders);
             Assert.Equal("Max 5x + Pro", provider.PlanText);
             Assert.Equal(Loc.Format("Stats.Forecast.Accounts", 2), provider.AccountsText);
+            Assert.Equal("Max 5x + Pro · " + provider.AccountsText, provider.Detail);
         }
     }
 
@@ -296,6 +320,17 @@ public class StatsForecastViewModelTests
     }
 
     [Fact]
+    public void An_average_above_the_capacity_shows_its_own_share_of_it_instead_of_the_smaller_peak()
+    {
+        var forecast = Forecast(null, Window(Total(172_000), average: new ForecastAverage(4, 18_060_000, 98.0)), plan: null);
+        var window = Assert.Single(StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(Prices()), Loc).Windows);
+
+        Assert.Equal(1.0, window.AverageFraction, 6);
+        Assert.Contains("105", window.AverageText);
+        Assert.DoesNotContain("98", window.AverageText);
+    }
+
+    [Fact]
     public void No_average_gives_an_empty_gauge_and_no_label()
     {
         var forecast = Forecast(null, Window(Total(172_000)));
@@ -330,8 +365,7 @@ public class StatsForecastViewModelTests
         Assert.False(window.IsAllModels);
         Assert.Equal(Loc["Stats.Forecast.ModelsCaption"], window.ModelsCaption);
         Assert.Equal([0.5, 1.0, 0.25], window.Models.Select(bar => bar.Fraction));
-        Assert.Contains("Opus 4.8", window.Models[0].Label);
-        Assert.Contains(Short(105_000_000), window.Models[0].Label);
+        Assert.Equal("Opus 4.8 · " + Short(105_000_000), window.Models[0].Label);
         Assert.Contains(Loc["Stats.Other"], window.Models[2].Label);
     }
 

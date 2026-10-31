@@ -403,7 +403,6 @@
   <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API değeri</value></data>
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Ortalaman: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Yalnızca tek model kullanılırsa</value></data>
-  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} tek başına · {1}</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Aylık API değeri ≈ {0}</value></data>
   <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Abonelik ücreti ≈ {0}</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>aboneliğinin değeri</value></data>

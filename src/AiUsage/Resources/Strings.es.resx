@@ -403,7 +403,6 @@
   <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} de valor de API</value></data>
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Tu media: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Si solo se usa un modelo</value></data>
-  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} solo · {1}</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valor de API al mes ≈ {0}</value></data>
   <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Precio del plan ≈ {0}</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valor de tu plan</value></data>
