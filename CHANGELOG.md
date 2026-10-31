@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - unreleased
 
 ### Added
 
@@ -24,13 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Right after the start the Claude tile shows the weekly bar together with the 5 hour bar, not seconds later.
 - Signing in to platform.claude.com with Google works: the Google window opens over the sign-in page instead of replacing it.
+- When the Google sign-in for platform.claude.com finishes inside its own window instead of answering the sign-in page, the sign-in page takes it over and closes as signed in. The session is also checked the moment the Google window closes.
+- Gemini reads the usage page's request token from the page itself when the page no longer hands it over, so the web reading with the weekly limit works again instead of falling back to the five-hour figure of the Antigravity sign-in.
 - The build stops at a failed step even when the tool reports a negative exit code.
+- The build no longer stops when its staging folder is held open; it moves the folder aside. It ends by starting the fresh copy as a second instance and leaves it running, closing the one an earlier build left open.
 - Installing or updating while AI-Usage runs no longer stops with "DeleteFile failed; code 5". Setup asks the running copy to quit (it saves first), ends it if it does not, and waits until Windows releases the file. The uninstaller closes it the same way.
 - Opening the widget from the tray draws it first and only then starts the fresh readings, so it appears at once. The log records how long the first show took.
-
 - Signing in to Claude again is recognised right away. The sign-in window asks the site whether the session really works before it closes. A stored session the site no longer accepts is cleared, and the login page opens again instead of the window reporting "already signed in". A read that still finds no sign-in five seconds after the window closed is repeated once.
 - A new Claude Code login is read within seconds of Claude Code saving it, not at the next scheduled read.
-- The log now records when a provider works again and through which source, why the Claude Code sign-in could not be read, and how each sign-in window ended.
+- The log now records when a provider works again and through which source, why the Claude Code sign-in could not be read, how each sign-in window ended, where a sign-in popup went, and why a web reading stopped answering.
 
 ## [1.3.0] - 2026-10-23
 
