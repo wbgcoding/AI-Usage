@@ -10,7 +10,7 @@ public sealed record StatsForecastModelBar(string Label, double Fraction);
 /// (<see cref="HasData"/> false) the card only says so.</summary>
 public sealed record StatsForecastWindowViewModel(
     string Caption, bool HasData, string CapacityText, string ApiText, double AverageFraction, string AverageText,
-    string ModelsCaption, IReadOnlyList<StatsForecastModelBar> Models, string ToolTip, string AverageToolTip)
+    string ModelsCaption, IReadOnlyList<StatsForecastModelBar> Models, string ToolTip, string AverageToolTip, Brush Brush)
 {
     public bool HasApi => ApiText.Length > 0;
 
@@ -26,7 +26,7 @@ public sealed record StatsForecastWindowViewModel(
 /// <summary>The month card: the API value of a month against the plan price on one scale (0..1 of the
 /// longer one), and how many times the plan price the value is.</summary>
 public sealed record StatsForecastMonthViewModel(
-    string ApiText, double ApiFraction, string PlanText, double PlanFraction, string RatioText, string RatioCaption, string ToolTip)
+    string ApiText, double ApiFraction, string PlanText, double PlanFraction, string RatioText, string RatioCaption, string ToolTip, Brush Brush)
 {
     public bool HasPlan => PlanText.Length > 0;
 

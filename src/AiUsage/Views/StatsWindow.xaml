@@ -944,43 +944,166 @@
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Forecast]}"
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Forecast]}"
                                     Visibility="{Binding HasForecast, Converter={StaticResource BoolToVis}}">
-                                <Border Padding="{StaticResource Space.M}"
-                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <ItemsControl ItemsSource="{Binding ForecastGroups}">
-                                        <ItemsControl.ItemContainerStyle>
-                                            <Style TargetType="ContentPresenter">
-                                                <Setter Property="AutomationProperties.Name" Value="{Binding Heading}"/>
-                                            </Style>
-                                        </ItemsControl.ItemContainerStyle>
+                                <StackPanel>
+                                    <!-- One provider at a time; the row only exists when there is a choice. -->
+                                    <ItemsControl ItemsSource="{Binding ForecastButtons}" Margin="0,0,0,4"
+                                                  Visibility="{Binding HasForecastChoice, Converter={StaticResource BoolToVis}}"
+                                                  KeyboardNavigation.DirectionalNavigation="Cycle">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Margin="0,0,0,8">
-                                                    <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                                    <ItemsControl ItemsSource="{Binding Rows}">
-                                                        <ItemsControl.ItemContainerStyle>
-                                                            <Style TargetType="ContentPresenter">
-                                                                <Setter Property="AutomationProperties.Name" Value="{Binding Text}"/>
-                                                            </Style>
-                                                        </ItemsControl.ItemContainerStyle>
+                                                <RadioButton Style="{StaticResource PillRadioButton}" GroupName="PlanForecastProvider"
+                                                             Content="{Binding Name}" Tag="{Binding Brush}"
+                                                             IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                             AutomationProperties.Name="{Binding Name}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding ShownForecast}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <!-- The plan(s) of the provider's accounts as a badge, and the account count. -->
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8"
+                                                                Visibility="{Binding HasPlanLine, Converter={StaticResource BoolToVis}}">
+                                                        <Border Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
+                                                                BorderThickness="1" CornerRadius="{StaticResource Radius.S}" Padding="8,4"
+                                                                Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="{Binding PlanText}" FontWeight="SemiBold" TextWrapping="NoWrap"
+                                                                       FontSize="{StaticResource Font.Size.Small}"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding AccountsText}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource Text.Secondary}" TextWrapping="NoWrap"
+                                                                   FontSize="{StaticResource Font.Size.Small}"
+                                                                   Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVis}}"/>
+                                                    </StackPanel>
+                                                    <!-- 5-hour window and week side by side; stacked once the section is narrower than two cards. -->
+                                                    <ItemsControl ItemsSource="{Binding Windows}" Margin="0,0,-8,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid>
+                                                                    <UniformGrid.Columns>
+                                                                        <MultiBinding Converter="{StaticResource FigureCardColumns}" ConverterParameter="210">
+                                                                            <Binding Path="Items.Count" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=controls:CollapsibleSection}"/>
+                                                                        </MultiBinding>
+                                                                    </UniformGrid.Columns>
+                                                                </UniformGrid>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <StackPanel Margin="0,4,0,0" Background="Transparent"
-                                                                            ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}">
-                                                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
-                                                                    <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap"
-                                                                               Foreground="{DynamicResource Text.Secondary}"
-                                                                               FontSize="{StaticResource Font.Size.Micro}"
-                                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
-                                                                </StackPanel>
+                                                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
+                                                                        ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}"
+                                                                        AutomationProperties.Name="{Binding Caption}">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="{Binding Caption}" FontWeight="SemiBold"
+                                                                                   Foreground="{DynamicResource Text.Secondary}"/>
+                                                                        <!-- Not enough data: the card only says so. -->
+                                                                        <TextBlock Text="{Binding CapacityText}" Margin="0,4,0,0"
+                                                                                   Foreground="{DynamicResource Text.Muted}">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding HasData}" Value="False">
+                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                        <StackPanel Visibility="{Binding HasData, Converter={StaticResource BoolToVis}}">
+                                                                            <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left" Margin="0,4,0,0">
+                                                                                <TextBlock Text="{Binding CapacityText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                                                           FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                                            </Viewbox>
+                                                                            <TextBlock Text="{Binding ApiText}" Foreground="{DynamicResource Text.Secondary}"
+                                                                                       Visibility="{Binding HasApi, Converter={StaticResource BoolToVis}}"/>
+                                                                            <!-- The whole bar is a full window; the fill is the average peak. -->
+                                                                            <StackPanel Background="Transparent" Margin="0,12,0,0"
+                                                                                        ToolTip="{Binding AverageToolTip, Converter={StaticResource NullIfEmpty}}">
+                                                                                <controls:FractionBar Height="8" Fraction="{Binding AverageFraction}" Fill="{Binding Brush}"
+                                                                                                      Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
+                                                                                                      OutlineThickness="{DynamicResource Track.BorderThickness}"/>
+                                                                                <TextBlock Text="{Binding AverageText}" Margin="0,4,0,0"
+                                                                                           Foreground="{DynamicResource Text.Secondary}"
+                                                                                           FontSize="{StaticResource Font.Size.Micro}"
+                                                                                           Visibility="{Binding HasAverage, Converter={StaticResource BoolToVis}}"/>
+                                                                            </StackPanel>
+                                                                            <TextBlock Text="{Binding ModelsCaption}" Margin="0,12,0,0"
+                                                                                       Foreground="{DynamicResource Text.Muted}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}"/>
+                                                                            <ItemsControl ItemsSource="{Binding Models}"
+                                                                                          Visibility="{Binding HasModels, Converter={StaticResource BoolToVis}}">
+                                                                                <ItemsControl.ItemTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <StackPanel Margin="0,4,0,0" AutomationProperties.Name="{Binding Label}">
+                                                                                            <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Text.Secondary}"
+                                                                                                       FontSize="{StaticResource Font.Size.Micro}"/>
+                                                                                            <controls:FractionBar Height="4" Margin="0,2,0,0" Fraction="{Binding Fraction}"
+                                                                                                                  Fill="{Binding DataContext.Brush, RelativeSource={RelativeSource AncestorType=Border}}"
+                                                                                                                  Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
+                                                                                                                  OutlineThickness="{DynamicResource Track.BorderThickness}"/>
+                                                                                        </StackPanel>
+                                                                                    </DataTemplate>
+                                                                                </ItemsControl.ItemTemplate>
+                                                                            </ItemsControl>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Border>
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
+                                                    <!-- A month of the plan's API value against its price, on one scale. -->
+                                                    <ContentControl Content="{Binding Month}" Focusable="False"
+                                                                    Visibility="{Binding HasMonth, Converter={StaticResource BoolToVis}}">
+                                                        <ContentControl.ContentTemplate>
+                                                            <DataTemplate>
+                                                                <Border Style="{StaticResource FigureCard}" Margin="0,0,0,0"
+                                                                        ToolTip="{Binding ToolTip, Converter={StaticResource NullIfEmpty}}"
+                                                                        AutomationProperties.Name="{Binding ApiText}">
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding ApiText}"/>
+                                                                            <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="{Binding ApiFraction}" Fill="{Binding Brush}"
+                                                                                                  Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
+                                                                                                  OutlineThickness="{DynamicResource Track.BorderThickness}"/>
+                                                                            <StackPanel Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}">
+                                                                                <TextBlock Text="{Binding PlanText}" Margin="0,8,0,0"
+                                                                                           Foreground="{DynamicResource Text.Secondary}"/>
+                                                                                <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="{Binding PlanFraction}"
+                                                                                                      Fill="{DynamicResource Text.Muted}"
+                                                                                                      Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
+                                                                                                      OutlineThickness="{DynamicResource Track.BorderThickness}"/>
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center"
+                                                                                    Visibility="{Binding HasRatio, Converter={StaticResource BoolToVis}}">
+                                                                            <TextBlock Text="{Binding RatioText}" FontFamily="{DynamicResource Font.Numeric}"
+                                                                                       FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
+                                                                                       Foreground="{Binding Brush}" TextWrapping="NoWrap"/>
+                                                                            <TextBlock Text="{Binding RatioCaption}" Foreground="{DynamicResource Text.Muted}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}" MaxWidth="110"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ContentControl.ContentTemplate>
+                                                    </ContentControl>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </Border>
+                                </StackPanel>
                             </controls:CollapsibleSection>
 
                             <!-- the twelve projects with the most tokens, longest bar at the top. -->

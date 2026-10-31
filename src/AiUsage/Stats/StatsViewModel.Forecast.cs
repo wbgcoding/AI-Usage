@@ -209,27 +209,27 @@ public sealed partial class StatsViewModel
 
     internal static StatsForecastProviderViewModel BuildForecastProvider(ProviderForecast forecast, StatsCostView cost, LocalizationService loc)
     {
+        var brush = new SolidColorBrush(ChartPalette.ForProvider(forecast.ProviderId));
+        brush.Freeze();
         var rangeNote = loc["Tip.Stats.Forecast"];
         var windows = new List<StatsForecastWindowViewModel>();
         if (forecast.FiveHour is { } fiveHour)
-            windows.Add(ForecastWindowCard(fiveHour, loc["Stats.Forecast.Window.FiveHour"], cost, loc, rangeNote));
+            windows.Add(ForecastWindowCard(fiveHour, loc["Stats.Forecast.Window.FiveHour"], cost, loc, rangeNote, brush));
         if (forecast.Weekly is { } weekly)
-            windows.Add(ForecastWindowCard(weekly, loc["Stats.Forecast.Window.Week"], cost, loc, rangeNote));
+            windows.Add(ForecastWindowCard(weekly, loc["Stats.Forecast.Window.Week"], cost, loc, rangeNote, brush));
 
-        var brush = new SolidColorBrush(ChartPalette.ForProvider(forecast.ProviderId));
-        brush.Freeze();
         return new StatsForecastProviderViewModel(
             forecast.ProviderId, ProviderDisplayNames.GetValueOrDefault(forecast.ProviderId, forecast.ProviderId), brush,
             string.Join(" + ", forecast.Plans),
             forecast.AccountCount > 1 ? loc.Format("Stats.Forecast.Accounts", forecast.AccountCount) : "",
-            windows, ForecastMonthCard(forecast, cost, loc, rangeNote));
+            windows, ForecastMonthCard(forecast, cost, loc, rangeNote, brush));
     }
 
     private static StatsForecastWindowViewModel ForecastWindowCard(
-        ForecastWindow window, string caption, StatsCostView cost, LocalizationService loc, string rangeNote)
+        ForecastWindow window, string caption, StatsCostView cost, LocalizationService loc, string rangeNote, Brush brush)
     {
         if (window.Result.Status == PerPercentStatus.TooFew)
-            return new StatsForecastWindowViewModel(caption, false, loc["Stats.Forecast.TooFew"], "", 0, "", "", [], rangeNote, "");
+            return new StatsForecastWindowViewModel(caption, false, loc["Stats.Forecast.TooFew"], "", 0, "", "", [], rangeNote, "", brush);
 
         var api = window.ApiUsdPerWindow is { } usd && Money(cost, usd) is { Length: > 0 } money ? loc.Format("Stats.Forecast.ApiCard", money) : "";
         var average = "";
@@ -263,10 +263,10 @@ public sealed partial class StatsViewModel
         return new StatsForecastWindowViewModel(
             caption, true, loc.Format("Stats.Forecast.Capacity", ShortenTokens(window.CapacityTokens, loc)), api,
             averageFraction, average, models.Count > 0 ? loc["Stats.Forecast.ModelsCaption"] : loc["Stats.Forecast.AllModels"], models,
-            string.Join('\n', lines), loc["Tip.Stats.Forecast.Average"] + "\n" + rangeNote);
+            string.Join('\n', lines), loc["Tip.Stats.Forecast.Average"] + "\n" + rangeNote, brush);
     }
 
-    private static StatsForecastMonthViewModel? ForecastMonthCard(ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote)
+    private static StatsForecastMonthViewModel? ForecastMonthCard(ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote, Brush brush)
     {
         if (forecast.MonthlyApiUsd is not { } monthly || Money(cost, monthly) is not { Length: > 0 } monthlyText)
             return null;
@@ -287,7 +287,7 @@ public sealed partial class StatsViewModel
         return new StatsForecastMonthViewModel(
             loc.Format("Stats.Forecast.MonthApi", monthlyText), apiFraction, planText, planFraction,
             ratio, ratio.Length > 0 ? loc["Stats.Forecast.RatioCaption"] : "",
-            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote);
+            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush);
     }
 
     /// <summary>A dollar amount in the cost currency without the estimate tilde (the texts carry their own "≈"); empty when costs are off.</summary>

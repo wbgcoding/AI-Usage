@@ -130,6 +130,56 @@
         </Setter>
     </Style>
 
+    <!-- A radio button drawn as a pill with a colour dot, for a short row of choices where one is
+         always picked (the forecast's provider row). Tag carries the choice's colour; the picked pill
+         gets a tint of it, its outline and a stronger label. -->
+    <Style x:Key="FocusRing.Pill">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border Margin="-1" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Accent}" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PillRadioButton" TargetType="RadioButton">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Pill}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Margin" Value="0,0,8,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Border x:Name="Pill" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1" Background="{DynamicResource Bg.Raised}"
+                                BorderBrush="{DynamicResource Border}"/>
+                        <Border x:Name="Tint" CornerRadius="{StaticResource Radius.Control}" Background="{TemplateBinding Tag}" Opacity="0.22" Visibility="Collapsed"/>
+                        <StackPanel Orientation="Horizontal" Margin="12,4,12,4">
+                            <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{TemplateBinding Tag}"/>
+                            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                       FontWeight="{TemplateBinding FontWeight}" TextWrapping="NoWrap" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Pill" Property="BorderBrush" Value="{DynamicResource Border.Control}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Tint" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Pill" Property="BorderBrush" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="CheckBox">
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.CheckBox}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>

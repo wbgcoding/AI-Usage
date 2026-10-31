@@ -34,7 +34,8 @@ public class SpacingScaleTests
     // ("0,2,0,0") are the tight in-tile spacing. The figure card grid's "0,0,-8,-8" cancels the
     // gap every card keeps to its right and below, so wrapped rows stay flush with the section
     // edges. The usage bar's "0,-3" lets the pace tick stick out 3 px above and below the
-    // track. They are the only values this test excuses.
+    // track. The plan forecast cards use "0,0,-8,0" for the same reason, on the right edge only.
+    // They are the only values this test excuses.
     private static readonly HashSet<(string Attribute, string Value)> AllowedExceptions =
     [
         ("Margin", "-3"),
@@ -44,6 +45,7 @@ public class SpacingScaleTests
         ("Margin", "0,0,0,6"),
         ("Margin", "0,2,0,0"),
         ("Margin", "0,0,-8,-8"),
+        ("Margin", "0,0,-8,0"),
         ("Margin", "0,-3"),
     ];
 
