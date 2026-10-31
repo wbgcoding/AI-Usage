@@ -8,6 +8,7 @@ public class ProviderModelFilterTests
     [InlineData("claude", "claude-opus-4-8")]
     [InlineData("claude", "Claude-Sonnet-5")]
     [InlineData("claude", "anthropic/claude-haiku-4-5")]
+    [InlineData("claude", "fable-5-5")]
     [InlineData("claude", "opus-4-8")]
     [InlineData("claude", "sonnet")]
     [InlineData("codex", "gpt-5.5")]
