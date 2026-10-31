@@ -283,7 +283,7 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>Opens the Claude Console's sign-in for this Claude account; the balance is read right
-    /// after a finished sign-in.</summary>
+    /// after the window closes.</summary>
     private void ConsoleSignIn_Click(object sender, RoutedEventArgs e)
     {
         var button = (Button)sender;
@@ -294,7 +294,7 @@ public partial class SettingsWindow : Window
         try
         {
             WebSignInFlow.Open(this, ProviderRegistry.ConsoleSessionFor(tile.ProviderId),
-                signedIn => _viewModel.Main.CompleteConsoleSignIn(tile.ProviderId, signedIn));
+                _ => _viewModel.Main.CompleteConsoleSignIn(tile.ProviderId));
         }
         finally
         {

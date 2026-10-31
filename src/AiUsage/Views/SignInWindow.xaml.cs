@@ -34,6 +34,8 @@ public partial class SignInWindow : Window
     private readonly string _startPath;
     private bool _firstNavigationCompleted;
     private bool _closed;
+    // Set by every close this window or the person asks for; any other close request is foreign.
+    private bool _closeOnPurpose;
     // Both feed IsAlreadySignedIn below: the moment this window opened, and whether the flow ever
     // left the provider's own host on its way through the login/OAuth path.
     private DateTimeOffset _openedAt;
@@ -77,12 +79,33 @@ public partial class SignInWindow : Window
         WindowChromeNative.Bootstrap(this);
         // Esc closes dialogs, keyboard-only throughout. While the page itself has focus the browser's
         // native window keeps the keystroke, so this answers whenever focus is on the app's own parts.
-        PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) Close(); };
+        PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) CloseOnPurpose(); };
+        Closing += OnClosing;
         Loaded += OnLoaded;
         Closed += OnClosed;
     }
 
-    private void TitleBarControl_CloseRequested(object? sender, EventArgs e) => Close();
+    private void CloseOnPurpose()
+    {
+        _closeOnPurpose = true;
+        Close();
+    }
+
+    /// <summary>A Google sign-in in the popup ends with the popup closing itself, and that request has
+    /// been seen to close this whole window a moment before the page took the answer. While a popup
+    /// stands, a close nobody here asked for only closes the popup; the site is then asked whether the
+    /// sign-in went through, which closes the window the normal way.</summary>
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_closeOnPurpose || _popup is null)
+            return;
+
+        e.Cancel = true;
+        LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': a close request came while the popup stood; only the popup closes.");
+        Dispatcher.BeginInvoke(ClosePopup);
+    }
+
+    private void TitleBarControl_CloseRequested(object? sender, EventArgs e) => CloseOnPurpose();
 
     /// <summary>The runtime-missing panel's own way to reach the download page - a second, weaker
     /// version of the confirm dialog <see cref="WebSignInFlow"/> already offers before the window ever
@@ -673,7 +696,7 @@ public partial class SignInWindow : Window
             if (quickBounce)
                 ShowAlreadySignedIn();
             else
-                Close();
+                CloseOnPurpose();
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
         {
@@ -731,7 +754,7 @@ public partial class SignInWindow : Window
 
             SignedIn = true;
             LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': signed in while the login page stood, session confirmed.");
-            Close();
+            CloseOnPurpose();
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
         {
@@ -778,7 +801,7 @@ public partial class SignInWindow : Window
         AlreadySignedInPanel.Visibility = Visibility.Visible;
     }
 
-    private void CloseAlreadySignedIn_Click(object sender, RoutedEventArgs e) => Close();
+    private void CloseAlreadySignedIn_Click(object sender, RoutedEventArgs e) => CloseOnPurpose();
 }
 
 /// <summary>What the sign-in window does after asking the site about a landing.</summary>

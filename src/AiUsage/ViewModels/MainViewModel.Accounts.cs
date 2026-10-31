@@ -501,11 +501,12 @@ public sealed partial class MainViewModel
         RefreshNow();
     }
 
-    /// <summary>The sign-in window of the account's Claude Console closed: after a real sign-in the
-    /// balance is read at once instead of at the next due time.</summary>
-    public void CompleteConsoleSignIn(string accountKey, bool signedIn)
+    /// <summary>The sign-in window of the account's Claude Console closed: the balance is read at once
+    /// instead of at the next due time, also when the window closed without seeing the end of the
+    /// sign-in - the session may already be there, and one read costs little.</summary>
+    public void CompleteConsoleSignIn(string accountKey)
     {
-        if (!signedIn || !IsLiveAccount(accountKey) || _providersByKey[accountKey] is not ClaudeProvider claude)
+        if (!IsLiveAccount(accountKey) || _providersByKey[accountKey] is not ClaudeProvider claude)
             return;
 
         _ = claude.ReadApiCreditNowAsync();
