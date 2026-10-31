@@ -15,7 +15,6 @@ public class PlanPriceListTests
     [InlineData("codex", "Business", 30)]
     [InlineData("codex", "Team", 30)]
     [InlineData("gemini", "Pro", 19.99)]
-    [InlineData("gemini", "Ultra", 249.99)]
     public void A_known_plan_has_its_list_price(string provider, string plan, double expected) =>
         Assert.Equal(expected, PlanPriceList.MonthlyUsd(provider, plan));
 
@@ -26,6 +25,7 @@ public class PlanPriceListTests
     [InlineData("claude", "")]
     [InlineData("cursor", "Pro")]
     [InlineData("gemini", "Plus")]
+    [InlineData("gemini", "Ultra")]
     public void An_unknown_plan_has_no_price(string provider, string? plan) =>
         Assert.Null(PlanPriceList.MonthlyUsd(provider, plan));
 
@@ -34,6 +34,17 @@ public class PlanPriceListTests
     {
         Assert.Equal(100, PlanPriceList.MonthlyUsd("claude#2", "max 5x"));
         Assert.Equal(20, PlanPriceList.MonthlyUsd("CODEX", "PLUS"));
+    }
+
+    [Fact]
+    public void Every_price_names_its_plan_its_source_and_when_it_was_checked()
+    {
+        var max = PlanPriceList.Find("claude", "max 5x")!;
+        Assert.Equal("Max 5x", max.Plan);
+        Assert.Equal(107.10, max.Eur);
+        Assert.False(string.IsNullOrWhiteSpace(max.Source));
+        Assert.True(max.CheckedOn.Year >= 2026);
+        Assert.Null(PlanPriceList.Find("codex", "business")!.Eur);
     }
 }
 

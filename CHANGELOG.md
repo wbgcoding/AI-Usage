@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that compares the API value with the plan price. Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
+- "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that shows how many times its plan price the API value is, with the plan and its list price below (dollars, or euros as published for Germany; the tooltip names the source and the date it was checked). Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
 - The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Right after the start the Claude tile shows the weekly bar together with the 5 hour bar, not seconds later.
+- The Claude Console credit balance asks the console the way its own pages do, tries each API organisation of the account in turn when one has no prepaid balance, and the log names the HTTP code of a refused request.
 - Signing in to platform.claude.com with Google works: the Google window opens over the sign-in page instead of replacing it.
 - The platform.claude.com sign-in window no longer closes the moment the Google window finishes; only the Google window closes, and the balance is read right after the sign-in window closes.
 - When the Google sign-in for platform.claude.com finishes inside its own window instead of answering the sign-in page, the sign-in page takes it over and closes as signed in. The session is also checked the moment the Google window closes.

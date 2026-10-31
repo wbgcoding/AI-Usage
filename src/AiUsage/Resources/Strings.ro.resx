@@ -404,7 +404,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Media ta: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Dacă se folosește un singur model</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valoare API pe lună ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Prețul abonamentului ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (sursa: {3}, verificat la {4})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Preț de listă lunar; prețurile în euro includ TVA-ul german de 19 %. Taxele din alte țări, facturarea anuală și promoțiile diferă.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Nu există preț de listă în euro: prețul în dolari este convertit la cursul BCE al zilei.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valoarea abonamentului tău</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Toate modelele împreună</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Încă prea puține date</value></data>

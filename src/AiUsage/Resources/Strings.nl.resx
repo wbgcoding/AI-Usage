@@ -404,7 +404,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Jouw gemiddelde: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Als er maar één model wordt gebruikt</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>API-waarde per maand ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Abonnementsprijs ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (bron: {3}, gecontroleerd op {4})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Maandelijkse catalogusprijs; europrijzen inclusief 19 % Duitse btw. Belastingen in andere landen, jaarabonnementen en acties wijken af.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Er is geen europrijs gepubliceerd: de dollarprijs is omgerekend tegen de ECB-dagkoers.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>waarde van je abonnement</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Alle modellen samen</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Nog te weinig gegevens</value></data>

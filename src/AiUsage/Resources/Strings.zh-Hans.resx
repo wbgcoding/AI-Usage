@@ -404,7 +404,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>你的平均: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>如果只使用一个模型</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>每月 API 价值 ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>套餐价格 ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}：{1} / {2}（来源：{3}，核对于 {4}）</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>每月标价；欧元价格含德国 19 % 增值税。其他国家的税费、按年付费和促销会有差异。</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>未公布欧元标价：美元价格按当日欧洲央行汇率换算。</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>你的套餐的价值</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>所有模型合计</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>数据还不够</value></data>

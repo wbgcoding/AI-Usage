@@ -404,7 +404,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Ta moyenne : {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Si un seul modèle est utilisé</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valeur API par mois ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Prix de l’abonnement ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0} : {1} / {2} (source : {3}, vérifié le {4})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Prix catalogue mensuel ; les prix en euros incluent 19 % de TVA allemande. Les taxes d’autres pays, la facturation annuelle et les promotions diffèrent.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Aucun prix catalogue en euros n’est publié : le prix en dollars est converti au taux BCE du jour.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valeur de ton abonnement</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Tous modèles confondus</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Pas encore assez de données</value></data>

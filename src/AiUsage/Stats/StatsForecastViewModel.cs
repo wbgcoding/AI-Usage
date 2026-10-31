@@ -23,14 +23,17 @@ public sealed record StatsForecastWindowViewModel(
     public bool IsAllModels => HasData && Models.Count == 0;
 }
 
-/// <summary>The month card: the API value of a month against the plan price on one scale (0..1 of the
-/// longer one), and how many times the plan price the value is.</summary>
+/// <summary>The month card: the API value of a month, how many times the plan price it is, and the plan
+/// with its list price (the tooltip names where the price comes from and when it was checked).</summary>
 public sealed record StatsForecastMonthViewModel(
-    string ApiText, double ApiFraction, string PlanText, double PlanFraction, string RatioText, string RatioCaption, string ToolTip, Brush Brush)
+    string ApiText, string PlanText, string PlanToolTip, string RatioText, string RatioCaption, string ToolTip, Brush Brush)
 {
     public bool HasPlan => PlanText.Length > 0;
 
     public bool HasRatio => RatioText.Length > 0;
+
+    /// <summary>True when the right column (ratio or plan price) has anything to show.</summary>
+    public bool HasSide => HasPlan || HasRatio;
 }
 
 /// <summary>The plan forecast of one provider: its plans and account count, one card per window and the month card.</summary>

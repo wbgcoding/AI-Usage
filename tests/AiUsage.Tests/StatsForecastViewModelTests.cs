@@ -69,11 +69,11 @@ public class StatsForecastViewModelTests
         return (viewModel, directory);
     }
 
-    private static CostService Prices(bool enabled = true)
+    private static CostService Prices(bool enabled = true, CostCurrency currency = CostCurrency.Usd)
     {
         var directory = TestPaths.CreateDisposableDirectory("stats-forecast-cost").Path;
         var service = new CostService(
-            () => enabled, () => CostCurrency.Usd, directory, () => CultureInfo.GetCultureInfo("en-US"),
+            () => enabled, () => currency, directory, () => CultureInfo.GetCultureInfo("en-US"),
             () => new RegionInfo("US"), null, () => false);
         service.Prices.Replace(
             ModelPriceList.Parse("""{ "claude-sonnet-4-5": { "input_cost_per_token": 0.000003, "output_cost_per_token": 0.000015, "mode": "chat" } }"""),
@@ -91,7 +91,8 @@ public class StatsForecastViewModelTests
 
     private static ProviderForecast Forecast(
         ForecastWindow? fiveHour, ForecastWindow? weekly = null, double? api = 4832, double? plan = 100, int accounts = 1, params string[] plans) =>
-        new("claude", fiveHour, weekly, plans, accounts, api, plan);
+        new("claude", fiveHour, weekly, plans, accounts, api, plan,
+            plan is { } usd ? [new PlanPrice(plans.Length > 0 ? plans[0] : "Max 5x", usd, usd * 0.9, "example.com", new DateOnly(2026, 10, 31))] : null);
 
     [Fact]
     public async Task A_provider_with_history_and_tokens_gets_a_block_with_its_plan_and_both_cards()
@@ -395,44 +396,59 @@ public class StatsForecastViewModelTests
     }
 
     [Fact]
-    public void The_api_line_and_both_month_bars_use_one_scale_and_the_ratio_is_value_over_price()
+    public void The_month_card_shows_the_ratio_and_the_plan_with_its_price_and_source()
     {
         var forecast = Forecast(Window(Total(172_000)), Window(Total(1_050_000)), api: 4832, plan: 100, plans: "Max 5x");
         var provider = StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(Prices()), Loc);
 
         Assert.All(provider.Windows, window => Assert.True(window.HasApi));
         var month = Assert.IsType<StatsForecastMonthViewModel>(provider.Month);
-        Assert.Equal(1.0, month.ApiFraction);
-        Assert.Equal(100 / 4832.0, month.PlanFraction, 6);
         Assert.True(month.HasPlan);
         Assert.True(month.HasRatio);
+        Assert.StartsWith("Max 5x ", month.PlanText);
+        Assert.Contains("100", month.PlanText);
+        Assert.Contains("example.com", month.PlanToolTip);
+        Assert.Contains(new DateOnly(2026, 10, 31).ToString("d", CultureInfo.CurrentCulture), month.PlanToolTip);
         Assert.Equal((4832 / 100.0).ToString("0.0", CultureInfo.CurrentCulture) + "×", month.RatioText);
         Assert.Equal(Loc["Stats.Forecast.RatioCaption"], month.RatioCaption);
         Assert.Contains("4,832", month.ApiText);
     }
 
     [Fact]
-    public void A_plan_dearer_than_its_api_value_makes_the_plan_bar_the_full_one()
+    public void In_euros_the_card_shows_the_euro_list_price_and_compares_against_it()
+    {
+        var forecast = Forecast(Window(Total(172_000)), api: 4832, plan: 100, plans: "Max 5x");
+        var service = Prices(currency: CostCurrency.Eur);
+        service.Rate.Set(1.2, DateTimeOffset.UtcNow, persist: false);
+        var month = Assert.IsType<StatsForecastMonthViewModel>(
+            StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(service), Loc).Month);
+
+        Assert.Contains("€", month.PlanText);
+        Assert.Contains("90", month.PlanText);
+        // 4832 dollars are 4026.67 euros, against the 90 euro list price.
+        Assert.Equal((4832 / 1.2 / 90).ToString("0.0", CultureInfo.CurrentCulture) + "×", month.RatioText);
+    }
+
+    [Fact]
+    public void A_plan_dearer_than_its_api_value_gives_a_ratio_below_one()
     {
         var forecast = Forecast(Window(Total(172_000)), api: 50, plan: 200);
         var month = Assert.IsType<StatsForecastMonthViewModel>(
             StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(Prices()), Loc).Month);
 
-        Assert.Equal(0.25, month.ApiFraction, 6);
-        Assert.Equal(1.0, month.PlanFraction);
         Assert.Equal(0.25.ToString("0.0", CultureInfo.CurrentCulture) + "×", month.RatioText);
     }
 
     [Fact]
-    public void Without_a_plan_price_only_the_api_bar_shows_and_there_is_no_ratio()
+    public void Without_a_plan_price_there_is_no_plan_line_and_no_ratio()
     {
         var forecast = Forecast(Window(Total(172_000)), api: 4832, plan: null);
         var month = Assert.IsType<StatsForecastMonthViewModel>(
             StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(Prices()), Loc).Month);
 
-        Assert.Equal(1.0, month.ApiFraction);
         Assert.False(month.HasPlan);
         Assert.False(month.HasRatio);
+        Assert.False(month.HasSide);
     }
 
     [Fact]

@@ -404,7 +404,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>あなたの平均: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>1つのモデルだけを使う場合</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>月あたりのAPI換算額 ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>プラン料金 ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2}（出典: {3}、確認日 {4}）</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>月額の定価です。ユーロ価格はドイツの付加価値税 19 % 込みです。他国の税金、年払い、キャンペーンでは異なります。</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>ユーロの定価は公表されていません。ドル価格をその日の ECB レートで換算しています。</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>プランの価値</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>全モデル合計</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>データがまだ足りません</value></data>

@@ -1088,27 +1088,21 @@
                                                                         </Grid.RowDefinitions>
                                                                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                                             <TextBlock Text="{Binding ApiText}"/>
-                                                                            <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="{Binding ApiFraction}" Fill="{Binding Brush}"
+                                                                            <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="1" Fill="{Binding Brush}"
                                                                                                   Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
                                                                                                   OutlineThickness="{DynamicResource Track.BorderThickness}"/>
-                                                                            <StackPanel Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}">
-                                                                                <TextBlock Text="{Binding PlanText}" Margin="0,8,0,0"
-                                                                                           Foreground="{DynamicResource Text.Secondary}"/>
-                                                                                <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="{Binding PlanFraction}"
-                                                                                                      Fill="{DynamicResource Text.Muted}"
-                                                                                                      Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
-                                                                                                      OutlineThickness="{DynamicResource Track.BorderThickness}"/>
-                                                                            </StackPanel>
                                                                         </StackPanel>
-                                                                        <!-- Beside the bars while the section is wide, below them once it is narrow. -->
+                                                                        <!-- Ratio, its caption and the plan price, centred on each other; beside the bar while the
+                                                                             section is wide, below it once it is narrow. -->
                                                                         <StackPanel VerticalAlignment="Center"
-                                                                                    Visibility="{Binding HasRatio, Converter={StaticResource BoolToVis}}">
+                                                                                    Visibility="{Binding HasSide, Converter={StaticResource BoolToVis}}">
                                                                             <StackPanel.Style>
                                                                                 <Style TargetType="StackPanel">
                                                                                     <Setter Property="Grid.Column" Value="0"/>
                                                                                     <Setter Property="Grid.Row" Value="1"/>
                                                                                     <Setter Property="Grid.ColumnSpan" Value="2"/>
                                                                                     <Setter Property="Margin" Value="0,8,0,0"/>
+                                                                                    <Setter Property="HorizontalAlignment" Value="Left"/>
                                                                                     <Style.Triggers>
                                                                                         <DataTrigger Binding="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=controls:CollapsibleSection}, Converter={StaticResource AtLeastWidth}, ConverterParameter=420}" Value="True">
                                                                                             <Setter Property="Grid.Column" Value="1"/>
@@ -1121,9 +1115,16 @@
                                                                             </StackPanel.Style>
                                                                             <TextBlock Text="{Binding RatioText}" FontFamily="{DynamicResource Font.Numeric}"
                                                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
-                                                                                       Foreground="{Binding Brush}" TextWrapping="NoWrap"/>
+                                                                                       Foreground="{Binding Brush}" TextWrapping="NoWrap" HorizontalAlignment="Center"
+                                                                                       Visibility="{Binding HasRatio, Converter={StaticResource BoolToVis}}"/>
                                                                             <TextBlock Text="{Binding RatioCaption}" Foreground="{DynamicResource Text.Muted}"
-                                                                                       FontSize="{StaticResource Font.Size.Micro}" MaxWidth="110" HorizontalAlignment="Left"/>
+                                                                                       FontSize="{StaticResource Font.Size.Micro}" HorizontalAlignment="Center" TextAlignment="Center"
+                                                                                       Visibility="{Binding HasRatio, Converter={StaticResource BoolToVis}}"/>
+                                                                            <TextBlock Text="{Binding PlanText}" Foreground="{DynamicResource Text.Secondary}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}" HorizontalAlignment="Center" TextAlignment="Center"
+                                                                                       Margin="0,2,0,0" TextWrapping="NoWrap" Background="Transparent"
+                                                                                       ToolTip="{Binding PlanToolTip, Converter={StaticResource NullIfEmpty}}"
+                                                                                       Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
                                                                     </Grid>
                                                                 </Border>

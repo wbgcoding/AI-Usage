@@ -18,6 +18,11 @@ internal sealed class StatsCostView(CostService? service)
     /// <summary>True when cost figures are shown at all.</summary>
     public bool Active => _service is not null;
 
+    /// <summary>True when the figures show in euros; then <see cref="UsdPerEur"/> holds the rate.</summary>
+    public bool Euro => _service?.Euro == true;
+
+    public double? UsdPerEur => _service?.UsdPerEur;
+
     public CostSummary Sum(IEnumerable<StatsRecord> records) => _service?.Sum(records) ?? CostSummary.Empty;
 
     /// <summary>The cache-share tooltip: one line per part, "label: tokens" and, when the estimate is on,

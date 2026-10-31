@@ -10,6 +10,11 @@ namespace AiUsage.Stats.Pricing;
 /// </summary>
 internal sealed class CostSnapshot(ModelPriceList prices, CostCurrency currency, double? usdPerEur, CultureInfo culture)
 {
+    /// <summary>True when figures show in euros (a rate is known); else they show in dollars.</summary>
+    public bool Euro => currency == CostCurrency.Eur && usdPerEur is > 0;
+
+    public double? UsdPerEur => usdPerEur;
+
     public CostSummary Sum(IEnumerable<StatsRecord> records) => CostCalculator.Sum(records, prices);
 
     public CostSplit Split(IEnumerable<StatsRecord> records) => CostCalculator.Split(records, prices);

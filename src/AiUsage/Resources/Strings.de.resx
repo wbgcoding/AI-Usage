@@ -403,7 +403,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Dein Schnitt: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Wenn nur ein Modell genutzt wird</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>API-Wert pro Monat ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Abo-Preis ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (Quelle: {3}, Stand {4})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Monatlicher Listenpreis; Euro-Preise inkl. 19 % MwSt. (Deutschland). Steuern anderer Länder, Jahresabos und Aktionen weichen ab.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Kein Euro-Listenpreis veröffentlicht: Der Dollarpreis ist zum EZB-Tageskurs umgerechnet.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>Wert deines Abos</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Alle Modelle zusammen</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Noch zu wenig Daten</value></data>

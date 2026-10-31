@@ -286,23 +286,42 @@ public sealed partial class StatsViewModel
         if (forecast.MonthlyApiUsd is not { } monthly || Money(cost, monthly) is not { Length: > 0 } monthlyText)
             return null;
 
-        // Both bars share one scale: the longer of the two is full.
+        // The plan price in the shown currency: the euro list price where one is published, else the
+        // dollar price (converted at the day's rate when euros show). The ratio uses the same two figures.
         var planText = "";
-        var apiFraction = 1.0;
-        var planFraction = 0.0;
-        if (forecast.MonthlyPlanUsd is { } plan && Money(cost, plan) is { Length: > 0 } planMoney)
+        var planTip = "";
+        string ratio = "";
+        if (forecast.PlanPrices is { Count: > 0 } prices)
         {
-            planText = loc.Format("Stats.Forecast.MonthPlan", planMoney);
-            var scale = Math.Max(monthly, plan);
-            apiFraction = scale > 0 ? monthly / scale : 0;
-            planFraction = scale > 0 ? plan / scale : 0;
+            var euroList = cost.Euro && prices.All(price => price.Eur is not null);
+            var price = euroList
+                ? PlanPriceText(prices.Sum(price => price.Eur!.Value), "€")
+                : Money(cost, prices.Sum(price => price.Usd));
+            var planUsd = euroList ? prices.Sum(price => price.Eur!.Value) * cost.UsdPerEur!.Value : prices.Sum(price => price.Usd);
+            planText = $"{string.Join(" + ", prices.Select(price => price.Plan))} {price}";
+            var lines = prices.DistinctBy(price => price.Plan).Select(price => loc.Format("Tip.Stats.Forecast.PlanPrice",
+                price.Plan, PlanPriceText(price.Usd, "$"), price.Eur is { } eur ? PlanPriceText(eur, "€") : "–",
+                price.Source, price.CheckedOn.ToString("d", CultureInfo.CurrentCulture))).ToList();
+            lines.Add(loc["Tip.Stats.Forecast.PlanPriceNote"]);
+            if (cost.Euro && !euroList)
+                lines.Add(loc["Tip.Stats.Forecast.PlanPriceConverted"]);
+            planTip = string.Join('\n', lines);
+            if (planUsd > 0)
+                ratio = (monthly / planUsd).ToString("0.0", CultureInfo.CurrentCulture) + "×";
         }
 
-        var ratio = forecast.Ratio is { } value ? value.ToString("0.0", CultureInfo.CurrentCulture) + "×" : "";
         return new StatsForecastMonthViewModel(
-            loc.Format("Stats.Forecast.MonthApi", monthlyText), apiFraction, planText, planFraction,
+            loc.Format("Stats.Forecast.MonthApi", monthlyText), planText, planTip,
             ratio, ratio.Length > 0 ? loc["Stats.Forecast.RatioCaption"] : "",
             loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush);
+    }
+
+    /// <summary>A list price as it is published: whole amounts without cents, else with two decimals.</summary>
+    private static string PlanPriceText(double amount, string symbol)
+    {
+        var numbers = (NumberFormatInfo)CultureInfo.CurrentCulture.NumberFormat.Clone();
+        numbers.CurrencySymbol = symbol;
+        return amount.ToString(Math.Abs(amount - Math.Round(amount)) < 0.005 ? "C0" : "C2", numbers).Replace(' ', '\u00a0');
     }
 
     /// <summary>A dollar amount in the cost currency without the estimate tilde (the texts carry their own "≈"); empty when costs are off.</summary>

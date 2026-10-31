@@ -404,7 +404,9 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Tu media: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Si solo se usa un modelo</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valor de API al mes ≈ {0}</value></data>
-  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Precio del plan ≈ {0}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (fuente: {3}, revisado el {4})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Precio de lista mensual; los precios en euros incluyen el 19 % de IVA alemán. Los impuestos de otros países, la facturación anual y las promociones varían.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>No hay precio de lista en euros: el precio en dólares se convierte al tipo del BCE del día.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valor de tu plan</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Todos los modelos juntos</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Aún hay pocos datos</value></data>

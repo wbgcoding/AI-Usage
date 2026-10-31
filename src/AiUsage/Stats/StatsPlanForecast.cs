@@ -27,7 +27,7 @@ public sealed record ForecastWindow(
 /// the plans of its accounts and the monthly API value against the monthly plan price.</summary>
 public sealed record ProviderForecast(
     string ProviderId, ForecastWindow? FiveHour, ForecastWindow? Weekly, IReadOnlyList<string> Plans, int AccountCount,
-    double? MonthlyApiUsd, double? MonthlyPlanUsd)
+    double? MonthlyApiUsd, double? MonthlyPlanUsd, IReadOnlyList<PlanPrice>? PlanPrices = null)
 {
     /// <summary>How many times the plan price the API value of a month is.</summary>
     public double? Ratio => MonthlyApiUsd is { } api && MonthlyPlanUsd is > 0 ? api / MonthlyPlanUsd : null;
@@ -55,10 +55,12 @@ public static class StatsPlanForecast
 
         var plans = accounts.Select(account => account.Plan).Where(plan => !string.IsNullOrWhiteSpace(plan))
             .Select(plan => plan!).Distinct().ToList();
-        var prices = accounts.Select(account => PlanPriceList.MonthlyUsd(providerId, account.Plan)).ToList();
-        double? planUsd = accounts.Count > 0 && prices.All(price => price is not null) ? prices.Sum(price => price!.Value) : null;
+        var prices = accounts.Select(account => PlanPriceList.Find(providerId, account.Plan)).ToList();
+        var known = accounts.Count > 0 && prices.All(price => price is not null);
+        double? planUsd = known ? prices.Sum(price => price!.Usd) : null;
         double? monthlyApi = weekly?.ApiUsdPerWindow * DaysPerMonth / 7 * accounts.Count;
-        return new ProviderForecast(providerId, fiveHour, weekly, plans, accounts.Count, monthlyApi, planUsd);
+        return new ProviderForecast(providerId, fiveHour, weekly, plans, accounts.Count, monthlyApi, planUsd,
+            known ? prices.Select(price => price!).ToList() : null);
     }
 
     private static ForecastWindow? BuildWindow(
