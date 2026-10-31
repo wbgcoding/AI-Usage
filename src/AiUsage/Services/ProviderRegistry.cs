@@ -135,15 +135,16 @@ public static class ProviderRegistry
     /// <summary>True for the id of a <see cref="ConsoleSessionFor"/> descriptor.</summary>
     internal static bool IsConsoleSession(string sessionId) => sessionId.EndsWith(ConsoleMarker, StringComparison.Ordinal);
 
-    /// <summary>The Claude Console's session for one Claude account: its own site and sign-in page, but
-    /// the account's own browser profile folder, so one sign-out removes both sign-ins. Its id carries a
-    /// marker no account key can have, which tells the sign-in window which check to run.</summary>
+    /// <summary>The Claude Console's session for one Claude account: its own site and sign-in page and its
+    /// own browser profile folder next to the account's, so signing out of the console never touches the
+    /// Claude sign-in (the account's sign-out and removal delete both folders). Its id carries a marker no
+    /// account key can have, which tells the sign-in window which check to run.</summary>
     internal static WebSessionDescriptor ConsoleSessionFor(string accountKey) => new(
         ProviderId: accountKey + ConsoleMarker,
         BaseUrl: "https://platform.claude.com/settings/billing",
         SignInUrl: "https://platform.claude.com/login",
         AllowedHosts: ["platform.claude.com", "claude.com", "anthropic.com", .. Web.SignInNavigationPolicy.GoogleSignInHosts],
-        ProfileFolderName: WebSessionFor(accountKey).ProfileFolderName);
+        ProfileFolderName: WebSessionFor(accountKey).ProfileFolderName + ConsoleMarker);
 
     /// <summary>The script the sign-in window runs on its landing page to ask the provider's own site
     /// whether the session is real: the account's own discovery script, which answers
@@ -203,7 +204,8 @@ public static class ProviderRegistry
         {
             var consoleRunner = new WebSessionScriptRunner(ConsoleSessionFor(accountKey));
             return new ClaudeConsoleCreditSource.ConsoleRunner(consoleRunner.ExecuteScriptAsync, consoleRunner);
-        }, hasProfile: () => Web.WebViewHost.ProfileExists(WebSessionFor(accountKey).ProfileFolderName));
+        }, hasProfile: () => Web.WebViewHost.ProfileExists(WebSessionFor(accountKey).ProfileFolderName)
+            || Web.WebViewHost.ProfileExists(ConsoleSessionFor(accountKey).ProfileFolderName));
         runner.AttachCompanion(credit);
 
         return accountKey == ClaudeWebSession.ProviderId

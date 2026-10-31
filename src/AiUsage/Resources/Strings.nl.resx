@@ -673,5 +673,11 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API-tegoed</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Inloggen bij platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
+  <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (API-tegoed)</value></data>
+  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>Ingelogd · Tegoed: {0}</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Ingelogd via de Claude-login · Tegoed: {0}</value></data>
+  <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Ingelogd · tegoed nog niet gelezen</value></data>
+  <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Niet ingelogd</value></data>
+  <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Uitloggen bij Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Alleen lokale bronnen gebruiken</value></data>
 </root>

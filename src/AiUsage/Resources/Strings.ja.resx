@@ -673,5 +673,11 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>APIクレジット</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
+  <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console(APIクレジット)</value></data>
+  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>サインイン済み · 残高: {0}</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Claudeのサインイン経由でサインイン済み · 残高: {0}</value></data>
+  <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>サインイン済み · 残高はまだ読み取っていません</value></data>
+  <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>未サインイン</value></data>
+  <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Claude Consoleからサインアウト</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>ローカルのソースのみ使用</value></data>
 </root>

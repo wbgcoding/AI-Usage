@@ -270,6 +270,12 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>The balance the tile may show right now: none for an account kept off the web session.</summary>
     internal ClaudeApiCredit? CurrentApiCredit => _webSource is null || LocalOnly ? null : CreditSource?.Current;
 
+    /// <summary>Which sign-in delivered <see cref="CurrentApiCredit"/>.</summary>
+    internal ClaudeCreditRoute CurrentApiCreditRoute => CurrentApiCredit is null ? ClaudeCreditRoute.None : CreditSource?.CurrentRoute ?? ClaudeCreditRoute.None;
+
+    /// <summary>The user signed out of the Claude Console: its session closes and its reads stop until the next console sign-in.</summary>
+    internal Task DisconnectConsoleAsync() => CreditSource?.DisconnectConsoleAsync() ?? Task.CompletedTask;
+
     private async Task<ProviderSnapshot> FetchSourcesAsync(CancellationToken ct)
     {
         var fetchedAt = _now();

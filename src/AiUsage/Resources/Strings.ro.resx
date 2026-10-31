@@ -673,5 +673,11 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>Credite API</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Conectare la platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Arată pe card soldul de credite API al Claude Console. Se citește doar soldul.</value></data>
+  <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (credit API)</value></data>
+  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>Conectat · Sold: {0}</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Conectat prin conectarea la Claude · Sold: {0}</value></data>
+  <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Conectat · soldul nu a fost citit încă</value></data>
+  <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Neconectat</value></data>
+  <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Deconectare de la Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Folosește doar surse locale</value></data>
 </root>

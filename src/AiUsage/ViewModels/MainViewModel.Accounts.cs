@@ -24,7 +24,22 @@ public sealed partial class MainViewModel
     /// for whichever account key is asked, a test substitutes a delegate that records the call
     /// without touching disk.</summary>
     internal Func<string, SignOutResult> SignOutWebView { get; set; } =
-        accountKey => new WebViewHost(ProviderRegistry.WebSessionFor(accountKey)).SignOut();
+        accountKey =>
+        {
+            // A Claude account's Console sign-in lives in a folder of its own: it goes with the account.
+            var console = new WebViewHost(ProviderRegistry.ConsoleSessionFor(accountKey)).SignOut();
+            var account = new WebViewHost(ProviderRegistry.WebSessionFor(accountKey)).SignOut();
+            return account != SignOutResult.Removed ? account : console;
+        };
+
+    /// <summary>Test seam for the Console-only sign-out: production deletes the account's own Claude Console
+    /// profile folder and nothing else.</summary>
+    internal Func<string, SignOutResult> SignOutConsoleWebView { get; set; } =
+        accountKey => new WebViewHost(ProviderRegistry.ConsoleSessionFor(accountKey)).SignOut();
+
+    /// <summary>Test seam: whether the account has a Claude Console profile folder on disk.</summary>
+    internal Func<string, bool> ConsoleProfileExists { get; set; } =
+        accountKey => WebViewHost.ProfileExists(ProviderRegistry.ConsoleSessionFor(accountKey).ProfileFolderName);
 
     /// <summary>How long <see cref="SignOutAsync"/> waits between two attempts at the same folder.
     /// The browser process does not disappear the moment its last wrapper is released, so the first
@@ -346,17 +361,66 @@ public sealed partial class MainViewModel
     /// Up to four further attempts over roughly a second and a half, only while a file inside the
     /// folder is still open: a refusal repeats itself however often it is asked, and a folder already
     /// gone has nothing left to delete.</summary>
-    private async Task<SignOutResult> DeleteWebProfileAsync(string accountKey)
+    private Task<SignOutResult> DeleteWebProfileAsync(string accountKey) => DeleteProfileWithRetryAsync(SignOutWebView, accountKey);
+
+    private async Task<SignOutResult> DeleteProfileWithRetryAsync(Func<string, SignOutResult> delete, string accountKey)
     {
-        var result = SignOutWebView(accountKey);
+        var result = delete(accountKey);
         for (var attempt = 0; result == SignOutResult.StillOpen && attempt < 4; attempt++)
         {
             await Task.Delay(SignOutRetryDelay);
-            result = SignOutWebView(accountKey);
+            result = delete(accountKey);
         }
 
         return result;
     }
+
+    /// <summary>The Settings action "Sign out" of a Claude account's Console row: closes only the Console
+    /// session, deletes only the app's own Console profile folder of this account, drops the balance and
+    /// stops Console reads until the next Console sign-in. The Claude sign-in itself stays. False when the
+    /// folder could not be fully cleared or the account is no Claude account.</summary>
+    internal async Task<bool> SignOutConsoleAsync(string accountKey)
+    {
+        if (!IsLiveAccount(accountKey) || _providersByKey[accountKey] is not ClaudeProvider claude
+            || _signingOutAccounts.Contains(accountKey) || !_consoleSigningOut.Add(accountKey))
+            return false;
+
+        try
+        {
+            SignOutResult result;
+            try
+            {
+                await claude.DisconnectConsoleAsync();
+                result = await DeleteProfileWithRetryAsync(SignOutConsoleWebView, accountKey);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _logService?.LogError($"{accountKey}: Claude Console sign-out failed: {ex.GetType().Name}: {ex.Message}");
+                result = SignOutResult.Refused;
+            }
+
+            if (_tilesById.TryGetValue(accountKey, out var tile))
+            {
+                tile.SetApiCredit(claude.CurrentApiCredit, claude.CurrentApiCreditRoute);
+                tile.HasConsoleSession = ConsoleProfileExists(accountKey);
+                if (_statusReadings.TryGetValue(accountKey, out var reading))
+                {
+                    _statusReadings[accountKey] = reading with { ApiCredit = claude.CurrentApiCredit };
+                    QueueStatusFile(DateTimeOffset.Now);
+                }
+            }
+
+            (_logService ?? LogService.Shared).LogInfo($"{accountKey}: Claude Console signed out");
+            return result == SignOutResult.Removed;
+        }
+        finally
+        {
+            _consoleSigningOut.Remove(accountKey);
+        }
+    }
+
+    // Accounts whose Console sign-out is under way; a second request for the same account has nothing to add.
+    private readonly HashSet<string> _consoleSigningOut = [];
 
     /// <summary>True while a sign-out of <paramref name="accountKey"/> is still clearing its session; a
     /// second request for the same account then has nothing to add.</summary>
@@ -509,6 +573,8 @@ public sealed partial class MainViewModel
         if (!IsLiveAccount(accountKey) || _providersByKey[accountKey] is not ClaudeProvider claude)
             return;
 
+        if (_tilesById.TryGetValue(accountKey, out var tile))
+            tile.HasConsoleSession = ConsoleProfileExists(accountKey);
         _ = claude.ReadApiCreditNowAsync();
     }
 

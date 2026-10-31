@@ -673,5 +673,11 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API 额度</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>在磁贴上显示你的 Claude Console 的 API 额度余额。只读取余额。</value></data>
+  <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console(API 额度)</value></data>
+  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>已登录 · 余额:{0}</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>已通过 Claude 登录 · 余额:{0}</value></data>
+  <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>已登录 · 尚未读取余额</value></data>
+  <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>未登录</value></data>
+  <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>退出 Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>仅使用本地来源</value></data>
 </root>

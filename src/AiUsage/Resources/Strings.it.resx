@@ -673,5 +673,11 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>Crediti API</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Accedi a platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Mostra nel riquadro il saldo dei crediti API della tua Claude Console. Viene letto solo il saldo.</value></data>
+  <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (credito API)</value></data>
+  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>Accesso effettuato · Saldo: {0}</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Accesso effettuato tramite l'accesso a Claude · Saldo: {0}</value></data>
+  <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Accesso effettuato · saldo non ancora letto</value></data>
+  <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Accesso non effettuato</value></data>
+  <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Esci da Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Usa solo fonti locali</value></data>
 </root>

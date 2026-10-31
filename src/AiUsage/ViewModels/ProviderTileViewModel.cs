@@ -293,7 +293,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     [NotifyPropertyChangedFor(nameof(HasAction))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleRow))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleSignOut))]
     private bool localOnly;
 
     public event EventHandler<bool>? LocalOnlyChanged;
@@ -526,20 +528,64 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
 
-    /// <summary>The settings offer to sign in to the Claude Console: a Claude account that reads the
-    /// web and has no balance yet.</summary>
-    public bool ShowConsoleSignIn => RealProviderId == "claude" && !LocalOnly && _apiCredit is null;
+    // Which sign-in delivered _apiCredit; None while there is no balance.
+    private ClaudeCreditRoute _apiCreditRoute;
 
-    /// <summary>Takes the balance read for this account (null = none); the tile keeps showing it between reads.</summary>
-    public void SetApiCredit(ClaudeApiCredit? credit)
+    /// <summary>Whether this app holds a Claude Console sign-in of its own for the account (its own profile
+    /// folder exists), set by the view model that owns the tile.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConsoleSessionExists))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleSignIn))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleSignOut))]
+    [NotifyPropertyChangedFor(nameof(ConsoleStatusText))]
+    private bool hasConsoleSession;
+
+    /// <summary>The settings always show the Claude Console row for a Claude account that reads the web.</summary>
+    public bool ShowConsoleRow => RealProviderId == "claude" && !LocalOnly;
+
+    /// <summary>A Console sign-in of the app's own exists: its profile folder, or the balance came through it.</summary>
+    public bool ConsoleSessionExists => HasConsoleSession || _apiCreditRoute == ClaudeCreditRoute.Console;
+
+    /// <summary>The Console row offers its sign-in while there is neither a Console session nor a balance.</summary>
+    public bool ShowConsoleSignIn => ShowConsoleRow && !ConsoleSessionExists && _apiCredit is null;
+
+    /// <summary>The Console row offers its sign-out while the app holds a Console session.</summary>
+    public bool ShowConsoleSignOut => ShowConsoleRow && ConsoleSessionExists;
+
+    /// <summary>The Console row's state in words: signed in with the balance, signed in through the Claude
+    /// sign-in, signed in without a balance read yet, or not signed in.</summary>
+    public string ConsoleStatusText
     {
-        if (Equals(_apiCredit, credit))
+        get
+        {
+            var loc = LocalizationService.Instance;
+            if (_apiCredit is { } credit)
+            {
+                return loc.Format(
+                    _apiCreditRoute == ClaudeCreditRoute.ClaudeSignIn ? "Settings.ConsoleStatus.ViaClaude" : "Settings.ConsoleStatus.Balance",
+                    credit.FormatAmount(loc.DisplayCulture));
+            }
+
+            return loc[ConsoleSessionExists ? "Settings.ConsoleStatus.NoBalance" : "Settings.ConsoleStatus.SignedOut"];
+        }
+    }
+
+    /// <summary>Takes the balance read for this account (null = none) and the sign-in that delivered it
+    /// (null = unchanged); the tile keeps showing it between reads.</summary>
+    public void SetApiCredit(ClaudeApiCredit? credit, ClaudeCreditRoute? route = null)
+    {
+        var newRoute = credit is null ? ClaudeCreditRoute.None : route ?? _apiCreditRoute;
+        if (Equals(_apiCredit, credit) && _apiCreditRoute == newRoute)
             return;
 
         _apiCredit = credit;
+        _apiCreditRoute = newRoute;
         OnPropertyChanged(nameof(ApiCreditText));
         OnPropertyChanged(nameof(ShowApiCredit));
+        OnPropertyChanged(nameof(ConsoleSessionExists));
         OnPropertyChanged(nameof(ShowConsoleSignIn));
+        OnPropertyChanged(nameof(ShowConsoleSignOut));
+        OnPropertyChanged(nameof(ConsoleStatusText));
     }
 
     /// <summary>The status page link under the failure line that sits above the last values.</summary>
@@ -1288,6 +1334,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(LastSuccessAgeText));
         OnPropertyChanged(nameof(ApiCreditText));
         OnPropertyChanged(nameof(ShowApiCredit));
+        OnPropertyChanged(nameof(ConsoleStatusText));
         foreach (var choice in BarColorChoices)
             choice.RefreshLabel();
         // The chart's legend and hover caption are otherwise only rebuilt with the next history load.

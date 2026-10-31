@@ -670,7 +670,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
         _providersByKey[provider.AccountKey] = provider;
         if (provider is ClaudeProvider claude)
+        {
             claude.ApiCreditChanged += () => OnApiCreditChanged(provider.AccountKey);
+            tile.HasConsoleSession = ConsoleProfileExists(provider.AccountKey);
+        }
         tile.LocalOnlyChanged += (_, value) => SetLocalOnly(tile.ProviderId, value);
         tile.BarColorModeChanged += (_, value) => SetBarColorMode(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);
@@ -1594,7 +1597,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 return;
 
             var credit = claude.CurrentApiCredit;
-            tile.SetApiCredit(credit);
+            tile.SetApiCredit(credit, claude.CurrentApiCreditRoute);
             if (_statusReadings.TryGetValue(accountKey, out var reading))
             {
                 _statusReadings[accountKey] = reading with { ApiCredit = credit };

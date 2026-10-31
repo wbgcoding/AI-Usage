@@ -39,6 +39,8 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
     private readonly CancellationTokenSource _lifetime = new();
 
     private ClaudeApiCredit? _credit;
+    private ClaudeCreditRoute _creditRoute;
+    private bool _consoleOff;
     private DateTimeOffset _creditReadAt;
     private DateTimeOffset? _lastAttemptAt;
     private DateTimeOffset? _consoleBlockedUntil;
@@ -78,6 +80,16 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
         }
     }
 
+    /// <summary>Which sign-in delivered <see cref="Current"/>; <see cref="ClaudeCreditRoute.None"/> without one.</summary>
+    internal ClaudeCreditRoute CurrentRoute
+    {
+        get
+        {
+            lock (_gate)
+                return _credit is not null && _time.GetUtcNow() - _creditReadAt < KeepFor ? _creditRoute : ClaudeCreditRoute.None;
+        }
+    }
+
     /// <summary>Starts a read when one is due and none runs; returns at once with the running read's
     /// task (completed when nothing was started). Never throws.</summary>
     internal Task RefreshIfDueAsync()
@@ -102,6 +114,7 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
         lock (_gate)
         {
             _consoleBlockedUntil = null;
+            _consoleOff = false;
             _lastAttemptAt = null;
             pending = _running;
         }
@@ -124,7 +137,7 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             var step = Step.NotSignedIn;
             if (_siteRun is not null)
             {
-                (step, var stage) = await TryReadAsync(_siteRun, ct);
+                (step, var stage) = await TryReadAsync(_siteRun, ClaudeCreditRoute.ClaudeSignIn, ct);
                 outcome.Add("claude.ai " + Word(step) + stage);
                 if (step is Step.Ok or Step.Blocked)
                     return;
@@ -132,6 +145,11 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
 
             if (_createConsoleRunner is null)
                 return;
+            if (ConsoleIsOff())
+            {
+                outcome.Add("console signed out");
+                return;
+            }
             if (ConsoleIsPaused())
             {
                 outcome.Add("console paused after not_signed_in");
@@ -141,12 +159,12 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             ConsoleRunner console;
             lock (_gate)
             {
-                if (_disposed)
+                if (_disposed || _consoleOff)
                     return;
                 console = _console ??= _createConsoleRunner();
             }
 
-            (step, var consoleStage) = await TryReadAsync(console.Run, ct);
+            (step, var consoleStage) = await TryReadAsync(console.Run, ClaudeCreditRoute.Console, ct);
             outcome.Add("console " + Word(step) + consoleStage);
             if (step == Step.NotSignedIn)
             {
@@ -190,6 +208,12 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
         LogService.Shared.LogInfo("Claude API credit read: " + line + ".");
     }
 
+    private bool ConsoleIsOff()
+    {
+        lock (_gate)
+            return _consoleOff;
+    }
+
     private bool ConsoleIsPaused()
     {
         lock (_gate)
@@ -198,7 +222,8 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
 
     /// <summary>One route's answer, and for a failure which of its two requests it came from (" at
     /// organizations" or " at credits"), for the log line.</summary>
-    private async Task<(Step Step, string Stage)> TryReadAsync(Func<string, CancellationToken, Task<string>> run, CancellationToken ct)
+    private async Task<(Step Step, string Stage)> TryReadAsync(
+        Func<string, CancellationToken, Task<string>> run, ClaudeCreditRoute route, CancellationToken ct)
     {
         const string AtOrganizations = " at organizations";
         const string AtCredits = " at credits";
@@ -239,7 +264,7 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
                 continue;
             }
 
-            Store(credit);
+            Store(credit, route);
             return (Step.Ok, "");
         }
 
@@ -249,13 +274,18 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
     /// <summary>" (404)" for a failure that names its HTTP code or reason, else nothing.</summary>
     internal static string CodeSuffix(string? code) => string.IsNullOrEmpty(code) ? "" : $" ({code})";
 
-    private void Store(ClaudeApiCredit credit)
+    private void Store(ClaudeApiCredit credit, ClaudeCreditRoute route)
     {
         bool changed;
         lock (_gate)
         {
-            changed = _credit != credit;
+            // A read that was already under way when the console was signed out must not bring its balance back.
+            if (route == ClaudeCreditRoute.Console && _consoleOff)
+                return;
+
+            changed = _credit != credit || _creditRoute != route;
             _credit = credit;
+            _creditRoute = route;
             _creditReadAt = _time.GetUtcNow();
         }
 
@@ -307,6 +337,51 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
         {
             return (Step.Failed, null, null, null);
         }
+    }
+
+    /// <summary>The user signed out of the console: closes its session, forgets the balance and reads nothing
+    /// through the console until <see cref="ReadNowAsync"/> says a new sign-in happened. The claude.ai route
+    /// is left alone. A read under way ends first, so its answer cannot bring the balance back.</summary>
+    internal async Task DisconnectConsoleAsync()
+    {
+        ConsoleRunner? console;
+        Task pending;
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+            _consoleOff = true;
+            console = _console;
+            _console = null;
+            pending = _running;
+        }
+
+        if (console is not null)
+        {
+            try
+            {
+                await console.Owner.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.Shared.LogError($"Disposing the console hidden browser failed ({ex.GetType().Name}).");
+            }
+        }
+
+        await pending;
+        bool changed;
+        lock (_gate)
+        {
+            changed = _credit is not null && _creditRoute == ClaudeCreditRoute.Console;
+            if (changed)
+            {
+                _credit = null;
+                _creditRoute = ClaudeCreditRoute.None;
+            }
+        }
+
+        if (changed)
+            Changed?.Invoke();
     }
 
     public async ValueTask DisposeAsync()

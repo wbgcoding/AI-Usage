@@ -25,12 +25,13 @@ public class ClaudeConsoleWiringTests
     [Theory]
     [InlineData("claude")]
     [InlineData("claude#2")]
-    public void The_console_session_shares_the_accounts_profile_folder(string accountKey)
+    public void The_console_session_has_a_profile_folder_of_its_own_next_to_the_accounts(string accountKey)
     {
         var account = ProviderRegistry.WebSessionFor(accountKey);
         var console = ProviderRegistry.ConsoleSessionFor(accountKey);
 
-        Assert.Equal(account.ProfileFolderName, console.ProfileFolderName);
+        Assert.NotEqual(account.ProfileFolderName, console.ProfileFolderName);
+        Assert.StartsWith(account.ProfileFolderName, console.ProfileFolderName, StringComparison.Ordinal);
         Assert.Contains("platform.claude.com", console.AllowedHosts);
         Assert.StartsWith("https://platform.claude.com/", console.BaseUrl, StringComparison.Ordinal);
         Assert.StartsWith("https://platform.claude.com/", console.SignInUrl, StringComparison.Ordinal);
