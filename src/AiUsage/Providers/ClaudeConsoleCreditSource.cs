@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AiUsage.Models;
 using AiUsage.Providers.Parsing;
 using AiUsage.Services;
@@ -201,9 +202,10 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
     {
         const string AtOrganizations = " at organizations";
         const string AtCredits = " at credits";
+        const int MaxOrganizations = 5;
         var organizations = ReadEnvelope(await run(ClaudeConsoleCreditScript.ListOrganizations(), ct));
         if (organizations.Step != Step.Ok)
-            return (organizations.Step, AtOrganizations);
+            return (organizations.Step, AtOrganizations + CodeSuffix(organizations.Code));
 
         var pick = ClaudeConsoleCreditParser.PickOrganization(organizations.Body, organizations.LastActiveOrg);
         if (pick.Outcome == ClaudeConsoleOrgOutcome.NoApiOrganization)
@@ -214,20 +216,38 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             return (Step.Failed, AtOrganizations);
         }
 
-        var credits = ReadEnvelope(await run(ClaudeConsoleCreditScript.FetchCredits(ClaudeConsoleCreditScript.CreditPath(organizationId)), ct));
-        if (credits.Step != Step.Ok)
-            return (credits.Step, AtCredits);
-
-        var reading = ClaudeConsoleCreditParser.Parse(credits.Body);
-        if (reading.Outcome != ClaudeConsoleCreditOutcome.Ok || reading.Credit is not { } credit)
+        // Every API organisation in turn, the one the console has open first: a person can belong to
+        // several, and one without prepaid billing refuses the credit address.
+        var ids = pick.OrganizationIds is { Count: > 0 } list ? list : [organizationId];
+        (Step Step, string Stage) last = (Step.Failed, AtCredits);
+        foreach (var id in ids.Take(MaxOrganizations))
         {
-            Report(ClaudeConsoleCreditParser.ChangeNotes(null, credits.Body));
-            return (Step.Failed, AtCredits);
+            var credits = ReadEnvelope(await run(ClaudeConsoleCreditScript.FetchCredits(ClaudeConsoleCreditScript.CreditPath(id)), ct));
+            if (credits.Step != Step.Ok)
+            {
+                last = (credits.Step, AtCredits + CodeSuffix(credits.Code));
+                if (credits.Step is Step.Blocked or Step.NotSignedIn)
+                    return last;
+                continue;
+            }
+
+            var reading = ClaudeConsoleCreditParser.Parse(credits.Body);
+            if (reading.Outcome != ClaudeConsoleCreditOutcome.Ok || reading.Credit is not { } credit)
+            {
+                Report(ClaudeConsoleCreditParser.ChangeNotes(null, credits.Body));
+                last = (Step.Failed, AtCredits);
+                continue;
+            }
+
+            Store(credit);
+            return (Step.Ok, "");
         }
 
-        Store(credit);
-        return (Step.Ok, "");
+        return last;
     }
+
+    /// <summary>" (404)" for a failure that names its HTTP code or reason, else nothing.</summary>
+    internal static string CodeSuffix(string? code) => string.IsNullOrEmpty(code) ? "" : $" ({code})";
 
     private void Store(ClaudeApiCredit credit)
     {
@@ -249,10 +269,14 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             ReadChangeLog.Report("Claude", note);
     }
 
-    private static (Step Step, string? Body, string? LastActiveOrg) ReadEnvelope(string? envelopeJson)
+    private static readonly Regex EnvelopeCodePattern = new(@"\A[a-z0-9_]{1,16}\z", RegexOptions.Compiled);
+
+    /// <summary>The script's answer: its step, the body for "ok", the console's open organisation, and
+    /// for a failure the HTTP code or reason word the script names (only short plain words pass).</summary>
+    private static (Step Step, string? Body, string? LastActiveOrg, string? Code) ReadEnvelope(string? envelopeJson)
     {
         if (string.IsNullOrWhiteSpace(envelopeJson))
-            return (Step.Failed, null, null);
+            return (Step.Failed, null, null, null);
 
         try
         {
@@ -260,26 +284,28 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object
                 || !root.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String)
-                return (Step.Failed, null, null);
+                return (Step.Failed, null, null, null);
 
+            var code = root.TryGetProperty("code", out var codeEl) && codeEl.ValueKind == JsonValueKind.String
+                && EnvelopeCodePattern.IsMatch(codeEl.GetString()!) ? codeEl.GetString() : null;
             switch (status.GetString())
             {
                 case "not_signed_in":
-                    return (Step.NotSignedIn, null, null);
+                    return (Step.NotSignedIn, null, null, code);
                 case "blocked":
-                    return (Step.Blocked, null, null);
+                    return (Step.Blocked, null, null, code);
                 case "ok":
                     var body = root.TryGetProperty("body", out var bodyEl) && bodyEl.ValueKind == JsonValueKind.String ? bodyEl.GetString() : null;
                     var active = root.TryGetProperty("lastActiveOrg", out var activeEl) && activeEl.ValueKind == JsonValueKind.String
                         && ClaudeConsoleCreditParser.IsOrganizationId(activeEl.GetString()) ? activeEl.GetString() : null;
-                    return body is null ? (Step.Failed, null, null) : (Step.Ok, body, active);
+                    return body is null ? (Step.Failed, null, null, null) : (Step.Ok, body, active, null);
                 default:
-                    return (Step.Failed, null, null);
+                    return (Step.Failed, null, null, code);
             }
         }
         catch (JsonException)
         {
-            return (Step.Failed, null, null);
+            return (Step.Failed, null, null, null);
         }
     }
 

@@ -11,6 +11,10 @@ namespace AiUsage.Providers;
 /// </summary>
 internal static class ClaudeConsoleCreditScript
 {
+    // The console's own pages name their client on every API call; a call without it can be refused.
+    private const string ClientHeaders =
+        "{'anthropic-client-platform': location.hostname === 'platform.claude.com' ? 'web_console' : 'web_claude_ai'}";
+
     // \A and \z, not ^ and $: $ also matches in front of a trailing newline, and this pattern is the
     // gate a picked path has to pass before it is fetched inside a signed-in session.
     private static readonly Regex AllowedCreditPathPattern = new(
@@ -26,14 +30,14 @@ internal static class ClaudeConsoleCreditScript
 
     /// <summary>Asks the organisation list and reads the console's "last active organisation" cookie
     /// when the page exposes it. Also the sign-in window's session check: "ok" means signed in.</summary>
-    internal static string ListOrganizations() => """
+    internal static string ListOrganizations() => $$"""
         (async () => {
             try {
-                const res = await fetch('/api/organizations', {method: 'GET', credentials: 'include'});
-                if (res.status === 401 || res.status === 403) return {status: 'not_signed_in'};
-                if (res.status === 429) return {status: 'blocked'};
-                if (!res.ok) return {status: 'failed'};
-                if (!(res.headers.get('content-type') || '').includes('json')) return {status: 'blocked'};
+                const res = await fetch('/api/organizations', {method: 'GET', credentials: 'include', headers: {{ClientHeaders}}});
+                if (res.status === 401 || res.status === 403) return {status: 'not_signed_in', code: String(res.status)};
+                if (res.status === 429) return {status: 'blocked', code: '429'};
+                if (!res.ok) return {status: 'failed', code: String(res.status)};
+                if (!(res.headers.get('content-type') || '').includes('json')) return {status: 'blocked', code: 'html'};
                 const body = await res.text();
                 let lastActiveOrg = null;
                 try {
@@ -43,14 +47,15 @@ internal static class ClaudeConsoleCreditScript
                 }
                 return {status: 'ok', body: body, lastActiveOrg: lastActiveOrg};
             } catch (e) {
-                return {status: 'failed'};
+                return {status: 'failed', code: 'network'};
             }
         })()
         """;
 
     /// <summary>Reads the credit balance at <paramref name="path"/>. Throws for any path outside <see
     /// cref="IsAllowedCreditPath"/>: it runs inside a signed-in session, so the caller must never hand
-    /// it an unvalidated value.</summary>
+    /// it an unvalidated value. A refusal here is not a sign-out: the list call before it already
+    /// proved the session, so a 401 or 403 means this organisation has no balance to show.</summary>
     internal static string FetchCredits(string path)
     {
         if (!IsAllowedCreditPath(path))
@@ -61,14 +66,13 @@ internal static class ClaudeConsoleCreditScript
         return $$"""
             (async () => {
                 try {
-                    const res = await fetch({{pathJson}}, {method: 'GET', credentials: 'include'});
-                    if (res.status === 401 || res.status === 403) return {status: 'not_signed_in'};
-                    if (res.status === 429) return {status: 'blocked'};
-                    if (!res.ok) return {status: 'failed'};
-                    if (!(res.headers.get('content-type') || '').includes('json')) return {status: 'blocked'};
+                    const res = await fetch({{pathJson}}, {method: 'GET', credentials: 'include', headers: {{ClientHeaders}}});
+                    if (res.status === 429) return {status: 'blocked', code: '429'};
+                    if (!res.ok) return {status: 'failed', code: String(res.status)};
+                    if (!(res.headers.get('content-type') || '').includes('json')) return {status: 'blocked', code: 'html'};
                     return {status: 'ok', body: await res.text()};
                 } catch (e) {
-                    return {status: 'failed'};
+                    return {status: 'failed', code: 'network'};
                 }
             })()
             """;

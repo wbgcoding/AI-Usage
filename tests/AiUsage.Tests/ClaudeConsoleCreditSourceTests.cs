@@ -229,4 +229,43 @@ public class ClaudeConsoleCreditSourceTests
 
         Assert.Equal(1, console.Disposed);
     }
+
+    [Fact]
+    public async Task Tries_the_next_api_organization_when_the_first_refuses_the_credit_address()
+    {
+        const string secondOrg = "9a0e7c11-3d2b-4f6a-8e55-1c4d7b2a90ef";
+        var orgs = "{\"status\":\"ok\",\"body\":\"[{\\\"uuid\\\":\\\"" + OrgId + "\\\",\\\"capabilities\\\":[\\\"api\\\"]},"
+            + "{\\\"uuid\\\":\\\"" + secondOrg + "\\\",\\\"capabilities\\\":[\\\"api\\\"]}]\",\"lastActiveOrg\":null}";
+        var asked = new List<string>();
+        Task<string> Run(string script, CancellationToken ct)
+        {
+            if (script.Contains("'/api/organizations'", StringComparison.Ordinal))
+                return Task.FromResult(orgs);
+            asked.Add(script.Contains(OrgId, StringComparison.Ordinal) ? OrgId : secondOrg);
+            return Task.FromResult(script.Contains(OrgId, StringComparison.Ordinal)
+                ? "{\"status\":\"failed\",\"code\":\"404\"}"
+                : CreditsOk(725));
+        }
+
+        var source = new ClaudeConsoleCreditSource(Run, () => new FakeRunner().AsConsole(), new ManualTime());
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(7.25m, source.Current!.Amount);
+        Assert.Equal([OrgId, secondOrg], asked);
+    }
+
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("404", " (404)")]
+    public void Names_the_failure_code_in_the_log_stage(string? code, string expected) =>
+        Assert.Equal(expected, ClaudeConsoleCreditSource.CodeSuffix(code));
+
+    [Fact]
+    public void Both_scripts_name_the_console_client_like_the_console_itself()
+    {
+        Assert.Contains("'anthropic-client-platform'", ClaudeConsoleCreditScript.ListOrganizations());
+        Assert.Contains("'anthropic-client-platform'", ClaudeConsoleCreditScript.FetchCredits(ClaudeConsoleCreditScript.CreditPath(OrgId)));
+        Assert.Contains("'web_console'", ClaudeConsoleCreditScript.FetchCredits(ClaudeConsoleCreditScript.CreditPath(OrgId)));
+    }
 }

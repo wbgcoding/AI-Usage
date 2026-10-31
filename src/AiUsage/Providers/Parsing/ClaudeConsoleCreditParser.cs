@@ -12,7 +12,8 @@ internal enum ClaudeConsoleOrgOutcome
     Unreadable,
 }
 
-internal readonly record struct ClaudeConsoleOrgPick(ClaudeConsoleOrgOutcome Outcome, string? OrganizationId = null);
+internal readonly record struct ClaudeConsoleOrgPick(ClaudeConsoleOrgOutcome Outcome, string? OrganizationId = null,
+    IReadOnlyList<string>? OrganizationIds = null);
 
 internal enum ClaudeConsoleCreditOutcome
 {
@@ -38,7 +39,8 @@ internal static class ClaudeConsoleCreditParser
 
     /// <summary>The API organisation to ask: the one the console itself has open (<paramref name="lastActiveOrg"/>,
     /// the cookie value) when it is an API organisation, else the first API organisation. An API
-    /// organisation is one whose capabilities name "api".</summary>
+    /// organisation is one whose capabilities name "api". <see cref="ClaudeConsoleOrgPick.OrganizationIds"/>
+    /// holds every API organisation in asking order, the picked one first.</summary>
     internal static ClaudeConsoleOrgPick PickOrganization(string? organizationsJson, string? lastActiveOrg)
     {
         if (string.IsNullOrWhiteSpace(organizationsJson))
@@ -70,7 +72,10 @@ internal static class ClaudeConsoleCreditParser
                 var active = lastActiveOrg is not null
                     ? apiIds.FirstOrDefault(id => string.Equals(id, lastActiveOrg, StringComparison.OrdinalIgnoreCase))
                     : null;
-                return new ClaudeConsoleOrgPick(ClaudeConsoleOrgOutcome.Found, active ?? apiIds[0]);
+                var first = active ?? apiIds[0];
+                var ordered = new List<string> { first };
+                ordered.AddRange(apiIds.Where(id => !string.Equals(id, first, StringComparison.OrdinalIgnoreCase)));
+                return new ClaudeConsoleOrgPick(ClaudeConsoleOrgOutcome.Found, first, ordered);
             }
 
             // An empty list or organisations without the API capability: signed in, but no console account.

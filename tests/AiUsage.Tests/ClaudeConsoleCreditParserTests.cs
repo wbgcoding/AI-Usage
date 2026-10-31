@@ -86,6 +86,7 @@ public class ClaudeConsoleCreditParserTests
 
         Assert.Equal(ClaudeConsoleOrgOutcome.Found, pick.Outcome);
         Assert.Equal(SecondOrgId, pick.OrganizationId);
+        Assert.Equal([SecondOrgId, OrgId], pick.OrganizationIds);
     }
 
     [Fact]
