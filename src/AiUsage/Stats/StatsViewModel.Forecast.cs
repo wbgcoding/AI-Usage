@@ -296,7 +296,9 @@ public sealed partial class StatsViewModel
             var euroList = cost.Euro && prices.All(price => price.Eur is not null);
             var price = euroList
                 ? PlanPriceText(prices.Sum(price => price.Eur!.Value), "€")
-                : Money(cost, prices.Sum(price => price.Usd));
+                : cost.Euro
+                    ? PlanPriceText(prices.Sum(price => price.Usd) / cost.UsdPerEur!.Value, "€")
+                    : PlanPriceText(prices.Sum(price => price.Usd), "$");
             var planUsd = euroList ? prices.Sum(price => price.Eur!.Value) * cost.UsdPerEur!.Value : prices.Sum(price => price.Usd);
             planText = $"{string.Join(" + ", prices.Select(price => price.Plan))} {price}";
             var lines = prices.DistinctBy(price => price.Plan).Select(price => loc.Format("Tip.Stats.Forecast.PlanPrice",
