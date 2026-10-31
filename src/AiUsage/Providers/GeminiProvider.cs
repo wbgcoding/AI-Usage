@@ -191,11 +191,18 @@ public sealed class GeminiProvider : IUsageProvider
         if (web is not null)
             LogFailedSource("web session read", web, webClock.ElapsedMilliseconds);
 
+        // Only the Antigravity sign-in names the plan; the web answer has numbers but no plan, so the
+        // plan last read locally stays with the tile whichever source wins and while the local read fails.
+        if (local.PlanType is { Length: > 0 } localPlan)
+            _lastLocalPlan = localPlan;
+
         ProviderSnapshot chosen;
         if (web is { Status: ProviderStatus.Ok, Windows.Count: > 0 })
         {
             // A local answer that could not be read stays noted, as the shared chooser would do.
             chosen = local.UnreadableAnswer ? web with { UnreadableAnswer = true } : web;
+            if (chosen.PlanType is null && _lastLocalPlan is not null)
+                chosen = chosen with { PlanType = _lastLocalPlan };
         }
         else
         {
@@ -240,6 +247,8 @@ public sealed class GeminiProvider : IUsageProvider
     /// scheduler's own pace without paying for a page load every time.</summary>
     private Task<ProviderSnapshot?> ReadWebAsync(DateTimeOffset fetchedAt, CancellationToken ct) =>
         _webReader is null ? Task.FromResult<ProviderSnapshot?>(null) : _webReader.ReadAsync(fetchedAt, ct);
+
+    private string? _lastLocalPlan;
 
     private ProviderSnapshot BuildSnapshot(AntigravityUsage usage, DateTimeOffset fetchedAt)
     {

@@ -372,6 +372,8 @@ public class GeminiProviderTests : IDisposable
         Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
         Assert.Equal(2, snapshot.Windows.Count);
         Assert.True(snapshot.WebSessionSignedIn);
+        // The web answer carries no plan; the plan of the local sign-in stays with the tile.
+        Assert.Equal("Google AI Pro", snapshot.PlanType);
     }
 
     /// <summary>The local sign-in answers perfectly well while the browser session is signed out -
