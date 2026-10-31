@@ -404,9 +404,13 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Ortalaman: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Yalnızca tek model kullanılırsa</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Aylık API değeri ≈ {0}</value></data>
-  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (kaynak: {3}, kontrol tarihi {4})</value></data>
-  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Aylık liste fiyatı; euro fiyatlarına Almanya’nın %19 KDV’si dahildir. Diğer ülkelerin vergileri, yıllık ödeme ve kampanyalar farklıdır.</value></data>
-  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Euro liste fiyatı yayımlanmamış: dolar fiyatı günün ECB kuruyla çevrildi.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceAdvertised" xml:space="preserve"><value>{0}: ilan edilen {1} ({2})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceTaxExcluded" xml:space="preserve"><value>vergiler hariç</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceTaxIncluded" xml:space="preserve"><value>KDV dahil</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNetGross" xml:space="preserve"><value>Net {0}, Almanya’nın %19 KDV’siyle brüt {1}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceSource" xml:space="preserve"><value>Kaynak: {0}, kontrol tarihi {1}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Sağlayıcının kendi sayfasındaki aylık fiyat. Kart euroyu Almanya’nın %19 KDV’siyle, doları ilan edildiği gibi gösterir; API değeri KDV içermediği için oran KDV’siz karşılaştırır. Diğer ülkeler, yıllık ödeme ve kampanyalar farklıdır.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Günün ECB kuruyla çevrildi.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>aboneliğinin değeri</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Tüm modeller birlikte</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Henüz yeterli veri yok</value></data>

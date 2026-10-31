@@ -92,7 +92,7 @@ public class StatsForecastViewModelTests
     private static ProviderForecast Forecast(
         ForecastWindow? fiveHour, ForecastWindow? weekly = null, double? api = 4832, double? plan = 100, int accounts = 1, params string[] plans) =>
         new("claude", fiveHour, weekly, plans, accounts, api, plan,
-            plan is { } usd ? [new PlanPrice(plans.Length > 0 ? plans[0] : "Max 5x", usd, usd * 0.9, "example.com", new DateOnly(2026, 10, 31))] : null);
+            plan is { } usd ? [new PlanPrice(plans.Length > 0 ? plans[0] : "Max 5x", usd, "USD", false, "https://example.com/pricing", new DateOnly(2026, 10, 31))] : null);
 
     [Fact]
     public async Task A_provider_with_history_and_tokens_gets_a_block_with_its_plan_and_both_cards()
@@ -415,7 +415,7 @@ public class StatsForecastViewModelTests
     }
 
     [Fact]
-    public void In_euros_the_card_shows_the_euro_list_price_and_compares_against_it()
+    public void In_euros_a_dollar_price_shows_converted_with_vat_and_the_ratio_stays_net()
     {
         var forecast = Forecast(Window(Total(172_000)), api: 4832, plan: 100, plans: "Max 5x");
         var service = Prices(currency: CostCurrency.Eur);
@@ -423,10 +423,28 @@ public class StatsForecastViewModelTests
         var month = Assert.IsType<StatsForecastMonthViewModel>(
             StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(service), Loc).Month);
 
-        Assert.Contains("€", month.PlanText);
-        Assert.Contains("90", month.PlanText);
-        // 4832 dollars are 4026.67 euros, against the 90 euro list price.
-        Assert.Equal((4832 / 1.2 / 90).ToString("0.0", CultureInfo.CurrentCulture) + "×", month.RatioText);
+        // 100 dollars net are 83.33 euros net, 99.17 euros with 19 % VAT.
+        Assert.Contains(99.17.ToString("0.00", CultureInfo.CurrentCulture), month.PlanText);
+        Assert.Contains("\u20ac", month.PlanText);
+        Assert.Contains(Loc["Tip.Stats.Forecast.PlanPriceConverted"], month.PlanToolTip);
+        Assert.Contains(Loc["Tip.Stats.Forecast.PlanPriceTaxExcluded"], month.PlanToolTip);
+        Assert.Equal((4832 / 100.0).ToString("0.0", CultureInfo.CurrentCulture) + "\u00d7", month.RatioText);
+    }
+
+    [Fact]
+    public void A_euro_price_with_vat_shows_as_advertised_and_compares_without_vat()
+    {
+        var price = new PlanPrice("Pro", 21.99, "EUR", true, "https://example.com/plans", new DateOnly(2026, 10, 31));
+        var forecast = new ProviderForecast("gemini", Window(Total(172_000)), null, ["Pro"], 1, 100, null, [price]);
+        var service = Prices(currency: CostCurrency.Eur);
+        service.Rate.Set(1.2, DateTimeOffset.UtcNow, persist: false);
+        var month = Assert.IsType<StatsForecastMonthViewModel>(
+            StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(service), Loc).Month);
+
+        Assert.Contains(21.99.ToString("0.00", CultureInfo.CurrentCulture), month.PlanText);
+        Assert.Contains(Loc["Tip.Stats.Forecast.PlanPriceTaxIncluded"], month.PlanToolTip);
+        Assert.DoesNotContain(Loc["Tip.Stats.Forecast.PlanPriceConverted"], month.PlanToolTip);
+        Assert.Equal((100 / (21.99 / 1.19 * 1.2)).ToString("0.0", CultureInfo.CurrentCulture) + "\u00d7", month.RatioText);
     }
 
     [Fact]

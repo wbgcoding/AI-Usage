@@ -404,9 +404,13 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Sua média: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Se apenas um modelo for usado</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valor de API por mês ≈ {0}</value></data>
-  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (fonte: {3}, verificado em {4})</value></data>
-  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Preço de tabela mensal; os preços em euro incluem 19 % de IVA alemão. Impostos de outros países, cobrança anual e promoções variam.</value></data>
-  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Não há preço de tabela em euro: o preço em dólar é convertido pela cotação do BCE do dia.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceAdvertised" xml:space="preserve"><value>{0}: anunciado {1} ({2})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceTaxExcluded" xml:space="preserve"><value>sem impostos</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceTaxIncluded" xml:space="preserve"><value>com IVA</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNetGross" xml:space="preserve"><value>Líquido {0}, bruto com 19 % de IVA alemão {1}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceSource" xml:space="preserve"><value>Fonte: {0}, verificado em {1}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Preço mensal da página do próprio provedor. O cartão mostra euros com 19 % de IVA alemão e dólares como anunciados; a proporção compara sem IVA, pois o valor da API não o inclui. Outros países, cobrança anual e promoções variam.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Convertido pela cotação do BCE do dia.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valor do seu plano</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Todos os modelos juntos</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Ainda há poucos dados</value></data>

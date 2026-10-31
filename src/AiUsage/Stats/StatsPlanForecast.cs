@@ -57,7 +57,7 @@ public static class StatsPlanForecast
             .Select(plan => plan!).Distinct().ToList();
         var prices = accounts.Select(account => PlanPriceList.Find(providerId, account.Plan)).ToList();
         var known = accounts.Count > 0 && prices.All(price => price is not null);
-        double? planUsd = known ? prices.Sum(price => price!.Usd) : null;
+        double? planUsd = known && prices.All(price => !price!.IsEuro) ? prices.Sum(price => price!.Net) : null;
         double? monthlyApi = weekly?.ApiUsdPerWindow * DaysPerMonth / 7 * accounts.Count;
         return new ProviderForecast(providerId, fiveHour, weekly, plans, accounts.Count, monthlyApi, planUsd,
             known ? prices.Select(price => price!).ToList() : null);

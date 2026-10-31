@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that shows how many times its plan price the API value is, with the plan and its list price below (dollars, or euros as published for Germany; the tooltip names the source and the date it was checked). Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
+- "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that shows how many times its plan price the API value is, with the plan and its price below (in euros with 19 % German VAT, in dollars as advertised). The tooltip shows the advertised, net and gross price and names the provider’s own pricing page and the date it was checked; the ratio compares without VAT. A plan whose tier the app cannot tell apart (ChatGPT Pro, Google AI Ultra) shows no price. Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
 - The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
+- In the settings, the Claude account has its own "Claude Console" row: it shows whether the console is signed in and the balance, and signs in or out of the console alone. The console keeps its own sign-in, apart from the Claude sign-in.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
 ### Changed
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
 - The README is shorter.
 - The build window started by a double-click is smaller, carries the app name and closes itself ten seconds after a successful build.
+- Claude Fable models count as Claude in the plan forecast.
 - A model without a public price (such as the Codex review model) no longer writes a warning to the log at every start.
 
 ### Fixed

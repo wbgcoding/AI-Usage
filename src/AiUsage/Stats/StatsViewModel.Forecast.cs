@@ -286,28 +286,41 @@ public sealed partial class StatsViewModel
         if (forecast.MonthlyApiUsd is not { } monthly || Money(cost, monthly) is not { Length: > 0 } monthlyText)
             return null;
 
-        // The plan price in the shown currency: the euro list price where one is published, else the
-        // dollar price (converted at the day's rate when euros show). The ratio uses the same two figures.
+        // The plan price in the shown currency: in euros what a German customer pays (with VAT), in
+        // dollars the advertised dollar price; a price in the other currency is converted at the day's
+        // rate. The ratio compares net with net, as the API value carries no VAT either.
         var planText = "";
         var planTip = "";
         string ratio = "";
-        if (forecast.PlanPrices is { Count: > 0 } prices)
+        var rate = cost.UsdPerEur;
+        var euro = cost.Euro;
+        if (forecast.PlanPrices is { Count: > 0 } prices
+            && prices.All(price => ShownNet(price, euro, rate) is not null))
         {
-            var euroList = cost.Euro && prices.All(price => price.Eur is not null);
-            var price = euroList
-                ? PlanPriceText(prices.Sum(price => price.Eur!.Value), "€")
-                : cost.Euro
-                    ? PlanPriceText(prices.Sum(price => price.Usd) / cost.UsdPerEur!.Value, "€")
-                    : PlanPriceText(prices.Sum(price => price.Usd), "$");
-            var planUsd = euroList ? prices.Sum(price => price.Eur!.Value) * cost.UsdPerEur!.Value : prices.Sum(price => price.Usd);
-            planText = $"{string.Join(" + ", prices.Select(price => price.Plan))} {price}";
-            var lines = prices.DistinctBy(price => price.Plan).Select(price => loc.Format("Tip.Stats.Forecast.PlanPrice",
-                price.Plan, PlanPriceText(price.Usd, "$"), price.Eur is { } eur ? PlanPriceText(eur, "€") : "–",
-                price.Source, price.CheckedOn.ToString("d", CultureInfo.CurrentCulture))).ToList();
+            var symbol = euro ? "€" : "$";
+            var shown = prices.Sum(price => euro
+                ? ShownNet(price, euro, rate)!.Value * (1 + PlanPrice.GermanVat)
+                : price.IsEuro ? ShownNet(price, euro, rate)!.Value : price.Amount);
+            planText = $"{string.Join(" + ", prices.Select(price => price.Plan))} {PlanPriceText(shown, symbol)}";
+
+            var lines = new List<string>();
+            foreach (var price in prices.DistinctBy(price => price.Plan))
+            {
+                var net = ShownNet(price, euro, rate)!.Value;
+                lines.Add(loc.Format("Tip.Stats.Forecast.PlanPriceAdvertised", price.Plan,
+                    PlanPriceText(price.Amount, price.IsEuro ? "€" : "$"),
+                    loc[price.IncludesVat ? "Tip.Stats.Forecast.PlanPriceTaxIncluded" : "Tip.Stats.Forecast.PlanPriceTaxExcluded"]));
+                lines.Add(loc.Format("Tip.Stats.Forecast.PlanPriceNetGross",
+                    PlanPriceText(net, symbol), PlanPriceText(net * (1 + PlanPrice.GermanVat), symbol)));
+                lines.Add(loc.Format("Tip.Stats.Forecast.PlanPriceSource", price.Source, price.CheckedOn.ToString("d", CultureInfo.CurrentCulture)));
+            }
+
             lines.Add(loc["Tip.Stats.Forecast.PlanPriceNote"]);
-            if (cost.Euro && !euroList)
+            if (prices.Any(price => price.IsEuro != euro))
                 lines.Add(loc["Tip.Stats.Forecast.PlanPriceConverted"]);
             planTip = string.Join('\n', lines);
+
+            var planUsd = prices.Sum(price => price.NetUsd(rate)!.Value);
             if (planUsd > 0)
                 ratio = (monthly / planUsd).ToString("0.0", CultureInfo.CurrentCulture) + "×";
         }
@@ -316,6 +329,18 @@ public sealed partial class StatsViewModel
             loc.Format("Stats.Forecast.MonthApi", monthlyText), planText, planTip,
             ratio, ratio.Length > 0 ? loc["Stats.Forecast.RatioCaption"] : "",
             loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush);
+    }
+
+    /// <summary>A plan's price without VAT in the shown currency, or null when it needs a rate and none is known.</summary>
+    private static double? ShownNet(PlanPrice price, bool euro, double? usdPerEur)
+    {
+        if (price.IsEuro == euro)
+            return price.Net;
+
+        if (usdPerEur is not > 0)
+            return null;
+
+        return euro ? price.Net / usdPerEur.Value : price.Net * usdPerEur.Value;
     }
 
     /// <summary>A list price as it is published: whole amounts without cents, else with two decimals.</summary>

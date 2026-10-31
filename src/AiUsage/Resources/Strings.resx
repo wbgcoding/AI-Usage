@@ -404,9 +404,13 @@
   <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Your average: {0} ({1})</value></data>
   <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>If only one model is used</value></data>
   <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>API value per month ≈ {0}</value></data>
-  <data name="Tip.Stats.Forecast.PlanPrice" xml:space="preserve"><value>{0}: {1} / {2} (source: {3}, checked {4})</value></data>
-  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Monthly list price; euro prices include 19 % German VAT. Taxes in other countries, yearly billing and promotions differ.</value></data>
-  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>No euro list price is published: the dollar price is converted at the day’s ECB rate.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceAdvertised" xml:space="preserve"><value>{0}: advertised {1} ({2})</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceTaxExcluded" xml:space="preserve"><value>without tax</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceTaxIncluded" xml:space="preserve"><value>with VAT</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNetGross" xml:space="preserve"><value>Net {0}, gross with 19 % German VAT {1}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceSource" xml:space="preserve"><value>Source: {0}, checked {1}</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceNote" xml:space="preserve"><value>Monthly price from the provider’s own page. The card shows euros with 19 % German VAT and dollars as advertised; the ratio compares without VAT, as the API value has none. Other countries, yearly billing and promotions differ.</value></data>
+  <data name="Tip.Stats.Forecast.PlanPriceConverted" xml:space="preserve"><value>Converted at the day’s ECB rate.</value></data>
   <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>value of your plan</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>All models together</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Not enough data yet</value></data>

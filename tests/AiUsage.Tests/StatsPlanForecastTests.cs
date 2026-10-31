@@ -7,16 +7,21 @@ namespace AiUsage.Tests;
 public class PlanPriceListTests
 {
     [Theory]
-    [InlineData("claude", "Pro", 20)]
-    [InlineData("claude", "Max 5x", 100)]
-    [InlineData("claude", "Max 20x", 200)]
-    [InlineData("codex", "Plus", 20)]
-    [InlineData("codex", "Pro", 200)]
-    [InlineData("codex", "Business", 30)]
-    [InlineData("codex", "Team", 30)]
-    [InlineData("gemini", "Pro", 19.99)]
-    public void A_known_plan_has_its_list_price(string provider, string plan, double expected) =>
-        Assert.Equal(expected, PlanPriceList.MonthlyUsd(provider, plan));
+    [InlineData("claude", "Pro", 20, "USD")]
+    [InlineData("claude", "Max 5x", 100, "USD")]
+    [InlineData("claude", "Max 20x", 200, "USD")]
+    [InlineData("claude", "Ultra", 200, "USD")]
+    [InlineData("codex", "Plus", 20, "USD")]
+    [InlineData("codex", "Business", 25, "USD")]
+    [InlineData("codex", "Team", 25, "USD")]
+    [InlineData("gemini", "Plus", 4.99, "EUR")]
+    [InlineData("gemini", "Pro", 21.99, "EUR")]
+    public void A_known_plan_has_its_advertised_price(string provider, string plan, double amount, string currency)
+    {
+        var price = PlanPriceList.Find(provider, plan)!;
+        Assert.Equal(amount, price.Amount);
+        Assert.Equal(currency, price.Currency);
+    }
 
     [Theory]
     [InlineData("claude", "Team")]
@@ -24,27 +29,41 @@ public class PlanPriceListTests
     [InlineData("claude", null)]
     [InlineData("claude", "")]
     [InlineData("cursor", "Pro")]
-    [InlineData("gemini", "Plus")]
+    [InlineData("codex", "Pro")]
     [InlineData("gemini", "Ultra")]
-    public void An_unknown_plan_has_no_price(string provider, string? plan) =>
-        Assert.Null(PlanPriceList.MonthlyUsd(provider, plan));
+    public void An_unknown_or_ambiguous_plan_has_no_price(string provider, string? plan) =>
+        Assert.Null(PlanPriceList.Find(provider, plan));
 
     [Fact]
     public void The_lookup_ignores_case_and_the_account_suffix_of_the_provider()
     {
-        Assert.Equal(100, PlanPriceList.MonthlyUsd("claude#2", "max 5x"));
-        Assert.Equal(20, PlanPriceList.MonthlyUsd("CODEX", "PLUS"));
+        Assert.Equal(100, PlanPriceList.Find("claude#2", "max 5x")!.Amount);
+        Assert.Equal(20, PlanPriceList.Find("CODEX", "PLUS")!.Amount);
     }
 
     [Fact]
-    public void Every_price_names_its_plan_its_source_and_when_it_was_checked()
+    public void Every_source_is_an_official_page_of_the_same_provider()
     {
-        var max = PlanPriceList.Find("claude", "max 5x")!;
-        Assert.Equal("Max 5x", max.Plan);
-        Assert.Equal(107.10, max.Eur);
-        Assert.False(string.IsNullOrWhiteSpace(max.Source));
-        Assert.True(max.CheckedOn.Year >= 2026);
-        Assert.Null(PlanPriceList.Find("codex", "business")!.Eur);
+        foreach (var price in PlanPriceList.All)
+        {
+            var host = new Uri(price.Source).Host;
+            Assert.Contains(host, new[] { "claude.com", "help.openai.com", "gemini.google" });
+            Assert.True(price.CheckedOn.Year >= 2026);
+        }
+
+        Assert.Equal("claude.com", new Uri(PlanPriceList.Find("claude", "pro")!.Source).Host);
+        Assert.Equal("help.openai.com", new Uri(PlanPriceList.Find("codex", "plus")!.Source).Host);
+        Assert.Equal("gemini.google", new Uri(PlanPriceList.Find("gemini", "pro")!.Source).Host);
+    }
+
+    [Fact]
+    public void Net_takes_the_german_vat_out_of_a_price_that_includes_it()
+    {
+        var pro = PlanPriceList.Find("gemini", "pro")!;
+        Assert.Equal(21.99 / 1.19, pro.Net, 9);
+        Assert.Equal(21.99 / 1.19 * 1.2, pro.NetUsd(1.2)!.Value, 9);
+        Assert.Null(pro.NetUsd(null));
+        Assert.Equal(100, PlanPriceList.Find("claude", "max 5x")!.NetUsd(null));
     }
 }
 
