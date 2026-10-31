@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- "Plan forecast" in the token usage window: for each provider the detected plan, how many tokens a full 5 hour window and a full week bring (per model too), your own average, the API value of that capacity and the plan price beside it. Based on the last 12 weeks; several accounts of one provider count together.
+- "Plan forecast" in the token usage window, one provider at a time behind buttons: the detected plan, two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars when only one model is used) and a month card that compares the API value with the plan price. Based on the last 12 weeks; several accounts of one provider count together.
 - The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
