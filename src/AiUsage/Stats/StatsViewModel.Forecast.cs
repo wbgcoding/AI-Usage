@@ -321,7 +321,7 @@ public sealed partial class StatsViewModel
     {
         var numbers = (NumberFormatInfo)CultureInfo.CurrentCulture.NumberFormat.Clone();
         numbers.CurrencySymbol = symbol;
-        return amount.ToString(Math.Abs(amount - Math.Round(amount)) < 0.005 ? "C0" : "C2", numbers).Replace(' ', '\u00a0');
+        return amount.ToString(Math.Abs(amount * 100 % 100) < 0.5 ? "C0" : "C2", numbers).Replace(' ', '\u00a0');
     }
 
     /// <summary>A dollar amount in the cost currency without the estimate tilde (the texts carry their own "≈"); empty when costs are off.</summary>
