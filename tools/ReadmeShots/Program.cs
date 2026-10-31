@@ -432,7 +432,8 @@ internal static class Program
 
     internal static void RenderStatistics(
         string dataDirectory, IReadOnlyList<StatsRecord> records, DateOnly busyDay, bool fullHeight, string outputPath,
-        bool minWidth = false, Action<StatsStore>? seed = null, Action<StatsViewModel>? configure = null)
+        bool minWidth = false, Action<StatsStore>? seed = null, Action<StatsViewModel>? configure = null,
+        Func<StatsWindow, FrameworkElement>? region = null)
     {
         var window = BuildStatisticsWindow(dataDirectory, records, busyDay, seed, configure);
         var viewModel = (StatsViewModel)window.DataContext;
@@ -457,10 +458,47 @@ internal static class Program
             root.Measure(new Size(width, double.PositiveInfinity));
             root.UpdateLayout();
         }
+        if (region is not null)
+        {
+            RenderRegion(root, region(window), width, Math.Ceiling(root.DesiredSize.Height), outputPath);
+            return;
+        }
+
         var height = fullHeight
             ? Math.Ceiling(root.DesiredSize.Height)
             : Math.Floor(window.ProviderSection.TranslatePoint(new Point(0, 0), root).Y - 4);
         RenderToPng(root, width, height, outputPath);
+    }
+
+    /// <summary>One element of a laid out window as its own picture, with a little air around it.</summary>
+    private static void RenderRegion(FrameworkElement root, FrameworkElement element, double width, double height, string outputPath)
+    {
+        const double air = 12;
+        root.Measure(new Size(width, height));
+        root.Arrange(new Rect(0, 0, width, height));
+        root.UpdateLayout();
+        PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
+        root.UpdateLayout();
+        ClipReport.Check(element, outputPath);
+
+        var origin = element.TranslatePoint(new Point(0, 0), root);
+        var area = Rect.Intersect(
+            new Rect(origin.X - air, origin.Y - air, element.ActualWidth + 2 * air, element.ActualHeight + 2 * air),
+            new Rect(0, 0, width, height));
+        var full = new RenderTargetBitmap(
+            (int)Math.Ceiling(width * ImageScale), (int)Math.Ceiling(height * ImageScale),
+            96 * ImageScale, 96 * ImageScale, PixelFormats.Pbgra32);
+        full.Render(root);
+
+        var crop = new CroppedBitmap(full, new Int32Rect(
+            (int)Math.Floor(area.X * ImageScale), (int)Math.Floor(area.Y * ImageScale),
+            Math.Min(full.PixelWidth - (int)Math.Floor(area.X * ImageScale), (int)Math.Ceiling(area.Width * ImageScale)),
+            Math.Min(full.PixelHeight - (int)Math.Floor(area.Y * ImageScale), (int)Math.Ceiling(area.Height * ImageScale))));
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(crop));
+        using var stream = File.Create(outputPath);
+        encoder.Save(stream);
+        Console.WriteLine($"{Path.GetFileName(outputPath)}: {crop.PixelWidth} x {crop.PixelHeight}");
     }
 
     // Shared -------------------------------------------------------------------------------------------

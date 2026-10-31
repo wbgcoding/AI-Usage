@@ -126,6 +126,8 @@ internal static class ReviewSurfaces
             new("widget.daytile.full.wide", GroupWidget, context => DayTile(context, "widget.daytile.full.wide", TileDensity.Full, wide: true)),
             new("widget.daytile.mini.wide", GroupWidget, context => DayTile(context, "widget.daytile.mini.wide", TileDensity.Mini, wide: true)),
             new("stats.window", GroupStats, context => StatsWindowWithLimits(context), HasMinSize: true),
+            new("stats.forecast", GroupStats, context => ForecastSection(context, "stats.forecast", "claude"), HasMinSize: true),
+            new("stats.forecast.codex", GroupStats, context => ForecastSection(context, "stats.forecast.codex", "codex"), HasMinSize: true),
             new("stats.agents", GroupStats, context => Program.RenderStatistics(
                 context.NextDataFolder("stats"), WithSubagents(context.Records), context.BusyDay, fullHeight: true,
                 context.OutputPath("stats.agents"), minWidth: context.Size == SizeKind.Min,
@@ -201,6 +203,23 @@ internal static class ReviewSurfaces
                 viewModel.PlanOf = key => key == "claude" ? "Max 5x" : key == "codex" ? "Plus" : null;
                 viewModel.Recompute();
             });
+    }
+
+    /// <summary>Just the plan forecast section, with two providers so the buttons show and one of them picked.</summary>
+    private static void ForecastSection(SurfaceContext context, string id, string provider)
+    {
+        var folder = context.NextDataFolder("stats");
+        Program.RenderStatistics(
+            folder, context.Records, context.BusyDay, fullHeight: true,
+            context.OutputPath(id), minWidth: context.Size == SizeKind.Min,
+            seed: _ => SampleLimits.Seed(folder, context.Now, context.Records),
+            configure: viewModel =>
+            {
+                viewModel.PlanOf = key => key == "claude" ? "Max 5x" : key == "codex" ? "Plus" : null;
+                viewModel.Recompute();
+                viewModel.ForecastButtons.FirstOrDefault(button => button.ProviderId == provider)?.IsChecked = true;
+            },
+            region: window => window.PlanForecastSection);
     }
 
     /// <summary>The weekday by hour grid colored by one "Color by" choice, with subagent work so the agent split shows.</summary>

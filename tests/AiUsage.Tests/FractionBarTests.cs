@@ -28,4 +28,14 @@ public class FractionBarTests
         var columns = new FigureCardColumnsConverter().Convert([cards, width], typeof(int), minimum, CultureInfo.InvariantCulture);
         Assert.Equal(expected, columns);
     }
+
+    [Theory]
+    [InlineData(500.0, "420", true)]
+    [InlineData(420.0, "420", true)]
+    [InlineData(419.0, "420", false)]
+    [InlineData(0.0, "420", true)]
+    [InlineData(double.NaN, "420", true)]
+    [InlineData(300.0, null, false)]
+    public void The_wide_arrangement_starts_at_the_given_width(double width, string? minimum, bool expected) =>
+        Assert.Equal(expected, new AtLeastWidthConverter().Convert(width, typeof(bool), minimum, CultureInfo.InvariantCulture));
 }

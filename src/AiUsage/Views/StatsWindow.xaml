@@ -25,6 +25,7 @@
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <controls:NullIfEmptyStringConverter x:Key="NullIfEmpty"/>
             <controls:FigureCardColumnsConverter x:Key="FigureCardColumns"/>
+            <controls:AtLeastWidthConverter x:Key="AtLeastWidth"/>
             <controls:PercentOffsetConverter x:Key="LimitTickOffset"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
@@ -1072,6 +1073,10 @@
                                                                             <ColumnDefinition Width="*"/>
                                                                             <ColumnDefinition Width="Auto"/>
                                                                         </Grid.ColumnDefinitions>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
                                                                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                                             <TextBlock Text="{Binding ApiText}"/>
                                                                             <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="{Binding ApiFraction}" Fill="{Binding Brush}"
@@ -1086,13 +1091,30 @@
                                                                                                       OutlineThickness="{DynamicResource Track.BorderThickness}"/>
                                                                             </StackPanel>
                                                                         </StackPanel>
-                                                                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center"
+                                                                        <!-- Beside the bars while the section is wide, below them once it is narrow. -->
+                                                                        <StackPanel VerticalAlignment="Center"
                                                                                     Visibility="{Binding HasRatio, Converter={StaticResource BoolToVis}}">
+                                                                            <StackPanel.Style>
+                                                                                <Style TargetType="StackPanel">
+                                                                                    <Setter Property="Grid.Column" Value="0"/>
+                                                                                    <Setter Property="Grid.Row" Value="1"/>
+                                                                                    <Setter Property="Grid.ColumnSpan" Value="2"/>
+                                                                                    <Setter Property="Margin" Value="0,8,0,0"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=controls:CollapsibleSection}, Converter={StaticResource AtLeastWidth}, ConverterParameter=420}" Value="True">
+                                                                                            <Setter Property="Grid.Column" Value="1"/>
+                                                                                            <Setter Property="Grid.Row" Value="0"/>
+                                                                                            <Setter Property="Grid.ColumnSpan" Value="1"/>
+                                                                                            <Setter Property="Margin" Value="16,0,0,0"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </StackPanel.Style>
                                                                             <TextBlock Text="{Binding RatioText}" FontFamily="{DynamicResource Font.Numeric}"
                                                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold"
                                                                                        Foreground="{Binding Brush}" TextWrapping="NoWrap"/>
                                                                             <TextBlock Text="{Binding RatioCaption}" Foreground="{DynamicResource Text.Muted}"
-                                                                                       FontSize="{StaticResource Font.Size.Micro}" MaxWidth="110"/>
+                                                                                       FontSize="{StaticResource Font.Size.Micro}" MaxWidth="110" HorizontalAlignment="Left"/>
                                                                         </StackPanel>
                                                                     </Grid>
                                                                 </Border>
