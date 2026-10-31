@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>Sınırlar</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Abonelik tahmini</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} hesap</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Dolu 5 saatlik pencere ≈ {0} token</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Dolu hafta ≈ {0} token</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>5 saatlik pencere</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Hafta</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} token</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API değeri</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Ortalaman: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Yalnızca tek model kullanılırsa</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} tek başına · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Aylık API değeri ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Abonelik ücreti ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>aboneliğinin değeri</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Tüm modeller birlikte</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API değeri ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Ortalaman: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 sa ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>hafta ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Yalnızca tek modelle: {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Ay: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonelik ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Henüz yeterli veri yok</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Son 12 haftalık kendi kullanımına dayanır. Yukarıdaki zaman aralığı burada geçerli değildir.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Bir ay yaklaşık 4,3 hafta sayılır. Abonelik fiyatları herkese açık liste fiyatlarıdır; vergiler ve bölgesel fiyatlar farklı olabilir.</value></data>

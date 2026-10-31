@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>额度上限</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>套餐预测</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} 个账号</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>完整 5 小时窗口 ≈ {0} 个令牌</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>完整一周 ≈ {0} 个令牌</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>5 小时窗口</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>一周</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} 个令牌</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API 价值</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>你的平均: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>如果只使用一个模型</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>仅 {0} · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>每月 API 价值 ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>套餐价格 ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>你的套餐的价值</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>所有模型合计</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API 价值 ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>你的平均: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 小时 ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>每周 ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>仅用一个模型：{0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>每月: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>套餐 ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>数据还不够</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>基于你最近 12 周的实际用量。上方的时间范围在此不适用。</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>一个月按约 4.3 周计算。套餐价格为公开标价,税费和地区价格可能不同。</value></data>

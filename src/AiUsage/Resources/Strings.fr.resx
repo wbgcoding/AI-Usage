@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>Limites</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Prévision de l'abonnement</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} comptes</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Fenêtre de 5 h pleine ≈ {0} tokens</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Semaine pleine ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>Fenêtre de 5 heures</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Semaine</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} tokens</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} de valeur API</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Ta moyenne : {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Si un seul modèle est utilisé</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} seul · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valeur API par mois ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Prix de l’abonnement ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valeur de ton abonnement</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Tous modèles confondus</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>Valeur API ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Ta moyenne : {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>semaine ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Avec un seul modèle : {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Mois : {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonnement ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Pas encore assez de données</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Basé sur ta propre utilisation des 12 dernières semaines. La période choisie en haut ne s'applique pas ici.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Un mois est compté pour environ 4,3 semaines. Les prix des abonnements sont les prix publics ; les taxes et les prix régionaux peuvent différer.</value></data>

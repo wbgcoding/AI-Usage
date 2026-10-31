@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>Limits</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Plan forecast</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} accounts</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Full 5h window ≈ {0} tokens</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Full week ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>5-hour window</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Week</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} tokens</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API value</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Your average: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>If only one model is used</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} alone · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>API value per month ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Plan price ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>value of your plan</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>All models together</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API value ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Your average: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5h ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>week ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>With one model only: {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Month: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>plan ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Not enough data yet</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Based on your own usage of the last 12 weeks. The time range above does not apply here.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>A month is counted as about 4.3 weeks. Plan prices are public list prices; taxes and regional prices differ.</value></data>

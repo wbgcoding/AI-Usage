@@ -1,4 +1,6 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Windows.Media;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Stats.Pricing;
@@ -8,7 +10,7 @@ namespace AiUsage.Stats;
 
 /// <summary>The plan forecast section: the numbers are computed on a pool thread from the quota
 /// history read for the limits section and kept until the records, the history, the plans or the
-/// cost inputs change; the rows are drawn from them on the UI thread.</summary>
+/// cost inputs change; the cards are drawn from them on the UI thread.</summary>
 public sealed partial class StatsViewModel
 {
     /// <summary>The account keys of a provider (<c>claude</c>, <c>claude#2</c>) - a seam the window fills
@@ -29,10 +31,61 @@ public sealed partial class StatsViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasForecast))]
-    private IReadOnlyList<StatsForecastGroupViewModel> forecastGroups = [];
+    private IReadOnlyList<StatsForecastProviderViewModel> forecastProviders = [];
 
     /// <summary>True when at least one shown provider has a forecast; the section is hidden otherwise.</summary>
-    public bool HasForecast => ForecastGroups.Count > 0;
+    public bool HasForecast => ForecastProviders.Count > 0;
+
+    /// <summary>The provider buttons above the forecast, one per provider with a forecast.</summary>
+    public ObservableCollection<StatsForecastButtonViewModel> ForecastButtons { get; } = [];
+
+    /// <summary>The buttons are only worth showing when there is a choice.</summary>
+    public bool HasForecastChoice => ForecastButtons.Count > 1;
+
+    /// <summary>The provider the user picked in the forecast section; empty until one is picked, and
+    /// again once it has no forecast. Kept only while the window is open.</summary>
+    private string _pickedForecastProvider = "";
+
+    /// <summary>The provider the forecast section shows: the picked one, else the one provider of the
+    /// provider filter, else the first with a forecast. Empty without any forecast.</summary>
+    public string SelectedForecastProvider { get; private set; } = "";
+
+    /// <summary>The one provider block the forecast section shows; none without a forecast.</summary>
+    public IReadOnlyList<StatsForecastProviderViewModel> ShownForecast { get; private set; } = [];
+
+    partial void OnForecastProvidersChanged(IReadOnlyList<StatsForecastProviderViewModel> value) => ResolveForecastProvider();
+
+    private void PickForecastProvider(string providerId)
+    {
+        _pickedForecastProvider = providerId;
+        ResolveForecastProvider();
+    }
+
+    /// <summary>Settles which provider the forecast section shows and refreshes the buttons and the block.</summary>
+    private void ResolveForecastProvider()
+    {
+        var ids = ForecastProviders.Select(provider => provider.ProviderId).ToList();
+        if (!ids.Contains(_pickedForecastProvider))
+            _pickedForecastProvider = "";
+
+        SelectedForecastProvider = _pickedForecastProvider.Length > 0 ? _pickedForecastProvider
+            : _selectedProviders.Count == 1 && ids.Contains(_selectedProviders[0]) ? _selectedProviders[0]
+            : ids.FirstOrDefault() ?? "";
+        ShownForecast = [.. ForecastProviders.Where(provider => provider.ProviderId == SelectedForecastProvider)];
+
+        if (!ForecastButtons.Select(button => button.ProviderId).SequenceEqual(ids))
+        {
+            ForecastButtons.Clear();
+            foreach (var provider in ForecastProviders)
+                ForecastButtons.Add(new StatsForecastButtonViewModel(provider.ProviderId, provider.Name, provider.Brush, PickForecastProvider));
+        }
+
+        foreach (var button in ForecastButtons)
+            button.Mark(button.ProviderId == SelectedForecastProvider);
+        OnPropertyChanged(nameof(SelectedForecastProvider));
+        OnPropertyChanged(nameof(ShownForecast));
+        OnPropertyChanged(nameof(HasForecastChoice));
+    }
 
     private ForecastState? _forecastState;
     private int _forecastGeneration;
@@ -80,7 +133,7 @@ public sealed partial class StatsViewModel
         var records = _sourceRecords;
         if (_forecastState is { } state && ReferenceEquals(state.Records, records) && ReferenceEquals(state.Inputs, held) && state.Signature == signature)
         {
-            ForecastGroups = BuildForecastGroups(state, loc);
+            ForecastProviders = BuildForecastProviders(state, loc);
             return;
         }
 
@@ -109,7 +162,7 @@ public sealed partial class StatsViewModel
                 return;
 
             _forecastState = state;
-            ForecastGroups = BuildForecastGroups(state, LocalizationService.Instance);
+            ForecastProviders = BuildForecastProviders(state, LocalizationService.Instance);
         }
         catch (Exception ex)
         {
@@ -140,86 +193,104 @@ public sealed partial class StatsViewModel
         return forecasts;
     }
 
-    private List<StatsForecastGroupViewModel> BuildForecastGroups(ForecastState state, LocalizationService loc)
+    private List<StatsForecastProviderViewModel> BuildForecastProviders(ForecastState state, LocalizationService loc)
     {
-        var groups = new List<StatsForecastGroupViewModel>();
+        var providers = new List<StatsForecastProviderViewModel>();
         foreach (var providerId in ProviderCoverage.IndexedProviderIds)
         {
             if (!state.Forecasts.TryGetValue(providerId, out var forecast) || (HasProviderFilter && !_selectedProviders.Contains(providerId)))
                 continue;
 
-            groups.Add(new StatsForecastGroupViewModel(providerId, ForecastHeading(forecast, loc), ForecastRows(forecast, state.Cost, loc)));
+            providers.Add(BuildForecastProvider(forecast, state.Cost, loc));
         }
 
-        return groups;
+        return providers;
     }
 
-    private static string ForecastHeading(ProviderForecast forecast, LocalizationService loc)
-    {
-        var heading = ProviderDisplayNames.GetValueOrDefault(forecast.ProviderId, forecast.ProviderId);
-        if (forecast.Plans.Count > 0)
-            heading += " · " + string.Join(" + ", forecast.Plans);
-        if (forecast.AccountCount > 1)
-            heading += " (" + loc.Format("Stats.Forecast.Accounts", forecast.AccountCount) + ")";
-        return heading;
-    }
-
-    private static List<StatsForecastRowViewModel> ForecastRows(ProviderForecast forecast, StatsCostView cost, LocalizationService loc)
+    internal static StatsForecastProviderViewModel BuildForecastProvider(ProviderForecast forecast, StatsCostView cost, LocalizationService loc)
     {
         var rangeNote = loc["Tip.Stats.Forecast"];
-        var rows = new List<StatsForecastRowViewModel>();
-        foreach (var (window, key) in new[] { (forecast.FiveHour, "Stats.Forecast.FiveHour"), (forecast.Weekly, "Stats.Forecast.Week") })
-        {
-            if (window is null || window.Result.Status == PerPercentStatus.TooFew)
-                continue;
+        var windows = new List<StatsForecastWindowViewModel>();
+        if (forecast.FiveHour is { } fiveHour)
+            windows.Add(ForecastWindowCard(fiveHour, loc["Stats.Forecast.Window.FiveHour"], cost, loc, rangeNote));
+        if (forecast.Weekly is { } weekly)
+            windows.Add(ForecastWindowCard(weekly, loc["Stats.Forecast.Window.Week"], cost, loc, rangeNote));
 
-            var text = loc.Format(key, ShortenTokens(window.CapacityTokens, loc));
-            if (window.ApiUsdPerWindow is { } api && Money(cost, api) is { Length: > 0 } money)
-                text += " · " + loc.Format("Stats.Forecast.ApiValue", money);
-
-            var detail = window.Result.Status == PerPercentStatus.PerModel
-                // Each figure is what that model alone would fill the window with, so it can exceed the
-                // mixed total above; the label says so.
-                ? loc.Format("Stats.Forecast.ModelsAlone", string.Join(" · ", window.Result.Items.Select(item => loc.Format(
-                    "Stats.PerPercent.Item", ShortenTokens(item.TokensPerPercent * 100, loc), item.IsOther ? loc["Stats.Other"] : item.Model))))
-                : loc["Stats.Forecast.AllModels"];
-            var cached = window.Result.CacheReadPerPercent > 0 ? ShortenTokens(window.Result.CacheReadPerPercent, loc) : "–";
-            var lines = new List<string> { loc.Format("Stats.PerPercent.Tip", window.Result.IntervalCount, cached) };
-            if (window.UnpricedModels.Count > 0 && CostService.UnpricedLine(new CostSummary(0, true, window.UnpricedModels)) is { } unpriced)
-                lines.Add(unpriced);
-            lines.Add(rangeNote);
-            rows.Add(new StatsForecastRowViewModel(text, detail, string.Join('\n', lines)));
-        }
-
-        var tooFew = (forecast.FiveHour is null || forecast.FiveHour.Result.Status == PerPercentStatus.TooFew)
-            && (forecast.Weekly is null || forecast.Weekly.Result.Status == PerPercentStatus.TooFew);
-        if (tooFew)
-            rows.Add(new StatsForecastRowViewModel(loc["Stats.Forecast.TooFew"], "", rangeNote));
-
-        var averages = new List<string>();
-        if (forecast.FiveHour?.Average is { } five)
-            averages.Add(loc.Format("Stats.Forecast.Average.FiveHour", ShortenTokens(five.AverageTokens, loc), FormatLimitPercent(five.AveragePeak)));
-        if (forecast.Weekly?.Average is { } week)
-            averages.Add(loc.Format("Stats.Forecast.Average.Week", ShortenTokens(week.AverageTokens, loc), FormatLimitPercent(week.AveragePeak)));
-        if (averages.Count > 0)
-            rows.Add(new StatsForecastRowViewModel(
-                loc.Format("Stats.Forecast.Average", string.Join(" · ", averages)), "", loc["Tip.Stats.Forecast.Average"] + "\n" + rangeNote));
-
-        if (forecast.MonthlyApiUsd is { } monthly && Money(cost, monthly) is { Length: > 0 } monthlyText)
-        {
-            var parts = new List<string> { loc.Format("Stats.Forecast.ApiValue", monthlyText) };
-            if (forecast.MonthlyPlanUsd is { } plan && Money(cost, plan) is { Length: > 0 } planText)
-                parts.Add(loc.Format("Stats.Forecast.Plan", planText));
-            if (forecast.Ratio is { } ratio)
-                parts.Add(ratio.ToString("0.0", CultureInfo.CurrentCulture) + "x");
-            rows.Add(new StatsForecastRowViewModel(
-                loc.Format("Stats.Forecast.Month", string.Join(" · ", parts)), "", loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote));
-        }
-
-        return rows;
+        var brush = new SolidColorBrush(ChartPalette.ForProvider(forecast.ProviderId));
+        brush.Freeze();
+        return new StatsForecastProviderViewModel(
+            forecast.ProviderId, ProviderDisplayNames.GetValueOrDefault(forecast.ProviderId, forecast.ProviderId), brush,
+            string.Join(" + ", forecast.Plans),
+            forecast.AccountCount > 1 ? loc.Format("Stats.Forecast.Accounts", forecast.AccountCount) : "",
+            windows, ForecastMonthCard(forecast, cost, loc, rangeNote));
     }
 
-    /// <summary>A dollar amount in the cost currency without the estimate tilde (the rows carry their own "≈"); empty when costs are off.</summary>
+    private static StatsForecastWindowViewModel ForecastWindowCard(
+        ForecastWindow window, string caption, StatsCostView cost, LocalizationService loc, string rangeNote)
+    {
+        if (window.Result.Status == PerPercentStatus.TooFew)
+            return new StatsForecastWindowViewModel(caption, false, loc["Stats.Forecast.TooFew"], "", 0, "", "", [], rangeNote, "");
+
+        var api = window.ApiUsdPerWindow is { } usd && Money(cost, usd) is { Length: > 0 } money ? loc.Format("Stats.Forecast.ApiCard", money) : "";
+        var average = "";
+        var averageFraction = 0.0;
+        if (window.Average is { } found)
+        {
+            average = loc.Format("Stats.Forecast.AverageLine", ShortenTokens(found.AverageTokens, loc), FormatLimitPercent(found.AveragePeak));
+            averageFraction = Math.Clamp(found.AveragePeak / 100, 0, 1);
+        }
+
+        // Each bar is what that model alone would fill the window with, so one can exceed the mixed
+        // total above; the lengths are relative to the longest of them.
+        var models = new List<StatsForecastModelBar>();
+        if (window.Result.Status == PerPercentStatus.PerModel && window.Result.Items.Count > 0)
+        {
+            var longest = window.Result.Items.Max(item => item.TokensPerPercent);
+            foreach (var item in window.Result.Items)
+            {
+                var name = item.IsOther ? loc["Stats.Other"] : item.Model;
+                models.Add(new StatsForecastModelBar(
+                    loc.Format("Stats.Forecast.ModelAlone", name, ShortenTokens(item.TokensPerPercent * 100, loc)),
+                    longest > 0 ? (double)item.TokensPerPercent / longest : 0));
+            }
+        }
+
+        var cached = window.Result.CacheReadPerPercent > 0 ? ShortenTokens(window.Result.CacheReadPerPercent, loc) : "–";
+        var lines = new List<string> { loc.Format("Stats.PerPercent.Tip", window.Result.IntervalCount, cached) };
+        if (window.UnpricedModels.Count > 0 && CostService.UnpricedLine(new CostSummary(0, true, window.UnpricedModels)) is { } unpriced)
+            lines.Add(unpriced);
+        lines.Add(rangeNote);
+        return new StatsForecastWindowViewModel(
+            caption, true, loc.Format("Stats.Forecast.Capacity", ShortenTokens(window.CapacityTokens, loc)), api,
+            averageFraction, average, models.Count > 0 ? loc["Stats.Forecast.ModelsCaption"] : loc["Stats.Forecast.AllModels"], models,
+            string.Join('\n', lines), loc["Tip.Stats.Forecast.Average"] + "\n" + rangeNote);
+    }
+
+    private static StatsForecastMonthViewModel? ForecastMonthCard(ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote)
+    {
+        if (forecast.MonthlyApiUsd is not { } monthly || Money(cost, monthly) is not { Length: > 0 } monthlyText)
+            return null;
+
+        // Both bars share one scale: the longer of the two is full.
+        var planText = "";
+        var apiFraction = 1.0;
+        var planFraction = 0.0;
+        if (forecast.MonthlyPlanUsd is { } plan && Money(cost, plan) is { Length: > 0 } planMoney)
+        {
+            planText = loc.Format("Stats.Forecast.MonthPlan", planMoney);
+            var scale = Math.Max(monthly, plan);
+            apiFraction = scale > 0 ? monthly / scale : 0;
+            planFraction = scale > 0 ? plan / scale : 0;
+        }
+
+        var ratio = forecast.Ratio is { } value ? value.ToString("0.0", CultureInfo.CurrentCulture) + "×" : "";
+        return new StatsForecastMonthViewModel(
+            loc.Format("Stats.Forecast.MonthApi", monthlyText), apiFraction, planText, planFraction,
+            ratio, ratio.Length > 0 ? loc["Stats.Forecast.RatioCaption"] : "",
+            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote);
+    }
+
+    /// <summary>A dollar amount in the cost currency without the estimate tilde (the texts carry their own "≈"); empty when costs are off.</summary>
     private static string Money(StatsCostView cost, double usd) =>
         cost.Active ? cost.Text(new CostSummary(usd, true, [])).TrimStart('~') : "";
 }

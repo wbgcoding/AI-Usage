@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>Limites</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Previsão do plano</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} contas</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Janela de 5 h completa ≈ {0} tokens</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Semana completa ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>Janela de 5 horas</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Semana</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} tokens</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} em valor de API</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Sua média: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Se apenas um modelo for usado</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} sozinho · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valor de API por mês ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Preço do plano ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valor do seu plano</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Todos os modelos juntos</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>Valor de API ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Sua média: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>semana ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Só com um modelo: {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Mês: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>plano ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Ainda há poucos dados</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Com base no seu próprio uso das últimas 12 semanas. O período acima não se aplica aqui.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Um mês é contado como cerca de 4,3 semanas. Os preços dos planos são preços de tabela públicos; impostos e preços regionais podem variar.</value></data>

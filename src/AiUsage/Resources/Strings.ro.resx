@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>Limite</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Prognoza abonamentului</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} conturi</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Fereastră de 5 h completă ≈ {0} tokeni</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Săptămână completă ≈ {0} tokeni</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>Fereastră de 5 ore</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Săptămână</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} tokeni</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} valoare API</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Media ta: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Dacă se folosește un singur model</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} singur · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>Valoare API pe lună ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Prețul abonamentului ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>valoarea abonamentului tău</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Toate modelele împreună</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>Valoare API ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Media ta: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 h ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>săptămână ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Doar cu un model: {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Lună: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonament ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Încă prea puține date</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Pe baza consumului tău din ultimele 12 săptămâni. Intervalul de sus nu se aplică aici.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>O lună se numără ca aproximativ 4,3 săptămâni. Prețurile abonamentelor sunt prețuri de listă publice; taxele și prețurile regionale pot diferi.</value></data>

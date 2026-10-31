@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>Limieten</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Abonnementsprognose</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} accounts</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>Volledig 5-uursvenster ≈ {0} tokens</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>Volledige week ≈ {0} tokens</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>5-uursvenster</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Week</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} tokens</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API-waarde</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>Jouw gemiddelde: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>Als er maar één model wordt gebruikt</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} alleen · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>API-waarde per maand ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>Abonnementsprijs ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>waarde van je abonnement</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>Alle modellen samen</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API-waarde ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>Jouw gemiddelde: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5 u ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>week ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>Met één model: {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>Maand: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>abonnement ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>Nog te weinig gegevens</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Gebaseerd op je eigen verbruik van de afgelopen 12 weken. De periode hierboven geldt hier niet.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Een maand wordt gerekend als ongeveer 4,3 weken. Abonnementsprijzen zijn openbare lijstprijzen; belasting en regionale prijzen kunnen afwijken.</value></data>

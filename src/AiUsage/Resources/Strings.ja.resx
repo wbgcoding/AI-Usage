@@ -397,16 +397,17 @@
   <data name="Stats.Limits" xml:space="preserve"><value>上限</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>プラン予測</value></data>
   <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} アカウント</value></data>
-  <data name="Stats.Forecast.FiveHour" xml:space="preserve"><value>5時間枠を満たす量 ≈ {0} トークン</value></data>
-  <data name="Stats.Forecast.Week" xml:space="preserve"><value>1週間を満たす量 ≈ {0} トークン</value></data>
+  <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>5時間枠</value></data>
+  <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>週</value></data>
+  <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} トークン</value></data>
+  <data name="Stats.Forecast.ApiCard" xml:space="preserve"><value>≈ {0} API換算額</value></data>
+  <data name="Stats.Forecast.AverageLine" xml:space="preserve"><value>あなたの平均: {0} ({1})</value></data>
+  <data name="Stats.Forecast.ModelsCaption" xml:space="preserve"><value>1つのモデルだけを使う場合</value></data>
+  <data name="Stats.Forecast.ModelAlone" xml:space="preserve"><value>{0} のみ · {1}</value></data>
+  <data name="Stats.Forecast.MonthApi" xml:space="preserve"><value>月あたりのAPI換算額 ≈ {0}</value></data>
+  <data name="Stats.Forecast.MonthPlan" xml:space="preserve"><value>プラン料金 ≈ {0}</value></data>
+  <data name="Stats.Forecast.RatioCaption" xml:space="preserve"><value>プランの価値</value></data>
   <data name="Stats.Forecast.AllModels" xml:space="preserve"><value>全モデル合計</value></data>
-  <data name="Stats.Forecast.ApiValue" xml:space="preserve"><value>API換算額 ≈ {0}</value></data>
-  <data name="Stats.Forecast.Average" xml:space="preserve"><value>あなたの平均: {0}</value></data>
-  <data name="Stats.Forecast.Average.FiveHour" xml:space="preserve"><value>5時間 ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.Average.Week" xml:space="preserve"><value>週 ≈ {0} ({1})</value></data>
-  <data name="Stats.Forecast.ModelsAlone" xml:space="preserve"><value>1 つのモデルのみ: {0}</value></data>
-  <data name="Stats.Forecast.Month" xml:space="preserve"><value>月: {0}</value></data>
-  <data name="Stats.Forecast.Plan" xml:space="preserve"><value>プラン ≈ {0}</value></data>
   <data name="Stats.Forecast.TooFew" xml:space="preserve"><value>データがまだ足りません</value></data>
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>直近12週間のご自身の使用量に基づきます。上の期間設定はここには適用されません。</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>1か月は約4.3週間として計算しています。プラン料金は公開されている定価で、税金や地域別価格は異なる場合があります。</value></data>
