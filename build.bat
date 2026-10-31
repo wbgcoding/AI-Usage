@@ -87,11 +87,17 @@ echo Version: %VERSION%
 rem Inlined rather than a CALL'd subroutine: CALL to a label defined later in the file is unreliable
 rem after a "for /f" command-substitution loop like the one above it (a known cmd.exe quirk) -
 rem GOTO :error, used everywhere else in this file, is unaffected and keeps working normally.
-if exist "%STAGE%" rmdir /s /q "%STAGE%"
+rem A file still held open in the staging folder (an Explorer window, a scanner) must not end the
+rem build either: what cannot be removed is moved aside and cleared on a later run.
+for /d %%o in ("%ROOT%build\publish.old-*") do rmdir /s /q "%%o" >nul 2>nul
+if exist "%STAGE%" rmdir /s /q "%STAGE%" >nul 2>nul
 if exist "%STAGE%" (
-    echo ERROR: could not clear "%STAGE%"
-    echo        Something is still using it - close any running app or Explorer window there.
-    goto :error
+    move "%STAGE%" "%STAGE%.old-%RANDOM%" >nul 2>nul
+    if exist "%STAGE%" (
+        echo ERROR: could not clear "%STAGE%" or move it aside.
+        goto :error
+    )
+    echo Note: a locked staging folder was moved aside; it is removed on a later run.
 )
 mkdir "%STAGE%"
 if errorlevel 1 (
@@ -241,28 +247,25 @@ echo.
 echo Artifacts in %DIST%
 type "%DIST%\SHA256SUMS.txt"
 
-rem The fresh copy is started once as a smoke test - it has to come up and still be running a few
-rem seconds later, which is the one thing a green test suite cannot prove about the published
+rem The run ends by starting the fresh copy, which doubles as a smoke test: it has to come up and still
+rem be running a few seconds later, the one thing a green test suite cannot prove about the published
 rem single-file executable. --second-instance skips the single-instance handover and gives this copy
 rem its own data folder and its own browser sign-ins, so the everyday copy's settings, history and
-rem sessions are never written from here.
-rem
-rem The copy is closed again before the build ends: it is a check, not a window to leave behind.
-rem The widget hides to the tray on a close request instead of exiting, so CloseMainWindow is only
-rem the polite first try and the process is ended outright when it is still there afterwards.
-rem AIUSAGE_NOSTART=1 skips the whole check for an automated run.
+rem sessions are never written from here. A copy an earlier build left running out of dist\ is
+rem closed first, so only the newest one stays. Start-Process hands the new copy none of this
+rem console's handles, so the build ends while the copy keeps running.
+rem AIUSAGE_NOSTART=1 skips the start for an automated run.
 if not "%AIUSAGE_NOSTART%"=="1" (
     echo.
-    echo === start check ===
+    echo === start ===
     powershell -NoProfile -Command ^
+        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } };" ^
         "$p = Start-Process -FilePath '%DIST%\AI-Usage.exe' -ArgumentList '--second-instance' -PassThru;" ^
         "Start-Sleep -Seconds 8;" ^
         "if ($p.HasExited) { Write-Host ('ERROR: the fresh copy exited on its own, code ' + $p.ExitCode + '.'); exit 1 };" ^
-        "$null = $p.CloseMainWindow();" ^
-        "if (-not $p.WaitForExit(5000)) { $p.Kill(); $null = $p.WaitForExit(5000) };" ^
         "exit 0"
     if !errorlevel! neq 0 goto :error
-    echo The fresh copy started, stayed up for 8 seconds and was closed again.
+    echo The fresh copy is running ^(second instance, own data folder^).
 )
 
 echo.

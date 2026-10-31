@@ -211,7 +211,10 @@ build.bat
 It compiles, runs the tests, publishes x64 and ARM64 single-file executables, builds the installer
 and writes everything plus `SHA256SUMS.txt` to `dist\`. With a signing key
 (`.signing\ai-usage-update.pem` or `AIUSAGE_SIGNING_KEY`) it signs each exe; unsigned builds are
-refused by the in-app update. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues:
+refused by the in-app update. At the end it starts the fresh copy as a second instance with its own
+data folder, so your everyday copy keeps running untouched. Started by a double-click, the window
+stays open on a failure and closes itself ten seconds after a success. For scripts and CI,
+`AIUSAGE_NOSTART=1` skips the start and `AIUSAGE_NOPAUSE=1` never waits. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues:
 [SECURITY.md](SECURITY.md).
 
 ## FAQ
