@@ -226,11 +226,16 @@ public partial class SignInWindow : Window
             return;
         }
 
-        if (_popup?.CoreWebView2 is { } open)
+        switch (DecidePopupRequest(_popup is not null, _popup?.CoreWebView2 is not null))
         {
-            args.Handled = true;
-            open.Navigate(args.Uri);
-            return;
+            case PopupRequest.LoadInOpenPopup:
+                args.Handled = true;
+                _popup!.CoreWebView2.Navigate(args.Uri);
+                return;
+            case PopupRequest.Ignore:
+                // The first popup is still starting; a second control here would never be disposed.
+                args.Handled = true;
+                return;
         }
 
         var deferral = args.GetDeferral();
@@ -284,6 +289,13 @@ public partial class SignInWindow : Window
             deferral.Complete();
         }
     }
+
+    public enum PopupRequest { OpenNew, LoadInOpenPopup, Ignore }
+
+    /// <summary>What a further popup request does: a ready popup takes the address, a popup that is still
+    /// starting is not replaced (its control would leak), otherwise a new popup opens.</summary>
+    internal static PopupRequest DecidePopupRequest(bool popupExists, bool popupReady) =>
+        !popupExists ? PopupRequest.OpenNew : popupReady ? PopupRequest.LoadInOpenPopup : PopupRequest.Ignore;
 
     /// <summary>A popup starts blank more often than not and is then sent on by script; the address
     /// it finally loads still has to pass the allow-list.</summary>

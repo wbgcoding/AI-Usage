@@ -120,6 +120,16 @@ public class SessionHardeningTests
         Assert.Equal(expected, SignInWindow.IsAllowed(uri, ProviderHosts, ["auth.example"]));
     }
 
+    [Theory]
+    [InlineData(false, false, SignInWindow.PopupRequest.OpenNew)]
+    [InlineData(true, true, SignInWindow.PopupRequest.LoadInOpenPopup)]
+    [InlineData(true, false, SignInWindow.PopupRequest.Ignore)]
+    public void A_second_popup_request_never_replaces_a_popup_that_is_still_starting(
+        bool popupExists, bool popupReady, SignInWindow.PopupRequest expected)
+    {
+        Assert.Equal(expected, SignInWindow.DecidePopupRequest(popupExists, popupReady));
+    }
+
     [Fact]
     public void An_allowed_host_changes_neither_the_providers_list_nor_any_other_windows_answer()
     {
