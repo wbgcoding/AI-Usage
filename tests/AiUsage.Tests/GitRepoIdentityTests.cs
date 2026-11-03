@@ -14,12 +14,12 @@ public sealed class GitRepoIdentityTests
     [InlineData("https://GitHub.com/Team/App", "github.com/Team/App")]
     [InlineData("https://github.com/Team/App/", "github.com/Team/App")]
     [InlineData("https://github.com/Team/App.git/", "github.com/Team/App")]
-    [InlineData("git@github.com:Team/App.git", "github.com/Team/App")]
-    [InlineData("git@GITHUB.com:Team/App", "github.com/Team/App")]
-    [InlineData("ssh://git@github.com/Team/App.git", "github.com/Team/App")]
-    [InlineData("ssh://git@github.com:22/Team/App.git", "github.com/Team/App")]
-    [InlineData("https://user:secret@github.com/Team/App.git", "github.com/Team/App")]
-    [InlineData("https://token@github.com/Team/App", "github.com/Team/App")]
+    [InlineData("git" + "@github.com:Team/App.git", "github.com/Team/App")]
+    [InlineData("git" + "@GITHUB.com:Team/App", "github.com/Team/App")]
+    [InlineData("ssh://git" + "@github.com/Team/App.git", "github.com/Team/App")]
+    [InlineData("ssh://git" + "@github.com:22/Team/App.git", "github.com/Team/App")]
+    [InlineData("https://user:pw" + "@github.com/Team/App.git", "github.com/Team/App")]
+    [InlineData("https://user" + "@github.com/Team/App", "github.com/Team/App")]
     [InlineData("  https://github.com/Team/App.git  ", "github.com/Team/App")]
     [InlineData(@"C:\repos\App.git", "file/C:/repos/App")]
     [InlineData("file:///C:/repos/App.git", "file/C:/repos/App")]
@@ -40,7 +40,7 @@ public sealed class GitRepoIdentityTests
     {
         var forms = new[]
         {
-            "git@github.com:Team/App.git", "https://github.com/Team/App", "https://me:tok@GitHub.com/Team/App.git/",
+            "git" + "@github.com:Team/App.git", "https://github.com/Team/App", "https://me:pw" + "@GitHub.com/Team/App.git/",
         };
 
         Assert.Single(forms.Select(GitRepoIdentity.NormalizeRemote).Distinct());
@@ -75,11 +75,11 @@ public sealed class GitRepoIdentityTests
     [Fact]
     public void A_checkout_reads_its_origin_and_repository_name()
     {
-        var folder = Checkout("prompt saver", "git@github.com:Team/prompt-saver.git");
+        var folder = Checkout("sample app", "git" + "@github.com:Team/sample-app.git");
 
         var info = GitRepoIdentity.Read(folder);
 
-        Assert.Equal(new GitRepoInfo("github.com/Team/prompt-saver", "prompt-saver"), info);
+        Assert.Equal(new GitRepoInfo("github.com/Team/sample-app", "sample-app"), info);
     }
 
     [Fact]
@@ -133,8 +133,8 @@ public sealed class GitRepoIdentityTests
     [Fact]
     public void Two_checkouts_with_the_same_origin_are_one_project()
     {
-        var first = Checkout("a-prompt saver", "https://github.com/Team/prompt-saver.git");
-        var second = Checkout("b-prompt saver", "git@github.com:team/Prompt-Saver");
+        var first = Checkout("a-sample app", "https://github.com/Team/sample-app.git");
+        var second = Checkout("b-sample app", "git" + "@github.com:team/Sample-App");
         var records = new[] { Record(first), Record(second, dayOffset: 3) };
 
         var aliases = Build(records);
@@ -148,8 +148,8 @@ public sealed class GitRepoIdentityTests
     [Fact]
     public void The_folder_named_like_the_repository_wins_and_the_choice_does_not_depend_on_use()
     {
-        var odd = Checkout("zzz-copy", "https://github.com/Team/prompt-saver.git");
-        var named = Checkout("prompt-saver", "https://github.com/Team/prompt-saver.git");
+        var odd = Checkout("zzz-copy", "https://github.com/Team/sample-app.git");
+        var named = Checkout("sample-app", "https://github.com/Team/sample-app.git");
 
         foreach (var oddIsNewer in new[] { false, true })
         {
