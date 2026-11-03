@@ -675,6 +675,10 @@
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>プロバイダー側で変更があり、値が不完全な可能性があります。</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>ログを開く</value></data>
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>APIクレジット</value></data>
+  <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>無料クレジット</value></data>
+  <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{1} 中 {0} 使用</value></data>
+  <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>残り {0}。最も早いクレジットは {1} に期限切れになります。</value></data>
+  <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console(APIクレジット)</value></data>

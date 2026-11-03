@@ -293,6 +293,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     [NotifyPropertyChangedFor(nameof(HasAction))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleRow))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleSignIn))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleSignOut))]
@@ -453,6 +454,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
@@ -528,6 +530,37 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
 
+    /// <summary>The "Free credit: $37.00 of $200.00 used" line of the console's free credit grants,
+    /// empty while the console lists none.</summary>
+    public string ApiGrantText => _apiCredit is { Grant: { } grant } credit
+        ? LocalizationService.Instance.Format(
+            "Format.LabelValue", LocalizationService.Instance["Tile.ApiGrant.Label"],
+            LocalizationService.Instance.Format("Tile.ApiGrant.Value",
+                credit.FormatMoney(grant.Used, LocalizationService.Instance.DisplayCulture),
+                credit.FormatMoney(grant.Granted, LocalizationService.Instance.DisplayCulture)))
+        : "";
+
+    /// <summary>The used share of the free credit, for the thin bar under its line.</summary>
+    public double ApiGrantFraction => _apiCredit?.Grant?.UsedFraction ?? 0;
+
+    /// <summary>What is left of the free credit and when the earliest grant ends.</summary>
+    public string ApiGrantToolTip
+    {
+        get
+        {
+            if (_apiCredit is not { Grant: { } grant } credit)
+                return "";
+
+            var loc = LocalizationService.Instance;
+            var left = credit.FormatMoney(grant.Remaining, loc.DisplayCulture);
+            return grant.NextExpiry is { } end
+                ? loc.Format("Tip.Tile.ApiGrant", left, end.ToLocalTime().ToString("d", loc.DisplayCulture))
+                : loc.Format("Tip.Tile.ApiGrant.NoExpiry", left);
+        }
+    }
+
+    public bool ShowApiGrant => ShowRows && !LocalOnly && ApiGrantText.Length > 0;
+
     // Which sign-in delivered _apiCredit; None while there is no balance.
     private ClaudeCreditRoute _apiCreditRoute;
 
@@ -582,6 +615,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         _apiCreditRoute = newRoute;
         OnPropertyChanged(nameof(ApiCreditText));
         OnPropertyChanged(nameof(ShowApiCredit));
+        OnPropertyChanged(nameof(ApiGrantText));
+        OnPropertyChanged(nameof(ApiGrantFraction));
+        OnPropertyChanged(nameof(ApiGrantToolTip));
+        OnPropertyChanged(nameof(ShowApiGrant));
         OnPropertyChanged(nameof(ConsoleSessionExists));
         OnPropertyChanged(nameof(ShowConsoleSignIn));
         OnPropertyChanged(nameof(ShowConsoleSignOut));
@@ -618,6 +655,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]
@@ -1333,6 +1371,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
         OnPropertyChanged(nameof(ApiCreditText));
+        OnPropertyChanged(nameof(ApiGrantText));
+        OnPropertyChanged(nameof(ApiGrantToolTip));
         OnPropertyChanged(nameof(ShowApiCredit));
         OnPropertyChanged(nameof(ConsoleStatusText));
         foreach (var choice in BarColorChoices)

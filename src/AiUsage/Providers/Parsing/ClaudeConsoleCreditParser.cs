@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AiUsage.Models;
@@ -91,7 +92,7 @@ internal static class ClaudeConsoleCreditParser
 
     /// <summary>The balance from the prepaid credit answer: "amount" is an integer count of cents, the
     /// optional "currency" a three-letter code (USD when absent).</summary>
-    internal static ClaudeConsoleCreditReading Parse(string? body)
+    internal static ClaudeConsoleCreditReading Parse(string? body, DateTimeOffset? now = null)
     {
         var unreadable = new ClaudeConsoleCreditReading(ClaudeConsoleCreditOutcome.Unreadable);
         if (string.IsNullOrWhiteSpace(body))
@@ -110,7 +111,8 @@ internal static class ClaudeConsoleCreditParser
                 && code.GetString() is { } text && CurrencyPattern.IsMatch(text)
                 ? text.ToUpperInvariant()
                 : DefaultCurrency;
-            return new ClaudeConsoleCreditReading(ClaudeConsoleCreditOutcome.Ok, new ClaudeApiCredit(cents / 100m, currency));
+            var grant = ReadGrant(root, now ?? DateTimeOffset.UtcNow, out _);
+            return new ClaudeConsoleCreditReading(ClaudeConsoleCreditOutcome.Ok, new ClaudeApiCredit(cents / 100m, currency, grant));
         }
         catch (JsonException)
         {
@@ -122,6 +124,64 @@ internal static class ClaudeConsoleCreditParser
     /// organisation list whose entries carry no uuid or capabilities, a credit answer without a
     /// numeric amount. Key names only, never a figure or an id; empty for text that is no JSON (a
     /// challenge page is no change of shape).</summary>
+    /// <summary>
+    /// The free credit grants of the credit answer ("promo_tranches": each with "granted_amount_minor_units",
+    /// "remaining_amount_minor_units" and an optional "expires_at"), summed over the grants not yet
+    /// expired at <paramref name="now"/>. Null when the answer lists none, every grant has expired, or
+    /// one entry does not hold together (then <paramref name="unreadable"/> is true): a half-read sum
+    /// would show a wrong "used" figure, so nothing is shown instead, the way the console does it.
+    /// </summary>
+    internal static ClaudeCreditGrant? ReadGrant(JsonElement root, DateTimeOffset now, out bool unreadable)
+    {
+        unreadable = false;
+        if (!root.TryGetProperty("promo_tranches", out var tranches) || tranches.ValueKind == JsonValueKind.Null)
+            return null;
+
+        if (tranches.ValueKind != JsonValueKind.Array)
+        {
+            unreadable = true;
+            return null;
+        }
+
+        decimal granted = 0, remaining = 0;
+        DateTimeOffset? nextExpiry = null;
+        foreach (var tranche in tranches.EnumerateArray())
+        {
+            if (tranche.ValueKind != JsonValueKind.Object
+                || !tranche.TryGetProperty("granted_amount_minor_units", out var grantedEl) || grantedEl.ValueKind != JsonValueKind.Number
+                || !grantedEl.TryGetDecimal(out var grantedCents)
+                || !tranche.TryGetProperty("remaining_amount_minor_units", out var remainingEl) || remainingEl.ValueKind != JsonValueKind.Number
+                || !remainingEl.TryGetDecimal(out var remainingCents)
+                || grantedCents <= 0 || remainingCents < 0 || remainingCents > grantedCents)
+            {
+                unreadable = true;
+                return null;
+            }
+
+            DateTimeOffset? expires = null;
+            if (tranche.TryGetProperty("expires_at", out var expiresEl) && expiresEl.ValueKind == JsonValueKind.String)
+            {
+                if (!DateTimeOffset.TryParse(expiresEl.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+                {
+                    unreadable = true;
+                    return null;
+                }
+
+                expires = parsed;
+            }
+
+            if (expires is { } end && end <= now)
+                continue;
+
+            granted += grantedCents;
+            remaining += remainingCents;
+            if (expires is { } next && (nextExpiry is null || next < nextExpiry))
+                nextExpiry = next;
+        }
+
+        return granted > 0 ? new ClaudeCreditGrant(granted / 100m, remaining / 100m, nextExpiry) : null;
+    }
+
     internal static IReadOnlyList<string> ChangeNotes(string? organizationsJson, string? creditJson)
     {
         var notes = new List<string>();
@@ -139,6 +199,23 @@ internal static class ClaudeConsoleCreditParser
                 using var document = JsonDocument.Parse(creditJson);
                 if (document.RootElement.ValueKind == JsonValueKind.Object)
                     notes.Add($"the Claude Console credit answer holds no numeric amount (keys: {ReadChangeLog.SafeNames(document.RootElement.EnumerateObject().Select(p => p.Name))}).");
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(creditJson))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(creditJson);
+                if (document.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    ReadGrant(document.RootElement, DateTimeOffset.UtcNow, out var unreadable);
+                    if (unreadable)
+                        notes.Add("the Claude Console credit answer lists free credit grants in a shape that no longer matches (promo_tranches).");
+                }
             }
             catch (JsonException)
             {

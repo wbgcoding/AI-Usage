@@ -256,10 +256,11 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
                 continue;
             }
 
-            var reading = ClaudeConsoleCreditParser.Parse(credits.Body);
+            var reading = ClaudeConsoleCreditParser.Parse(credits.Body, _time.GetUtcNow());
+            // Also on success: the balance can read fine while the free credit grants changed shape.
+            Report(ClaudeConsoleCreditParser.ChangeNotes(null, credits.Body));
             if (reading.Outcome != ClaudeConsoleCreditOutcome.Ok || reading.Credit is not { } credit)
             {
-                Report(ClaudeConsoleCreditParser.ChangeNotes(null, credits.Body));
                 last = (Step.Failed, AtCredits);
                 continue;
             }

@@ -675,6 +675,10 @@
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>De aanbieder heeft iets gewijzigd; waarden kunnen onvolledig zijn.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Log openen</value></data>
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API-tegoed</value></data>
+  <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Gratis tegoed</value></data>
+  <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} van {1} gebruikt</value></data>
+  <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Nog {0} over; het eerste tegoed verloopt op {1}.</value></data>
+  <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Nog {0} over.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Inloggen bij platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (API-tegoed)</value></data>
