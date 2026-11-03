@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A project used from two checkouts of the same git repository (for example on two drives) now counts once in the token statistics instead of twice.
 - Right after the start the Claude tile shows the weekly bar together with the 5 hour bar, not seconds later.
 - The Claude Console credit balance asks the console the way its own pages do, tries each API organisation of the account in turn when one has no prepaid balance, and the log names the HTTP code of a refused request.
 - Signing in to platform.claude.com with Google works: the Google window opens over the sign-in page instead of replacing it.

@@ -103,7 +103,13 @@ public static class ProjectAliasResolver
     /// <summary>Builds the aliases for the given rows. <paramref name="directoryExists"/> is asked once per
     /// path of a group with several paths, so it may touch the disk: call this off the UI thread.</summary>
     public static ProjectAliases Build(
-        IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions, Func<string, bool> directoryExists)
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions, Func<string, bool> directoryExists) =>
+        Build(records, sessions, directoryExists, GitRepoIdentity.Read);
+
+    /// <summary>Same, with the repository lookup swapped (asked once per distinct path; it may touch the disk).</summary>
+    internal static ProjectAliases Build(
+        IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions, Func<string, bool> directoryExists,
+        Func<string, GitRepoInfo?> repoOf)
     {
         // Latest use per project root, over the usage rows and the sessions.
         var lastUsed = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
@@ -137,6 +143,10 @@ public static class ProjectAliasResolver
 
         string WinnerOf(string path) => target.TryGetValue(path, out var winner) ? winner : path;
 
+        // Checkouts of one git repository are one project, however the folders are named or where they
+        // are. The name pass below then leaves the merged-away paths alone.
+        var merged = MergeRepositories(lastUsed, target, former, Exists, repoOf);
+
         // Each path's enclosing root is a strict ancestor, so the nesting depth is finite. Paths are
         // settled one depth at a time, outermost first: a path inside a root then only pairs with one
         // inside the same (already merged) root, however the folders are named.
@@ -157,7 +167,7 @@ public static class ProjectAliasResolver
                 PlaceComparer.Instance);
             foreach (var place in places)
             {
-                var members = place.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+                var members = place.Where(path => !merged.Contains(path)).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
                 if (members.Count < 2)
                     continue;
 
@@ -202,6 +212,56 @@ public static class ProjectAliasResolver
         }
 
         return target.Count == 0 ? ProjectAliases.None : new ProjectAliases(target, former);
+    }
+
+    /// <summary>Merges the full paths that are checkouts of one repository (same normalized origin) into a
+    /// single one: a folder that exists beats one that is gone, then the folder named like the repository,
+    /// then the most recently used when none exists, else the first by path so the choice (and with it the
+    /// project color) does not flip between runs. Returns the merged-away paths.</summary>
+    private static HashSet<string> MergeRepositories(
+        Dictionary<string, DateTime> lastUsed, Dictionary<string, string> target, Dictionary<string, IReadOnlyList<string>> former,
+        Func<string, bool> exists, Func<string, GitRepoInfo?> repoOf)
+    {
+        var merged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var byRepo = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in lastUsed.Keys)
+        {
+            if (repoOf(path) is not { } repo)
+                continue;
+
+            if (!byRepo.TryGetValue(repo.Id, out var members))
+                byRepo[repo.Id] = members = [];
+            members.Add(path);
+            names[repo.Id] = repo.Name;
+        }
+
+        foreach (var (id, members) in byRepo)
+        {
+            if (members.Count < 2)
+                continue;
+
+            var name = names[id];
+            var anyPresent = members.Any(exists);
+            var winner = members
+                .OrderByDescending(path => exists(path))
+                .ThenByDescending(path => string.Equals(ProjectLabels.Name(path), name, StringComparison.OrdinalIgnoreCase))
+                .ThenByDescending(path => anyPresent ? DateTime.MinValue : lastUsed[path])
+                .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .First();
+            var others = members.Where(path => !string.Equals(path, winner, StringComparison.OrdinalIgnoreCase)).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+            foreach (var other in others)
+            {
+                target[other] = winner;
+                merged.Add(other);
+                if (lastUsed[other] > lastUsed[winner])
+                    lastUsed[winner] = lastUsed[other];
+            }
+
+            former[winner] = others;
+        }
+
+        return merged;
     }
 
     /// <summary>Builds the aliases against the real file system.</summary>
