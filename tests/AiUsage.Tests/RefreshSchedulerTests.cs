@@ -989,7 +989,9 @@ public class RefreshSchedulerTests
     {
         var start = DateTimeOffset.Parse("2026-09-05T12:00:00Z");
         var clock = new FakeTimeProvider(start);
-        var provider = new FakeProvider("gemini", _ => new TaskCompletionSource<ProviderSnapshot>().Task);
+        // Started on the calling thread: a thread-pool start can lag behind the 50 ms timeout on a busy
+        // machine, and the attempt is then abandoned before the provider ever runs (FetchCount 1).
+        var provider = new FakeProvider("gemini", _ => new TaskCompletionSource<ProviderSnapshot>().Task) { RunsOnUiThread = true };
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
             minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50),
             retryDelay: TimeSpan.FromMilliseconds(10), logInfo: _ => { });
