@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using AiUsage.Models;
 using AiUsage.Providers.Parsing;
 using AiUsage.Services;
+using AiUsage.Web;
 
 namespace AiUsage.Providers;
 
@@ -14,7 +15,7 @@ namespace AiUsage.Providers;
 /// console's own site answers, created only then. A console that says "not signed in" is left alone
 /// for <see cref="ConsoleBackoff"/> unless <see cref="ReadNowAsync"/> says the user just signed in there.
 /// </summary>
-internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
+internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
 {
     internal static readonly TimeSpan ReadInterval = TimeSpan.FromMinutes(30);
     internal static readonly TimeSpan KeepFor = TimeSpan.FromHours(2);
@@ -385,7 +386,13 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
             Changed?.Invoke();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => DisposeCoreAsync(forShutdown: false);
+
+    /// <summary>App shutdown (UI thread blocked): the console's session is closed without waiting for a
+    /// browser start that is still in flight, which could only finish on that thread.</summary>
+    public ValueTask DisposeForShutdownAsync() => DisposeCoreAsync(forShutdown: true);
+
+    private async ValueTask DisposeCoreAsync(bool forShutdown)
     {
         ConsoleRunner? console;
         lock (_gate)
@@ -403,7 +410,10 @@ internal sealed class ClaudeConsoleCreditSource : IAsyncDisposable
 
         try
         {
-            await console.Owner.DisposeAsync();
+            if (forShutdown && console.Owner is IShutdownDisposable shutdownAware)
+                await shutdownAware.DisposeForShutdownAsync();
+            else
+                await console.Owner.DisposeAsync();
         }
         catch (Exception ex)
         {

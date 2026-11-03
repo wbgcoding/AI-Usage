@@ -151,6 +151,40 @@ public class WebSessionScriptRunnerTests
         Assert.True(finished);
     }
 
+    // The Console's credit source is the runner's companion and owns a second runner of its own: its
+    // start in flight must not hold the shutdown either.
+    [Fact]
+    public void Shutdown_does_not_wait_for_a_start_in_flight_of_the_console_companion()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var consoleRunner = new WebSessionScriptRunner(() => fake);
+        var credit = new AiUsage.Providers.ClaudeConsoleCreditSource(
+            (_, _) => Task.FromResult("{\"status\":\"not_signed_in\"}"),
+            () => new AiUsage.Providers.ClaudeConsoleCreditSource.ConsoleRunner(consoleRunner.ExecuteScriptAsync, consoleRunner));
+        var runner = new WebSessionScriptRunner(() => new FakeHiddenBrowserHost());
+        runner.AttachCompanion(credit);
+        var queue = new QueueingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        bool finished;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(queue);
+            // The refresh reaches the console runner, whose browser start is now in flight.
+            _ = credit.RefreshIfDueAsync();
+            var completer = new Thread(() => fake.CompleteNavigate(true));
+            completer.Start();
+            completer.Join();
+            // The start's continuation sits in the queue and is never run, like a UI thread that is blocked.
+            finished = runner.DisposeForShutdownAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        Assert.True(finished);
+    }
+
     private sealed class QueueingSynchronizationContext : SynchronizationContext
     {
         private readonly Queue<(SendOrPostCallback Callback, object? State)> _queue = new();

@@ -7,6 +7,13 @@ using AiUsage.Storage;
 
 namespace AiUsage.Web;
 
+/// <summary>A session that can also be closed at app shutdown, where the UI thread is blocked: it must
+/// not wait for anything that needs that thread (a browser start still in flight).</summary>
+internal interface IShutdownDisposable : IAsyncDisposable
+{
+    ValueTask DisposeForShutdownAsync();
+}
+
 /// <summary>
 /// Runs one web-backed provider's own discovery/fetch scripts (e.g.
 /// Providers/ClaudeDiscoveryScript.cs for Claude) in a hidden browser session that shares the
@@ -17,7 +24,7 @@ namespace AiUsage.Web;
 /// timeout, and a failed start tears itself down completely, so a browser that never answers cannot
 /// hang every later fetch forever. One instance per web-backed provider.
 /// </summary>
-public sealed class WebSessionScriptRunner : IAsyncDisposable
+public sealed class WebSessionScriptRunner : IShutdownDisposable
 {
     private static readonly TimeSpan DefaultNavigationTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DefaultScriptTimeout = TimeSpan.FromSeconds(20);
@@ -89,10 +96,10 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     {
         _companion = companion;
         if (_disposed)
-            _ = DisposeCompanionAsync();
+            _ = DisposeCompanionAsync(forShutdown: false);
     }
 
-    private async Task DisposeCompanionAsync()
+    private async Task DisposeCompanionAsync(bool forShutdown)
     {
         var companion = Interlocked.Exchange(ref _companion, null);
         if (companion is null)
@@ -100,7 +107,11 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
 
         try
         {
-            await companion.DisposeAsync();
+            // At shutdown the companion must not wait for a start of its own either.
+            if (forShutdown && companion is IShutdownDisposable shutdownAware)
+                await shutdownAware.DisposeForShutdownAsync();
+            else
+                await companion.DisposeAsync();
         }
         catch (Exception ex)
         {
@@ -491,7 +502,7 @@ public sealed class WebSessionScriptRunner : IAsyncDisposable
     {
         _disposed = true;
         DisarmIdleTimer();
-        await DisposeCompanionAsync();
+        await DisposeCompanionAsync(forShutdown: !waitForPendingStart);
         var pendingStart = _ready;
         _lifetime.Cancel();
         _ready = null;
