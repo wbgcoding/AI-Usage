@@ -253,7 +253,7 @@ rem single-file executable. --second-instance skips the single-instance handover
 rem its own data folder and its own browser sign-ins, so the everyday copy's settings, history and
 rem sessions are never written from here. A copy an earlier build left running out of dist\ is
 rem closed first, so only the newest one stays. Start-Process hands the new copy none of this
-rem console's handles, so the build ends while the copy keeps running.
+rem console's handles; the end of the build closes it again after a short countdown.
 rem AIUSAGE_NOSTART=1 skips the start for an automated run.
 if not "%AIUSAGE_NOSTART%"=="1" (
     echo.
@@ -270,7 +270,13 @@ if not "%AIUSAGE_NOSTART%"=="1" (
 
 echo.
 echo BUILD OK - artifacts are in dist\.
-if "%DOUBLECLICK%"=="1" timeout /t 10
+rem The started copy is a test run: after the countdown it closes again together with this window
+rem (a keypress ends the countdown early), so a finished build leaves nothing open.
+if not "%AIUSAGE_NOSTART%"=="1" (
+    timeout /t 10
+    powershell -NoProfile -Command ^
+        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } }"
+) else if "%DOUBLECLICK%"=="1" timeout /t 10
 endlocal
 exit /b 0
 
