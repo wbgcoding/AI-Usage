@@ -203,24 +203,57 @@ public class ClaudeConsoleRowTests : IDisposable
 
     // ---- the sign-out ----
 
-    private (MainViewModel Vm, ClaudeProvider Claude, Owner Console) BuildClaude()
+    private static ClaudeProvider NewClaude(AppSettings settings, Owner owner, int cents)
     {
-        var owner = new Owner();
         var source = new ClaudeConsoleCreditSource(
             (_, _) => Task.FromResult(NotSignedIn),
-            () => new ClaudeConsoleCreditSource.ConsoleRunner((s, _) => Task.FromResult(Run(s, CreditsOf(1234))), owner));
-        var settings = new AppSettings();
+            () => new ClaudeConsoleCreditSource.ConsoleRunner((s, _) => Task.FromResult(Run(s, CreditsOf(cents))), owner));
         var webSource = new WebUsageSource(
             new WebSessionDescriptor("claude", "https://claude.ai/", "https://claude.ai/login", ["claude.ai"], "claude"),
             new ClaudeUsageEndpoint(), (_, _) => Task.FromResult(NotSignedIn));
-        var claude = new ClaudeProvider(
+        return new ClaudeProvider(
             Path.Combine(AppContext.BaseDirectory, "Fixtures", "does-not-exist"), now: null, webSource, settings, _ => { })
         {
             CreditSource = source,
         };
+    }
+
+    private (MainViewModel Vm, ClaudeProvider Claude, Owner Console) BuildClaude(IAsyncDisposable? runner = null)
+    {
+        var owner = new Owner();
+        var settings = new AppSettings();
+        var claude = NewClaude(settings, owner, 1234);
         var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [claude], new HistoryStore(TempDirectory(), () => Now),
-            notifications: new NotificationService(TempDirectory()));
+            runner, notifications: new NotificationService(TempDirectory()));
         return (vm, claude, owner);
+    }
+
+    // A sign-out swaps in a fresh provider: its balance changes must reach the tile, and the account's
+    // console sign-out must act on it rather than on the disposed one.
+    [Fact]
+    public async Task After_a_sign_out_the_fresh_provider_feeds_the_tile_and_the_old_one_no_longer_does()
+    {
+        var (vm, old, _) = BuildClaude(new Owner());
+        vm.SignOutWebView = _ => SignOutResult.Removed;
+        var freshOwner = new Owner();
+        ClaudeProvider? fresh = null;
+        vm.CreateWebAccount = key => { fresh = NewClaude(new AppSettings(), freshOwner, 4321); return (fresh, new Owner()); };
+        var tile = vm.Tiles.Single();
+
+        await vm.SignOutAsync("claude");
+        Assert.NotNull(fresh);
+        Assert.Equal("", tile.ApiCreditText);
+
+        await old.ReadApiCreditNowAsync();
+        Assert.Equal("", tile.ApiCreditText);
+
+        await fresh!.ReadApiCreditNowAsync();
+        Assert.NotEqual("", tile.ApiCreditText);
+
+        vm.ConsoleProfileExists = _ => true;
+        vm.SignOutConsoleWebView = _ => SignOutResult.Removed;
+        Assert.True(await vm.SignOutConsoleAsync("claude"));
+        Assert.Equal(1, freshOwner.Disposed);
     }
 
     [Fact]

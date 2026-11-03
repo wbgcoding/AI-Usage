@@ -630,6 +630,27 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         LocalizationService.Instance.PropertyChanged += (_, _) => RefreshLocalizedText();
     }
 
+    // The balance-changed subscription per account, kept so a provider swapped out by a sign-out
+    // rebuild can be unsubscribed again.
+    private readonly Dictionary<string, (ClaudeProvider Provider, Action Handler)> _creditSubscriptions = new();
+
+    /// <summary>Makes <paramref name="provider"/> the one behind its account: the lookup map points at it
+    /// and its balance changes reach the tile, while a provider it replaces (a rebuild after a sign-out)
+    /// is let go. Shared by <see cref="BuildTile"/> and both rebuild paths.</summary>
+    private void RegisterProvider(IUsageProvider provider)
+    {
+        var key = provider.AccountKey;
+        _providersByKey[key] = provider;
+        if (_creditSubscriptions.Remove(key, out var old))
+            old.Provider.ApiCreditChanged -= old.Handler;
+        if (provider is ClaudeProvider claude)
+        {
+            Action handler = () => OnApiCreditChanged(key);
+            claude.ApiCreditChanged += handler;
+            _creditSubscriptions[key] = (claude, handler);
+        }
+    }
+
     /// <summary>Builds one tile for <paramref name="provider"/>, wires its events and adds it to both
     /// <see cref="_tilesById"/> (keyed by <see cref="Services.IUsageProvider.AccountKey"/>, never by
     /// <see cref="Services.IUsageProvider.Id"/> - two accounts of the same provider share an Id) and
@@ -668,12 +689,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
         tile.RefreshMinutesChanged += (_, value) => SetRefreshMinutes(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
-        _providersByKey[provider.AccountKey] = provider;
-        if (provider is ClaudeProvider claude)
-        {
-            claude.ApiCreditChanged += () => OnApiCreditChanged(provider.AccountKey);
+        RegisterProvider(provider);
+        if (provider is ClaudeProvider)
             tile.HasConsoleSession = ConsoleProfileExists(provider.AccountKey);
-        }
         tile.LocalOnlyChanged += (_, value) => SetLocalOnly(tile.ProviderId, value);
         tile.BarColorModeChanged += (_, value) => SetBarColorMode(tile.ProviderId, value);
         tile.OtherWindowVisibilityChanged += (_, _) => SetHiddenWindows(tile.ProviderId, tile.HiddenWindows);

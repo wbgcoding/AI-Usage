@@ -314,6 +314,7 @@ public sealed partial class MainViewModel
                     var (freshProvider, freshRunner) = CreateWebAccount(accountKey);
                     _webRunners[accountKey] = freshRunner;
                     _scheduler.AddProvider(freshProvider);
+                    RegisterProvider(freshProvider);
                 }
             }
             finally
@@ -497,6 +498,7 @@ public sealed partial class MainViewModel
                 var (freshProvider, freshRunner) = CreateWebAccount(accountKey);
                 _webRunners[accountKey] = freshRunner;
                 _scheduler.AddProvider(freshProvider);
+                RegisterProvider(freshProvider);
             }
         }
 
