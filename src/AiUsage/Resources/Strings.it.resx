@@ -175,9 +175,15 @@
   <data name="Stats.ByWeek" xml:space="preserve"><value>Settimana</value></data>
   <data name="Stats.ByModel" xml:space="preserve"><value>Modello</value></data>
   <data name="Stats.ByProject" xml:space="preserve"><value>Progetto</value></data>
-  <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
+  <data name="Stats.ByEffort" xml:space="preserve"><value>Impegno</value></data>
   <data name="Stats.BySession" xml:space="preserve"><value>Sessione</value></data>
   <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Sconosciuto</value></data>
+  <data name="Stats.Effort.Low" xml:space="preserve"><value>Basso</value></data>
+  <data name="Stats.Effort.Medium" xml:space="preserve"><value>Medio</value></data>
+  <data name="Stats.Effort.High" xml:space="preserve"><value>Alto</value></data>
+  <data name="Stats.Effort.XHigh" xml:space="preserve"><value>Molto alto</value></data>
+  <data name="Stats.Effort.Max" xml:space="preserve"><value>Massimo</value></data>
+  <data name="Stats.Effort.Minimal" xml:space="preserve"><value>Minimo</value></data>
   <data name="Tile.Hide" xml:space="preserve"><value>Nascondi questo provider</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Mostra questo provider</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Fonte: {0}</value></data>

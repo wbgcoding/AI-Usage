@@ -178,6 +178,12 @@
   <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
   <data name="Stats.BySession" xml:space="preserve"><value>Session</value></data>
   <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="Stats.Effort.Low" xml:space="preserve"><value>Low</value></data>
+  <data name="Stats.Effort.Medium" xml:space="preserve"><value>Medium</value></data>
+  <data name="Stats.Effort.High" xml:space="preserve"><value>High</value></data>
+  <data name="Stats.Effort.XHigh" xml:space="preserve"><value>Extra high</value></data>
+  <data name="Stats.Effort.Max" xml:space="preserve"><value>Max</value></data>
+  <data name="Stats.Effort.Minimal" xml:space="preserve"><value>Minimal</value></data>
   <data name="Tile.Hide" xml:space="preserve"><value>Hide this provider</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Show this provider</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Source: {0}</value></data>

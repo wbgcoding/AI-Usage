@@ -175,9 +175,15 @@
   <data name="Stats.ByWeek" xml:space="preserve"><value>Week</value></data>
   <data name="Stats.ByModel" xml:space="preserve"><value>Model</value></data>
   <data name="Stats.ByProject" xml:space="preserve"><value>Project</value></data>
-  <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
+  <data name="Stats.ByEffort" xml:space="preserve"><value>Inspanning</value></data>
   <data name="Stats.BySession" xml:space="preserve"><value>Sessie</value></data>
   <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Onbekend</value></data>
+  <data name="Stats.Effort.Low" xml:space="preserve"><value>Laag</value></data>
+  <data name="Stats.Effort.Medium" xml:space="preserve"><value>Gemiddeld</value></data>
+  <data name="Stats.Effort.High" xml:space="preserve"><value>Hoog</value></data>
+  <data name="Stats.Effort.XHigh" xml:space="preserve"><value>Zeer hoog</value></data>
+  <data name="Stats.Effort.Max" xml:space="preserve"><value>Maximaal</value></data>
+  <data name="Stats.Effort.Minimal" xml:space="preserve"><value>Minimaal</value></data>
   <data name="Tile.Hide" xml:space="preserve"><value>Deze aanbieder verbergen</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Deze aanbieder tonen</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Bron: {0}</value></data>

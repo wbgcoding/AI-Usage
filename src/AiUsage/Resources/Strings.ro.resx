@@ -175,9 +175,15 @@
   <data name="Stats.ByWeek" xml:space="preserve"><value>Săptămână</value></data>
   <data name="Stats.ByModel" xml:space="preserve"><value>Model</value></data>
   <data name="Stats.ByProject" xml:space="preserve"><value>Proiect</value></data>
-  <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
+  <data name="Stats.ByEffort" xml:space="preserve"><value>Efort</value></data>
   <data name="Stats.BySession" xml:space="preserve"><value>Sesiune</value></data>
   <data name="Stats.Effort.Unknown" xml:space="preserve"><value>Necunoscut</value></data>
+  <data name="Stats.Effort.Low" xml:space="preserve"><value>Scăzut</value></data>
+  <data name="Stats.Effort.Medium" xml:space="preserve"><value>Mediu</value></data>
+  <data name="Stats.Effort.High" xml:space="preserve"><value>Ridicat</value></data>
+  <data name="Stats.Effort.XHigh" xml:space="preserve"><value>Foarte ridicat</value></data>
+  <data name="Stats.Effort.Max" xml:space="preserve"><value>Maxim</value></data>
+  <data name="Stats.Effort.Minimal" xml:space="preserve"><value>Minim</value></data>
   <data name="Tile.Hide" xml:space="preserve"><value>Ascunde acest furnizor</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>Arată acest furnizor</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>Sursă: {0}</value></data>

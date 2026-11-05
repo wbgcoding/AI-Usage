@@ -175,9 +175,15 @@
   <data name="Stats.ByWeek" xml:space="preserve"><value>周</value></data>
   <data name="Stats.ByModel" xml:space="preserve"><value>模型</value></data>
   <data name="Stats.ByProject" xml:space="preserve"><value>项目</value></data>
-  <data name="Stats.ByEffort" xml:space="preserve"><value>Effort</value></data>
+  <data name="Stats.ByEffort" xml:space="preserve"><value>思考强度</value></data>
   <data name="Stats.BySession" xml:space="preserve"><value>会话</value></data>
   <data name="Stats.Effort.Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="Stats.Effort.Low" xml:space="preserve"><value>低</value></data>
+  <data name="Stats.Effort.Medium" xml:space="preserve"><value>中</value></data>
+  <data name="Stats.Effort.High" xml:space="preserve"><value>高</value></data>
+  <data name="Stats.Effort.XHigh" xml:space="preserve"><value>超高</value></data>
+  <data name="Stats.Effort.Max" xml:space="preserve"><value>最高</value></data>
+  <data name="Stats.Effort.Minimal" xml:space="preserve"><value>最低</value></data>
   <data name="Tile.Hide" xml:space="preserve"><value>隐藏此服务商</value></data>
   <data name="Tile.Show" xml:space="preserve"><value>显示此服务商</value></data>
   <data name="Tile.SourceTip" xml:space="preserve"><value>来源:{0}</value></data>

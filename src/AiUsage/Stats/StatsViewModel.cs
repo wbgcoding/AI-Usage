@@ -2701,13 +2701,27 @@ public sealed partial class StatsViewModel : ObservableObject
         return inRange.Count > 0 ? inRange.Min(record => record.Day) : today;
     }
 
-    /// <summary>A raw effort level exactly as <see cref="StatsRecord.Effort"/> stores it (low, medium,
-    /// high, xhigh, max, ...), except the empty level - a record whose own source line carried none -
-    /// which becomes the localized "unknown" text. The level names themselves are never translated:
-    /// they are the same handful of fixed English words Claude Code and Codex themselves use for this
-    /// setting, not application text of this app's own choosing.</summary>
-    private static string ResolveEffortLabel(string effort) =>
-        string.IsNullOrEmpty(effort) ? LocalizationService.Instance["Stats.Effort.Unknown"] : effort;
+    /// <summary>The text for a raw effort level as <see cref="StatsRecord.Effort"/> stores it: a known
+    /// level (low, medium, high, xhigh, max, minimal) in the language, the empty level - a record whose
+    /// own source line carried none - as the localized "unknown" text. A level this app does not know
+    /// stays as the tool wrote it. Colors still key on the raw level.</summary>
+    internal static string ResolveEffortLabel(string effort)
+    {
+        if (string.IsNullOrEmpty(effort))
+            return LocalizationService.Instance["Stats.Effort.Unknown"];
+
+        var key = effort.ToLowerInvariant() switch
+        {
+            "low" => "Stats.Effort.Low",
+            "medium" => "Stats.Effort.Medium",
+            "high" => "Stats.Effort.High",
+            "xhigh" => "Stats.Effort.XHigh",
+            "max" => "Stats.Effort.Max",
+            "minimal" => "Stats.Effort.Minimal",
+            _ => null,
+        };
+        return key is null ? effort : LocalizationService.Instance[key];
+    }
 
     /// <summary>What <see cref="Views.Controls.StatsBarChart.Bar.ColorProviderId"/>/<see
     /// cref="Views.Controls.StatsBarChart.Bar.ColorRank"/> resolve into an actual color from, for the
