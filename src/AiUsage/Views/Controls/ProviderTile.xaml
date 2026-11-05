@@ -126,10 +126,10 @@
                      AccessibilityView="Raw" the way UWP does; an unnamed Shape gets no automation
                      peer at all here), so a screen reader no longer announces the label twice and
                      never the percentage itself. -->
-                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,3,0" VerticalAlignment="Center" Opacity="0.8"
+                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
                       Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
                       Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
-                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,3,0" VerticalAlignment="Center" Opacity="0.8"
+                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
                       Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
                     <Path.Style>
                         <Style TargetType="Path">
