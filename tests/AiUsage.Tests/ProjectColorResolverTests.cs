@@ -256,6 +256,37 @@ public class ProjectColorResolverTests
         Assert.False(ProjectColorResolver.IsUsableIconFile(project, @"\attacker\share\x.png"));
     }
 
+    private const string BlueSvg =
+        """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#2040e0"/></svg>""";
+
+    [Fact]
+    public void IsUsableIconFileAcceptsADrawingSvgAndAnAndroidResXmlButNoOtherXml()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-vector");
+        var project = dir.Path;
+        WriteText(project, "art/logo.svg", BlueSvg);
+        WriteText(project, "art/blank.svg", """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>""");
+        WriteText(project, "app/res/drawable/ic.xml", BlueSvg);
+        WriteText(project, "config/ic.xml", BlueSvg);
+
+        Assert.True(ProjectColorResolver.IsUsableIconFile(project, Path.Combine(project, "art", "logo.svg")));
+        Assert.False(ProjectColorResolver.IsUsableIconFile(project, Path.Combine(project, "art", "blank.svg")));
+        Assert.True(ProjectColorResolver.IsUsableIconFile(project, Path.Combine(project, "app", "res", "drawable", "ic.xml")));
+        Assert.False(ProjectColorResolver.IsUsableIconFile(project, Path.Combine(project, "config", "ic.xml")));
+    }
+
+    [Fact]
+    public void DominantIconColorReadsASvgIcon()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-svg");
+        WriteText(dir.Path, "icon.svg", BlueSvg);
+
+        var resolved = ProjectColorResolver.DominantIconColor(Path.Combine(dir.Path, "icon.svg"));
+
+        Assert.NotNull(resolved);
+        Assert.True(HueDistance(ChartPalette.HslOf(Color.FromRgb(0x20, 0x40, 0xE0)).H, ChartPalette.HslOf(resolved!.Value).H) < 15.0);
+    }
+
     private static bool TryMakeLink(string mklinkArguments)
     {
         var start = new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c mklink " + mklinkArguments)

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using AiUsage.Io;
 
 namespace AiUsage.Stats;
@@ -38,8 +37,7 @@ public static class ProjectColorResolver
     private const int MaxIconSearchDepth = 6;
     private const int DeclaredIconSearchDepth = 3;
     private const int MaxDirectoryEntriesInspected = 5000;
-    private const long MaxIconFileBytes = 2 * 1024 * 1024;
-    private const long MaxIconPixels = 4096L * 4096L;
+    private const long MaxIconFileBytes = ProjectIconLoader.MaxFileBytes;
 
     // Two projects landing on the same hue purely by hash coincidence would be as confusing as a
     // project sharing a provider's own hue - kept a little tighter than the 25 degrees
@@ -251,7 +249,7 @@ public static class ProjectColorResolver
     /// <c>config/icon</c> of a Godot project. Then a breadth first walk (up to <see
     /// cref="MaxIconSearchDepth"/> levels, <see cref="MaxDirectoryEntriesInspected"/> entries, the usual
     /// build, dependency and hidden folders skipped) whose candidates are ranked by <see
-    /// cref="NameRank"/>. Only existing .ico or .png files up to <see cref="MaxIconFileBytes"/> count.
+    /// cref="NameRank"/>. Only existing .ico, .png, .svg or Android vector .xml files up to <see cref="MaxIconFileBytes"/> count.
     /// Null for a folder that no longer exists or holds no such file.</summary>
     internal static string? FindIconFile(string projectFolder)
     {
@@ -465,11 +463,10 @@ public static class ProjectColorResolver
         return IsUsableIconFile(projectRoot, plain) ? plain : null;
     }
 
-    private static bool HasIconExtension(string path)
-    {
-        var extension = Path.GetExtension(path);
-        return string.Equals(extension, ".ico", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase);
-    }
+    // An .xml only counts inside an Android res folder: anywhere else it is a build file or a config.
+    private static bool HasIconExtension(string path) =>
+        ProjectIconLoader.HasIconExtension(path)
+        && (!string.Equals(Path.GetExtension(path), ".xml", StringComparison.OrdinalIgnoreCase) || ProjectIconLoader.IsAndroidResourceFile(path));
 
     /// <summary>A path a project file names, resolved against <paramref name="baseDirectory"/> and kept
     /// only when it stays inside <paramref name="projectRoot"/>. A rooted, UNC or escaping path is
@@ -493,7 +490,7 @@ public static class ProjectColorResolver
 
     /// <summary>The single gate every icon candidate passes before any file is touched: it must lie
     /// inside <paramref name="projectRoot"/> (a rooted, UNC or escaping name is refused by string
-    /// comparison alone, so no network share is probed), be an .ico or .png, and neither the file nor
+    /// comparison alone, so no network share is probed), be an .ico, .png, .svg or Android res .xml, and neither the file nor
     /// a folder between the root and the file may be a link. Then the file must exist and stay
     /// within <see cref="MaxIconFileBytes"/>.</summary>
     internal static bool IsUsableIconFile(string projectRoot, string? path)
@@ -513,7 +510,9 @@ public static class ProjectColorResolver
                     return false;
 
             var info = new FileInfo(full);
-            return info.Exists && !info.Attributes.HasFlag(FileAttributes.ReparsePoint) && info.Length <= MaxIconFileBytes;
+            // A vector file that draws nothing is no icon, so the search goes on to the next candidate.
+            return info.Exists && !info.Attributes.HasFlag(FileAttributes.ReparsePoint) && info.Length <= MaxIconFileBytes
+                && ProjectIconLoader.IsRenderable(full);
         }
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
@@ -598,93 +597,10 @@ public static class ProjectColorResolver
         return best;
     }
 
-    /// <summary>Decodes <paramref name="iconFilePath"/> and returns the palette-normalised color of
-    /// its dominant hue, weighted by saturation and alpha over a 24-bin hue histogram; pixels with
-    /// alpha below 128, saturation below 0.25, or lightness outside 0.15..0.9 are left out of the
-    /// histogram entirely, the same way a near-transparent, near-gray or near-black/white pixel
-    /// would tell a viewer nothing about the icon's own "color". Null for a file that fails to
-    /// decode, has no frames, or has no pixel left standing after that filter.</summary>
-    internal static Color? DominantIconColor(string iconFilePath)
-    {
-        try
-        {
-            return DecodeDominantColor(iconFilePath);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            // A damaged file can fail the decoder in many ways; it just has no color of its own.
-            return null;
-        }
-    }
-
-    private static Color? DecodeDominantColor(string iconFilePath)
-    {
-        BitmapSource frame;
-        try
-        {
-            using var stream = File.OpenRead(iconFilePath);
-            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-            if (decoder.Frames.Count == 0)
-                return null;
-            frame = decoder.Frames[0];
-            // A tiny file can declare an enormous image; converting it would eat memory and time.
-            if ((long)frame.PixelWidth * frame.PixelHeight > MaxIconPixels)
-                return null;
-        }
-        catch (Exception ex) when (ex is IOException or NotSupportedException or UnauthorizedAccessException or FileFormatException)
-        {
-            return null;
-        }
-
-        var converted = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
-        var width = converted.PixelWidth;
-        var height = converted.PixelHeight;
-        if (width <= 0 || height <= 0)
-            return null;
-
-        const int bins = 24;
-        var weightByBin = new double[bins];
-        var stride = width * 4;
-        var row = new byte[stride];
-
-        for (var y = 0; y < height; y++)
-        {
-            converted.CopyPixels(new Int32Rect(0, y, width, 1), row, stride, 0);
-            for (var x = 0; x < stride; x += 4)
-            {
-                var b = row[x];
-                var g = row[x + 1];
-                var r = row[x + 2];
-                var a = row[x + 3];
-                if (a < 128)
-                    continue;
-
-                var (hue, saturation, lightness) = ChartPalette.HslOf(Color.FromRgb(r, g, b));
-                if (saturation < 0.25 || lightness is < 0.15 or > 0.9)
-                    continue;
-
-                var bin = Math.Min(bins - 1, (int)(hue / 360.0 * bins));
-                weightByBin[bin] += saturation * (a / 255.0);
-            }
-        }
-
-        var bestBin = -1;
-        var bestWeight = 0.0;
-        for (var bin = 0; bin < bins; bin++)
-        {
-            if (weightByBin[bin] > bestWeight)
-            {
-                bestWeight = weightByBin[bin];
-                bestBin = bin;
-            }
-        }
-
-        if (bestBin < 0)
-            return null;
-
-        var binCenterHue = (bestBin + 0.5) * (360.0 / bins);
-        return ChartPalette.NormalizeToPaletteBand(binCenterHue);
-    }
+    /// <summary>The palette-normalised color of the icon's dominant hue, as <see
+    /// cref="ProjectIconLoader.DominantColor"/> reads it; null for a file that fails to decode or has
+    /// no qualifying pixel or shape.</summary>
+    internal static Color? DominantIconColor(string iconFilePath) => ProjectIconLoader.DominantColor(iconFilePath);
 
     private static DateTime? SafeLastWriteUtc(string path)
     {

@@ -405,7 +405,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
     private const int MaxCachedIcons = 64;
 
-    private readonly record struct CachedIcon(DateTime WriteUtc, int PixelWidth, BitmapSource? Image);
+    private readonly record struct CachedIcon(DateTime WriteUtc, int PixelWidth, ImageSource? Image);
 
     private readonly Dictionary<string, CachedIcon> _iconCache = [];
 
@@ -429,8 +429,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { return DateTime.MinValue; }
     }
 
-    /// <summary>The icon of <paramref name="iconPath"/>, decoded once at the size it is drawn.</summary>
-    private BitmapSource? GetIcon(string? iconPath)
+    /// <summary>The icon of <paramref name="iconPath"/>: a bitmap decoded once at the size it is drawn, a vector icon as a drawing.</summary>
+    private ImageSource? GetIcon(string? iconPath)
     {
         if (string.IsNullOrEmpty(iconPath))
             return null;
@@ -439,32 +439,15 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         if (_iconCache.TryGetValue(iconPath, out var cached) && cached.PixelWidth == pixelWidth)
             return cached.Image;
 
-        var decoded = DecodeIcon(iconPath, pixelWidth);
+        var decoded = ProjectIconLoader.Load(iconPath, pixelWidth);
         _iconCache[iconPath] = new CachedIcon(SafeWriteUtc(iconPath), pixelWidth, decoded);
         return decoded;
     }
 
     /// <summary>A frozen bitmap decoded to <paramref name="pixelWidth"/>; null for a file that cannot
     /// be read as an image, whatever way the decoder fails on it.</summary>
-    internal static BitmapSource? DecodeIcon(string iconPath, int pixelWidth)
-    {
-        try
-        {
-            using var stream = System.IO.File.OpenRead(iconPath);
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = Math.Max(1, pixelWidth);
-            image.StreamSource = stream;
-            image.EndInit();
-            image.Freeze();
-            return image;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return null;
-        }
-    }
+    internal static BitmapSource? DecodeIcon(string iconPath, int pixelWidth) =>
+        ProjectIconLoader.LoadBitmap(iconPath, pixelWidth);
 
     private int _hoverIndex = -1;
 
