@@ -460,8 +460,8 @@
   <data name="Tip.Stats.Range" xml:space="preserve"><value>Rakamların ve grafiklerin ne kadar geriye uzanacağını belirler.</value></data>
   <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>Yukarı taşı</value></data>
   <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>Aşağı taşı</value></data>
-  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Up</value></data>
-  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Down</value></data>
+  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Yukarı</value></data>
+  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Aşağı</value></data>
   <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Yukarı, Alt+Aşağı</value></data>
   <data name="Stats.Layout.Reset" xml:space="preserve"><value>Düzeni sıfırla</value></data>
   <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Her bölümü özgün yerine geri koyar.</value></data>

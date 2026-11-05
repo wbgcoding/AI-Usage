@@ -460,8 +460,8 @@
   <data name="Tip.Stats.Range" xml:space="preserve"><value>Określa, jak daleko wstecz sięgają liczby i wykresy.</value></data>
   <data name="Stats.Layout.MoveUp" xml:space="preserve"><value>W górę</value></data>
   <data name="Stats.Layout.MoveDown" xml:space="preserve"><value>W dół</value></data>
-  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Up</value></data>
-  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Down</value></data>
+  <data name="Stats.Layout.MoveUpKey" xml:space="preserve"><value>Alt+Strzałka w górę</value></data>
+  <data name="Stats.Layout.MoveDownKey" xml:space="preserve"><value>Alt+Strzałka w dół</value></data>
   <data name="Stats.Layout.MoveKeys" xml:space="preserve"><value>Alt+Strzałka w górę, Alt+Strzałka w dół</value></data>
   <data name="Stats.Layout.Reset" xml:space="preserve"><value>Przywróć układ</value></data>
   <data name="Tip.Stats.Layout.Reset" xml:space="preserve"><value>Przywraca każdą sekcję na pierwotne miejsce.</value></data>
