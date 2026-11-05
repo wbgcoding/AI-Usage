@@ -1,4 +1,4 @@
-<UserControl x:Class="AiUsage.Views.Controls.ProviderTile"
+﻿<UserControl x:Class="AiUsage.Views.Controls.ProviderTile"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -126,10 +126,10 @@
                      AccessibilityView="Raw" the way UWP does; an unnamed Shape gets no automation
                      peer at all here), so a screen reader no longer announces the label twice and
                      never the percentage itself. -->
-                <Path Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,3,0" VerticalAlignment="Center" Opacity="0.8"
                       Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
                       Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
-                <Path Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,3,0" VerticalAlignment="Center" Opacity="0.8"
                       Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
                     <Path.Style>
                         <Style TargetType="Path">
