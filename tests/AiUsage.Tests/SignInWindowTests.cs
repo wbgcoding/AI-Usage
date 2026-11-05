@@ -279,4 +279,11 @@ public class SignInWindowTests
             SignInWindow.BlockedDetail("https://login.example.com/org/2f1c8a90-4b3e-4c1a-9d77-0b6a5e3f21cc/callback?code=abc123"));
         Assert.Equal("https://login.example.com/oauth/{id}", SignInWindow.BlockedDetail("https://login.example.com/oauth/A1B2C3D4E5F6G7H8I9"));
     }
+
+    [Theory]
+    [InlineData("not a url?code=abc123")]
+    [InlineData("/relative/path?code=abc123")]
+    [InlineData("")]
+    public void An_unparsable_blocked_address_is_never_logged_raw(string uri) =>
+        Assert.Equal("(unparsable address)", SignInWindow.BlockedDetail(uri));
 }

@@ -499,10 +499,11 @@ public partial class SignInWindow : Window
     /// <summary>Scheme, host and path of a turned-away address, never the query: a login carries its
     /// one-time codes there. Id-like path parts (an organisation id, a one-time code) are masked, as
     /// in the usage log. A turned-away address is often turned away for its scheme rather than its
-    /// host, which is invisible in the host alone.</summary>
+    /// host, which is invisible in the host alone. An address that does not parse is not echoed: the
+    /// masking cannot be applied to it, and it may carry a one-time code.</summary>
     internal static string BlockedDetail(string uri) => Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
         ? $"{parsed.Scheme}://{parsed.Host}{AiUsage.Providers.WebUsageSource.MaskIds(parsed.AbsolutePath)}"
-        : uri;
+        : "(unparsable address)";
 
     /// <summary>The user's own decision on the host the notice has just named: allow it for as long
     /// as this window is open and go where the sign-in was heading. Written to the log as well - an
