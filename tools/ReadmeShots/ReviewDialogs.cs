@@ -38,7 +38,8 @@ internal static class ReviewDialogs
         var now = DateTimeOffset.Now;
         RenderTile(
             new ProviderSnapshot("claude", [], null, SourceKind.None, now, null, ProviderStatus.Failed,
-                new ProviderError("Status_Failed_Reason", "Action_Retry", "State.Failed.Detail.Http", "502")),
+                new ProviderError("Status_Failed_Reason", "Action_Retry", "State.Failed.Detail.Http", "502",
+                    Kind: ProviderError.KindForStatus(502), HttpStatus: 502)),
             now, context.Pick(ReviewSurfaces.WidgetWidth, ReviewSurfaces.MinWidgetWidth), context.OutputPath(id));
     }
 
