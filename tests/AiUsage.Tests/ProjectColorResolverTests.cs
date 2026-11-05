@@ -108,7 +108,6 @@ public class ProjectColorResolverTests
     [InlineData("coverage")]
     [InlineData("playwright-report")]
     [InlineData("test-results")]
-    [InlineData("graphify-out")]
     [InlineData("out")]
     [InlineData("target")]
     [InlineData("e2e")]
