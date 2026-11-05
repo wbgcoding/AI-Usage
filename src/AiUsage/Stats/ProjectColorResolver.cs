@@ -53,6 +53,8 @@ public static class ProjectColorResolver
     {
         "bin", "obj", "node_modules", "dist", "build", "packages",
         "addons", "test", "tests", ".gradle", "Pods", "vendor", "third_party", "venv",
+        // Generated output: a test report's own logo is not the project's icon.
+        "reports", "coverage", "playwright-report", "test-results", "graphify-out", "out", "target", "e2e",
     };
 
     // Reference swatches for each recognised color word - only each swatch's own hue is ever read

@@ -103,6 +103,23 @@ public class ProjectColorResolverTests
         Assert.Null(ProjectColorResolver.FindIconFile(dir.Path));
     }
 
+    [Theory]
+    [InlineData("reports")]
+    [InlineData("coverage")]
+    [InlineData("playwright-report")]
+    [InlineData("test-results")]
+    [InlineData("graphify-out")]
+    [InlineData("out")]
+    [InlineData("target")]
+    [InlineData("e2e")]
+    public void FindIconFileSkipsGeneratedOutputFolders(string folder)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-generated");
+        Touch(dir.Path, folder + "/css/logo.png");
+
+        Assert.Null(ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
     private static string Touch(string root, string relative)
     {
         var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
