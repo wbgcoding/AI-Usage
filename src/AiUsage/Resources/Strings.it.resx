@@ -41,6 +41,12 @@
   <data name="Reset.InDays" xml:space="preserve"><value>reset tra {0}g</value></data>
   <data name="Reset.InHours" xml:space="preserve"><value>reset tra {0}h</value></data>
   <data name="Reset.InDaysHours" xml:space="preserve"><value>reset tra {0}g {1}h</value></data>
+  <data name="Elapsed.Days" xml:space="preserve"><value>{0}g</value></data>
+  <data name="Elapsed.DaysHours" xml:space="preserve"><value>{0}g {1}h</value></data>
+  <data name="Elapsed.Hours" xml:space="preserve"><value>{0}h</value></data>
+  <data name="Elapsed.HoursMinutes" xml:space="preserve"><value>{0}h {1}m</value></data>
+  <data name="Elapsed.Minutes" xml:space="preserve"><value>{0}m</value></data>
+  <data name="Elapsed.Seconds" xml:space="preserve"><value>{0}s</value></data>
   <data name="Source.Local" xml:space="preserve"><value>file locali</value></data>
   <data name="Source.Web" xml:space="preserve"><value>sessione web</value></data>
   <data name="Source.None" xml:space="preserve"><value>non connesso</value></data>

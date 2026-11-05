@@ -107,6 +107,28 @@ public class CountdownFormatterTests
         Assert.Equal("9h 1m", CountdownFormatter.FormatElapsed(TimeSpan.FromMinutes(9 * 60 + 1)));
     }
 
+    [Theory]
+    [InlineData("ja", "3日4時間", "5分", "45秒")]
+    [InlineData("zh-Hans", "3天4小时", "5分钟", "45秒")]
+    [InlineData("fr", "3 j 4 h", "5 min", "45 s")]
+    [InlineData("tr", "3 g 4 sa", "5 dk", "45 sn")]
+    [InlineData("en", "3d 4h", "5m", "45s")]
+    public void ElapsedUsesTheLanguagesOwnUnits(string language, string daysHours, string minutes, string seconds)
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage(language);
+        try
+        {
+            Assert.Equal(daysHours, CountdownFormatter.FormatElapsed(TimeSpan.FromHours(76)));
+            Assert.Equal(minutes, CountdownFormatter.FormatElapsed(TimeSpan.FromMinutes(5)));
+            Assert.Equal(seconds, CountdownFormatter.FormatElapsed(TimeSpan.FromSeconds(45)));
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
+
     [Fact]
     public void AWeekdayClockUsesTheCulturesOwnTimeFormat()
     {

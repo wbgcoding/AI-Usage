@@ -41,6 +41,12 @@
   <data name="Reset.InDays" xml:space="preserve"><value>{0}天后重置</value></data>
   <data name="Reset.InHours" xml:space="preserve"><value>{0}小时后重置</value></data>
   <data name="Reset.InDaysHours" xml:space="preserve"><value>{0}天{1}小时后重置</value></data>
+  <data name="Elapsed.Days" xml:space="preserve"><value>{0}天</value></data>
+  <data name="Elapsed.DaysHours" xml:space="preserve"><value>{0}天{1}小时</value></data>
+  <data name="Elapsed.Hours" xml:space="preserve"><value>{0}小时</value></data>
+  <data name="Elapsed.HoursMinutes" xml:space="preserve"><value>{0}小时{1}分钟</value></data>
+  <data name="Elapsed.Minutes" xml:space="preserve"><value>{0}分钟</value></data>
+  <data name="Elapsed.Seconds" xml:space="preserve"><value>{0}秒</value></data>
   <data name="Source.Local" xml:space="preserve"><value>本地文件</value></data>
   <data name="Source.Web" xml:space="preserve"><value>网页会话</value></data>
   <data name="Source.None" xml:space="preserve"><value>未连接</value></data>

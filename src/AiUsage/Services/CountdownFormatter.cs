@@ -83,7 +83,7 @@ public static class CountdownFormatter
         return Loc.Format("State.Stale.Reason", FormatElapsed(now - timestamp));
     }
 
-    /// <summary>Bare "2h 15m"-style duration text (a zero unit is left out: "2h", "19d"), in the same compact symbols in every language - reused by
+    /// <summary>Bare "2h 15m"-style duration text (a zero unit is left out: "2h", "19d"), with the unit spelling of the display language, as the reset texts - reused by
     /// <see cref="ViewModels.UsageRowViewModel"/> for the usage forecast segment instead of a second
     /// duration formatter. Below a minute the seconds run along instead of a flat "&lt;1m", so the
     /// number on screen keeps moving instead of sitting still for up to 59 seconds.</summary>
@@ -94,15 +94,19 @@ public static class CountdownFormatter
 
         var days = (int)elapsed.TotalDays;
         if (days >= 1)
-            return elapsed.Hours == 0 ? $"{days}d" : $"{days}d {elapsed.Hours}h";
+            return elapsed.Hours == 0
+                ? Loc.Format("Elapsed.Days", days)
+                : Loc.Format("Elapsed.DaysHours", days, elapsed.Hours);
 
         if (elapsed.TotalHours >= 1)
-            return elapsed.Minutes == 0 ? $"{elapsed.Hours}h" : $"{elapsed.Hours}h {elapsed.Minutes}m";
+            return elapsed.Minutes == 0
+                ? Loc.Format("Elapsed.Hours", elapsed.Hours)
+                : Loc.Format("Elapsed.HoursMinutes", elapsed.Hours, elapsed.Minutes);
 
         if (elapsed.TotalMinutes >= 1)
-            return $"{elapsed.Minutes}m";
+            return Loc.Format("Elapsed.Minutes", elapsed.Minutes);
 
-        return $"{(int)elapsed.TotalSeconds}s";
+        return Loc.Format("Elapsed.Seconds", (int)elapsed.TotalSeconds);
     }
 
     private static LocalizationService Loc => LocalizationService.Instance;
