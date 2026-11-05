@@ -287,6 +287,75 @@ public class ProjectColorResolverTests
         Assert.True(HueDistance(ChartPalette.HslOf(Color.FromRgb(0x20, 0x40, 0xE0)).H, ChartPalette.HslOf(resolved!.Value).H) < 15.0);
     }
 
+    private const string AdaptiveXml =
+        """
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+          <background android:drawable="@color/ic_launcher_background"/>
+          <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+        </adaptive-icon>
+        """;
+
+    private static void WriteAdaptiveLayers(string root, string mainRelative)
+    {
+        WriteText(root, mainRelative + "/res/values/colors.xml", """<resources><color name="ic_launcher_background">#2040e0</color></resources>""");
+        WriteText(root, mainRelative + "/res/drawable/ic_launcher_foreground.xml",
+            """
+            <vector xmlns:android="http://schemas.android.com/apk/res/android" android:viewportWidth="108" android:viewportHeight="108">
+              <path android:pathData="M30,30h48v48h-48z" android:fillColor="#fff"/>
+            </vector>
+            """);
+    }
+
+    [Theory]
+    [InlineData("mipmap-anydpi-v26")]
+    [InlineData("mipmap-anydpi")]
+    public void FindIconFileTakesTheAdaptiveIconWhenNoDensityPngExists(string folder)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-adaptive");
+        WriteText(dir.Path, "app/src/main/AndroidManifest.xml", AndroidManifest("ic_launcher"));
+        WriteAdaptiveLayers(dir.Path, "app/src/main");
+        var adaptive = Path.Combine(dir.Path, "app", "src", "main", "res", folder, "ic_launcher.xml");
+        WriteText(dir.Path, $"app/src/main/res/{folder}/ic_launcher.xml", AdaptiveXml);
+
+        Assert.Equal(adaptive, ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
+    [Fact]
+    public void FindIconFilePrefersADensityPngOverTheAdaptiveIcon()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-adaptive-png");
+        WriteText(dir.Path, "app/src/main/AndroidManifest.xml", AndroidManifest("ic_launcher"));
+        WriteAdaptiveLayers(dir.Path, "app/src/main");
+        WriteText(dir.Path, "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml", AdaptiveXml);
+        var png = Touch(dir.Path, "app/src/main/res/mipmap-xhdpi/ic_launcher.png");
+
+        Assert.Equal(png, ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
+    [Fact]
+    public void AnAdaptiveIconWhoseLayersCannotBeReadIsNoIcon()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-adaptive-broken");
+        WriteText(dir.Path, "app/src/main/AndroidManifest.xml", AndroidManifest("ic_launcher"));
+        WriteText(dir.Path, "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml", AdaptiveXml);
+
+        Assert.Null(ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
+    [Fact]
+    public void FindIconFileReadsASvgNamedByAGodotProjectAndByATauriConfig()
+    {
+        using var godot = TestPaths.CreateDisposableDirectory("project-color-icon-godot-svg");
+        WriteText(godot.Path, "icon.svg", BlueSvg);
+        WriteText(godot.Path, "project.godot", "[application]\nconfig/icon=\"res://icon.svg\"\n");
+        Assert.Equal(Path.Combine(godot.Path, "icon.svg"), ProjectColorResolver.FindIconFile(godot.Path));
+
+        using var tauri = TestPaths.CreateDisposableDirectory("project-color-icon-tauri-svg");
+        WriteText(tauri.Path, "src-tauri/icons/app.svg", BlueSvg);
+        WriteText(tauri.Path, "src-tauri/tauri.conf.json", "{\"bundle\":{\"icon\":[\"icons/app.svg\",\"icons/icon.ico\"]}}");
+        Assert.Equal(Path.Combine(tauri.Path, "src-tauri", "icons", "app.svg"), ProjectColorResolver.FindIconFile(tauri.Path));
+    }
+
     private static bool TryMakeLink(string mklinkArguments)
     {
         var start = new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c mklink " + mklinkArguments)

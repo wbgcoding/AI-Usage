@@ -321,7 +321,7 @@ public static class ProjectColorResolver
     private static readonly string[] AndroidDensities = ["xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi"];
 
     /// <summary>The icon a project file names outright, or null when none does (or the named file is
-    /// missing, too big or not an .ico/.png).</summary>
+    /// missing, too big or not an icon file).</summary>
     private static string? FindDeclaredIcon(string projectFolder, List<WalkedFile> files)
     {
         foreach (var file in files.Where(file => file.Depth <= DeclaredIconSearchDepth))
@@ -460,7 +460,19 @@ public static class ProjectColorResolver
         }
 
         var plain = Path.Combine(resFolder, kind, iconName + ".png");
-        return IsUsableIconFile(projectRoot, plain) ? plain : null;
+        if (IsUsableIconFile(projectRoot, plain))
+            return plain;
+
+        // Without a bitmap the launcher icon is an adaptive icon or a vector drawable; the loader
+        // composes the adaptive icon's layers from the res folder when it draws the file.
+        foreach (var folder in new[] { "mipmap-anydpi-v26", "mipmap-anydpi", kind })
+        {
+            var vector = Path.Combine(resFolder, folder, iconName + ".xml");
+            if (IsUsableIconFile(projectRoot, vector))
+                return vector;
+        }
+
+        return null;
     }
 
     // An .xml only counts inside an Android res folder: anywhere else it is a build file or a config.
