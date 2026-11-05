@@ -299,7 +299,7 @@ public sealed partial class MainViewModel
             // After the tile and the scheduler entry are gone, so no late snapshot writes the file
             // again; the store only ever deletes this account's own history file.
             if (alsoHistory)
-                historyKept = !_historyStore.DeleteAll([accountKey]);
+                historyKept = !_historyStore.DeleteAll(HistoryIdsOf(accountKey));
         }
         finally
         {
@@ -402,7 +402,7 @@ public sealed partial class MainViewModel
 
             if (_tilesById.TryGetValue(accountKey, out var tile))
             {
-                tile.SetApiCredit(claude.CurrentApiCredit, claude.CurrentApiCreditRoute);
+                ApplyApiCredit(tile, accountKey, claude);
                 tile.HasConsoleSession = ConsoleProfileExists(accountKey);
                 if (_statusReadings.TryGetValue(accountKey, out var reading))
                 {

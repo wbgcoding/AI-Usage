@@ -2454,12 +2454,14 @@ public class MainViewModelTests : IDisposable
         // Polls rather than sleeping a fixed guess: a fixed delay was long enough while this suite ran
         // one class at a time, but not once every class runs beside every other one - a generous
         // timeout here only ever costs real time on a genuinely stuck run, never a flake on a busy one.
-        await TestWait.UntilAsync(() => historyStore.CompactCalls >= providers.Count && historyStore.PruneCalls >= providers.Count);
+        // Claude keeps a second history file for its free credit.
+        var files = providers.Count + 1;
+        await TestWait.UntilAsync(() => historyStore.CompactCalls >= files && historyStore.PruneCalls >= files);
         cts.Cancel();
         try { await run; } catch (OperationCanceledException) { }
 
-        Assert.Equal(providers.Count, historyStore.CompactCalls);
-        Assert.Equal(providers.Count, historyStore.PruneCalls);
+        Assert.Equal(files, historyStore.CompactCalls);
+        Assert.Equal(files, historyStore.PruneCalls);
     }
 
     [Fact]

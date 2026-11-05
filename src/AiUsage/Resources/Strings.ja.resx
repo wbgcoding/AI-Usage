@@ -31,6 +31,7 @@
   <data name="Window.TokensThisSession" xml:space="preserve"><value>このウィンドウで {0} トークン</value></data>
   <data name="Window.TokensInline" xml:space="preserve"><value>{0} トークン</value></data>
   <data name="Window.ForecastFull" xml:space="preserve"><value>約{0}で上限</value></data>
+  <data name="Window.ForecastEmpty" xml:space="preserve"><value>約{0}で使い切り</value></data>
   <data name="Window.UsedPercent" xml:space="preserve"><value>{0}% 使用</value></data>
   <data name="Window.Allowance" xml:space="preserve"><value>{2} {3} のうち {0}% 使用済み(現在 {1})</value></data>
   <data name="Reset.InHoursMinutes" xml:space="preserve"><value>{0}時間{1}分後にリセット</value></data>
@@ -677,6 +678,7 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>APIクレジット</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>無料クレジット</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{1} 中 {0} 使用</value></data>
+  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>残り {0}</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>残り {0}。最も早いクレジットは {1} に期限切れになります。</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>

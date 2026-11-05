@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
@@ -530,36 +530,98 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
 
-    /// <summary>The "Free credit: $37.00 of $200.00 used" line of the console's free credit grants,
-    /// empty while the console lists none.</summary>
-    public string ApiGrantText => _apiCredit is { Grant: { } grant } credit
-        ? LocalizationService.Instance.Format(
-            "Format.LabelValue", LocalizationService.Instance["Tile.ApiGrant.Label"],
-            LocalizationService.Instance.Format("Tile.ApiGrant.Value",
-                credit.FormatMoney(grant.Used, LocalizationService.Instance.DisplayCulture),
-                credit.FormatMoney(grant.Granted, LocalizationService.Instance.DisplayCulture)))
-        : "";
+    /// <summary>The console's free credit grants as one bar row like a usage window: used of granted
+    /// (0 to 100 or 200 dollars), what is left beside the label, the time until the earliest grant
+    /// ends on the right and, from the readings of the last days, when the credit runs out. Null
+    /// while the console lists no grant.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
+    private UsageRowViewModel? apiGrantRow;
 
-    /// <summary>The used share of the free credit, for the thin bar under its line.</summary>
-    public double ApiGrantFraction => _apiCredit?.Grant?.UsedFraction ?? 0;
+    public bool ShowApiGrant => ShowRows && !LocalOnly && ApiGrantRow is not null;
 
-    /// <summary>What is left of the free credit and when the earliest grant ends.</summary>
-    public string ApiGrantToolTip
+    /// <summary>The window behind <see cref="ApiGrantRow"/>: used share in percent, the earliest end as its reset.</summary>
+    private static UsageWindow GrantWindow(ClaudeCreditGrant grant) =>
+        new("Tile.ApiGrant.Label", WindowKind.Other, grant.UsedFraction * 100, grant.NextExpiry, windowMinutes: null);
+
+    /// <summary>Builds, moves or drops <see cref="ApiGrantRow"/> for the balance just set.</summary>
+    private void SyncApiGrantRow()
     {
-        get
+        if (_apiCredit is not { Grant: { } grant })
         {
-            if (_apiCredit is not { Grant: { } grant } credit)
-                return "";
-
-            var loc = LocalizationService.Instance;
-            var left = credit.FormatMoney(grant.Remaining, loc.DisplayCulture);
-            return grant.NextExpiry is { } end
-                ? loc.Format("Tip.Tile.ApiGrant", left, end.ToLocalTime().ToString("d", loc.DisplayCulture))
-                : loc.Format("Tip.Tile.ApiGrant.NoExpiry", left);
+            ApiGrantRow = null;
+            return;
         }
+
+        var now = DateTimeOffset.Now;
+        if (ApiGrantRow is { } row)
+        {
+            row.Update(GrantWindow(grant), now, Density, thresholdPercent: null);
+            row.RefreshOwnTexts();
+        }
+        else
+        {
+            row = new UsageRowViewModel(GrantWindow(grant), now, Density, thresholdPercent: null, providerId: RealProviderId, showPace: false);
+            row.SetOwnTexts(ApiGrantLabelText, ApiGrantToolTip, "Window.ForecastEmpty");
+            ApiGrantRow = row;
+        }
+
+        RefreshApiGrantForecast();
     }
 
-    public bool ShowApiGrant => ShowRows && !LocalOnly && ApiGrantText.Length > 0;
+    /// <summary>"Free credit · $120.00 left": what is left stands in the label itself, so it never
+    /// gives way to the countdown the way the token figure of a usage row does.</summary>
+    private string ApiGrantLabelText()
+    {
+        var loc = LocalizationService.Instance;
+        return _apiCredit is { Grant: { } grant } credit
+            ? loc["Tile.ApiGrant.Label"] + " · " + loc.Format("Tile.ApiGrant.Left", credit.FormatMoney(grant.Remaining, loc.DisplayCulture))
+            : loc["Tile.ApiGrant.Label"];
+    }
+
+    /// <summary>Used of granted, then what is left and when the earliest grant ends.</summary>
+    private string ApiGrantToolTip()
+    {
+        if (_apiCredit is not { Grant: { } grant } credit)
+            return "";
+
+        var loc = LocalizationService.Instance;
+        var used = loc.Format("Tile.ApiGrant.Value",
+            credit.FormatMoney(grant.Used, loc.DisplayCulture), credit.FormatMoney(grant.Granted, loc.DisplayCulture));
+        var left = credit.FormatMoney(grant.Remaining, loc.DisplayCulture);
+        var rest = grant.NextExpiry is { } end
+            ? loc.Format("Tip.Tile.ApiGrant", left, end.ToLocalTime().ToString("d", loc.DisplayCulture))
+            : loc.Format("Tip.Tile.ApiGrant.NoExpiry", left);
+        return used + Environment.NewLine + rest;
+    }
+
+    // The free credit's own readings of the last days, so a density switch or a new balance can
+    // bring the forecast back without waiting for the next history read.
+    private IReadOnlyList<HistoryChart.ChartPoint> _apiGrantPoints = [];
+    private DateTimeOffset _apiGrantPointsAt;
+
+    /// <summary>The free credit's used share over the last days (from its own history file): feeds
+    /// the "runs out in about" forecast of <see cref="ApiGrantRow"/>.</summary>
+    public void UpdateApiGrantHistory(IReadOnlyList<HistoryChart.ChartPoint> points, DateTimeOffset now)
+    {
+        _apiGrantPoints = points;
+        _apiGrantPointsAt = now;
+        RefreshApiGrantForecast();
+    }
+
+    private void RefreshApiGrantForecast()
+    {
+        if (ApiGrantRow is not { } row)
+            return;
+
+        if (Density != TileDensity.Full || _apiGrantPoints.Count == 0)
+            row.ClearForecast();
+        else
+            row.UpdateForecast(_apiGrantPoints, _apiGrantPointsAt, ApiGrantForecastLookback);
+    }
+
+    /// <summary>How far back the free credit's forecast looks: it is read every half hour and used up over weeks.</summary>
+    internal static readonly TimeSpan ApiGrantForecastLookback = TimeSpan.FromDays(7);
 
     // Which sign-in delivered _apiCredit; None while there is no balance.
     private ClaudeCreditRoute _apiCreditRoute;
@@ -615,10 +677,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         _apiCreditRoute = newRoute;
         OnPropertyChanged(nameof(ApiCreditText));
         OnPropertyChanged(nameof(ShowApiCredit));
-        OnPropertyChanged(nameof(ApiGrantText));
-        OnPropertyChanged(nameof(ApiGrantFraction));
-        OnPropertyChanged(nameof(ApiGrantToolTip));
-        OnPropertyChanged(nameof(ShowApiGrant));
+        SyncApiGrantRow();
         OnPropertyChanged(nameof(ConsoleSessionExists));
         OnPropertyChanged(nameof(ShowConsoleSignIn));
         OnPropertyChanged(nameof(ShowConsoleSignOut));
@@ -1371,8 +1430,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
         OnPropertyChanged(nameof(ApiCreditText));
-        OnPropertyChanged(nameof(ApiGrantText));
-        OnPropertyChanged(nameof(ApiGrantToolTip));
+        // The free credit row resolves its label and money texts in the new language.
+        SyncApiGrantRow();
         OnPropertyChanged(nameof(ShowApiCredit));
         OnPropertyChanged(nameof(ConsoleStatusText));
         foreach (var choice in BarColorChoices)
@@ -1795,6 +1854,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     {
         foreach (var row in Rows)
             row.RefreshCountdown(now, Density);
+        ApiGrantRow?.RefreshCountdown(now, Density);
         // The age texts only change when their minute (or second, below a minute) turns over.
         if (LastUpdatedText != _raisedLastUpdatedText)
             OnPropertyChanged(nameof(LastUpdatedText));
@@ -1840,8 +1900,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         var now = DateTimeOffset.Now;
         foreach (var row in Rows)
             row.RefreshCountdown(now, value);
+        ApiGrantRow?.RefreshCountdown(now, value);
         // A forecast belongs to Full density only: show it again or clear it right away.
         RefreshForecastsFromLastSeries();
+        RefreshApiGrantForecast();
     }
 
     /// <summary>Feeds the tile's self-drawn history chart - a time-ordered list of points per

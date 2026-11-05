@@ -265,7 +265,39 @@ public partial class UsageRowViewModel : ObservableObject
     /// part; empty (no tooltip) when all are.</summary>
     public string BarTooltipText => string.Join(
         Environment.NewLine,
-        new[] { AllowanceText, PaceText }.Concat(SegmentLines).Where(line => line.Length > 0));
+        new[] { AllowanceText, PaceText }.Concat(SegmentLines).Append(_ownToolTip?.Invoke() ?? "").Where(line => line.Length > 0));
+
+    // A row that is no usage window (the console's free credit) brings its own label, its own tooltip
+    // line and its own forecast wording. Functions, so a language switch reads them anew.
+    private Func<string>? _ownLabelText;
+    private Func<string>? _ownToolTip;
+    private string _forecastKey = "Window.ForecastFull";
+
+    /// <summary>Gives this row its own label, tooltip line and forecast wording (see <see cref="_ownLabelText"/>);
+    /// the token figure stays off.</summary>
+    internal void SetOwnTexts(Func<string> labelText, Func<string> toolTip, string forecastKey)
+    {
+        _ownLabelText = labelText;
+        _ownToolTip = toolTip;
+        _forecastKey = forecastKey;
+        RefreshOwnTexts();
+    }
+
+    /// <summary>Raises the own texts again: the figures behind them or the language changed.</summary>
+    internal void RefreshOwnTexts()
+    {
+        if (_ownLabelText is { } label)
+        {
+            LabelText = label();
+            OnPropertyChanged(nameof(LabelText));
+            OnPropertyChanged(nameof(BarAccessibleName));
+            OnPropertyChanged(nameof(MiniAccessibleName));
+        }
+
+        OnPropertyChanged(nameof(InlineTokensText));
+        OnPropertyChanged(nameof(InlineTokensToolTip));
+        OnPropertyChanged(nameof(BarTooltipText));
+    }
 
     /// <summary>The Mini row's tooltip: the countdown, then the forecast; empty lines are dropped and
     /// the tooltip stays off while both are empty.</summary>
@@ -345,7 +377,7 @@ public partial class UsageRowViewModel : ObservableObject
     /// the count the provider reported with the window, shortened and in the OS regional number
     /// format. Empty when neither exists, which hides the segment; the exact figure is <see
     /// cref="InlineTokensToolTip"/>.</summary>
-    public string InlineTokensText => InlineTokens is { } tokens
+    public string InlineTokensText => _ownLabelText is null && InlineTokens is { } tokens
         ? Loc.Format(
             "Window.TokensInline",
             StatsAggregator.ShortenTokenCount(tokens, Loc["Number.Thousand"], Loc["Number.Million"], Loc["Number.Billion"]))
@@ -357,7 +389,7 @@ public partial class UsageRowViewModel : ObservableObject
     {
         get
         {
-            if (InlineTokens is not { } tokens)
+            if (_ownLabelText is not null || InlineTokens is not { } tokens)
                 return "";
             return Loc.Format(WindowTokens is null ? "Window.TokensThisSession" : "Window.TokensSinceReset", tokens.ToString("N0", CultureInfo.CurrentCulture));
         }
@@ -454,7 +486,7 @@ public partial class UsageRowViewModel : ObservableObject
         // A window at its limit has nothing left to forecast; the bar already says the limit is reached.
         var forecast = IsAtLimit ? null : UsageForecast.TimeToFull(points, now, _resetsAt, lookback: lookback);
         ForecastText = forecast is { } duration
-            ? Loc.Format("Window.ForecastFull", CountdownFormatter.FormatElapsed(duration))
+            ? Loc.Format(_forecastKey, CountdownFormatter.FormatElapsed(duration))
             : "";
     }
 

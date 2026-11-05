@@ -1,8 +1,9 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AiUsage.Models;
 using AiUsage.Providers.Parsing;
 using AiUsage.Services;
 using AiUsage.ViewModels;
+using AiUsage.Views.Controls;
 using Xunit;
 
 namespace AiUsage.Tests;
@@ -82,23 +83,68 @@ public class ClaudeCreditGrantTests
     }
 
     [Fact]
-    public void The_tile_shows_used_of_granted_and_what_is_left_in_its_tooltip()
+    public void The_tile_shows_the_free_credit_as_a_bar_row_with_what_is_left_above_it()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
-        var grant = new ClaudeCreditGrant(200m, 120m, new DateTimeOffset(2026, 11, 5, 0, 0, 0, TimeSpan.Zero));
+        var grant = new ClaudeCreditGrant(200m, 120m, DateTimeOffset.Now.AddDays(12));
         var credit = new ClaudeApiCredit(25.40m, "USD", grant);
 
         tile.SetApiCredit(credit);
 
         var loc = LocalizationService.Instance;
-        Assert.Contains(credit.FormatMoney(80m, loc.DisplayCulture), tile.ApiGrantText);
-        Assert.Contains(credit.FormatMoney(200m, loc.DisplayCulture), tile.ApiGrantText);
-        Assert.StartsWith(loc["Tile.ApiGrant.Label"], tile.ApiGrantText);
-        Assert.Equal(0.4, tile.ApiGrantFraction, 9);
-        Assert.Contains(credit.FormatMoney(120m, loc.DisplayCulture), tile.ApiGrantToolTip);
+        var row = tile.ApiGrantRow!;
+        Assert.StartsWith(loc["Tile.ApiGrant.Label"], row.LabelText);
+        Assert.Contains(credit.FormatMoney(120m, loc.DisplayCulture), row.LabelText);
+        Assert.Equal("", row.InlineTokensText);
+        Assert.Equal(40, row.UsedPercent, 9);
+        Assert.Contains(credit.FormatMoney(80m, loc.DisplayCulture), row.BarTooltipText);
+        Assert.Contains(credit.FormatMoney(200m, loc.DisplayCulture), row.BarTooltipText);
+        Assert.NotEqual("", row.CountdownText);
+        Assert.Null(row.PacePercent);
+        Assert.False(row.ShowThresholdMarker);
+
+        // A later read moves the same row instead of building a new one.
+        tile.SetApiCredit(credit with { Grant = grant with { Remaining = 20m } });
+        Assert.Same(row, tile.ApiGrantRow);
+        Assert.Equal(90, row.UsedPercent, 9);
+        Assert.Contains(credit.FormatMoney(20m, loc.DisplayCulture), row.LabelText);
+        Assert.Equal(UsageLevel.Crit, row.Level);
 
         tile.SetApiCredit(credit with { Grant = null });
-        Assert.Equal("", tile.ApiGrantText);
+        Assert.Null(tile.ApiGrantRow);
         Assert.False(tile.ShowApiGrant);
+    }
+
+    [Fact]
+    public void The_free_credit_row_says_when_it_runs_out_from_its_own_readings()
+    {
+        var now = DateTimeOffset.Now;
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.SetApiCredit(new ClaudeApiCredit(0m, "USD", new ClaudeCreditGrant(200m, 110m, now.AddDays(20))));
+        // 10 % to 45 % over seven hours: 5 % an hour, so the rest lasts about eleven hours.
+        var points = Enumerable.Range(0, 8)
+            .Select(i => new HistoryChart.ChartPoint(now.AddHours(i - 7), 10 + 5 * i))
+            .ToList();
+
+        tile.UpdateApiGrantHistory(points, now);
+
+        var row = tile.ApiGrantRow!;
+        Assert.NotEqual("", row.ForecastText);
+        Assert.DoesNotContain(LocalizationService.Instance["Window.ForecastFull"].Replace("{0}", "", StringComparison.Ordinal).Trim(), row.ForecastText);
+
+        // Lasting past the end of the grant is no warning.
+        tile.SetApiCredit(new ClaudeApiCredit(0m, "USD", new ClaudeCreditGrant(200m, 110m, now.AddHours(2))));
+        tile.UpdateApiGrantHistory(points, now);
+        Assert.Equal("", tile.ApiGrantRow!.ForecastText);
+    }
+
+    [Fact]
+    public void The_free_credit_history_has_its_own_id_per_account()
+    {
+        Assert.Equal("claude#credit", MainViewModel.ApiGrantHistoryId("claude"));
+        Assert.Equal("claude#2#credit", MainViewModel.ApiGrantHistoryId("claude#2"));
+        Assert.NotEqual(
+            AiUsage.Storage.AppPaths.SanitizeAccountKeyForFileName(MainViewModel.ApiGrantHistoryId("claude#2")),
+            AiUsage.Storage.AppPaths.SanitizeAccountKeyForFileName("claude#2"));
     }
 }

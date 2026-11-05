@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -817,7 +817,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// background load must never take the app down with it.</summary>
     private async Task LoadHistorySizeAsync()
     {
-        var providerIds = Main.Tiles.Select(tile => tile.ProviderId).ToList();
+        var providerIds = Main.Tiles.SelectMany(tile => MainViewModel.HistoryIdsOf(tile.ProviderId)).ToList();
         var text = "";
         try
         {
@@ -1982,7 +1982,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (alsoDeleteHistory)
         {
-            _historyStore.DeleteAll(Main.Tiles.Select(tile => tile.ProviderId).ToList());
+            _historyStore.DeleteAll(Main.Tiles.SelectMany(tile => MainViewModel.HistoryIdsOf(tile.ProviderId)).ToList());
             Main.RefreshHistoryForAllTiles();
         }
     }

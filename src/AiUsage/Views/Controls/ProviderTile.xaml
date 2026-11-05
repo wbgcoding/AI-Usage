@@ -404,18 +404,11 @@
                     <TextBlock Text="{Binding ApiCreditText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                Margin="0,0,0,6" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
                                Visibility="{Binding ShowApiCredit, Converter={StaticResource BoolToVis}}"/>
-                    <!-- The console's free credit grants (the monthly credit of a Max plan): used of granted, with a thin bar. -->
-                    <StackPanel Margin="0,0,0,6" Background="Transparent"
-                                ToolTip="{Binding ApiGrantToolTip, Converter={StaticResource NullIfEmpty}}"
-                                Visibility="{Binding ShowApiGrant, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="{Binding ApiGrantText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
-                                   Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
-                                   AutomationProperties.AutomationId="ApiGrantText"/>
-                        <controls:FractionBar Height="4" Margin="0,4,0,0" Fraction="{Binding ApiGrantFraction}"
-                                              Fill="{DynamicResource Text.Secondary}" Track="{DynamicResource Track}"
-                                              Outline="{DynamicResource Border.Control}"
-                                              OutlineThickness="{DynamicResource Track.BorderThickness}"/>
-                    </StackPanel>
+                    <!-- The console's free credit grants (the monthly credit of a Max plan) as a bar row like the
+                         usage windows: used of granted, what is left beside the label, when it runs out. -->
+                    <Border Margin="0,0,0,6" Visibility="{Binding ShowApiGrant, Converter={StaticResource BoolToVis}}">
+                        <controls:UsageBar DataContext="{Binding ApiGrantRow}" AutomationProperties.AutomationId="ApiGrantRow"/>
+                    </Border>
 
                     <!-- The provider's answer changed shape: values may be incomplete, with the log one click away. -->
                     <TextBlock FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"

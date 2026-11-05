@@ -1605,6 +1605,27 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             Tail();
     }
 
+    /// <summary>The history file of a Claude account's free credit, apart from its usage windows so the
+    /// chart, the limits statistics and the tray never mistake it for one.</summary>
+    internal static string ApiGrantHistoryId(string accountKey) => accountKey + "#credit";
+
+    /// <summary>Every history file of one account: its usage windows and, for Claude, its free credit.</summary>
+    internal static IEnumerable<string> HistoryIdsOf(string accountKey) =>
+        ProviderRegistry.BaseProviderId(accountKey) == "claude" ? [accountKey, ApiGrantHistoryId(accountKey)] : [accountKey];
+
+    /// <summary>Hands a fresh balance to the tile and records the free credit's used share, so the
+    /// tile can say when it runs out.</summary>
+    private void ApplyApiCredit(ProviderTileViewModel tile, string accountKey, ClaudeProvider claude)
+    {
+        var credit = claude.CurrentApiCredit;
+        tile.SetApiCredit(credit, claude.CurrentApiCreditRoute);
+        if (credit?.Grant is { } grant)
+        {
+            _historyStore.Append(ApiGrantHistoryId(accountKey), WindowKind.Other, grant.UsedFraction * 100, grant.NextExpiry, label: "Tile.ApiGrant.Label");
+            RefreshTileHistory(accountKey);
+        }
+    }
+
     /// <summary>A balance read landed between two usage reads: the tile and the status file take it at once.
     /// Raised on a pool thread, so the work moves to the UI thread like a snapshot does.</summary>
     private void OnApiCreditChanged(string accountKey)
@@ -1615,7 +1636,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 return;
 
             var credit = claude.CurrentApiCredit;
-            tile.SetApiCredit(credit, claude.CurrentApiCreditRoute);
+            ApplyApiCredit(tile, accountKey, claude);
             if (_statusReadings.TryGetValue(accountKey, out var reading))
             {
                 _statusReadings[accountKey] = reading with { ApiCredit = credit };
@@ -1787,12 +1808,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         var range = SettingsRanges.ChartRangeToTimeSpan(_settings.ChartRange);
         var showPreviousWeek = _settings.ShowPreviousWeekLine;
+        var readsGrant = ProviderRegistry.BaseProviderId(providerId) == "claude";
 
         var read = Task.Run(() =>
         {
             var now = DateTimeOffset.Now;
             var requestedStart = now - range;
             var points = _historyStore.Load(providerId, range);
+            IReadOnlyList<HistoryChart.ChartPoint> grantPoints = readsGrant
+                ? [.. _historyStore.Load(ApiGrantHistoryId(providerId), ProviderTileViewModel.ApiGrantForecastLookback)
+                    .Select(p => new HistoryChart.ChartPoint(p.Timestamp, p.Percent))]
+                : [];
             var earliestPoint = points.Count > 0 ? points.Min(p => p.Timestamp) : (DateTimeOffset?)null;
             var decision = DecideChartRange(now, range, earliestPoint);
 
@@ -1812,6 +1838,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 if (!_tilesById.TryGetValue(providerId, out var tile))
                     return;
                 tile.UpdateHistory(points, previousWeek, decision.RangeStart, now);
+                if (readsGrant)
+                    tile.UpdateApiGrantHistory(grantPoints, now);
                 EvaluateForecasts(providerId, points, now);
             }
 
@@ -1928,9 +1956,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     ? await dispatcher.InvokeAsync(() => Tiles.Select(t => t.ProviderId).ToList())
                     : Tiles.Select(t => t.ProviderId).ToList();
 
-                foreach (var providerId in providerIds)
+                foreach (var historyId in providerIds.SelectMany(HistoryIdsOf))
                 {
-                    _historyStore.Maintain(providerId, _settings.HistoryRetentionDays);
+                    _historyStore.Maintain(historyId, _settings.HistoryRetentionDays);
                 }
 
                 if (dispatcher is not null && !dispatcher.CheckAccess())

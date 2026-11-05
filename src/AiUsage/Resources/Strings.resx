@@ -31,6 +31,7 @@
   <data name="Window.TokensThisSession" xml:space="preserve"><value>{0} tokens in this window</value></data>
   <data name="Window.TokensInline" xml:space="preserve"><value>{0} tokens</value></data>
   <data name="Window.ForecastFull" xml:space="preserve"><value>full in about {0}</value></data>
+  <data name="Window.ForecastEmpty" xml:space="preserve"><value>used up in about {0}</value></data>
   <data name="Window.UsedPercent" xml:space="preserve"><value>{0}% used</value></data>
   <data name="Window.Allowance" xml:space="preserve"><value>{0}% of {2} {3} used ({1} so far)</value></data>
   <data name="Reset.InHoursMinutes" xml:space="preserve"><value>resets in {0}h {1}m</value></data>
@@ -677,6 +678,7 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API credits</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Free credit</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} of {1} used</value></data>
+  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>{0} left</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>{0} left; the earliest grant ends on {1}.</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} left.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
