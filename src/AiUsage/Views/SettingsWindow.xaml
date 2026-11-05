@@ -354,10 +354,7 @@
                          than the level colors; the others do not appear. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.BarColor]}" Style="{StaticResource FieldLabel}"
                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"/>
-                    <ItemsControl x:Name="BarColorList" ItemsSource="{Binding Main.Tiles}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
+                    <ItemsControl x:Name="BarColorList" ItemsSource="{Binding Main.Tiles}" Grid.IsSharedSizeScope="True">
                         <ItemsControl.ItemContainerStyle>
                             <Style TargetType="ContentPresenter">
                                 <Style.Triggers>
@@ -369,13 +366,18 @@
                         </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,16,4">
+                                <Grid Margin="0,4,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="ProviderRowLabel"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox ItemsSource="{Binding BarColorChoices}"
+                                    <ComboBox Grid.Column="1" HorizontalAlignment="Left"
+                                              ItemsSource="{Binding BarColorChoices}"
                                               SelectedItem="{Binding SelectedBarColorChoice, Mode=TwoWay}"
                                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"
                                               AutomationProperties.Name="{Binding HeaderDisplayName}"/>
-                                </StackPanel>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -541,21 +543,23 @@
                             AutomationProperties.Name="{Binding RemoteIntervalLabelText}"/>
 
                     <!-- Per account: how often at most it is read. One row of provider name + picker,
-                         wrapping when the window is narrow. -->
+                         the pickers lined up on the widest name. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ItemsControl x:Name="ProviderRefreshList" ItemsSource="{Binding Main.Tiles}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
+                    <ItemsControl x:Name="ProviderRefreshList" ItemsSource="{Binding Main.Tiles}" Grid.IsSharedSizeScope="True">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,16,4">
+                                <Grid Margin="0,4,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="ProviderRowLabel"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox ItemsSource="{Binding RefreshChoices}"
+                                    <ComboBox Grid.Column="1" HorizontalAlignment="Left"
+                                              ItemsSource="{Binding RefreshChoices}"
                                               SelectedItem="{Binding SelectedRefreshChoice, Mode=TwoWay}"
                                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ProviderRefresh]}"
                                               AutomationProperties.Name="{Binding HeaderDisplayName}"/>
-                                </StackPanel>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

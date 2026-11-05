@@ -30,6 +30,8 @@ public class SettingsRefreshPlacementTests
         Assert.Equal("ProviderRefreshList", (string?)list.Attribute(X + "Name"));
         Assert.Equal("{Binding Main.Tiles}", (string?)list.Attribute("ItemsSource"));
         Assert.Equal("{Binding SelectedRefreshChoice, Mode=TwoWay}", (string?)picker.Attribute("SelectedItem"));
-        Assert.Contains(list.Descendants(Wpf + "WrapPanel"), _ => true);
+        // The provider names share one column width so the pickers line up.
+        Assert.Equal("True", (string?)list.Attribute("Grid.IsSharedSizeScope"));
+        Assert.Contains(list.Descendants(Wpf + "ColumnDefinition"), column => (string?)column.Attribute("SharedSizeGroup") == "ProviderRowLabel");
     }
 }
