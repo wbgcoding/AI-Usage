@@ -356,6 +356,63 @@ public class ProjectColorResolverTests
         Assert.Equal(Path.Combine(tauri.Path, "src-tauri", "icons", "app.svg"), ProjectColorResolver.FindIconFile(tauri.Path));
     }
 
+    // Each row lists the files of a folder best first; the first one must win over every later one.
+    [Theory]
+    [InlineData("icon.png", "icon.svg")]
+    [InlineData("icon.svg", "logo.png")]
+    [InlineData("favicon.svg", "icon.png")]
+    [InlineData("logo.png", "logo.svg")]
+    [InlineData("icon.png", "icon-512.png")]
+    [InlineData("icon.png", "app_icon.png")]
+    [InlineData("icon-128.png", "app_icon.png")]
+    [InlineData("app_icon.png", "app-icon.png")]
+    [InlineData("app-icon.png", "meta_app_icon.png")]
+    [InlineData("meta_app_icon.png", "ic_launcher.png")]
+    [InlineData("icon-512.png", "icon-192.png")]
+    [InlineData("icon_512.png", "icon_96.png")]
+    public void FindIconFileRanksTheWellKnownIconNames(string better, string worse)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-rank");
+        foreach (var name in new[] { worse, better })
+        {
+            if (name.EndsWith(".svg", StringComparison.Ordinal))
+                WriteText(dir.Path, "art/" + name, BlueSvg);
+            else
+                Touch(dir.Path, "art/" + name);
+        }
+
+        Assert.Equal(Path.Combine(dir.Path, "art", better), ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
+    [Theory]
+    [InlineData("icon-48.png")]
+    [InlineData("logo.svg")]
+    [InlineData("favicon.svg")]
+    [InlineData("meta_app_icon.png")]
+    public void FindIconFileFindsAnIconUnderOneOfTheNewNames(string name)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-names");
+        if (name.EndsWith(".svg", StringComparison.Ordinal))
+            WriteText(dir.Path, "public/" + name, BlueSvg);
+        else
+            Touch(dir.Path, "public/" + name);
+
+        Assert.Equal(Path.Combine(dir.Path, "public", name), ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
+    [Theory]
+    [InlineData("icon-foreground.png")]
+    [InlineData("icon-background.png")]
+    [InlineData("icon-abc.png")]
+    [InlineData("my-icon-48.png")]
+    public void FindIconFileStillIgnoresLayerAndUnrelatedNames(string name)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-ignored");
+        Touch(dir.Path, "art/" + name);
+
+        Assert.Null(ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
     private static bool TryMakeLink(string mklinkArguments)
     {
         var start = new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c mklink " + mklinkArguments)

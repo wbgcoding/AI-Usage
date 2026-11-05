@@ -537,7 +537,16 @@ public static class ProjectColorResolver
     // name plus ".ico" slots in after app.ico.
     private static readonly string[] NamePriorityBeforeProjectName = ["app.ico"];
     private static readonly string[] NamePriorityAfterProjectName =
-        ["icon.ico", "favicon.ico", "app-mark.png", "appicon.png", "icon.png", "ic_launcher.png", "logo.png"];
+    [
+        "icon.ico", "favicon.ico", "favicon.svg", "app-mark.png", "appicon.png", "icon.png", "icon.svg", SizedIconMarker,
+        "app_icon.png", "app-icon.png", "meta_app_icon.png", "ic_launcher.png", "logo.png", "logo.svg",
+    ];
+
+    // Stands in the priority list for every icon-512.png / icon_192.png style name; the larger size wins
+    // among them (see TieRank).
+    private const string SizedIconMarker = "icon-N.png";
+    private static readonly System.Text.RegularExpressions.Regex SizedIconName =
+        new("^icon[-_](\\d{1,5})\\.png$", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     private static readonly string[] ExcludedNameParts = ["splash", "background", "foreground", "monochrome"];
 
@@ -562,7 +571,7 @@ public static class ProjectColorResolver
 
         foreach (var name in NamePriorityAfterProjectName)
         {
-            if (string.Equals(name, fileName, StringComparison.OrdinalIgnoreCase))
+            if (name == SizedIconMarker ? SizedIconName.IsMatch(fileName) : string.Equals(name, fileName, StringComparison.OrdinalIgnoreCase))
                 return index;
             index++;
         }
@@ -570,10 +579,15 @@ public static class ProjectColorResolver
         return string.Equals(Path.GetExtension(fileName), ".ico", StringComparison.OrdinalIgnoreCase) ? index : int.MaxValue;
     }
 
-    /// <summary>Among equally ranked launcher icons the one in the densest mipmap/drawable folder
-    /// wins; any other folder counts as least dense.</summary>
-    private static int DensityRank(string filePath)
+    /// <summary>Among equally ranked candidates the better one has the lower value: the densest
+    /// mipmap/drawable folder for launcher icons (any other folder counts as least dense), the largest
+    /// pixel size for icon-512.png style names.</summary>
+    private static int TieRank(string filePath)
     {
+        var sized = SizedIconName.Match(Path.GetFileName(filePath));
+        if (sized.Success)
+            return 100_000 - int.Parse(sized.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+
         var folder = Path.GetFileName(Path.GetDirectoryName(filePath) ?? "");
         var index = Array.FindIndex(AndroidDensities, density => folder.EndsWith("-" + density, StringComparison.OrdinalIgnoreCase));
         return index >= 0 ? index : AndroidDensities.Length;
@@ -595,7 +609,7 @@ public static class ProjectColorResolver
             if (rank == int.MaxValue)
                 continue;
 
-            var density = DensityRank(candidate);
+            var density = TieRank(candidate);
             if (rank > bestRank || (rank == bestRank && density >= bestDensity))
                 continue;
             if (!IsUsableIconFile(projectFolder, candidate))
