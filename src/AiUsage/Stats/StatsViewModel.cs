@@ -793,7 +793,7 @@ public sealed partial class StatsViewModel : ObservableObject
             detail.ByProvider.Select(slice => slice.Total).ToList(),
             detail.ByProvider.Select(slice => ProviderDisplayNames.GetValueOrDefault(slice.Label, slice.Label)).ToList(),
             ToModelRows(detail.ByModel, day, label => costView.LineFor(dayModelCosts, label)),
-            ToDayProjectRows(detail.ByProject, day, ProjectColors, key => costView.LineFor(dayProjectCosts, key)),
+            ToDayProjectRows(detail.ByProject, day, ProjectColors, ProjectIconPaths, key => costView.LineFor(dayProjectCosts, key)),
             ToHourBars(detail.ByHour, hour => costView.LineFor(dayHourCosts, hour.ToString(CultureInfo.InvariantCulture))));
 
         // The day's projects that have no resolved color yet are resolved in the background; the
@@ -821,7 +821,7 @@ public sealed partial class StatsViewModel : ObservableObject
     // The project folders of the selected day's detail, resolved together with the period's own so
     // that a newer request never discards the keys of an older one that is still running.
     private IReadOnlyList<string> _dayProjectKeys = [];
-    private readonly HashSet<string> _requestedDayProjectKeys = [];
+    private readonly HashSet<string> _requestedDayProjectKeys = new(StringComparer.OrdinalIgnoreCase);
 
     private List<string> CurrentBarProjectKeys() => SelectedGrouping == StatsGrouping.Project
         ? Bars.Select(bar => bar.ColorProviderId).Where(key => key.Length > 0 && key != OtherProjectsColorKey && key != NoProjectFilterKey).ToList()
@@ -855,7 +855,12 @@ public sealed partial class StatsViewModel : ObservableObject
     /// window. Filled in the background by <see cref="RefreshProjectColorsAsync"/>; a project not
     /// in here yet draws in a fallback hue until it is.</summary>
     [ObservableProperty]
-    private IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors = new Dictionary<string, System.Windows.Media.Color>();
+    private IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors = new Dictionary<string, System.Windows.Media.Color>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The icon file of each project folder that has one, keyed like <see cref="ProjectColors"/>
+    /// (case-insensitive), so the day detail shows the same icon as the top projects. Set just before
+    /// <see cref="ProjectColors"/>, whose change rebuilds the day detail.</summary>
+    internal IReadOnlyDictionary<string, string> ProjectIconPaths { get; private set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     private const string ProjectColorsFileName = ProjectColorResolver.CacheFileName;
 
@@ -898,7 +903,7 @@ public sealed partial class StatsViewModel : ObservableObject
     {
         var generation = ++_projectColorGeneration;
         var dayKeys = _dayProjectKeys;
-        var folders = rows.Where(row => !row.IsNoProject).Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct().ToList();
+        var folders = rows.Where(row => !row.IsNoProject).Select(row => row.FullPath).Concat(barProjects).Concat(dayKeys).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (folders.Count == 0)
             return;
 
@@ -927,15 +932,29 @@ public sealed partial class StatsViewModel : ObservableObject
             return;
         }
 
+        // One answer per project however its folder is spelled, so both views share color and icon.
+        var byFolder = new Dictionary<string, ProjectColorInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (folder, info) in resolved)
+            byFolder[folder] = info;
+
         TopProjectRows = TopProjectRows
-            .Select(row => resolved.TryGetValue(row.FullPath, out var info)
+            .Select(row => byFolder.TryGetValue(row.FullPath, out var info)
                 ? row with { Color = info.Color, IconPath = info.IconPath }
                 : row)
             .ToList();
 
-        var colors = new Dictionary<string, System.Windows.Media.Color>(ProjectColors);
-        foreach (var (folder, info) in resolved)
+        var colors = new Dictionary<string, System.Windows.Media.Color>(ProjectColors, StringComparer.OrdinalIgnoreCase);
+        var icons = new Dictionary<string, string>(ProjectIconPaths, StringComparer.OrdinalIgnoreCase);
+        foreach (var (folder, info) in byFolder)
+        {
             colors[folder] = info.Color;
+            if (info.IconPath is not null)
+                icons[folder] = info.IconPath;
+            else
+                icons.Remove(folder);
+        }
+
+        ProjectIconPaths = icons;
         ProjectColors = colors;
     }
 
@@ -963,10 +982,10 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The day-detail project slices as rows, in the project's own color from <paramref
     /// name="projectColors"/> (the one its other panels show), or the fallback hue the project chart
-    /// uses until that color is resolved.</summary>
-    private static List<StatsProjectRow> ToDayProjectRows(
+    /// uses until that color is resolved, with its icon from <paramref name="projectIcons"/>.</summary>
+    internal static List<StatsProjectRow> ToDayProjectRows(
         IReadOnlyList<StatsShareSlice> slices, DateOnly day, IReadOnlyDictionary<string, System.Windows.Media.Color> projectColors,
-        Func<string, string?>? costLineOf = null) =>
+        IReadOnlyDictionary<string, string> projectIcons, Func<string, string?>? costLineOf = null) =>
         slices
             .Select(slice =>
             {
@@ -976,7 +995,8 @@ public sealed partial class StatsViewModel : ObservableObject
                 var color = !slice.IsPooled && projectColors.TryGetValue(slice.Label, out var resolved) && resolved != default
                     ? resolved
                     : ChartPalette.ForProvider(slice.Label);
-                return new StatsProjectRow(shortened, slice.Label, slice.Total, slice.Percent, day, day, Color: color, IsNoProject: slice.IsPooled,
+                var icon = !slice.IsPooled && projectIcons.TryGetValue(slice.Label, out var iconPath) ? iconPath : null;
+                return new StatsProjectRow(shortened, slice.Label, slice.Total, slice.Percent, day, day, Color: color, IconPath: icon, IsNoProject: slice.IsPooled,
                     CostLine: costLineOf?.Invoke(slice.IsPooled ? StatsAggregator.NoProjectKey : slice.Label));
             })
             .ToList();
