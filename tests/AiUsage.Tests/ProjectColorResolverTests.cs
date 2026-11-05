@@ -769,4 +769,19 @@ public class ProjectColorResolverTests
 
         Assert.Equal(originalColor, afterVersionReject[project.Path].Color);
     }
+
+    [Fact]
+    public void ACacheFromTheEarlierIconSearchIsRecomputed()
+    {
+        using var project = TestPaths.CreateDisposableDirectory("delta-cache-project");
+        var cachePath = TestPaths.GetPath("project-colors-old-version", ".json");
+        var escapedPath = project.Path.Replace("\\", "\\\\");
+        File.WriteAllText(cachePath,
+            "{\"Version\":2,\"Entries\":{\"" + escapedPath +
+            "\":{\"IconPath\":null,\"IconLastWriteUtc\":null,\"ColorHex\":\"#000000\"}}}");
+
+        var result = ProjectColorResolver.ResolveAll([project.Path], cachePath, _ => null, _ => null);
+
+        Assert.NotEqual(Color.FromRgb(0, 0, 0), result[project.Path].Color);
+    }
 }

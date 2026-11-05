@@ -32,7 +32,7 @@ public static class ProjectColorResolver
 
     // Raised whenever the icon search changes what it finds, so colors computed from an older find are
     // recomputed once.
-    private const int CacheVersion = 2;
+    private const int CacheVersion = 3;
     private const int MaxCachedProjects = 300;
     private const int MaxIconSearchDepth = 6;
     private const int DeclaredIconSearchDepth = 3;
