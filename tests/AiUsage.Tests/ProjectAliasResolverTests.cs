@@ -1,4 +1,4 @@
-using AiUsage.Stats;
+﻿using AiUsage.Stats;
 
 namespace AiUsage.Tests;
 
@@ -268,5 +268,39 @@ public class ProjectAliasResolverTests
 
         Assert.Same(records, aliases.Apply(records));
         Assert.True(aliases.IsEmpty);
+    }
+
+    [Fact]
+    public void A_checkout_inside_an_indexed_plain_folder_still_takes_over_its_moved_copy()
+    {
+        // The new place sits in a folder that was once a session folder of its own (E:\Work); the old
+        // place had no such parent in the index. The checkout is a project of its own all the same.
+        var records = new[]
+        {
+            Record(@"C:\Work\Sample Tool"), Record(@"C:\Work\Sample Tool\src"),
+            Record(@"E:\Work"), Record(@"E:\Work\Sample Tool", dayOffset: 3), Record(@"E:\Work\Sample Tool\src", dayOffset: 3),
+        };
+        var present = new HashSet<string>([@"E:\Work", @"E:\Work\Sample Tool", @"E:\Work\Sample Tool\src"], StringComparer.OrdinalIgnoreCase);
+
+        var aliases = ProjectAliasResolver.Build(records, [], present.Contains, path =>
+            string.Equals(path, @"E:\Work\Sample Tool", StringComparison.OrdinalIgnoreCase)
+                ? new GitRepoInfo("github.com/team/sample-tool", "sample-tool")
+                : null);
+
+        Assert.Equal(@"E:\Work\Sample Tool", aliases.Resolve(@"C:\Work\Sample Tool"));
+        Assert.Equal(@"E:\Work\Sample Tool\src", aliases.Resolve(@"C:\Work\Sample Tool\src"));
+        Assert.Equal(@"E:\Work", aliases.Resolve(@"E:\Work"));
+    }
+
+    [Fact]
+    public void A_plain_subfolder_keeps_its_enclosing_project()
+    {
+        // Neither "src" is a checkout, so each stays inside its own project and the two never pair.
+        var records = new[] { Record(@"C:\old\Alpha"), Record(@"C:\old\Alpha\src"), Record(@"E:\Beta"), Record(@"E:\Beta\src") };
+        var present = new HashSet<string>([@"E:\Beta", @"E:\Beta\src"], StringComparer.OrdinalIgnoreCase);
+
+        var aliases = ProjectAliasResolver.Build(records, [], present.Contains, _ => null);
+
+        Assert.Equal(@"C:\old\Alpha\src", aliases.Resolve(@"C:\old\Alpha\src"));
     }
 }

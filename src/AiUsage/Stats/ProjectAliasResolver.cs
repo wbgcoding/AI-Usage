@@ -1,4 +1,4 @@
-namespace AiUsage.Stats;
+﻿namespace AiUsage.Stats;
 
 /// <summary>
 /// Which project paths of the index are one project that moved: worked out at query time from the
@@ -145,12 +145,18 @@ public static class ProjectAliasResolver
 
         // Checkouts of one git repository are one project, however the folders are named or where they
         // are. The name pass below then leaves the merged-away paths alone.
-        var merged = MergeRepositories(lastUsed, target, former, Exists, repoOf);
+        var repos = new Dictionary<string, GitRepoInfo?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in lastUsed.Keys)
+            repos[path] = repoOf(path);
+        var merged = MergeRepositories(lastUsed, target, former, Exists, repos);
 
         // Each path's enclosing root is a strict ancestor, so the nesting depth is finite. Paths are
         // settled one depth at a time, outermost first: a path inside a root then only pairs with one
-        // inside the same (already merged) root, however the folders are named.
-        var roots = lastUsed.Keys.ToDictionary(path => path, path => EnclosingRoot(lastUsed, path), StringComparer.OrdinalIgnoreCase);
+        // inside the same (already merged) root, however the folders are named. A git checkout is a
+        // project of its own and has no enclosing root: a plain folder around it that once held a
+        // session (a projects folder) must not keep it apart from its moved copy elsewhere.
+        var roots = lastUsed.Keys.ToDictionary(
+            path => path, path => repos[path] is null ? EnclosingRoot(lastUsed, path) : null, StringComparer.OrdinalIgnoreCase);
         var depths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         int DepthOf(string path)
@@ -220,14 +226,14 @@ public static class ProjectAliasResolver
     /// project color) does not flip between runs. Returns the merged-away paths.</summary>
     private static HashSet<string> MergeRepositories(
         Dictionary<string, DateTime> lastUsed, Dictionary<string, string> target, Dictionary<string, IReadOnlyList<string>> former,
-        Func<string, bool> exists, Func<string, GitRepoInfo?> repoOf)
+        Func<string, bool> exists, Dictionary<string, GitRepoInfo?> repos)
     {
         var merged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var byRepo = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in lastUsed.Keys)
         {
-            if (repoOf(path) is not { } repo)
+            if (repos[path] is not { } repo)
                 continue;
 
             if (!byRepo.TryGetValue(repo.Id, out var members))
