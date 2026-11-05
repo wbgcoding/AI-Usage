@@ -413,6 +413,90 @@ public class ProjectColorResolverTests
         Assert.Null(ProjectColorResolver.FindIconFile(dir.Path));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AFolderInsideACheckoutBorrowsTheIconOfTheCheckoutRoot(bool gitIsAFile)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-inherit");
+        MakeCheckout(dir.Path, gitIsAFile);
+        Touch(dir.Path, "icon.png");
+        Directory.CreateDirectory(Path.Combine(dir.Path, "apps", "web"));
+
+        Assert.Equal(Path.Combine(dir.Path, "icon.png"), ProjectColorResolver.FindIconFile(Path.Combine(dir.Path, "apps", "web")));
+    }
+
+    [Fact]
+    public void AFolderWithItsOwnIconKeepsItInsideACheckout()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-inherit-own");
+        MakeCheckout(dir.Path, false);
+        Touch(dir.Path, "icon.png");
+        Touch(dir.Path, "apps/web/icon.png");
+
+        Assert.Equal(Path.Combine(dir.Path, "apps", "web", "icon.png"), ProjectColorResolver.FindIconFile(Path.Combine(dir.Path, "apps", "web")));
+    }
+
+    [Fact]
+    public void ACheckoutRootNeverBorrowsFromAnEnclosingCheckout()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-inherit-root");
+        MakeCheckout(dir.Path, false);
+        Touch(dir.Path, "icon.png");
+        var inner = Path.Combine(dir.Path, "vendor-copy");
+        MakeCheckout(inner, false);
+
+        Assert.Null(ProjectColorResolver.FindIconFile(inner));
+    }
+
+    [Fact]
+    public void AFolderOutsideAnyCheckoutBorrowsNothing()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-inherit-none");
+        Touch(dir.Path, "icon.png");
+        Directory.CreateDirectory(Path.Combine(dir.Path, "apps", "web"));
+
+        Assert.Null(ProjectColorResolver.FindIconFile(Path.Combine(dir.Path, "apps", "web")));
+    }
+
+    [Fact]
+    public void ACheckoutWithoutAnIconIsSkippedForTheNextOneUp()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-inherit-skip");
+        MakeCheckout(dir.Path, false);
+        Touch(dir.Path, "icon.png");
+        MakeCheckout(Path.Combine(dir.Path, "group"), false);
+        Directory.CreateDirectory(Path.Combine(dir.Path, "group", "tool"));
+
+        Assert.Equal(Path.Combine(dir.Path, "icon.png"), ProjectColorResolver.FindIconFile(Path.Combine(dir.Path, "group", "tool")));
+    }
+
+    [Theory]
+    [InlineData(4, true)]
+    [InlineData(5, false)]
+    public void TheIconIsBorrowedFromAtMostFourLevelsUp(int levelsBelowTheCheckout, bool borrows)
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-inherit-depth");
+        MakeCheckout(dir.Path, false);
+        Touch(dir.Path, "icon.png");
+        var project = dir.Path;
+        for (var level = 0; level < levelsBelowTheCheckout; level++)
+            project = Path.Combine(project, "d" + level);
+        Directory.CreateDirectory(project);
+
+        Assert.Equal(borrows ? Path.Combine(dir.Path, "icon.png") : null, ProjectColorResolver.FindIconFile(project));
+    }
+
+    private static void MakeCheckout(string folder, bool gitIsAFile)
+    {
+        Directory.CreateDirectory(folder);
+        var git = Path.Combine(folder, ".git");
+        if (gitIsAFile)
+            File.WriteAllText(git, "gitdir: elsewhere");
+        else
+            Directory.CreateDirectory(git);
+    }
+
     private static bool TryMakeLink(string mklinkArguments)
     {
         var start = new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c mklink " + mklinkArguments)

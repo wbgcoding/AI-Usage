@@ -250,14 +250,64 @@ public static class ProjectColorResolver
     /// cref="MaxIconSearchDepth"/> levels, <see cref="MaxDirectoryEntriesInspected"/> entries, the usual
     /// build, dependency and hidden folders skipped) whose candidates are ranked by <see
     /// cref="NameRank"/>. Only existing .ico, .png, .svg or Android vector .xml files up to <see cref="MaxIconFileBytes"/> count.
-    /// Null for a folder that no longer exists or holds no such file.</summary>
+    /// A folder without an icon of its own borrows the one of its enclosing git checkout (see <see
+    /// cref="FindInheritedIcon"/>). Null for a folder that no longer exists or holds no such file.</summary>
     internal static string? FindIconFile(string projectFolder)
     {
         if (!Directory.Exists(projectFolder))
             return null;
 
-        var files = WalkProject(projectFolder);
-        return FindDeclaredIcon(projectFolder, files) ?? PickIconByPriority(projectFolder, files.Select(file => file.Path));
+        return FindOwnIcon(projectFolder) ?? FindInheritedIcon(projectFolder);
+    }
+
+    private static string? FindOwnIcon(string folder)
+    {
+        var files = WalkProject(folder);
+        return FindDeclaredIcon(folder, files) ?? PickIconByPriority(folder, files.Select(file => file.Path));
+    }
+
+    /// <summary>How many folders above a project are looked at for an icon it can borrow.</summary>
+    private const int MaxInheritedIconLevels = 4;
+
+    /// <summary>A project folder inside a repository (a package of a monorepo, an app next to its
+    /// server) shows the icon of the nearest enclosing git checkout that has one, at most <see
+    /// cref="MaxInheritedIconLevels"/> levels up and never above the drive root. A folder that is a
+    /// checkout root itself is a project of its own and borrows nothing.</summary>
+    private static string? FindInheritedIcon(string projectFolder)
+    {
+        if (IsGitCheckoutRoot(projectFolder))
+            return null;
+
+        var current = projectFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        for (var level = 0; level < MaxInheritedIconLevels; level++)
+        {
+            string? parent;
+            try { parent = Path.GetDirectoryName(current); }
+            catch (ArgumentException) { return null; }
+
+            // Null at a drive root; a drive root itself (X:\) is no project and no checkout to borrow from.
+            if (string.IsNullOrEmpty(parent) || Path.GetDirectoryName(parent) is null)
+                return null;
+
+            current = parent;
+            if (IsGitCheckoutRoot(current) && FindOwnIcon(current) is { } icon)
+                return icon;
+        }
+
+        return null;
+    }
+
+    private static bool IsGitCheckoutRoot(string folder)
+    {
+        try
+        {
+            var git = Path.Combine(folder, ".git");
+            return Directory.Exists(git) || File.Exists(git);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
     }
 
     private readonly record struct WalkedFile(string Path, int Depth);
