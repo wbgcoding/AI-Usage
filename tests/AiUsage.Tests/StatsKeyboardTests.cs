@@ -164,4 +164,92 @@ public class StatsKeyboardTests
         Assert.True(focusable.Item1);
         Assert.True(focusable.Item2);
     }
+
+    private static StatsRingChart ThreeSlices(bool activatable) => new()
+    {
+        IsActivatable = activatable,
+        Slices = [new StatsRingChart.Slice("Opus", 60), new StatsRingChart.Slice("Sonnet", 0), new StatsRingChart.Slice("Haiku", 40)],
+    };
+
+    [Fact]
+    public void Ring_chart_is_focusable_only_while_it_is_activatable()
+    {
+        var focusable = RunOnSta(() => (ThreeSlices(false).Focusable, ThreeSlices(true).Focusable));
+
+        Assert.False(focusable.Item1);
+        Assert.True(focusable.Item2);
+    }
+
+    [Fact]
+    public void Ring_chart_right_skips_a_slice_without_a_share_and_names_the_focused_slice()
+    {
+        var (index, name) = RunOnSta(() =>
+        {
+            var ring = ThreeSlices(true);
+            PressKey(ring, Key.Right);
+            return (ring.FocusedIndex, AutomationProperties.GetName(ring));
+        });
+
+        Assert.Equal(2, index);
+        Assert.Contains("Haiku", name);
+    }
+
+    [Fact]
+    public void Ring_chart_enter_and_space_activate_the_focused_slice()
+    {
+        var picked = RunOnSta(() =>
+        {
+            var ring = ThreeSlices(true);
+            var indices = new List<int>();
+            ring.SliceActivated += (_, index) => indices.Add(index);
+
+            PressKey(ring, Key.Right);
+            PressKey(ring, Key.Enter);
+            PressKey(ring, Key.Left);
+            PressKey(ring, Key.Space);
+            return indices;
+        });
+
+        Assert.Equal([2, 0], picked);
+    }
+
+    [Fact]
+    public void Ring_chart_keys_do_nothing_while_it_is_not_activatable()
+    {
+        var (index, handled) = RunOnSta(() =>
+        {
+            var ring = ThreeSlices(false);
+            var indices = new List<int>();
+            ring.SliceActivated += (_, i) => indices.Add(i);
+            PressKey(ring, Key.Right);
+            PressKey(ring, Key.Enter);
+            return (ring.FocusedIndex, indices.Count);
+        });
+
+        Assert.Equal(-1, index);
+        Assert.Equal(0, handled);
+    }
+
+    [Fact]
+    public void Ring_chart_focus_stays_on_slices_that_have_a_share()
+    {
+        StatsRingChart.Slice[] slices = [new("A", 0), new("B", 50), new("C", 0), new("D", 50)];
+
+        Assert.Equal(1, StatsRingChart.MoveFocusedIndex(-1, slices, Key.Home));
+        Assert.Equal(3, StatsRingChart.MoveFocusedIndex(1, slices, Key.Right));
+        Assert.Equal(3, StatsRingChart.MoveFocusedIndex(3, slices, Key.Right));
+        Assert.Equal(1, StatsRingChart.MoveFocusedIndex(3, slices, Key.Left));
+        Assert.Equal(3, StatsRingChart.MoveFocusedIndex(0, slices, Key.End));
+        Assert.Equal(1, StatsRingChart.MoveFocusedIndex(2, slices, Key.None));
+        Assert.Equal(-1, StatsRingChart.MoveFocusedIndex(0, [new StatsRingChart.Slice("A", 0)], Key.Right));
+    }
+
+    [Fact]
+    public void Ring_chart_slice_anchor_sits_on_the_slices_own_arc()
+    {
+        StatsRingChart.Slice[] slices = [new("Claude", 60), new("Codex", 40)];
+        var anchor = StatsRingChart.SliceAnchor(1, 400, 132, slices);
+
+        Assert.Equal(1, StatsRingChart.SliceIndexAt(anchor, 400, 132, slices));
+    }
 }

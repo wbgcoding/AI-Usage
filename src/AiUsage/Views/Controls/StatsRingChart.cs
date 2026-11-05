@@ -20,7 +20,12 @@ namespace AiUsage.Views.Controls;
 /// </summary>
 public sealed class StatsRingChart : FrameworkElement
 {
-    public StatsRingChart() => ClipToBounds = true;
+    public StatsRingChart()
+    {
+        ClipToBounds = true;
+        // Only an activatable ring takes keyboard focus (see IsActivatable); the focus ring is drawn by OnRender.
+        FocusVisualStyle = null;
+    }
 
     /// <summary>One slice: a label already resolved to what the legend should print (a provider or
     /// model display name, or the pooled "Other"/"Andere" entry), its percentage of the whole and its
@@ -57,7 +62,16 @@ public sealed class StatsRingChart : FrameworkElement
     {
         var ring = (StatsRingChart)d;
         ring.HideTooltip();
-        RefreshAccessibleName(ring);
+        if (ring._focusedIndex >= 0)
+        {
+            // The slices changed under the keyboard focus: keep it on a slice that still exists.
+            var slices = (IReadOnlyList<Slice>)e.NewValue;
+            ring._focusedIndex = MoveFocusedIndex(ring._focusedIndex, slices, Key.None);
+            ring.UpdateFocusedAutomationName();
+        }
+
+        if (ring._focusedIndex < 0)
+            RefreshAccessibleName(ring);
     }
 
     private static void RefreshAccessibleName(StatsRingChart ring)
@@ -303,7 +317,15 @@ public sealed class StatsRingChart : FrameworkElement
     /// <summary>True when a click on a slice or a legend entry means something.</summary>
     public static readonly DependencyProperty IsActivatableProperty = DependencyProperty.Register(
         nameof(IsActivatable), typeof(bool), typeof(StatsRingChart),
-        new PropertyMetadata(false, (d, e) => ((StatsRingChart)d).Cursor = (bool)e.NewValue ? System.Windows.Input.Cursors.Hand : null));
+        new PropertyMetadata(false, OnIsActivatableChanged));
+
+    private static void OnIsActivatableChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var ring = (StatsRingChart)d;
+        var activatable = (bool)e.NewValue;
+        ring.Cursor = activatable ? System.Windows.Input.Cursors.Hand : null;
+        ring.Focusable = activatable;
+    }
 
     public bool IsActivatable
     {
@@ -311,8 +333,145 @@ public sealed class StatsRingChart : FrameworkElement
         set => SetValue(IsActivatableProperty, value);
     }
 
-    /// <summary>Raised with the index of the slice whose arc or legend entry was clicked.</summary>
+    /// <summary>Raised with the index of the slice whose arc or legend entry was clicked, or that was
+    /// confirmed with Enter or Space.</summary>
     public event EventHandler<int>? SliceActivated;
+
+    /// <summary>The outline drawn around the slice the keyboard focus is on - the theme's focus brush.</summary>
+    public static readonly DependencyProperty FocusBrushProperty = DependencyProperty.Register(
+        nameof(FocusBrush), typeof(Brush), typeof(StatsRingChart),
+        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public Brush FocusBrush
+    {
+        get => (Brush)GetValue(FocusBrushProperty);
+        set => SetValue(FocusBrushProperty, value);
+    }
+
+    private int _focusedIndex = -1;
+
+    /// <summary>The slice the keyboard focus sits on, -1 while the ring has no focus.</summary>
+    internal int FocusedIndex => _focusedIndex;
+
+    /// <summary>Where an arrow key moves the focused slice: left and right one slice, home and end to
+    /// the first and last. A slice without a share has no arc and is skipped; <see cref="Key.None"/>
+    /// only re-validates <paramref name="current"/>. -1 when no slice has a share. Pure so it is
+    /// testable without a visual tree.</summary>
+    internal static int MoveFocusedIndex(int current, IReadOnlyList<Slice> slices, Key key)
+    {
+        var eligible = new List<int>(slices.Count);
+        for (var i = 0; i < slices.Count; i++)
+        {
+            if (slices[i].Percent > 0)
+                eligible.Add(i);
+        }
+
+        if (eligible.Count == 0)
+            return -1;
+
+        var position = Math.Max(0, eligible.IndexOf(current));
+        position = key switch
+        {
+            Key.Right => Math.Min(position + 1, eligible.Count - 1),
+            Key.Left => Math.Max(position - 1, 0),
+            Key.Home => 0,
+            Key.End => eligible.Count - 1,
+            _ => position,
+        };
+        return eligible[position];
+    }
+
+    /// <summary>The middle of a slice's arc, where its tooltip is anchored for the keyboard. Pure, like
+    /// <see cref="SliceIndexAt"/>, and mirrors the layout <see cref="OnRender"/> draws.</summary>
+    internal static Point SliceAnchor(int index, double width, double height, IReadOnlyList<Slice> slices)
+    {
+        var (diameter, _) = RingLayout(width, height);
+        var (radius, _) = RingGeometry(diameter);
+        var sweep = SweepAngles(slices.Select(slice => slice.Percent).ToList())[index];
+        var middle = (sweep.StartAngle + sweep.SweepAngle / 2) * Math.PI / 180;
+        return new Point(diameter / 2 + radius * Math.Sin(middle), height / 2 - radius * Math.Cos(middle));
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (!IsActivatable)
+            return;
+
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            if (_focusedIndex < 0 || _focusedIndex >= Slices.Count)
+                return;
+
+            SliceActivated?.Invoke(this, _focusedIndex);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key is not (Key.Left or Key.Right or Key.Home or Key.End))
+            return;
+
+        e.Handled = true;
+        var moved = MoveFocusedIndex(_focusedIndex, Slices, e.Key);
+        if (moved < 0 || moved == _focusedIndex)
+            return;
+
+        _focusedIndex = moved;
+        OnFocusedIndexChanged();
+    }
+
+    protected override void OnGotKeyboardFocus(KeyboardFocusChangedEventArgs e)
+    {
+        base.OnGotKeyboardFocus(e);
+        var first = MoveFocusedIndex(-1, Slices, Key.Home);
+        if (first < 0)
+            return;
+
+        _focusedIndex = first;
+        OnFocusedIndexChanged();
+    }
+
+    protected override void OnLostKeyboardFocus(KeyboardFocusChangedEventArgs e)
+    {
+        base.OnLostKeyboardFocus(e);
+        if (_focusedIndex < 0)
+            return;
+
+        _focusedIndex = -1;
+        HideTooltip();
+        RefreshAccessibleName(this);
+        InvalidateVisual();
+    }
+
+    private void OnFocusedIndexChanged()
+    {
+        UpdateFocusedAutomationName();
+        InvalidateVisual();
+        var tooltip = Slices[_focusedIndex].Tooltip;
+        if (string.IsNullOrEmpty(tooltip))
+        {
+            _tooltipPopup?.Hide();
+            return;
+        }
+
+        _tooltipPopup ??= new ChartTooltipPopup();
+        var anchor = SliceAnchor(_focusedIndex, ActualWidth, ActualHeight, Slices);
+        _tooltipPopup.Show(this, new Rect(anchor, new Size(1, 1)), tooltip.Split('\n'), TooltipBackground, TextBrush, TextBrush);
+    }
+
+    /// <summary>What a screen reader announces for the focused slice: its label and share, or the lines
+    /// its tooltip shows.</summary>
+    private void UpdateFocusedAutomationName()
+    {
+        if (_focusedIndex < 0 || _focusedIndex >= Slices.Count)
+            return;
+
+        AutomationProperties.SetName(this, FocusedSliceName(Slices[_focusedIndex]));
+    }
+
+    internal static string FocusedSliceName(Slice slice) => string.IsNullOrEmpty(slice.Tooltip)
+        ? BuildAccessibleSummary([slice])
+        : string.Join(". ", slice.Tooltip.Split('\n', StringSplitOptions.RemoveEmptyEntries));
 
     public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
         nameof(TooltipBackground), typeof(Brush), typeof(StatsRingChart),
@@ -457,6 +616,19 @@ public sealed class StatsRingChart : FrameworkElement
             var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
             var pen = ChartDrawCache.PenFor(brush, strokeThickness);
             drawingContext.DrawGeometry(null, pen, ArcGeometry(center, radius, sweeps[i].StartAngle, sweeps[i].SweepAngle));
+        }
+
+        if (IsKeyboardFocused && _focusedIndex >= 0 && _focusedIndex < slices.Count && sweeps[_focusedIndex].SweepAngle > 0)
+        {
+            // A thin arc just outside the slice, and a frame round its legend entry.
+            var rimPen = ChartDrawCache.PenFor(FocusBrush, 2);
+            drawingContext.DrawGeometry(
+                null, rimPen, ArcGeometry(center, radius + strokeThickness / 2 + 2, sweeps[_focusedIndex].StartAngle, sweeps[_focusedIndex].SweepAngle));
+            var rowHeight = LegendRowHeight * LegendTextScale(diameter, height, slices.Count);
+            var legendX = Math.Min(legendStart, Math.Max(0, width - 4));
+            var legendTop = Math.Max(0, (height - slices.Count * rowHeight) / 2);
+            drawingContext.DrawRectangle(
+                null, rimPen, new Rect(legendX - 2, legendTop + _focusedIndex * rowHeight, Math.Max(0, width - legendX), rowHeight));
         }
 
         DrawCenterText(drawingContext, slices, brushes, center, radius, strokeThickness, CenterTextScale(diameter), dpi, typeface);

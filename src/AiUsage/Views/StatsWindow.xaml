@@ -781,7 +781,7 @@
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
                                     <controls:StatsRingChart x:Name="ModelRing" Margin="{StaticResource Space.S}" VerticalAlignment="Center" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
-                                                              SliceActivated="ModelRing_SliceActivated"
+                                                              SliceActivated="ModelRing_SliceActivated" FocusBrush="{DynamicResource Accent}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
