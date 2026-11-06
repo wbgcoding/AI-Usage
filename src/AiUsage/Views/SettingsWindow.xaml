@@ -354,11 +354,14 @@
                          than the level colors; the others do not appear. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.BarColor]}" Style="{StaticResource FieldLabel}"
                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"/>
-                    <!-- Wraps into as many columns as fit, so the space right of a short row is used. -->
-                    <ItemsControl x:Name="BarColorList" ItemsSource="{Binding Main.Tiles}" Grid.IsSharedSizeScope="True">
+                    <!-- Two columns, name above its picker like the arrangement pickers above, so the space
+                         right of a short row is used. The negative right margin takes back the gap of the
+                         right column, so both columns line up with the pickers above. Hidden providers take
+                         no cell (UniformGrid skips collapsed items). -->
+                    <ItemsControl x:Name="BarColorList" ItemsSource="{Binding Main.Tiles}" Margin="0,0,-8,0">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal"/>
+                                <UniformGrid Columns="2"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemContainerStyle>
@@ -372,18 +375,14 @@
                         </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,4,16,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" SharedSizeGroup="ProviderRowLabel"/>
-                                        <ColumnDefinition Width="Auto" SharedSizeGroup="BarColorPicker"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                <StackPanel Margin="0,0,8,8">
+                                    <TextBlock Text="{Binding HeaderDisplayName}" Style="{StaticResource FieldLabel.Tight}"/>
+                                    <ComboBox
                                               ItemsSource="{Binding BarColorChoices}"
                                               SelectedItem="{Binding SelectedBarColorChoice, Mode=TwoWay}"
                                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"
                                               AutomationProperties.Name="{Binding HeaderDisplayName}"/>
-                                </Grid>
+                                </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -539,7 +538,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}" Style="{StaticResource FieldLabel}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding RefreshSecondsLabel}" Style="{StaticResource FieldLabel}" Margin="8,0,0,0"
+                        <TextBlock Grid.Column="1" Text="{Binding RefreshSecondsLabel}" Style="{StaticResource FieldLabel}"
                                    HorizontalAlignment="Right" AutomationProperties.AutomationId="RefreshSecondsValue"/>
                     </Grid>
                     <Slider Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}"
