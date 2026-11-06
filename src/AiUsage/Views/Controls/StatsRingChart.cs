@@ -646,14 +646,10 @@ public sealed class StatsRingChart : FrameworkElement
     // stroke it sits inside.
     private const double CenterTextPadding = 6;
 
-    /// <summary>Two centered lines naming the LARGEST slice - its own label on top (small, trimmed
-    /// with an ellipsis rather than shrunk further once it no longer fits), its own total below it
-    /// (bold, the same compact format the ring's old single center figure used) - sized to fit inside
-    /// the ring's own hole. Both lines are centered over the ring and draw in <see cref="CenterTextBrush"/>,
-    /// the normal text color of the active theme. Nothing drawn
-    /// when no slice qualifies (see <see cref="LargestSliceIndex"/>) - the empty-ring case already
-    /// returns out of <see cref="OnRender"/>, so this is never called with data that could reach that
-    /// state.</summary>
+    /// <summary>Two centered lines naming the largest slice, sized to fit inside the ring's hole: its
+    /// label on top (small, trimmed with an ellipsis rather than shrunk further once it no longer
+    /// fits) and its total below in bold compact form, both in <see cref="CenterTextBrush"/>. Nothing
+    /// is drawn when no slice qualifies (see <see cref="LargestSliceIndex"/>).</summary>
     private void DrawCenterText(
         DrawingContext dc, IReadOnlyList<Slice> slices,
         Point center, double radius, double strokeThickness, double textScale, double dpi, Typeface typeface)
