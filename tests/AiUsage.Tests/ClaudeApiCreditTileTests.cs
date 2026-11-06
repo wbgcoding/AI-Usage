@@ -53,12 +53,29 @@ public class ClaudeApiCreditTileTests
 
         tile.Apply(Snapshot(new ClaudeApiCredit(18.40m, "USD")), Now);
 
-        Assert.Equal("·\u2002" + amount, tile.HeaderCreditText);
+        Assert.Equal("\u2022\u2002" + amount, tile.HeaderCreditText);
         Assert.Contains(tile.ApiCreditText, tile.NameTooltipText, StringComparison.Ordinal);
+        Assert.Equal(tile.ApiCreditText, tile.ApiCreditToolTip);
 
         tile.Apply(Snapshot(new ClaudeApiCredit(0m, "USD")), Now);
         Assert.Equal("", tile.HeaderCreditText);
         Assert.DoesNotContain(LocalizationService.Instance["Tile.ApiCredit.Label"], tile.NameTooltipText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_balance_tooltip_splits_free_and_bought_credit()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var credit = new ClaudeApiCredit(120m, "USD", new ClaudeCreditGrant(100m, 99.70m, Now.AddDays(20)));
+        var loc = LocalizationService.Instance;
+
+        tile.Apply(Snapshot(credit), Now);
+
+        var lines = tile.ApiCreditToolTip.Split('\n');
+        Assert.Equal(tile.ApiCreditText, lines[0]);
+        Assert.Equal(loc.Format("Tile.ApiCredit.Free", credit.FormatMoney(99.70m, loc.DisplayCulture)), lines[1]);
+        Assert.Equal(loc.Format("Tile.ApiCredit.Bought", credit.FormatMoney(20.30m, loc.DisplayCulture)), lines[2]);
+        Assert.Contains(lines[2], tile.NameTooltipText, StringComparison.Ordinal);
     }
 
     [Theory]

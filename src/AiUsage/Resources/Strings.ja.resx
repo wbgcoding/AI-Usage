@@ -686,6 +686,8 @@
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>プロバイダー側で変更があり、値が不完全な可能性があります。</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>ログを開く</value></data>
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>APIクレジット</value></data>
+  <data name="Tile.ApiCredit.Free" xml:space="preserve"><value>うち無料分: {0}</value></data>
+  <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>うち購入分: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>無料クレジット</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{1} 中 {0} 使用</value></data>
   <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>残り {0}</value></data>

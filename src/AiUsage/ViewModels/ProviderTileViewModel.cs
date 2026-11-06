@@ -363,7 +363,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             if (HasSource)
                 lines.Add(loc.Format("Tile.SourceTip", SourceBadgeText));
             if (ShowApiCredit)
-                lines.Add(ApiCreditText);
+                lines.Add(ApiCreditToolTip);
             return string.Join(Environment.NewLine, lines);
         }
     }
@@ -530,13 +530,32 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             credit.FormatAmount(LocalizationService.Instance.DisplayCulture))
         : "";
 
+    /// <summary>The balance with, when the console grants free credit, how much of it is free and how
+    /// much was bought: the tooltip of the header amount and part of the name's tooltip.</summary>
+    public string ApiCreditToolTip
+    {
+        get
+        {
+            var text = ApiCreditText;
+            if (text.Length == 0 || _apiCredit is not { Grant: { } grant } credit)
+                return text;
+
+            var loc = LocalizationService.Instance;
+            var free = Math.Min(grant.Remaining, credit.Amount);
+            var bought = credit.Amount - free;
+            return text
+                + "\n" + loc.Format("Tile.ApiCredit.Free", credit.FormatMoney(free, loc.DisplayCulture))
+                + "\n" + loc.Format("Tile.ApiCredit.Bought", credit.FormatMoney(bought, loc.DisplayCulture));
+        }
+    }
+
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
 
     /// <summary>"· $18.40" after the plan in the header: the balance needs no row of its own; the
     /// name's tooltip says what the figure is. Shown only when it fits whole beside the name.</summary>
     public string HeaderCreditText => ShowApiCredit && _apiCredit is { } credit
-        ? "·\u2002" + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
+        ? "\u2022\u2002" + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
         : "";
 
     /// <summary>The console's free credit grants as one bar row like a usage window: used of granted
@@ -688,6 +707,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         _apiCredit = credit;
         _apiCreditRoute = newRoute;
         OnPropertyChanged(nameof(ApiCreditText));
+        OnPropertyChanged(nameof(ApiCreditToolTip));
         OnPropertyChanged(nameof(ShowApiCredit));
         SyncApiGrantRow();
         OnPropertyChanged(nameof(ConsoleSessionExists));
@@ -1442,6 +1462,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(DetailsMenuHeader));
         OnPropertyChanged(nameof(LastSuccessAgeText));
         OnPropertyChanged(nameof(ApiCreditText));
+        OnPropertyChanged(nameof(ApiCreditToolTip));
         // The free credit row resolves its label and money texts in the new language.
         SyncApiGrantRow();
         OnPropertyChanged(nameof(ShowApiCredit));

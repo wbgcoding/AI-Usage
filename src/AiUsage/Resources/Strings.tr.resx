@@ -686,6 +686,8 @@
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Sağlayıcı bir şeyi değiştirdi; değerler eksik olabilir.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Günlüğü aç</value></data>
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>API kredisi</value></data>
+  <data name="Tile.ApiCredit.Free" xml:space="preserve"><value>ücretsiz: {0}</value></data>
+  <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>satın alınan: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Ücretsiz kredi</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{1} kredinin {0} tutarı kullanıldı</value></data>
   <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>{0} kaldı</value></data>

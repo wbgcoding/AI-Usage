@@ -686,6 +686,8 @@
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Il provider ha cambiato qualcosa; i valori potrebbero essere incompleti.</value></data>
   <data name="Tile.ReadChange.OpenLog" xml:space="preserve"><value>Apri log</value></data>
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>Crediti API</value></data>
+  <data name="Tile.ApiCredit.Free" xml:space="preserve"><value>di cui gratuiti: {0}</value></data>
+  <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>di cui acquistati: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Credito gratuito</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} su {1} usati</value></data>
   <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>restano {0}</value></data>
