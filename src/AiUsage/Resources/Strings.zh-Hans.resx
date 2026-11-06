@@ -624,9 +624,7 @@
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>上月</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>自定义范围…</value></data>
   <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} 至 {1}</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>所有服务商</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>服务商</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} 个服务商</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>模型:{0}</value></data>
   <data name="Stats.Filter.Project" xml:space="preserve"><value>项目:{0}</value></data>
   <data name="Stats.Filter.Remove" xml:space="preserve"><value>移除筛选</value></data>

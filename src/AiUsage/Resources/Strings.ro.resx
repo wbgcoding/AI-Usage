@@ -624,9 +624,7 @@
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Luna trecută</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Interval propriu…</value></data>
   <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} până la {1}</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Toți furnizorii</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Furnizor</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} furnizori</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>Model: {0}</value></data>
   <data name="Stats.Filter.Project" xml:space="preserve"><value>Proiect: {0}</value></data>
   <data name="Stats.Filter.Remove" xml:space="preserve"><value>Elimină filtrul</value></data>

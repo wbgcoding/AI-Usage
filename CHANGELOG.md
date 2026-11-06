@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The build window started by a double-click is smaller, carries the app name and closes itself ten seconds after a successful build.
 - Claude Fable models count as Claude in the plan forecast.
 - A model without a public price (such as the Codex review model) no longer writes a warning to the log at every start.
+- In the token usage window the providers are buttons beside the range: each one switches its provider on or off, and the plan forecast now comes before the limits.
 
 ### Fixed
 

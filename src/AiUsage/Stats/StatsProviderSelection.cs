@@ -1,4 +1,4 @@
-using AiUsage.Services;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AiUsage.Stats;
@@ -18,55 +18,72 @@ public static class StatsProviderSelection
         return [.. known.Where(id => wanted.Contains(id, StringComparer.OrdinalIgnoreCase))];
     }
 
+    /// <summary>True when <paramref name="provider"/> counts under <paramref name="selection"/>: an
+    /// empty selection means all providers.</summary>
+    public static bool IsActive(IReadOnlyList<string> selection, string provider) =>
+        selection.Count == 0 || selection.Contains(provider);
+
+    /// <summary>The selection after a click on one provider pill. Under an empty selection (all) the
+    /// click switches that provider off and keeps the others; otherwise it toggles the provider. A
+    /// result that holds every provider in <paramref name="shown"/> is the empty selection (all), and
+    /// switching off the last active provider changes nothing, so the view is never empty. The result
+    /// follows the order of <paramref name="shown"/>.</summary>
+    public static List<string> Toggle(IReadOnlyList<string> selection, string provider, IReadOnlyList<string> shown)
+    {
+        if (!shown.Contains(provider))
+            return [.. selection];
+
+        var active = selection.Count == 0 ? [.. shown] : shown.Where(selection.Contains).ToList();
+        if (active.Contains(provider))
+        {
+            if (active.Count == 1)
+                return [.. selection];
+            active.Remove(provider);
+        }
+        else
+        {
+            active.Add(provider);
+        }
+
+        var next = shown.Where(active.Contains).ToList();
+        return next.Count == shown.Count ? [] : next;
+    }
+
     /// <summary>The stored text of a selection.</summary>
     public static string Format(IEnumerable<string> ids) => string.Join(',', ids);
 }
 
-/// <summary>One check box of the provider drop-down: the "all providers" row (empty value) or a
-/// provider. The checked state is pushed by the view model, which raises a change even when the
-/// value stays the same, so a click that changes nothing still puts the box back.</summary>
+/// <summary>One provider pill of the filter row. The active state is pushed by the view model,
+/// which raises a change even when the value stays the same, so a click that changes nothing still
+/// puts the button back.</summary>
 public sealed class StatsProviderOption : ObservableObject
 {
-    private readonly string? _labelKey;
-    private string _label;
     private bool _isChecked;
 
-    /// <summary>The "all providers" row, labelled from a resource key.</summary>
-    public StatsProviderOption(string labelKey)
-    {
-        _labelKey = labelKey;
-        _label = LocalizationService.Instance[labelKey];
-        Value = "";
-    }
-
-    /// <summary>A provider row; its name reads the same in every language.</summary>
     public StatsProviderOption(string value, string displayName)
     {
-        _label = displayName;
+        Label = displayName;
         Value = value;
+        Brush = new SolidColorBrush(ChartPalette.ForProvider(value));
+        Brush.Freeze();
     }
 
-    /// <summary>The provider id; empty for the "all providers" row.</summary>
+    /// <summary>The provider id.</summary>
     public string Value { get; }
 
-    public string Label
-    {
-        get => _label;
-        private set => SetProperty(ref _label, value);
-    }
+    /// <summary>The provider's name; it reads the same in every language.</summary>
+    public string Label { get; }
 
+    /// <summary>The colour that names the provider in the charts, for the pill's dot and tint.</summary>
+    public Brush Brush { get; }
+
+    /// <summary>True while the provider counts toward the figures.</summary>
     public bool IsChecked => _isChecked;
 
     internal void SetChecked(bool value)
     {
         _isChecked = value;
         OnPropertyChanged(nameof(IsChecked));
-    }
-
-    public void RefreshLabel()
-    {
-        if (_labelKey is not null)
-            Label = LocalizationService.Instance[_labelKey];
     }
 
     public override string ToString() => Label;

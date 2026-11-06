@@ -184,23 +184,20 @@ public partial class StatsWindow : Window
         }
     }
 
-    /// <summary>Inside the custom range panel or the provider list Escape closes that popup and puts
-    /// the focus back on the control that opened it; inside a date picker's calendar it is left to the
-    /// calendar. False when <paramref name="focused"/> is in neither popup.</summary>
+    /// <summary>Inside the custom range panel Escape closes that popup and puts the focus back on the
+    /// range list; inside a date picker's calendar it is left to the calendar. False when
+    /// <paramref name="focused"/> is not in the panel.</summary>
     internal bool TryClosePopupOnEscape(DependencyObject? focused)
     {
         if (CustomFromPicker.IsDropDownOpen || CustomToPicker.IsDropDownOpen)
             return false;
 
         var popup = EscapeKey.OpenPopupOf(focused);
-        if (popup != CustomRangePopup && popup != ProviderPopup)
+        if (popup != CustomRangePopup)
             return false;
 
         popup.IsOpen = false;
-        if (popup == CustomRangePopup)
-            RangeCombo.Focus();
-        else
-            ProviderButton.Focus();
+        RangeCombo.Focus();
         return true;
     }
 

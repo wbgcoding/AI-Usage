@@ -1812,7 +1812,7 @@ public class StatsViewModelCaptionTests
     public async Task TheProviderFilterNarrowsTheFiguresTheChartAndTheTableToOneProvider()
     {
         var viewModel = TwoProviderViewModel("stats-viewmodel-provider-filter");
-        Assert.Equal(["", "claude", "codex", "gemini"], viewModel.ProviderChoices.Select(choice => choice.Value).ToArray());
+        Assert.Equal(["claude", "codex", "gemini"], viewModel.ProviderChoices.Select(choice => choice.Value).ToArray());
         Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
 
         viewModel.SetProviderCommand.Execute("codex");
@@ -1887,7 +1887,7 @@ public class StatsViewModelCaptionTests
         var changed = new List<string?>();
         viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
-        viewModel.ToggleProviderCommand.Execute("codex");
+        viewModel.SetProviderCommand.Execute("codex");
         viewModel.ToggleProviderCommand.Execute("claude");
 
         Assert.Equal("claude,codex", viewModel.SelectedProvider);
@@ -1908,60 +1908,86 @@ public class StatsViewModelCaptionTests
     }
 
     [Fact]
-    public void TheAllProvidersRowClearsTheOthersAndTakingOutTheLastProviderMeansAll()
+    public void ClickingPillsSwitchesProvidersOffAndOnAndSwitchingAllOnMeansAll()
     {
         var viewModel = TwoProviderViewModel("stats-viewmodel-provider-all");
+        Assert.All(viewModel.ProviderChoices, choice => Assert.True(choice.IsChecked));
+
+        // From "all", a click switches that one off and keeps the others.
+        viewModel.ToggleProviderCommand.Execute("gemini");
+        Assert.Equal(["claude", "codex"], viewModel.SelectedProviders);
+        Assert.Equal(["claude", "codex"], viewModel.ProviderChoices.Where(choice => choice.IsChecked).Select(choice => choice.Value));
+        Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
 
         viewModel.ToggleProviderCommand.Execute("claude");
-        viewModel.ToggleProviderCommand.Execute("codex");
-        Assert.Equal(["claude", "codex"], viewModel.SelectedProviders);
-        Assert.False(viewModel.ProviderChoices[0].IsChecked);
+        Assert.Equal(["codex"], viewModel.SelectedProviders);
+        Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
 
-        viewModel.ToggleProviderCommand.Execute("");
-        Assert.Empty(viewModel.SelectedProviders);
-        Assert.Equal(["" ], viewModel.ProviderChoices.Where(choice => choice.IsChecked).Select(choice => choice.Value));
-
-        // A click on the checked "all" row changes nothing and keeps it checked.
+        // The last active pill cannot be switched off: the view is never empty. The pill is put back.
+        var codex = viewModel.ProviderChoices.First(choice => choice.Value == "codex");
         var changed = new List<string?>();
-        viewModel.ProviderChoices[0].PropertyChanged += (_, args) => changed.Add(args.PropertyName);
-        viewModel.ToggleProviderCommand.Execute("");
-        Assert.True(viewModel.ProviderChoices[0].IsChecked);
+        codex.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        viewModel.ToggleProviderCommand.Execute("codex");
+        Assert.Equal(["codex"], viewModel.SelectedProviders);
+        Assert.True(codex.IsChecked);
         Assert.Contains(nameof(StatsProviderOption.IsChecked), changed);
 
-        viewModel.ToggleProviderCommand.Execute("codex");
-        Assert.Equal(300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
-        viewModel.ToggleProviderCommand.Execute("codex");
+        // Switching the others back on ends at the empty selection, which is all providers.
+        viewModel.ToggleProviderCommand.Execute("claude");
+        Assert.Equal(["claude", "codex"], viewModel.SelectedProviders);
+        viewModel.ToggleProviderCommand.Execute("gemini");
         Assert.Empty(viewModel.SelectedProviders);
+        Assert.Equal("", viewModel.SelectedProvider);
+        Assert.False(viewModel.HasProviderFilter);
+        Assert.All(viewModel.ProviderChoices, choice => Assert.True(choice.IsChecked));
         Assert.Equal(1300, viewModel.Bars.Sum(bar => bar.StackedValues.Sum()));
-        Assert.True(viewModel.ProviderChoices[0].IsChecked);
     }
 
     [Fact]
-    public void TheProviderButtonNamesOneOrTwoProvidersAndCountsThreeOrMore()
+    public void ProviderOptionsCarryTheChartColourOfTheirProvider()
     {
-        try
+        var viewModel = TwoProviderViewModel("stats-viewmodel-provider-brush");
+
+        foreach (var option in viewModel.ProviderChoices)
         {
-            LocalizationService.Instance.SetLanguage("en");
-            var viewModel = TwoProviderViewModel("stats-viewmodel-provider-button");
-            Assert.Equal("All providers", viewModel.ProviderButtonText);
-
-            viewModel.ToggleProviderCommand.Execute("claude");
-            Assert.Equal(StatsViewModel.ProviderDisplayNames["claude"], viewModel.ProviderButtonText);
-
-            viewModel.ToggleProviderCommand.Execute("codex");
-            Assert.Equal($"{StatsViewModel.ProviderDisplayNames["claude"]}, {StatsViewModel.ProviderDisplayNames["codex"]}", viewModel.ProviderButtonText);
-
-            viewModel.ToggleProviderCommand.Execute("gemini");
-            Assert.Equal("3 providers", viewModel.ProviderButtonText);
-
-            LocalizationService.Instance.SetLanguage("de");
-            viewModel.RefreshLanguage();
-            Assert.Equal("3 Anbieter", viewModel.ProviderButtonText);
+            var brush = Assert.IsType<SolidColorBrush>(option.Brush);
+            Assert.True(brush.IsFrozen);
+            Assert.Equal(ChartPalette.ForProvider(option.Value), brush.Color);
         }
-        finally
-        {
-            LocalizationService.Instance.SetLanguage("de");
-        }
+    }
+
+    [Theory]
+    [InlineData("", "claude", "codex,gemini")]
+    [InlineData("claude,codex", "gemini", "")]
+    [InlineData("claude,codex", "claude", "codex")]
+    [InlineData("claude", "codex", "claude,codex")]
+    [InlineData("codex", "codex", "codex")]
+    [InlineData("codex,gemini", "claude", "")]
+    [InlineData("gemini", "bogus", "gemini")]
+    [InlineData("", "bogus", "")]
+    public void TogglingAProviderPillFollowsTheSelectionRules(string selection, string clicked, string expected)
+    {
+        string[] shown = ["claude", "codex", "gemini"];
+        var current = StatsProviderSelection.Parse(selection, shown);
+
+        var result = StatsProviderSelection.Toggle(current, clicked, shown);
+
+        Assert.Equal(expected, StatsProviderSelection.Format(result));
+    }
+
+    [Fact]
+    public void ASingleShownProviderCanNeverBeSwitchedOff()
+    {
+        Assert.Empty(StatsProviderSelection.Toggle([], "claude", ["claude"]));
+        Assert.Equal("claude", StatsProviderSelection.Format(StatsProviderSelection.Toggle(["claude"], "claude", ["claude"])));
+    }
+
+    [Fact]
+    public void AProviderIsActiveWhenTheSelectionIsEmptyOrHoldsIt()
+    {
+        Assert.True(StatsProviderSelection.IsActive([], "claude"));
+        Assert.True(StatsProviderSelection.IsActive(["claude"], "claude"));
+        Assert.False(StatsProviderSelection.IsActive(["codex"], "claude"));
     }
 
     private static StatsViewModel ThreeModelViewModel(string name)

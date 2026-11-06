@@ -624,9 +624,7 @@
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Mes pasado</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Rango personalizado…</value></data>
   <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} a {1}</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Todos los proveedores</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Proveedor</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} proveedores</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>Modelo: {0}</value></data>
   <data name="Stats.Filter.Project" xml:space="preserve"><value>Proyecto: {0}</value></data>
   <data name="Stats.Filter.Remove" xml:space="preserve"><value>Quitar filtro</value></data>

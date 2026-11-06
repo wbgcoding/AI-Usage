@@ -144,7 +144,7 @@
         </Setter>
     </Style>
 
-    <Style x:Key="PillRadioButton" TargetType="RadioButton">
+    <Style x:Key="PillToggleButton" TargetType="ToggleButton">
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Pill}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
@@ -152,7 +152,7 @@
         <Setter Property="Margin" Value="0,0,8,8"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="RadioButton">
+                <ControlTemplate TargetType="ToggleButton">
                     <Grid>
                         <Border x:Name="Pill" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1" Background="{DynamicResource Bg.Raised}"
                                 BorderBrush="{DynamicResource Border}"/>
@@ -178,6 +178,8 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <Style x:Key="PillRadioButton" TargetType="RadioButton" BasedOn="{StaticResource PillToggleButton}"/>
 
     <Style TargetType="CheckBox">
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.CheckBox}"/>

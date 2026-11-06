@@ -231,30 +231,14 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>True while some providers, not all, are selected.</summary>
     public bool HasProviderFilter => _selectedProviders.Count > 0;
 
-    /// <summary>The text of the provider drop-down button: all providers, one or two names, or the
-    /// number of selected providers.</summary>
-    public string ProviderButtonText
-    {
-        get
-        {
-            var loc = LocalizationService.Instance;
-            if (_selectedProviders.Count == 0)
-                return loc["Stats.Filter.AllProviders"];
-            if (_selectedProviders.Count <= 2)
-                return string.Join(", ", _selectedProviders.Select(id => ProviderDisplayNames.GetValueOrDefault(id, id)));
-            return string.Format(CultureInfo.CurrentCulture, loc["Stats.Filter.ProviderCount"], _selectedProviders.Count);
-        }
-    }
-
-    /// <summary>Brings the check boxes, the button text and the remembered text in line with the selection.</summary>
+    /// <summary>Brings the provider pills and the remembered text in line with the selection.</summary>
     private void SyncProviderOptions()
     {
         foreach (var option in ProviderChoices)
-            option.SetChecked(option.Value.Length == 0 ? _selectedProviders.Count == 0 : _selectedProviders.Contains(option.Value));
+            option.SetChecked(StatsProviderSelection.IsActive(_selectedProviders, option.Value));
         OnPropertyChanged(nameof(SelectedProviders));
         OnPropertyChanged(nameof(SelectedProvider));
         OnPropertyChanged(nameof(HasProviderFilter));
-        OnPropertyChanged(nameof(ProviderButtonText));
     }
 
     /// <summary>The model (its display name) a click narrowed every figure to; empty for none. Not
@@ -1064,7 +1048,6 @@ public sealed partial class StatsViewModel : ObservableObject
         ColorByChoices.Add(new Choice<StatsColorBy>("Stats.ColorBy.Agent", StatsColorBy.Agent));
         Choice.Select(ColorByChoices, SelectedColorBy);
 
-        ProviderChoices.Add(new StatsProviderOption("Stats.Filter.AllProviders"));
         foreach (var id in ProviderCoverage.IndexedProviderIds)
             ProviderChoices.Add(new StatsProviderOption(id, ProviderDisplayNames.GetValueOrDefault(id, id)));
         SyncProviderOptions();
@@ -1127,23 +1110,10 @@ public sealed partial class StatsViewModel : ObservableObject
     private void SetProvider(string provider) =>
         ApplyProviderSelection(StatsProviderSelection.Parse(provider, ProviderCoverage.IndexedProviderIds));
 
-    /// <summary>A click on one check box of the provider drop-down: the "all providers" row clears
-    /// the others, a provider row adds or removes that provider, and taking out the last one
-    /// means all providers again.</summary>
+    /// <summary>A click on one provider pill (see <see cref="StatsProviderSelection.Toggle"/>).</summary>
     [RelayCommand]
-    private void ToggleProvider(string provider)
-    {
-        if (provider.Length == 0)
-        {
-            ApplyProviderSelection([]);
-            return;
-        }
-
-        var wanted = _selectedProviders.Contains(provider)
-            ? _selectedProviders.Where(id => id != provider)
-            : _selectedProviders.Append(provider);
-        ApplyProviderSelection(StatsProviderSelection.Parse(StatsProviderSelection.Format(wanted), ProviderCoverage.IndexedProviderIds));
-    }
+    private void ToggleProvider(string provider) =>
+        ApplyProviderSelection(StatsProviderSelection.Toggle(_selectedProviders, provider, [.. ProviderChoices.Select(option => option.Value)]));
 
     private void ApplyProviderSelection(List<string> selection)
     {
@@ -2528,9 +2498,6 @@ public sealed partial class StatsViewModel : ObservableObject
             choice.RefreshLabel();
         foreach (var choice in ColorByChoices)
             choice.RefreshLabel();
-        foreach (var choice in ProviderChoices)
-            choice.RefreshLabel();
-        OnPropertyChanged(nameof(ProviderButtonText));
         OnPropertyChanged(nameof(ModelFilterText));
         OnPropertyChanged(nameof(ProjectFilterText));
         OnPropertyChanged(nameof(SessionProjectModelHeader));

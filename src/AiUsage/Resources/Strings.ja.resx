@@ -624,9 +624,7 @@
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>先月</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>期間を指定…</value></data>
   <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} から {1}</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>すべてのプロバイダー</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>プロバイダー</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0}件のプロバイダー</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>モデル: {0}</value></data>
   <data name="Stats.Filter.Project" xml:space="preserve"><value>プロジェクト: {0}</value></data>
   <data name="Stats.Filter.Remove" xml:space="preserve"><value>フィルターを解除</value></data>

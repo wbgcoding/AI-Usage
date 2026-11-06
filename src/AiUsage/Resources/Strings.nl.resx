@@ -624,9 +624,7 @@
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Vorige maand</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Eigen bereik…</value></data>
   <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} tot {1}</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Alle aanbieders</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Aanbieder</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} aanbieders</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>Model: {0}</value></data>
   <data name="Stats.Filter.Project" xml:space="preserve"><value>Project: {0}</value></data>
   <data name="Stats.Filter.Remove" xml:space="preserve"><value>Filter verwijderen</value></data>

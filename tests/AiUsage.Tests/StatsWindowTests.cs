@@ -938,23 +938,57 @@ public class StatsWindowTests
         });
     }
 
-    [Fact]
-    public void The_provider_filter_is_a_named_drop_down_button_that_ignores_the_click_while_its_list_is_open()
+    private static void CollectToggles(DependencyObject parent, List<ToggleButton> found)
     {
-        RunInWindow(null, (window, _) =>
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
-            Assert.False(string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(window.ProviderButton)));
-            Assert.NotNull(window.ProviderButton.ToolTip);
-            Assert.Equal(window.ProviderButton, window.ProviderPopup.PlacementTarget);
-            Assert.True(window.ProviderButton.IsHitTestVisible);
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ToggleButton toggle && toggle is not RadioButton && toggle.DataContext is StatsProviderOption)
+                found.Add(toggle);
+            CollectToggles(child, found);
+        }
+    }
 
-            // While the list is open the button must not take the click that closes the list.
-            var trigger = Assert.Single(window.ProviderButton.Style.Triggers.OfType<DataTrigger>());
-            Assert.Equal("True", trigger.Value?.ToString());
-            Assert.Equal("ProviderPopup", ((Binding)trigger.Binding).ElementName);
-            var setter = Assert.Single(trigger.Setters.OfType<Setter>());
-            Assert.Equal(UIElement.IsHitTestVisibleProperty, setter.Property);
-            Assert.Equal("False", setter.Value?.ToString());
+    private static T? FindAncestor<T>(DependencyObject? node) where T : DependencyObject
+    {
+        for (var parent = node is null ? null : VisualTreeHelper.GetParent(node); parent is not null; parent = VisualTreeHelper.GetParent(parent))
+        {
+            if (parent is T match)
+                return match;
+        }
+
+        return null;
+    }
+
+    [Fact]
+    public void The_provider_filter_is_one_named_pill_per_provider_beside_the_range_and_a_click_switches_it()
+    {
+        RunInWindow(null, (window, root) =>
+        {
+            var pills = new List<ToggleButton>();
+            CollectToggles(root, pills);
+
+            var viewModel = (StatsViewModel)window.DataContext;
+            Assert.Equal(viewModel.ProviderChoices.Count, pills.Count);
+            Assert.Equal(ProviderCoverage.IndexedProviderIds, pills.Select(pill => ((StatsProviderOption)pill.DataContext).Value));
+
+            var rangeRow = (Panel)window.RangeCombo.Parent;
+            foreach (var pill in pills)
+            {
+                var option = (StatsProviderOption)pill.DataContext;
+                Assert.Equal(option.Label, System.Windows.Automation.AutomationProperties.GetName(pill));
+                Assert.NotNull(pill.ToolTip);
+                Assert.True(pill.Focusable);
+                Assert.True(pill.IsTabStop);
+                Assert.Equal(new Thickness(8, 0, 0, 0), pill.Margin);
+                Assert.True(pill.IsChecked);
+                Assert.Same(rangeRow, FindAncestor<Panel>(FindAncestor<ItemsControl>(pill)!));
+            }
+
+            // A click on one pill (what Space does too) switches that provider off; the others stay lit.
+            pills[0].Command.Execute(pills[0].CommandParameter);
+            Assert.False(pills[0].IsChecked);
+            Assert.All(pills.Skip(1), pill => Assert.True(pill.IsChecked));
         });
     }
 

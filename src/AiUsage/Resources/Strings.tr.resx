@@ -624,9 +624,7 @@
   <data name="Stats.Range.LastMonth" xml:space="preserve"><value>Geçen ay</value></data>
   <data name="Stats.Range.Custom" xml:space="preserve"><value>Özel aralık…</value></data>
   <data name="Stats.Range.CustomLabel" xml:space="preserve"><value>{0} ile {1} arası</value></data>
-  <data name="Stats.Filter.AllProviders" xml:space="preserve"><value>Tüm sağlayıcılar</value></data>
   <data name="Stats.Filter.ProviderLabel" xml:space="preserve"><value>Sağlayıcı</value></data>
-  <data name="Stats.Filter.ProviderCount" xml:space="preserve"><value>{0} sağlayıcı</value></data>
   <data name="Stats.Filter.Model" xml:space="preserve"><value>Model: {0}</value></data>
   <data name="Stats.Filter.Project" xml:space="preserve"><value>Proje: {0}</value></data>
   <data name="Stats.Filter.Remove" xml:space="preserve"><value>Filtreyi kaldır</value></data>
