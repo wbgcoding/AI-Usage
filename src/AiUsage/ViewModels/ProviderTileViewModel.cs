@@ -536,7 +536,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>"· $18.40" after the plan in the header: the balance needs no row of its own; the
     /// name's tooltip says what the figure is. Shown only when it fits whole beside the name.</summary>
     public string HeaderCreditText => ShowApiCredit && _apiCredit is { } credit
-        ? "· " + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
+        ? "·\u2002" + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
         : "";
 
     /// <summary>The console's free credit grants as one bar row like a usage window: used of granted
