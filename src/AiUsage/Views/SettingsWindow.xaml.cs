@@ -455,14 +455,10 @@ public partial class SettingsWindow : Window
             AboutInstallUpdateButton.Visibility = Visibility.Visible;
             AboutOpenReleasePageButton.Visibility = Visibility.Visible;
         }
-        else if (update.IsKnownUpToDate)
-        {
-            AboutUpdateStatusText.Text = loc["About.UpToDate"];
-            AboutInstallUpdateButton.Visibility = Visibility.Collapsed;
-            AboutOpenReleasePageButton.Visibility = Visibility.Collapsed;
-        }
         else
         {
+            // Being up to date is the normal case and needs no line of its own.
+            AboutUpdatePanel.Visibility = Visibility.Collapsed;
             return;
         }
 

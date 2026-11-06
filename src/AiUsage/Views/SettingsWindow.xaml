@@ -1,4 +1,4 @@
-<Window x:Class="AiUsage.Views.SettingsWindow"
+﻿<Window x:Class="AiUsage.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:AiUsage.Views.Controls"
@@ -354,7 +354,13 @@
                          than the level colors; the others do not appear. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.BarColor]}" Style="{StaticResource FieldLabel}"
                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"/>
+                    <!-- Wraps into as many columns as fit, so the space right of a short row is used. -->
                     <ItemsControl x:Name="BarColorList" ItemsSource="{Binding Main.Tiles}" Grid.IsSharedSizeScope="True">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemContainerStyle>
                             <Style TargetType="ContentPresenter">
                                 <Style.Triggers>
@@ -366,13 +372,13 @@
                         </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,4,0,4">
+                                <Grid Margin="0,4,16,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" SharedSizeGroup="ProviderRowLabel"/>
-                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="BarColorPicker"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding HeaderDisplayName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox Grid.Column="1" HorizontalAlignment="Left"
+                                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding BarColorChoices}"
                                               SelectedItem="{Binding SelectedBarColorChoice, Mode=TwoWay}"
                                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.BarColor]}"
@@ -526,17 +532,18 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Updates]}" Style="{StaticResource CardHeading}"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}" Style="{StaticResource FieldLabel}"/>
+                    <!-- The chosen value sits on the label's line, right aligned, so the slider gets the full width. -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0" Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}"
-                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding RefreshSecondsLabel}" FontSize="{StaticResource Font.Size.Small}"
-                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding RefreshSecondsLabel}" Style="{StaticResource FieldLabel}" Margin="8,0,0,0"
+                                   HorizontalAlignment="Right" AutomationProperties.AutomationId="RefreshSecondsValue"/>
                     </Grid>
+                    <Slider Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}"
+                            AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}"/>
                     <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel.Top8}"/>
                     <Slider Minimum="1" Maximum="60" Value="{Binding RemoteRefreshMinutes, Mode=TwoWay}"
                             ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.RemoteInterval]}"
