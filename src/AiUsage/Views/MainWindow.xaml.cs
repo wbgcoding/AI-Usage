@@ -630,14 +630,7 @@ public partial class MainWindow : Window, IDisposable
             ViewModel.Reconnect(accountKey);
         };
 
-        tile.SignOutRequested += async (_, _) =>
-        {
-            if (ViewModel.IsSigningOut(accountKey))
-                return;
-            var signedOut = await ViewModel.TrySignOutAsync(accountKey);
-            if (!signedOut)
-                ViewModel.ShowSignOutIncomplete(accountKey);
-        };
+        tile.SignOutRequested += async (_, _) => await ViewModel.SignOutFromUiAsync(accountKey);
     }
 
     /// <summary>1 s keeps the countdowns and the tray tooltip current while the window is on screen;

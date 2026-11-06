@@ -1138,6 +1138,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             tile.MarkSignedIn(DateTimeOffset.Now);
     }
 
+    /// <summary>The sign-out both the tile and the Settings window start: ignored while one for the same
+    /// account still runs, and a sign-out that could not clear the browser profile says so on the tile.</summary>
+    internal async Task SignOutFromUiAsync(string accountKey)
+    {
+        if (IsSigningOut(accountKey))
+            return;
+        if (!await TrySignOutAsync(accountKey))
+            ShowSignOutIncomplete(accountKey);
+    }
+
     /// <summary>Called when a sign-out could not fully clear the browser profile: overrides the
     /// NotSignedIn state <see cref="SignOutAsync"/> just set with an explicit warning instead
     /// of leaving the user thinking sign-out silently did nothing.</summary>

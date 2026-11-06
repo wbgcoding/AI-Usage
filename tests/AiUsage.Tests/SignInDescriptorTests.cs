@@ -23,9 +23,9 @@ public class SignInDescriptorTests
         var call = source.Substring(callIndex, Math.Min(200, source.Length - callIndex));
         Assert.Contains("WebSessionFor(accountKey)", call, StringComparison.Ordinal);
 
-        // SignOutAsync/ShowSignOutIncomplete must route by the same per-tile account key, not a
-        // provider-wide id that two accounts of the same provider would share.
-        Assert.Contains("SignOutAsync(accountKey)", source, StringComparison.Ordinal);
+        // The sign-out must route by the same per-tile account key, not a provider-wide id that two
+        // accounts of the same provider would share.
+        Assert.Contains("SignOutFromUiAsync(accountKey)", source, StringComparison.Ordinal);
     }
 
     // A worktree's own root has a ".git" FILE (pointing at the real repo's .git/worktrees/<name>),

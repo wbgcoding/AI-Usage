@@ -321,10 +321,8 @@ public partial class SettingsWindow : Window
         }
     }
 
-    /// <summary>Same two calls MainWindow.xaml.cs's own SignOutRequested handler makes
-    /// (<see cref="MainViewModel.TrySignOutAsync"/>, and on a false result
-    /// <see cref="MainViewModel.ShowSignOutIncomplete"/>) - the button stays disabled and the spinner
-    /// stays up for the whole await, so a second click cannot start a second sign-out for the same
+    /// <summary>The same sign-out the tile starts (<see cref="MainViewModel.SignOutFromUiAsync"/>); the
+    /// button stays disabled and the spinner stays up for the whole await, so a second click cannot start a second sign-out for the same
     /// account while the first is still clearing its browser profile.</summary>
     private async void SignOut_Click(object sender, RoutedEventArgs e)
     {
@@ -337,9 +335,7 @@ public partial class SettingsWindow : Window
         StartSpin(spinner);
         try
         {
-            var signedOut = await _viewModel.Main.TrySignOutAsync(tile.ProviderId);
-            if (!signedOut)
-                _viewModel.Main.ShowSignOutIncomplete(tile.ProviderId);
+            await _viewModel.Main.SignOutFromUiAsync(tile.ProviderId);
         }
         finally
         {

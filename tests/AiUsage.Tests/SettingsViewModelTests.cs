@@ -2244,7 +2244,7 @@ public class SettingsViewModelTests : IDisposable
     /// as MainWindowCloseGuardTests), so this scans the markup and its code-behind as text: the
     /// Providers section's two buttons exist, their visibility comes straight from the tile's own
     /// ShowSignIn/ShowSignOut rather than a rule of the window's own, and the click handlers drive
-    /// the exact same two calls MainWindow.xaml.cs's own tile wiring already uses (see
+    /// the same sign-out call MainWindow.xaml.cs's own tile wiring uses (see
     /// SignInDescriptorTests for the equivalent proof there) - no second implementation.</summary>
     [Fact]
     public void ProvidersSectionOffersSignInAndSignOutBoundToTileVisibility()
@@ -2261,8 +2261,7 @@ public class SettingsViewModelTests : IDisposable
         Assert.Contains("Click=\"SignOut_Click\"", xaml, StringComparison.Ordinal);
 
         Assert.Contains("WebSignInFlow.Open(this, ProviderRegistry.WebSessionFor(tile.ProviderId)", codeBehind, StringComparison.Ordinal);
-        Assert.Contains("_viewModel.Main.TrySignOutAsync(tile.ProviderId)", codeBehind, StringComparison.Ordinal);
-        Assert.Contains("_viewModel.Main.ShowSignOutIncomplete(tile.ProviderId)", codeBehind, StringComparison.Ordinal);
+        Assert.Contains("_viewModel.Main.SignOutFromUiAsync(tile.ProviderId)", codeBehind, StringComparison.Ordinal);
     }
 
     // A worktree's own root has a ".git" FILE (pointing at the real repo's .git/worktrees/<name>),

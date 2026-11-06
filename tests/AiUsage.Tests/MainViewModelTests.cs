@@ -17,7 +17,7 @@ namespace AiUsage.Tests;
 // before a single Compact() call lands. Joining the same collection keeps that window from ever
 // overlapping this class's own tests.
 [Collection(SharedStateTestsCollection.Name)]
-public class MainViewModelTests : IDisposable
+public partial class MainViewModelTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
