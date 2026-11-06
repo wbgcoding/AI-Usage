@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In the settings, the bar colours of the providers sit in two columns, and the chosen refresh interval shows right after its label instead of beside the slider.
 - The widget fits its height to the tiles at every start. A height dragged by hand lasts until the app quits.
 - A Claude Console balance of $0.00 no longer shows in the tile header.
+- The Claude API credit balance shows up right at start: it is read alongside the usage, asks the route that worked last time first, and the last balance is kept across restarts for up to two hours.
 - The About page no longer says "This is the latest version"; it only speaks up when an update is waiting.
 - In the settings, theme, size and the Mica option share one row; the note under "Use local sources only" is gone, and the weekly index copy explains itself in its tooltip.
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
