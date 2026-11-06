@@ -531,16 +531,12 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Updates]}" Style="{StaticResource CardHeading}"/>
-                    <!-- The chosen value sits on the label's line, right aligned, so the slider gets the full width. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- The chosen value sits right after the label, so the slider gets the full width. -->
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}" Style="{StaticResource FieldLabel}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding RefreshSecondsLabel}" Style="{StaticResource FieldLabel}"
-                                   HorizontalAlignment="Right" AutomationProperties.AutomationId="RefreshSecondsValue"/>
-                    </Grid>
+                        <TextBlock Text="{Binding RefreshSecondsLabel}" Style="{StaticResource FieldLabel}" Margin="8,8,0,4"
+                                   Foreground="{DynamicResource Text.Primary}" AutomationProperties.AutomationId="RefreshSecondsValue"/>
+                    </StackPanel>
                     <Slider Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}"
                             AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}"/>
                     <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel.Top8}"/>
