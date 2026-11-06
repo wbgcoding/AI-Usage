@@ -133,13 +133,18 @@ public sealed class StatsIndexerService : IDisposable
     internal static StatsIndexerService ForTest(
         Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null,
         Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null, Func<string>? snapshotPath = null,
-        Action<DateTimeOffset>? weeklyCopy = null) =>
-        new((token, _) => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy) { _today = today ?? (() => DateOnly.FromDateTime(DateTime.Now)) };
+        Action<DateTimeOffset>? weeklyCopy = null)
+    {
+        var service = new StatsIndexerService((token, _) => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy);
+        if (today is not null)
+            service._today = today;
+        return service;
+    }
 
     /// <summary>Test seam whose stand-in also receives the progress callback of the real walk.</summary>
     internal static StatsIndexerService ForTest(
         Func<CancellationToken, Action<int, int>, StatsIndexResult> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot = null) =>
-        new((token, progress) => runIndexOnce(token, progress), loadSnapshot, null) { _today = () => DateOnly.FromDateTime(DateTime.Now) };
+        new((token, progress) => runIndexOnce(token, progress), loadSnapshot, null);
 
     private StatsIndexerService(
         Func<CancellationToken, Action<int, int>, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
