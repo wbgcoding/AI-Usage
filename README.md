@@ -214,7 +214,7 @@ and writes everything plus `SHA256SUMS.txt` to `dist\`. With a signing key
 refused by the in-app update. At the end it starts the fresh copy as a second instance with its own
 data folder, so your everyday copy keeps running untouched; ten seconds after a success the test copy
 and the build window close again. Started by a double-click, the window stays open on a failure. For scripts and CI,
-`AIUSAGE_NOSTART=1` skips the start and `AIUSAGE_NOPAUSE=1` never waits. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues:
+`AIUSAGE_NOSTART=1` skips the start and `AIUSAGE_NOPAUSE=1` never waits. A second run with nothing changed reports "up to date" and builds nothing; `build.bat --force` or `FORCE=1` rebuilds. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues:
 [SECURITY.md](SECURITY.md).
 
 ## FAQ

@@ -27,6 +27,20 @@ rem An older build kept its settings and history next to the exe, so starting th
 rem of dist\ left a data folder there. dist\ is cleared further down anyway, but only after a long
 rem build and test - clearing this one up front keeps a stale folder out of the way from the start.
 if exist "%DIST%\data" rmdir /s /q "%DIST%\data"
+rem === build freshness: check ===
+set "BS=%~dp0tools\build-stamp.ps1"
+set "BSKEY=exe"
+set "BSEXTRA="
+set "BSART=dist\AI-Usage.exe"
+set "BSFRESH="
+set "BSFORCE="
+if "%FORCE%"=="1" set "BSFORCE=1"
+for %%A in (%*) do if /i "%%~A"=="--force" set "BSFORCE=1"
+if defined BSFORCE goto :bs_start
+if not exist "%BS%" goto :bs_start
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Check -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%"`) do set "BSFRESH=%%A"
+if defined BSFRESH goto :bs_uptodate
+:bs_start
 
 rem A test run that was interrupted (window closed, run cancelled) leaves its own testhost.exe
 rem behind, and that process keeps the test project's output files open - the next build then fails
@@ -269,6 +283,10 @@ if not "%AIUSAGE_NOSTART%"=="1" (
 )
 
 echo.
+rem === build freshness: save (every final file in dist: exes, signatures, checksums) ===
+set "BSART=dist\AI-Usage.exe"
+for %%f in ("%DIST%\*.exe" "%DIST%\*.sig" "%DIST%\SHA256SUMS.txt") do if /i not "%%~nxf"=="AI-Usage.exe" set "BSART=!BSART!,dist\%%~nxf"
+if exist "%BS%" powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Save -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%" -Artifact "!BSART!" >nul 2>&1
 echo BUILD OK - artifacts are in dist\.
 rem The started copy is a test run: after the countdown it closes again together with this window
 rem (a keypress ends the countdown early), so a finished build leaves nothing open.
@@ -287,3 +305,8 @@ rem Keep a double-clicked window open on failure so the error stays readable (se
 if "%DOUBLECLICK%"=="1" pause
 endlocal
 exit /b 1
+
+:bs_uptodate
+for %%F in ("%BSFRESH%") do echo Build is up to date (last build %%~tF), nothing to do: %%~fF
+if "%DOUBLECLICK%"=="1" timeout /t 10
+exit /b 0
