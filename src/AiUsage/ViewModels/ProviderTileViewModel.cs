@@ -532,10 +532,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
 
-    /// <summary>" · $18.40" after the plan in the header: the balance needs no row of its own; the
-    /// name's tooltip says what the figure is.</summary>
+    /// <summary>"· $18.40" after the plan in the header: the balance needs no row of its own; the
+    /// name's tooltip says what the figure is. Shown only when it fits whole beside the name.</summary>
     public string HeaderCreditText => ShowApiCredit && _apiCredit is { } credit
-        ? " · " + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
+        ? "· " + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
         : "";
 
     /// <summary>The console's free credit grants as one bar row like a usage window: used of granted
@@ -570,21 +570,24 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         else
         {
             row = new UsageRowViewModel(GrantWindow(grant), now, Density, thresholdPercent: null, providerId: RealProviderId, showPace: false);
-            row.SetOwnTexts(ApiGrantLabelText, ApiGrantToolTip, "Window.ForecastEmpty");
+            row.SetOwnTexts(ApiGrantLabelText, ApiGrantToolTip, "Window.ForecastEmpty", ApiGrantLeftText);
             ApiGrantRow = row;
         }
 
         RefreshApiGrantForecast();
     }
 
-    /// <summary>"Free credit · $120.00 left": what is left stands in the label itself, so it never
-    /// gives way to the countdown the way the token figure of a usage row does.</summary>
-    private string ApiGrantLabelText()
+    /// <summary>"Free credit"; what is left ("$120.00 left") sits beside it where a usage row shows its
+    /// token figure, so on a narrow tile it steps aside whole instead of trimming to a misleading
+    /// "$12...". The bar's tooltip always names it.</summary>
+    private string ApiGrantLabelText() => LocalizationService.Instance["Tile.ApiGrant.Label"];
+
+    private string ApiGrantLeftText()
     {
         var loc = LocalizationService.Instance;
         return _apiCredit is { Grant: { } grant } credit
-            ? loc["Tile.ApiGrant.Label"] + " · " + loc.Format("Tile.ApiGrant.Left", credit.FormatMoney(grant.Remaining, loc.DisplayCulture))
-            : loc["Tile.ApiGrant.Label"];
+            ? loc.Format("Tile.ApiGrant.Left", credit.FormatMoney(grant.Remaining, loc.DisplayCulture))
+            : "";
     }
 
     /// <summary>Used of granted, then what is left and when the earliest grant ends.</summary>

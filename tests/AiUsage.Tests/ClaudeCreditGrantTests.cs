@@ -93,9 +93,9 @@ public class ClaudeCreditGrantTests
 
         var loc = LocalizationService.Instance;
         var row = tile.ApiGrantRow!;
-        Assert.StartsWith(loc["Tile.ApiGrant.Label"], row.LabelText);
-        Assert.Contains(credit.FormatMoney(120m, loc.DisplayCulture), row.LabelText);
-        Assert.Equal("", row.InlineTokensText);
+        Assert.Equal(loc["Tile.ApiGrant.Label"], row.LabelText);
+        Assert.Equal(loc.Format("Tile.ApiGrant.Left", credit.FormatMoney(120m, loc.DisplayCulture)), row.InlineTokensText);
+        Assert.Equal("", row.InlineTokensToolTip);
         Assert.Equal(40, row.UsedPercent, 9);
         Assert.Contains(credit.FormatMoney(80m, loc.DisplayCulture), row.BarTooltipText);
         Assert.Contains(credit.FormatMoney(200m, loc.DisplayCulture), row.BarTooltipText);
@@ -107,7 +107,7 @@ public class ClaudeCreditGrantTests
         tile.SetApiCredit(credit with { Grant = grant with { Remaining = 20m } });
         Assert.Same(row, tile.ApiGrantRow);
         Assert.Equal(90, row.UsedPercent, 9);
-        Assert.Contains(credit.FormatMoney(20m, loc.DisplayCulture), row.LabelText);
+        Assert.Contains(credit.FormatMoney(20m, loc.DisplayCulture), row.InlineTokensText);
         Assert.Equal(UsageLevel.Crit, row.Level);
 
         tile.SetApiCredit(credit with { Grant = null });

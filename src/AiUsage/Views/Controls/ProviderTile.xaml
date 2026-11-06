@@ -276,7 +276,9 @@
                 </Grid.ColumnDefinitions>
                 <!-- A Grid, not a StackPanel: a StackPanel gives its children unlimited width, so a
                      long provider name would simply run under the eye button instead of trimming. -->
-                <Grid VerticalAlignment="Center">
+                <!-- The API credit beside the name shows only when it fits whole, never cut short;
+                     the name button stays and trims first. -->
+                <controls:FitOrHidePanel VerticalAlignment="Center">
                     <!-- The account name (when known) lives in this button's own tooltip, after the
                          "click for details" line - see NameTooltipText - freeing this column's
                          width for the name instead of a second trimmed label next to the plan. -->
@@ -290,11 +292,22 @@
                                    FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
                                    TextTrimming="CharacterEllipsis">
                             <Run Text="{Binding TitleName, Mode=OneWay}"/><Run Text="{Binding TitleAccountSuffix, Mode=OneWay}" Foreground="{DynamicResource Text.Secondary}"/><Run Text=" "/><Run Text="{Binding PlanText, Mode=OneWay}"
-                                 FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/><Run Text="{Binding HeaderCreditText, Mode=OneWay}"
-                                 FontWeight="Normal" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}"/>
+                                 FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/>
                         </TextBlock>
                     </Button>
-                </Grid>
+                    <TextBlock Text="{Binding HeaderCreditText}" ToolTip="{Binding ApiCreditText}" FontFamily="{DynamicResource Font.Ui}" Margin="-4,0,0,0"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HeaderCreditText}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </controls:FitOrHidePanel>
                 <!-- The gap ahead of this panel's own first child (the age line when shown, the waiting
                      mark or the sign-in button otherwise) lives on the panel itself, not on either child - the plan/account
                      text in the sibling name Grid carries no matching right margin, so a margin fixed to

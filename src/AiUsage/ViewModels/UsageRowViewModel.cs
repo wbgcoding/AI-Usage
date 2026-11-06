@@ -271,14 +271,16 @@ public partial class UsageRowViewModel : ObservableObject
     // line and its own forecast wording. Functions, so a language switch reads them anew.
     private Func<string>? _ownLabelText;
     private Func<string>? _ownToolTip;
+    private Func<string>? _ownInlineText;
     private string _forecastKey = "Window.ForecastFull";
 
     /// <summary>Gives this row its own label, tooltip line and forecast wording (see <see cref="_ownLabelText"/>);
-    /// the token figure stays off.</summary>
-    internal void SetOwnTexts(Func<string> labelText, Func<string> toolTip, string forecastKey)
+    /// its own figure (if any) takes the place of the token figure.</summary>
+    internal void SetOwnTexts(Func<string> labelText, Func<string> toolTip, string forecastKey, Func<string>? inlineText = null)
     {
         _ownLabelText = labelText;
         _ownToolTip = toolTip;
+        _ownInlineText = inlineText;
         _forecastKey = forecastKey;
         RefreshOwnTexts();
     }
@@ -367,7 +369,9 @@ public partial class UsageRowViewModel : ObservableObject
             var segments = new List<string>();
             if (CountdownText.Length > 0)
                 segments.Add(CountdownText);
-            if (ClockText.Length > 0)
+            // A row with its own figure beside the label (the free credit's amount) keeps that figure
+            // instead of the end date; its tooltip names the date.
+            if (ClockText.Length > 0 && _ownInlineText is null)
                 segments.Add(ClockText);
             return string.Join(" · ", segments);
         }
@@ -377,11 +381,13 @@ public partial class UsageRowViewModel : ObservableObject
     /// the count the provider reported with the window, shortened and in the OS regional number
     /// format. Empty when neither exists, which hides the segment; the exact figure is <see
     /// cref="InlineTokensToolTip"/>.</summary>
-    public string InlineTokensText => _ownLabelText is null && InlineTokens is { } tokens
-        ? Loc.Format(
-            "Window.TokensInline",
-            StatsAggregator.ShortenTokenCount(tokens, Loc["Number.Thousand"], Loc["Number.Million"], Loc["Number.Billion"]))
-        : "";
+    public string InlineTokensText => _ownLabelText is not null
+        ? _ownInlineText?.Invoke() ?? ""
+        : InlineTokens is { } tokens
+            ? Loc.Format(
+                "Window.TokensInline",
+                StatsAggregator.ShortenTokenCount(tokens, Loc["Number.Thousand"], Loc["Number.Million"], Loc["Number.Billion"]))
+            : "";
 
     /// <summary>The exact count behind <see cref="InlineTokensText"/> with what it covers ("since this
     /// window last reset" or "in this window"); empty when the text is.</summary>

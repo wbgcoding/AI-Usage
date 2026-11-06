@@ -53,7 +53,7 @@ public class ClaudeApiCreditTileTests
 
         tile.Apply(Snapshot(new ClaudeApiCredit(18.40m, "USD")), Now);
 
-        Assert.Equal(" · " + amount, tile.HeaderCreditText);
+        Assert.Equal("· " + amount, tile.HeaderCreditText);
         Assert.Contains(tile.ApiCreditText, tile.NameTooltipText, StringComparison.Ordinal);
 
         tile.Apply(Snapshot(new ClaudeApiCredit(0m, "USD")), Now);

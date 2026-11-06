@@ -42,9 +42,11 @@ public sealed class FitOrHidePanel : Panel
             }
 
             // The first child trims to what the others leave it, measured at a finite width so a text
-            // formats its line for the width it is arranged at.
-            if (i == 0)
-                children[i].Measure(new Size(FirstWidth(desired, shown, width), availableSize.Height));
+            // formats its line for the width it is arranged at. Only when it really has to trim: a
+            // child last measured at a fixed width keeps that width as its constraint, so a text that
+            // grows later (an empty name filled in by its binding) would never tell this panel.
+            if (i == 0 && FirstWidth(desired, shown, width) is var first && first < desired[0])
+                children[i].Measure(new Size(first, availableSize.Height));
             height = Math.Max(height, children[i].DesiredSize.Height);
         }
 

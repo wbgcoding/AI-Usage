@@ -137,4 +137,50 @@ public class FitOrHidePanelTests
 
         Assert.All(layout.Slots, slot => Assert.True(slot.Width > 0));
     }
+
+    private sealed class GrowBox : FrameworkElement
+    {
+        public double Width0 { get; set; }
+
+        protected override Size MeasureOverride(Size availableSize) => new(Math.Min(Width0, availableSize.Width), 16);
+    }
+
+    // The first child wrapped in another element (like the tile's name button around its text): when
+    // the inner text arrives after the first layout, the panel must still learn the new width.
+    [Fact]
+    public void A_first_child_that_grows_after_the_first_layout_gets_its_new_width()
+    {
+        double width = 0;
+        Exception? failure = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                var inner = new GrowBox();
+                var panel = new FitOrHidePanel();
+                panel.Children.Add(new System.Windows.Controls.Border { Child = inner });
+                panel.Children.Add(new Box(40, 12));
+
+                panel.Measure(new Size(400, double.PositiveInfinity));
+                panel.Arrange(new Rect(0, 0, 400, panel.DesiredSize.Height));
+
+                inner.Width0 = 100;
+                inner.InvalidateMeasure();
+                panel.UpdateLayout();
+                width = panel.Children[0].RenderSize.Width;
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        })
+        {
+            IsBackground = true,
+        };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        Assert.True(worker.Join(TimeSpan.FromSeconds(30)));
+        Assert.Null(failure);
+        Assert.Equal(100, width);
+    }
 }
