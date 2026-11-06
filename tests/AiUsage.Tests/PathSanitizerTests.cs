@@ -130,6 +130,18 @@ public class PathSanitizerTests
         Assert.Equal(@"{\""access_token\"":\""{token}\"",\""x\"":1}", nested);
     }
 
+    [Theory]
+    [InlineData(@"{""accessToken"":""abc.def"",""refreshToken"":""r-1""}", @"{""accessToken"":""{token}"",""refreshToken"":""{token}""}")]
+    [InlineData(@"{""sessionKey"":""abc""}", @"{""sessionKey"":""{token}""}")]
+    [InlineData("key sk-ant-oat01-AbCdEf123456_x rejected", "key {token} rejected")]
+    [InlineData("google ya29.a0AfB_byC1234567 and 1//0gAbCdEfGh12", "google {token} and {token}")]
+    [InlineData("Cookie: sessionKey=sk-ant-sid01-AbCdEf1234; lastActiveOrg=x", "Cookie: sessionKey={token}; lastActiveOrg=x")]
+    [InlineData("https://example.com/a//b and 1//2", "https://example.com/a//b and 1//2")]
+    public void Sanitize_masks_camel_case_token_fields_and_prefixed_tokens(string input, string expected)
+    {
+        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+    }
+
     [Fact]
     public void Sanitize_masks_the_real_user_name_and_profile_without_injected_values()
     {
