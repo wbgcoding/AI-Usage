@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The yellow and red warning signs next to a percentage are smaller and softer, so the number stays the eye catcher.
-- In the settings, the bar colours of the providers sit in two columns, and the chosen refresh interval shows on the line of its label instead of beside the slider.
+- In the settings, the bar colours of the providers sit in two columns, and the chosen refresh interval shows right after its label instead of beside the slider.
+- The widget fits its height to the tiles at every start. A height dragged by hand lasts until the app quits.
+- A Claude Console balance of $0.00 no longer shows in the tile header.
 - The About page no longer says "This is the latest version"; it only speaks up when an update is waiting.
 - In the settings, theme, size and the Mica option share one row; the note under "Use local sources only" is gone, and the weekly index copy explains itself in its tooltip.
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
@@ -29,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The token usage window shows its Mica background again when it is opened a second time, not only after a resize.
+- The free credit left and the Claude Console balance no longer differ by one cent when the console rounds them differently.
 - Quitting the app while the Claude Console is still being read in the background no longer leaves the app hanging.
 - After signing out of Claude and in again, the Claude Console balance on the tile updates again without restarting the app.
 - A sign-in page that opens two popup windows in quick succession no longer leaves a hidden browser behind in the sign-in window.
