@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 
 namespace AiUsage.Views.Controls;
@@ -69,8 +69,13 @@ public sealed class FitOrHidePanel : Panel
             }
 
             var width = i == 0 ? FirstWidth(desired, shown, finalSize.Width) : desired[i];
+            // Bottom aligned (a smaller text on the label's baseline region) unless the child asks to
+            // be centred, like the tile header's balance beside the name.
             var height = Math.Min(child.DesiredSize.Height, finalSize.Height);
-            child.Arrange(new Rect(x, Math.Max(0, finalSize.Height - height), width, height));
+            var top = child is FrameworkElement { VerticalAlignment: VerticalAlignment.Center }
+                ? (finalSize.Height - height) / 2
+                : finalSize.Height - height;
+            child.Arrange(new Rect(x, Math.Max(0, top), width, height));
             x += width + Gap;
         }
 

@@ -295,7 +295,7 @@
                                  FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/>
                         </TextBlock>
                     </Button>
-                    <TextBlock Text="{Binding HeaderCreditText}" ToolTip="{Binding ApiCreditText}" FontFamily="{DynamicResource Font.Ui}" Margin="-4,0,0,0"
+                    <TextBlock Text="{Binding HeaderCreditText}" ToolTip="{Binding ApiCreditText}" FontFamily="{DynamicResource Font.Ui}" Margin="-4,0,0,0" VerticalAlignment="Center"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">

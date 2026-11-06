@@ -523,7 +523,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     private ClaudeApiCredit? _apiCredit;
 
     /// <summary>The "API credits: $18.40" line, empty while there is no balance above zero.</summary>
-    public string ApiCreditText => _apiCredit is { Amount: > 0 } credit
+    // A balance written as $0.00 (under half a cent) shows nothing, the same as none.
+    public string ApiCreditText => _apiCredit is { Amount: >= 0.005m } credit
         ? LocalizationService.Instance.Format(
             "Format.LabelValue", LocalizationService.Instance["Tile.ApiCredit.Label"],
             credit.FormatAmount(LocalizationService.Instance.DisplayCulture))

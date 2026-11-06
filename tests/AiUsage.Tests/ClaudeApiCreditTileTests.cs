@@ -64,6 +64,7 @@ public class ClaudeApiCreditTileTests
     [Theory]
     [InlineData(0)]
     [InlineData(-3.5)]
+    [InlineData(0.004)]
     public void A_balance_of_zero_or_less_shows_nothing(double amount)
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
