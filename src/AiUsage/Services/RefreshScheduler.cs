@@ -40,7 +40,7 @@ public sealed class RefreshScheduler
     // on the caller's (UI) thread - the delegate behind them reads view-model state only that thread
     // may touch - and read by RunOneAsync, often on a pool thread, to resolve the interval a finished
     // fetch schedules its next one at. The one-second timer keeps them practically current.
-    private Dictionary<string, bool> _hiddenByAccount = [];
+    private readonly Dictionary<string, bool> _hiddenByAccount = [];
     private bool _windowVisible = true;
 
     /// <summary>Same remembered-per-tick pattern as <see cref="_hiddenByAccount"/>: which accounts
@@ -216,14 +216,18 @@ public sealed class RefreshScheduler
     {
         List<IUsageProvider> due;
         bool holdNetwork;
-        List<string> notes;
+        List<string>? notes;
         lock (_gate)
         {
             // Remembered for RunOneAsync (including a later single-provider RefreshNow, which has no
-            // fresher answer of its own) - see the fields' own doc comment.
-            _hiddenByAccount = isHidden is null
-                ? []
-                : _providers.ToDictionary(p => p.AccountKey, p => isHidden(p.AccountKey));
+            // fresher answer of its own) - see the fields' own doc comment. Refilled in place: this
+            // runs every second.
+            _hiddenByAccount.Clear();
+            if (isHidden is not null)
+            {
+                foreach (var provider in _providers)
+                    _hiddenByAccount[provider.AccountKey] = isHidden(provider.AccountKey);
+            }
             _windowVisible = windowVisible;
             _isDisconnected = isDisconnected;
 
@@ -231,7 +235,7 @@ public sealed class RefreshScheduler
             // callers arriving together (the one-second timer and a manual refresh, say) must never
             // both see a provider as due and both start it.
             var now = _timeProvider.GetUtcNow();
-            due = _providers.Where(p => IsDueLocked(p, now, ignoreNetworkSkip)).ToList();
+            due = _providers.FindAll(p => IsDueLocked(p, now, ignoreNetworkSkip));
             notes = DiagnoseLocked(now, due, ignoreNetworkSkip);
             foreach (var provider in due)
             {
@@ -246,22 +250,25 @@ public sealed class RefreshScheduler
             holdNetwork = !ignoreNetworkSkip && NetworkIsOffLocked(now);
         }
 
-        foreach (var note in notes)
-            _logInfo(note);
+        if (notes is not null)
+        {
+            foreach (var note in notes)
+                _logInfo(note);
+        }
 
-        return due.Select(provider => RunOneAsync(provider, holdNetwork, ct)).ToList();
+        return due.ConvertAll(provider => RunOneAsync(provider, holdNetwork, ct));
     }
 
     /// <summary>The lines that would explain a refresh that seems to stand still, each once per
     /// occurrence: a long gap between ticks, a read that runs far past its timeout, and the network
     /// being held while providers are due (once per change of the reason). Caller must already hold
     /// <see cref="_gate"/>; the lines are logged after it is released.</summary>
-    private List<string> DiagnoseLocked(DateTimeOffset now, List<IUsageProvider> due, bool ignoreNetworkSkip)
+    private List<string>? DiagnoseLocked(DateTimeOffset now, List<IUsageProvider> due, bool ignoreNetworkSkip)
     {
-        List<string> notes = [];
+        List<string>? notes = null;
 
         if (_lastTickAt is { } last && now - last > TickGapToLog)
-            notes.Add($"Refresh tick: {(int)(now - last).TotalMinutes} min without a tick, the timer resumed");
+            (notes ??= []).Add($"Refresh tick: {(int)(now - last).TotalMinutes} min without a tick, the timer resumed");
         _lastTickAt = now;
 
         foreach (var provider in _providers)
@@ -270,7 +277,7 @@ public sealed class RefreshScheduler
             if (state.InFlight && !state.LongReadLogged && now - state.InFlightSince > _maxFetchTimeout + TimeSpan.FromMinutes(1))
             {
                 state.LongReadLogged = true;
-                notes.Add($"Provider '{provider.AccountKey}': a read has been running for {(int)(now - state.InFlightSince).TotalMinutes} min, past its timeout");
+                (notes ??= []).Add($"Provider '{provider.AccountKey}': a read has been running for {(int)(now - state.InFlightSince).TotalMinutes} min, past its timeout");
             }
         }
 
@@ -281,7 +288,7 @@ public sealed class RefreshScheduler
 
         if (holdReason != _lastHoldReason)
         {
-            notes.Add(holdReason is not null
+            (notes ??= []).Add(holdReason is not null
                 ? $"Refresh: network reads are held while due ({holdReason})"
                 : "Refresh: network reads are no longer held");
             _lastHoldReason = holdReason;
