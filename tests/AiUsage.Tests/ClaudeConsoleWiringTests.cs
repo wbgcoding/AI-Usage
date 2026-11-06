@@ -139,4 +139,68 @@ public class ClaudeConsoleWiringTests
     {
         Assert.Null(await CreditAfterTwoReads(Provider(new AppSettings(), null)));
     }
+
+    [Fact]
+    public async Task The_balance_read_starts_with_the_fetch_and_does_not_wait_for_the_usage_read()
+    {
+        var usageGate = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var creditStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new ClaudeConsoleCreditSource((script, _) =>
+        {
+            creditStarted.TrySetResult();
+            return Task.FromResult(script.Contains("'/api/organizations'", StringComparison.Ordinal) ? OrgsOk : CreditsOk);
+        }, null);
+        var provider = new ClaudeProvider(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "does-not-exist"), now: null,
+            new WebUsageSource(Descriptor, new ClaudeUsageEndpoint(), (_, _) => usageGate.Task),
+            new AppSettings(), _ => { })
+        {
+            CreditSource = source,
+        };
+
+        var fetch = provider.FetchAsync(CancellationToken.None);
+
+        await creditStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(fetch.IsCompleted);
+        await WaitUntilAsync(() => source.Current is not null);
+        Assert.False(fetch.IsCompleted);
+
+        usageGate.SetResult(WebOkEnvelope);
+        var snapshot = await fetch.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(new ClaudeApiCredit(18.40m, "USD"), snapshot.ApiCredit);
+    }
+
+    [Fact]
+    public async Task A_balance_that_arrives_after_the_usage_read_reaches_the_tile_through_the_changed_event()
+    {
+        var creditGate = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new ClaudeConsoleCreditSource((script, _) =>
+            script.Contains("'/api/organizations'", StringComparison.Ordinal) ? Task.FromResult(OrgsOk) : creditGate.Task, null);
+        var provider = new ClaudeProvider(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "does-not-exist"), now: null,
+            new WebUsageSource(Descriptor, new ClaudeUsageEndpoint(), (_, _) => Task.FromResult(WebOkEnvelope)),
+            new AppSettings(), _ => { })
+        {
+            CreditSource = source,
+        };
+        var raised = 0;
+        provider.ApiCreditChanged += () => Interlocked.Increment(ref raised);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+        Assert.Null(snapshot.ApiCredit);
+        Assert.Equal(0, raised);
+
+        creditGate.SetResult(CreditsOk);
+        await WaitUntilAsync(() => Volatile.Read(ref raised) == 1);
+
+        Assert.Equal(new ClaudeApiCredit(18.40m, "USD"), provider.CurrentApiCredit);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var until = DateTime.UtcNow.AddSeconds(5);
+        while (!condition() && DateTime.UtcNow < until)
+            await Task.Delay(10);
+        Assert.True(condition());
+    }
 }

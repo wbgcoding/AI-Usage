@@ -310,7 +310,9 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         finally
         {
             _lastActivityAt = _timeProvider.GetUtcNow();
-            if (ReferenceEquals(_host, host))
+            // Not while another call (the balance read runs beside the usage read) still has a script on
+            // the page: a suspended page holds that script until the next call resumes it.
+            if (ReferenceEquals(_host, host) && Volatile.Read(ref _inFlight) <= 1)
                 _suspendTask = SuspendQuietlyAsync(host);
         }
     }

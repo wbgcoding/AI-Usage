@@ -655,6 +655,30 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task The_page_stays_awake_while_another_call_still_has_a_script_running()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        Assert.Equal(2, current!.Scripts.Count);
+
+        current.Scripts[0].SetResult("first");
+        await first;
+        Assert.Equal(0, current.SuspendCalls);
+
+        current.Scripts[1].SetResult("second");
+        await second;
+        Assert.Equal(1, current.SuspendCalls);
+    }
+
+    [Fact]
     public async Task A_failing_suspend_never_fails_the_fetch()
     {
         var fake = new FakeHiddenBrowserHost { SuspendFails = true };
@@ -1248,6 +1272,9 @@ public class WebSessionScriptRunnerTests
 
         public int ExecuteCalls { get; private set; }
 
+        /// <summary>Every call's own completion source, for tests that keep several calls open at once.</summary>
+        public List<TaskCompletionSource<string>> Scripts { get; } = [];
+
         public Task<string> ExecuteScriptAsync(string script, CancellationToken ct)
         {
             ExecuteCalls++;
@@ -1257,6 +1284,7 @@ public class WebSessionScriptRunnerTests
             if (Disposed)
                 throw new NullReferenceException();
             _script = new TaskCompletionSource<string>();
+            Scripts.Add(_script);
             return _script.Task;
         }
 

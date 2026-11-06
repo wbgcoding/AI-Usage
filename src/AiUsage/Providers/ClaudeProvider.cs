@@ -229,6 +229,9 @@ public sealed class ClaudeProvider : IUsageProvider
     public async Task<ProviderSnapshot> FetchAsync(CancellationToken ct)
     {
         _webAnswerUnread = false;
+        // Before the usage read, not after it: the balance needs its own round trips through a hidden
+        // browser, and started late it only shows up many seconds after the usage numbers.
+        StartApiCreditRead();
         var snapshot = await FetchSourcesAsync(ct);
         return WithApiCredit(_webAnswerUnread ? snapshot with { UnreadableAnswer = true } : snapshot);
     }
@@ -255,15 +258,21 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>The user just signed in on the console: reads the balance now instead of at the next due time.</summary>
     internal Task ReadApiCreditNowAsync() => CreditSource?.ReadNowAsync() ?? Task.CompletedTask;
 
-    /// <summary>Puts the last balance read on <paramref name="snapshot"/> and, when one is due, starts the
-    /// next read without waiting for it: a balance that is slow or missing never delays or changes the
-    /// usage read. Nothing for an account kept off the web session.</summary>
+    /// <summary>Starts the next balance read when one is due, without waiting for it: a balance that is
+    /// slow or missing never delays or changes the usage read. Nothing for an account kept off the web session.</summary>
+    private void StartApiCreditRead()
+    {
+        if (CreditSource is { } source && _webSource is not null && !LocalOnly)
+            _ = source.RefreshIfDueAsync();
+    }
+
+    /// <summary>Puts the last balance read on <paramref name="snapshot"/>; a balance that lands later
+    /// reaches the tile through <see cref="ApiCreditChanged"/>.</summary>
     private ProviderSnapshot WithApiCredit(ProviderSnapshot snapshot)
     {
         if (CreditSource is not { } source || _webSource is null || LocalOnly)
             return snapshot;
 
-        _ = source.RefreshIfDueAsync();
         return source.Current is { } credit ? snapshot with { ApiCredit = credit } : snapshot;
     }
 
