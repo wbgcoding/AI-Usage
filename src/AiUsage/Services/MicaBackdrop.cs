@@ -238,6 +238,14 @@ internal static class MicaBackdrop
             return IntPtr.Zero;
         });
 
+        // A window hidden instead of closed (the token usage window) comes back with the same spoilt
+        // backdrop until it is resized: each show switches it off and on again once the frame is up.
+        window.IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true)
+                window.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, CycleOnScreen);
+        };
+
         if (alreadyRendered)
         {
             StartOnScreen();
