@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AiUsage.Models;
 using AiUsage.Storage;
 
@@ -348,6 +348,15 @@ public class WindowPlacementService
 
     /// <summary>How near an edge a dropped window snaps to it, at <paramref name="zoom"/>.</summary>
     public static double SnapToleranceFor(double zoom) => 12 * zoom;
+
+    /// <summary>Every start fits the height to the loaded tiles: a height dragged by hand lasts only
+    /// until the app quits, so a window never opens with empty space or cut tiles from an older
+    /// provider mix. Widths stay as remembered.</summary>
+    public static void ForgetManualHeights(WindowSettings window)
+    {
+        window.Vertical.Height = null;
+        window.Horizontal.Height = null;
+    }
 
     /// <summary>The remembered sizes after the zoom changed by <paramref name="ratio"/> (new zoom over old):
     /// widths always, heights only where the person set one. Position and the other windows' sizes stay.</summary>

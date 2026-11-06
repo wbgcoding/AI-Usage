@@ -114,6 +114,7 @@ public partial class MainWindow : Window, IDisposable
             MeasureFirstFrame(logService);
         _settingsStore = settingsStore;
         _settings = settings ?? _settingsStore.Load();
+        WindowPlacementService.ForgetManualHeights(_settings.Window);
         ViewModel = new MainViewModel(_settingsStore, _settings, logService)
         {
             ShowNewerVersionWarning = _settingsStore.LastLoadWasFromNewerVersion,
