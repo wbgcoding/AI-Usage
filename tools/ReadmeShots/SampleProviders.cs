@@ -35,7 +35,7 @@ internal static class SampleProviders
         return
         [
             new("claude", "Claude",
-                Snapshot("claude", "Max 5x", SourceKind.LocalFile, TimeSpan.FromSeconds(12),
+                Snapshot("claude", "Max", SourceKind.LocalFile, TimeSpan.FromSeconds(12),
                     new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, In(new TimeSpan(2, 14, 0)), 300, new TokenUsage(1_823_457)),
                     new UsageWindow("Window_Weekly", WindowKind.Weekly, 63, In(new TimeSpan(3, 4, 0, 0)), 10080))
                     with { ApiCredit = new ClaudeApiCredit(18.40m, "USD", new ClaudeCreditGrant(200m, 163m, now + TimeSpan.FromDays(12))) },

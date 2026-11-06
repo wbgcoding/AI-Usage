@@ -29,20 +29,20 @@ public static class PlanTier
 
         var tokens = Tokenize(raw);
 
-        if (tokens.Contains("max5x"))
-            return "Max 5x";
+        // Anthropic renamed its plans: the old "Max 5x" step is now "Max", "Max 20x" is "Ultra".
+        // The tier strings in its responses still carry the old step names.
         if (tokens.Contains("max20x"))
-            return "Max 20x";
+            return "Ultra";
+        if (tokens.Contains("max5x"))
+            return "Max";
 
         var maxAt = tokens.IndexOf("max");
         if (maxAt >= 0)
         {
-            for (var i = maxAt; i < tokens.Count; i++)
+            for (var i = maxAt; i + 1 < tokens.Count; i++)
             {
-                if (tokens[i] != "max")
-                    continue;
-                if (i + 1 < tokens.Count && tokens[i + 1] is "5x" or "20x")
-                    return "Max " + tokens[i + 1];
+                if (tokens[i] == "max" && tokens[i + 1] == "20x")
+                    return "Ultra";
             }
             return "Max";
         }

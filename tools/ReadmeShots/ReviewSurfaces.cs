@@ -200,7 +200,7 @@ internal static class ReviewSurfaces
             seed: _ => SampleLimits.Seed(folder, context.Now, context.Records),
             configure: viewModel =>
             {
-                viewModel.PlanOf = key => key == "claude" ? "Max 5x" : key == "codex" ? "Plus" : null;
+                viewModel.PlanOf = key => key == "claude" ? "Max" : key == "codex" ? "Plus" : null;
                 viewModel.Recompute();
             });
     }
@@ -215,7 +215,7 @@ internal static class ReviewSurfaces
             seed: _ => SampleLimits.Seed(folder, context.Now, context.Records),
             configure: viewModel =>
             {
-                viewModel.PlanOf = key => key == "claude" ? "Max 5x" : key == "codex" ? "Plus" : null;
+                viewModel.PlanOf = key => key == "claude" ? "Max" : key == "codex" ? "Plus" : null;
                 viewModel.Recompute();
                 viewModel.ForecastButtons.FirstOrDefault(button => button.ProviderId == provider)?.IsChecked = true;
             },

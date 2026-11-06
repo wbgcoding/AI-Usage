@@ -92,21 +92,21 @@ public class StatsForecastViewModelTests
     private static ProviderForecast Forecast(
         ForecastWindow? fiveHour, ForecastWindow? weekly = null, double? api = 4832, double? plan = 100, int accounts = 1, params string[] plans) =>
         new("claude", fiveHour, weekly, plans, accounts, api, plan,
-            plan is { } usd ? [new PlanPrice(plans.Length > 0 ? plans[0] : "Max 5x", usd, "USD", false, "https://example.com/pricing", new DateOnly(2026, 10, 31))] : null);
+            plan is { } usd ? [new PlanPrice(plans.Length > 0 ? plans[0] : "Max", usd, "USD", false, "https://example.com/pricing", new DateOnly(2026, 10, 31))] : null);
 
     [Fact]
     public async Task A_provider_with_history_and_tokens_gets_a_block_with_its_plan_and_both_cards()
     {
-        var (viewModel, directory) = await CreateAsync(100, plan: _ => "Max 5x");
+        var (viewModel, directory) = await CreateAsync(100, plan: _ => "Max");
         using (directory)
         {
             var provider = Assert.Single(viewModel.ForecastProviders);
             Assert.True(viewModel.HasForecast);
             Assert.Equal("claude", provider.ProviderId);
             Assert.Equal("Claude", provider.Name);
-            Assert.Equal("Max 5x", provider.PlanText);
-            Assert.Equal("Max 5x", provider.Detail);
-            Assert.Equal("Max 5x", Assert.Single(viewModel.ForecastButtons).Detail);
+            Assert.Equal("Max", provider.PlanText);
+            Assert.Equal("Max", provider.Detail);
+            Assert.Equal("Max", Assert.Single(viewModel.ForecastButtons).Detail);
             Assert.True(viewModel.HasSingleForecast);
             Assert.False(viewModel.HasForecastChoice);
             Assert.All(provider.Windows, window => Assert.False(string.IsNullOrEmpty(window.ToolTip)));
@@ -145,15 +145,15 @@ public class StatsForecastViewModelTests
     [Fact]
     public async Task Several_accounts_are_pooled_into_one_block_with_all_plans_and_the_count()
     {
-        var plans = new Dictionary<string, string?> { ["claude"] = "Max 5x", ["claude#2"] = "Pro" };
+        var plans = new Dictionary<string, string?> { ["claude"] = "Max", ["claude#2"] = "Pro" };
         var (viewModel, directory) = await CreateAsync(
             100, id => id == "claude" ? ["claude", "claude#2"] : [id], key => plans.GetValueOrDefault(key));
         using (directory)
         {
             var provider = Assert.Single(viewModel.ForecastProviders);
-            Assert.Equal("Max 5x + Pro", provider.PlanText);
+            Assert.Equal("Max + Pro", provider.PlanText);
             Assert.Equal(Loc.Format("Stats.Forecast.Accounts", 2), provider.AccountsText);
-            Assert.Equal("Max 5x + Pro · " + provider.AccountsText, provider.Detail);
+            Assert.Equal("Max + Pro · " + provider.AccountsText, provider.Detail);
         }
     }
 
@@ -398,14 +398,14 @@ public class StatsForecastViewModelTests
     [Fact]
     public void The_month_card_shows_the_ratio_and_the_plan_with_its_price_and_source()
     {
-        var forecast = Forecast(Window(Total(172_000)), Window(Total(1_050_000)), api: 4832, plan: 100, plans: "Max 5x");
+        var forecast = Forecast(Window(Total(172_000)), Window(Total(1_050_000)), api: 4832, plan: 100, plans: "Max");
         var provider = StatsViewModel.BuildForecastProvider(forecast, new StatsCostView(Prices()), Loc);
 
         Assert.All(provider.Windows, window => Assert.True(window.HasApi));
         var month = Assert.IsType<StatsForecastMonthViewModel>(provider.Month);
         Assert.True(month.HasPlan);
         Assert.True(month.HasRatio);
-        Assert.StartsWith("Max 5x ", month.PlanText);
+        Assert.StartsWith("Max ", month.PlanText);
         Assert.Contains("100", month.PlanText);
         Assert.Contains("example.com", month.PlanToolTip);
         Assert.Contains(new DateOnly(2026, 10, 31).ToString("d", CultureInfo.CurrentCulture), month.PlanToolTip);
@@ -417,7 +417,7 @@ public class StatsForecastViewModelTests
     [Fact]
     public void In_euros_a_dollar_price_shows_converted_with_vat_and_the_ratio_stays_net()
     {
-        var forecast = Forecast(Window(Total(172_000)), api: 4832, plan: 100, plans: "Max 5x");
+        var forecast = Forecast(Window(Total(172_000)), api: 4832, plan: 100, plans: "Max");
         var service = Prices(currency: CostCurrency.Eur);
         service.Rate.Set(1.2, DateTimeOffset.UtcNow, persist: false);
         var month = Assert.IsType<StatsForecastMonthViewModel>(

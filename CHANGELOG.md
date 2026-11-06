@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Claude plans follow Anthropic's new names: the former Max 5x shows as "Max", the former Max 20x as "Ultra".
 - The yellow and red warning signs next to a percentage are smaller and softer, so the number stays the eye catcher.
 - In the settings, the bar colours of the providers sit in two columns, and the chosen refresh interval shows right after its label instead of beside the slider.
 - The widget fits its height to the tiles at every start. A height dragged by hand lasts until the app quits.

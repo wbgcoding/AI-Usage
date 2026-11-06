@@ -1436,7 +1436,7 @@ public class ProviderTileViewModelTests
     [Theory]
     [InlineData("plus", "Plus")]
     [InlineData("MAX", "Max")]
-    [InlineData("default_claude_max_20x", "Max 20x")]
+    [InlineData("default_claude_max_20x", "Ultra")]
     [InlineData("Google AI Pro", "Pro")]
     public void PlanTextShowsTheProductNameOfTheTier(string raw, string expected)
     {

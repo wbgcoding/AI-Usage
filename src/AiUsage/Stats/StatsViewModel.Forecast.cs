@@ -17,7 +17,7 @@ public sealed partial class StatsViewModel
     /// from the settings. Called on a pool thread; a failure falls back to the provider's own key.</summary>
     internal Func<string, IReadOnlyList<string>> AccountKeysOf { get; set; } = id => [id];
 
-    /// <summary>The normalized plan of an account (<c>Max 5x</c>) from the live tiles; null when unknown.
+    /// <summary>The normalized plan of an account (<c>Max</c>) from the live tiles; null when unknown.
     /// Called on the UI thread.</summary>
     internal Func<string, string?> PlanOf { get; set; } = _ => null;
 

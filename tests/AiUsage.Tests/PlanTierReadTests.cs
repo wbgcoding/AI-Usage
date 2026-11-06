@@ -31,8 +31,8 @@ public class PlanTierReadTests
     // Claude Code: the sign-in file carries the tier next to the token.
 
     [Theory]
-    [InlineData("""{"claudeAiOauth":{"accessToken":"__T__","subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}""", "Max 5x")]
-    [InlineData("""{"claudeAiOauth":{"accessToken":"__T__","subscriptionType":"max","rateLimitTier":"default_claude_max_20x"}}""", "Max 20x")]
+    [InlineData("""{"claudeAiOauth":{"accessToken":"__T__","subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}""", "Max")]
+    [InlineData("""{"claudeAiOauth":{"accessToken":"__T__","subscriptionType":"max","rateLimitTier":"default_claude_max_20x"}}""", "Ultra")]
     [InlineData("""{"claudeAiOauth":{"accessToken":"__T__","subscriptionType":"pro","rateLimitTier":"default_claude_ai"}}""", "Pro")]
     [InlineData("""{"claudeAiOauth":{"accessToken":"__T__","subscriptionType":"team"}}""", "Team")]
     public void The_claude_code_login_reads_the_tier_from_the_credentials_file(string json, string expectedHeader)
@@ -73,7 +73,7 @@ public class PlanTierReadTests
         var snapshot = await provider.FetchAsync(CancellationToken.None);
 
         Assert.Equal("max default_claude_max_5x", snapshot.PlanType);
-        Assert.Equal("Max 5x", Header("claude", "Claude", snapshot.PlanType));
+        Assert.Equal("Max", Header("claude", "Claude", snapshot.PlanType));
     }
 
     // Claude web: the organisation record the discovery script reads carries the tier, handed over as
@@ -96,7 +96,7 @@ public class PlanTierReadTests
 
         Assert.Equal(WebUsageOutcome.Ok, result.Outcome);
         Assert.Equal("default_claude_max_20x claude_max chat", result.PlanType);
-        Assert.Equal("Max 20x", Header("claude", "Claude", result.PlanType));
+        Assert.Equal("Ultra", Header("claude", "Claude", result.PlanType));
     }
 
     [Fact]

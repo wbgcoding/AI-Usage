@@ -35,7 +35,7 @@ internal static class ClaudeDiscoveryScript
         !string.IsNullOrEmpty(path) && AllowedUsagePathPattern.IsMatch(path);
 
     // The tier lives on the organisation record /api/organizations already answers for discovery: its
-    // rate limit tier (carries the Max 5x/20x step) and capability names ("claude_pro", ...). Only
+    // rate limit tier (carries the plan step) and capability names ("claude_pro", ...). Only
     // those two fields are read, joined into one string; any failure leaves plan null and never
     // fails the usage read it rides along with.
     private const string PlanFromOrgSnippet = """

@@ -8,8 +8,7 @@ public class PlanPriceListTests
 {
     [Theory]
     [InlineData("claude", "Pro", 20, "USD")]
-    [InlineData("claude", "Max 5x", 100, "USD")]
-    [InlineData("claude", "Max 20x", 200, "USD")]
+    [InlineData("claude", "Max", 100, "USD")]
     [InlineData("claude", "Ultra", 200, "USD")]
     [InlineData("codex", "Plus", 20, "USD")]
     [InlineData("codex", "Business", 25, "USD")]
@@ -37,7 +36,7 @@ public class PlanPriceListTests
     [Fact]
     public void The_lookup_ignores_case_and_the_account_suffix_of_the_provider()
     {
-        Assert.Equal(100, PlanPriceList.Find("claude#2", "max 5x")!.Amount);
+        Assert.Equal(100, PlanPriceList.Find("claude#2", "MAX")!.Amount);
         Assert.Equal(20, PlanPriceList.Find("CODEX", "PLUS")!.Amount);
     }
 
@@ -63,7 +62,7 @@ public class PlanPriceListTests
         Assert.Equal(21.99 / 1.19, pro.Net, 9);
         Assert.Equal(21.99 / 1.19 * 1.2, pro.NetUsd(1.2)!.Value, 9);
         Assert.Null(pro.NetUsd(null));
-        Assert.Equal(100, PlanPriceList.Find("claude", "max 5x")!.NetUsd(null));
+        Assert.Equal(100, PlanPriceList.Find("claude", "max")!.NetUsd(null));
     }
 }
 
@@ -179,7 +178,7 @@ public class StatsPlanForecastTests
     public void The_five_hour_and_the_weekly_window_are_estimated_apart_with_their_own_history()
     {
         // The weekly window rises 0.5 % an hour, the five-hour window 2 % an hour.
-        var account = new ForecastAccount("claude", "Max 5x", [.. Points(30, 0.5), .. Points(30, 2, WindowKind.FiveHour)]);
+        var account = new ForecastAccount("claude", "Max", [.. Points(30, 0.5), .. Points(30, 2, WindowKind.FiveHour)]);
 
         var forecast = StatsPlanForecast.Build("claude", [account], Records(30), Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
@@ -190,7 +189,7 @@ public class StatsPlanForecastTests
         Assert.Equal(500, forecast.FiveHour.Result.TotalPerPercent);
         Assert.Equal(200_000, forecast.Weekly.CapacityTokens);
         Assert.Equal(50_000, forecast.FiveHour.CapacityTokens);
-        Assert.Equal(["Max 5x"], forecast.Plans);
+        Assert.Equal(["Max"], forecast.Plans);
         Assert.Equal(1, forecast.AccountCount);
     }
 
@@ -259,13 +258,13 @@ public class StatsPlanForecastTests
     [Fact]
     public void Several_accounts_multiply_the_month_value_and_add_up_their_plan_prices()
     {
-        var one = new ForecastAccount("claude", "Max 5x", Points(30, 0.25));
+        var one = new ForecastAccount("claude", "Max", Points(30, 0.25));
         var two = new ForecastAccount("claude#2", "Pro", Points(30, 0.25));
 
         var forecast = StatsPlanForecast.Build("claude", [one, two], Records(30), Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
         Assert.Equal(2, forecast.AccountCount);
-        Assert.Equal(["Max 5x", "Pro"], forecast.Plans);
+        Assert.Equal(["Max", "Pro"], forecast.Plans);
         Assert.Equal(120, forecast.MonthlyPlanUsd);
         // 30 000 tokens over 15 % of summed delta = 2000 per percent of one account.
         Assert.Equal(2000, forecast.Weekly!.Result.TotalPerPercent);

@@ -33,10 +33,9 @@ public static class PlanPriceList
 
     private static readonly Dictionary<(string Provider, string Plan), PlanPrice> Prices = new()
     {
-        // Anthropic shows dollar prices without tax; its 200 dollar step is named Ultra on the page.
+        // Anthropic shows dollar prices without tax.
         [("claude", "pro")] = new("Pro", 20, "USD", false, ClaudeSource, Checked),
-        [("claude", "max 5x")] = new("Max 5x", 100, "USD", false, ClaudeSource, Checked),
-        [("claude", "max 20x")] = new("Max 20x", 200, "USD", false, ClaudeSource, Checked),
+        [("claude", "max")] = new("Max", 100, "USD", false, ClaudeSource, Checked),
         [("claude", "ultra")] = new("Ultra", 200, "USD", false, ClaudeSource, Checked),
         [("codex", "plus")] = new("Plus", 20, "USD", false, ChatGptPlusSource, Checked),
         // Per seat with monthly billing.
