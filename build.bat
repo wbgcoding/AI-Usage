@@ -290,11 +290,11 @@ if exist "%BS%" powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%"
 echo BUILD OK - artifacts are in dist\.
 rem The started copy is a test run: after the countdown it closes again together with this window
 rem (a keypress ends the countdown early), so a finished build leaves nothing open.
+if "%DOUBLECLICK%"=="1" timeout /t 10
 if not "%AIUSAGE_NOSTART%"=="1" (
-    timeout /t 10
     powershell -NoProfile -Command ^
         "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } }"
-) else if "%DOUBLECLICK%"=="1" timeout /t 10
+)
 endlocal
 exit /b 0
 
