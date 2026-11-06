@@ -101,6 +101,21 @@ public sealed class StatusFileTests : IDisposable
     }
 
     [Fact]
+    public void AGrantGoesIntoTheApiCreditBlock()
+    {
+        var expiry = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero);
+        var entry = Claude() with { ApiCredit = new ClaudeApiCredit(99.71m, "USD", new ClaudeCreditGrant(100m, 99.71m, expiry)) };
+
+        using var document = JsonDocument.Parse(StatusFileWriter.BuildJson([entry], Now));
+
+        var grant = document.RootElement.GetProperty("providers")[0].GetProperty("apiCredit").GetProperty("grant");
+        Assert.Equal(["granted", "remaining", "nextExpiry"], grant.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(100m, grant.GetProperty("granted").GetDecimal());
+        Assert.Equal(99.71m, grant.GetProperty("remaining").GetDecimal());
+        Assert.Equal(expiry, grant.GetProperty("nextExpiry").GetDateTimeOffset());
+    }
+
+    [Fact]
     public void ADisabledExtraUsageBlockWritesNullFigures()
     {
         var entry = Claude() with { Extra = new ClaudeExtraUsage(false, null, null, null, "USD") };

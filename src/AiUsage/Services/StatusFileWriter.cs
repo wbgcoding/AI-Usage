@@ -192,12 +192,24 @@ public sealed class StatusFileWriter : IDisposable
         json.WriteEndObject();
     }
 
-    // Added key only, like "extra": the balance in major units.
+    // Added key only, like "extra": the balance in major units; "grant" (the free credit of the plan: granted, remaining,
+    // nextExpiry) only when the console lists one.
     private static void WriteApiCredit(Utf8JsonWriter json, ClaudeApiCredit credit)
     {
         json.WriteStartObject("apiCredit");
         json.WriteNumber("amount", credit.Amount);
         json.WriteString("currency", credit.Currency);
+        if (credit.Grant is { } grant)
+        {
+            json.WriteStartObject("grant");
+            json.WriteNumber("granted", grant.Granted);
+            json.WriteNumber("remaining", grant.Remaining);
+            if (grant.NextExpiry is { } expiry)
+                json.WriteString("nextExpiry", expiry.ToString("o", CultureInfo.InvariantCulture));
+            else
+                json.WriteNull("nextExpiry");
+            json.WriteEndObject();
+        }
         json.WriteEndObject();
     }
 
