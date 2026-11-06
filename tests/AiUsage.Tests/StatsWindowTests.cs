@@ -999,9 +999,9 @@ public class StatsWindowTests
 
         RunInWindow(settings, (window, _) =>
         {
-            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "limits"));
+            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "planforecast"));
 
-            Assert.Same(window.LimitsSection, window.SectionHost.Children[3]);
+            Assert.Same(window.PlanForecastSection, window.SectionHost.Children[3]);
             Assert.NotNull(settings.StatsSectionLayout);
             Assert.False(StatsLayout.IsDefault(settings.StatsSectionLayout!));
 
@@ -1050,7 +1050,7 @@ public class StatsWindowTests
         {
             Assert.Equal(Visibility.Collapsed, window.ResetLayoutButton.Visibility);
 
-            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "limits"));
+            window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "planforecast"));
 
             Assert.Equal(Visibility.Visible, window.ResetLayoutButton.Visibility);
 
@@ -1156,21 +1156,21 @@ public class StatsWindowTests
                 window.UpdateLayout();
                 var dropPoint = new Point(40, 25);
 
-                window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "limits"), window.LimitsSection, dropPoint);
+                window.CommitLayout(StatsLayout.MoveUp(StatsLayout.Default(), "provider"), window.ProviderSection, dropPoint);
 
-                Assert.Same(window.LimitsSection, window.SectionHost.Children[3]);
+                Assert.Same(window.ProviderSection, window.SectionHost.Children[3]);
                 // The render transform reaches the visual offset on the next layout pass.
                 window.UpdateLayout();
-                var shown = window.LimitsSection.TranslatePoint(new Point(0, 0), window.SectionHost);
+                var shown = window.ProviderSection.TranslatePoint(new Point(0, 0), window.SectionHost);
                 if (SystemParameters.ClientAreaAnimation)
                 {
-                    Assert.IsType<TranslateTransform>(window.LimitsSection.RenderTransform);
+                    Assert.IsType<TranslateTransform>(window.ProviderSection.RenderTransform);
                     Assert.Equal(dropPoint.X, shown.X, 1);
                     Assert.Equal(dropPoint.Y, shown.Y, 1);
                 }
                 else
                 {
-                    Assert.False(window.LimitsSection.RenderTransform is TranslateTransform);
+                    Assert.False(window.ProviderSection.RenderTransform is TranslateTransform);
                 }
             }
             finally
