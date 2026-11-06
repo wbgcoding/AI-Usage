@@ -1044,16 +1044,9 @@ public partial class StatsWindow : Window
         var toDevice = target.TransformToDevice;
         var origin = toDevice.Transform(new Point(left, top));
         var size = toDevice.Transform(new Vector(width, height));
-        SetWindowPos(handle, IntPtr.Zero, Convert.ToInt32(origin.X), Convert.ToInt32(origin.Y),
-            Convert.ToInt32(size.X), Convert.ToInt32(size.Y), SwpNoZOrder | SwpNoActivate);
+        Win32.SetWindowPos(handle, IntPtr.Zero, Convert.ToInt32(origin.X), Convert.ToInt32(origin.Y),
+            Convert.ToInt32(size.X), Convert.ToInt32(size.Y), Win32.SwpNoZOrder | Win32.SwpNoActivate);
     }
-
-    private const uint SwpNoZOrder = 0x0004;
-    private const uint SwpNoActivate = 0x0010;
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 
     private void ResizeTop_DragDelta(object sender, DragDeltaEventArgs e) => GrowUp(e.VerticalChange);
 

@@ -13,10 +13,6 @@ internal sealed class DesktopLayer : IDisposable
 {
     internal const int WmWindowPosChanging = 0x46;
 
-    private const uint SwpNoZOrder = 0x0004;
-    private const uint SwpNoSize = 0x0001;
-    private const uint SwpNoMove = 0x0002;
-    private const uint SwpNoActivate = 0x0010;
     private const uint WineventSkipOwnProcess = 0x0002;
     private const long WsExTopmost = 0x8;
     private static readonly IntPtr HwndBottom = new(1);
@@ -67,7 +63,7 @@ internal sealed class DesktopLayer : IDisposable
         if (!_native)
             return;
         Unhook();
-        SetWindowPos(_hwnd, HwndTop, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
+        Win32.SetWindowPos(_hwnd, HwndTop, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
     }
 
     /// <summary>Handles WM_WINDOWPOSCHANGING for the window: while active, whatever position Windows is
@@ -88,7 +84,7 @@ internal sealed class DesktopLayer : IDisposable
     /// <summary>Whether a pending position change can move the window in the stack: only one that
     /// keeps the order (SWP_NOZORDER) and the size (SWP_NOSIZE), a plain drag, never can, so the
     /// stack is not listed for it.</summary>
-    internal static bool NeedsSlotCheck(uint flags) => (flags & SwpNoZOrder) == 0 || (flags & SwpNoSize) == 0;
+    internal static bool NeedsSlotCheck(uint flags) => (flags & Win32.SwpNoZOrder) == 0 || (flags & Win32.SwpNoSize) == 0;
 
     /// <summary>Where the window belongs in the stack: <c>InPlace</c> when it already sits
     /// directly above the desktop, otherwise the window to insert it after.</summary>
@@ -124,17 +120,17 @@ internal sealed class DesktopLayer : IDisposable
     {
         if (slot.InPlace)
         {
-            if ((position.Flags & SwpNoZOrder) != 0)
+            if ((position.Flags & Win32.SwpNoZOrder) != 0)
                 return false;
-            position.Flags |= SwpNoZOrder;
+            position.Flags |= Win32.SwpNoZOrder;
             return true;
         }
 
-        if (position.HwndInsertAfter == slot.InsertAfter && (position.Flags & SwpNoZOrder) == 0)
+        if (position.HwndInsertAfter == slot.InsertAfter && (position.Flags & Win32.SwpNoZOrder) == 0)
             return false;
 
         position.HwndInsertAfter = slot.InsertAfter;
-        position.Flags &= ~SwpNoZOrder;
+        position.Flags &= ~Win32.SwpNoZOrder;
         return true;
     }
 
@@ -160,7 +156,7 @@ internal sealed class DesktopLayer : IDisposable
     {
         var slot = CurrentSlot();
         if (!slot.InPlace)
-            SetWindowPos(_hwnd, slot.InsertAfter, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
+            Win32.SetWindowPos(_hwnd, slot.InsertAfter, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
     }
 
     /// <summary>The window classes of the desktop itself, which receive the foreground when the desktop
@@ -236,8 +232,4 @@ internal sealed class DesktopLayer : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr hwnd);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 }
