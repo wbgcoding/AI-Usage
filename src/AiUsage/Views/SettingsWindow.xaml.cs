@@ -479,8 +479,8 @@ public partial class SettingsWindow : Window
 
     /// <summary>One provider's collapsible group: a header naming the provider and, in the tile's own
     /// words, where its numbers come from, opening into one row per read location plus the usage page
-    /// link. Starts collapsed - four providers' worth of paths at once was exactly the wall of text
-    /// this replaces, so nothing shows until asked for.</summary>
+    /// link. Starts collapsed: every provider's paths at once would be a wall of text, so nothing
+    /// shows until asked for.</summary>
     private System.Windows.Controls.StackPanel BuildAboutProviderGroup(ProviderKind provider)
     {
         var loc = LocalizationService.Instance;

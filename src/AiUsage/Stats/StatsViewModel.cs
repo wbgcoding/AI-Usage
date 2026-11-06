@@ -1838,7 +1838,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
         // The month grid's own by-day list: the last twelve months up to today (local time), or further
         // back for a wide window (see MonthGridAvailableWidth), never the selected range or grouping -
-        // stacked by all five providers rather than just the ones
+        // stacked by every indexed provider rather than just the ones
         // StackedProviderOrder names, since any of them can lead a day on this grid. Built by
         // StatsMonthGridBuilder, the one place this computation lives - the widget's own day-grid tile
         // (DayGridTileViewModel) reads the same store through the same builder, so the two never

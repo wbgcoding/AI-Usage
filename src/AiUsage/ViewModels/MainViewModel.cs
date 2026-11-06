@@ -1498,7 +1498,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     // A provider's FetchAsync completes on its own ThreadPool thread, and RefreshScheduler.Tick
-    // starts all four providers at once - so this can run concurrently for up to four providers.
+    // starts every due provider at once - so this can run concurrently for several providers.
     // The whole tail (tile apply, history append, notification evaluation, chart reload) is
     // marshalled as one BeginInvoke, never Invoke: a pool thread must never block waiting for the UI
     // thread, and none of this work may run partly on the pool thread and partly on the UI thread.

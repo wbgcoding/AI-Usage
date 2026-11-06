@@ -67,8 +67,8 @@ public class HistoryStore
         _providers.GetOrAdd(AppPaths.SanitizeAccountKeyForFileName(providerId), _ => new ProviderState());
 
     // The newest point per provider and window, as it stands on disk. Every refresh asks for it
-    // once per window, for a value this process itself wrote a moment ago; without this the answer
-    // came off disk each time, four providers times two windows times every tick. A null entry
+    // once per window, for a value this process itself wrote a moment ago; without this every window
+    // of every provider would read it off disk on every refresh. A null entry
     // means "looked, and there is none" - that answer is worth caching just as much.
     // Label is part of the key too: a provider can carry more than one WindowKind.Other series at
     // once (Cursor's per-model bars, its Grok Bot bar), and each needs its own "newest point on
