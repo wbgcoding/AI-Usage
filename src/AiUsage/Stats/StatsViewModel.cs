@@ -2328,7 +2328,7 @@ public sealed partial class StatsViewModel : ObservableObject
             lines.AddRange(pooled.Take(OtherModelsTooltipNames).Select(member =>
             {
                 var memberText = memberCost?.Invoke(member.Label) ?? "";
-                return $"{member.Label}: {member.Total.ToString("N0", CultureInfo.CurrentCulture)}" + (memberText.Length > 0 ? "  " + memberText : "");
+                return StatusTextMap.LabelValue(member.Label, member.Total.ToString("N0", CultureInfo.CurrentCulture)) + (memberText.Length > 0 ? "  " + memberText : "");
             }));
             if (pooled.Count > OtherModelsTooltipNames)
                 lines.Add(string.Format(CultureInfo.CurrentCulture, loc["Stats.Ring.MoreCount"], pooled.Count - OtherModelsTooltipNames));
@@ -2353,7 +2353,7 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             var name = StatsAggregator.MiddleEllipsis(StatsAggregator.ShortenProjectLabel(row.Label), StatsAggregator.ProjectLabelMaxChars);
             var costText = costOf?.Invoke(row) ?? "";
-            lines.Add($"{name}: {row.Total.ToString("N0", CultureInfo.CurrentCulture)}" + (costText.Length > 0 ? "  " + costText : ""));
+            lines.Add(StatusTextMap.LabelValue(name, row.Total.ToString("N0", CultureInfo.CurrentCulture)) + (costText.Length > 0 ? "  " + costText : ""));
         }
 
         if (pooled.Count > OtherProjectsTooltipNames)

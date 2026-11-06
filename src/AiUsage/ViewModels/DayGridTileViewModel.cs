@@ -317,7 +317,7 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
             var values = StatsAggregator.CacheShare(inRange).AsValues;
             text = _costView.Label(_costView.Sum(inRange));
             tooltip = _costView.TotalTooltip(
-                loc["Stats.Total"] + ": " + values.Sum().ToString("N0", CultureInfo.CurrentCulture) + " " + loc["Stats.TokenUnit"],
+                StatusTextMap.LabelValue(loc["Stats.Total"], values.Sum().ToString("N0", CultureInfo.CurrentCulture) + " " + loc["Stats.TokenUnit"]),
                 [loc["Stats.Cache.New"], loc["Stats.Cache.Write"], loc["Stats.Cache.Read"], loc["Stats.Cache.Output"]],
                 values, inRange);
         }

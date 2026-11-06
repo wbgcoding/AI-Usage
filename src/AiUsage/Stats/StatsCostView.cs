@@ -59,7 +59,7 @@ internal sealed class StatsCostView(CostService? service)
         var lines = new List<string>(labels.Count + 2);
         for (var i = 0; i < labels.Count && i < tokens.Count; i++)
         {
-            var line = labels[i] + ": " + tokens[i].ToString("N0", CultureInfo.CurrentCulture);
+            var line = StatusTextMap.LabelValue(labels[i], tokens[i].ToString("N0", CultureInfo.CurrentCulture));
             if (split is { AnyPriced: true } && tokens[i] > 0)
                 line += " \u00B7 " + Label(new CostSummary(split.AsParts[i], true, []));
             lines.Add(line);

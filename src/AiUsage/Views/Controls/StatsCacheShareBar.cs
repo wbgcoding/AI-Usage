@@ -51,7 +51,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         {
             var name = i < labels.Count ? labels[i] : "?";
             var percent = value * 100.0 / total;
-            return $"{name}: {StatusTextMap.FormatShare(percent, CultureInfo.CurrentCulture)}";
+            return StatusTextMap.LabelValue(name, StatusTextMap.FormatShare(percent, CultureInfo.CurrentCulture));
         }));
     }
 

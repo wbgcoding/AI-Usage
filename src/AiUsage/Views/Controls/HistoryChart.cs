@@ -488,7 +488,7 @@ public sealed class HistoryChart : FrameworkElement
             dc.DrawEllipse(dotBrush, null, new Point(px, py), 1.5, 1.5);
 
             var timeText = HoverTime(point.At, range);
-            lines[i] = $"{label}: {StatusTextMap.FormatUsagePercent(point.Percent)} · {timeText}";
+            lines[i] = StatusTextMap.LabelValue(label, StatusTextMap.FormatUsagePercent(point.Percent)) + " · " + timeText;
         }
 
         DrawCaptionBox(dc, string.Join("\n", lines), hover.X, width, plotHeight);
