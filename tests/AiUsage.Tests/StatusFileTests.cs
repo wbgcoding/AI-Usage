@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using AiUsage.Models;
 using AiUsage.Services;
 using Xunit;

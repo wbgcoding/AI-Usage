@@ -1,4 +1,4 @@
-﻿using AiUsage.Models;
+using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Providers.LocalLogin;
 using AiUsage.Services;
