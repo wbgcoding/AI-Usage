@@ -32,6 +32,21 @@ public class ClaudeCreditGrantTests
         Assert.Equal(new DateTimeOffset(2026, 11, 5, 0, 0, 0, TimeSpan.Zero), grant.NextExpiry);
     }
 
+    [Theory]
+    [InlineData(9971, 9970, 99.71)]   // a cent apart: one figure on the tile
+    [InlineData(9970, 9971, 99.70)]
+    [InlineData(9975, 9970, 99.70)]   // more than a cent: real paid credit, left as read
+    public void A_grant_remainder_a_cent_from_the_balance_takes_the_balance_figure(int balanceCents, int remainingCents, double expected)
+    {
+        var body = "{\"amount\":" + balanceCents + ",\"currency\":\"USD\",\"promo_tranches\":["
+            + Tranche(10000, remainingCents, "2026-12-03T00:00:00Z") + "]}";
+
+        var grant = ClaudeConsoleCreditParser.Parse(body, Now).Credit!.Grant!;
+
+        Assert.Equal((decimal)expected, grant.Remaining);
+        Assert.Equal(100m, grant.Granted);
+    }
+
     [Fact]
     public void An_expired_grant_no_longer_counts()
     {

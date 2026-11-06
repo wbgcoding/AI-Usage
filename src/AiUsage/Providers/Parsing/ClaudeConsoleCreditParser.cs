@@ -111,8 +111,9 @@ internal static class ClaudeConsoleCreditParser
                 && code.GetString() is { } text && CurrencyPattern.IsMatch(text)
                 ? text.ToUpperInvariant()
                 : DefaultCurrency;
-            var grant = ReadGrant(root, now ?? DateTimeOffset.UtcNow, out _);
-            return new ClaudeConsoleCreditReading(ClaudeConsoleCreditOutcome.Ok, new ClaudeApiCredit(cents / 100m, currency, grant));
+            var balance = cents / 100m;
+            var grant = AlignWithBalance(ReadGrant(root, now ?? DateTimeOffset.UtcNow, out _), balance);
+            return new ClaudeConsoleCreditReading(ClaudeConsoleCreditOutcome.Ok, new ClaudeApiCredit(balance, currency, grant));
         }
         catch (JsonException)
         {
@@ -180,6 +181,16 @@ internal static class ClaudeConsoleCreditParser
         }
 
         return granted > 0 ? new ClaudeCreditGrant(granted / 100m, remaining / 100m, nextExpiry) : null;
+    }
+
+    /// <summary>The console rounds the balance and a grant's remainder on their own (a balance of
+    /// $99.71 next to $99.70 left of the grant, the same money). A remainder within one cent of the
+    /// balance takes the balance figure, so the tile never shows two amounts a cent apart.</summary>
+    internal static ClaudeCreditGrant? AlignWithBalance(ClaudeCreditGrant? grant, decimal balance)
+    {
+        if (grant is null || grant.Remaining == balance || Math.Abs(grant.Remaining - balance) > 0.01m)
+            return grant;
+        return grant with { Remaining = Math.Clamp(balance, 0m, grant.Granted) };
     }
 
     internal static IReadOnlyList<string> ChangeNotes(string? organizationsJson, string? creditJson)
