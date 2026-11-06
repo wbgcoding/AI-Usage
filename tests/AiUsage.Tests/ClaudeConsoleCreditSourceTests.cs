@@ -1,5 +1,6 @@
 using AiUsage.Models;
 using AiUsage.Providers;
+using AiUsage.Storage;
 using Xunit;
 
 namespace AiUsage.Tests;
@@ -338,6 +339,175 @@ public class ClaudeConsoleCreditSourceTests
 
         Assert.Equal(7.25m, source.Current!.Amount);
         Assert.Equal([OrgId, secondOrg], asked);
+    }
+
+    private static StoredApiCredit Stored(ManualTime time, TimeSpan age, ClaudeCreditRoute route) => new()
+    {
+        Amount = 12.34m,
+        Currency = "USD",
+        Granted = 10m,
+        Remaining = 4m,
+        NextExpiry = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero),
+        ReadAt = time.GetUtcNow() - age,
+        Route = route,
+    };
+
+    [Fact]
+    public void Serves_the_stored_balance_at_start_while_it_is_younger_than_two_hours()
+    {
+        var time = new ManualTime();
+        var source = new ClaudeConsoleCreditSource(new FakeRunner().Run, null, time,
+            loadStored: () => Stored(time, TimeSpan.FromMinutes(119), ClaudeCreditRoute.ClaudeSignIn));
+
+        Assert.Equal(12.34m, source.Current!.Amount);
+        Assert.Equal("USD", source.Current.Currency);
+        Assert.Equal(4m, source.Current.Grant!.Remaining);
+        Assert.Equal(10m, source.Current.Grant.Granted);
+        Assert.Equal(ClaudeCreditRoute.ClaudeSignIn, source.CurrentRoute);
+    }
+
+    [Fact]
+    public async Task Does_not_serve_a_stored_balance_that_is_two_hours_old_but_still_asks_its_route_first()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner { Credits = CreditsRefused };
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var source = new ClaudeConsoleCreditSource(site.Run, console.AsConsole, time,
+            loadStored: () => Stored(time, TimeSpan.FromHours(2), ClaudeCreditRoute.Console));
+
+        Assert.Null(source.Current);
+
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(5.00m, source.Current!.Amount);
+        Assert.Equal(0, site.Calls);
+    }
+
+    [Fact]
+    public async Task A_stored_balance_still_lets_the_first_read_run_and_a_new_read_overwrites_it()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner();
+        var saved = new List<StoredApiCredit?>();
+        var source = new ClaudeConsoleCreditSource(site.Run, null, time,
+            loadStored: () => Stored(time, TimeSpan.FromMinutes(10), ClaudeCreditRoute.ClaudeSignIn), saveStored: saved.Add);
+        var changes = 0;
+        source.Changed += () => changes++;
+
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(18.40m, source.Current!.Amount);
+        Assert.Equal(1, changes);
+        var written = Assert.Single(saved);
+        Assert.Equal(18.40m, written!.Amount);
+        Assert.Equal(time.GetUtcNow(), written.ReadAt);
+        Assert.Equal(ClaudeCreditRoute.ClaudeSignIn, written.Route);
+        Assert.Null(written.Granted);
+    }
+
+    [Fact]
+    public async Task Saves_once_per_read_and_not_when_nothing_was_read()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner();
+        var saved = new List<StoredApiCredit?>();
+        var source = new ClaudeConsoleCreditSource(site.Run, null, time, saveStored: saved.Add);
+
+        await source.RefreshIfDueAsync();
+        await source.RefreshIfDueAsync();
+        Assert.Single(saved);
+
+        site.Credits = "{\"status\":\"failed\"}";
+        time.Advance(TimeSpan.FromMinutes(31));
+        await source.RefreshIfDueAsync();
+        Assert.Single(saved);
+    }
+
+    [Fact]
+    public async Task Console_sign_out_removes_the_stored_balance_of_the_console_route()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner { Credits = CreditsRefused };
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var saved = new List<StoredApiCredit?>();
+        var source = new ClaudeConsoleCreditSource(site.Run, console.AsConsole, time, saveStored: saved.Add);
+        await source.RefreshIfDueAsync();
+        Assert.Equal(ClaudeCreditRoute.Console, saved[^1]!.Route);
+
+        await source.DisconnectConsoleAsync();
+
+        Assert.Null(source.Current);
+        Assert.Null(saved[^1]);
+    }
+
+    [Fact]
+    public async Task Console_sign_out_removes_a_stored_console_balance_that_was_not_served()
+    {
+        var time = new ManualTime();
+        var saved = new List<StoredApiCredit?> { Stored(time, TimeSpan.FromHours(3), ClaudeCreditRoute.Console) };
+        var source = new ClaudeConsoleCreditSource(new FakeRunner().Run, new FakeRunner().AsConsole, time,
+            loadStored: () => saved[0], saveStored: saved.Add);
+
+        await source.DisconnectConsoleAsync();
+
+        Assert.Null(saved[^1]);
+    }
+
+    [Fact]
+    public async Task Console_sign_out_keeps_the_stored_balance_of_the_claude_route()
+    {
+        var time = new ManualTime();
+        var saved = new List<StoredApiCredit?>();
+        var source = new ClaudeConsoleCreditSource(new FakeRunner().Run, new FakeRunner().AsConsole, time, saveStored: saved.Add);
+        await source.RefreshIfDueAsync();
+        var count = saved.Count;
+
+        await source.DisconnectConsoleAsync();
+
+        Assert.Equal(count, saved.Count);
+        Assert.Equal(18.40m, source.Current!.Amount);
+    }
+
+    [Fact]
+    public void Ignores_a_stored_balance_with_a_bad_route_currency_or_a_read_time_in_the_future()
+    {
+        var time = new ManualTime();
+        var noRoute = Stored(time, TimeSpan.FromMinutes(1), ClaudeCreditRoute.None);
+        var badCurrency = Stored(time, TimeSpan.FromMinutes(1), ClaudeCreditRoute.Console);
+        badCurrency.Currency = "<script>";
+        var future = Stored(time, TimeSpan.FromMinutes(-30), ClaudeCreditRoute.Console);
+
+        foreach (var stored in new[] { noRoute, badCurrency, future })
+            Assert.Null(new ClaudeConsoleCreditSource(new FakeRunner().Run, null, time, loadStored: () => stored).Current);
+    }
+
+    [Fact]
+    public void A_failing_load_or_save_never_reaches_the_read()
+    {
+        var time = new ManualTime();
+        var source = new ClaudeConsoleCreditSource(new FakeRunner().Run, null, time,
+            loadStored: () => throw new InvalidOperationException("boom"), saveStored: _ => throw new InvalidOperationException("boom"));
+
+        Assert.Null(source.Current);
+        source.RefreshIfDueAsync().GetAwaiter().GetResult();
+        Assert.Equal(18.40m, source.Current!.Amount);
+    }
+
+    [Fact]
+    public void A_stored_balance_survives_the_settings_file()
+    {
+        var time = new ManualTime();
+        var settings = new AppSettings();
+        settings.Providers["claude"] = new ProviderSettings { ApiCredit = Stored(time, TimeSpan.Zero, ClaudeCreditRoute.Console) };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(settings, SettingsStore.JsonOptions);
+        var back = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json, SettingsStore.JsonOptions)!;
+
+        var kept = back.Providers["claude"].ApiCredit!;
+        Assert.Equal(12.34m, kept.Amount);
+        Assert.Equal(ClaudeCreditRoute.Console, kept.Route);
+        Assert.Contains("\"route\": \"Console\"", json);
+        Assert.DoesNotContain(OrgId, json);
     }
 
     [Theory]

@@ -61,12 +61,78 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     /// either site, so no hidden browser is started just to learn that.</param>
     internal ClaudeConsoleCreditSource(
         Func<string, CancellationToken, Task<string>>? siteRun, Func<ConsoleRunner>? createConsoleRunner, TimeProvider? time = null,
-        Func<bool>? hasProfile = null)
+        Func<bool>? hasProfile = null, Func<StoredApiCredit?>? loadStored = null, Action<StoredApiCredit?>? saveStored = null)
     {
         _siteRun = siteRun;
         _createConsoleRunner = createConsoleRunner;
         _time = time ?? TimeProvider.System;
         _hasProfile = hasProfile ?? (() => true);
+        _saveStored = saveStored;
+        TakeStored(loadStored);
+    }
+
+    private readonly Action<StoredApiCredit?>? _saveStored;
+
+    /// <summary>Takes over the balance of the last run: shown while it is younger than <see cref="KeepFor"/>,
+    /// and its route tells where to ask first either way. Anything unreadable is ignored.</summary>
+    private void TakeStored(Func<StoredApiCredit?>? load)
+    {
+        StoredApiCredit? stored;
+        try
+        {
+            stored = load?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Reading the stored API credit failed ({ex.GetType().Name}).");
+            return;
+        }
+
+        if (stored is null || stored.Route is not (ClaudeCreditRoute.ClaudeSignIn or ClaudeCreditRoute.Console)
+            || !StoredCurrency.IsMatch(stored.Currency ?? "") || Math.Abs(stored.Amount) > MaxStoredAmount)
+            return;
+
+        var now = _time.GetUtcNow();
+        if (stored.ReadAt.ToUniversalTime() > now + TimeSpan.FromMinutes(5))
+            return;
+
+        _preferredRoute = stored.Route;
+        if (now - stored.ReadAt >= KeepFor)
+            return;
+
+        ClaudeCreditGrant? grant = stored.Granted is { } granted && stored.Remaining is { } remaining
+            ? new ClaudeCreditGrant(granted, remaining, stored.NextExpiry)
+            : null;
+        _credit = new ClaudeApiCredit(stored.Amount, stored.Currency!.ToUpperInvariant(), grant);
+        _creditRoute = stored.Route;
+        _creditReadAt = stored.ReadAt;
+    }
+
+    private static readonly Regex StoredCurrency = new(@"\A[A-Za-z]{3}\z", RegexOptions.Compiled);
+    private const decimal MaxStoredAmount = 1_000_000_000m;
+
+    private static StoredApiCredit ToStored(ClaudeApiCredit credit, ClaudeCreditRoute route, DateTimeOffset readAt) => new()
+    {
+        Amount = credit.Amount,
+        Currency = credit.Currency,
+        Granted = credit.Grant?.Granted,
+        Remaining = credit.Grant?.Remaining,
+        NextExpiry = credit.Grant?.NextExpiry,
+        ReadAt = readAt.ToUniversalTime(),
+        Route = route,
+    };
+
+    /// <summary>Hands the new state to the settings; a failing write never reaches the read.</summary>
+    private void Persist(StoredApiCredit? stored)
+    {
+        try
+        {
+            _saveStored?.Invoke(stored);
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogError($"Storing the API credit failed ({ex.GetType().Name}).");
+        }
     }
 
     private readonly Func<bool> _hasProfile;
@@ -310,10 +376,12 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     private void Store(ClaudeApiCredit credit, ClaudeCreditRoute route)
     {
         bool changed;
+        StoredApiCredit stored;
         lock (_gate)
         {
             // A read that was already under way when the console was signed out must not bring its balance back.
-            if (route == ClaudeCreditRoute.Console && _consoleOff)
+            // Nor one that ends after the source was closed (the account signed out meanwhile).
+            if (_disposed || (route == ClaudeCreditRoute.Console && _consoleOff))
                 return;
 
             changed = _credit != credit || _creditRoute != route;
@@ -321,8 +389,11 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
             _creditRoute = route;
             _preferredRoute = route;
             _creditReadAt = _time.GetUtcNow();
+            stored = ToStored(credit, route, _creditReadAt);
         }
 
+        // Once per good read: the read time is what keeps the stored balance honest after a restart.
+        Persist(stored);
         if (changed)
             Changed?.Invoke();
     }
@@ -404,9 +475,11 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
 
         await pending;
         bool changed;
+        bool storedGoes;
         lock (_gate)
         {
             changed = _credit is not null && _creditRoute == ClaudeCreditRoute.Console;
+            storedGoes = changed || _preferredRoute == ClaudeCreditRoute.Console;
             if (changed)
             {
                 _credit = null;
@@ -417,6 +490,8 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
                 _preferredRoute = ClaudeCreditRoute.None;
         }
 
+        if (storedGoes)
+            Persist(null);
         if (changed)
             Changed?.Invoke();
     }

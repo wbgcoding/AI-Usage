@@ -205,7 +205,17 @@ public static class ProviderRegistry
             var consoleRunner = new WebSessionScriptRunner(ConsoleSessionFor(accountKey));
             return new ClaudeConsoleCreditSource.ConsoleRunner(consoleRunner.ExecuteScriptAsync, consoleRunner);
         }, hasProfile: () => Web.WebViewHost.ProfileExists(WebSessionFor(accountKey).ProfileFolderName)
-            || Web.WebViewHost.ProfileExists(ConsoleSessionFor(accountKey).ProfileFolderName));
+            || Web.WebViewHost.ProfileExists(ConsoleSessionFor(accountKey).ProfileFolderName),
+        loadStored: () => settings.Providers.TryGetValue(accountKey, out var own) ? own.ApiCredit : null,
+        saveStored: stored =>
+        {
+            // Only an entry that exists: this runs off the UI thread, which owns the dictionary itself.
+            if (settings.Providers.TryGetValue(accountKey, out var own))
+            {
+                own.ApiCredit = stored;
+                saveSettings(settings);
+            }
+        });
         runner.AttachCompanion(credit);
 
         return accountKey == ClaudeWebSession.ProviderId

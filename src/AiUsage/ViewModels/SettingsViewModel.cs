@@ -1393,6 +1393,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         copy.MachineId = "";
         copy.ImportedMachines = [];
         copy.WebUsagePaths = [];
+        foreach (var providerSettings in copy.Providers.Values)
+            providerSettings.ApiCredit = null;
         copy.Accounts = AppSettings.CreateDefaultAccounts();
         copy.CopilotAccountLogins = [];
         return copy;
@@ -2019,6 +2021,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             if (key.Contains('#') && !_settings.Accounts.ContainsKey(key))
                 continue;
+            // A balance read on this PC stays; one in a foreign file never comes along.
+            value.ApiCredit = previous.TryGetValue(key, out var kept) ? kept.ApiCredit : null;
             result[key] = value;
         }
 

@@ -487,6 +487,10 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            // The balance goes with the sign-in: the provider built next must not load it back.
+            if (_settings.Providers.TryGetValue(accountKey, out var storedOf))
+                storedOf.ApiCredit = null;
+
             // Only a web-backed account gets a fresh provider, and it gets one even when the teardown
             // above failed halfway: its old runner is gone either way, and a provider left on it
             // could never read again. The primary Claude account is rebuilt the same way and keeps

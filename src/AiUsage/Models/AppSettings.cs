@@ -476,9 +476,37 @@ public sealed class ProviderSettings
     /// every account connected.</summary>
     public bool Disconnected { get; set; }
 
+    /// <summary>The last Claude Console balance read for this account, kept so a restart shows it at
+    /// once instead of waiting for the hidden browsers. Only the balance numbers and the route that
+    /// delivered them, never an id or an address; null when none was read or the account signed out.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StoredApiCredit? ApiCredit { get; set; }
+
     /// <summary>How this tile's bars are colored: one of <see cref="BarColorModes"/>. Anything else, and
     /// a mode this provider cannot offer, reads back as Level (see <see cref="BarColorModes.Normalize"/>).</summary>
     public string BarColorMode { get; set; } = BarColorModes.Level;
+}
+
+/// <summary>One account's last good API credit balance as settings.json holds it (see
+/// <see cref="ProviderSettings.ApiCredit"/>).</summary>
+public sealed class StoredApiCredit
+{
+    public decimal Amount { get; set; }
+
+    public string Currency { get; set; } = "";
+
+    /// <summary>The free credit still listed, null when the console listed none.</summary>
+    public decimal? Granted { get; set; }
+
+    public decimal? Remaining { get; set; }
+
+    public DateTimeOffset? NextExpiry { get; set; }
+
+    /// <summary>When the balance was read (UTC); its age decides whether it is still shown.</summary>
+    public DateTimeOffset ReadAt { get; set; }
+
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+    public ClaudeCreditRoute Route { get; set; }
 }
 
 /// <summary>The ways a bar's filled part can be colored: by usage level (green, yellow, red), or split
