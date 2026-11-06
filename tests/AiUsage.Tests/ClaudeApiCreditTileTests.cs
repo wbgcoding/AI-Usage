@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.ViewModels;
@@ -43,6 +43,22 @@ public class ClaudeApiCreditTileTests
         var loc = LocalizationService.Instance;
         Assert.Contains(loc["Tile.ApiCredit.Label"], tile.ApiCreditText, StringComparison.Ordinal);
         Assert.Contains(new ClaudeApiCredit(18.40m, "USD").FormatAmount(loc.DisplayCulture), tile.ApiCreditText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_balance_sits_in_the_header_after_the_plan_and_is_named_in_its_tooltip()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        var amount = new ClaudeApiCredit(18.40m, "USD").FormatAmount(LocalizationService.Instance.DisplayCulture);
+
+        tile.Apply(Snapshot(new ClaudeApiCredit(18.40m, "USD")), Now);
+
+        Assert.Equal(" · " + amount, tile.HeaderCreditText);
+        Assert.Contains(tile.ApiCreditText, tile.NameTooltipText, StringComparison.Ordinal);
+
+        tile.Apply(Snapshot(new ClaudeApiCredit(0m, "USD")), Now);
+        Assert.Equal("", tile.HeaderCreditText);
+        Assert.DoesNotContain(LocalizationService.Instance["Tile.ApiCredit.Label"], tile.NameTooltipText, StringComparison.Ordinal);
     }
 
     [Theory]

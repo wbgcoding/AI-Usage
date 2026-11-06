@@ -9,14 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that shows how many times its plan price the API value is, with the plan and its price below (in euros with 19 % German VAT, in dollars as advertised). The tooltip shows the advertised, net and gross price and names the provider’s own pricing page and the date it was checked; the ratio compares without VAT. A plan whose tier the app cannot tell apart (ChatGPT Pro, Google AI Ultra) shows no price. Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
-- The Claude tile shows the API credit balance of your Claude Console as a plain text row. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
+- The Claude tile shows the API credit balance of your Claude Console in its header, small and grey right after the plan. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
 - In the settings, the Claude account has its own "Claude Console" row: it shows whether the console is signed in and the balance, and signs in or out of the console alone. The console keeps its own sign-in, apart from the Claude sign-in.
-- Under the API credit balance the Claude tile shows the free credit the Claude Console grants, such as the monthly credit of a Max plan, as a bar row like the usage windows: what is left beside its name, the used share and the time until the earliest grant ends on the right, and, once a few readings are in, when the credit will be used up at the current pace. Grants that overlap around the monthly change count together.
+- Under the usage bars the Claude tile shows the free credit the Claude Console grants, such as the monthly credit of a Max plan, as a bar row like the usage windows: what is left beside its name, the used share and the time until the earliest grant ends on the right, and, once a few readings are in, when the credit will be used up at the current pace. Grants that overlap around the monthly change count together.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
 ### Changed
 
 - The yellow and red warning signs next to a percentage are smaller and softer, so the number stays the eye catcher.
+- In the settings, the bar colours of the providers sit side by side in as many columns as fit, and the chosen refresh interval shows on the line of its label instead of beside the slider.
+- The About page no longer says "This is the latest version"; it only speaks up when an update is waiting.
 - In the settings, theme, size and the Mica option share one row; the note under "Use local sources only" is gone, and the weekly index copy explains itself in its tooltip.
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
 - The README is shorter.

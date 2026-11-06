@@ -290,7 +290,8 @@
                                    FontSize="{StaticResource Font.Size.Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text.Primary}"
                                    TextTrimming="CharacterEllipsis">
                             <Run Text="{Binding TitleName, Mode=OneWay}"/><Run Text="{Binding TitleAccountSuffix, Mode=OneWay}" Foreground="{DynamicResource Text.Secondary}"/><Run Text=" "/><Run Text="{Binding PlanText, Mode=OneWay}"
-                                 FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/>
+                                 FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/><Run Text="{Binding HeaderCreditText, Mode=OneWay}"
+                                 FontWeight="Normal" FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}"/>
                         </TextBlock>
                     </Button>
                 </Grid>
@@ -400,10 +401,6 @@
                         </ItemsControl.Style>
                     </ItemsControl>
 
-                    <!-- Claude only: the prepaid API balance of the account's console, one muted line. -->
-                    <TextBlock Text="{Binding ApiCreditText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
-                               Margin="0,0,0,6" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
-                               Visibility="{Binding ShowApiCredit, Converter={StaticResource BoolToVis}}"/>
                     <!-- The console's free credit grants (the monthly credit of a Max plan) as a bar row like the
                          usage windows: used of granted, what is left beside the label, when it runs out. -->
                     <Border Margin="0,0,0,6" Visibility="{Binding ShowApiGrant, Converter={StaticResource BoolToVis}}">

@@ -362,6 +362,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
                 lines.Add(label);
             if (HasSource)
                 lines.Add(loc.Format("Tile.SourceTip", SourceBadgeText));
+            if (ShowApiCredit)
+                lines.Add(ApiCreditText);
             return string.Join(Environment.NewLine, lines);
         }
     }
@@ -529,6 +531,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
+
+    /// <summary>" · $18.40" after the plan in the header: the balance needs no row of its own; the
+    /// name's tooltip says what the figure is.</summary>
+    public string HeaderCreditText => ShowApiCredit && _apiCredit is { } credit
+        ? " · " + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
+        : "";
 
     /// <summary>The console's free credit grants as one bar row like a usage window: used of granted
     /// (0 to 100 or 200 dollars), what is left beside the label, the time until the earliest grant
@@ -1887,6 +1895,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         }
 
         base.OnPropertyChanged(e);
+        if (e.PropertyName is nameof(ShowApiCredit))
+        {
+            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderCreditText)));
+            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(NameTooltipText)));
+        }
+
         if (e.PropertyName is nameof(HeaderDisplayName) or nameof(LastSuccessAgeText))
             base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(LastSuccessLine)));
     }
