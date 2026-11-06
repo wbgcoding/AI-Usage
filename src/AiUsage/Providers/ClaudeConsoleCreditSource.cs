@@ -41,6 +41,9 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
 
     private ClaudeApiCredit? _credit;
     private ClaudeCreditRoute _creditRoute;
+    // The route that delivered last. Unlike _creditRoute it outlives the balance's age, so the next
+    // read still knows where to ask first.
+    private ClaudeCreditRoute _preferredRoute;
     private bool _consoleOff;
     private DateTimeOffset _creditReadAt;
     private DateTimeOffset? _lastAttemptAt;
@@ -135,42 +138,13 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
                 _lastAttemptAt = _time.GetUtcNow();
 
             var ct = _lifetime.Token;
-            var step = Step.NotSignedIn;
-            if (_siteRun is not null)
+            foreach (var route in RouteOrder())
             {
-                (step, var stage) = await TryReadAsync(_siteRun, ClaudeCreditRoute.ClaudeSignIn, ct);
-                outcome.Add("claude.ai " + Word(step) + stage);
+                var step = route == ClaudeCreditRoute.Console
+                    ? await ReadViaConsoleAsync(outcome, ct)
+                    : await ReadViaSiteAsync(outcome, ct);
                 if (step is Step.Ok or Step.Blocked)
                     return;
-            }
-
-            if (_createConsoleRunner is null)
-                return;
-            if (ConsoleIsOff())
-            {
-                outcome.Add("console signed out");
-                return;
-            }
-            if (ConsoleIsPaused())
-            {
-                outcome.Add("console paused after not_signed_in");
-                return;
-            }
-
-            ConsoleRunner console;
-            lock (_gate)
-            {
-                if (_disposed || _consoleOff)
-                    return;
-                console = _console ??= _createConsoleRunner();
-            }
-
-            (step, var consoleStage) = await TryReadAsync(console.Run, ClaudeCreditRoute.Console, ct);
-            outcome.Add("console " + Word(step) + consoleStage);
-            if (step == Step.NotSignedIn)
-            {
-                lock (_gate)
-                    _consoleBlockedUntil = _time.GetUtcNow() + ConsoleBackoff;
             }
         }
         catch (Exception ex)
@@ -182,6 +156,63 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         {
             LogOutcome(outcome);
         }
+    }
+
+    /// <summary>The route that delivered last is asked first, the other one only when it did not
+    /// deliver: an account whose claude.ai login is no console login would otherwise pay for a refused
+    /// read on every round.</summary>
+    private ClaudeCreditRoute[] RouteOrder()
+    {
+        lock (_gate)
+        {
+            return _preferredRoute == ClaudeCreditRoute.Console
+                ? [ClaudeCreditRoute.Console, ClaudeCreditRoute.ClaudeSignIn]
+                : [ClaudeCreditRoute.ClaudeSignIn, ClaudeCreditRoute.Console];
+        }
+    }
+
+    private async Task<Step> ReadViaSiteAsync(List<string> outcome, CancellationToken ct)
+    {
+        if (_siteRun is null)
+            return Step.NotSignedIn;
+
+        var (step, stage) = await TryReadAsync(_siteRun, ClaudeCreditRoute.ClaudeSignIn, ct);
+        outcome.Add("claude.ai " + Word(step) + stage);
+        return step;
+    }
+
+    private async Task<Step> ReadViaConsoleAsync(List<string> outcome, CancellationToken ct)
+    {
+        if (_createConsoleRunner is null)
+            return Step.NotSignedIn;
+        if (ConsoleIsOff())
+        {
+            outcome.Add("console signed out");
+            return Step.NotSignedIn;
+        }
+        if (ConsoleIsPaused())
+        {
+            outcome.Add("console paused after not_signed_in");
+            return Step.NotSignedIn;
+        }
+
+        ConsoleRunner console;
+        lock (_gate)
+        {
+            if (_disposed || _consoleOff)
+                return Step.NotSignedIn;
+            console = _console ??= _createConsoleRunner();
+        }
+
+        var (step, stage) = await TryReadAsync(console.Run, ClaudeCreditRoute.Console, ct);
+        outcome.Add("console " + Word(step) + stage);
+        if (step == Step.NotSignedIn)
+        {
+            lock (_gate)
+                _consoleBlockedUntil = _time.GetUtcNow() + ConsoleBackoff;
+        }
+
+        return step;
     }
 
     private static string Word(Step step) => step switch
@@ -288,6 +319,7 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
             changed = _credit != credit || _creditRoute != route;
             _credit = credit;
             _creditRoute = route;
+            _preferredRoute = route;
             _creditReadAt = _time.GetUtcNow();
         }
 
@@ -380,6 +412,9 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
                 _credit = null;
                 _creditRoute = ClaudeCreditRoute.None;
             }
+
+            if (_preferredRoute == ClaudeCreditRoute.Console)
+                _preferredRoute = ClaudeCreditRoute.None;
         }
 
         if (changed)

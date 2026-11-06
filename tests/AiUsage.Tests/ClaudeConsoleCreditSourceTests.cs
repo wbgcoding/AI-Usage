@@ -136,6 +136,92 @@ public class ClaudeConsoleCreditSourceTests
         Assert.Equal(1, site.Calls);
     }
 
+    private const string CreditsRefused = "{\"status\":\"failed\",\"code\":\"403\"}";
+
+    [Fact]
+    public async Task Asks_the_console_first_once_it_was_the_route_that_delivered()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner { Credits = CreditsRefused };
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var source = new ClaudeConsoleCreditSource(site.Run, console.AsConsole, time);
+
+        await source.RefreshIfDueAsync();
+        Assert.Equal(ClaudeCreditRoute.Console, source.CurrentRoute);
+        var siteCalls = site.Calls;
+        var consoleCalls = console.Calls;
+
+        time.Advance(TimeSpan.FromMinutes(31));
+        console.Credits = CreditsOk(700);
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(7.00m, source.Current!.Amount);
+        Assert.Equal(siteCalls, site.Calls);
+        Assert.True(console.Calls > consoleCalls);
+    }
+
+    [Fact]
+    public async Task Falls_back_to_the_claude_session_when_the_preferred_console_does_not_deliver_and_prefers_it_then()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner { Credits = CreditsRefused };
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var source = new ClaudeConsoleCreditSource(site.Run, console.AsConsole, time);
+        await source.RefreshIfDueAsync();
+
+        site.Credits = CreditsOk(900);
+        console.Organizations = "{\"status\":\"failed\"}";
+        time.Advance(TimeSpan.FromMinutes(31));
+        var consoleCalls = console.Calls;
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(9.00m, source.Current!.Amount);
+        Assert.Equal(ClaudeCreditRoute.ClaudeSignIn, source.CurrentRoute);
+        Assert.Equal(consoleCalls + 1, console.Calls);
+
+        time.Advance(TimeSpan.FromMinutes(31));
+        await source.RefreshIfDueAsync();
+        Assert.Equal(consoleCalls + 1, console.Calls);
+    }
+
+    [Fact]
+    public async Task A_preferred_console_that_is_signed_out_falls_back_and_is_left_alone_afterwards()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner { Credits = CreditsRefused };
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var source = new ClaudeConsoleCreditSource(site.Run, console.AsConsole, time);
+        await source.RefreshIfDueAsync();
+
+        site.Credits = CreditsOk(900);
+        console.Organizations = NotSignedIn;
+        time.Advance(TimeSpan.FromMinutes(31));
+        await source.RefreshIfDueAsync();
+        var consoleCalls = console.Calls;
+        Assert.Equal(9.00m, source.Current!.Amount);
+
+        time.Advance(TimeSpan.FromMinutes(31));
+        await source.RefreshIfDueAsync();
+        Assert.Equal(consoleCalls, console.Calls);
+    }
+
+    [Fact]
+    public async Task A_blocked_answer_from_the_preferred_console_stops_the_read()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner { Credits = CreditsRefused };
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var source = new ClaudeConsoleCreditSource(site.Run, console.AsConsole, time);
+        await source.RefreshIfDueAsync();
+        var siteCalls = site.Calls;
+
+        console.Organizations = "{\"status\":\"blocked\"}";
+        time.Advance(TimeSpan.FromMinutes(31));
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(siteCalls, site.Calls);
+    }
+
     [Fact]
     public async Task Does_not_ask_a_signed_out_console_again_for_six_hours()
     {
