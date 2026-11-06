@@ -233,7 +233,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     /// own full path, not the shortened label a sighted reader sees on the bar - a screen reader has
     /// no truncated label to disambiguate two same-named folders under different parents.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<StatsProjectRow> rows) =>
-        string.Join("; ", rows.Select(row => $"{row.FullPath}: {row.Total.ToString(CultureInfo.CurrentCulture)}"));
+        string.Join("; ", rows.Select(row => StatusTextMap.LabelValue(row.FullPath, row.Total.ToString(CultureInfo.CurrentCulture))));
 
     public static readonly DependencyProperty TokenWordProperty = DependencyProperty.Register(
         nameof(TokenWord), typeof(string), typeof(StatsHorizontalBarChart), new PropertyMetadata(""));
@@ -275,9 +275,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var lines = new List<string>
         {
             row.FullPath,
-            string.IsNullOrEmpty(totalLabel) ? totalWithUnit : $"{totalLabel}: {totalWithUnit}",
+            string.IsNullOrEmpty(totalLabel) ? totalWithUnit : StatusTextMap.LabelValue(totalLabel, totalWithUnit),
             StatusTextMap.FormatShare(row.Percent, culture),
-            string.IsNullOrEmpty(activeLabel) ? activeText : $"{activeLabel}: {activeText}",
+            string.IsNullOrEmpty(activeLabel) ? activeText : StatusTextMap.LabelValue(activeLabel, activeText),
         };
         if (!string.IsNullOrEmpty(row.FormerPathsLine))
             lines.Add(row.FormerPathsLine);

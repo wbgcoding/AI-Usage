@@ -92,7 +92,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         // Only the shown span: a caller may hand in more days than it draws (the widget tile keeps a
         // year of weeks loaded and shows as many as fit).
         var total = days.Where(day => day.Day >= rangeStart && day.Day <= rangeEnd).Sum(day => day.Total);
-        return $"{StatsTooltipDateFormatter.FormatRange(rangeStart, rangeEnd, culture)}: {total.ToString("N0", culture)}";
+        return StatusTextMap.LabelValue(StatsTooltipDateFormatter.FormatRange(rangeStart, rangeEnd, culture), total.ToString("N0", culture));
     }
 
     /// <summary>The grid's own span, set by the caller and never clamped or extended here: it
@@ -982,11 +982,11 @@ public sealed class StatsMonthGrid : FrameworkElement
         foreach (var entry in hover.ByProvider)
         {
             var name = providerDisplayNames.GetValueOrDefault(entry.ProviderId, entry.ProviderId);
-            lines.Add($"{name}: {WithUnit(entry.Total)}");
+            lines.Add(StatusTextMap.LabelValue(name, WithUnit(entry.Total)));
         }
 
         var totalLine = WithUnit(hover.Total);
-        lines.Add(string.IsNullOrEmpty(totalLabel) ? totalLine : $"{totalLabel}: {totalLine}");
+        lines.Add(string.IsNullOrEmpty(totalLabel) ? totalLine : StatusTextMap.LabelValue(totalLabel, totalLine));
         if (!string.IsNullOrEmpty(hover.CostLine))
             lines.AddRange(hover.CostLine.Split('\n'));
         return lines;

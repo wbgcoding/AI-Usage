@@ -73,7 +73,7 @@ public sealed class StatsBarChart : FrameworkElement
 
     /// <summary>Pure so the summary text is unit testable without a visual tree.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<Bar> bars) =>
-        string.Join("; ", bars.Select(bar => $"{bar.Label}: {bar.StackedValues.Sum().ToString(CultureInfo.CurrentCulture)}"));
+        string.Join("; ", bars.Select(bar => StatusTextMap.LabelValue(bar.Label, bar.StackedValues.Sum().ToString(CultureInfo.CurrentCulture))));
 
     public static readonly DependencyProperty SeriesBrushesProperty = DependencyProperty.Register(
         nameof(SeriesBrushes), typeof(IReadOnlyList<Brush>), typeof(StatsBarChart),
@@ -967,7 +967,7 @@ public sealed class StatsBarChart : FrameworkElement
             for (var s = 0; s < bar.StackedValues.Count; s++)
             {
                 var name = s < seriesLabels.Count ? seriesLabels[s] : "?";
-                lines.Add($"{name}: {WithUnit(bar.StackedValues[s])}");
+                lines.Add(StatusTextMap.LabelValue(name, WithUnit(bar.StackedValues[s])));
             }
         }
         else

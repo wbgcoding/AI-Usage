@@ -85,7 +85,7 @@ public sealed class StatsRingChart : FrameworkElement
 
     /// <summary>Pure so the summary text is unit testable without a visual tree.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<Slice> slices) => string.Join(
-        "; ", slices.Select(slice => $"{slice.Label}: {slice.LegendText ?? StatusTextMap.FormatShare(slice.Percent, CultureInfo.CurrentCulture)}"));
+        "; ", slices.Select(slice => StatusTextMap.LabelValue(slice.Label, slice.LegendText ?? StatusTextMap.FormatShare(slice.Percent, CultureInfo.CurrentCulture))));
 
     /// <summary>The index of the largest slice by <see cref="Slice.Total"/> - the same slice the ring
     /// center draws by name and value, and the same one <see cref="RefreshAccessibleName"/> announces

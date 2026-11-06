@@ -130,6 +130,10 @@ public static class StatusTextMap
     /// ("42%" in English, "42 %" in German). Callers format and round the number themselves.</summary>
     public static string FormatPercent(string number) => LocalizationService.Instance.Format("Number.Percent", number);
 
+    /// <summary>A label and its value in the active language's own order and punctuation ("Total: 5" in
+    /// English, "Total : 5" in French) - the same <c>Format.LabelValue</c> every tooltip and spoken name uses.</summary>
+    public static string LabelValue(string label, string value) => LocalizationService.Instance.Format("Format.LabelValue", label, value);
+
     /// <summary>A share with one decimal at most, written in the active language's percent convention.</summary>
     public static string FormatShare(double percent, CultureInfo culture) =>
         FormatPercent(percent.ToString("0.#", culture));
