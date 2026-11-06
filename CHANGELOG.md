@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The yellow and red warning signs next to a percentage are smaller and softer, so the number stays the eye catcher.
-- In the settings, the bar colours of the providers sit side by side in as many columns as fit, and the chosen refresh interval shows on the line of its label instead of beside the slider.
+- In the settings, the bar colours of the providers sit in two columns, and the chosen refresh interval shows on the line of its label instead of beside the slider.
 - The About page no longer says "This is the latest version"; it only speaks up when an update is waiting.
 - In the settings, theme, size and the Mica option share one row; the note under "Use local sources only" is gone, and the weekly index copy explains itself in its tooltip.
 - The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
