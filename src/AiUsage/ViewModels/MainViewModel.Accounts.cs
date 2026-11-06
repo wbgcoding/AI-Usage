@@ -266,6 +266,7 @@ public sealed partial class MainViewModel
 
             accountGone = true;
             _scheduler.RemoveProvider(accountKey);
+            UnregisterProvider(accountKey);
             _tilesById.Remove(accountKey);
             Tiles.Remove(tile);
             DisplayRows.Remove(tile);

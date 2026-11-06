@@ -640,15 +640,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void RegisterProvider(IUsageProvider provider)
     {
         var key = provider.AccountKey;
+        UnregisterProvider(key);
         _providersByKey[key] = provider;
-        if (_creditSubscriptions.Remove(key, out var old))
-            old.Provider.ApiCreditChanged -= old.Handler;
         if (provider is ClaudeProvider claude)
         {
             Action handler = () => OnApiCreditChanged(key);
             claude.ApiCreditChanged += handler;
             _creditSubscriptions[key] = (claude, handler);
         }
+    }
+
+    /// <summary>Lets go of the provider of a removed account: the lookup map and its balance
+    /// subscription would otherwise keep it alive for the rest of the run.</summary>
+    private void UnregisterProvider(string accountKey)
+    {
+        _providersByKey.Remove(accountKey);
+        if (_creditSubscriptions.Remove(accountKey, out var old))
+            old.Provider.ApiCreditChanged -= old.Handler;
     }
 
     /// <summary>Builds one tile for <paramref name="provider"/>, wires its events and adds it to both
