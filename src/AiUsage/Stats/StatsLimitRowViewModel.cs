@@ -9,6 +9,10 @@ public sealed record StatsLimitRowViewModel(
 {
     /// <summary>The bar's color step: red once the limit was reached, amber from 80 percent.</summary>
     public string Level => ReachedCount > 0 ? "Crit" : HighestPercent >= 80 ? "Warn" : "Ok";
+
+    /// <summary>What a screen reader announces for the row: the window's name, then how often it was
+    /// reached and the detail, joined in the label-value order and punctuation of the current language.</summary>
+    public string AutomationText => Services.LocalizationService.Instance.Format("Format.LabelValue", Label, ReachedText + ", " + DetailText);
 }
 
 /// <summary>One provider's windows in the limits section, under the provider's name, and the line

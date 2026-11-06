@@ -613,15 +613,7 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemContainerStyle>
                                             <Style TargetType="ContentPresenter">
-                                                <Setter Property="AutomationProperties.Name">
-                                                    <Setter.Value>
-                                                        <MultiBinding StringFormat="{}{0} {1}: {2}">
-                                                            <Binding Path="Project"/>
-                                                            <Binding Path="Start"/>
-                                                            <Binding Path="Tokens"/>
-                                                        </MultiBinding>
-                                                    </Setter.Value>
-                                                </Setter>
+                                                <Setter Property="AutomationProperties.Name" Value="{Binding AutomationText, Mode=OneWay}"/>
                                             </Style>
                                         </ItemsControl.ItemContainerStyle>
                                         <ItemsControl.ItemTemplate>
@@ -796,15 +788,7 @@
                                                         <ItemsControl ItemsSource="{Binding Rows}">
                                                             <ItemsControl.ItemContainerStyle>
                                                                 <Style TargetType="ContentPresenter">
-                                                                    <Setter Property="AutomationProperties.Name">
-                                                                        <Setter.Value>
-                                                                            <MultiBinding StringFormat="{}{0}: {1}, {2}">
-                                                                                <Binding Path="Label"/>
-                                                                                <Binding Path="ReachedText"/>
-                                                                                <Binding Path="DetailText"/>
-                                                                            </MultiBinding>
-                                                                        </Setter.Value>
-                                                                    </Setter>
+                                                                    <Setter Property="AutomationProperties.Name" Value="{Binding AutomationText, Mode=OneWay}"/>
                                                                 </Style>
                                                             </ItemsControl.ItemContainerStyle>
                                                             <ItemsControl.ItemTemplate>
