@@ -631,7 +631,7 @@ public sealed class StatsRingChart : FrameworkElement
                 null, rimPen, new Rect(legendX - 2, legendTop + _focusedIndex * rowHeight, Math.Max(0, width - legendX), rowHeight));
         }
 
-        DrawCenterText(drawingContext, slices, brushes, center, radius, strokeThickness, CenterTextScale(diameter), dpi, typeface);
+        DrawCenterText(drawingContext, slices, center, radius, strokeThickness, CenterTextScale(diameter), dpi, typeface);
 
         DrawLegend(drawingContext, slices, brushes, legendStart, width, height, LegendTextScale(diameter, height, slices.Count), dpi, typeface);
     }
@@ -655,7 +655,7 @@ public sealed class StatsRingChart : FrameworkElement
     /// returns out of <see cref="OnRender"/>, so this is never called with data that could reach that
     /// state.</summary>
     private void DrawCenterText(
-        DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes,
+        DrawingContext dc, IReadOnlyList<Slice> slices,
         Point center, double radius, double strokeThickness, double textScale, double dpi, Typeface typeface)
     {
         var nameBaseSize = CenterNameBaseFontSize * textScale;

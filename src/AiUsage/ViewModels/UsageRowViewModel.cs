@@ -323,7 +323,7 @@ public partial class UsageRowViewModel : ObservableObject
     }
 
     /// <summary>The below-the-time sentence switch changed: the tooltip line appears or goes at once.</summary>
-    internal void SetShowPaceBelowHint(bool show, DateTimeOffset now)
+    internal void SetShowPaceBelowHint(bool show)
     {
         _showPaceBelowHint = show;
         OnPropertyChanged(nameof(PaceText));

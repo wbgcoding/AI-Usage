@@ -1124,9 +1124,7 @@ public sealed partial class StatsViewModel : ObservableObject
             RecomputeFrom(_sourceRecords);
     }
 
-    /// <summary>Keeps what the active filters let through.</summary>
-    private IReadOnlyList<StatsRecord> ApplyFilters(IReadOnlyList<StatsRecord> all) => CurrentFilter().Apply(Merged(all));
-
+    /// <summary>Keeps the sessions the active filters let through.</summary>
     private IReadOnlyList<StatsSessionRecord> ApplyFilters(IReadOnlyList<StatsSessionRecord> all) => CurrentFilter().Apply(Merged(all));
 
     private RowFilter CurrentFilter() => new([.. _selectedProviders], SelectedModelFilter, SelectedProjectFilter);

@@ -148,7 +148,7 @@ public class WindowLengthsTests
         var onText = onPace.PaceText;
 
         foreach (var row in new[] { below, above, onPace })
-            row.SetShowPaceBelowHint(false, Now);
+            row.SetShowPaceBelowHint(false);
 
         Assert.Equal("", below.PaceText);
         Assert.Equal("", below.BarTooltipText);
@@ -156,7 +156,7 @@ public class WindowLengthsTests
         Assert.Equal(aboveText, above.PaceText);
         Assert.Equal(onText, onPace.PaceText);
 
-        below.SetShowPaceBelowHint(true, Now);
+        below.SetShowPaceBelowHint(true);
         Assert.NotEqual("", below.PaceText);
         Assert.Contains(below.PaceText, below.BarTooltipText);
     }

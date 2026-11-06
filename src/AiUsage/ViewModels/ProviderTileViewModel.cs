@@ -869,9 +869,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     internal void ApplyShowPaceBelowHint(bool show)
     {
         _showPaceBelowHint = show;
-        var now = DateTimeOffset.Now;
         foreach (var row in Rows)
-            row.SetShowPaceBelowHint(show, now);
+            row.SetShowPaceBelowHint(show);
     }
 
     /// <summary>Shows or hides the time marker on every row at once, without a fetch.</summary>
