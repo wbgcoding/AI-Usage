@@ -4,7 +4,7 @@ namespace AiUsage.Web;
 
 /// <summary>
 /// Checks whether the WebView2 runtime is installed. This class only probes and never downloads
-/// anything; a missing runtime is the "RuntimeMissing" state, where the app offers to install it
+/// anything; on a missing runtime the sign-in window shows its own panel, where the app offers to install it
 /// through Microsoft's signed bootstrapper (see WebViewRuntimeInstaller), with a link to Microsoft's
 /// own download page as the manual alternative.
 /// </summary>

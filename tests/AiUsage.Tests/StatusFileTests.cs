@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AiUsage.Models;
 using AiUsage.Services;
 using Xunit;
@@ -121,7 +121,6 @@ public sealed class StatusFileTests : IDisposable
     [InlineData(ProviderStatus.Blocked, "signin")]
     [InlineData(ProviderStatus.SourceUnavailable, "unavailable")]
     [InlineData(ProviderStatus.NoLocalData, "unavailable")]
-    [InlineData(ProviderStatus.RuntimeMissing, "unavailable")]
     public void EveryProviderStateMapsToOneStatusWord(ProviderStatus status, string word) =>
         Assert.Equal(word, StatusFileWriter.StatusWord(status));
 

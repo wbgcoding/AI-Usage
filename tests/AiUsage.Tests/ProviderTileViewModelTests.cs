@@ -1298,16 +1298,6 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
-    public void RuntimeMissingExposesDownloadAction()
-    {
-        var tile = new ProviderTileViewModel("claude", "Claude");
-        tile.Apply(Snapshot(ProviderStatus.RuntimeMissing), Now);
-
-        Assert.True(tile.HasAction);
-        Assert.Equal("Downloadseite öffnen", tile.ActionLabelText);
-    }
-
-    [Fact]
     public void OkStatusHasNoAction()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");

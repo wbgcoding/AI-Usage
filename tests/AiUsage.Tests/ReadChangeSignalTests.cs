@@ -1,4 +1,4 @@
-using AiUsage.Models;
+﻿using AiUsage.Models;
 using AiUsage.Providers;
 using AiUsage.Providers.LocalLogin;
 using AiUsage.Services;
@@ -70,7 +70,6 @@ public class ReadChangeSignalTests
     [InlineData(ProviderStatus.NoLocalData)]
     [InlineData(ProviderStatus.Blocked)]
     [InlineData(ProviderStatus.SourceUnavailable)]
-    [InlineData(ProviderStatus.RuntimeMissing)]
     [InlineData(ProviderStatus.Stale)]
     public void An_empty_snapshot_of_a_routine_state_is_no_change(ProviderStatus status) =>
         Assert.Empty(Report(Snapshot(status)));

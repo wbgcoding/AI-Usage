@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace AiUsage.Services;
@@ -28,8 +28,6 @@ public static class StatusTextMap
         ["Status_Offline_Reason"] = "State.Offline.Reason",
         ["Status_UnreadableAnswer_Reason"] = "State.UnreadableAnswer.Reason",
         ["Status_SignOutIncomplete_Reason"] = "State.SignOutIncomplete.Reason",
-        ["Status_RuntimeMissing_Headline"] = "State.RuntimeMissing.Head",
-        ["Status_RuntimeMissing_Reason"] = "State.RuntimeMissing.Reason",
         ["Status_Failed_Headline"] = "State.Failed.Head",
         ["Status_Stale_CodexLocal_Reason"] = "Tile.CodexLocalHint",
         ["Status_Failed_Reason"] = "State.Failed.Reason",
@@ -45,7 +43,6 @@ public static class StatusTextMap
         ["Status_Failed_Network_Reason"] = "State.Failed.Network.Reason",
         ["Action_SignIn"] = "State.NotSignedIn.Action",
         ["Action_FetchNow"] = "State.Stale.Action",
-        ["Action_OpenWebView2Download"] = "State.RuntimeMissing.Action",
         ["Action_Retry"] = "Action.RefreshNow",
         ["Window_FiveHour"] = "Window.FiveHour",
         ["Window_Weekly"] = "Window.Weekly",

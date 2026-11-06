@@ -1,4 +1,4 @@
-using AiUsage.Models;
+﻿using AiUsage.Models;
 
 namespace AiUsage.Services;
 
@@ -44,7 +44,6 @@ public static class ErrorPresenter
             ProviderStatus.SourceUnavailable => ("Status_SourceUnavailable_Headline", "Status_SourceUnavailable_Reason", null),
             ProviderStatus.NotSignedIn => ("Status_NotSignedIn_Headline", "Status_NotSignedIn_Reason", "Action_SignIn"),
             ProviderStatus.Blocked => ("Status_Blocked_Headline", "Status_Blocked_Reason", canSignInOnWeb ? "Action_SignIn" : null),
-            ProviderStatus.RuntimeMissing => ("Status_RuntimeMissing_Headline", "Status_RuntimeMissing_Reason", "Action_OpenWebView2Download"),
             ProviderStatus.Failed => FailedKeys(error),
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, message: null),
         };
