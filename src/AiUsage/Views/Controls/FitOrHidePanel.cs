@@ -58,6 +58,10 @@ public sealed class FitOrHidePanel : Panel
         var children = InternalChildren;
         var desired = _natural.Length == children.Count ? _natural : new double[children.Count];
         var (shown, _) = Fit(desired, finalSize.Width);
+        // A smaller text beside the label sits on the label's baseline, not on its bottom edge.
+        double? labelBaseline = children.Count > 0 && children[0] is TextBlock label
+            ? finalSize.Height - Math.Min(label.DesiredSize.Height, finalSize.Height) + TextBaseline.Of(label)
+            : null;
         var x = 0.0;
         for (var i = 0; i < children.Count; i++)
         {
@@ -69,12 +73,15 @@ public sealed class FitOrHidePanel : Panel
             }
 
             var width = i == 0 ? FirstWidth(desired, shown, finalSize.Width) : desired[i];
-            // Bottom aligned (a smaller text on the label's baseline region) unless the child asks to
-            // be centred, like the tile header's balance beside the name.
+            // Centred when the child asks for it, like the tile header's balance beside the name; a later
+            // text on the label's baseline; anything else bottom aligned.
             var height = Math.Min(child.DesiredSize.Height, finalSize.Height);
-            var top = child is FrameworkElement { VerticalAlignment: VerticalAlignment.Center }
-                ? (finalSize.Height - height) / 2
-                : finalSize.Height - height;
+            var top = child switch
+            {
+                FrameworkElement { VerticalAlignment: VerticalAlignment.Center } => (finalSize.Height - height) / 2,
+                TextBlock text when i > 0 && labelBaseline is { } baseline => baseline - TextBaseline.Of(text),
+                _ => finalSize.Height - height,
+            };
             child.Arrange(new Rect(x, Math.Max(0, top), width, height));
             x += width + Gap;
         }

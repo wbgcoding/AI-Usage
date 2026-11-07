@@ -14,7 +14,7 @@
         <!-- The right side of the header: alert icons, the percent, and the detail text carried in the
              ContentControl's Tag (the full text or the short one, see HeaderRowPanel). -->
         <DataTemplate x:Key="HeaderRightSide">
-            <StackPanel Orientation="Horizontal">
+            <controls:BaselineStackPanel>
                 <Path Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
                       Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
                       Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
@@ -49,7 +49,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=ContentControl}}" Margin="8,0,0,0" VerticalAlignment="Bottom"
+                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=ContentControl}}" Margin="8,0,0,0"
                            FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Small}"
                            Typography.NumeralAlignment="Tabular"
                            Foreground="{DynamicResource Text.Muted}">
@@ -63,7 +63,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-            </StackPanel>
+            </controls:BaselineStackPanel>
         </DataTemplate>
         <vm:MarkerPositionConverter x:Key="MarkerPositionConverter"/>
         <Style x:Key="LevelFillStyle" TargetType="Rectangle">
@@ -191,7 +191,7 @@
                 <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"
                            Foreground="{DynamicResource Text.Primary}"/>
-                <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip}" VerticalAlignment="Bottom"
+                <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip}"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                            Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
                     <TextBlock.Style>
@@ -207,7 +207,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <TextBlock Text="{Binding ForecastText}" VerticalAlignment="Bottom"
+                <TextBlock Text="{Binding ForecastText}"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                            Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
                     <TextBlock.Style>

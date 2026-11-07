@@ -40,6 +40,56 @@ public class TileLayoutTests
         Assert.True(Math.Abs(nameLeft - barLeft) <= 0.5, $"name starts at {nameLeft}, bar starts at {barLeft}");
     }
 
+    // Measured before the fix: "noch 163,00 $" sat 0.25 px below "Gratis-Guthaben" and the countdown
+    // 0.5 px below the percent, because the smaller texts were bottom aligned.
+    [Fact]
+    public void SmallerRowTextsSitOnTheBaselineOfTheTextBesideThem()
+    {
+        var rows = RunOnSta(() => WithTile(WithGrant, (host, tile) =>
+            FindAll<UsageBar>(tile).Select(bar =>
+            {
+                double BaselineOf(TextBlock text) =>
+                    text.TransformToAncestor(host).Transform(new Point(0, 0)).Y + text.FontFamily.Baseline * text.FontSize;
+                var shown = FindAll<TextBlock>(bar).Where(t => t.ActualHeight > 0 && t.ActualWidth > 0 && !string.IsNullOrEmpty(t.Text)).ToList();
+                var label = shown.First();
+                var left = shown.Skip(1).TakeWhile(t => !t.Text.Contains('%', StringComparison.Ordinal)).ToList();
+                var percent = shown.First(t => t.Text.Contains('%', StringComparison.Ordinal));
+                var afterPercent = shown.SkipWhile(t => t != percent).Skip(1).TakeWhile(t => !t.Text.Contains('%', StringComparison.Ordinal)).ToList();
+                return (Label: label.Text,
+                    Left: left.Select(t => BaselineOf(t) - BaselineOf(label)).ToList(),
+                    Right: afterPercent.Select(t => BaselineOf(t) - BaselineOf(percent)).ToList());
+            }).ToList()));
+
+        Assert.Contains(rows, row => row.Left.Count > 0);
+        Assert.Contains(rows, row => row.Right.Count > 0);
+        foreach (var row in rows)
+        {
+            Assert.All(row.Left, offset => Assert.True(Math.Abs(offset) < 0.01, $"{row.Label}: left text off its label's baseline by {offset:0.00} px"));
+            Assert.All(row.Right, offset => Assert.True(Math.Abs(offset) < 0.01, $"{row.Label}: detail off the percent's baseline by {offset:0.00} px"));
+        }
+    }
+
+    private static ProviderTileViewModel WithGrant()
+    {
+        var viewModel = new ProviderTileViewModel("claude", "Claude");
+        viewModel.Apply(new ProviderSnapshot(
+            ProviderId: "claude",
+            Windows:
+            [
+                new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300),
+                new UsageWindow("Window_Weekly", WindowKind.Weekly, 63, Now.AddDays(3), 10080),
+            ],
+            PlanType: null,
+            SourceKind: SourceKind.LocalFile,
+            FetchedAt: Now,
+            DataTimestamp: Now,
+            Status: ProviderStatus.Ok,
+            Error: null,
+            Diagnostics: []) { ApiCredit = new ClaudeApiCredit(18.40m, "USD", new ClaudeCreditGrant(200m, 163m, Now.AddDays(12))) }, Now);
+        viewModel.Density = TileDensity.Full;
+        return viewModel;
+    }
+
     // A Full tile with two bar rows and the history chart measured 209.83 px before the tile padding
     // dropped from 12 to 8 and the row and body gaps tightened. The denser layout has to save at least
     // 12 px of that (about 6 percent).
