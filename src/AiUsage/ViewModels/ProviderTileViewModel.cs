@@ -1397,7 +1397,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     internal Action<string> CopyToClipboard { get; set; } = text => Clipboard.SetText(text);
 
     [RelayCommand]
-    private void CopyDetails() => ClipboardHelper.SetTextSafely(DiagnosticsText, CopyToClipboard);
+    private void CopyDetails() => ClipboardHelper.SetTextSafely(PathSanitizer.Sanitize(DiagnosticsText), CopyToClipboard);
 
     /// <summary>Backs the context menu's "open usage page" entry - disabled rather than hidden for a
     /// provider <see cref="ProviderLinks"/> has no address for, since a greyed entry explains itself

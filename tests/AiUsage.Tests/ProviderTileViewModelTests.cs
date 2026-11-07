@@ -1621,6 +1621,21 @@ public class ProviderTileViewModelTests
     }
 
     [Fact]
+    public void CopyDetailsSanitizesWhatReachesTheClipboardButNotWhatIsShown()
+    {
+        var copied = "";
+        var viewModel = new ProviderTileViewModel("claude", "Claude") { CopyToClipboard = text => copied = text };
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var line = $"Read {profile}\\.claude failed for ann" + "@example.com with Bearer abcDEF123456 and refresh_token=r-12345&x=1";
+        viewModel.Apply(Snapshot(ProviderStatus.NoLocalData) with { Windows = [], Diagnostics = [line] }, Now);
+
+        viewModel.CopyDetailsCommand.Execute(null);
+
+        Assert.Equal(line, viewModel.DiagnosticsText);
+        Assert.Equal("Read <user>\\.claude failed for {email} with Bearer {token} and refresh_token={token}&x=1", copied);
+    }
+
+    [Fact]
     public void CopyDetailsRetriesOnceWhenTheClipboardIsMomentarilyLocked()
     {
         var attempts = 0;
