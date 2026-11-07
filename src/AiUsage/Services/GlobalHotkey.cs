@@ -265,7 +265,7 @@ public sealed class GlobalHotkey : IDisposable
         if (key is >= Key.D0 and <= Key.D9)
             return ((int)key - (int)Key.D0).ToString(CultureInfo.InvariantCulture);
         if (key is >= Key.NumPad0 and <= Key.NumPad9)
-            return "Num " + ((int)key - (int)Key.NumPad0).ToString(CultureInfo.InvariantCulture);
+            return LocalizationService.Instance.Format("Key.NumPad", ((int)key - (int)Key.NumPad0).ToString(CultureInfo.InvariantCulture));
 
         var resourceKey = key switch
         {

@@ -220,6 +220,7 @@
   <data name="Key.Alt" xml:space="preserve"><value>Alt</value></data>
   <data name="Key.Shift" xml:space="preserve"><value>Umschalt</value></data>
   <data name="Key.Win" xml:space="preserve"><value>Win</value></data>
+  <data name="Key.NumPad" xml:space="preserve"><value>Num {0}</value></data>
   <data name="Key.PageUp" xml:space="preserve"><value>Bild auf</value></data>
   <data name="Key.PageDown" xml:space="preserve"><value>Bild ab</value></data>
   <data name="Key.Home" xml:space="preserve"><value>Pos1</value></data>

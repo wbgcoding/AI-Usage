@@ -160,6 +160,8 @@ public class GlobalHotkeyTests
     [Theory]
     [InlineData("de", "Ctrl+Alt+D1", "Strg+Alt+1")]
     [InlineData("en", "Ctrl+Alt+NumPad7", "Ctrl+Alt+Num 7")]
+    [InlineData("fr", "Ctrl+Alt+NumPad7", "Ctrl+Alt+Pavé num. 7")]
+    [InlineData("ja", "Ctrl+Alt+NumPad7", "Ctrl+Alt+テンキー 7")]
     [InlineData("de", "Ctrl+Next", "Strg+Bild ab")]
     [InlineData("en", "Ctrl+Prior", "Ctrl+Page Up")]
     [InlineData("de", "Win+Return", "Win+Eingabe")]
