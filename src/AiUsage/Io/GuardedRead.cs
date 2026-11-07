@@ -6,9 +6,10 @@ namespace AiUsage.Io;
 /// never through a link, never more than a stated size.</summary>
 internal static class GuardedRead
 {
-    /// <summary>True for a fully qualified path that is not a UNC path in any spelling (<c>\\host\share</c>,
-    /// <c>//host/share</c>, <c>\\?\UNC\...</c>, <c>\\.\</c>). Decided by the text alone, so nothing is
-    /// sent to a share to find out.</summary>
+    /// <summary>True for a fully qualified path rooted at a drive letter (<c>X:\</c> or <c>X:/</c>). Every
+    /// other spelling is refused, the UNC ones (<c>\\host\share</c>, <c>//host/share</c>,
+    /// <c>\\?\UNC\...</c>, <c>\\.\</c>) and the NT object forms (<c>\??\UNC\...</c>, <c>\??\C:\...</c>)
+    /// alike. Decided by the text alone, so nothing is sent to a share to find out.</summary>
     internal static bool IsLocalPath(string? path)
     {
         if (string.IsNullOrEmpty(path))
@@ -16,7 +17,8 @@ internal static class GuardedRead
 
         try
         {
-            return !(path.Length >= 2 && path[0] is '\\' or '/' && path[1] is '\\' or '/') && Path.IsPathFullyQualified(path);
+            return path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '\\' or '/'
+                && Path.IsPathFullyQualified(path);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
         {
