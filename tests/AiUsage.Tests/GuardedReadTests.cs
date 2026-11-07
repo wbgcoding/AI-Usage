@@ -57,6 +57,17 @@ public sealed class GuardedReadTests
     }
 
     [Fact]
+    public void TryReadSmallText_sizes_its_buffer_by_the_file_not_by_the_limit()
+    {
+        var path = Path.Combine(_root, "tiny.txt");
+        File.WriteAllText(path, "ok");
+
+        // A buffer of limit + 1 bytes would overflow here; one sized by the file does not.
+        Assert.True(GuardedRead.TryReadSmallText(path, int.MaxValue, out var text));
+        Assert.Equal("ok", text);
+    }
+
+    [Fact]
     public void TryReadSmallText_refuses_a_symbolic_link()
     {
         var target = Path.Combine(_root, "target.txt");

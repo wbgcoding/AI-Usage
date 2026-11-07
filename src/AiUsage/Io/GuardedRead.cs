@@ -169,12 +169,13 @@ internal static class GuardedRead
             if (!OpenedFileIsTheChecked(stream.SafeFileHandle, Path.GetFullPath(path)))
                 return false;
 
-            var buffer = new byte[maxBytes + 1];
+            // One byte more than the file held at the check: a file that grew since is still caught below.
+            var buffer = new byte[(int)Math.Min(info.Length, maxBytes) + 1];
             var total = 0;
             int read;
             while (total < buffer.Length && (read = stream.Read(buffer, total, buffer.Length - total)) > 0)
                 total += read;
-            if (total > maxBytes)
+            if (total >= buffer.Length)
                 return false;
 
             using var reader = new StreamReader(new MemoryStream(buffer, 0, total), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
