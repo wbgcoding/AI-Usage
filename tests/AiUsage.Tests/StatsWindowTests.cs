@@ -923,18 +923,15 @@ public class StatsWindowTests
     }
 
     [Fact]
-    public void The_color_by_picker_shares_the_first_breakdown_row_with_the_token_counts()
+    public void The_color_by_picker_sits_on_the_breakdown_header_beside_the_grouping()
     {
         RunInWindow(null, (window, _) =>
         {
             var colorRow = (StackPanel)window.ColorByCombo.Parent;
-            var row = (Grid)colorRow.Parent;
-            var body = (StackPanel)row.Parent;
-            Assert.Same(row, body.Children[0]);
-            Assert.Equal(1, Grid.GetColumn(colorRow));
-            Assert.Equal(HorizontalAlignment.Right, colorRow.HorizontalAlignment);
-            var counts = Assert.Single(row.Children.OfType<ItemsControl>());
-            Assert.Equal(0, Grid.GetColumn(counts));
+            var header = (StackPanel)colorRow.Parent;
+            Assert.Same(header, window.BreakdownSection.HeaderContent);
+            Assert.Same(window.GroupingCombo.Parent, header);
+            Assert.Equal(Orientation.Horizontal, header.Orientation);
         });
     }
 

@@ -54,8 +54,6 @@ public partial class StatsWindow : Window
         _settingsStore = settingsStore;
         if (settings is not null)
         {
-            _viewModel.AccountCountOf = providerId =>
-                settings.Providers.Keys.Count(key => ProviderRegistry.BaseProviderId(key) == providerId);
             _viewModel.AccountKeysOf = providerId =>
                 [.. settings.Providers.Keys.Where(key => ProviderRegistry.BaseProviderId(key) == providerId)];
         }

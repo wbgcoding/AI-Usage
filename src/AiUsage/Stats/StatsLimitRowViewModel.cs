@@ -15,11 +15,6 @@ public sealed record StatsLimitRowViewModel(
     public string AutomationText => Services.LocalizationService.Instance.Format("Format.LabelValue", Label, ReachedText + ", " + DetailText);
 }
 
-/// <summary>One provider's windows in the limits section, under the provider's name, and the line
-/// shown under them: the tokens one percent of the week costs, or why there is no such figure. The
-/// line is empty for a provider the estimate does not cover.</summary>
+/// <summary>One provider's windows in the limits section, under the provider's name.</summary>
 public sealed record StatsLimitGroupViewModel(
-    string ProviderId, string ProviderName, IReadOnlyList<StatsLimitRowViewModel> Rows, string NoteText, string NoteToolTip)
-{
-    public bool HasNote => NoteText.Length > 0;
-}
+    string ProviderId, string ProviderName, IReadOnlyList<StatsLimitRowViewModel> Rows);

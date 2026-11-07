@@ -609,13 +609,6 @@ public sealed partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedLimitProviderChoice));
     }
 
-    /// <summary>How many accounts a provider has - a seam the window fills from the settings. The
-    /// tokens-per-percent estimate needs exactly one: usage of several accounts is mixed in the logs.</summary>
-    internal Func<string, int> AccountCountOf { get; set; } = _ => 1;
-
-    private IReadOnlyList<StatsRecord>? _perPercentSource;
-    private readonly Dictionary<string, PerPercentResult> _perPercent = [];
-
     /// <summary>Reads one provider's quota history between two moments - a seam so a test can supply points.</summary>
     internal Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>> LoadHistory { get; set; }
 
@@ -2143,7 +2136,6 @@ public sealed partial class StatsViewModel : ObservableObject
     private void AdoptLimitInputs(LimitInputs inputs)
     {
         _limitInputs = inputs;
-        _perPercent.Clear();
     }
 
     /// <summary>A read made for a rebuild that was then skipped as unchanged: its inputs are newer than
@@ -2245,58 +2237,10 @@ public sealed partial class StatsViewModel : ObservableObject
                         row.ReachedCount,
                         row.WindowLabelKey);
                 }).ToList();
-                var (note, tip) = PerPercentNote(group.Key, loc);
                 return new StatsLimitGroupViewModel(
-                    group.Key, ProviderDisplayNames.GetValueOrDefault(group.Key, group.Key), rows, note, tip);
+                    group.Key, ProviderDisplayNames.GetValueOrDefault(group.Key, group.Key), rows);
             })
             .ToList();
-    }
-
-    /// <summary>The "1 % of the week is about ..." line of a provider and its tooltip; empty for a
-    /// provider the estimate does not cover.</summary>
-    private (string Text, string ToolTip) PerPercentNote(string providerId, LocalizationService loc)
-    {
-        if (providerId is not (StatsIndexer.ClaudeProviderId or StatsIndexer.CodexProviderId))
-            return ("", "");
-        if (AccountCountOf(providerId) > 1)
-            return (loc["Stats.PerPercent.MultiAccount"], "");
-
-        var result = EstimatePerPercent(providerId);
-        switch (result.Status)
-        {
-            case PerPercentStatus.PerModel:
-                var items = string.Join(" · ", result.Items.Select(item => loc.Format(
-                    "Stats.PerPercent.Item", ShortenTokens(item.TokensPerPercent, loc), item.IsOther ? loc["Stats.Other"] : item.Model)));
-                var cached = result.CacheReadPerPercent > 0 ? ShortenTokens(result.CacheReadPerPercent, loc) : "–";
-                return (loc.Format("Stats.PerPercent", items), loc.Format("Stats.PerPercent.Tip", result.IntervalCount, cached));
-            case PerPercentStatus.Total:
-                return (loc.Format("Stats.PerPercent.Total", ShortenTokens(result.TotalPerPercent, loc)), "");
-            default:
-                return (loc["Stats.PerPercent.TooFew"], "");
-        }
-    }
-
-    /// <summary>The estimate for one provider, kept until the records it was built from change.</summary>
-    private PerPercentResult EstimatePerPercent(string providerId)
-    {
-        if (!ReferenceEquals(_perPercentSource, _sourceRecords))
-        {
-            _perPercent.Clear();
-            _perPercentSource = _sourceRecords;
-        }
-
-        if (_perPercent.TryGetValue(providerId, out var cached))
-            return cached;
-
-        var since = DateOnly.FromDateTime(DateTime.Now.AddDays(-StatsTokensPerPercent.LookbackDays));
-        var records = _sourceRecords.Where(record => record.Provider == providerId && record.Day >= since).ToList();
-        IReadOnlyList<HistoryPoint> weeklyPoints = _limitInputs is { } inputs && inputs.Weekly.TryGetValue(providerId, out var held) ? held : [];
-        var weekly = weeklyPoints
-            .Where(point => point.Window == WindowKind.Weekly && StatsLimitsAggregator.LabelKeyOf(point) == "Window_Weekly")
-            .ToList();
-        var result = StatsTokensPerPercent.Estimate(StatsTokensPerPercent.BuildIntervals(records, weekly));
-        _perPercent[providerId] = result;
-        return result;
     }
 
     private static string FormatLimitPercent(double percent) =>

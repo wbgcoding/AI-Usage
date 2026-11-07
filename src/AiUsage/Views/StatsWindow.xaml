@@ -484,28 +484,20 @@
                                                   SelectedItem="{Binding SelectedGroupingChoice, Mode=TwoWay}" MinWidth="80"
                                                   ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Grouping]}"
                                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"/>
-
+                                        <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
+                                                    Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
+                                                       VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
+                                                       Foreground="{DynamicResource Text.Secondary}"/>
+                                            <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
+                                                      SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
+                                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
-                                <!-- Token counts per provider on the left and the color picker on the right share
-                                     one row, so the breakdown spends no extra line on either. -->
-                                <Grid Margin="0,4,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,0,0,0"
-                                            Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
-                                               VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
-                                               Foreground="{DynamicResource Text.Secondary}"/>
-                                    <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
-                                              SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
-                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
-                                </StackPanel>
-
-                                <ItemsControl Grid.Column="0" ItemsSource="{Binding ProviderRows}" VerticalAlignment="Center">
+                                <!-- Token counts per provider; the color picker sits on the section header. -->
+                                <ItemsControl ItemsSource="{Binding ProviderRows}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
@@ -532,7 +524,6 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                </Grid>
 
                                 <!-- The explorer chart sits inside this section so collapsing "Breakdown" hides it too. -->
                                 <Border Height="140" Margin="0,4,0,0"
@@ -872,10 +863,6 @@
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
-                                                        <TextBlock Margin="0,4,0,0" Text="{Binding NoteText}" TextWrapping="Wrap"
-                                                                   Foreground="{DynamicResource Text.Muted}" FontSize="{StaticResource Font.Size.Micro}"
-                                                                   ToolTip="{Binding NoteToolTip, Converter={StaticResource NullIfEmpty}}"
-                                                                   Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
