@@ -367,11 +367,13 @@ public sealed partial class MainViewModel
 
     private async Task<SignOutResult> DeleteProfileWithRetryAsync(Func<string, SignOutResult> delete, string accountKey)
     {
-        var result = delete(accountKey);
+        // A browser profile holds thousands of cache files: deleting it on the UI thread froze the
+        // widget for seconds.
+        var result = await Task.Run(() => delete(accountKey));
         for (var attempt = 0; result == SignOutResult.StillOpen && attempt < 4; attempt++)
         {
             await Task.Delay(SignOutRetryDelay);
-            result = delete(accountKey);
+            result = await Task.Run(() => delete(accountKey));
         }
 
         return result;
