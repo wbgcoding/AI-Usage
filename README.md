@@ -262,4 +262,4 @@ owners. AI-Usage is an independent project and not affiliated with any of them.
 
 <div align="center"><sub>© 2026 BGCoding</sub></div>
 
-Made with Claude.
+<p align="right">© 2026 BGCoding · Made with Claude</p>
