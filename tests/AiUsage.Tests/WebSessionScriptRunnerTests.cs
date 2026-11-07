@@ -1119,10 +1119,10 @@ public class WebSessionScriptRunnerTests
     }
 
     private static WebSessionScriptRunner CacheClearRunner(
-        List<FakeHiddenBrowserHost> hosts, TimeProvider clock, string? profileFolder = null, bool clearFails = false) =>
+        List<FakeHiddenBrowserHost> hosts, TimeProvider clock, string? profileFolder = null, bool clearFails = false, bool clearHangs = false) =>
         new(() =>
         {
-            var host = new FakeHiddenBrowserHost { ClearFails = clearFails };
+            var host = new FakeHiddenBrowserHost { ClearFails = clearFails, ClearHangs = clearHangs };
             host.CompleteNavigate(true);
             hosts.Add(host);
             return host;
@@ -1223,6 +1223,23 @@ public class WebSessionScriptRunnerTests
 
         Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
         await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task A_hanging_cache_clear_does_not_delay_the_answer_and_ends_with_disposal()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow), clearHangs: true);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        hosts[^1].CompleteScript("a");
+
+        // The 20 s clear timeout is far away: the answer must be back long before it.
+        Assert.Equal("a", await call.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+
+        var dispose = runner.DisposeAsync().AsTask();
+        await dispose.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -1394,9 +1411,14 @@ public class WebSessionScriptRunnerTests
 
         public bool ClearFails { get; init; }
 
+        /// <summary>The clear never finishes, like a browser stuck on its disk.</summary>
+        public bool ClearHangs { get; init; }
+
         public Task ClearDiskCacheAsync()
         {
             ClearCalls++;
+            if (ClearHangs)
+                return new TaskCompletionSource().Task;
             return ClearFails ? Task.FromException(new InvalidOperationException("clear failed")) : Task.CompletedTask;
         }
 

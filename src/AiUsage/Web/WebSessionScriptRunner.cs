@@ -304,10 +304,11 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             ct.ThrowIfCancellationRequested();
             throw new TimeoutException("Script execution timed out.");
         }
+        var succeeded = false;
         try
         {
             var answer = await scriptTask;
-            await ClearDiskCacheWhenDueAsync(host);
+            succeeded = true;
             return answer;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -323,7 +324,12 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             // Not while another call (the balance read runs beside the usage read) still has a script on
             // the page: a suspended page holds that script until the next call resumes it.
             if (ReferenceEquals(_host, host) && Volatile.Read(ref _inFlight) <= 1)
+            {
+                // The answer goes out first: the daily clear runs beside the page suspend, never inside the read.
+                if (succeeded)
+                    _ = ClearDiskCacheWhenDueAsync(host);
                 _suspendTask = SuspendQuietlyAsync(host);
+            }
         }
     }
 
@@ -333,9 +339,9 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
     internal static readonly TimeSpan CacheClearTimeout = TimeSpan.FromSeconds(20);
 
     /// <summary>Empties the browser's disk caches (never cookies, local storage or IndexedDB: those are the
-    /// sign-in) at most once a day per profile, through the browser's own call on the idle session. Runs after
-    /// a successful script, only when no other call of this runner is queued, and only while the profile
-    /// folder exists. Never fails a read.</summary>
+    /// sign-in) at most once a day per profile, through the browser's own call on the idle session. Started
+    /// after a successful read has answered, only when no other call of this runner is queued, and only while
+    /// the profile folder exists. Never fails a read.</summary>
     private async Task ClearDiskCacheWhenDueAsync(IHiddenBrowserHost host)
     {
         try
@@ -363,10 +369,12 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             // Marked before the attempt: a failing clear is tried again tomorrow, not on every read.
             _cacheClearedOn = today;
             var clear = host.ClearDiskCacheAsync();
-            if (!await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, CancellationToken.None))
+            // Sign-out and disposal end the wait, so an abandoned clear is not left holding the profile.
+            if (!await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, _lifetime.Token))
             {
                 _ = clear.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
-                LogService.Shared.LogInfo($"Hidden session: clearing the {_providerId} browser cache timed out.");
+                if (!_lifetime.IsCancellationRequested)
+                    LogService.Shared.LogInfo($"Hidden session: clearing the {_providerId} browser cache timed out.");
                 return;
             }
 
