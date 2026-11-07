@@ -34,6 +34,46 @@ public class StatsHorizontalBarChartTests
     }
 
     [Fact]
+    public void Project_icons_are_decoded_off_the_render_pass_and_arrive_later()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("chart-icon-async");
+        var png = Path.Combine(dir.Path, "icon.png");
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
+            32, 32, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[32 * 32 * 4], 32 * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using (var stream = File.Create(png))
+            encoder.Save(stream);
+
+        var (cachedAtOnce, cachedLater) = RunOnSta(() =>
+        {
+            var day = new DateOnly(2026, 9, 1);
+            var chart = new StatsHorizontalBarChart
+            {
+                ShowProjectDetails = true,
+                Rows = [new StatsProjectRow("p", "p", 10, 10, day, day, IconPath: png)],
+            };
+            chart.Measure(new Size(400, double.PositiveInfinity));
+            chart.Arrange(new Rect(chart.DesiredSize));
+            var atOnce = chart.HasCachedIcon(png);
+
+            var until = DateTime.UtcNow.AddSeconds(8);
+            while (!chart.HasCachedIcon(png) && DateTime.UtcNow < until)
+            {
+                var frame = new System.Windows.Threading.DispatcherFrame();
+                chart.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => frame.Continue = false);
+                System.Windows.Threading.Dispatcher.PushFrame(frame);
+                Thread.Sleep(10);
+            }
+
+            return (atOnce, chart.HasCachedIcon(png));
+        });
+
+        Assert.False(cachedAtOnce);
+        Assert.True(cachedLater);
+    }
+
+    [Fact]
     public void Desired_height_follows_the_row_count()
     {
         var (one, three, none) = RunOnSta(() =>
@@ -145,7 +185,7 @@ public class StatsHorizontalBarChartTests
         }) { IsBackground = true };
         worker.SetApartmentState(ApartmentState.STA);
         worker.Start();
-        Assert.True(worker.Join(TimeSpan.FromSeconds(10)), "measure did not finish");
+        Assert.True(worker.Join(TimeSpan.FromSeconds(20)), "measure did not finish");
         if (failure is not null)
             throw failure;
         return result!;

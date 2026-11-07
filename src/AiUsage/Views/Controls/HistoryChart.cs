@@ -28,6 +28,30 @@ public sealed class HistoryChart : FrameworkElement
             ThemeService.Applied += OnThemeApplied;
         };
         Unloaded += (_, _) => ThemeService.Applied -= OnThemeApplied;
+        AddVisualChild(_hoverVisual);
+    }
+
+    // The guide line, dots and caption box live in their own visual: a pointer move redraws only this
+    // one, and the series (OnRender) are drawn again only when data, size or theme change.
+    private readonly DrawingVisual _hoverVisual = new();
+
+    // False while OnRender drew no series (empty state, no size): there is nothing to point at.
+    private bool _hasSeries;
+
+    protected override int VisualChildrenCount => 1;
+
+    protected override Visual GetVisualChild(int index) =>
+        index == 0 ? _hoverVisual : throw new ArgumentOutOfRangeException(nameof(index));
+
+    private void RedrawHover()
+    {
+        using var dc = _hoverVisual.RenderOpen();
+        var width = ActualWidth;
+        var height = ActualHeight;
+        if (!_hasSeries || width <= 0 || height <= 0)
+            return;
+
+        DrawHover(dc, width, PlotHeight(height, ShowAxes));
     }
 
     private void OnThemeApplied(object? sender, EventArgs e) => InvalidateVisual();
@@ -158,8 +182,8 @@ public sealed class HistoryChart : FrameworkElement
     }
 
     /// <summary>Mouse position of the current hover, relative to this control - null while the mouse
-    /// is not over the chart. Read back only from <see cref="OnRender"/>, which <see
-    /// cref="InvalidateVisual"/> re-runs after every move that actually changes the matched point
+    /// is not over the chart. Read back only from <see cref="RedrawHover"/>, which
+    /// <see cref="OnMouseMove"/> runs after every move that actually changes the matched point
     /// (see <see cref="_hoverFiveHourIndex"/>/<see cref="_hoverWeeklyIndex"/>) or moves the guide line
     /// itself onto another pixel column (see <see cref="_hoverGuideX"/>) - <see cref="DrawHover"/>
     /// draws its guide line and caption box at this exact position, not at the matched data point's
@@ -411,7 +435,13 @@ public sealed class HistoryChart : FrameworkElement
     protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        var position = e.GetPosition(this);
+        UpdateHover(e.GetPosition(this));
+    }
+
+    /// <summary>Moves the hover marker to <paramref name="position"/> (this control's coordinates);
+    /// internal so a test can stand in for the pointer.</summary>
+    internal void UpdateHover(Point position)
+    {
         _hoverPosition = position;
 
         var width = ActualWidth;
@@ -424,7 +454,7 @@ public sealed class HistoryChart : FrameworkElement
         _hoverFiveHourIndex = fiveHourIndex;
         _hoverWeeklyIndex = weeklyIndex;
         _hoverGuideX = position.X;
-        InvalidateVisual();
+        RedrawHover();
     }
 
     protected override void OnMouseLeave(System.Windows.Input.MouseEventArgs e)
@@ -434,7 +464,7 @@ public sealed class HistoryChart : FrameworkElement
         _hoverFiveHourIndex = -1;
         _hoverWeeklyIndex = -1;
         _hoverGuideX = double.NaN;
-        InvalidateVisual();
+        RedrawHover();
     }
 
     /// <summary>Whether a mouse move actually changed which data point each series would show -
@@ -625,10 +655,14 @@ public sealed class HistoryChart : FrameworkElement
         // is under the pointer and OnMouseMove never fires - IsHitTestVisible alone is not enough.
         drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));
 
+        _hasSeries = false;
         var width = ActualWidth;
         var height = ActualHeight;
         if (width <= 0 || height <= 0)
+        {
+            RedrawHover();
             return;
+        }
 
         var plotHeight = PlotHeight(height, ShowAxes);
         var gridStyle = GetGridStyle();
@@ -659,6 +693,7 @@ public sealed class HistoryChart : FrameworkElement
         if (!hasFiveHour && !hasWeekly)
         {
             DrawPlaceholder(drawingContext, width, plotHeight);
+            RedrawHover();
             return;
         }
 
@@ -681,7 +716,9 @@ public sealed class HistoryChart : FrameworkElement
         // to run.
         DrawPreviousWeekLine(drawingContext, previousWeekReduced, width, plotHeight);
 
-        DrawHover(drawingContext, width, plotHeight);
+        // The hover visual sits above these series; the data may have changed under a stationary pointer.
+        _hasSeries = true;
+        RedrawHover();
     }
 
     /// <summary>The legend entries with the pen each series is drawn in; the five-hour pattern shows

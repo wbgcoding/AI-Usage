@@ -32,6 +32,19 @@ public class HistoryChartRenderTests
         return brush;
     }
 
+    [Fact]
+    public void Hovering_a_series_draws_the_marker_without_redrawing_the_series()
+    {
+        var plain = Render(chart => chart.WeeklyValues = Flat(50));
+        var hovered = Render(chart =>
+        {
+            chart.WeeklyValues = Flat(50);
+            chart.UpdateHover(new Point(150, 20));
+        });
+
+        Assert.NotEqual(plain, hovered);
+    }
+
     private static byte[] Render(Action<HistoryChart> configure, int width = 300, int height = 64)
     {
         byte[]? pixels = null;

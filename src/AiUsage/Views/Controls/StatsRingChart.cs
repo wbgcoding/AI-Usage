@@ -769,17 +769,19 @@ public sealed class StatsRingChart : FrameworkElement
             pairHeight += naturalValue.Height * valueScale * CenterCostFontRatio;
         var heightScale = pairHeight > innerDiameter ? innerDiameter / pairHeight : 1.0;
 
-        // The proportional step above is an estimate; walk the size down until the measured line
-        // really fits the hole (or the minimum size is reached).
+        // The proportional step above is an estimate; one measurement of the estimated size tells how
+        // far it is off, and the size follows linearly (never below the minimum).
+        double FitSize(Func<double, double> widthAt, double size, double minimum)
+        {
+            var width = widthAt(size);
+            return width > fitWidth ? Math.Max(minimum, size * fitWidth / width) : size;
+        }
+
         var nameSize = Math.Max(CenterTextMinFontSize, nameBaseSize * nameScale * heightScale);
         var valueSize = Math.Max(CenterTextMinFontSize, valueBaseSize * valueScale * heightScale);
-        while (valueSize > CenterTextMinFontSize && BuildValueLine(valueSize, trim: false).Width > fitWidth)
-            valueSize = Math.Max(CenterTextMinFontSize, valueSize - 0.25);
+        valueSize = FitSize(size => BuildValueLine(size, trim: false).Width, valueSize, CenterTextMinFontSize);
         if (nameLines == 1)
-        {
-            while (nameSize > CenterTextMinFontSize && BuildNameLine(nameSize, 1, trim: false).Width > fitWidth)
-                nameSize = Math.Max(CenterTextMinFontSize, nameSize - 0.25);
-        }
+            nameSize = FitSize(size => BuildNameLine(size, 1, trim: false).Width, nameSize, CenterTextMinFontSize);
 
         var nameLine = BuildNameLine(nameSize, nameLines, trim: true);
         var valueLine = BuildValueLine(valueSize, trim: true);
@@ -795,8 +797,7 @@ public sealed class StatsRingChart : FrameworkElement
         if (costText.Length > 0)
         {
             var costSize = Math.Max(CenterCostMinFontSize, valueSize * CenterCostFontRatio);
-            while (costSize > CenterCostMinFontSize && BuildCostLine(costSize, trim: false).Width > fitWidth)
-                costSize = Math.Max(CenterCostMinFontSize, costSize - 0.25);
+            costSize = FitSize(size => BuildCostLine(size, trim: false).Width, costSize, CenterCostMinFontSize);
             costLine = BuildCostLine(costSize, trim: true);
             costLine.TextAlignment = TextAlignment.Center;
         }
@@ -835,18 +836,25 @@ public sealed class StatsRingChart : FrameworkElement
     private static Geometry ArcGeometry(Point center, double radius, double startAngleDegrees, double sweepAngleDegrees)
     {
         if (sweepAngleDegrees >= 359.99)
-            return new EllipseGeometry(center, radius, radius);
+        {
+            var ellipse = new EllipseGeometry(center, radius, radius);
+            ellipse.Freeze();
+            return ellipse;
+        }
 
         var startRadians = (startAngleDegrees - 90) * Math.PI / 180;
         var endRadians = (startAngleDegrees + sweepAngleDegrees - 90) * Math.PI / 180;
         var startPoint = new Point(center.X + radius * Math.Cos(startRadians), center.Y + radius * Math.Sin(startRadians));
         var endPoint = new Point(center.X + radius * Math.Cos(endRadians), center.Y + radius * Math.Sin(endRadians));
 
-        var figure = new PathFigure { StartPoint = startPoint, IsClosed = false };
-        figure.Segments.Add(new ArcSegment(
-            endPoint, new Size(radius, radius), 0, sweepAngleDegrees > 180, SweepDirection.Clockwise, isStroked: true));
-        var geometry = new PathGeometry();
-        geometry.Figures.Add(figure);
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            context.BeginFigure(startPoint, isFilled: false, isClosed: false);
+            context.ArcTo(endPoint, new Size(radius, radius), 0, sweepAngleDegrees > 180, SweepDirection.Clockwise, isStroked: true, isSmoothJoin: false);
+        }
+
+        geometry.Freeze();
         return geometry;
     }
 

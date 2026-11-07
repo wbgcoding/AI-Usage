@@ -43,7 +43,10 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var chart = (StatsHorizontalBarChart)d;
         chart._hoverIndex = -1;
         chart._tooltipPopup?.Hide();
+        chart._plainTooltipIndex = int.MinValue;
         chart.ForgetStaleIcons((IReadOnlyList<StatsProjectRow>)e.NewValue);
+        if (chart.ShowProjectDetails)
+            chart.StartIconLoads((IReadOnlyList<StatsProjectRow>)e.NewValue);
         chart._focusedRowIndex = -1;
         AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<StatsProjectRow>)e.NewValue));
     }
@@ -70,6 +73,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         // sharing this control.
         var chart = (StatsHorizontalBarChart)d;
         var show = (bool)e.NewValue;
+        chart._plainTooltipIndex = int.MinValue;
         chart.Focusable = show;
         System.Windows.Input.KeyboardNavigation.SetIsTabStop(chart, show);
     }
@@ -429,19 +433,74 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { return DateTime.MinValue; }
     }
 
-    /// <summary>The icon of <paramref name="iconPath"/>: a bitmap decoded once at the size it is drawn, a vector icon as a drawing.</summary>
+    private readonly HashSet<string> _iconsLoading = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The decoded icon of <paramref name="iconPath"/>, or null while it is not there yet:
+    /// rendering never reads a file. A missing (or differently sized) one is queued, and the chart
+    /// draws again when it arrives.</summary>
     private ImageSource? GetIcon(string? iconPath)
     {
         if (string.IsNullOrEmpty(iconPath))
             return null;
 
-        var pixelWidth = (int)Math.Ceiling(RichIconSize * VisualTreeHelper.GetDpi(this).DpiScaleX);
-        if (_iconCache.TryGetValue(iconPath, out var cached) && cached.PixelWidth == pixelWidth)
+        var pixelWidth = IconPixelWidth();
+        if (_iconCache.TryGetValue(iconPath, out var cached))
+        {
+            if (cached.PixelWidth != pixelWidth)
+                QueueIconLoad(iconPath, pixelWidth);
             return cached.Image;
+        }
 
-        var decoded = ProjectIconLoader.Load(iconPath, pixelWidth);
-        _iconCache[iconPath] = new CachedIcon(SafeWriteUtc(iconPath), pixelWidth, decoded);
-        return decoded;
+        QueueIconLoad(iconPath, pixelWidth);
+        return null;
+    }
+
+    /// <summary>True once the icon of <paramref name="iconPath"/> is decoded and stored (test seam).</summary>
+    internal bool HasCachedIcon(string iconPath) => _iconCache.ContainsKey(iconPath);
+
+    private int IconPixelWidth() => (int)Math.Ceiling(RichIconSize * VisualTreeHelper.GetDpi(this).DpiScaleX);
+
+    /// <summary>Starts decoding the icon of every row that has none cached yet, so the first render
+    /// after the rows arrive already finds most of them.</summary>
+    private void StartIconLoads(IReadOnlyList<StatsProjectRow> rows)
+    {
+        var pixelWidth = IconPixelWidth();
+        foreach (var row in rows)
+        {
+            if (!string.IsNullOrEmpty(row.IconPath) && !(_iconCache.TryGetValue(row.IconPath, out var cached) && cached.PixelWidth == pixelWidth))
+                QueueIconLoad(row.IconPath, pixelWidth);
+        }
+    }
+
+    /// <summary>Decodes on the thread pool (the loader only builds frozen objects), stores the result
+    /// and redraws on the UI thread. One load per path at a time.</summary>
+    private void QueueIconLoad(string iconPath, int pixelWidth)
+    {
+        if (!_iconsLoading.Add(iconPath))
+            return;
+
+        var dispatcher = Dispatcher;
+        _ = Task.Run(() =>
+        {
+            ImageSource? decoded = null;
+            var writeUtc = DateTime.MinValue;
+            try
+            {
+                writeUtc = SafeWriteUtc(iconPath);
+                decoded = ProjectIconLoader.Load(iconPath, pixelWidth);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // A file the loader cannot read draws as the color dot, like a missing icon.
+            }
+
+            dispatcher.BeginInvoke(() =>
+            {
+                _iconsLoading.Remove(iconPath);
+                _iconCache[iconPath] = new CachedIcon(writeUtc, pixelWidth, decoded);
+                InvalidateVisual();
+            });
+        });
     }
 
     /// <summary>A frozen bitmap decoded to <paramref name="pixelWidth"/>; null for a file that cannot
@@ -450,6 +509,9 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         ProjectIconLoader.LoadBitmap(iconPath, pixelWidth);
 
     private int _hoverIndex = -1;
+
+    // The row the plain-mode ToolTip text was last built for; int.MinValue = none yet.
+    private int _plainTooltipIndex = int.MinValue;
 
     /// <summary>The hovered row, -1 for none; settable so a test can stand in for the pointer.</summary>
     internal int HoverIndex
@@ -512,6 +574,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         if (!ShowProjectDetails)
         {
+            // Rebuilt only when the pointer moves onto another row, as the rich mode does.
+            if (index == _plainTooltipIndex)
+                return;
+
+            _plainTooltipIndex = index;
             ToolTip = index >= 0 && index < rows.Count
                 ? rows[index].TooltipText ?? string.Join("\n", BuildTooltipLines(rows[index], TokenWord, TotalLabel, ActiveLabel, CultureInfo.CurrentCulture))
                 : null;
@@ -534,6 +601,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         base.OnMouseLeave(e);
         if (!ShowProjectDetails)
         {
+            _plainTooltipIndex = int.MinValue;
             ToolTip = null;
             return;
         }
