@@ -1150,7 +1150,7 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
-    public async Task The_clear_day_is_kept_in_the_profile_folder_and_shared_with_a_second_runner()
+    public async Task The_clear_day_is_kept_in_the_profile_folder_and_found_by_a_second_runner()
     {
         using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache");
         string folder = disposable;
@@ -1162,7 +1162,7 @@ public class WebSessionScriptRunnerTests
         Assert.Equal(1, hostsA.Sum(h => h.ClearCalls));
         Assert.Equal("2026-11-07", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
 
-        // A new runner (app restart, or the Console session on the same profile) finds today's date.
+        // A new runner (an app restart) finds today's date.
         var hostsB = new List<FakeHiddenBrowserHost>();
         var runnerB = CacheClearRunner(hostsB, clock, folder);
         await RunOnce(runnerB, hostsB, "b");
@@ -1243,6 +1243,43 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task A_failing_cache_clear_writes_the_day_so_a_restart_does_not_try_again()
+    {
+        using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache-fail");
+        string folder = disposable;
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var hostsA = new List<FakeHiddenBrowserHost>();
+        var runnerA = CacheClearRunner(hostsA, clock, folder, clearFails: true);
+        Assert.Equal("a", await RunOnce(runnerA, hostsA, "a"));
+        Assert.Equal(1, hostsA.Sum(h => h.ClearCalls));
+        Assert.Equal("2026-11-07", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+
+        var hostsB = new List<FakeHiddenBrowserHost>();
+        var runnerB = CacheClearRunner(hostsB, clock, folder);
+        await RunOnce(runnerB, hostsB, "b");
+        Assert.Equal(0, hostsB.Sum(h => h.ClearCalls));
+        await runnerA.DisposeAsync();
+        await runnerB.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_cache_clear_day_is_the_local_day()
+    {
+        // 10:00 UTC is already the next day at UTC+14.
+        var zone = TimeZoneInfo.CreateCustomTimeZone("plus14", TimeSpan.FromHours(14), "plus14", "plus14");
+        using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache-local");
+        string folder = disposable;
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero), zone);
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, clock, folder);
+
+        await RunOnce(runner, hosts, "a");
+
+        Assert.Equal("2026-11-08", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
     public void The_cache_clear_names_only_the_two_cache_kinds_and_deletes_no_file()
     {
         var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
@@ -1261,10 +1298,12 @@ public class WebSessionScriptRunnerTests
         Assert.Single(Regex.Matches(source, @"ClearBrowsingDataAsync"));
     }
 
-    private sealed class FakeTimeProvider(DateTimeOffset start) : TimeProvider
+    private sealed class FakeTimeProvider(DateTimeOffset start, TimeZoneInfo? zone = null) : TimeProvider
     {
         private DateTimeOffset _now = start;
         private readonly List<FakeTimer> _timers = [];
+
+        public override TimeZoneInfo LocalTimeZone { get; } = zone ?? TimeZoneInfo.Utc;
 
         public override DateTimeOffset GetUtcNow() => _now;
 

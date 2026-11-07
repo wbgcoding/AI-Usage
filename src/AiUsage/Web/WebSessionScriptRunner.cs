@@ -349,7 +349,8 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             if (_disposed || !ReferenceEquals(_host, host) || Volatile.Read(ref _inFlight) > 1)
                 return;
 
-            var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
+            // The local day: the daily boundary belongs at midnight of the person's clock, not of UTC.
+            var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
             if (_cacheClearedOn == today)
                 return;
 
@@ -359,27 +360,34 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             if (_profileFolder is { } folder && !Directory.Exists(folder))
                 return;
 
-            // A second runner on the same profile (the Console session) may have cleared today already.
+            // The day file carries the last clear across app restarts.
             if (ReadCacheClearedDate() == today)
             {
                 _cacheClearedOn = today;
                 return;
             }
 
-            // Marked before the attempt: a failing clear is tried again tomorrow, not on every read.
+            // Marked before the attempt, in memory and in the day file: a failing or hanging clear is tried
+            // again tomorrow, not on every read and not on every app start.
             _cacheClearedOn = today;
             var clear = host.ClearDiskCacheAsync();
             // Sign-out and disposal end the wait, so an abandoned clear is not left holding the profile.
-            if (!await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, _lifetime.Token))
+            var finished = await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, _lifetime.Token);
+            if (_lifetime.IsCancellationRequested)
             {
                 _ = clear.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
-                if (!_lifetime.IsCancellationRequested)
-                    LogService.Shared.LogInfo($"Hidden session: clearing the {_providerId} browser cache timed out.");
+                return;
+            }
+
+            WriteCacheClearedDate(today);
+            if (!finished)
+            {
+                _ = clear.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                LogService.Shared.LogInfo($"Hidden session: clearing the {_providerId} browser cache timed out.");
                 return;
             }
 
             await clear;
-            WriteCacheClearedDate(today);
             LogService.Shared.LogInfo($"Hidden session: cleared the {_providerId} browser cache.");
         }
         catch (Exception ex)
