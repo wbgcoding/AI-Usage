@@ -1364,7 +1364,9 @@ public class StatsWindowTests
 
 /// <summary>Geometry coverage for <see cref="StatsBarChart"/> - the pure, static parts of
 /// its drawing pulled out the same way <c>HistoryChartGeometryTests</c> already does for
-/// <c>HistoryChart</c>, so the stacking/axis/hover math is unit testable without a visual tree.</summary>
+/// <c>HistoryChart</c>, so the stacking/axis/hover math is unit testable without a visual tree.
+/// Some tests switch the app language, which is global, so the class runs with the other tests that do.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class StatsBarChartGeometryTests
 {
     // The acceptance criterion here: three days, two providers each - the six computed segment
