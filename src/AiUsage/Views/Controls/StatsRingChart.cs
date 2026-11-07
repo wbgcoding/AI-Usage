@@ -280,6 +280,52 @@ public sealed class StatsRingChart : FrameworkElement
         return (diameter, diameter + LegendGap);
     }
 
+    /// <summary>Where everything of the ring goes inside a box of <paramref name="width"/> by
+    /// <paramref name="height"/>: the ring's center and diameter, the legend's left edge, first row
+    /// and row height, and the legend text scale.</summary>
+    internal readonly record struct RingPlacement(
+        Point Center, double Diameter, double LegendX, double LegendTop, double RowHeight, double TextScale, bool Stacked);
+
+    // A stacked layout (legend under the ring) is taken only when it makes the ring clearly larger.
+    private const double StackedGain = 1.3;
+    private const double MaxStackedDiameter = 360;
+
+    /// <summary>The ring beside its legend at the size <see cref="HeightFor"/> gives the width, centered
+    /// in the height; or, in a card much taller than that (it stretches with the column beside it), the
+    /// legend under a ring that fills the width. Pure so the layout is unit testable without a visual
+    /// tree; drawing, hit tests and tooltip anchors all read it.</summary>
+    internal static RingPlacement Place(double width, double height, int sliceCount)
+    {
+        var sideHeight = Math.Min(height, HeightFor(width, sliceCount));
+        var (sideDiameter, sideLegendX) = RingLayout(width, sideHeight);
+
+        var stackedDiameter = 0.0;
+        var stackedScale = 1.0;
+        if (sliceCount > 0)
+        {
+            var first = Math.Min(width, height - sliceCount * LegendRowHeight - LegendGap);
+            stackedScale = Math.Min(MaxLegendTextScale, Math.Max(1.0, CenterTextScale(first)));
+            stackedDiameter = Math.Min(Math.Min(width, MaxStackedDiameter), height - sliceCount * LegendRowHeight * stackedScale - LegendGap);
+        }
+
+        if (stackedDiameter > 0 && stackedDiameter >= sideDiameter * StackedGain)
+        {
+            var rowHeight = LegendRowHeight * stackedScale;
+            var blockHeight = stackedDiameter + LegendGap + sliceCount * rowHeight;
+            var top = Math.Max(0, (height - blockHeight) / 2);
+            var left = Math.Max(0, (width - stackedDiameter) / 2);
+            return new RingPlacement(
+                new Point(width / 2, top + stackedDiameter / 2), stackedDiameter,
+                left, top + stackedDiameter + LegendGap, rowHeight, stackedScale, true);
+        }
+
+        var scale = LegendTextScale(sideDiameter, sideHeight, sliceCount);
+        var sideRow = LegendRowHeight * scale;
+        return new RingPlacement(
+            new Point(sideDiameter / 2, height / 2), sideDiameter,
+            Math.Min(sideLegendX, Math.Max(0, width - 4)), Math.Max(0, (height - sliceCount * sideRow) / 2), sideRow, scale, false);
+    }
+
     private const double MinRingHeight = 132;
     private const double MaxRingHeight = 320;
     private const double LegendAllowance = 150;
@@ -393,11 +439,11 @@ public sealed class StatsRingChart : FrameworkElement
     /// <see cref="SliceIndexAt"/>, and mirrors the layout <see cref="OnRender"/> draws.</summary>
     internal static Point SliceAnchor(int index, double width, double height, IReadOnlyList<Slice> slices)
     {
-        var (diameter, _) = RingLayout(width, height);
-        var (radius, _) = RingGeometry(diameter);
+        var place = Place(width, height, slices.Count);
+        var (radius, _) = RingGeometry(place.Diameter);
         var sweep = SweepAngles(slices.Select(slice => slice.Percent).ToList())[index];
         var middle = (sweep.StartAngle + sweep.SweepAngle / 2) * Math.PI / 180;
-        return new Point(diameter / 2 + radius * Math.Sin(middle), height / 2 - radius * Math.Cos(middle));
+        return new Point(place.Center.X + radius * Math.Sin(middle), place.Center.Y - radius * Math.Cos(middle));
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -548,8 +594,9 @@ public sealed class StatsRingChart : FrameworkElement
         if (width <= 0 || height <= 0 || slices.Count == 0 || slices.All(slice => slice.Percent <= 0))
             return -1;
 
-        var (diameter, legendStart) = RingLayout(width, height);
-        var center = new Point(diameter / 2, height / 2);
+        var place = Place(width, height, slices.Count);
+        var diameter = place.Diameter;
+        var center = place.Center;
         var (radius, strokeThickness) = RingGeometry(diameter);
 
         var dx = point.X - center.X;
@@ -571,12 +618,9 @@ public sealed class StatsRingChart : FrameworkElement
             return -1;
         }
 
-        var legendX = Math.Min(legendStart, Math.Max(0, width - 4));
-        var rowHeight = LegendRowHeight * LegendTextScale(diameter, height, slices.Count);
-        var legendTop = Math.Max(0, (height - slices.Count * rowHeight) / 2);
-        if (point.X >= legendX && point.Y >= legendTop)
+        if (point.X >= place.LegendX && point.Y >= place.LegendTop)
         {
-            var row = (int)((point.Y - legendTop) / rowHeight);
+            var row = (int)((point.Y - place.LegendTop) / place.RowHeight);
             if (row < slices.Count)
                 return row;
         }
@@ -609,8 +653,9 @@ public sealed class StatsRingChart : FrameworkElement
             return;
         }
 
-        var (diameter, legendStart) = RingLayout(width, height);
-        var center = new Point(diameter / 2, height / 2);
+        var place = Place(width, height, slices.Count);
+        var diameter = place.Diameter;
+        var center = place.Center;
         var (radius, strokeThickness) = RingGeometry(diameter);
 
         var brushes = SliceBrushes;
@@ -632,16 +677,13 @@ public sealed class StatsRingChart : FrameworkElement
             var rimPen = ChartDrawCache.PenFor(FocusBrush, 2);
             drawingContext.DrawGeometry(
                 null, rimPen, ArcGeometry(center, radius + strokeThickness / 2 + 2, sweeps[_focusedIndex].StartAngle, sweeps[_focusedIndex].SweepAngle));
-            var rowHeight = LegendRowHeight * LegendTextScale(diameter, height, slices.Count);
-            var legendX = Math.Min(legendStart, Math.Max(0, width - 4));
-            var legendTop = Math.Max(0, (height - slices.Count * rowHeight) / 2);
             drawingContext.DrawRectangle(
-                null, rimPen, new Rect(legendX - 2, legendTop + _focusedIndex * rowHeight, Math.Max(0, width - legendX), rowHeight));
+                null, rimPen, new Rect(place.LegendX - 2, place.LegendTop + _focusedIndex * place.RowHeight, Math.Max(0, width - place.LegendX), place.RowHeight));
         }
 
         DrawCenterText(drawingContext, slices, center, radius, strokeThickness, CenterTextScale(diameter), dpi, typeface);
 
-        DrawLegend(drawingContext, slices, brushes, legendStart, width, height, LegendTextScale(diameter, height, slices.Count), dpi, typeface);
+        DrawLegend(drawingContext, slices, brushes, place.LegendX, place.LegendTop, width, place.TextScale, dpi, typeface);
     }
 
     private const double CenterValueBaseFontSize = 13;
@@ -809,14 +851,13 @@ public sealed class StatsRingChart : FrameworkElement
     }
 
     private void DrawLegend(
-        DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes, double legendX, double width, double height,
+        DrawingContext dc, IReadOnlyList<Slice> slices, IReadOnlyList<Brush> brushes, double legendX, double legendTop, double width,
         double textScale, double dpi, Typeface typeface)
     {
         var swatch = 10 * textScale;
         var rowHeight = LegendRowHeight * textScale;
-        var totalHeight = slices.Count * rowHeight;
-        var y = Math.Max(0, (height - totalHeight) / 2);
-        var x = Math.Min(legendX, Math.Max(0, width - 4));
+        var y = legendTop;
+        var x = legendX;
 
         for (var i = 0; i < slices.Count; i++)
         {

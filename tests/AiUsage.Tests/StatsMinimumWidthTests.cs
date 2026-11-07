@@ -175,6 +175,41 @@ public class StatsMinimumWidthTests
     }
 
     [Fact]
+    public void A_narrow_tall_card_puts_the_legend_under_a_ring_as_wide_as_the_card()
+    {
+        // Width 220: beside its legend the ring gets 108; a 420 high card fits a 220 ring above 3 rows.
+        var place = StatsRingChart.Place(220, 420, 3);
+
+        Assert.True(place.Stacked);
+        Assert.Equal(220, place.Diameter, 6);
+        Assert.Equal(110, place.Center.X, 6);
+        Assert.True(place.LegendTop >= place.Center.Y + place.Diameter / 2);
+        Assert.True(place.LegendTop + 3 * place.RowHeight <= 420);
+
+        StatsRingChart.Slice[] slices = [new("Claude", 60), new("Codex", 30), new("Gemini", 10)];
+        Assert.Equal(2, StatsRingChart.SliceIndexAt(new Point(20, place.LegendTop + 2.5 * place.RowHeight), 220, 420, slices));
+        Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(110, place.Center.Y - place.Diameter / 2 + 10), 220, 420, slices));
+    }
+
+    [Fact]
+    public void A_wide_card_keeps_the_legend_beside_the_ring_however_tall_it_is()
+    {
+        var place = StatsRingChart.Place(520, 900, 3);
+
+        Assert.False(place.Stacked);
+        Assert.Equal(StatsRingChart.HeightFor(520, 3), place.Diameter, 6);
+        Assert.Equal(450, place.Center.Y, 6);
+    }
+
+    [Fact]
+    public void A_card_of_its_own_height_keeps_the_side_by_side_layout()
+    {
+        var place = StatsRingChart.Place(220, StatsRingChart.HeightFor(220, 3), 3);
+
+        Assert.False(place.Stacked);
+    }
+
+    [Fact]
     public void A_long_legend_label_is_trimmed_before_its_figure_is()
     {
         var (label, figure, shortLabel) = RunOnSta(() =>

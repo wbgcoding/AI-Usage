@@ -847,7 +847,7 @@ public class StatsWindowTests
     [Theory]
     [InlineData(0)]
     [InlineData(3)]
-    public void The_rings_keep_their_size_whatever_the_window_height_and_the_limits_card(int limitProviders)
+    public void The_rings_share_one_size_whatever_the_window_height_and_the_limits_card(int limitProviders)
     {
         var providers = ProviderCoverage.AllProviderIds.Take(limitProviders).ToHashSet();
         var now = DateTimeOffset.Now;
@@ -867,7 +867,7 @@ public class StatsWindowTests
                 root.UpdateLayout();
 
                 foreach (var ring in new[] { window.ProviderRing, window.ModelRing, window.EffortRing })
-                    Assert.Equal(StatsRingChart.HeightFor(ring.ActualWidth, ring.Slices.Count), ring.ActualHeight);
+                    Assert.True(ring.ActualHeight >= StatsRingChart.HeightFor(ring.ActualWidth, ring.Slices.Count));
                 Assert.Equal(window.ProviderRing.ActualHeight, window.ModelRing.ActualHeight);
                 Assert.Equal(window.ProviderRing.ActualHeight, window.EffortRing.ActualHeight);
                 heights.Add(window.ProviderRing.ActualHeight);
@@ -1902,10 +1902,11 @@ public class StatsHorizontalBarChartGeometryTests
             new StatsRingChart.Slice("A", 75, Total: 75),
             new StatsRingChart.Slice("B", 25, Total: 25),
         ];
-        const double width = 320;
+        // 350 wide: the card's own height for that width is 200, a ring 200 across beside its legend.
+        const double width = 350;
         const double height = 200;
-        var center = new Point((width - 120) / 2, height / 2);
-        var (radius, _) = StatsRingChart.RingGeometry(Math.Min(width - 120, height));
+        var center = new Point(height / 2, height / 2);
+        var (radius, _) = StatsRingChart.RingGeometry(height);
 
         // Twelve o'clock plus a little is the start of slice A; the last quarter (left of the top) is B.
         Assert.Equal(0, StatsRingChart.SliceIndexAt(new Point(center.X + 10, center.Y - radius), width, height, slices));
