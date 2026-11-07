@@ -75,6 +75,37 @@ public sealed class GuardedReadTests
     }
 
     [Fact]
+    public void OpenedFileIsTheChecked_accepts_the_same_file_and_refuses_another_one_or_a_swapped_in_link()
+    {
+        var checkedFile = Path.Combine(_root, "checked.txt");
+        var otherFile = Path.Combine(_root, "other.txt");
+        File.WriteAllText(checkedFile, "a");
+        File.WriteAllText(otherFile, "b");
+
+        using (var opened = File.OpenHandle(checkedFile))
+        {
+            Assert.True(GuardedRead.OpenedFileIsTheChecked(opened, checkedFile));
+            Assert.True(GuardedRead.OpenedFileIsTheChecked(opened, checkedFile.ToUpperInvariant()));
+            Assert.False(GuardedRead.OpenedFileIsTheChecked(opened, otherFile));
+            Assert.False(GuardedRead.OpenedFileIsTheChecked(opened, Path.Combine(_root, "no-such-folder", "checked.txt")));
+        }
+
+        // The path was checked as a plain file, then replaced by a link to another file before the open.
+        var swapped = Path.Combine(_root, "swapped.txt");
+        try
+        {
+            File.CreateSymbolicLink(swapped, otherFile);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return;
+        }
+
+        using var followed = File.OpenHandle(swapped);
+        Assert.False(GuardedRead.OpenedFileIsTheChecked(followed, swapped));
+    }
+
+    [Fact]
     public void TryReadSmallTextUnder_reads_below_the_root_and_refuses_a_linked_folder_on_the_way()
     {
         var root = Path.Combine(_root, "under-root");

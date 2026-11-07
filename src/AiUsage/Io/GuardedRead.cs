@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace AiUsage.Io;
 
@@ -92,6 +94,60 @@ internal static class GuardedRead
         return IsReachableWithoutLinks(root, path) && TryReadSmallText(path, maxBytes, out text);
     }
 
+    /// <summary>True when the file behind <paramref name="opened"/> is the one <paramref name="fullPath"/>
+    /// names: on a local drive, in the folder the path's parent really is (a junction above the file is
+    /// resolved, a link at the file itself or a file swapped in is not accepted) and under the same name.</summary>
+    internal static bool OpenedFileIsTheChecked(SafeFileHandle opened, string fullPath)
+    {
+        var parent = Path.GetDirectoryName(fullPath);
+        var openedPath = FinalPath(opened);
+        if (string.IsNullOrEmpty(parent) || openedPath is null || !IsLocalDrivePath(openedPath))
+            return false;
+
+        using var folder = CreateFileW(parent, FileReadAttributes, FileShareAll, IntPtr.Zero, OpenExisting, FileFlagBackupSemantics, IntPtr.Zero);
+        if (folder.IsInvalid)
+            return false;
+
+        var realParent = FinalPath(folder);
+        if (realParent is null || !IsLocalDrivePath(realParent))
+            return false;
+
+        return string.Equals(openedPath, Path.Combine(realParent, Path.GetFileName(fullPath)), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private const uint FileReadAttributes = 0x80;
+    private const uint FileShareAll = 7;
+    private const uint OpenExisting = 3;
+    private const uint FileFlagBackupSemantics = 0x02000000;
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(
+        string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition,
+        uint flagsAndAttributes, IntPtr templateFile);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint pathLength, uint flags);
+
+    /// <summary>The path the handle really points at, without the <c>\\?\</c> prefix (a network path
+    /// comes back as <c>\\host\share\...</c>), or null when it cannot be told.</summary>
+    private static string? FinalPath(SafeFileHandle handle)
+    {
+        var buffer = new char[512];
+        var length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+        if (length > buffer.Length)
+        {
+            buffer = new char[length + 1];
+            length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+        }
+        if (length == 0 || length > buffer.Length)
+            return null;
+
+        var path = new string(buffer, 0, (int)length);
+        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
+            return @"\\" + path[8..];
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
+    }
+
     /// <summary>The text of a regular file of at most <paramref name="maxBytes"/> bytes. False when the
     /// path is not local, the file is a link, larger than the limit (also when it grows while being
     /// read) or cannot be read.</summary>
@@ -108,6 +164,11 @@ internal static class GuardedRead
                 return false;
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            // A link swapped in between the check above and this open is followed by the open: the
+            // handle itself says which file it ended up on.
+            if (!OpenedFileIsTheChecked(stream.SafeFileHandle, Path.GetFullPath(path)))
+                return false;
+
             var buffer = new byte[maxBytes + 1];
             var total = 0;
             int read;
