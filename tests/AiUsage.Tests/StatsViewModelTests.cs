@@ -1635,6 +1635,7 @@ public class StatsViewModelTests
         Assert.True(start >= 0);
         var end = source.IndexOf("private ", start + 10, StringComparison.Ordinal);
         var body = source[start..end];
+        Assert.Contains("ShouldRecomputeOnIndex(_opened, IsVisible)", body, StringComparison.Ordinal);
         Assert.Contains("TryShowSnapshot()", body, StringComparison.Ordinal);
         Assert.Contains("RecomputeLoggedAsync(showLoading: false)", body, StringComparison.Ordinal);
         Assert.DoesNotContain("RecomputeLoggedAsync()", body, StringComparison.Ordinal);

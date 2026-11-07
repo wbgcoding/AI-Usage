@@ -744,6 +744,10 @@ public partial class StatsWindow : Window
         LocalizationService.Instance.PropertyChanged -= OnLanguageChanged;
     }
 
+    /// <summary>A finished index walk refreshes only a window that was opened and is on screen: the
+    /// others read the data when they are shown (<see cref="StatsWindow_IsVisibleChanged"/>).</summary>
+    internal static bool ShouldRecomputeOnIndex(bool opened, bool visible) => opened && visible;
+
     /// <summary>Runs on <see cref="StatsIndexerService"/>'s own background thread - <see
     /// cref="Dispatcher.BeginInvoke(Delegate)"/> is the marshal back to this window's thread, the
     /// only one <see cref="_viewModel"/>'s bound properties are safe to change from. The async form
@@ -753,8 +757,8 @@ public partial class StatsWindow : Window
     private void OnIndexCompleted(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(() =>
         {
-            // A window built ahead of time takes the then-current data when it is shown.
-            if (!_opened)
+            // A window built ahead of time, or hidden again, takes the then-current data when it is shown.
+            if (!ShouldRecomputeOnIndex(_opened, IsVisible))
                 return;
             _viewModel.TryShowSnapshot();
             _ = RecomputeLoggedAsync(showLoading: false);

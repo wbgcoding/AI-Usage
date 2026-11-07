@@ -105,6 +105,14 @@ public class StatsWindowTests
     // static/pack-URI plumbing, and reliably tripped the same one-Application-per-process limit that
     // pattern already runs close to.
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void An_index_walk_refreshes_only_an_opened_window_that_is_visible(bool opened, bool visible, bool expected) =>
+        Assert.Equal(expected, AiUsage.Views.StatsWindow.ShouldRecomputeOnIndex(opened, visible));
+
     [Fact]
     public void Every_collapsible_section_persists_its_collapsed_state()
     {
