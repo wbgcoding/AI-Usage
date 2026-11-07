@@ -30,8 +30,6 @@ public static class PlanPriceList
     internal const string ChatGptBusinessSource = "https://help.openai.com/en/articles/8792828-what-is-chatgpt-business";
     internal const string GeminiSource = "https://gemini.google/subscriptions/";
     private static readonly DateOnly Checked = new(2026, 11, 7);
-    // OpenAI's help pages refuse scripted reads; these stay at their last check until one succeeds.
-    private static readonly DateOnly CheckedOpenAi = new(2026, 10, 31);
 
     private static readonly Dictionary<(string Provider, string Plan), PlanPrice> Prices = new()
     {
@@ -39,10 +37,10 @@ public static class PlanPriceList
         [("claude", "pro")] = new("Pro", 20, "USD", false, ClaudeSource, Checked),
         [("claude", "max")] = new("Max", 100, "USD", false, ClaudeSource, Checked),
         [("claude", "ultra")] = new("Ultra", 200, "USD", false, ClaudeSource, Checked),
-        [("codex", "plus")] = new("Plus", 20, "USD", false, ChatGptPlusSource, CheckedOpenAi),
+        [("codex", "plus")] = new("Plus", 20, "USD", false, ChatGptPlusSource, Checked),
         // Per seat with monthly billing.
-        [("codex", "business")] = new("Business", 25, "USD", false, ChatGptBusinessSource, CheckedOpenAi),
-        [("codex", "team")] = new("Team", 25, "USD", false, ChatGptBusinessSource, CheckedOpenAi),
+        [("codex", "business")] = new("Business", 25, "USD", false, ChatGptBusinessSource, Checked),
+        [("codex", "team")] = new("Team", 25, "USD", false, ChatGptBusinessSource, Checked),
         // Google shows consumer prices in euros with VAT.
         [("gemini", "plus")] = new("Plus", 4.99, "EUR", true, GeminiSource, Checked),
         [("gemini", "pro")] = new("Pro", 21.99, "EUR", true, GeminiSource, Checked),
