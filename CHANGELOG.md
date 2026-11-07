@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Claude Mythos models count as Claude and show with short names such as "Mythos 5.1".
 
+### Fixed
+
+- The widget no longer turns partly see-through after a Windows prompt or a full-screen app closes.
+
 ## [1.4.0] - 2026-11-07
 
 See what your subscription is really worth, keep an eye on your Claude Console credit right in the Claude tile, use the app in ten more languages, and work with a tidier token usage window.

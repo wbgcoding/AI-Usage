@@ -1285,6 +1285,26 @@ public partial class MainWindow : Window, IDisposable
         _hiddenByFullscreen = false;
         WindowActivation.RecordAutomaticShow("MainWindow fullscreen return");
         NativeWindowStyle.ShowNativeNoActivate(hwndSource.Handle);
+        RepaintAfterNativeShow(hwndSource.Handle);
+    }
+
+    /// <summary>The window was hidden and shown again behind WPF's back. A full-screen phase such as a
+    /// system prompt on the secure desktop can drop the render device meanwhile, and WPF then redraws
+    /// only what changes afterwards, leaving the rest of a layered window see-through. So the whole
+    /// surface is drawn again now, and once more after the next frame.</summary>
+    private void RepaintAfterNativeShow(IntPtr hwnd)
+    {
+        void Repaint()
+        {
+            InvalidateVisual();
+            ChromeBorder.InvalidateVisual();
+            WindowOpacity.Redraw(hwnd);
+        }
+
+        Repaint();
+        MicaBackdrop.Reevaluate();
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, Repaint);
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, Repaint);
     }
 
     /// <summary>Puts the real window on the chosen level: above everything, an ordinary window, or
