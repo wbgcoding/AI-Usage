@@ -55,15 +55,14 @@ public class ClaudeConsoleRowTests : IDisposable
     // ---- status text per state ----
 
     [Fact]
-    public void A_console_balance_reads_signed_in_with_the_balance()
+    public void A_console_balance_reads_signed_in_without_the_amount()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");
 
         tile.SetApiCredit(new ClaudeApiCredit(12.34m, "USD"), ClaudeCreditRoute.Console);
 
-        var loc = LocalizationService.Instance;
-        Assert.Equal(loc.Format("Settings.ConsoleStatus.Balance", Money(12.34m)), tile.ConsoleStatusText);
-        Assert.Contains(Money(12.34m), tile.ConsoleStatusText, StringComparison.Ordinal);
+        Assert.Equal(LocalizationService.Instance["Settings.ConsoleStatus.SignedIn"], tile.ConsoleStatusText);
+        Assert.DoesNotContain(Money(12.34m), tile.ConsoleStatusText, StringComparison.Ordinal);
         Assert.True(tile.ShowConsoleSignOut);
         Assert.False(tile.ShowConsoleSignIn);
     }
@@ -76,20 +75,10 @@ public class ClaudeConsoleRowTests : IDisposable
         tile.SetApiCredit(new ClaudeApiCredit(12.34m, "USD"), ClaudeCreditRoute.ClaudeSignIn);
 
         var loc = LocalizationService.Instance;
-        Assert.Equal(loc.Format("Settings.ConsoleStatus.ViaClaude", Money(12.34m)), tile.ConsoleStatusText);
-        Assert.NotEqual(loc.Format("Settings.ConsoleStatus.Balance", Money(12.34m)), tile.ConsoleStatusText);
+        Assert.Equal(loc["Settings.ConsoleStatus.ViaClaude"], tile.ConsoleStatusText);
+        Assert.DoesNotContain(Money(12.34m), tile.ConsoleStatusText, StringComparison.Ordinal);
         Assert.False(tile.ShowConsoleSignOut);
         Assert.False(tile.ShowConsoleSignIn);
-    }
-
-    [Fact]
-    public void A_zero_balance_is_still_written_out_in_the_status()
-    {
-        var tile = new ProviderTileViewModel("claude", "Claude");
-
-        tile.SetApiCredit(new ClaudeApiCredit(0m, "USD"), ClaudeCreditRoute.Console);
-
-        Assert.Contains(Money(0m), tile.ConsoleStatusText, StringComparison.Ordinal);
     }
 
     [Fact]

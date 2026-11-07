@@ -678,19 +678,15 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The Console row offers its sign-out while the app holds a Console session.</summary>
     public bool ShowConsoleSignOut => ShowConsoleRow && ConsoleSessionExists;
 
-    /// <summary>The Console row's state in words: signed in with the balance, signed in through the Claude
-    /// sign-in, signed in without a balance read yet, or not signed in.</summary>
+    /// <summary>The Console row's state in words: signed in, signed in through the Claude sign-in, signed
+    /// in without a balance read yet, or not signed in. The balance itself shows on the tile only.</summary>
     public string ConsoleStatusText
     {
         get
         {
             var loc = LocalizationService.Instance;
-            if (_apiCredit is { } credit)
-            {
-                return loc.Format(
-                    _apiCreditRoute == ClaudeCreditRoute.ClaudeSignIn ? "Settings.ConsoleStatus.ViaClaude" : "Settings.ConsoleStatus.Balance",
-                    credit.FormatAmount(loc.DisplayCulture));
-            }
+            if (_apiCredit is not null)
+                return loc[_apiCreditRoute == ClaudeCreditRoute.ClaudeSignIn ? "Settings.ConsoleStatus.ViaClaude" : "Settings.ConsoleStatus.SignedIn"];
 
             return loc[ConsoleSessionExists ? "Settings.ConsoleStatus.NoBalance" : "Settings.ConsoleStatus.SignedOut"];
         }

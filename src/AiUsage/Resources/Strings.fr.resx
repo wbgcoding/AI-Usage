@@ -435,12 +435,7 @@
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Pic {0} · pic moy. {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Pic : le niveau le plus haut de la période. Pic moy. : la moyenne du niveau le plus haut de chaque fenêtre, repérée par un trait sur la barre.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Pas encore d'historique de quota pour cette période.</value></data>
-  <data name="Stats.PerPercent" xml:space="preserve"><value>1 % de la semaine ≈ {0}</value></data>
-  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} tokens {1}</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimation à partir de {0} heures de ta propre utilisation. Les lectures de cache sont comptées à part : 1 % ≈ {1} tokens en cache.</value></data>
-  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1 % de la semaine ≈ {0} tokens (tous modèles)</value></data>
-  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Pas encore assez de données pour les tokens par pourcent.</value></data>
-  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Indisponible avec plusieurs comptes.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Aucun projet</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Autres projets</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projets</value></data>
@@ -696,8 +691,8 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Se connecter à platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Affiche sur la tuile le solde de crédits API de ta Claude Console. Seul le solde est lu.</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (crédit API)</value></data>
-  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>Connecté · Solde : {0}</value></data>
-  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Connecté via la connexion Claude · Solde : {0}</value></data>
+  <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Connecté</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Connecté via la connexion Claude</value></data>
   <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Connecté · solde pas encore lu</value></data>
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Non connecté</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Se déconnecter de Claude Console</value></data>

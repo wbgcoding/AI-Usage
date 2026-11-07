@@ -435,12 +435,7 @@
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>ピーク {0} · 平均ピーク {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>ピーク: 期間内の最高値。平均ピーク: 各ウィンドウの最高値の平均で、バー上に線で表示されます。</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>この期間の使用枠の履歴はまだありません。</value></data>
-  <data name="Stats.PerPercent" xml:space="preserve"><value>週の1% ≈ {0}</value></data>
-  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} トークン {1}</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>ご自身の {0} 時間分の使用量からの推定です。キャッシュ読み取りは別集計で、1% ≈ キャッシュトークン {1} です。</value></data>
-  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>週の1% ≈ {0} トークン(全モデル)</value></data>
-  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>1%あたりのトークン数を出すにはデータがまだ足りません。</value></data>
-  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>アカウントが複数ある場合は利用できません。</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>プロジェクトなし</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>その他のプロジェクト</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0}件のプロジェクト</value></data>
@@ -696,8 +691,8 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console(APIクレジット)</value></data>
-  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>サインイン済み · 残高: {0}</value></data>
-  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Claudeのサインイン経由でサインイン済み · 残高: {0}</value></data>
+  <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>サインイン済み</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Claudeのサインイン経由でサインイン済み</value></data>
   <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>サインイン済み · 残高はまだ読み取っていません</value></data>
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>未サインイン</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Claude Consoleからサインアウト</value></data>

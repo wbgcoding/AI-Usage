@@ -435,12 +435,7 @@
   <data name="Stats.Limits.Detail" xml:space="preserve"><value>Pico {0} · pico médio {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Pico: o nível mais alto no período. Pico médio: a média do nível mais alto de cada janela, marcada como uma linha na barra.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Ainda não há histórico de cota neste período.</value></data>
-  <data name="Stats.PerPercent" xml:space="preserve"><value>1% da semana ≈ {0}</value></data>
-  <data name="Stats.PerPercent.Item" xml:space="preserve"><value>{0} tokens {1}</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimativa com base em {0} horas do seu próprio uso. As leituras de cache são contadas à parte: 1% ≈ {1} tokens em cache.</value></data>
-  <data name="Stats.PerPercent.Total" xml:space="preserve"><value>1% da semana ≈ {0} tokens (todos os modelos)</value></data>
-  <data name="Stats.PerPercent.TooFew" xml:space="preserve"><value>Ainda não há dados suficientes para tokens por porcentagem.</value></data>
-  <data name="Stats.PerPercent.MultiAccount" xml:space="preserve"><value>Indisponível com mais de uma conta.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Sem projeto</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Outros projetos</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projetos</value></data>
@@ -696,8 +691,8 @@
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Entrar em platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Mostra no bloco o saldo de créditos de API do seu Claude Console. Somente o saldo é lido.</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (crédito de API)</value></data>
-  <data name="Settings.ConsoleStatus.Balance" xml:space="preserve"><value>Sessão iniciada · Saldo: {0}</value></data>
-  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Sessão iniciada pelo login do Claude · Saldo: {0}</value></data>
+  <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Sessão iniciada</value></data>
+  <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Sessão iniciada pelo login do Claude</value></data>
   <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Sessão iniciada · saldo ainda não lido</value></data>
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Sessão não iniciada</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Sair do Claude Console</value></data>
