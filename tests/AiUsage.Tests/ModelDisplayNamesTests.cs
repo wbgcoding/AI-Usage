@@ -39,6 +39,7 @@ public class ModelDisplayNamesTests
     [InlineData("gemini-3-flash-preview", "Gemini 3 Flash")]
     [InlineData("gemini-2.5-flash", "Gemini 2.5 Flash")]
     [InlineData("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite")]
+    [InlineData("claude-mythos-preview", "Mythos Preview")]
     public void Resolve_maps_every_table_entry_to_its_short_name(string model, string expected) =>
         Assert.Equal(expected, ModelDisplayNames.Resolve(model));
 
@@ -47,6 +48,8 @@ public class ModelDisplayNamesTests
     [InlineData("claude-sonnet-5-1-20260101", "Sonnet 5.1")]
     [InlineData("anthropic/claude-haiku-6", "Haiku 6")]
     [InlineData("claude-fable-6-2-thinking", "Fable 6.2")]
+    [InlineData("claude-mythos-5", "Mythos 5")]
+    [InlineData("claude-mythos-5-1", "Mythos 5.1")]
     public void Resolve_reads_new_claude_releases_from_their_id_scheme(string model, string expected) =>
         Assert.Equal(expected, ModelDisplayNames.Resolve(model));
 
@@ -58,6 +61,8 @@ public class ModelDisplayNamesTests
 
     [Theory]
     [InlineData("gpt-5.1-codex-max", "GPT-5.1 Codex Max")]
+    [InlineData("gpt-6.1-sol", "GPT-6.1 Sol")]
+    [InlineData("gemini-4-argon", "Gemini 4 Argon")]
     [InlineData("gpt-4o-mini", "GPT-4o Mini")]
     [InlineData("gpt-5-codex", "GPT-5 Codex")] // the table entry still wins
     [InlineData("o4-mini", "o4 Mini")]

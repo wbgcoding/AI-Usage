@@ -24,7 +24,7 @@ public static class ProviderModelFilter
         name = name[(name.LastIndexOf('/') + 1)..];
         return providerId switch
         {
-            "claude" => name.Contains("claude") || name.Contains("opus") || name.Contains("sonnet") || name.Contains("haiku") || name.Contains("fable"),
+            "claude" => name.Contains("claude") || name.Contains("opus") || name.Contains("sonnet") || name.Contains("haiku") || name.Contains("fable") || name.Contains("mythos"),
             "codex" => (name.Contains("gpt") && !name.Contains("gpt-oss")) || name.StartsWith("codex", StringComparison.Ordinal) || OpenAiReasoning.IsMatch(name),
             "gemini" => name.Contains("gemini"),
             _ => true,

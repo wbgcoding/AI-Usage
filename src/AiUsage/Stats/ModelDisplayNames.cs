@@ -16,6 +16,7 @@ public static class ModelDisplayNames
         ["claude-haiku-4-5"] = "Haiku 4.5",
         ["claude-fable-5"] = "Fable 5",
         ["claude-fable-5-1"] = "Fable 5.1",
+        ["claude-mythos-preview"] = "Mythos Preview",
         ["gpt-6-astra"] = "GPT-6 Astra",
         ["gpt-5.6-sol"] = "GPT-5.6 Sol",
         ["gpt-5.6-terra"] = "GPT-5.6 Terra",
@@ -118,7 +119,7 @@ public static class ModelDisplayNames
     }
 
     private static readonly System.Text.RegularExpressions.Regex ClaudeIdPattern = new(
-        @"^claude-(?<family>opus|sonnet|haiku|fable)-(?<major>\d{1,2})(?:-(?<minor>\d{1,2}))?(?:-thinking)?$",
+        @"^claude-(?<family>opus|sonnet|haiku|fable|mythos)-(?<major>\d{1,2})(?:-(?<minor>\d{1,2}))?(?:-thinking)?$",
         System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     private static string Normalize(string model)
