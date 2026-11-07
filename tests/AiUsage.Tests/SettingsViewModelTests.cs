@@ -2554,6 +2554,7 @@ public class SettingsViewModelTests : IDisposable
         Assert.False(File.Exists(copy + ".copy.tmp"));
 
         // The next start restores from the copy alone and then removes it.
+        IndexPools.Release(data);
         File.Delete(zip);
         var log = new List<string>();
         Assert.True(RestoreOutcome.Restored == BackupService.ApplyPendingRestore(data, DateTime.Now, log.Add), string.Join(" | ", log));
