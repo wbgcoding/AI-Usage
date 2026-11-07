@@ -1,12 +1,12 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace AiUsage.Providers.LocalLogin;
 
 /// <summary>
-/// Reads the signed-in Claude Code account's own email address out of <c>~/.claude.json</c> -
+/// Reads the signed-in Claude Code account's email address and plan out of <c>~/.claude.json</c>,
 /// Claude Code's own settings file, not the credentials file <see cref="ClaudeCodeLogin"/> reads the
-/// access token from, and not a secret itself: <c>oauthAccount.emailAddress</c> is a plain profile
-/// field the CLI already shows in its own UI. Never throws, never guesses - a missing file, a missing
+/// access token from, and not a secret itself: <c>oauthAccount</c> is the profile Claude Code fetches
+/// from its server and shows in its own UI. Never throws, never guesses: a missing file, a missing
 /// field or a value that does not look like an email address all read as no label at all.
 /// </summary>
 internal static class ClaudeAccountLabelReader
@@ -31,49 +31,68 @@ internal static class ClaudeAccountLabelReader
 
     public static string? Read() => Read(DefaultPath());
 
+    /// <summary>The account's plan wording (organisation type and rate limit tier), or null. Claude
+    /// Code refreshes this profile from its server, while the credentials file keeps the tier of the
+    /// last sign-in, so a plan changed since then shows here first.</summary>
+    public static string? ReadPlan() => ReadPlan(DefaultPath());
+
+    internal static string? DefaultProfilePath() => DefaultPath();
+
     // Claude Code keeps its whole project history in the same file, often several megabytes; an
-    // unchanged file is not parsed again just to find the same address.
+    // unchanged file is not parsed again just to find the same values.
     private static readonly Lock Gate = new();
-    private static (string Path, long Length, DateTime LastWriteUtc, string? Label)? _last;
+    private static (string Path, long Length, DateTime LastWriteUtc, string? Label, string? Plan)? _last;
 
     /// <summary>Test seam: a fixture path instead of the real profile folder.</summary>
-    internal static string? Read(string path)
+    internal static string? Read(string path) => ReadAccount(path).Label;
+
+    /// <summary>Test seam: a fixture path instead of the real profile folder.</summary>
+    internal static string? ReadPlan(string path) => ReadAccount(path).Plan;
+
+    private static (string? Label, string? Plan) ReadAccount(string path)
     {
         try
         {
             var info = new FileInfo(path);
             if (!info.Exists)
-                return null;
+                return (null, null);
 
             lock (Gate)
             {
                 if (_last is { } last && last.Path == path && last.Length == info.Length && last.LastWriteUtc == info.LastWriteTimeUtc)
-                    return last.Label;
+                    return (last.Label, last.Plan);
             }
 
-            var label = ReadLabel(path);
+            var (label, plan) = Parse(path);
             lock (Gate)
-                _last = (path, info.Length, info.LastWriteTimeUtc, label);
-            return label;
+                _last = (path, info.Length, info.LastWriteTimeUtc, label, plan);
+            return (label, plan);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentOutOfRangeException)
         {
-            return null;
+            return (null, null);
         }
     }
 
-    private static string? ReadLabel(string path)
+    private static (string? Label, string? Plan) Parse(string path)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var document = JsonDocument.Parse(stream);
         if (document.RootElement.ValueKind != JsonValueKind.Object)
-            return null;
+            return (null, null);
         if (!document.RootElement.TryGetProperty("oauthAccount", out var account) || account.ValueKind != JsonValueKind.Object)
-            return null;
-        if (!account.TryGetProperty("emailAddress", out var emailEl) || emailEl.ValueKind != JsonValueKind.String)
-            return null;
+            return (null, null);
 
-        var email = emailEl.GetString();
-        return AccountLabels.LooksLikeEmail(email) ? email : null;
+        var email = Text(account, "emailAddress");
+        var label = AccountLabels.LooksLikeEmail(email) ? email : null;
+
+        var parts = new[] { Text(account, "organizationType"), Text(account, "organizationRateLimitTier") }.Where(part => part is not null);
+        var plan = string.Join(' ', parts);
+        return (label, plan.Length > 0 ? plan : null);
     }
+
+    private static string? Text(JsonElement parent, string name) =>
+        parent.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.String && el.GetString() is { Length: > 0 and <= 320 } value
+            ? value
+            : null;
 }

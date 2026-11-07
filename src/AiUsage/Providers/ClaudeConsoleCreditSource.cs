@@ -177,6 +177,21 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         }
     }
 
+    /// <summary>The plan changed, and with it the free credit: reads as soon as no read runs, without
+    /// lifting a back-off or the pause after a Console sign-out.</summary>
+    internal async Task RefreshAfterPlanChangeAsync()
+    {
+        Task pending;
+        lock (_gate)
+        {
+            _lastAttemptAt = null;
+            pending = _running;
+        }
+
+        await pending;
+        await RefreshIfDueAsync();
+    }
+
     /// <summary>The user just signed in on the console: forgets the back-off and the read pause and reads now.</summary>
     internal async Task ReadNowAsync()
     {

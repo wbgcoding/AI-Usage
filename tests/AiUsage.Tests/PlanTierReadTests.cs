@@ -62,6 +62,34 @@ public class PlanTierReadTests
         Assert.Equal("", Header("claude", "Claude", plan));
     }
 
+    // After an upgrade the credentials file still names the old plan until the next sign-in, while
+    // the profile in .claude.json is refreshed from the server.
+    [Fact]
+    public void The_profile_plan_wins_over_the_tier_of_the_last_sign_in()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("plan-tier-claude-profile");
+        var profile = Path.Combine(directory, ".claude.json");
+        File.WriteAllText(profile,
+            """{"oauthAccount":{"organizationType":"claude_max","organizationRateLimitTier":"default_claude_max_20x"}}""",
+            new UTF8Encoding(false));
+
+        var plan = ClaudeCodeLogin.CurrentPlan("max default_claude_max_5x", profile);
+
+        Assert.Equal("Ultra", Header("claude", "Claude", plan));
+    }
+
+    [Fact]
+    public void A_profile_without_a_plan_keeps_the_tier_of_the_last_sign_in()
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("plan-tier-claude-profile-none");
+        var profile = Path.Combine(directory, ".claude.json");
+        File.WriteAllText(profile, """{"oauthAccount":{"organizationUuid":"x"}}""", new UTF8Encoding(false));
+
+        Assert.Equal("Max", Header("claude", "Claude", ClaudeCodeLogin.CurrentPlan("max default_claude_max_5x", profile)));
+        Assert.Equal("Max", Header("claude", "Claude", ClaudeCodeLogin.CurrentPlan("max default_claude_max_5x", Path.Combine(directory, "missing.json"))));
+        Assert.Equal("Max", Header("claude", "Claude", ClaudeCodeLogin.CurrentPlan("max default_claude_max_5x", null)));
+    }
+
     [Fact]
     public async Task The_claude_provider_hands_the_local_logins_tier_to_its_snapshot()
     {

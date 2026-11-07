@@ -233,7 +233,22 @@ public sealed class ClaudeProvider : IUsageProvider
         // browser, and started late it only shows up many seconds after the usage numbers.
         StartApiCreditRead();
         var snapshot = await FetchSourcesAsync(ct);
+        RereadCreditOnPlanChange(snapshot.PlanType);
         return WithApiCredit(_webAnswerUnread ? snapshot with { UnreadableAnswer = true } : snapshot);
+    }
+
+    private string? _lastPlan;
+
+    // The free credit comes with the plan, so a new plan must not wait up to half an hour for its credit.
+    private void RereadCreditOnPlanChange(string? planType)
+    {
+        var plan = PlanTier.Normalize(planType);
+        if (plan is null)
+            return;
+        var changed = _lastPlan is not null && plan != _lastPlan;
+        _lastPlan = plan;
+        if (changed && CreditSource is { } source && _webSource is not null && !LocalOnly)
+            _ = source.RefreshAfterPlanChangeAsync();
     }
 
     /// <summary>Where the Claude Console's credit balance comes from; null for an account without a web

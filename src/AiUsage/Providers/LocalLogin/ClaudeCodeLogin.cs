@@ -56,13 +56,20 @@ internal static class ClaudeCodeLogin
 
     private static string CredentialsPath() => ClaudeConfigRoot.FilePath(ClaudeConfigRoot.Candidates(), CredentialsFileName);
 
-    public static Task<ClaudeCodeUsage> FetchAsync(CancellationToken ct) => FetchAsync(CredentialsPath(), ct);
+    public static Task<ClaudeCodeUsage> FetchAsync(CancellationToken ct) =>
+        FetchAsync(CredentialsPath(), ClaudeAccountLabelReader.DefaultProfilePath(), ct);
 
     /// <summary>Test seam: a fixture credentials path instead of the real profile folder - everything
     /// past that point (the HTTP call, the parse) is identical to the production path.</summary>
-    internal static async Task<ClaudeCodeUsage> FetchAsync(string credentialsPath, CancellationToken ct)
+    internal static Task<ClaudeCodeUsage> FetchAsync(string credentialsPath, CancellationToken ct) =>
+        FetchAsync(credentialsPath, profilePath: null, ct);
+
+    /// <summary>Test seam with a fixture <c>.claude.json</c>: its plan wins over the one in the
+    /// credentials file, which still names the plan of the last sign-in after an upgrade.</summary>
+    internal static async Task<ClaudeCodeUsage> FetchAsync(string credentialsPath, string? profilePath, CancellationToken ct)
     {
-        var (token, tokenReason, plan) = ReadAccessToken(credentialsPath);
+        var (token, tokenReason, credentialsPlan) = ReadAccessToken(credentialsPath);
+        var plan = CurrentPlan(credentialsPlan, profilePath);
         if (token is null)
         {
             return tokenReason == ClaudeCodeLoginReason.Unreadable
@@ -89,6 +96,11 @@ internal static class ClaudeCodeLogin
             ? new ClaudeCodeUsage(LocalLoginOutcome.Ok, parsed.Windows, ClaudeCodeLoginReason.Ok, plan, Extra: parsed.Extra)
             : new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], ClaudeCodeLoginReason.NonOkResponse, AnswerUnread: parsed.Outcome == ClaudeUsageOutcome.Failed);
     }
+
+    /// <summary>The plan of the profile Claude Code keeps fetching from its server, else the one the
+    /// credentials file holds from the last sign-in.</summary>
+    internal static string? CurrentPlan(string? credentialsPlan, string? profilePath) =>
+        (profilePath is not null ? ClaudeAccountLabelReader.ReadPlan(profilePath) : null) ?? credentialsPlan;
 
     /// <summary>The answer for a refused request, null for any other status. A 401 on a token the file
     /// still calls valid means Claude Code rotated it since: it reads like an expired one, so the last

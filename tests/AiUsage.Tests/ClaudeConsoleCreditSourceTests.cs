@@ -101,6 +101,23 @@ public class ClaudeConsoleCreditSourceTests
     }
 
     [Fact]
+    public async Task A_plan_change_reads_again_before_the_thirty_minutes_are_up()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner();
+        var source = new ClaudeConsoleCreditSource(site.Run, null, time);
+
+        await source.RefreshIfDueAsync();
+        var afterFirst = site.Calls;
+        time.Advance(TimeSpan.FromMinutes(5));
+        site.Credits = CreditsOk(900);
+        await source.RefreshAfterPlanChangeAsync();
+
+        Assert.True(site.Calls > afterFirst);
+        Assert.Equal(9.00m, source.Current!.Amount);
+    }
+
+    [Fact]
     public async Task A_failed_read_keeps_the_last_value_for_two_hours_then_drops_it()
     {
         var time = new ManualTime();
