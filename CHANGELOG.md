@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that shows how many times its plan price the API value is, with the plan and its price below (in euros with 19 % German VAT, in dollars as advertised). The tooltip shows the advertised, net and gross price and names the provider’s own pricing page and the date it was checked; the ratio compares without VAT. A plan whose tier the app cannot tell apart (ChatGPT Pro, Google AI Ultra) shows no price. Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
 - The Claude tile shows the API credit balance of your Claude Console in its header, in grey right after the plan; its tooltip splits it into free and bought credit. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
-- In the settings, the Claude account has its own "Claude Console" row: it shows whether the console is signed in and the balance, and signs in or out of the console alone. The console keeps its own sign-in, apart from the Claude sign-in.
+- In the settings, the Claude account has its own "Claude Console" row: it shows whether the console is signed in, and signs in or out of the console alone. The console keeps its own sign-in, apart from the Claude sign-in.
 - Under the usage bars the Claude tile shows the free credit the Claude Console grants, such as the monthly credit of a Max plan, as a bar row like the usage windows: what is left beside its name, the used share and the time until the earliest grant ends on the right, and, once a few readings are in, when the credit will be used up at the current pace. Grants that overlap around the monthly change count together.
 - Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
 
@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude Fable models count as Claude in the plan forecast.
 - A model without a public price (such as the Codex review model) no longer writes a warning to the log at every start.
 - In the token usage window the providers are buttons beside the range: each one switches its provider on or off, and the plan forecast now comes before the limits.
+- Token usage: the provider, model and effort rings grow with a wide window, and in a narrow window they fill their card with the legend below the ring.
+- Token usage: in a narrow window the "less ... more" scale under the daily grid steps aside instead of pushing the colour key onto a second row.
+- Token usage: "Colour by" sits on the breakdown header next to the grouping, so the breakdown spends no extra row on it.
+
+### Removed
+
+- The "1 % of the week ≈ ..." line under the limits; the plan forecast shows the same estimate.
 
 ### Fixed
 
