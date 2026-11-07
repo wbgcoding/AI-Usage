@@ -128,7 +128,8 @@ public class StatsMinimumWidthTests
     [InlineData(282, 4, 132)]
     [InlineData(330, 4, 180)]
     [InlineData(390, 4, 240)]
-    [InlineData(900, 4, 240)]
+    [InlineData(520, 4, 301)]
+    [InlineData(900, 4, 320)]
     [InlineData(330, 20, 360)]
     public void The_ring_grows_with_the_width_and_never_below_what_the_legend_rows_need(double width, int slices, double height) =>
         Assert.Equal(height, StatsRingChart.HeightFor(width, slices), 6);
@@ -150,7 +151,7 @@ public class StatsMinimumWidthTests
     [InlineData(132, 1.0)]
     [InlineData(198, 1.5)]
     [InlineData(236, 1.7878787)]
-    [InlineData(400, 1.8)]
+    [InlineData(400, 2.2)]
     public void The_center_texts_grow_with_the_ring(double diameter, double scale) =>
         Assert.Equal(scale, StatsRingChart.CenterTextScale(diameter), 5);
 

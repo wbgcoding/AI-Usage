@@ -281,12 +281,16 @@ public sealed class StatsRingChart : FrameworkElement
     }
 
     private const double MinRingHeight = 132;
-    private const double MaxRingHeight = 240;
+    private const double MaxRingHeight = 320;
     private const double LegendAllowance = 150;
+    // Past the first 240 px the ring keeps growing with this share of the width, so a wide window
+    // gets a large ring and the legend still keeps the larger part of the row.
+    private const double WideRingHeight = 240;
+    private const double WideRingShare = 0.58;
 
     // How far the texts grow with the ring: the center lines up to the ring's own growth, the legend
     // less, so it still fits beside a large ring.
-    private const double MaxCenterTextScale = 1.8;
+    private const double MaxCenterTextScale = 2.2;
     private const double MaxLegendTextScale = 1.4;
 
     /// <summary>How much the center texts grow with the ring: 1 at the smallest ring, in step with the
@@ -306,10 +310,14 @@ public sealed class StatsRingChart : FrameworkElement
     }
 
     /// <summary>The control's height: the ring grows with the width the tile gives it (the legend keeps
-    /// its allowance), within a fixed range. It depends on the width only, so switching the provider or
-    /// the data never resizes it; only a legend with more rows than fit can push it higher.</summary>
-    internal static double HeightFor(double width, int sliceCount) =>
-        Math.Max(Math.Clamp(width - LegendAllowance, MinRingHeight, MaxRingHeight), sliceCount * LegendRowHeight);
+    /// its allowance, on a wide tile the larger share of the row), within a fixed range. It depends on
+    /// the width only, so switching the provider or the data never resizes it; only a legend with more
+    /// rows than fit can push it higher.</summary>
+    internal static double HeightFor(double width, int sliceCount)
+    {
+        var ring = Math.Floor(Math.Min(width - LegendAllowance, Math.Max(WideRingHeight, width * WideRingShare)));
+        return Math.Max(Math.Clamp(ring, MinRingHeight, MaxRingHeight), sliceCount * LegendRowHeight);
+    }
 
     protected override Size MeasureOverride(Size availableSize) =>
         new(double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width, HeightFor(availableSize.Width, Slices.Count));
