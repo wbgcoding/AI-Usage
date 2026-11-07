@@ -77,7 +77,7 @@ public class InstallerSafetyTests
             < entries.IndexOf("RemoveDir(Folder);", StringComparison.Ordinal));
 
         var files = Body(iss, "procedure DeleteOwnDataFiles");
-        foreach (var name in new[] { "settings.json", "settings.json.bak", "stats.db", "stats.db-wal", "stats.db-shm", "stats.db-journal", "notifications.json", "status.json", "project-colors.json", "location" + ".txt", "toast-icon.png" })
+        foreach (var name in new[] { "settings.json", "settings.json.bak", "stats.db", "stats.db-wal", "stats.db-shm", "stats.db-journal", "notifications.json", "status.json", "project-colors.json", "location" + ".txt", "toast-icon.png", "restore-source.zip" })
             Assert.Contains($"DeleteOwnFile(Folder, '{name}');", files);
         Assert.Contains("DeleteOwnFiles(Folder, 'history-', '.jsonl', NameChars, '', 1, 100);", files);
 

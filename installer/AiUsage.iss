@@ -1184,6 +1184,7 @@ begin
   DeleteOwnFile(Folder, 'stats.db-journal');
   DeleteOwnFile(Folder, 'restore-pending.txt');
   DeleteOwnFile(Folder, 'restore-journal.json');
+  DeleteOwnFile(Folder, 'restore-source.zip');
   DeleteOwnFile(Folder, 'location.txt');
   DeleteOwnFile(Folder, 'toast-icon.png');
   DeleteOwnTemps(Folder, 'settings.json');
@@ -1192,6 +1193,7 @@ begin
   DeleteOwnTemps(Folder, 'project-colors.json');
   DeleteOwnTemps(Folder, 'restore-pending.txt');
   DeleteOwnTemps(Folder, 'restore-journal.json');
+  DeleteOwnTemps(Folder, 'restore-source.zip');
   DeleteOwnFiles(Folder, 'history-', '.jsonl', NameChars, '', 1, 100);
   DeleteOwnFiles(Folder, 'history-', '.tmp', TempChars, '.jsonl.', 8, 150);
   DeleteOwnFiles(Folder, 'stats.v', '.bak', '0123456789', '', 1, 3);

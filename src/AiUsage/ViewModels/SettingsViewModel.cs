@@ -1752,10 +1752,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             _store.SaveNow(_settings);
             try
             {
-                BackupService.SchedulePendingRestore(dataDirectory, path, setAside);
+                // The next start reads a local copy: the request refuses a path on a network share.
+                var localCopy = await Task.Run(() => BackupService.CopyForPendingRestore(dataDirectory, path));
+                BackupService.SchedulePendingRestore(dataDirectory, localCopy, setAside);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                BackupService.CancelPendingRestore(dataDirectory);
                 _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
                 return;
             }

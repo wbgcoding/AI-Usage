@@ -2532,9 +2532,33 @@ public class SettingsViewModelTests : IDisposable
         // The dialog names the folder the previous data goes to; the request carries the same name.
         Assert.Equal(data, Path.GetDirectoryName(offered));
         Assert.StartsWith("before-restore-", Path.GetFileName(offered), StringComparison.Ordinal);
-        Assert.Equal(zip + "\n" + Path.GetFileName(offered), File.ReadAllText(Path.Combine(data, "restore-pending.txt")));
+        Assert.Equal(Path.Combine(data, "restore-source.zip") + "\n" + Path.GetFileName(offered), File.ReadAllText(Path.Combine(data, "restore-pending.txt")));
         // Nothing in the data folder is touched by the running process: the next start does the swap.
         Assert.Equal(10, new Stats.StatsStore(data).LoadAll().Single().InputTokens);
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public async Task A_scheduled_restore_reads_a_local_copy_so_the_chosen_file_may_vanish_before_the_restart()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zip = Path.Combine(TempDirectory(), "b.zip");
+        BackupService.Create(SeededDataFolder(OtherPc, 99), zip, "1", OtherPc, "PC", DateTimeOffset.UtcNow, TempDirectory());
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip, confirmRestore: (_, _) => true, restartApp: () => true);
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        var copy = Path.Combine(data, "restore-source.zip");
+        Assert.Equal(File.ReadAllBytes(zip), File.ReadAllBytes(copy));
+        Assert.Equal(copy, File.ReadAllText(Path.Combine(data, "restore-pending.txt")).Split('\n')[0]);
+        Assert.False(File.Exists(copy + ".copy.tmp"));
+
+        // The next start restores from the copy alone and then removes it.
+        File.Delete(zip);
+        var log = new List<string>();
+        Assert.True(RestoreOutcome.Restored == BackupService.ApplyPendingRestore(data, DateTime.Now, log.Add), string.Join(" | ", log));
+        Assert.False(File.Exists(copy));
+        Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
         IndexPools.Release(data);
     }
 
@@ -2550,6 +2574,7 @@ public class SettingsViewModelTests : IDisposable
         await vm.RestoreBackupCommand.ExecuteAsync(null);
 
         Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
+        Assert.False(File.Exists(Path.Combine(data, "restore-source.zip")));
         Assert.Single(messages);
     }
 

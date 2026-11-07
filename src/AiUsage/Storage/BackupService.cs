@@ -69,6 +69,10 @@ public static class BackupService
     /// opens the files (see <see cref="ApplyPendingRestore"/>).</summary>
     public const string PendingFileName = "restore-pending.txt";
 
+    /// <summary>The local copy of the chosen backup a scheduled restore reads, so a zip picked on a
+    /// network share still works after the restart (the request itself only names local paths).</summary>
+    public const string PendingCopyFileName = "restore-source.zip";
+
     private const string StagingFolderName = "restore-staging";
     private const string SetAsidePrefix = "before-restore-";
 
@@ -761,8 +765,33 @@ public static class BackupService
         AtomicFile.WriteAllBytes(pending, AppEncoding.Utf8NoBom.GetBytes(Path.GetFullPath(zipPath) + "\n" + name));
     }
 
+    /// <summary>Copies the chosen backup into the data folder under a fixed name and returns that local
+    /// path. An older copy still waiting is replaced only after the new one is complete. Blocking: run
+    /// it off the UI thread.</summary>
+    public static string CopyForPendingRestore(string dataDirectory, string zipPath)
+    {
+        var target = Path.Combine(dataDirectory, PendingCopyFileName);
+        var temporary = target + ".copy.tmp";
+        try
+        {
+            Directory.CreateDirectory(dataDirectory);
+            File.Copy(zipPath, temporary, overwrite: true);
+            File.Move(temporary, target, overwrite: true);
+            return target;
+        }
+        catch
+        {
+            TryDeleteFile(temporary);
+            throw;
+        }
+    }
+
     /// <summary>Takes a scheduled restore back (the restart did not happen).</summary>
-    public static void CancelPendingRestore(string dataDirectory) => TryDeleteFile(Path.Combine(dataDirectory, PendingFileName));
+    public static void CancelPendingRestore(string dataDirectory)
+    {
+        TryDeleteFile(Path.Combine(dataDirectory, PendingFileName));
+        TryDeleteFile(Path.Combine(dataDirectory, PendingCopyFileName));
+    }
 
     public static RestoreOutcome ApplyPendingRestore(string dataDirectory, DateTime now, Action<string> log) =>
         ApplyPendingRestore(dataDirectory, now, log, out _);
@@ -783,13 +812,18 @@ public static class BackupService
         var recovered = RecoverInterruptedSwap(dataDirectory, log);
 
         var pending = Path.Combine(dataDirectory, PendingFileName);
+        var pendingCopy = Path.Combine(dataDirectory, PendingCopyFileName);
         if (!File.Exists(pending))
+        {
+            TryDeleteFile(pendingCopy);
             return recovered ? RestoreOutcome.Unchanged : RestoreOutcome.NoPending;
+        }
 
         var request = ReadPending(pending);
         if (request is null)
         {
             TryDeleteFile(pending);
+            TryDeleteFile(pendingCopy);
             log("Restore: the request was invalid or too old and was dropped.");
             return RestoreOutcome.Unchanged;
         }
@@ -840,6 +874,7 @@ public static class BackupService
         {
             DeleteStaging(staging);
             TryDeleteFile(pending);
+            TryDeleteFile(pendingCopy);
         }
     }
 
