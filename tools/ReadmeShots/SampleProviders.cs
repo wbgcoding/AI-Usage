@@ -38,13 +38,13 @@ internal static class SampleProviders
                 Snapshot("claude", "Max", SourceKind.LocalFile, TimeSpan.FromSeconds(12),
                     new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, In(new TimeSpan(2, 14, 0)), 300, new TokenUsage(1_823_457)),
                     new UsageWindow("Window_Weekly", WindowKind.Weekly, 63, In(new TimeSpan(3, 4, 0, 0)), 10080))
-                    with { ApiCredit = new ClaudeApiCredit(18.40m, "USD", new ClaudeCreditGrant(200m, 163m, now + TimeSpan.FromDays(12))) },
-                History(now, fiveHourNow: 42, weeklyNow: 63, peak: 78)),
+                    with { ApiCredit = new ClaudeApiCredit(18.40m, "USD", new ClaudeCreditGrant(100m, 81.50m, now + TimeSpan.FromDays(12))) },
+                History(now, fiveHourNow: 42, weeklyNow: 63, peak: 81, seed: 11)),
             new("codex", "Codex",
                 Snapshot("codex", "Pro", SourceKind.LocalFile, TimeSpan.FromSeconds(31),
                     new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 18, In(new TimeSpan(3, 40, 0)), 300),
                     new UsageWindow("Window_Weekly", WindowKind.Weekly, 35, In(new TimeSpan(5, 2, 0, 0)), 10080)),
-                History(now, fiveHourNow: 18, weeklyNow: 35, peak: 46)),
+                History(now, fiveHourNow: 18, weeklyNow: 35, peak: 52, seed: 23)),
             new("cursor", "Cursor",
                 Snapshot("cursor", "Pro", SourceKind.WebSession, TimeSpan.FromSeconds(48),
                     new UsageWindow("Window_CursorModels", WindowKind.Other, 54, In(TimeSpan.FromDays(19)), null),
@@ -105,37 +105,77 @@ internal static class SampleProviders
         ];
     }
 
-    /// <summary>Seven days at half hour steps: the five hour window swells and settles with the
-    /// working day up to <paramref name="peak"/> (ending exactly on the shown percent), the weekly one
-    /// climbs smoothly to its shown percent.</summary>
-    private static IReadOnlyList<HistoryPoint> History(DateTimeOffset now, double fiveHourNow, double weeklyNow, double peak)
+    /// <summary>Seven days at half hour steps from a seeded run of invented work sessions: each
+    /// session starts at an uneven time, lasts an uneven while and burns tokens at an uneven pace. The
+    /// five hour window opens with the first use and drops to zero five hours later; the weekly one
+    /// climbs with every session and stays flat in between. Both end exactly on the shown percent.</summary>
+    private static IReadOnlyList<HistoryPoint> History(DateTimeOffset now, double fiveHourNow, double weeklyNow, double peak, int seed)
     {
-        var points = new List<HistoryPoint>();
+        const int stepsPerHour = 2;
+        const int steps = 7 * 24 * stepsPerHour;
         var start = now - TimeSpan.FromDays(7);
-        const int steps = 7 * 48;
-        var dayWeights = new[] { 0.85, 1.0, 0.7, 0.95, 0.6, 0.3, 0.75 };
+        var random = new Random(seed);
 
-        double FiveHour(DateTimeOffset at)
+        // Use per half hour step: one to three sessions a day, longer and busier on some days.
+        var use = new double[steps + 1];
+        for (var day = 0; day < 7; day++)
         {
-            var hour = at.LocalDateTime.TimeOfDay.TotalHours;
-            var activity = Math.Max(0, Math.Sin(Math.PI * (hour - 7.5) / 13));
-            var dayIndex = (int)Math.Floor((at - start).TotalDays) % 7;
-            return peak * Math.Pow(activity, 1.4) * dayWeights[dayIndex];
+            var dayLoad = 0.5 + random.NextDouble() * 0.7;
+            var sessions = random.Next(1, 4);
+            for (var session = 0; session < sessions; session++)
+            {
+                var from = day * 24 * stepsPerHour + (int)((8 + random.NextDouble() * 13) * stepsPerHour);
+                var length = random.Next(4, 13);
+                var pace = dayLoad * (0.6 + 0.6 * random.NextDouble());
+                for (var step = from; step < Math.Min(from + length, steps + 1); step++)
+                    use[step] += pace * (0.5 + random.NextDouble());
+            }
         }
 
-        var fiveHourAtNow = FiveHour(now);
+        // The five hour window: opened by the first use, cleared five hours later.
+        var fiveHour = new double[steps + 1];
+        var windowEnd = -1;
+        double inWindow = 0;
+        for (var step = 0; step <= steps; step++)
+        {
+            if (step >= windowEnd)
+            {
+                inWindow = 0;
+                windowEnd = use[step] > 0 ? step + 5 * stepsPerHour : -1;
+            }
+            inWindow += use[step];
+            fiveHour[step] = inWindow;
+        }
+        // Scaled on a typical busy window rather than the busiest, so most days rise visibly; the
+        // few busier ones are capped at the limit like a real window.
+        var windowPeaks = fiveHour.Where(value => value > 0).OrderBy(value => value).ToList();
+        var typical = windowPeaks.Count > 0 ? windowPeaks[(int)(windowPeaks.Count * 0.95)] : 1;
+        var fiveHourScale = peak / Math.Max(1e-9, typical);
+
+        var weekly = new double[steps + 1];
+        double total = 0;
+        for (var step = 0; step <= steps; step++)
+        {
+            total += use[step];
+            weekly[step] = total;
+        }
+
+        var points = new List<HistoryPoint>();
+        var fiveHourEnd = fiveHour[steps] * fiveHourScale;
         for (var step = 0; step <= steps; step++)
         {
             var at = start + TimeSpan.FromMinutes(30 * step);
-            var blend = Math.Exp(-(now - at).TotalHours / 3);
-            var fiveHour = Math.Clamp(FiveHour(at) + (fiveHourNow - fiveHourAtNow) * blend, 0, 100);
-
-            var progress = step / (double)steps;
-            var weekly = weeklyNow * Math.Pow(progress, 0.85) + 9 * (1 - progress) + 1.5 * Math.Sin(progress * 14);
-            weekly = step == steps ? weeklyNow : Math.Clamp(weekly, 0, 100);
-
-            points.Add(new HistoryPoint(1, at, WindowKind.FiveHour, Math.Round(fiveHour, 1), null));
-            points.Add(new HistoryPoint(1, at, WindowKind.Weekly, Math.Round(weekly, 1), null));
+            // The last hours lean toward the shown percent, so the line meets the bar.
+            var blend = Math.Exp(-(now - at).TotalHours / 2);
+            var five = Math.Clamp(Math.Min(100, fiveHour[step] * fiveHourScale) + (fiveHourNow - Math.Min(100, fiveHourEnd)) * blend, 0, 100);
+            var week = 6 + (weeklyNow - 6) * weekly[step] / Math.Max(1e-9, total);
+            if (step == steps)
+            {
+                five = fiveHourNow;
+                week = weeklyNow;
+            }
+            points.Add(new HistoryPoint(1, at, WindowKind.FiveHour, Math.Round(five, 1), null));
+            points.Add(new HistoryPoint(1, at, WindowKind.Weekly, Math.Round(week, 1), null));
         }
         return points;
     }

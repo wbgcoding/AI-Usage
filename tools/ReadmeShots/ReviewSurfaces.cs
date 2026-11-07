@@ -233,11 +233,11 @@ internal static class ReviewSurfaces
                 viewModel.SetColorByCommand.Execute(colorBy);
             }), HasMinSize: true);
 
-    private static IReadOnlyList<StatsRecord> WithSubagents(IReadOnlyList<StatsRecord> records) =>
+    internal static IReadOnlyList<StatsRecord> WithSubagents(IReadOnlyList<StatsRecord> records) =>
         records.Select((record, index) => record.Provider == "claude" && index % 4 == 0 ? record with { Subagent = true } : record).ToList();
 
     /// <summary>The newest sample days as a few dozen invented sessions, so the session table and bars fill.</summary>
-    private static void SeedSessions(StatsStore store, IReadOnlyList<StatsRecord> records)
+    internal static void SeedSessions(StatsStore store, IReadOnlyList<StatsRecord> records)
     {
         var projects = records.Select(record => record.Project).Where(project => project.Length > 0).Distinct().ToList();
         var random = new Random(7);

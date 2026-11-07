@@ -34,12 +34,10 @@ no API keys to paste, nothing to configure before the first number shows up.
 
 More than one account per agent? Add it, and it gets its own tile, name and history.
 
-<table align="center">
-<tr>
-<td align="center" valign="top"><img src=".github/images/home-two-agents.png" width="380" alt="AI-Usage with the Claude and Codex tiles, their history charts and the usage per day tile, dark theme"><br><sub>Claude and Codex together, with usage per day</sub></td>
-<td align="center" valign="top"><img src=".github/images/home-all-small.png" width="380" alt="AI-Usage showing every supported agent in the small layout, dark theme"><br><sub>Every supported agent at once, small layout</sub></td>
-</tr>
-</table>
+<div align="center">
+<img src=".github/images/home-overview.png" width="820" alt="AI-Usage with the usage per day tile above the Claude and Codex tiles; beside it every supported agent in the small layout, and the Claude tile in the light theme">
+<br><sub>Claude and Codex with usage per day · every agent in the small layout · the light theme</sub>
+</div>
 
 ## Highlights
 
@@ -103,8 +101,8 @@ a dashboard for any period (7 days, 30 days, a month, a year, everything or a cu
 Cursor and Copilot keep no token counts on your PC, so the window says so instead of guessing.
 
 <div align="center">
-<img src=".github/images/token-usage.png" width="820" alt="The token usage window with the activity grid, figures with estimated API cost and charts, dark theme">
-<br><sub>The token usage window</sub>
+<img src=".github/images/token-usage.png" width="820" alt="The whole token usage window: activity grid, selected day, figures, breakdown, share rings, plan forecast, limits and top projects, dark theme">
+<br><sub>The token usage window, every section</sub>
 </div>
 
 ## Keyboard shortcuts

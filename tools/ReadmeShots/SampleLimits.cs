@@ -41,15 +41,20 @@ internal static class SampleLimits
         for (var hour = first; hour <= last; hour = hour.AddHours(1))
             totals[BlockOf(hour)] = totals.GetValueOrDefault(BlockOf(hour)) + perHour.GetValueOrDefault(hour);
 
-        // One allowance for every period, so the busiest one ends near 97 percent.
-        var allowance = Math.Max(1, totals.Values.Max() / 0.97);
+        // One allowance for every period. A week is sized so the busiest one ends near 97 percent; a
+        // five hour window so only the busiest few hit the limit.
+        var sizes = totals.Values.Where(total => total > 0).OrderBy(total => total).ToList();
+        var allowance = window == WindowKind.FiveHour && sizes.Count > 0
+            ? Math.Max(1, sizes[(int)(sizes.Count * 0.92)] / 0.97)
+            : Math.Max(1, totals.Values.Max() / 0.97);
         var used = new Dictionary<long, long>();
         for (var hour = first; hour <= last; hour = hour.AddHours(1))
         {
             var block = BlockOf(hour);
             var soFar = used.GetValueOrDefault(block);
             var reset = new DateTimeOffset(anchor + length * (block + 1));
-            readings.Add(new Reading(new DateTimeOffset(hour), provider, window, (long)(soFar / allowance * 1000 + 0.5) / 10.0, reset));
+            var percent = Math.Min(100, (long)(soFar / allowance * 1000 + 0.5) / 10.0);
+            readings.Add(new Reading(new DateTimeOffset(hour), provider, window, percent, reset));
             used[block] = soFar + perHour.GetValueOrDefault(hour);
         }
     }

@@ -2,9 +2,10 @@
 //
 // Renders the three pictures the README shows into .github/images/ from invented sample data:
 //   home-claude-full.png   the widget with only the Claude tile, full density
-//   home-all-small.png     the widget with all five tiles, small density
-//   home-two-agents.png    the widget with the Claude and Codex tiles and the usage per day tile
-//   token-usage.png        the statistics window on its 30 day range
+//   home-overview.png      on the left the usage per day tile above the Claude and Codex tiles; on
+//                          the right all five tiles in the small layout above the Claude tile in the
+//                          light theme
+//   token-usage.png        the whole statistics window on its 30 day range, every section filled
 //
 // Run it from the repository root:
 //   dotnet run --project tools/ReadmeShots
@@ -294,13 +295,82 @@ internal static class Program
         var samples = SampleProviders.Build(now);
 
         RenderWidget(dataDirectory, samples, now, visible: ["claude"], TileDensity.Full, Path.Combine(outputDirectory, "home-claude-full.png"));
-        RenderWidget(dataDirectory, samples, now, visible: AppSettings.KnownProviderIds, TileDensity.Mini, Path.Combine(outputDirectory, "home-all-small.png"));
 
-        // Two agents used side by side, with the usage per day tile below them.
+        // The overview: its parts go to the throwaway folder, only the joined picture is kept.
+        var parts = Path.Combine(dataDirectory, "overview-parts");
+        Directory.CreateDirectory(parts);
         var twoAgents = SampleUsage.Build(DateOnly.FromDateTime(now.LocalDateTime))
             .Where(record => record.Provider is "claude" or "codex").ToList();
+        var left = Path.Combine(parts, "two-agents.png");
         RenderWidget(Path.Combine(dataDirectory, "two-agents"), samples, now, visible: ["claude", "codex"], TileDensity.Full,
-            Path.Combine(outputDirectory, "home-two-agents.png"), dayRecords: twoAgents);
+            left, dayRecords: twoAgents);
+        var small = Path.Combine(parts, "all-small.png");
+        RenderWidget(dataDirectory, samples, now, visible: AppSettings.KnownProviderIds, TileDensity.Mini, small);
+        var light = Path.Combine(parts, "claude-light.png");
+        ApplyTheme(AppTheme.Light);
+        try
+        {
+            RenderWidget(dataDirectory, samples, now, visible: ["claude"], TileDensity.Full, light);
+        }
+        finally
+        {
+            ApplyTheme(AppTheme.Dark);
+        }
+        JoinColumns([left], [small, light], Path.Combine(outputDirectory, "home-overview.png"));
+    }
+
+    private static void ApplyTheme(AppTheme theme)
+    {
+        ResourceDictionary Load(Uri relative) =>
+            new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
+        ThemeService.Apply(theme, Application.Current.Resources.MergedDictionaries, Load, () => false);
+    }
+
+    /// <summary>Places two columns of finished pictures side by side on a transparent background,
+    /// each column stacked top to bottom, with the same gap between and inside the columns.</summary>
+    private static void JoinColumns(IReadOnlyList<string> leftColumn, IReadOnlyList<string> rightColumn, string outputPath)
+    {
+        const int gap = 48;
+        static BitmapSource Read(string path)
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(path);
+            image.EndInit();
+            return image;
+        }
+
+        var left = leftColumn.Select(Read).ToList();
+        var right = rightColumn.Select(Read).ToList();
+        static int Height(List<BitmapSource> column) => column.Sum(image => image.PixelHeight) + gap * (column.Count - 1);
+        var leftWidth = left.Max(image => image.PixelWidth);
+        var width = leftWidth + gap + right.Max(image => image.PixelWidth);
+        var height = Math.Max(Height(left), Height(right));
+
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            void Column(List<BitmapSource> column, int x)
+            {
+                var y = 0;
+                foreach (var image in column)
+                {
+                    context.DrawImage(image, new Rect(x, y, image.PixelWidth, image.PixelHeight));
+                    y += image.PixelHeight + gap;
+                }
+            }
+            Column(left, 0);
+            Column(right, leftWidth + gap);
+        }
+
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(outputPath);
+        encoder.Save(stream);
+        Console.WriteLine($"{Path.GetFileName(outputPath)}: {bitmap.PixelWidth} x {bitmap.PixelHeight}");
     }
 
     internal static void RenderWidget(
@@ -322,7 +392,10 @@ internal static class Program
             statsStore = new StatsStore(dataDirectory);
             statsStore.AddDelta(dayRecords);
             settings.ShowCostEstimate = false;
-            settings.Providers[AppSettings.DayGridTileId] = new ProviderSettings { Visible = true };
+            // The usage per day tile on top, the agents below it in their usual order.
+            settings.Providers[AppSettings.DayGridTileId] = new ProviderSettings { Visible = true, Order = 0 };
+            for (var i = 0; i < AppSettings.KnownProviderIds.Count; i++)
+                settings.Providers[AppSettings.KnownProviderIds[i]].Order = i + 1;
         }
 
         var settingsStore = new SettingsStore(dataDirectory);
@@ -397,9 +470,22 @@ internal static class Program
     private static void RenderStatisticsShot(string dataDirectory, string outputDirectory)
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var records = SampleUsage.Build(today);
-        RenderStatistics(dataDirectory, records, SampleUsage.PickBusyWeekday(records, today), fullHeight: false,
-            Path.Combine(outputDirectory, "token-usage.png"));
+        var records = ReviewSurfaces.WithSubagents(SampleUsage.Build(today));
+        var folder = Path.Combine(dataDirectory, "token-usage");
+        // Every section filled: quota history for the limits and the plan forecast, plans for its
+        // prices, invented sessions for the session list.
+        RenderStatistics(folder, records, SampleUsage.PickBusyWeekday(records, today), fullHeight: true,
+            Path.Combine(outputDirectory, "token-usage.png"),
+            seed: store =>
+            {
+                SampleLimits.Seed(folder, DateTimeOffset.Now, records);
+                ReviewSurfaces.SeedSessions(store, records);
+            },
+            configure: viewModel =>
+            {
+                viewModel.PlanOf = key => key == "claude" ? "Max" : key == "codex" ? "Plus" : null;
+                viewModel.Recompute();
+            });
     }
 
     /// <summary>A cost service on a fixed, seeded price list and euro rate that never touches the network, so
