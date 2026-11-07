@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using AiUsage.Io;
 using AiUsage.Providers;
@@ -1307,40 +1308,46 @@ public sealed class StatsIndexer
     /// parses half a record.</summary>
     private static IEnumerable<string> ReadProbeLines(string path, int maxBytes, CancellationToken cancellationToken)
     {
-        byte[] buffer;
-        int read;
-        bool capped;
-        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        var buffer = ArrayPool<byte>.Shared.Rent(maxBytes);
+        try
         {
-            buffer = new byte[maxBytes];
-            read = 0;
-            while (read < maxBytes)
+            int read;
+            bool capped;
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             {
-                var n = stream.Read(buffer, read, maxBytes - read);
-                if (n <= 0)
-                    break;
-                read += n;
+                read = 0;
+                while (read < maxBytes)
+                {
+                    var n = stream.Read(buffer, read, maxBytes - read);
+                    if (n <= 0)
+                        break;
+                    read += n;
+                }
+
+                capped = read == maxBytes && stream.Length > maxBytes;
             }
 
-            capped = read == maxBytes && stream.Length > maxBytes;
-        }
+            var end = read;
+            if (capped)
+            {
+                end = Array.LastIndexOf(buffer, (byte)'\n', read - 1) + 1;
+                if (end <= 0)
+                    yield break;
+            }
 
-        var end = read;
-        if (capped)
-        {
-            end = Array.LastIndexOf(buffer, (byte)'\n', read - 1) + 1;
-            if (end <= 0)
-                yield break;
+            var start = 0;
+            while (start < end)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var newline = Array.IndexOf(buffer, (byte)'\n', start, end - start);
+                var lineEnd = newline < 0 ? end : newline;
+                yield return AppEncoding.Utf8NoBom.GetString(buffer, start, lineEnd - start).TrimEnd('\r');
+                start = lineEnd + 1;
+            }
         }
-
-        var start = 0;
-        while (start < end)
+        finally
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var newline = Array.IndexOf(buffer, (byte)'\n', start, end - start);
-            var lineEnd = newline < 0 ? end : newline;
-            yield return AppEncoding.Utf8NoBom.GetString(buffer, start, lineEnd - start).TrimEnd('\r');
-            start = lineEnd + 1;
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 

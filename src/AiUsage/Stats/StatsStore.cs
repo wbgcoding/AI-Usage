@@ -1386,6 +1386,7 @@ public sealed class StatsStore
                 counted_cache_creation INTEGER,
                 counted_cache_read INTEGER
             );
+            CREATE INDEX IF NOT EXISTS source_file_path_nocase ON source_file(path COLLATE NOCASE);
             CREATE TABLE IF NOT EXISTS session (
                 provider TEXT NOT NULL,
                 machine TEXT NOT NULL DEFAULT '',
@@ -2804,6 +2805,15 @@ public sealed class StatsStore
         }
     }
 
+    /// <summary>The per-file lookup; matches the <c>source_file_path_nocase</c> index, so a lookup is
+    /// a seek and not a scan of every remembered file.</summary>
+    internal const string SourceFileLookupSql = """
+        SELECT path, provider, offset, size, write_time_utc, current_model,
+               cumulative_input_tokens, cumulative_output_tokens, cumulative_cache_creation_tokens, cumulative_cache_read_tokens,
+               current_effort, last_message_key, counted_input, counted_output, counted_cache_creation, counted_cache_read
+        FROM source_file WHERE path = $path COLLATE NOCASE ORDER BY offset DESC LIMIT 1
+        """;
+
     public StatsSourceFileState? GetSourceFile(string path) =>
         TryGetSourceFile(path, out var state) ? state : null;
 
@@ -2820,12 +2830,7 @@ public sealed class StatsStore
                 return false;
 
             using var command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT path, provider, offset, size, write_time_utc, current_model,
-                       cumulative_input_tokens, cumulative_output_tokens, cumulative_cache_creation_tokens, cumulative_cache_read_tokens,
-                       current_effort, last_message_key, counted_input, counted_output, counted_cache_creation, counted_cache_read
-                FROM source_file WHERE path = $path COLLATE NOCASE ORDER BY offset DESC LIMIT 1
-                """;
+            command.CommandText = SourceFileLookupSql;
             command.Parameters.AddWithValue("$path", path);
             using var reader = command.ExecuteReader();
             if (reader.Read())

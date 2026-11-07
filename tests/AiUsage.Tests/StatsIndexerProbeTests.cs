@@ -1,4 +1,5 @@
 using AiUsage.Stats;
+using Microsoft.Data.Sqlite;
 
 namespace AiUsage.Tests;
 
@@ -17,6 +18,34 @@ public class StatsIndexerProbeTests
         var store = new StatsStore(dataDir);
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
         return [.. store.LoadAll()];
+    }
+
+    [Fact]
+    public void Source_file_lookup_uses_the_case_insensitive_path_index()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("probe-plan-data");
+        var store = new StatsStore(dataDir);
+        Assert.True(store.TryGetSourceFile(@"C:\x\a.jsonl", out _));
+
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(dataDir, StatsStore.DatabaseFileName),
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+        }.ToString();
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "EXPLAIN QUERY PLAN " + StatsStore.SourceFileLookupSql;
+        command.Parameters.AddWithValue("$path", @"C:\x\a.jsonl");
+        var plan = new List<string>();
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+                plan.Add(reader.GetString(3));
+        }
+
+        Assert.Contains(plan, line => line.Contains("USING INDEX source_file_path_nocase", StringComparison.Ordinal));
     }
 
     [Fact]
