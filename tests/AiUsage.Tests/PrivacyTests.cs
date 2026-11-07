@@ -55,6 +55,22 @@ public class PrivacyTests
         Assert.DoesNotContain("AreDefaultContextMenusEnabled = true", text, StringComparison.Ordinal);
     }
 
+    // The sign-in browser shows foreign pages: it gets no host objects and no web-message channel to
+    // the app, and every handler it takes on is dropped again when the window closes.
+    [Fact]
+    public void TheSignInBrowserTakesNoHostObjectsAndNoWebMessages()
+    {
+        var text = File.ReadAllText(Path.Combine(FindAppSourceRoot(), "Views", "SignInWindow.xaml.cs"));
+
+        Assert.Contains("AreHostObjectsAllowed = false", text, StringComparison.Ordinal);
+        Assert.Contains("IsWebMessageEnabled = false", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("WebMessageReceived", text, StringComparison.Ordinal);
+        Assert.Contains("FrameNavigationStarting += OnFrameNavigationStarting", text, StringComparison.Ordinal);
+        Assert.Contains("FrameNavigationStarting -= OnFrameNavigationStarting", text, StringComparison.Ordinal);
+        Assert.Contains("NewWindowRequested -= CoreWebView2_NewWindowRequested", text, StringComparison.Ordinal);
+        Assert.Contains("WindowCloseRequested -= _pageCloseRequested", text, StringComparison.Ordinal);
+    }
+
     // The discovery log line names which fields a live response carries (see
     // WebUsageSource.DescribeShape), never what is actually in them - an account number or a balance
     // in the body must never reach the app's own log file.

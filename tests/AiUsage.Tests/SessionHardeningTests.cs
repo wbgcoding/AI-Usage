@@ -200,6 +200,17 @@ public class SessionHardeningTests
             () => WebViewRuntimeInstaller.RunProcessAsync(Cmd, "/c exit 0", TimeSpan.FromSeconds(60), cts.Token));
     }
 
+    [Theory]
+    [InlineData("http://login.example.com/frame", true)]
+    [InlineData("HTTP://login.example.com/frame", true)]
+    [InlineData("https://login.example.com/frame", false)]
+    [InlineData("about:blank", false)]
+    [InlineData("", false)]
+    public void Only_a_plain_http_frame_is_refused(string uri, bool refused)
+    {
+        Assert.Equal(refused, SignInWindow.IsPlainHttpFrame(uri));
+    }
+
     [Fact]
     public async Task An_installer_that_overruns_its_time_limit_is_a_failure_not_a_cancel()
     {

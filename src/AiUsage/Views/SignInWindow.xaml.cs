@@ -129,6 +129,10 @@ public partial class SignInWindow : Window
             coreWebView2.NavigationStarting -= CoreWebView2_NavigationStarting;
             coreWebView2.NavigationCompleted -= CoreWebView2_NavigationCompleted;
             coreWebView2.SourceChanged -= CoreWebView2_SourceChanged;
+            coreWebView2.FrameNavigationStarting -= OnFrameNavigationStarting;
+            coreWebView2.NewWindowRequested -= CoreWebView2_NewWindowRequested;
+            if (_pageCloseRequested is not null)
+                coreWebView2.WindowCloseRequested -= _pageCloseRequested;
         }
         ClosePopup();
         Browser.Dispose();
@@ -146,10 +150,12 @@ public partial class SignInWindow : Window
             Browser.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             Browser.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
             Browser.CoreWebView2.SourceChanged += CoreWebView2_SourceChanged;
+            Browser.CoreWebView2.FrameNavigationStarting += OnFrameNavigationStarting;
             Browser.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
             // The page that started the sign-in asked to close; the window decides that itself.
-            Browser.CoreWebView2.WindowCloseRequested += (_, _) =>
+            _pageCloseRequested = (_, _) =>
                 LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the page asked to close, ignored.");
+            Browser.CoreWebView2.WindowCloseRequested += _pageCloseRequested;
             Browser.CoreWebView2.Navigate(_signInUrl);
             if (_sessionCheckScript is not null)
                 _loginPagePoll.Start();
@@ -189,6 +195,10 @@ public partial class SignInWindow : Window
         // own right-click menu stays - only the developer tools go, the same as the hidden reader
         // session this window shares a profile with.
         core.Settings.AreDevToolsEnabled = false;
+        // A provider page needs neither host objects nor a web-message channel to the app, the same
+        // as the hidden reader session.
+        core.Settings.AreHostObjectsAllowed = false;
+        core.Settings.IsWebMessageEnabled = false;
         // The email typed at sign-in must not land in the profile's autofill store, and a
         // permission click here (notifications, location) must not be saved where the hidden
         // reader session inherits it: every request gets a no that is not remembered.
@@ -205,6 +215,19 @@ public partial class SignInWindow : Window
 
     private CoreWebView2Environment? _environment;
     private Microsoft.Web.WebView2.Wpf.WebView2? _popup;
+    private EventHandler<object>? _pageCloseRequested;
+
+    /// <summary>A frame inside the page (identity provider, challenge) may load over https only; a plain
+    /// http frame could be rewritten on the way and would sit inside the sign-in page.</summary>
+    private void OnFrameNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (IsPlainHttpFrame(e.Uri))
+            e.Cancel = true;
+    }
+
+    internal static bool IsPlainHttpFrame(string uri) =>
+        Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
+        && string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>"Sign in with Google" opens a popup and waits for its answer through the popup's link
     /// back to the page that opened it. The popup gets its own browser over the page, on the same
@@ -258,6 +281,7 @@ public partial class SignInWindow : Window
             Harden(popup.CoreWebView2);
             popup.CoreWebView2.NavigationStarting += Popup_NavigationStarting;
             popup.CoreWebView2.NavigationCompleted += Popup_NavigationCompleted;
+            popup.CoreWebView2.FrameNavigationStarting += OnFrameNavigationStarting;
             popup.CoreWebView2.NewWindowRequested += (_, inner) =>
             {
                 // A popup of the popup loads in the popup itself.
