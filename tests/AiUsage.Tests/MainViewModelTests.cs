@@ -478,6 +478,51 @@ public partial class MainViewModelTests : IDisposable
         Assert.Equal(44, reading.Windows[1].UsedPercent);
     }
 
+    private MainViewModel BuildWithRecordedReadings(bool deferLastReadings, Task? gate)
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var historyStore = new HistoryStore(TempDirectory(), () => Now.AddHours(-1));
+        historyStore.Append("claude", WindowKind.FiveHour, 74, Now.AddYears(5), label: "Window_FiveHour");
+        historyStore.Append("codex", WindowKind.FiveHour, 74, Now.AddYears(5), label: "Window_FiveHour");
+        var providers = new List<IUsageProvider> { new FakeProvider("codex"), new FakeProvider("claude"), new FakeProvider("gemini"), new FakeProvider("copilot") };
+        return new MainViewModel(new SettingsStore(TempDirectory()), settings, providers, historyStore,
+            deferLastReadings: deferLastReadings, lastReadingStart: gate);
+    }
+
+    [Fact]
+    public void The_start_readings_are_applied_while_the_view_model_is_built_unless_they_are_deferred()
+    {
+        var vm = BuildWithRecordedReadings(deferLastReadings: false, gate: null);
+
+        Assert.True(vm.Tiles.Single(t => t.ProviderId == "claude").HasReceivedSnapshot);
+        Assert.False(vm.Tiles.Single(t => t.ProviderId == "gemini").HasReceivedSnapshot);
+        Assert.True(vm.LastReadingsLoaded.IsCompleted);
+    }
+
+    [Fact]
+    public async Task Deferred_start_readings_fill_only_tiles_without_a_live_snapshot_and_announce_nothing()
+    {
+        var gate = new TaskCompletionSource();
+        var vm = BuildWithRecordedReadings(deferLastReadings: true, gate.Task);
+        var announced = new List<string>();
+        vm.LevelAnnounced += announced.Add;
+
+        // Built without a reading: every tile shows its loading state until the read lands.
+        Assert.All(vm.Tiles, tile => Assert.False(tile.HasReceivedSnapshot));
+        Assert.False(vm.LastReadingsLoaded.IsCompleted);
+
+        var codex = vm.Tiles.Single(t => t.ProviderId == "codex");
+        SetPercent(codex, 7);
+        gate.SetResult();
+        await vm.LastReadingsLoaded.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The tile that got live numbers meanwhile keeps them; the other one is restored from the history.
+        Assert.Equal(7, codex.Rows.Single().UsedPercent);
+        Assert.True(vm.Tiles.Single(t => t.ProviderId == "claude").HasReceivedSnapshot);
+        Assert.False(vm.Tiles.Single(t => t.ProviderId == "gemini").HasReceivedSnapshot);
+        Assert.Empty(announced);
+    }
+
     // A snapshot that only repeats an hour-old reading (a held-over expired token, a cached web read)
     // still refreshes the tile but is not a new data point for the chart.
     [Fact]

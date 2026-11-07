@@ -31,6 +31,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 {
     private ProviderSnapshot? _lastSnapshot;
 
+    /// <summary>True once a snapshot (live or restored) has been applied to this tile. The start reading
+    /// restored from the history is applied only while this is still false.</summary>
+    internal bool HasReceivedSnapshot => _lastSnapshot is not null;
+
     /// <summary>The window kinds this tile's provider has actually reported, from the last snapshot
     /// that carried any windows at all; null until then, so every switch stays offered while nothing
     /// is known yet.</summary>

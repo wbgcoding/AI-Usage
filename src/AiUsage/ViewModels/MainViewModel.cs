@@ -524,7 +524,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private MainViewModel(
         SettingsStore settingsStore, AppSettings settings,
         (IReadOnlyList<IUsageProvider> Providers, IReadOnlyDictionary<string, WebSessionScriptRunner> Runners) created, LogService? logService)
-        : this(settingsStore, settings, created.Providers, new HistoryStore(), claudeRunner: null, logService, statsStore: new StatsStore())
+        : this(settingsStore, settings, created.Providers, new HistoryStore(), claudeRunner: null, logService, statsStore: new StatsStore(), deferLastReadings: true)
     {
         // Every account's own runner, keyed by its account key - see _webRunners. Assigned here
         // rather than threaded through the test-seam constructor below, so that constructor's single
@@ -550,7 +550,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal MainViewModel(
         SettingsStore settingsStore, AppSettings settings, IReadOnlyList<IUsageProvider> providers,
         HistoryStore historyStore, IAsyncDisposable? claudeRunner = null, LogService? logService = null,
-        TimeProvider? timeProvider = null, StatsStore? statsStore = null, NotificationService? notifications = null)
+        TimeProvider? timeProvider = null, StatsStore? statsStore = null, NotificationService? notifications = null,
+        bool deferLastReadings = false, Task? lastReadingStart = null)
     {
         _notifications = notifications ?? new NotificationService();
         _logService = logService;
@@ -588,7 +589,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // is a stable sort, so providers with no settings entry at all (every test that never went
         // through SettingsStore.Load) keep the caller's own order instead of being shuffled by a tie.
         foreach (var provider in providers.OrderBy(GetProviderOrder))
-            BuildTile(provider);
+            BuildTile(provider, deferLastReadings);
         RebuildTrayProviderChoices();
         Tiles.CollectionChanged += (_, _) =>
         {
@@ -628,6 +629,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // MainViewModel lives for the whole process (one instance, created once in MainWindow's own
         // constructor) - never unsubscribed, same as TrayService's identical subscription.
         LocalizationService.Instance.PropertyChanged += (_, _) => RefreshLocalizedText();
+
+        // Last: the tiles exist and are wired; their start readings follow from the history in the background.
+        if (deferLastReadings)
+            LastReadingsLoaded = LoadLastReadingsAsync(lastReadingStart);
     }
 
     // The balance-changed subscription per account, kept so a provider swapped out by a sign-out
@@ -664,7 +669,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <see cref="Services.IUsageProvider.Id"/> - two accounts of the same provider share an Id) and
     /// <see cref="Tiles"/>. Used by the constructor for every provider ProviderRegistry built at
     /// startup, and again by <see cref="AddAccount"/> for one built afterward.</summary>
-    private void BuildTile(IUsageProvider provider)
+    private void BuildTile(IUsageProvider provider, bool deferLastReading = false)
     {
         var visible = !_settings.Providers.TryGetValue(provider.AccountKey, out var providerSettings) || providerSettings.Visible;
         var canSkipWebSession = provider.CanSkipWebSession && provider.AccountKey == provider.Id;
@@ -718,15 +723,117 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 RebuildTrayWindowChoices();
         };
         _tilesById[provider.AccountKey] = tile;
-        if (!IsAccountDisconnected(provider.AccountKey) && LastRecordedReading(provider.AccountKey, DateTimeOffset.Now) is { } lastReading)
-            tile.Apply(lastReading, DateTimeOffset.Now, ResolvedThresholds(provider.AccountKey), _settings.ShowAttentionMark, advanceSilenceClock: false);
-        tile.LevelAnnounced += text => LevelAnnounced?.Invoke(text);
+        // A reading restored from the history is a held-over start state, never news: no screen reader
+        // sentence for it, now or when it lands later.
+        tile.LevelAnnounced += text =>
+        {
+            if (!_applyingLastReading)
+                LevelAnnounced?.Invoke(text);
+        };
+        if (deferLastReading)
+            _tilesAwaitingLastReading.Add(tile);
+        else if (LastRecordedReadingFor(tile.ProviderId, DateTimeOffset.Now) is { } lastReading)
+            ApplyLastReading(tile, lastReading);
         Tiles.Add(tile);
         // Mirrors Tiles.Add: a freshly built tile (startup, or a further account added later) always
         // joins at the very end of the on-screen order too - RebuildDisplayRowsInitial (constructor
         // only) then re-sorts everything, including this one, by each row's own persisted Order.
         DisplayRows.Add(tile);
         _ownRows.Add(tile);
+    }
+
+    // Tiles built at startup whose restored reading is still to be read from the history, and whether
+    // such a reading is being applied right now (see the LevelAnnounced wiring in BuildTile).
+    private readonly List<ProviderTileViewModel> _tilesAwaitingLastReading = [];
+    private bool _applyingLastReading;
+
+    /// <summary>Completes when the deferred start readings (see the constructor's
+    /// <c>deferLastReadings</c>) were applied; already complete when nothing was deferred.</summary>
+    internal Task LastReadingsLoaded { get; private set; } = Task.CompletedTask;
+
+    /// <summary>The restored reading of one tile, or null when its account is disconnected or the history
+    /// holds nothing recent.</summary>
+    private ProviderSnapshot? LastRecordedReadingFor(string accountKey, DateTimeOffset now) =>
+        IsAccountDisconnected(accountKey) ? null : LastRecordedReading(accountKey, now);
+
+    private void ApplyLastReading(ProviderTileViewModel tile, ProviderSnapshot reading)
+    {
+        _applyingLastReading = true;
+        try
+        {
+            tile.Apply(reading, DateTimeOffset.Now, ResolvedThresholds(tile.ProviderId), _settings.ShowAttentionMark, advanceSilenceClock: false);
+        }
+        finally
+        {
+            _applyingLastReading = false;
+        }
+    }
+
+    /// <summary>Reads the start readings of every tile built with <c>deferLastReading</c> in one pool
+    /// task and applies them on the UI thread, each only to a tile that is still in the widget and has
+    /// received no snapshot of its own meanwhile: a reading that lands late must never overwrite fresh
+    /// numbers. <paramref name="start"/> (tests) holds the read back until it completes.</summary>
+    private async Task LoadLastReadingsAsync(Task? start)
+    {
+        try
+        {
+            await LoadLastReadingsCoreAsync(start);
+        }
+        catch (Exception ex)
+        {
+            // Tiles then stay on their loading state until the first live read; never a startup failure.
+            _logService?.LogError($"Restoring the last readings failed ({ex.GetType().Name}).");
+        }
+    }
+
+    private async Task LoadLastReadingsCoreAsync(Task? start)
+    {
+        var tiles = _tilesAwaitingLastReading.ToArray();
+        _tilesAwaitingLastReading.Clear();
+        if (tiles.Length == 0)
+            return;
+
+        var dispatcher = Application.Current?.Dispatcher;
+        var keys = tiles.Select(tile => tile.ProviderId).ToArray();
+        var readings = await Task.Run(async () =>
+        {
+            if (start is not null)
+                await start.ConfigureAwait(false);
+            var now = DateTimeOffset.Now;
+            var found = new ProviderSnapshot?[keys.Length];
+            for (var index = 0; index < keys.Length; index++)
+            {
+                try
+                {
+                    found[index] = LastRecordedReading(keys[index], now);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+                {
+                    _logService?.LogError($"Reading the history of a tile failed ({ex.GetType().Name}).");
+                }
+            }
+            return found;
+        });
+
+        void Apply()
+        {
+            for (var index = 0; index < tiles.Length; index++)
+            {
+                var tile = tiles[index];
+                if (readings[index] is { } reading
+                    && !tile.HasReceivedSnapshot
+                    && _tilesById.TryGetValue(tile.ProviderId, out var current) && ReferenceEquals(current, tile)
+                    && !IsAccountDisconnected(tile.ProviderId))
+                {
+                    ApplyLastReading(tile, reading);
+                }
+            }
+        }
+
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+            await dispatcher.InvokeAsync(Apply);
+        else
+            Apply();
     }
 
     /// <summary>How far back the start of the app looks for the last recorded numbers of a tile.</summary>
