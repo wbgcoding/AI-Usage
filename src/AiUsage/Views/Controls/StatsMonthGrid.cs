@@ -693,8 +693,8 @@ public sealed class StatsMonthGrid : FrameworkElement
             return new Size(width, ContentHeight(layout.Fit));
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var legendRows = LegendFitsOneRow(layout.ProviderLegend, width, dpi, ChartFonts.UiTypeface(this)) ? 1 : 2;
-        return new Size(width, ContentHeight(layout.Fit) + LegendGapTop + legendRows * LegendRowHeight);
+        var legendRows = PlaceLegend(layout.ProviderLegend, width, dpi, ChartFonts.UiTypeface(this)).Rows;
+        return new Size(width, ContentHeight(layout.Fit) + (legendRows > 0 ? LegendGapTop + legendRows * LegendRowHeight : 0));
     }
 
     internal readonly record struct CellHit(
@@ -747,12 +747,10 @@ public sealed class StatsMonthGrid : FrameworkElement
 
         var contentWidth = ContentWidth(layout.Columns.Count, layout.Fit);
         var legendY = ChartDrawCache.Snap(0, ContentHeight(layout.Fit) + LegendGapTop, dpi).Y;
-        DrawIntensityScale(drawingContext, legendY, contentWidth, dpi, typeface, layout.ProviderLegend);
-        if (layout.ProviderLegend.Count > 0)
-        {
-            var oneRow = LegendFitsOneRow(layout.ProviderLegend, contentWidth, dpi, typeface);
-            DrawProviderLegend(drawingContext, layout.ProviderLegend, oneRow ? legendY : legendY + LegendRowHeight, dpi, typeface);
-        }
+        var placement = PlaceLegend(layout.ProviderLegend, contentWidth, dpi, typeface);
+        if (placement.ShowScale)
+            DrawIntensityScale(drawingContext, legendY, contentWidth, dpi, typeface, layout.ProviderLegend);
+        DrawProviderLegend(drawingContext, layout.ProviderLegend, placement, legendY, dpi, typeface);
     }
 
     private void DrawWeekdayLabels(DrawingContext dc, GridFit fit, double dpi, Typeface typeface)
@@ -893,53 +891,82 @@ public sealed class StatsMonthGrid : FrameworkElement
     private (string, string, double, Typeface)? _scaleWidthKey;
     private double _scaleWidth;
     private (IReadOnlyList<LegendEntry>, IReadOnlyDictionary<string, string>, double, Typeface)? _legendWidthKey;
-    private double _legendWidth;
+    private double[] _legendEntryWidths = [];
 
-    /// <summary>Width the color key takes, trailing gap after the last entry left out.</summary>
-    private double ProviderLegendWidth(IReadOnlyList<LegendEntry> legend, double dpi, Typeface typeface)
+    private const double LegendSwatch = 10;
+    private const double LegendEntryGap = 16;
+
+    /// <summary>Width of each color-key entry (swatch, gap, name), no trailing gap.</summary>
+    private double[] ProviderLegendEntryWidths(IReadOnlyList<LegendEntry> legend, double dpi, Typeface typeface)
     {
-        const double swatch = 10;
         var providerNames = ProviderDisplayNames;
         var key = (legend, providerNames, dpi, typeface);
         if (_legendWidthKey == key)
-            return _legendWidth;
+            return _legendEntryWidths;
 
-        var width = 0.0;
-        foreach (var entry in legend)
+        var widths = new double[legend.Count];
+        for (var i = 0; i < legend.Count; i++)
         {
-            var name = providerNames.GetValueOrDefault(entry.ProviderId, entry.ProviderId);
+            var name = providerNames.GetValueOrDefault(legend[i].ProviderId, legend[i].ProviderId);
             var nameText = new FormattedText(name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
-            width += swatch + 4 + nameText.Width + 16;
+            widths[i] = LegendSwatch + 4 + nameText.Width;
         }
 
-        _legendWidth = Math.Max(0, width - 16);
+        _legendEntryWidths = widths;
         _legendWidthKey = key;
-        return _legendWidth;
+        return widths;
     }
 
-    /// <summary>True when the color key (left) and the intensity scale (right) share one row with
-    /// room to spare; a narrow window with many providers moves the key onto its own row below.</summary>
-    private bool LegendFitsOneRow(IReadOnlyList<LegendEntry> legend, double width, double dpi, Typeface typeface) =>
-        legend.Count == 0 || ProviderLegendWidth(legend, dpi, typeface) + 16 + IntensityScaleWidth(dpi, typeface) <= width;
+    /// <summary>Where the legend row's parts go: the intensity scale shows only while it fits on one
+    /// row together with the whole color key; otherwise it is left out (the cells explain themselves)
+    /// and the color key alone wraps onto as few rows as the width allows. Pure so it is unit testable.</summary>
+    internal readonly record struct LegendPlacement(bool ShowScale, int Rows, IReadOnlyList<(double X, int Row)> Entries);
+
+    internal static LegendPlacement PlaceLegend(IReadOnlyList<double> entryWidths, double scaleWidth, double width)
+    {
+        var keyWidth = entryWidths.Count == 0 ? 0 : entryWidths.Sum() + LegendEntryGap * (entryWidths.Count - 1);
+        var showScale = entryWidths.Count == 0
+            ? scaleWidth <= width
+            : keyWidth + LegendEntryGap + scaleWidth <= width;
+
+        var entries = new List<(double X, int Row)>(entryWidths.Count);
+        var x = 0.0;
+        var row = 0;
+        foreach (var entryWidth in entryWidths)
+        {
+            if (x > 0 && x + entryWidth > width)
+            {
+                row++;
+                x = 0;
+            }
+
+            entries.Add((x, row));
+            x += entryWidth + LegendEntryGap;
+        }
+
+        var rows = entryWidths.Count > 0 ? row + 1 : showScale ? 1 : 0;
+        return new LegendPlacement(showScale, rows, entries);
+    }
+
+    private LegendPlacement PlaceLegend(IReadOnlyList<LegendEntry> legend, double width, double dpi, Typeface typeface) =>
+        PlaceLegend(ProviderLegendEntryWidths(legend, dpi, typeface), IntensityScaleWidth(dpi, typeface), width);
 
     /// <summary>The color key, one swatch and display name per provider that led at least one day
-    /// this year, largest first, left-aligned on the intensity scale's row (or below it when the two
-    /// do not fit side by side).</summary>
-    private void DrawProviderLegend(DrawingContext dc, IReadOnlyList<LegendEntry> legend, double y, double dpi, Typeface typeface)
+    /// this year, largest first, laid out by <see cref="PlaceLegend(IReadOnlyList{double}, double, double)"/>.</summary>
+    private void DrawProviderLegend(
+        DrawingContext dc, IReadOnlyList<LegendEntry> legend, LegendPlacement placement, double y, double dpi, Typeface typeface)
     {
-        const double swatch = 10;
         var providerNames = ProviderDisplayNames;
-        var x = 0.0;
-        foreach (var entry in legend)
+        for (var i = 0; i < legend.Count; i++)
         {
-            var color = ChartPalette.ForProvider(entry.ProviderId);
-            dc.DrawRoundedRectangle(IntensityBrush(color, 4), null, new Rect(x, y, swatch, swatch), 2, 2);
+            var (x, row) = placement.Entries[i];
+            var rowY = y + row * LegendRowHeight;
+            var color = ChartPalette.ForProvider(legend[i].ProviderId);
+            dc.DrawRoundedRectangle(IntensityBrush(color, 4), null, new Rect(x, rowY, LegendSwatch, LegendSwatch), 2, 2);
 
-            var name = providerNames.GetValueOrDefault(entry.ProviderId, entry.ProviderId);
+            var name = providerNames.GetValueOrDefault(legend[i].ProviderId, legend[i].ProviderId);
             var nameText = new FormattedText(name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
-            dc.DrawText(nameText, new Point(x + swatch + 4, y - 1));
-
-            x += swatch + 4 + nameText.Width + 16;
+            dc.DrawText(nameText, new Point(x + LegendSwatch + 4, rowY - 1));
         }
     }
 

@@ -114,6 +114,36 @@ public class StatsMonthGridTests
     }
 
     [Fact]
+    public void Legend_keeps_the_intensity_scale_while_everything_fits_one_row()
+    {
+        var placement = StatsMonthGrid.PlaceLegend([60, 60], 100, 400);
+
+        Assert.True(placement.ShowScale);
+        Assert.Equal(1, placement.Rows);
+        Assert.Equal([(0.0, 0), (76.0, 0)], placement.Entries);
+    }
+
+    [Fact]
+    public void Narrow_legend_drops_the_intensity_scale_instead_of_a_second_row()
+    {
+        // 60 + 16 + 60 = 136 fits, but not with the scale beside it.
+        var placement = StatsMonthGrid.PlaceLegend([60, 60], 100, 200);
+
+        Assert.False(placement.ShowScale);
+        Assert.Equal(1, placement.Rows);
+    }
+
+    [Fact]
+    public void A_color_key_wider_than_the_row_wraps_its_entries()
+    {
+        var placement = StatsMonthGrid.PlaceLegend([60, 60, 60], 100, 140);
+
+        Assert.False(placement.ShowScale);
+        Assert.Equal(2, placement.Rows);
+        Assert.Equal([(0.0, 0), (76.0, 0), (0.0, 1)], placement.Entries);
+    }
+
+    [Fact]
     public void NoHighlightPeriodDimsNothing()
     {
         var gridStart = new DateOnly(2026, 9, 21);
