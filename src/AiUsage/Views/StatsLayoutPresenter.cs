@@ -174,7 +174,10 @@ internal sealed class StatsLayoutPresenter
 
     private static void BindExpansion(RowDefinition definition, CollapsibleSection section) =>
         BindingOperations.SetBinding(definition, RowDefinition.HeightProperty,
-            new Binding(nameof(CollapsibleSection.IsExpanded)) { Source = section, Converter = new ExpandedToRowHeightConverter() });
+            new Binding(nameof(CollapsibleSection.IsExpanded))
+            {
+                Source = section, Converter = new ExpandedToRowHeightConverter(), ConverterParameter = section.SizesToContent,
+            });
 
     /// <summary>Re-sets column widths, gaps and container visibility only; nothing is re-parented
     /// here, since moving a section changes its inherited data context and would flip the table's

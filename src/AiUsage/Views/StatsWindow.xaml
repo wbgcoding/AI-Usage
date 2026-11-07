@@ -751,7 +751,7 @@
                             </controls:CollapsibleSection>
 
                             <!-- Quota history of the shown range: how often each window's limit was reached. -->
-                            <controls:CollapsibleSection x:Name="LimitsSection" SectionKey="limits"
+                            <controls:CollapsibleSection x:Name="LimitsSection" SectionKey="limits" SizesToContent="True"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits]}">
                                 <!-- One provider at a time: the picker on the header names it, so the body
                                      needs no provider line and the column stays as tall as the rings. -->

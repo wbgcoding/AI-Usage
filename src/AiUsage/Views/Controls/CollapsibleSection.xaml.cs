@@ -75,6 +75,17 @@ public class CollapsibleSection : ContentControl
     public static readonly DependencyProperty IsBodyDeferredProperty =
         DependencyProperty.Register(nameof(IsBodyDeferred), typeof(bool), typeof(CollapsibleSection), new FrameworkPropertyMetadata(false));
 
+    /// <summary>True for a section that stays as tall as its content in a column of sections, so the
+    /// sections around it take the room left over instead of it growing an empty band.</summary>
+    public static readonly DependencyProperty SizesToContentProperty =
+        DependencyProperty.Register(nameof(SizesToContent), typeof(bool), typeof(CollapsibleSection), new FrameworkPropertyMetadata(false));
+
+    public bool SizesToContent
+    {
+        get => (bool)GetValue(SizesToContentProperty);
+        set => SetValue(SizesToContentProperty, value);
+    }
+
     public bool IsBodyDeferred
     {
         get => (bool)GetValue(IsBodyDeferredProperty);

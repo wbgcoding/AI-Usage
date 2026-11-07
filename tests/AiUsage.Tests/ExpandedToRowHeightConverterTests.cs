@@ -18,6 +18,14 @@ public class ExpandedToRowHeightConverterTests
         Assert.Equal(1, height.Value);
     }
 
+    [Fact]
+    public void An_expanded_section_that_sizes_to_its_content_keeps_an_auto_row()
+    {
+        var height = (GridLength)_converter.Convert(true, typeof(GridLength), true, CultureInfo.InvariantCulture);
+
+        Assert.True(height.IsAuto);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(null)]
