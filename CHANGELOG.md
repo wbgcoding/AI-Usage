@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Claude Mythos models count as Claude and show with short names such as "Mythos 5.1".
 - In the token usage window the limits card is only as tall as its content; top projects takes the room left over.
+- The limits card picks its agent with the same buttons as the plan forecast instead of a dropdown.
 
 ### Fixed
 

@@ -554,8 +554,14 @@ public sealed partial class StatsViewModel : ObservableObject
 
     public bool HasNoLimitRows => LimitGroups.Count == 0;
 
-    /// <summary>The providers that have limit rows, for the picker on the limits section's header.</summary>
-    public ObservableCollection<Choice<string>> LimitProviderChoices { get; } = [];
+    /// <summary>The provider buttons above the limits, one per provider with limit rows.</summary>
+    public ObservableCollection<StatsForecastButtonViewModel> LimitButtons { get; } = [];
+
+    /// <summary>The buttons are only worth showing when there is a choice.</summary>
+    public bool HasLimitChoice => LimitButtons.Count > 1;
+
+    /// <summary>With one provider only, a compact name line stands in for the button row.</summary>
+    public bool HasSingleLimitProvider => LimitButtons.Count == 1;
 
     /// <summary>The provider the user picked in the limits section; empty until one is picked, and
     /// again once it has no rows. Kept only while the window is open.</summary>
@@ -568,23 +574,15 @@ public sealed partial class StatsViewModel : ObservableObject
     /// <summary>The one provider block the limits section shows; none without rows.</summary>
     public IReadOnlyList<StatsLimitGroupViewModel> ShownLimitGroups { get; private set; } = [];
 
-    /// <summary>Same bridge as <see cref="SelectedRangeChoice"/>, for the limits provider picker.</summary>
-    public Choice<string>? SelectedLimitProviderChoice
+    private void PickLimitProvider(string providerId)
     {
-        get => LimitProviderChoices.FirstOrDefault(choice => choice.IsSelected);
-        set
-        {
-            if (value is null || value.Value == SelectedLimitProvider)
-                return;
-
-            _pickedLimitProvider = value.Value;
-            ResolveLimitProvider();
-        }
+        _pickedLimitProvider = providerId;
+        ResolveLimitProvider();
     }
 
     partial void OnLimitGroupsChanged(IReadOnlyList<StatsLimitGroupViewModel> value) => ResolveLimitProvider();
 
-    /// <summary>Settles which provider the limits section shows and refreshes the picker and the block.</summary>
+    /// <summary>Settles which provider the limits section shows and refreshes the buttons and the block.</summary>
     private void ResolveLimitProvider()
     {
         var ids = LimitGroups.Select(group => group.ProviderId).ToList();
@@ -596,17 +594,24 @@ public sealed partial class StatsViewModel : ObservableObject
             : ids.FirstOrDefault() ?? "";
         ShownLimitGroups = [.. LimitGroups.Where(group => group.ProviderId == SelectedLimitProvider)];
 
-        if (!LimitProviderChoices.Select(choice => choice.Value).SequenceEqual(ids))
+        if (!LimitButtons.Select(button => button.ProviderId).SequenceEqual(ids))
         {
-            LimitProviderChoices.Clear();
+            LimitButtons.Clear();
             foreach (var group in LimitGroups)
-                LimitProviderChoices.Add(Choice.WithFixedLabel(group.ProviderName, group.ProviderId));
+            {
+                var brush = new System.Windows.Media.SolidColorBrush(ChartPalette.ForProvider(group.ProviderId));
+                brush.Freeze();
+                LimitButtons.Add(new StatsForecastButtonViewModel(group.ProviderId, group.ProviderName, brush, PickLimitProvider));
+            }
         }
 
-        Choice.Select(LimitProviderChoices, SelectedLimitProvider);
+        foreach (var button in LimitButtons)
+            button.Mark(button.ProviderId == SelectedLimitProvider);
+
         OnPropertyChanged(nameof(SelectedLimitProvider));
         OnPropertyChanged(nameof(ShownLimitGroups));
-        OnPropertyChanged(nameof(SelectedLimitProviderChoice));
+        OnPropertyChanged(nameof(HasLimitChoice));
+        OnPropertyChanged(nameof(HasSingleLimitProvider));
     }
 
     /// <summary>Reads one provider's quota history between two moments - a seam so a test can supply points.</summary>

@@ -153,9 +153,11 @@ public class StatsViewModelLimitsTests
         var reset = DateTimeOffset.Now.AddDays(2);
         var viewModel = Create((id, _, _) => id is "claude" or "codex" ? [Weekly(50, reset)] : []);
 
-        Assert.Equal(["claude", "codex"], viewModel.LimitProviderChoices.Select(choice => choice.Value));
+        Assert.Equal(["claude", "codex"], viewModel.LimitButtons.Select(button => button.ProviderId));
         Assert.Equal("claude", viewModel.SelectedLimitProvider);
-        Assert.Equal("claude", viewModel.SelectedLimitProviderChoice?.Value);
+        Assert.Equal("claude", Assert.Single(viewModel.LimitButtons, button => button.IsChecked).ProviderId);
+        Assert.True(viewModel.HasLimitChoice);
+        Assert.False(viewModel.HasSingleLimitProvider);
         Assert.Equal("claude", Assert.Single(viewModel.ShownLimitGroups).ProviderId);
         Assert.True(viewModel.HasLimitRows);
     }
@@ -185,8 +187,9 @@ public class StatsViewModelLimitsTests
         var codexHasRows = true;
         var viewModel = Create((id, _, _) => id == "claude" || (id == "codex" && codexHasRows) ? [Weekly(50, reset)] : []);
 
-        viewModel.SelectedLimitProviderChoice = viewModel.LimitProviderChoices.First(choice => choice.Value == "codex");
+        viewModel.LimitButtons.First(button => button.ProviderId == "codex").IsChecked = true;
         Assert.Equal("codex", viewModel.SelectedLimitProvider);
+        Assert.Equal("codex", Assert.Single(viewModel.LimitButtons, button => button.IsChecked).ProviderId);
         Assert.Equal("codex", Assert.Single(viewModel.ShownLimitGroups).ProviderId);
 
         // A new calculation leaves the pick alone.
@@ -195,7 +198,9 @@ public class StatsViewModelLimitsTests
 
         codexHasRows = false;
         viewModel.Recompute();
-        Assert.Equal(["claude"], viewModel.LimitProviderChoices.Select(choice => choice.Value));
+        Assert.Equal(["claude"], viewModel.LimitButtons.Select(button => button.ProviderId));
+        Assert.True(viewModel.HasSingleLimitProvider);
+        Assert.False(viewModel.HasLimitChoice);
         Assert.Equal("claude", viewModel.SelectedLimitProvider);
 
         // The pick does not come back when the rows do.
@@ -209,7 +214,9 @@ public class StatsViewModelLimitsTests
     {
         var viewModel = Create((_, _, _) => []);
 
-        Assert.Empty(viewModel.LimitProviderChoices);
+        Assert.Empty(viewModel.LimitButtons);
+        Assert.False(viewModel.HasLimitChoice);
+        Assert.False(viewModel.HasSingleLimitProvider);
         Assert.Empty(viewModel.ShownLimitGroups);
         Assert.Equal("", viewModel.SelectedLimitProvider);
         Assert.False(viewModel.HasLimitRows);

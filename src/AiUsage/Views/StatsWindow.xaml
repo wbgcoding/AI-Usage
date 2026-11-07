@@ -753,122 +753,149 @@
                             <!-- Quota history of the shown range: how often each window's limit was reached. -->
                             <controls:CollapsibleSection x:Name="LimitsSection" SectionKey="limits" SizesToContent="True"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits]}">
-                                <!-- One provider at a time: the picker on the header names it, so the body
-                                     needs no provider line and the column stays as tall as the rings. -->
-                                <controls:CollapsibleSection.HeaderContent>
-                                    <ComboBox x:Name="LimitProviderCombo" ItemsSource="{Binding LimitProviderChoices}"
-                                              SelectedItem="{Binding SelectedLimitProviderChoice, Mode=TwoWay}" MinWidth="80"
-                                              Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}"
-                                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}"/>
-                                </controls:CollapsibleSection.HeaderContent>
-                                <Border Padding="{StaticResource Space.M}"
-                                        Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <Grid>
-                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Empty]}"
-                                                   Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
-                                                   Visibility="{Binding HasNoLimitRows, Converter={StaticResource BoolToVis}}"/>
-                                        <!-- The picked provider's block: each window with a bar of the
-                                             highest level it reached (a tick at the average peak), how often
-                                             it hit the limit on the right and both figures underneath. -->
-                                        <ItemsControl ItemsSource="{Binding ShownLimitGroups}"
-                                                      Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel>
-                                                        <ItemsControl ItemsSource="{Binding Rows}">
-                                                            <ItemsControl.ItemContainerStyle>
-                                                                <Style TargetType="ContentPresenter">
-                                                                    <Setter Property="AutomationProperties.Name" Value="{Binding AutomationText, Mode=OneWay}"/>
-                                                                </Style>
-                                                            </ItemsControl.ItemContainerStyle>
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <StackPanel Margin="0,4" Background="Transparent"
-                                                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Limits.Detail]}">
-                                                                        <Grid>
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding Label}"
-                                                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                                            <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0">
-                                                                                <TextBlock.Style>
-                                                                                    <Style TargetType="TextBlock">
-                                                                                        <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
-                                                                                        <Style.Triggers>
-                                                                                            <DataTrigger Binding="{Binding Level}" Value="Crit">
-                                                                                                <Setter Property="Foreground" Value="{DynamicResource Level.Crit}"/>
-                                                                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                                            </DataTrigger>
-                                                                                        </Style.Triggers>
-                                                                                    </Style>
-                                                                                </TextBlock.Style>
-                                                                            </TextBlock>
-                                                                        </Grid>
-                                                                        <!-- 16 px row: the 8 px bar in the middle, the average-peak tick
-                                                                             over its full height. CornerRadius 4 = half the bar's own
-                                                                             height: geometry, not a design token (as in UsageBar). -->
-                                                                        <Grid x:Name="LimitTrack" Height="16">
-                                                                            <Border Background="{DynamicResource Track}" CornerRadius="4" Height="8"
-                                                                                    BorderBrush="{DynamicResource Border.Control}"
-                                                                                    BorderThickness="{DynamicResource Track.BorderThickness}"/>
-                                                                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding HighestPercent, Mode=OneWay}"
-                                                                                         Height="8" IsTabStop="False" Focusable="False" VerticalAlignment="Center">
-                                                                                <ProgressBar.Template>
-                                                                                    <ControlTemplate TargetType="ProgressBar">
-                                                                                        <Border x:Name="PART_Track" CornerRadius="4" ClipToBounds="True">
-                                                                                            <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left" RadiusX="4" RadiusY="4">
-                                                                                                <Rectangle.Style>
-                                                                                                    <Style TargetType="Rectangle">
-                                                                                                        <Setter Property="Fill" Value="{DynamicResource Level.Ok.Fill}"/>
-                                                                                                        <!-- The same 3 px stub the tile's bar shows for a small but real use. -->
-                                                                                                        <Setter Property="MinWidth" Value="3"/>
-                                                                                                        <Style.Triggers>
-                                                                                                            <DataTrigger Binding="{Binding HighestPercent}" Value="0">
-                                                                                                                <Setter Property="MinWidth" Value="0"/>
-                                                                                                            </DataTrigger>
-                                                                                                            <DataTrigger Binding="{Binding Level}" Value="Warn">
-                                                                                                                <Setter Property="Fill" Value="{DynamicResource Level.Warn.Fill}"/>
-                                                                                                            </DataTrigger>
-                                                                                                            <DataTrigger Binding="{Binding Level}" Value="Crit">
-                                                                                                                <Setter Property="Fill" Value="{DynamicResource Level.Crit.Fill}"/>
-                                                                                                            </DataTrigger>
-                                                                                                        </Style.Triggers>
-                                                                                                    </Style>
-                                                                                                </Rectangle.Style>
-                                                                                            </Rectangle>
-                                                                                        </Border>
-                                                                                    </ControlTemplate>
-                                                                                </ProgressBar.Template>
-                                                                            </ProgressBar>
-                                                                            <Rectangle Width="2" HorizontalAlignment="Left" IsHitTestVisible="False"
-                                                                                       Fill="{DynamicResource Text.Primary}">
-                                                                                <Rectangle.RenderTransform>
-                                                                                    <TranslateTransform>
-                                                                                        <TranslateTransform.X>
-                                                                                            <MultiBinding Converter="{StaticResource LimitTickOffset}">
-                                                                                                <Binding Path="AveragePeakPercent"/>
-                                                                                                <Binding ElementName="LimitTrack" Path="ActualWidth"/>
-                                                                                            </MultiBinding>
-                                                                                        </TranslateTransform.X>
-                                                                                    </TranslateTransform>
-                                                                                </Rectangle.RenderTransform>
-                                                                            </Rectangle>
-                                                                        </Grid>
-                                                                        <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource Text.Secondary}"
-                                                                                   FontSize="{StaticResource Font.Size.Micro}"/>
-                                                                    </StackPanel>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Grid>
-                                </Border>
+                                <StackPanel>
+                                    <!-- One provider at a time, picked with the same buttons as the plan forecast; the row only
+                                         exists when there is a choice, a single provider gets a compact name line instead. -->
+                                    <ItemsControl x:Name="LimitProviderButtons" ItemsSource="{Binding LimitButtons}" Margin="0,0,0,4"
+                                                  Visibility="{Binding HasLimitChoice, Converter={StaticResource BoolToVis}}"
+                                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.ProviderLabel]}"
+                                                  KeyboardNavigation.DirectionalNavigation="Cycle">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <RadioButton Style="{StaticResource PillRadioButton}" GroupName="LimitsProvider"
+                                                             Tag="{Binding Brush}"
+                                                             IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                             AutomationProperties.Name="{Binding Name}">
+                                                    <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"/>
+                                                </RadioButton>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding LimitButtons}" Margin="0,0,0,8"
+                                                  Visibility="{Binding HasSingleLimitProvider, Converter={StaticResource BoolToVis}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}">
+                                                    <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Brush}"/>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Border Padding="{StaticResource Space.M}"
+                                            Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
+                                            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
+                                        <Grid>
+                                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Limits.Empty]}"
+                                                       Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
+                                                       Visibility="{Binding HasNoLimitRows, Converter={StaticResource BoolToVis}}"/>
+                                            <!-- The picked provider's block: each window with a bar of the
+                                                 highest level it reached (a tick at the average peak), how often
+                                                 it hit the limit on the right and both figures underneath. -->
+                                            <ItemsControl ItemsSource="{Binding ShownLimitGroups}"
+                                                          Visibility="{Binding HasLimitRows, Converter={StaticResource BoolToVis}}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <ItemsControl ItemsSource="{Binding Rows}">
+                                                                <ItemsControl.ItemContainerStyle>
+                                                                    <Style TargetType="ContentPresenter">
+                                                                        <Setter Property="AutomationProperties.Name" Value="{Binding AutomationText, Mode=OneWay}"/>
+                                                                    </Style>
+                                                                </ItemsControl.ItemContainerStyle>
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel Margin="0,4" Background="Transparent"
+                                                                                    ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Limits.Detail]}">
+                                                                            <Grid>
+                                                                                <Grid.ColumnDefinitions>
+                                                                                    <ColumnDefinition Width="*"/>
+                                                                                    <ColumnDefinition Width="Auto"/>
+                                                                                </Grid.ColumnDefinitions>
+                                                                                <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                                                <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0">
+                                                                                    <TextBlock.Style>
+                                                                                        <Style TargetType="TextBlock">
+                                                                                            <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                                                                                                    <Setter Property="Foreground" Value="{DynamicResource Level.Crit}"/>
+                                                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </TextBlock.Style>
+                                                                                </TextBlock>
+                                                                            </Grid>
+                                                                            <!-- 16 px row: the 8 px bar in the middle, the average-peak tick
+                                                                                 over its full height. CornerRadius 4 = half the bar's own
+                                                                                 height: geometry, not a design token (as in UsageBar). -->
+                                                                            <Grid x:Name="LimitTrack" Height="16">
+                                                                                <Border Background="{DynamicResource Track}" CornerRadius="4" Height="8"
+                                                                                        BorderBrush="{DynamicResource Border.Control}"
+                                                                                        BorderThickness="{DynamicResource Track.BorderThickness}"/>
+                                                                                <ProgressBar Minimum="0" Maximum="100" Value="{Binding HighestPercent, Mode=OneWay}"
+                                                                                             Height="8" IsTabStop="False" Focusable="False" VerticalAlignment="Center">
+                                                                                    <ProgressBar.Template>
+                                                                                        <ControlTemplate TargetType="ProgressBar">
+                                                                                            <Border x:Name="PART_Track" CornerRadius="4" ClipToBounds="True">
+                                                                                                <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left" RadiusX="4" RadiusY="4">
+                                                                                                    <Rectangle.Style>
+                                                                                                        <Style TargetType="Rectangle">
+                                                                                                            <Setter Property="Fill" Value="{DynamicResource Level.Ok.Fill}"/>
+                                                                                                            <!-- The same 3 px stub the tile's bar shows for a small but real use. -->
+                                                                                                            <Setter Property="MinWidth" Value="3"/>
+                                                                                                            <Style.Triggers>
+                                                                                                                <DataTrigger Binding="{Binding HighestPercent}" Value="0">
+                                                                                                                    <Setter Property="MinWidth" Value="0"/>
+                                                                                                                </DataTrigger>
+                                                                                                                <DataTrigger Binding="{Binding Level}" Value="Warn">
+                                                                                                                    <Setter Property="Fill" Value="{DynamicResource Level.Warn.Fill}"/>
+                                                                                                                </DataTrigger>
+                                                                                                                <DataTrigger Binding="{Binding Level}" Value="Crit">
+                                                                                                                    <Setter Property="Fill" Value="{DynamicResource Level.Crit.Fill}"/>
+                                                                                                                </DataTrigger>
+                                                                                                            </Style.Triggers>
+                                                                                                        </Style>
+                                                                                                    </Rectangle.Style>
+                                                                                                </Rectangle>
+                                                                                            </Border>
+                                                                                        </ControlTemplate>
+                                                                                    </ProgressBar.Template>
+                                                                                </ProgressBar>
+                                                                                <Rectangle Width="2" HorizontalAlignment="Left" IsHitTestVisible="False"
+                                                                                           Fill="{DynamicResource Text.Primary}">
+                                                                                    <Rectangle.RenderTransform>
+                                                                                        <TranslateTransform>
+                                                                                            <TranslateTransform.X>
+                                                                                                <MultiBinding Converter="{StaticResource LimitTickOffset}">
+                                                                                                    <Binding Path="AveragePeakPercent"/>
+                                                                                                    <Binding ElementName="LimitTrack" Path="ActualWidth"/>
+                                                                                                </MultiBinding>
+                                                                                            </TranslateTransform.X>
+                                                                                        </TranslateTransform>
+                                                                                    </Rectangle.RenderTransform>
+                                                                                </Rectangle>
+                                                                            </Grid>
+                                                                            <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource Text.Secondary}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}"/>
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
                             </controls:CollapsibleSection>
 
                             <!-- What a full 5h window and a full week of the plan amount to (tokens, API value),

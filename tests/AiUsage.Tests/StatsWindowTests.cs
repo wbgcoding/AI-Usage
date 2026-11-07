@@ -911,14 +911,14 @@ public class StatsWindowTests
     }
 
     [Fact]
-    public void The_limits_section_carries_its_provider_picker_on_the_header()
+    public void The_limits_section_picks_its_provider_with_buttons_not_a_header_dropdown()
     {
         RunInWindow(null, (window, _) =>
         {
-            Assert.Same(window.LimitProviderCombo, window.LimitsSection.HeaderContent);
-            Assert.False(string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(window.LimitProviderCombo)));
-            // No limit history in the fixture: the picker stays out of sight.
-            Assert.Equal(Visibility.Collapsed, window.LimitProviderCombo.Visibility);
+            Assert.Null(window.LimitsSection.HeaderContent);
+            Assert.False(string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(window.LimitProviderButtons)));
+            // No limit history in the fixture: the buttons stay out of sight.
+            Assert.Equal(Visibility.Collapsed, window.LimitProviderButtons.Visibility);
         });
     }
 
