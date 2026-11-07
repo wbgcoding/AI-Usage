@@ -3,6 +3,7 @@
 // Renders the three pictures the README shows into .github/images/ from invented sample data:
 //   home-claude-full.png   the widget with only the Claude tile, full density
 //   home-all-small.png     the widget with all five tiles, small density
+//   home-two-agents.png    the widget with the Claude and Codex tiles and the usage per day tile
 //   token-usage.png        the statistics window on its 30 day range
 //
 // Run it from the repository root:
@@ -294,21 +295,40 @@ internal static class Program
 
         RenderWidget(dataDirectory, samples, now, visible: ["claude"], TileDensity.Full, Path.Combine(outputDirectory, "home-claude-full.png"));
         RenderWidget(dataDirectory, samples, now, visible: AppSettings.KnownProviderIds, TileDensity.Mini, Path.Combine(outputDirectory, "home-all-small.png"));
+
+        // Two agents used side by side, with the usage per day tile below them.
+        var twoAgents = SampleUsage.Build(DateOnly.FromDateTime(now.LocalDateTime))
+            .Where(record => record.Provider is "claude" or "codex").ToList();
+        RenderWidget(Path.Combine(dataDirectory, "two-agents"), samples, now, visible: ["claude", "codex"], TileDensity.Full,
+            Path.Combine(outputDirectory, "home-two-agents.png"), dayRecords: twoAgents);
     }
 
     internal static void RenderWidget(
         string dataDirectory, IReadOnlyList<SampleProviders.Sample> samples, DateTimeOffset now,
         IReadOnlyList<string> visible, TileDensity density, string outputPath, double width = 380, double zoom = 1,
-        Action<ProviderTileViewModel>? history = null, string? barColorMode = null)
+        Action<ProviderTileViewModel>? history = null, string? barColorMode = null,
+        IReadOnlyList<StatsRecord>? dayRecords = null)
     {
         var settings = new AppSettings();
         foreach (var id in AppSettings.KnownProviderIds)
             settings.Providers[id].Visible = visible.Contains(id);
 
+        // The usage per day tile reads a token index of its own, filled with the given records; the
+        // cost estimate stays off so no price list is ever downloaded for a picture.
+        StatsStore? statsStore = null;
+        if (dayRecords is not null)
+        {
+            Directory.CreateDirectory(dataDirectory);
+            statsStore = new StatsStore(dataDirectory);
+            statsStore.AddDelta(dayRecords);
+            settings.ShowCostEstimate = false;
+            settings.Providers[AppSettings.DayGridTileId] = new ProviderSettings { Visible = true };
+        }
+
         var settingsStore = new SettingsStore(dataDirectory);
         var historyStore = new HistoryStore(dataDirectory, () => now);
         var providers = samples.Select(sample => (IUsageProvider)new SampleProviders.Provider(sample)).ToList();
-        var viewModel = new MainViewModel(settingsStore, settings, providers, historyStore);
+        var viewModel = new MainViewModel(settingsStore, settings, providers, historyStore, statsStore: statsStore);
 
         try
         {
@@ -318,7 +338,7 @@ internal static class Program
                 tile.Density = density;
                 tile.Apply(sample.Snapshot, now);
                 // Stands in for the answers of the local token index, which a picture never reads.
-                long[] sampleTokens = [1_823_457, 41_217_903, 6_104_220];
+                long[] sampleTokens = tile.RealProviderId == "codex" ? [742_118, 14_386_520] : [1_823_457, 41_217_903, 6_104_220];
                 var index = 0;
                 foreach (var key in tile.WindowTokenKeys)
                     tile.SetWindowTokens(key, sampleTokens[index++ % sampleTokens.Length]);
@@ -334,6 +354,15 @@ internal static class Program
                     history(tile);
                 else if (sample.History is { } points)
                     tile.UpdateHistory(points, [], now - TimeSpan.FromDays(7), now);
+            }
+
+            if (statsStore is not null)
+            {
+                viewModel.DayGridTile.Density = density;
+                // Pump instead of blocking: the refresh resumes on this dispatcher after its background load.
+                var refresh = viewModel.DayGridTile.RefreshAsync();
+                PumpUntil(() => refresh.IsCompleted, TimeSpan.FromSeconds(30), settle: TimeSpan.Zero);
+                refresh.GetAwaiter().GetResult();
             }
 
             var chrome = (Border)XamlReader.Parse(WidgetChromeXaml);

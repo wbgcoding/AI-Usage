@@ -39,12 +39,12 @@ internal static class SampleProviders
                     new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, In(new TimeSpan(2, 14, 0)), 300, new TokenUsage(1_823_457)),
                     new UsageWindow("Window_Weekly", WindowKind.Weekly, 63, In(new TimeSpan(3, 4, 0, 0)), 10080))
                     with { ApiCredit = new ClaudeApiCredit(18.40m, "USD", new ClaudeCreditGrant(200m, 163m, now + TimeSpan.FromDays(12))) },
-                ClaudeHistory(now)),
+                History(now, fiveHourNow: 42, weeklyNow: 63, peak: 78)),
             new("codex", "Codex",
                 Snapshot("codex", "Pro", SourceKind.LocalFile, TimeSpan.FromSeconds(31),
                     new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 18, In(new TimeSpan(3, 40, 0)), 300),
                     new UsageWindow("Window_Weekly", WindowKind.Weekly, 35, In(new TimeSpan(5, 2, 0, 0)), 10080)),
-                null),
+                History(now, fiveHourNow: 18, weeklyNow: 35, peak: 46)),
             new("cursor", "Cursor",
                 Snapshot("cursor", "Pro", SourceKind.WebSession, TimeSpan.FromSeconds(48),
                     new UsageWindow("Window_CursorModels", WindowKind.Other, 54, In(TimeSpan.FromDays(19)), null),
@@ -106,8 +106,9 @@ internal static class SampleProviders
     }
 
     /// <summary>Seven days at half hour steps: the five hour window swells and settles with the
-    /// working day (ending exactly on the shown 42 percent), the weekly one climbs smoothly to 63.</summary>
-    private static IReadOnlyList<HistoryPoint> ClaudeHistory(DateTimeOffset now)
+    /// working day up to <paramref name="peak"/> (ending exactly on the shown percent), the weekly one
+    /// climbs smoothly to its shown percent.</summary>
+    private static IReadOnlyList<HistoryPoint> History(DateTimeOffset now, double fiveHourNow, double weeklyNow, double peak)
     {
         var points = new List<HistoryPoint>();
         var start = now - TimeSpan.FromDays(7);
@@ -119,7 +120,7 @@ internal static class SampleProviders
             var hour = at.LocalDateTime.TimeOfDay.TotalHours;
             var activity = Math.Max(0, Math.Sin(Math.PI * (hour - 7.5) / 13));
             var dayIndex = (int)Math.Floor((at - start).TotalDays) % 7;
-            return 78 * Math.Pow(activity, 1.4) * dayWeights[dayIndex];
+            return peak * Math.Pow(activity, 1.4) * dayWeights[dayIndex];
         }
 
         var fiveHourAtNow = FiveHour(now);
@@ -127,11 +128,11 @@ internal static class SampleProviders
         {
             var at = start + TimeSpan.FromMinutes(30 * step);
             var blend = Math.Exp(-(now - at).TotalHours / 3);
-            var fiveHour = Math.Clamp(FiveHour(at) + (42 - fiveHourAtNow) * blend, 0, 100);
+            var fiveHour = Math.Clamp(FiveHour(at) + (fiveHourNow - fiveHourAtNow) * blend, 0, 100);
 
             var progress = step / (double)steps;
-            var weekly = 63 * Math.Pow(progress, 0.85) + 9 * (1 - progress) + 1.5 * Math.Sin(progress * 14);
-            weekly = step == steps ? 63 : Math.Clamp(weekly, 0, 100);
+            var weekly = weeklyNow * Math.Pow(progress, 0.85) + 9 * (1 - progress) + 1.5 * Math.Sin(progress * 14);
+            weekly = step == steps ? weeklyNow : Math.Clamp(weekly, 0, 100);
 
             points.Add(new HistoryPoint(1, at, WindowKind.FiveHour, Math.Round(fiveHour, 1), null));
             points.Add(new HistoryPoint(1, at, WindowKind.Weekly, Math.Round(weekly, 1), null));

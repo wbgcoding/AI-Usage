@@ -34,10 +34,12 @@ no API keys to paste, nothing to configure before the first number shows up.
 
 More than one account per agent? Add it, and it gets its own tile, name and history.
 
-<div align="center">
-<img src=".github/images/home-all-small.png" width="420" alt="AI-Usage showing every supported agent in the small layout, dark theme">
-<br><sub>Every supported agent at once, small layout</sub>
-</div>
+<table align="center">
+<tr>
+<td align="center" valign="top"><img src=".github/images/home-two-agents.png" width="380" alt="AI-Usage with the Claude and Codex tiles, their history charts and the usage per day tile, dark theme"><br><sub>Claude and Codex together, with usage per day</sub></td>
+<td align="center" valign="top"><img src=".github/images/home-all-small.png" width="380" alt="AI-Usage showing every supported agent in the small layout, dark theme"><br><sub>Every supported agent at once, small layout</sub></td>
+</tr>
+</table>
 
 ## Highlights
 
@@ -52,6 +54,9 @@ More than one account per agent? Add it, and it gets its own tile, name and hist
   when it is free again, or when a sign-in expires; they respect Do Not Disturb and quiet weekdays,
   and offer "Not again today"
 - History over 24 hours up to everything, kept locally for up to ten years
+- An optional "Usage per day" tile: one square per day, colored by the agent you used most, so a
+  glance shows how your work splits between Claude, Codex and Gemini
+- The Claude Console credit balance in the Claude tile, with the free monthly credit as its own bar
 - Clear errors (timeout, HTTP code, no connection) that keep the last numbers in view and link to
   the agent's status page; a hint when an agent changes its answer
 - "Use local sources only" per account for Claude, Codex and Gemini
@@ -157,8 +162,9 @@ Codex 7% 5h (45m)
 
 ## Private by design
 
-- **Usage numbers only.** AI-Usage calls only each agent's usage pages and endpoints, never a model,
-  so reading your quota spends none of it. A test checks every endpoint the app can call.
+- **Usage numbers only.** AI-Usage calls only each agent's usage pages and endpoints (for Claude
+  also the billing page of platform.claude.com, for the credit balance), never a model, so reading
+  your quota spends none of it. A test checks every endpoint the app can call.
 - **Leaves your tools alone.** It never writes to an agent's files and never copies or stores your
   CLI sign-ins. Browser sign-ins live in AI-Usage's own profile per agent; signing out there only
   disconnects AI-Usage.
@@ -166,6 +172,8 @@ Codex 7% 5h (45m)
   profiles in `%LOCALAPPDATA%\AI-Usage\webview\`. No telemetry. Network traffic beyond the usage
   pages: the Google token refresh for an expired Antigravity CLI sign-in, the update check, and on
   your consent Microsoft's WebView2 installer.
+- **Plan prices are built in.** The plan forecast compares against list prices stored in the app,
+  taken from each provider's own pricing page; nothing is fetched for them.
 - **Cost estimate downloads.** Only while it is on: a public price list from
   raw.githubusercontent.com, models.dev for missing models and the euro rate from www.ecb.europa.eu,
   each at most once a day. Nothing about you is sent.
@@ -212,12 +220,16 @@ build.bat
 
 It compiles, runs the tests, publishes x64 and ARM64 single-file executables, builds the installer
 and writes everything plus `SHA256SUMS.txt` to `dist\`. With a signing key
-(`.signing\ai-usage-update.pem` or `AIUSAGE_SIGNING_KEY`) it signs each exe; unsigned builds are
-refused by the in-app update. At the end it starts the fresh copy as a second instance with its own
-data folder, so your everyday copy keeps running untouched; ten seconds after a success the test copy
-and the build window close again. Started by a double-click, the window stays open on a failure. For scripts and CI,
-`AIUSAGE_NOSTART=1` skips the start and `AIUSAGE_NOPAUSE=1` never waits. A second run with nothing changed reports "up to date" and builds nothing; `build.bat --force` or `FORCE=1` rebuilds. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues:
-[SECURITY.md](SECURITY.md).
+(`.signing\ai-usage-update.pem` or `AIUSAGE_SIGNING_KEY`) it signs each exe; the in-app update
+refuses unsigned builds.
+
+- At the end it starts the fresh copy as a second instance with its own data folder, so your
+  everyday copy keeps running; ten seconds after a success the test copy and the build window close.
+  On a failure the window stays open.
+- A second run with nothing changed reports "up to date"; `build.bat --force` or `FORCE=1` rebuilds.
+- For scripts and CI: `AIUSAGE_NOSTART=1` skips the start, `AIUSAGE_NOPAUSE=1` never waits.
+
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
 
 ## FAQ
 
