@@ -86,8 +86,18 @@ public class InstallerSafetyTests
         Assert.Contains("DeleteOwnFile(Sub, 'app.log');", sub);
         Assert.Contains("RemoveDir(Sub);", sub);
         var all = Body(iss, "procedure RemoveOwnEntries");
-        foreach (var folder in new[] { "logs", "restore-staging", "cache", "before-restore-*", "second-instance" })
+        foreach (var folder in new[] { "logs", "restore-staging", "cache", "stats-backups", "before-restore-*", "second-instance" })
             Assert.Contains($"'{folder}'", all);
+
+        // The weekly index copies, the set-aside damaged files and the unreadable journal go as well.
+        Assert.Contains("DeleteOwnFiles(Sub, 'stats-', '.db', DateChars, '', 10, 10);", sub);
+        Assert.Contains("DeleteOwnFiles(Sub, 'stats-', '.db.tmp-wal', DateChars, '', 10, 10);", sub);
+        Assert.Contains("DeleteOwnCorruptCopies(Folder, 'settings.json');", files);
+        Assert.Contains("DeleteOwnCorruptCopies(Folder, 'stats.db');", files);
+        Assert.Contains("DeleteOwnFile(Folder, 'restore-journal.json.bad');", files);
+        var corrupt = Body(iss, "procedure DeleteOwnCorruptCopies");
+        Assert.Contains("Name + '.corrupt-', '', CorruptChars", corrupt);
+        Assert.Contains("Name + '.corrupt-', '-journal', CorruptChars", corrupt);
     }
 
     [Fact]

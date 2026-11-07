@@ -1010,6 +1010,8 @@ const
   DataMarkerStart = 'AI-Usage data folder';
   NameChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
   TempChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.';
+  CorruptChars = '0123456789-';
+  DateChars = '0123456789-';
 
 { True when Path is Root itself or lies inside it. }
 function IsSameOrUnder(const Path, Root: String): Boolean;
@@ -1157,6 +1159,16 @@ begin
   DeleteOwnFiles(Folder, Name + '.', '.tmp', TempChars, '', 1, 40);
 end;
 
+{ The copies the app sets aside of a damaged file: Name.corrupt-yyyymmdd-hhmmss, with -n appended when
+  the name was taken, and for the index the -wal, -shm and -journal files that travel with it. }
+procedure DeleteOwnCorruptCopies(const Folder, Name: String);
+begin
+  DeleteOwnFiles(Folder, Name + '.corrupt-', '', CorruptChars, '', 15, 24);
+  DeleteOwnFiles(Folder, Name + '.corrupt-', '-wal', CorruptChars, '', 15, 24);
+  DeleteOwnFiles(Folder, Name + '.corrupt-', '-shm', CorruptChars, '', 15, 24);
+  DeleteOwnFiles(Folder, Name + '.corrupt-', '-journal', CorruptChars, '', 15, 24);
+end;
+
 { Every file the app writes into a data folder (or a set-aside, staging or second-instance folder of it). }
 procedure DeleteOwnDataFiles(const Folder: String);
 begin
@@ -1184,6 +1196,9 @@ begin
   DeleteOwnFiles(Folder, 'history-', '.tmp', TempChars, '.jsonl.', 8, 150);
   DeleteOwnFiles(Folder, 'stats.v', '.bak', '0123456789', '', 1, 3);
   DeleteOwnFiles(Folder, 'stats.v', '.bak.tmp', '0123456789', '', 1, 3);
+  DeleteOwnCorruptCopies(Folder, 'settings.json');
+  DeleteOwnCorruptCopies(Folder, 'stats.db');
+  DeleteOwnFile(Folder, 'restore-journal.json.bad');
 end;
 
 { True for before-restore-yyyymmdd-hhmmss and before-restore-yyyymmdd-hhmmss-n (n up to three digits). }
@@ -1233,6 +1248,15 @@ begin
     DeleteOwnFiles(Sub, 'antigravity-', '.vscdb-shm', TempChars, '', 1, 100);
     DeleteOwnFiles(Sub, 'antigravity-', '.vscdb-journal', TempChars, '', 1, 100);
   end
+  else if Name = 'stats-backups' then
+  begin
+    { The weekly copies stats-yyyy-mm-dd.db and what a failed copy leaves: the .tmp and its sidecars. }
+    DeleteOwnFiles(Sub, 'stats-', '.db', DateChars, '', 10, 10);
+    DeleteOwnFiles(Sub, 'stats-', '.db.tmp', DateChars, '', 10, 10);
+    DeleteOwnFiles(Sub, 'stats-', '.db.tmp-journal', DateChars, '', 10, 10);
+    DeleteOwnFiles(Sub, 'stats-', '.db.tmp-wal', DateChars, '', 10, 10);
+    DeleteOwnFiles(Sub, 'stats-', '.db.tmp-shm', DateChars, '', 10, 10);
+  end
   else
   begin
     DeleteOwnDataFiles(Sub);
@@ -1254,6 +1278,7 @@ begin
   RemoveOwnSubFolder(Folder, 'logs');
   RemoveOwnSubFolder(Folder, 'restore-staging');
   RemoveOwnSubFolder(Folder, 'cache');
+  RemoveOwnSubFolder(Folder, 'stats-backups');
   Names := ListEntries(Folder, 'before-restore-*', True);
   try
     for I := 0 to Names.Count - 1 do
