@@ -1,4 +1,5 @@
 using System.Text;
+using AiUsage.Io;
 
 namespace AiUsage.Stats;
 
@@ -15,7 +16,8 @@ internal sealed record GitRepoInfo(string Id, string Name);
 /// </summary>
 internal static class GitRepoIdentity
 {
-    private const long MaxConfigBytes = 256 * 1024;
+    private const int MaxConfigBytes = 256 * 1024;
+    private const int MaxPointerBytes = 4096;
 
     /// <summary>The repository of <paramref name="folder"/>, or null when it is not a git checkout with an
     /// origin remote (or cannot be read). Touches the disk: call off the UI thread.</summary>
@@ -23,7 +25,7 @@ internal static class GitRepoIdentity
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(folder) || !Path.IsPathRooted(folder))
+            if (string.IsNullOrWhiteSpace(folder) || !GuardedRead.IsLocalDrivePath(folder))
                 return null;
 
             var gitDirectory = FindGitDirectory(folder);
@@ -31,11 +33,10 @@ internal static class GitRepoIdentity
                 return null;
 
             var configPath = Path.Combine(CommonDirectory(gitDirectory) ?? gitDirectory, "config");
-            var info = new FileInfo(configPath);
-            if (!info.Exists || info.Length > MaxConfigBytes)
+            if (!GuardedRead.TryReadSmallText(configPath, MaxConfigBytes, out var config))
                 return null;
 
-            var url = OriginUrl(File.ReadAllLines(configPath, Encoding.UTF8));
+            var url = OriginUrl(config.Split('\n'));
             var id = url is null ? null : NormalizeRemote(url);
             return id is null ? null : new GitRepoInfo(id, RepoName(id));
         }
@@ -52,33 +53,35 @@ internal static class GitRepoIdentity
         if (Directory.Exists(dotGit))
             return dotGit;
 
-        var file = new FileInfo(dotGit);
-        if (!file.Exists || file.Length > 4096)
+        if (!GuardedRead.TryReadSmallText(dotGit, MaxPointerBytes, out var content))
             return null;
 
-        var line = File.ReadLines(dotGit).FirstOrDefault(text => text.StartsWith("gitdir:", StringComparison.OrdinalIgnoreCase));
+        var line = content.Split('\n').FirstOrDefault(text => text.StartsWith("gitdir:", StringComparison.OrdinalIgnoreCase));
         var target = line?["gitdir:".Length..].Trim();
-        if (string.IsNullOrEmpty(target))
-            return null;
-
-        var pointed = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(folder, target));
-        return Directory.Exists(pointed) ? pointed : null;
+        return ExistingLocalDirectory(folder, target);
     }
 
     /// <summary>A worktree's git folder names the main one in <c>commondir</c>; the config lives there.</summary>
     private static string? CommonDirectory(string gitDirectory)
     {
         var pointer = Path.Combine(gitDirectory, "commondir");
-        var file = new FileInfo(pointer);
-        if (!file.Exists || file.Length > 4096)
+        if (!GuardedRead.TryReadSmallText(pointer, MaxPointerBytes, out var content))
             return null;
 
-        var target = File.ReadLines(pointer).FirstOrDefault()?.Trim();
+        var target = content.Split('\n').FirstOrDefault()?.Trim();
+        return ExistingLocalDirectory(gitDirectory, target);
+    }
+
+    /// <summary>The folder a pointer file names (absolute, or relative to <paramref name="baseFolder"/>),
+    /// when it is on a local drive and exists. A target on a network share is dropped before any
+    /// check touches it.</summary>
+    private static string? ExistingLocalDirectory(string baseFolder, string? target)
+    {
         if (string.IsNullOrEmpty(target))
             return null;
 
-        var common = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(gitDirectory, target));
-        return Directory.Exists(common) ? common : null;
+        var full = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(baseFolder, target));
+        return GuardedRead.IsLocalDrivePath(full) && Directory.Exists(full) ? full : null;
     }
 
     /// <summary>The <c>url</c> of the <c>[remote "origin"]</c> section, or null.</summary>

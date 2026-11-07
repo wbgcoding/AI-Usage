@@ -855,7 +855,7 @@ public static class BackupService
                 return null;
 
             var text = lines[0];
-            if (text.Length == 0 || text.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathFullyQualified(text) || !File.Exists(text))
+            if (text.Length == 0 || text.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !GuardedRead.IsLocalPath(text) || !File.Exists(text))
                 return null;
 
             string? setAside = null;

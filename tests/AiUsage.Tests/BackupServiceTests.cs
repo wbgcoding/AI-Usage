@@ -298,6 +298,28 @@ public sealed class BackupServiceTests : IDisposable
     }
 
     [Fact]
+    public void A_restore_request_naming_a_network_share_is_dropped_even_when_the_file_exists()
+    {
+        var data = Temp();
+        Seed(data, IdA, 5);
+        var source = Temp();
+        Seed(source, IdA, 100);
+        var zip = Path.Combine(Temp(), "b.zip");
+        BackupService.Create(source, zip, "1", IdA, "PC-A", Now, Temp());
+        var before = Snapshot(data);
+        var pending = Path.Combine(data, "restore-pending.txt");
+
+        File.WriteAllText(pending, AdminShare.Of(zip) ?? @"\\no-such-host.invalid\share\b.zip");
+        Assert.Equal(RestoreOutcome.Unchanged, BackupService.ApplyPendingRestore(data, LocalNow, _ => { }));
+        Assert.False(File.Exists(pending));
+
+        File.WriteAllText(pending, "//no-such-host.invalid/share/b.zip");
+        Assert.Equal(RestoreOutcome.Unchanged, BackupService.ApplyPendingRestore(data, LocalNow, _ => { }));
+
+        Assert.Equal(before["settings.json"], File.ReadAllBytes(Path.Combine(data, "settings.json")));
+    }
+
+    [Fact]
     public void A_restore_request_that_is_stale_relative_or_points_nowhere_is_dropped()
     {
         var data = Temp();

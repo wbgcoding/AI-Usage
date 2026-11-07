@@ -148,6 +148,21 @@ public class ProjectColorResolverTests
     }
 
     [Fact]
+    public void AProjectFileOverTheSizeLimitDeclaresNoIcon()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-oversized");
+        var icon = Touch(dir.Path, "src/Tool/Assets/app.ico");
+        var declared = Touch(dir.Path, "src/Tool/Resources/network.ico");
+        var csproj = "<Project><PropertyGroup><ApplicationIcon>Resources\\network.ico</ApplicationIcon></PropertyGroup></Project>";
+        WriteText(dir.Path, "src/Tool/Tool.csproj", csproj);
+        Assert.Equal(declared, ProjectColorResolver.FindIconFile(dir.Path));
+
+        WriteText(dir.Path, "src/Tool/Tool.csproj", csproj + "<!--" + new string('x', 1024 * 1024) + "-->");
+
+        Assert.Equal(icon, ProjectColorResolver.FindIconFile(dir.Path));
+    }
+
+    [Fact]
     public void ADeclaredIconOutsideTheProjectRootIsNeverPicked()
     {
         using var dir = TestPaths.CreateDisposableDirectory("project-color-icon-escape");

@@ -38,6 +38,7 @@ public static class ProjectColorResolver
     private const int DeclaredIconSearchDepth = 3;
     private const int MaxDirectoryEntriesInspected = 5000;
     private const long MaxIconFileBytes = ProjectIconLoader.MaxFileBytes;
+    private const int MaxProjectFileBytes = 1024 * 1024;
 
     // Two projects landing on the same hue purely by hash coincidence would be as confusing as a
     // project sharing a provider's own hue - kept a little tighter than the 25 degrees
@@ -190,24 +191,7 @@ public static class ProjectColorResolver
 
     /// <summary>True for a fully qualified path on a local drive. A network share, a mapped network
     /// drive and anything not rooted at a drive letter is never read.</summary>
-    internal static bool IsLocalFolder(string folder)
-    {
-        try
-        {
-            if (!Path.IsPathFullyQualified(folder))
-                return false;
-
-            var root = Path.GetPathRoot(folder);
-            if (string.IsNullOrEmpty(root) || root.Length < 2 || !char.IsAsciiLetter(root[0]) || root[1] != ':')
-                return false;
-
-            return new DriveInfo(root[..1]).DriveType is not (DriveType.Network or DriveType.Unknown or DriveType.NoRootDirectory);
-        }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
+    internal static bool IsLocalFolder(string folder) => GuardedRead.IsLocalDrivePath(folder);
 
     private static DateTime? SafeFolderWriteUtc(string folder)
     {
@@ -417,7 +401,10 @@ public static class ProjectColorResolver
     {
         try
         {
-            var match = pattern.Match(File.ReadAllText(filePath));
+            if (!GuardedRead.TryReadSmallText(filePath, MaxProjectFileBytes, out var content))
+                return null;
+
+            var match = pattern.Match(content);
             if (!match.Success)
                 return null;
 
@@ -439,7 +426,10 @@ public static class ProjectColorResolver
     {
         try
         {
-            using var document = JsonDocument.Parse(File.ReadAllText(filePath), new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+            if (!GuardedRead.TryReadSmallText(filePath, MaxProjectFileBytes, out var content))
+                return null;
+
+            using var document = JsonDocument.Parse(content, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 return null;
@@ -473,7 +463,10 @@ public static class ProjectColorResolver
     {
         try
         {
-            using var document = JsonDocument.Parse(File.ReadAllText(filePath), new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+            if (!GuardedRead.TryReadSmallText(filePath, MaxProjectFileBytes, out var content))
+                return null;
+
+            using var document = JsonDocument.Parse(content, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
             var root = document.RootElement;
             if (root.ValueKind == JsonValueKind.Object
                 && root.TryGetProperty("expo", out var expo) && expo.ValueKind == JsonValueKind.Object
@@ -490,10 +483,8 @@ public static class ProjectColorResolver
 
     internal static string? ReadAndroidIcon(string projectRoot, string manifestPath, string mainFolder)
     {
-        string text;
-        try { text = File.ReadAllText(manifestPath); }
-        catch (IOException) { return null; }
-        catch (UnauthorizedAccessException) { return null; }
+        if (!GuardedRead.TryReadSmallText(manifestPath, MaxProjectFileBytes, out var text))
+            return null;
 
         var match = AndroidIconPattern.Match(text);
         if (!match.Success)

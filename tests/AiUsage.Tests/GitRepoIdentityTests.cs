@@ -97,6 +97,50 @@ public sealed class GitRepoIdentityTests
     }
 
     [Fact]
+    public void A_pointer_to_a_network_share_is_ignored_even_when_the_target_exists()
+    {
+        var main = Checkout("main-unc", "https://github.com/Team/App.git");
+        var worktreeGit = Path.Combine(main, ".git", "worktrees", "wt");
+        Directory.CreateDirectory(worktreeGit);
+        File.WriteAllText(Path.Combine(worktreeGit, "commondir"), "../..");
+        var unc = AdminShare.Of(worktreeGit);
+        var worktree = Path.Combine(_root, "wt-unc");
+        Directory.CreateDirectory(worktree);
+        File.WriteAllText(Path.Combine(worktree, ".git"), "gitdir: " + (unc ?? @"\\no-such-host.invalid\share\wt") + "\n");
+
+        Assert.Null(GitRepoIdentity.Read(worktree));
+    }
+
+    [Fact]
+    public void A_commondir_on_a_network_share_is_ignored_even_when_the_target_exists()
+    {
+        var main = Checkout("main-common", "https://github.com/Team/App.git");
+        var worktreeGit = Path.Combine(main, ".git", "worktrees", "wt");
+        Directory.CreateDirectory(worktreeGit);
+        File.WriteAllText(Path.Combine(worktreeGit, "config"), Config(null));
+        var unc = AdminShare.Of(Path.Combine(main, ".git"));
+        File.WriteAllText(Path.Combine(worktreeGit, "commondir"), unc ?? @"\\no-such-host.invalid\share\.git");
+        var worktree = Path.Combine(_root, "wt-common");
+        Directory.CreateDirectory(worktree);
+        File.WriteAllText(Path.Combine(worktree, ".git"), "gitdir: " + worktreeGit + "\n");
+
+        Assert.Null(GitRepoIdentity.Read(worktree));
+    }
+
+    [Fact]
+    public void A_pointer_file_or_config_over_its_size_limit_is_not_read()
+    {
+        var main = Checkout("main-big", "https://github.com/Team/App.git");
+        File.WriteAllText(Path.Combine(main, ".git", "config"), Config("https://github.com/Team/App.git") + new string('#', 300 * 1024));
+        Assert.Null(GitRepoIdentity.Read(main));
+
+        var worktree = Path.Combine(_root, "wt-big");
+        Directory.CreateDirectory(worktree);
+        File.WriteAllText(Path.Combine(worktree, ".git"), "gitdir: " + Path.Combine(main, ".git") + "\n" + new string('#', 5000));
+        Assert.Null(GitRepoIdentity.Read(worktree));
+    }
+
+    [Fact]
     public void A_submodule_file_with_a_relative_pointer_reads_its_own_config()
     {
         var superproject = Checkout("super", "https://github.com/Team/Super.git");
