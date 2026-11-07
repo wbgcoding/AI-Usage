@@ -4,8 +4,9 @@
 //   home-claude-full.png   the widget with only the Claude tile, full density
 //   home-overview.png      on the left the usage per day tile above the Claude and Codex tiles; on
 //                          the right all five tiles in the small layout above the Claude tile in the
-//                          light theme
-//   token-usage.png        the whole statistics window on its 30 day range, every section filled
+//                          light theme; each part with its caption drawn below it
+//   token-usage.png        the whole statistics window on its 30 day range, every section filled,
+//                          with its caption drawn below it
 //
 // Run it from the repository root:
 //   dotnet run --project tools/ReadmeShots
@@ -316,7 +317,12 @@ internal static class Program
         {
             ApplyTheme(AppTheme.Dark);
         }
-        JoinColumns([left], [small, light], Path.Combine(outputDirectory, "home-overview.png"));
+        ComposeWithCaptions(
+            [
+                [(left, "Claude and Codex with usage per day")],
+                [(small, "Every agent in the small layout"), (light, "The light theme")],
+            ],
+            Path.Combine(outputDirectory, "home-overview.png"));
     }
 
     private static void ApplyTheme(AppTheme theme)
@@ -326,9 +332,12 @@ internal static class Program
         ThemeService.Apply(theme, Application.Current.Resources.MergedDictionaries, Load, () => false);
     }
 
-    /// <summary>Places two columns of finished pictures side by side on a transparent background,
-    /// each column stacked top to bottom, with the same gap between and inside the columns.</summary>
-    private static void JoinColumns(IReadOnlyList<string> leftColumn, IReadOnlyList<string> rightColumn, string outputPath)
+    /// <summary>Places columns of finished pictures side by side on a transparent background, each
+    /// column stacked top to bottom, with each picture's caption centred right below it. The README
+    /// shows the result at <paramref name="shownWidth"/> pixels, so the caption is sized to read like
+    /// small text there; its grey reads on GitHub's light and dark pages alike.</summary>
+    private static void ComposeWithCaptions(
+        IReadOnlyList<IReadOnlyList<(string Path, string Caption)>> columns, string outputPath, double shownWidth = 820)
     {
         const int gap = 48;
         static BitmapSource Read(string path)
@@ -341,27 +350,37 @@ internal static class Program
             return image;
         }
 
-        var left = leftColumn.Select(Read).ToList();
-        var right = rightColumn.Select(Read).ToList();
-        static int Height(List<BitmapSource> column) => column.Sum(image => image.PixelHeight) + gap * (column.Count - 1);
-        var leftWidth = left.Max(image => image.PixelWidth);
-        var width = leftWidth + gap + right.Max(image => image.PixelWidth);
-        var height = Math.Max(Height(left), Height(right));
+        var images = columns.Select(column => column.Select(item => (Image: Read(item.Path), item.Caption)).ToList()).ToList();
+        var columnWidths = images.Select(column => column.Max(item => item.Image.PixelWidth)).ToList();
+        var width = columnWidths.Sum() + gap * (columns.Count - 1);
+        var fontSize = Math.Round(13.5 * width / shownWidth);
+        var captionGap = Math.Round(fontSize * 0.45);
+        var typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        var brush = new SolidColorBrush(Color.FromRgb(0x8B, 0x94, 0x9E));
+        brush.Freeze();
+        FormattedText Caption(string caption) =>
+            new(caption, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, fontSize, brush, 1);
+        double ItemHeight((BitmapSource Image, string Caption) item) =>
+            item.Image.PixelHeight + captionGap + Math.Ceiling(Caption(item.Caption).Height);
+        var height = (int)Math.Ceiling(images.Max(column => column.Sum(ItemHeight) + gap * (column.Count - 1)));
 
         var visual = new DrawingVisual();
         using (var context = visual.RenderOpen())
         {
-            void Column(List<BitmapSource> column, int x)
+            double x = 0;
+            for (var c = 0; c < images.Count; c++)
             {
-                var y = 0;
-                foreach (var image in column)
+                double y = 0;
+                foreach (var item in images[c])
                 {
-                    context.DrawImage(image, new Rect(x, y, image.PixelWidth, image.PixelHeight));
-                    y += image.PixelHeight + gap;
+                    var left = x + (columnWidths[c] - item.Image.PixelWidth) / 2.0;
+                    context.DrawImage(item.Image, new Rect(left, y, item.Image.PixelWidth, item.Image.PixelHeight));
+                    var caption = Caption(item.Caption);
+                    context.DrawText(caption, new Point(Math.Round(left + (item.Image.PixelWidth - caption.Width) / 2), y + item.Image.PixelHeight + captionGap));
+                    y += ItemHeight(item) + gap;
                 }
+                x += columnWidths[c] + gap;
             }
-            Column(left, 0);
-            Column(right, leftWidth + gap);
         }
 
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
@@ -472,10 +491,11 @@ internal static class Program
         var today = DateOnly.FromDateTime(DateTime.Now);
         var records = ReviewSurfaces.WithSubagents(SampleUsage.Build(today));
         var folder = Path.Combine(dataDirectory, "token-usage");
+        var window = Path.Combine(dataDirectory, "token-usage-window.png");
         // Every section filled: quota history for the limits and the plan forecast, plans for its
         // prices, invented sessions for the session list.
         RenderStatistics(folder, records, SampleUsage.PickBusyWeekday(records, today), fullHeight: true,
-            Path.Combine(outputDirectory, "token-usage.png"),
+            window,
             seed: store =>
             {
                 SampleLimits.Seed(folder, DateTimeOffset.Now, records);
@@ -486,6 +506,7 @@ internal static class Program
                 viewModel.PlanOf = key => key == "claude" ? "Max" : key == "codex" ? "Plus" : null;
                 viewModel.Recompute();
             });
+        ComposeWithCaptions([[(window, "The token usage window, every section")]], Path.Combine(outputDirectory, "token-usage.png"));
     }
 
     /// <summary>A cost service on a fixed, seeded price list and euro rate that never touches the network, so

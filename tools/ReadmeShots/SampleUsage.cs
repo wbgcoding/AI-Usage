@@ -12,9 +12,10 @@ internal static class SampleUsage
     [
         @"C:\Projects\checkout-service", @"C:\Projects\aurora-ui", @"C:\Projects\billing-api",
         @"C:\Projects\infra-terraform", @"C:\Projects\ml-pipeline", @"C:\Projects\landing-page",
+        @"C:\Projects\mobile-app", @"C:\Projects\docs-site",
     ];
 
-    private static readonly double[] ProjectWeights = [0.30, 0.24, 0.18, 0.12, 0.10, 0.06];
+    private static readonly double[] ProjectWeights = [0.28, 0.22, 0.16, 0.11, 0.09, 0.06, 0.05, 0.03];
 
     internal static IReadOnlyList<StatsRecord> Build(DateOnly today)
     {

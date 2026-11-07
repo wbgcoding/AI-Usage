@@ -36,7 +36,6 @@ More than one account per agent? Add it, and it gets its own tile, name and hist
 
 <div align="center">
 <img src=".github/images/home-overview.png" width="820" alt="AI-Usage with the usage per day tile above the Claude and Codex tiles; beside it every supported agent in the small layout, and the Claude tile in the light theme">
-<br><sub>Claude and Codex with usage per day · every agent in the small layout · the light theme</sub>
 </div>
 
 ## Highlights
@@ -102,7 +101,6 @@ Cursor and Copilot keep no token counts on your PC, so the window says so instea
 
 <div align="center">
 <img src=".github/images/token-usage.png" width="820" alt="The whole token usage window: activity grid, selected day, figures, breakdown, share rings, plan forecast, limits and top projects, dark theme">
-<br><sub>The token usage window, every section</sub>
 </div>
 
 ## Keyboard shortcuts
