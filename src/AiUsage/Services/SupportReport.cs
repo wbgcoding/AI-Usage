@@ -19,9 +19,8 @@ public static class SupportReport
     /// <summary>
     /// PRIVACY: deliberately never includes a tile's own <c>AccountText</c> (see that property's own
     /// doc in <see cref="ProviderTileViewModel"/>), any full user path, or a provider's own account
-    /// identifiers. The data folder is the one path included, and only with the user name replaced
-    /// via <see cref="PathSanitizer"/> - the same guard <c>LogService</c> applies to every
-    /// line it writes.
+    /// identifiers. The finished text passes <see cref="PathSanitizer"/> once (user name in a path, token
+    /// shapes) - the same guard <c>LogService</c> applies to every line it writes.
     /// </summary>
     public static string Build(IReadOnlyList<ProviderTileViewModel> tiles)
     {
@@ -34,7 +33,7 @@ public static class SupportReport
         lines.AppendLine(Environment.OSVersion.VersionString);
         lines.AppendLine(loc[$"Theme.{ThemeService.CurrentTheme}"]);
         lines.AppendLine(loc.ActiveLanguageDisplayName);
-        lines.AppendLine(loc.Format("About.DataFolder", PathSanitizer.Sanitize(AppPaths.DataDirectory)));
+        lines.AppendLine(loc.Format("About.DataFolder", AppPaths.DataDirectory));
         lines.AppendLine();
 
         foreach (var tile in tiles)
@@ -44,6 +43,8 @@ public static class SupportReport
                 lines.AppendLine(CultureInfo.CurrentCulture, $"  {diagnostic}");
         }
 
-        return lines.ToString();
+        // One pass over the finished text: tile names, headlines and diagnostics are provider and read
+        // output and may carry a user path or a token just like the data folder does.
+        return PathSanitizer.Sanitize(lines.ToString());
     }
 }
