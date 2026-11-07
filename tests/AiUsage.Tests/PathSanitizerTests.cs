@@ -152,4 +152,32 @@ public class PathSanitizerTests
         Assert.Equal(@"cannot open <user>\AppData\x", result);
         Assert.Equal(result, PathSanitizer.Sanitize($@"cannot open {profile}\AppData\x"));
     }
+
+    [Fact]
+    public void Sanitize_masks_github_openai_and_jwt_tokens()
+    {
+        var ghp = "gh" + "p_" + new string('a', 20);
+        var gho = "gh" + "o_" + new string('b', 20);
+        var pat = "github" + "_pat_" + new string('c', 22);
+        var openAi = "sk" + "-" + new string('d', 24);
+        var project = "sk" + "-proj-" + new string('e', 24);
+        var jwt = "ey" + "Jabcdefgh" + "." + "ey" + "Jijklmnop" + "." + "sig12345678";
+
+        var result = PathSanitizer.Sanitize(
+            $"a {ghp} b {gho} c {pat} d {openAi} e {project} f {jwt} g",
+            userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+
+        Assert.Equal("a {token} b {token} c {token} d {token} e {token} f {token} g", result);
+    }
+
+    [Theory]
+    [InlineData(@"{""authorization"":""x y""}", @"{""authorization"":""{token}""}")]
+    [InlineData(@"{""Cookie"":""a=b""}", @"{""Cookie"":""{token}""}")]
+    [InlineData(@"{""api_key"":""k1"",""client_secret"":""s1"",""apiKey"":""k2""}", @"{""api_key"":""{token}"",""client_secret"":""{token}"",""apiKey"":""{token}""}")]
+    [InlineData(@"{""token"":""t1"",""secret"":""s2""}", @"{""token"":""{token}"",""secret"":""{token}""}")]
+    [InlineData("the token is missing and authorization failed, ask-me-about-risk-assessment-things", "the token is missing and authorization failed, ask-me-about-risk-assessment-things")]
+    public void Sanitize_masks_wider_credential_keys_and_leaves_prose(string input, string expected)
+    {
+        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+    }
 }

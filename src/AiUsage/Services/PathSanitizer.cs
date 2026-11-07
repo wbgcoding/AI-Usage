@@ -36,13 +36,14 @@ public static class PathSanitizer
     // Also matches the JSON-escaped spelling (\"access_token\":\"...\") a nested payload has in a log line.
     // The value runs to the closing quote; an escape inside it (\/ or +) is part of the token.
     private static readonly Regex AccessTokenField = new(
-        @"(?<key>\\?""(?:access_?|refresh_?|id_?|session_?)(?:token|key)\\?""\s*:\s*\\?"")(?:[^""\\]|\\(?!""))*",
+        @"(?<key>\\?""(?:(?:(?:access|refresh|id|session|api|client)_?)?(?:token|key|secret)|authorization|cookie)\\?""\s*:\s*\\?"")(?:[^""\\]|\\(?!""))*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    // Tokens with a recognisable prefix, wherever they stand: Anthropic keys and OAuth tokens
-    // (sk-ant-...), Google access and refresh tokens (ya29. and 1//) and a claude.ai sessionKey cookie.
+    // Tokens with a recognisable prefix, wherever they stand: Anthropic and OpenAI keys (sk-...),
+    // GitHub tokens (gh?_ and github_pat_), JWTs (eyJ...), Google access and refresh tokens
+    // (ya29. and 1//) and a claude.ai sessionKey cookie.
     private static readonly Regex PrefixedToken = new(
-        @"\b(?:sk-ant-[A-Za-z0-9_\-]{8,}|ya29\.[A-Za-z0-9_\-.]{8,})|(?<![\w/])1//[A-Za-z0-9_\-]{8,}|(?<=\bsessionKey=)[^;\s""]+",
+        @"\b(?:sk-ant-[A-Za-z0-9_\-]{8,}|sk-(?:proj-)?[A-Za-z0-9_\-]{16,}|gh[opusr]_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}|ya29\.[A-Za-z0-9_\-.]{8,})|(?<![\w/])1//[A-Za-z0-9_\-]{8,}|(?<=\bsessionKey=)[^;\s""]+",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static string Sanitize(string text, string? userProfile = null, string? userName = null, string? shortProfile = null)
