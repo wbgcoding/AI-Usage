@@ -35,6 +35,11 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// restored from the history is applied only while this is still false.</summary>
     internal bool HasReceivedSnapshot => _lastSnapshot is not null;
 
+    /// <summary>The failed or signed-out answer without any numbers that is the tile's only snapshot so far,
+    /// else null. The start reading may still go underneath it (see <c>MainViewModel.LoadLastReadingsCoreAsync</c>).</summary>
+    internal ProviderSnapshot? NumberlessFailure =>
+        _lastSnapshot is { Windows.Count: 0, Status: ProviderStatus.Failed or ProviderStatus.NotSignedIn } failure ? failure : null;
+
     /// <summary>The window kinds this tile's provider has actually reported, from the last snapshot
     /// that carried any windows at all; null until then, so every switch stays offered while nothing
     /// is known yet.</summary>

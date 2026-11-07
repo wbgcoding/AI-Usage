@@ -523,6 +523,25 @@ public partial class MainViewModelTests : IDisposable
         Assert.Empty(announced);
     }
 
+    [Fact]
+    public async Task A_failure_without_numbers_that_lands_before_the_start_reading_keeps_the_numbers_and_the_notice()
+    {
+        var gate = new TaskCompletionSource();
+        var vm = BuildWithRecordedReadings(deferLastReadings: true, gate.Task);
+        var claude = vm.Tiles.Single(t => t.ProviderId == "claude");
+
+        claude.Apply(new ProviderSnapshot("claude", [], null, SourceKind.None, Now, null, ProviderStatus.Failed,
+            new ProviderError("Status_Failed_Reason")), Now);
+        Assert.Empty(claude.Rows);
+
+        gate.SetResult();
+        await vm.LastReadingsLoaded.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(74, claude.Rows.Single().UsedPercent);
+        Assert.True(claude.IsShowingLastValues);
+        Assert.NotEqual("", claude.FailureNoticeText);
+    }
+
     // A snapshot that only repeats an hour-old reading (a held-over expired token, a cached web read)
     // still refreshes the tile but is not a new data point for the chart.
     [Fact]

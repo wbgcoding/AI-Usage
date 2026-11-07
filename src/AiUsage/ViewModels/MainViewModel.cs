@@ -756,12 +756,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private ProviderSnapshot? LastRecordedReadingFor(string accountKey, DateTimeOffset now) =>
         IsAccountDisconnected(accountKey) ? null : LastRecordedReading(accountKey, now);
 
-    private void ApplyLastReading(ProviderTileViewModel tile, ProviderSnapshot reading)
+    private void ApplyLastReading(ProviderTileViewModel tile, ProviderSnapshot reading, ProviderSnapshot? failureToKeep = null)
     {
         _applyingLastReading = true;
         try
         {
-            tile.Apply(reading, DateTimeOffset.Now, ResolvedThresholds(tile.ProviderId), _settings.ShowAttentionMark, advanceSilenceClock: false);
+            var thresholds = ResolvedThresholds(tile.ProviderId);
+            tile.Apply(reading, DateTimeOffset.Now, thresholds, _settings.ShowAttentionMark, advanceSilenceClock: false);
+            if (failureToKeep is not null)
+                tile.Apply(failureToKeep, DateTimeOffset.Now, thresholds, _settings.ShowAttentionMark, advanceSilenceClock: false);
         }
         finally
         {
@@ -820,12 +823,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             for (var index = 0; index < tiles.Length; index++)
             {
                 var tile = tiles[index];
+                // A live failure without numbers that landed first does not count as "has numbers": the saved
+                // reading goes in, then that failure is applied again so the tile keeps the last numbers with
+                // the failure notice, as it would had the reading been there from the start.
+                var failure = tile.NumberlessFailure;
                 if (readings[index] is { } reading
-                    && !tile.HasReceivedSnapshot
+                    && (!tile.HasReceivedSnapshot || failure is not null)
                     && _tilesById.TryGetValue(tile.ProviderId, out var current) && ReferenceEquals(current, tile)
                     && !IsAccountDisconnected(tile.ProviderId))
                 {
-                    ApplyLastReading(tile, reading);
+                    ApplyLastReading(tile, reading, failure);
                 }
             }
         }
