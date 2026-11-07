@@ -245,6 +245,24 @@ public class ClaudeConsoleRowTests : IDisposable
         Assert.Equal(1, freshOwner.Disposed);
     }
 
+    [Theory]
+    [InlineData(SignOutResult.Removed, "Claude Console signed out")]
+    [InlineData(SignOutResult.StillOpen, "Claude Console sign-out incomplete (StillOpen)")]
+    public async Task The_console_sign_out_log_line_tells_whether_the_folder_was_cleared(SignOutResult result, string expected)
+    {
+        var settings = new AppSettings();
+        var claude = NewClaude(settings, new Owner(), 1234);
+        var logService = new LogService(TempDirectory(), now: () => Now);
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [claude], new HistoryStore(TempDirectory(), () => Now),
+            claudeRunner: null, logService: logService, notifications: new NotificationService(TempDirectory()));
+        vm.SignOutConsoleWebView = _ => result;
+        vm.ConsoleProfileExists = _ => false;
+
+        Assert.Equal(result == SignOutResult.Removed, await vm.SignOutConsoleAsync("claude"));
+
+        Assert.Contains(expected, File.ReadAllText(logService.CurrentFile));
+    }
+
     [Fact]
     public async Task Signing_out_of_the_console_drops_the_balance_and_the_console_session_only()
     {

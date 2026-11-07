@@ -41,4 +41,25 @@ public partial class MainViewModelTests
 
         Assert.True(ranWhileCallerFree);
     }
+
+    private sealed class ThrowingRunner : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync() => throw new InvalidOperationException("closing failed");
+    }
+
+    [Fact]
+    public async Task Sign_out_deletes_the_profile_and_disconnects_even_when_the_session_close_throws()
+    {
+        var settings = SettingsWithVisibility(("codex", true), ("claude", true), ("gemini", true), ("copilot", true));
+        var (vm, _, _) = Build(settings, claudeRunner: new ThrowingRunner());
+        var deleted = 0;
+        vm.SignOutWebView = _ => { deleted++; return SignOutResult.Removed; };
+
+        var signedOut = await vm.SignOutAsync("claude");
+
+        Assert.True(signedOut);
+        Assert.Equal(1, deleted);
+        Assert.True(settings.Providers["claude"].Disconnected);
+        Assert.True(vm.IsAccountDisconnected("claude"));
+    }
 }

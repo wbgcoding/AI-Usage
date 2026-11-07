@@ -354,7 +354,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _logService?.LogError($"Removing {accountKey} failed: {ex.GetType().Name}: {ex.Message}");
+            _logService?.LogError($"Removing {accountKey} failed: {ex.GetType().Name}: {PathSanitizer.Sanitize(ex.Message)}");
             return RemoveAccountResult.Failed;
         }
     }
@@ -399,7 +399,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                _logService?.LogError($"{accountKey}: Claude Console sign-out failed: {ex.GetType().Name}: {ex.Message}");
+                _logService?.LogError($"{accountKey}: Claude Console sign-out failed: {ex.GetType().Name}: {PathSanitizer.Sanitize(ex.Message)}");
                 result = SignOutResult.Refused;
             }
 
@@ -414,7 +414,9 @@ public sealed partial class MainViewModel
                 }
             }
 
-            (_logService ?? LogService.Shared).LogInfo($"{accountKey}: Claude Console signed out");
+            (_logService ?? LogService.Shared).LogInfo(result == SignOutResult.Removed
+                ? $"{accountKey}: Claude Console signed out"
+                : $"{accountKey}: Claude Console sign-out incomplete ({result})");
             return result == SignOutResult.Removed;
         }
         finally
@@ -441,7 +443,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _logService?.LogError($"Sign-out failed for {accountKey}: {ex.GetType().Name}: {ex.Message}");
+            _logService?.LogError($"Sign-out failed for {accountKey}: {ex.GetType().Name}: {PathSanitizer.Sanitize(ex.Message)}");
             return false;
         }
     }
@@ -483,7 +485,17 @@ public sealed partial class MainViewModel
         try
         {
             if (hadWebSession)
-                await runner!.DisposeAsync();
+            {
+                try
+                {
+                    await runner!.DisposeAsync();
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // The profile is deleted and the account disconnected all the same.
+                    _logService?.LogError($"Sign-out of {accountKey}: the browser session did not close cleanly ({ex.GetType().Name}).");
+                }
+            }
 
             result = await DeleteWebProfileAsync(accountKey);
         }
