@@ -1063,10 +1063,16 @@ public class StatsIndexTests
 
         var store = new StatsStore(dataDir);
         using var cancellation = new CancellationTokenSource();
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(1));
+        // The indexer asks the clock right before it reads the file's lines, so cancelling there lands
+        // inside the read on every machine. A timer raced the read and lost on a slow CI runner.
+        DateTime CancellingClock()
+        {
+            cancellation.Cancel();
+            return DateTime.UtcNow;
+        }
 
         Assert.Throws<OperationCanceledException>(() =>
-            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce(cancellation.Token));
+            new StatsIndexer(store, claudeRoot, codexRoot, CancellingClock).IndexOnce(cancellation.Token));
 
         // Cancelling mid file earns it nothing this run - no partial count, no moved marker.
         Assert.Null(store.GetSourceFile(filePath));
