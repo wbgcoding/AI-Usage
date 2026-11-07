@@ -259,4 +259,24 @@ public sealed class GitRepoIdentityTests
 
         Assert.Equal(2, calls.Count);
     }
+
+    [Fact]
+    public void A_git_folder_that_is_a_junction_gives_no_identity()
+    {
+        var real = Checkout("real-git", "https://github.com/Team/App.git");
+        var folder = Path.Combine(_root, "junction-git");
+        Directory.CreateDirectory(folder);
+        var link = Path.Combine(folder, ".git");
+        if (!GuardedReadTests.TryMakeJunction(link, Path.Combine(real, ".git")))
+            return; // The OS refused to create the junction; nothing to prove here.
+
+        try
+        {
+            Assert.Null(GitRepoIdentity.Read(folder));
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
+    }
 }

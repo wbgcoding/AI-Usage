@@ -326,7 +326,7 @@ public static class ProjectColorResolver
                 {
                     // A junction or symlink can lead out of the project (or into a loop), so it is
                     // never entered.
-                    if (depth < MaxIconSearchDepth && !IsSkippedDirectory(Path.GetFileName(entry)) && !IsReparsePoint(entry))
+                    if (depth < MaxIconSearchDepth && !IsSkippedDirectory(Path.GetFileName(entry)) && !GuardedRead.IsLink(entry))
                         queue.Enqueue((entry, depth + 1));
                     continue;
                 }
@@ -336,18 +336,6 @@ public static class ProjectColorResolver
         }
 
         return files;
-    }
-
-    private static bool IsReparsePoint(string path)
-    {
-        try
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true;
-        }
     }
 
     private static bool IsSkippedDirectory(string name) => name.StartsWith('.') || SkippedDirectoryNames.Contains(name);
@@ -381,7 +369,7 @@ public static class ProjectColorResolver
         foreach (var mainFolder in new[] { Path.Combine(projectFolder, "app", "src", "main"), Path.Combine(projectFolder, "android", "app", "src", "main") })
         {
             var manifest = Path.Combine(mainFolder, "AndroidManifest.xml");
-            if (File.Exists(manifest) && ReadAndroidIcon(projectFolder, manifest, mainFolder) is { } androidIcon)
+            if (ReadAndroidIcon(projectFolder, manifest, mainFolder) is { } androidIcon)
                 return androidIcon;
         }
 
@@ -401,7 +389,7 @@ public static class ProjectColorResolver
     {
         try
         {
-            if (!GuardedRead.TryReadSmallText(filePath, MaxProjectFileBytes, out var content))
+            if (!GuardedRead.TryReadSmallTextUnder(projectRoot, filePath, MaxProjectFileBytes, out var content))
                 return null;
 
             var match = pattern.Match(content);
@@ -426,7 +414,7 @@ public static class ProjectColorResolver
     {
         try
         {
-            if (!GuardedRead.TryReadSmallText(filePath, MaxProjectFileBytes, out var content))
+            if (!GuardedRead.TryReadSmallTextUnder(projectRoot, filePath, MaxProjectFileBytes, out var content))
                 return null;
 
             using var document = JsonDocument.Parse(content, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
@@ -463,7 +451,7 @@ public static class ProjectColorResolver
     {
         try
         {
-            if (!GuardedRead.TryReadSmallText(filePath, MaxProjectFileBytes, out var content))
+            if (!GuardedRead.TryReadSmallTextUnder(projectRoot, filePath, MaxProjectFileBytes, out var content))
                 return null;
 
             using var document = JsonDocument.Parse(content, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
@@ -483,7 +471,7 @@ public static class ProjectColorResolver
 
     internal static string? ReadAndroidIcon(string projectRoot, string manifestPath, string mainFolder)
     {
-        if (!GuardedRead.TryReadSmallText(manifestPath, MaxProjectFileBytes, out var text))
+        if (!GuardedRead.TryReadSmallTextUnder(projectRoot, manifestPath, MaxProjectFileBytes, out var text))
             return null;
 
         var match = AndroidIconPattern.Match(text);
@@ -553,14 +541,9 @@ public static class ProjectColorResolver
 
         try
         {
-            var root = Path.GetFullPath(projectRoot).TrimEnd(Path.DirectorySeparatorChar);
             var full = Path.GetFullPath(path);
-            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if (!GuardedRead.IsReachableWithoutLinks(projectRoot, full))
                 return false;
-
-            for (var dir = Path.GetDirectoryName(full); dir is { Length: > 0 } && dir.Length > root.Length; dir = Path.GetDirectoryName(dir))
-                if (IsReparsePoint(dir))
-                    return false;
 
             var info = new FileInfo(full);
             // A vector file that draws nothing is no icon, so the search goes on to the next candidate.

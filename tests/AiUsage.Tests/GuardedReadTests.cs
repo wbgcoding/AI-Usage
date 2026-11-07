@@ -73,4 +73,52 @@ public sealed class GuardedReadTests
 
         Assert.False(GuardedRead.TryReadSmallText(link, 100, out _));
     }
+
+    [Fact]
+    public void TryReadSmallTextUnder_reads_below_the_root_and_refuses_a_linked_folder_on_the_way()
+    {
+        var root = Path.Combine(_root, "under-root");
+        var outside = Path.Combine(_root, "under-outside");
+        Directory.CreateDirectory(Path.Combine(root, "plain", "inner"));
+        Directory.CreateDirectory(Path.Combine(outside, "inner"));
+        File.WriteAllText(Path.Combine(root, "plain", "inner", "a.txt"), "plain");
+        File.WriteAllText(Path.Combine(outside, "inner", "a.txt"), "outside");
+
+        Assert.True(GuardedRead.TryReadSmallTextUnder(root, Path.Combine(root, "plain", "inner", "a.txt"), 100, out var text));
+        Assert.Equal("plain", text);
+        // Outside the root, or named through a dot-dot back out of it: never read.
+        Assert.False(GuardedRead.TryReadSmallTextUnder(root, Path.Combine(outside, "inner", "a.txt"), 100, out _));
+        Assert.False(GuardedRead.TryReadSmallTextUnder(root, Path.Combine(root, "..", "under-outside", "inner", "a.txt"), 100, out _));
+
+        var link = Path.Combine(root, "linked");
+        if (!TryMakeJunction(link, outside))
+            return; // The OS refused to create the junction; nothing to prove here.
+
+        try
+        {
+            // The leaf is a regular file, but a folder above it is a junction.
+            Assert.False(GuardedRead.TryReadSmallTextUnder(root, Path.Combine(link, "inner", "a.txt"), 100, out _));
+            Assert.True(GuardedRead.TryReadSmallText(Path.Combine(link, "inner", "a.txt"), 100, out _));
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
+    }
+
+    internal static bool TryMakeJunction(string link, string target)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
+        {
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        using var process = System.Diagnostics.Process.Start(start)!;
+        process.StandardOutput.ReadToEnd();
+        process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        return process.ExitCode == 0 && Directory.Exists(link);
+    }
 }

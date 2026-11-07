@@ -51,9 +51,9 @@ internal static class GitRepoIdentity
     {
         var dotGit = Path.Combine(folder, ".git");
         if (Directory.Exists(dotGit))
-            return dotGit;
+            return GuardedRead.IsLink(dotGit) ? null : dotGit;
 
-        if (!GuardedRead.TryReadSmallText(dotGit, MaxPointerBytes, out var content))
+        if (!GuardedRead.TryReadSmallTextUnder(folder, dotGit, MaxPointerBytes, out var content))
             return null;
 
         var line = content.Split('\n').FirstOrDefault(text => text.StartsWith("gitdir:", StringComparison.OrdinalIgnoreCase));

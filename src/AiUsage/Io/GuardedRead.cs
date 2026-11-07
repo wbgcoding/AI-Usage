@@ -47,6 +47,51 @@ internal static class GuardedRead
         }
     }
 
+    /// <summary>True when the path is a link (symbolic link or junction), or cannot be inspected.</summary>
+    internal static bool IsLink(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>True when <paramref name="path"/> lies below <paramref name="root"/> and no folder between
+    /// them is a link (the root itself and the leaf are not looked at). A linked folder in the middle
+    /// would lead a read out of the project, possibly to a network share.</summary>
+    internal static bool IsReachableWithoutLinks(string root, string path)
+    {
+        try
+        {
+            var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var full = Path.GetFullPath(path);
+            if (!full.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            for (var dir = Path.GetDirectoryName(full); dir is { Length: > 0 } && dir.Length > fullRoot.Length; dir = Path.GetDirectoryName(dir))
+                if (IsLink(dir))
+                    return false;
+
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary><see cref="TryReadSmallText"/> for a file below <paramref name="root"/>: also refused when
+    /// it lies outside the root or a folder between the root and the file is a link.</summary>
+    internal static bool TryReadSmallTextUnder(string root, string path, int maxBytes, out string text)
+    {
+        text = "";
+        return IsReachableWithoutLinks(root, path) && TryReadSmallText(path, maxBytes, out text);
+    }
+
     /// <summary>The text of a regular file of at most <paramref name="maxBytes"/> bytes. False when the
     /// path is not local, the file is a link, larger than the limit (also when it grows while being
     /// read) or cannot be read.</summary>
