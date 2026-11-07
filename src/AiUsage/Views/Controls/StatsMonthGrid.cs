@@ -475,11 +475,14 @@ public sealed class StatsMonthGrid : FrameworkElement
         DateOnly rangeStart, DateOnly rangeEnd, DateOnly today, IReadOnlyList<DayValue> days)
     {
         var columns = new List<GridCell?[]>();
-        for (var day = rangeStart; day <= rangeEnd; day = day.AddDays(1))
-        {
-            var week = BuildColumns(day, day, today, days, 1)[0];
-            columns.Add([week[0], null, null, null, null, null, null]);
-        }
+        if (rangeEnd < rangeStart)
+            return columns;
+
+        // One pass over the span: with the grid starting on the first day, day n sits in week n / 7 at row n % 7.
+        var dayCount = rangeEnd.DayNumber - rangeStart.DayNumber + 1;
+        var weeks = BuildColumns(rangeStart, rangeEnd, today, days, (dayCount + 6) / 7);
+        for (var index = 0; index < dayCount; index++)
+            columns.Add([weeks[index / 7][index % 7], null, null, null, null, null, null]);
         return columns;
     }
 
@@ -651,7 +654,42 @@ public sealed class StatsMonthGrid : FrameworkElement
         bool HasContent, IReadOnlyList<GridCell?[]> Columns, GridFit Fit, IReadOnlyList<long> SortedNonZeroTotals,
         IReadOnlyList<LegendEntry> ProviderLegend);
 
+    // Every input Prepare reads: the layout is rebuilt only when one of them changes. The two lists are
+    // replaced as a whole by their callers, so they are compared by reference.
+    private readonly record struct PrepareKey(
+        DateOnly RangeStart, DateOnly RangeEnd, DateOnly Today, DateOnly? HighlightStart, DateOnly? HighlightEnd,
+        bool SingleRow, bool ShowLegend, bool ShowAxisLabels, double AvailableWidth,
+        IReadOnlyList<DayValue> Days, IReadOnlyList<long>? ColorScaleTotals)
+    {
+        public bool Matches(in PrepareKey other) =>
+            RangeStart == other.RangeStart && RangeEnd == other.RangeEnd && Today == other.Today
+            && HighlightStart == other.HighlightStart && HighlightEnd == other.HighlightEnd
+            && SingleRow == other.SingleRow && ShowLegend == other.ShowLegend && ShowAxisLabels == other.ShowAxisLabels
+            && AvailableWidth.Equals(other.AvailableWidth)
+            && ReferenceEquals(Days, other.Days) && ReferenceEquals(ColorScaleTotals, other.ColorScaleTotals);
+    }
+
+    private PrepareKey? _prepareKey;
+    private PreparedLayout _prepared;
+
+    /// <summary>How often <see cref="Prepare"/> rebuilt the layout instead of reusing the last one (test seam).</summary>
+    internal int PrepareRebuildCount { get; private set; }
+
     private PreparedLayout Prepare(double availableWidth)
+    {
+        var key = new PrepareKey(
+            RangeStart, RangeEnd, Today, HighlightStart, HighlightEnd, SingleRow, ShowLegend, ShowAxisLabels, availableWidth,
+            Days, ColorScaleTotals);
+        if (_prepareKey is { } cachedKey && cachedKey.Matches(key))
+            return _prepared;
+
+        _prepared = BuildPrepared(availableWidth);
+        _prepareKey = key;
+        PrepareRebuildCount++;
+        return _prepared;
+    }
+
+    private PreparedLayout BuildPrepared(double availableWidth)
     {
         var rangeStart = RangeStart;
         var rangeEnd = RangeEnd;
@@ -890,7 +928,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     // instead of rebuilding the same FormattedText objects on every pass.
     private (string, string, double, Typeface)? _scaleWidthKey;
     private double _scaleWidth;
-    private (IReadOnlyList<LegendEntry>, IReadOnlyDictionary<string, string>, double, Typeface)? _legendWidthKey;
+    private (string[] Names, double Dpi, Typeface Typeface)? _legendWidthKey;
     private double[] _legendEntryWidths = [];
 
     private const double LegendSwatch = 10;
@@ -900,20 +938,24 @@ public sealed class StatsMonthGrid : FrameworkElement
     private double[] ProviderLegendEntryWidths(IReadOnlyList<LegendEntry> legend, double dpi, Typeface typeface)
     {
         var providerNames = ProviderDisplayNames;
-        var key = (legend, providerNames, dpi, typeface);
-        if (_legendWidthKey == key)
+        var names = new string[legend.Count];
+        for (var i = 0; i < names.Length; i++)
+            names[i] = providerNames.GetValueOrDefault(legend[i].ProviderId, legend[i].ProviderId);
+
+        // By value: the legend list is a fresh instance on every layout, so only the names and the font decide.
+        if (_legendWidthKey is { } cached && cached.Dpi == dpi && cached.Typeface.Equals(typeface) && cached.Names.AsSpan().SequenceEqual(names))
             return _legendEntryWidths;
 
         var widths = new double[legend.Count];
         for (var i = 0; i < legend.Count; i++)
         {
-            var name = providerNames.GetValueOrDefault(legend[i].ProviderId, legend[i].ProviderId);
+            var name = names[i];
             var nameText = new FormattedText(name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
             widths[i] = LegendSwatch + 4 + nameText.Width;
         }
 
         _legendEntryWidths = widths;
-        _legendWidthKey = key;
+        _legendWidthKey = (names, dpi, typeface);
         return widths;
     }
 

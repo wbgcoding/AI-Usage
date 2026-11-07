@@ -46,6 +46,30 @@ public class StatsKeyboardTests
     };
 
     [Fact]
+    public void Month_grid_lays_out_once_for_two_renders_and_an_arrow_key()
+    {
+        var rebuilds = RunOnSta(() =>
+        {
+            var grid = SeptemberGrid(singleRow: false);
+            grid.Measure(new Size(800, double.PositiveInfinity));
+            grid.Arrange(new Rect(grid.DesiredSize));
+            for (var pass = 0; pass < 2; pass++)
+            {
+                grid.InvalidateVisual();
+                grid.UpdateLayout();
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    (int)Math.Max(1, grid.ActualWidth), (int)Math.Max(1, grid.ActualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(grid);
+            }
+
+            PressKey(grid, Key.Right);
+            return grid.PrepareRebuildCount;
+        });
+
+        Assert.Equal(1, rebuilds);
+    }
+
+    [Fact]
     public void Month_grid_right_then_enter_selects_the_second_day()
     {
         var picked = RunOnSta(() =>
