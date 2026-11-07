@@ -4,35 +4,30 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - unreleased
+## [1.4.0] - 2026-11-07
+
+See what your subscription is really worth, keep an eye on your Claude Console credit right in the Claude tile, use the app in ten more languages, and work with a tidier token usage window.
 
 ### Added
 
-- "Plan forecast" in the token usage window, one provider at a time behind buttons that also name the plan: two cards for a full 5 hour window and a full week (tokens, API value, a bar filled to your own average, per model bars for when only one model is used) and a month card that shows how many times its plan price the API value is, with the plan and its price below (in euros with 19 % German VAT, in dollars as advertised). The tooltip shows the advertised, net and gross price and names the provider’s own pricing page and the date it was checked; the ratio compares without VAT. A plan whose tier the app cannot tell apart (ChatGPT Pro, Google AI Ultra) shows no price. Based on the last 12 weeks; several accounts of one provider count together, and only the provider's own models count, so a model of another provider used through the same tool stays out.
-- The Claude tile shows the API credit balance of your Claude Console in its header, in grey right after the plan; its tooltip splits it into free and bought credit. In the settings, "Sign in to platform.claude.com" connects it when the Claude sign-in does not cover it. Only the balance is read.
-- In the settings, the Claude account has its own "Claude Console" row: it shows whether the console is signed in, and signs in or out of the console alone. The console keeps its own sign-in, apart from the Claude sign-in.
-- Under the usage bars the Claude tile shows the free credit the Claude Console grants, such as the monthly credit of a Max plan, as a bar row like the usage windows: what is left beside its name, the used share and the time until the earliest grant ends on the right, and, once a few readings are in, when the credit will be used up at the current pace. Grants that overlap around the monthly change count together.
-- Ten more languages: Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" picks the one matching Windows, and setup and uninstall show the Windows language too. Japanese and Chinese text uses a matching Windows font.
+- **Plan forecast:** the token usage window now estimates how many tokens a full 5 hour window and a full week of your plan hold, what they would cost at API prices, and how many times its price your plan is worth in a month. It uses your own usage of the last 12 weeks, counts several accounts of one provider together and shows the plan's list price; its tooltip names the provider's own pricing page and when it was checked. Plans whose exact tier the app cannot tell (ChatGPT Pro, Google AI Ultra) show no price.
+- **Claude Console credit:** the Claude tile shows your API credit balance in grey right after the plan name; the tooltip splits it into free and bought credit. Connect it once under Settings > Providers > Claude with "Sign in to platform.claude.com" (Google sign-in works too). Only the balance is read.
+- **Free credit bar:** free credit the Claude Console grants, such as the monthly credit of a Max plan, shows as its own bar under the usage bars: what is left, how much is used, when it expires and, after a few readings, when it will run out at your current pace.
+- The Claude account in the settings has its own "Claude Console" row to see, start or end the console sign-in on its own.
+- **Ten more languages:** Spanish, French, Italian, Dutch, Polish, Portuguese (Brazil), Romanian, Turkish, Japanese and Simplified Chinese. "System language" follows Windows, and so do setup and uninstall.
 
 ### Changed
 
-- Claude plans follow Anthropic's new names: the former Max 5x shows as "Max", the former Max 20x as "Ultra".
-- The yellow and red warning signs next to a percentage are smaller and softer, so the number stays the eye catcher.
-- In the settings, the bar colours of the providers sit in two columns, and the chosen refresh interval shows right after its label instead of beside the slider.
-- The widget fits its height to the tiles at every start. A height dragged by hand lasts until the app quits.
-- A Claude Console balance of $0.00 no longer shows in the tile header.
-- The Claude API credit balance shows up right at start: it is read alongside the usage, asks the route that worked last time first, and the last balance is kept across restarts for up to two hours.
-- The About page no longer says "This is the latest version"; it only speaks up when an update is waiting.
-- In the settings, theme, size and the Mica option share one row; the note under "Use local sources only" is gone, and the weekly index copy explains itself in its tooltip.
-- The currency of the API cost estimate is chosen right beside "Show API cost" in the settings.
+- Claude plans use Anthropic's new names: the former Max 5x is now "Max", the former Max 20x "Ultra".
+- In the token usage window, the providers are buttons next to the period: click one to show or hide it. The plan forecast comes before the limits.
+- The token usage window makes better use of its space: the rings grow on a wide window, fill their card on a narrow one, and "Colour by" moved onto the breakdown header.
+- Warning signs next to a percentage are smaller and softer, so the number stays in focus.
+- The widget fits its height to its tiles at every start; a height you drag by hand lasts until you quit.
+- The Claude Console balance appears right at start and is remembered across restarts for up to two hours. A balance of $0.00 is not shown.
+- Settings are more compact: theme, size and Mica share one row, the bar colours sit in two columns, the refresh interval shows next to its label, and the cost currency sits right beside "Show API cost".
+- The About page only speaks up when an update is waiting.
+- New Claude models count as Claude everywhere.
 - The README is shorter.
-- The build window started by a double-click is smaller, carries the app name and closes itself ten seconds after a successful build.
-- Claude Fable models count as Claude in the plan forecast.
-- A model without a public price (such as the Codex review model) no longer writes a warning to the log at every start.
-- In the token usage window the providers are buttons beside the range: each one switches its provider on or off, and the plan forecast now comes before the limits.
-- Token usage: the provider, model and effort rings grow with a wide window, and in a narrow window they fill their card with the legend below the ring.
-- Token usage: in a narrow window the "less ... more" scale under the daily grid steps aside instead of pushing the colour key onto a second row.
-- Token usage: "Colour by" sits on the breakdown header next to the grouping, so the breakdown spends no extra row on it.
 
 ### Removed
 
@@ -40,26 +35,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The token usage window shows its Mica background again when it is opened a second time, not only after a resize.
-- The free credit left and the Claude Console balance no longer differ by one cent when the console rounds them differently.
-- Quitting the app while the Claude Console is still being read in the background no longer leaves the app hanging.
-- After signing out of Claude and in again, the Claude Console balance on the tile updates again without restarting the app.
-- A sign-in page that opens two popup windows in quick succession no longer leaves a hidden browser behind in the sign-in window.
-- A project used from two checkouts of the same git repository (for example on two drives) now counts once in the token statistics instead of twice. This also holds when the new checkout sits in a folder that once held a session of its own.
-- Right after the start the Claude tile shows the weekly bar together with the 5 hour bar, not seconds later.
-- The Claude Console credit balance asks the console the way its own pages do, tries each API organisation of the account in turn when one has no prepaid balance, and the log names the HTTP code of a refused request.
-- Signing in to platform.claude.com with Google works: the Google window opens over the sign-in page instead of replacing it.
-- The platform.claude.com sign-in window no longer closes the moment the Google window finishes; only the Google window closes, and the balance is read right after the sign-in window closes.
-- When the Google sign-in for platform.claude.com finishes inside its own window instead of answering the sign-in page, the sign-in page takes it over and closes as signed in. The session is also checked the moment the Google window closes.
-- The Gemini plan stays known when the web reading wins over the Antigravity sign-in, so the plan forecast finds its price.
-- Gemini reads the usage page's request token from the page itself when the page no longer hands it over, so the web reading with the weekly limit works again instead of falling back to the five-hour figure of the Antigravity sign-in.
-- The build stops at a failed step even when the tool reports a negative exit code.
-- The build no longer stops when its staging folder is held open; it moves the folder aside. It ends by starting the fresh copy as a second instance and leaves it running, closing the one an earlier build left open.
-- Installing or updating while AI-Usage runs no longer stops with "DeleteFile failed; code 5". Setup asks the running copy to quit (it saves first), ends it if it does not, and waits until Windows releases the file. The uninstaller closes it the same way.
-- Opening the widget from the tray draws it first and only then starts the fresh readings, so it appears at once. The log records how long the first show took.
-- Signing in to Claude again is recognised right away. The sign-in window asks the site whether the session really works before it closes. A stored session the site no longer accepts is cleared, and the login page opens again instead of the window reporting "already signed in". A read that still finds no sign-in five seconds after the window closed is repeated once.
-- A new Claude Code login is read within seconds of Claude Code saving it, not at the next scheduled read.
-- The log now records when a provider works again and through which source, why the Claude Code sign-in could not be read, how each sign-in window ended, where a sign-in popup went, and why a web reading stopped answering.
+- Installing or updating while AI-Usage runs no longer fails with "DeleteFile failed; code 5": setup asks the running copy to save and quit first. The uninstaller does the same.
+- Quitting the app while the Claude credit is being read no longer leaves it hanging.
+- Opening the widget from the tray shows it at once, before the fresh readings start.
+- Signing in to Claude again is recognised right away, and a stored sign-in the site no longer accepts opens the login page instead of claiming "already signed in". A new Claude Code login shows within seconds.
+- Right after the start, the Claude tile shows the weekly bar together with the 5 hour bar.
+- After signing out of Claude and in again, the credit balance updates without a restart.
+- The free credit and the console balance no longer differ by one cent.
+- Gemini shows its weekly limit from Google's usage page again, and keeps its plan known for the forecast.
+- A project used from two copies of the same repository (for example on two drives) counts once in the token statistics.
+- The token usage window shows its Mica background again when it is opened a second time.
+- A sign-in page that opens two popups in quick succession no longer leaves a hidden browser behind.
+- A model without a public price no longer writes a warning to the log at every start.
+- The log is more helpful when something goes wrong: it records when a provider works again, how a sign-in ended and why a reading stopped.
+
+### Security
+
+- The app log masks more kinds of access tokens and keys if one ever ends up in a message, and never writes a blocked address it cannot parse.
 
 ## [1.3.0] - 2026-10-23
 

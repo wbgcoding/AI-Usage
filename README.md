@@ -26,7 +26,7 @@ no API keys to paste, nothing to configure before the first number shows up.
 
 | Agent | What you see | Where the numbers come from |
 | --- | --- | --- |
-| **Claude** (Claude Code) | 5-hour and weekly limits, every extra window the account reports, token statistics, the API credit balance of your Claude Console | The sign-in Claude Code already has on this PC and its local session logs; an optional browser session for further accounts and for the credit balance |
+| **Claude** (Claude Code) | 5-hour and weekly limits, every extra window the account reports, token statistics, the API credit balance of your Claude Console and its free credit as a bar with expiry | The sign-in Claude Code already has on this PC and its local session logs; an optional browser session for further accounts and for the credit balance |
 | **OpenAI Codex** | 5-hour and weekly limits, token statistics | Codex's local session files; a signed-in browser session as a fallback |
 | **Cursor** | Monthly plan usage, split into Cursor's own models and API models where the plan reports it | A signed-in browser session |
 | **Google Gemini** (Antigravity) | Quota windows with their reset times, token statistics | The account the Antigravity CLI (`agy`) is signed in with, and Google's usage page through a signed-in browser session |
@@ -82,12 +82,14 @@ a dashboard for any period (7 days, 30 days, a month, a year, everything or a cu
 - **Key figures:** total, average per day, busiest day, change against the previous period
 - **Breakdowns:** input, output and cache tokens by day, week, model, project or effort, with a
   7 day average; shares per agent, model, effort and subagent
-- **Filters:** pick agents, or click a model or project to filter every section
+- **Filters:** switch agents on or off with their buttons, or click a model or project to filter every section
 - **Projects and sessions:** the folders and sessions that used the most tokens; moved projects
   count as one
 - **Patterns:** per weekday, per hour and as a weekday by hour grid
-- **Limits:** how often you hit each limit, and how many tokens one percent of a window holds per
-  model, from your own usage
+- **Plan forecast:** how many tokens a full 5 hour window and a full week of your plan hold, what
+  they would cost at API prices, and how many times its list price your plan is worth in a month,
+  from your own usage of the last 12 weeks
+- **Limits:** how often you hit each limit
 - **API cost estimate:** what your tokens would cost at public API prices, in dollars, euros or your
   region's currency, marked with ~ (a star marks sums with a model of unknown price). Switch it off
   under **Settings > Display > Show API cost** and nothing is downloaded.
