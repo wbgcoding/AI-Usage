@@ -180,4 +180,32 @@ public class PathSanitizerTests
     {
         Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
     }
+
+    [Theory]
+    // A JWE (five parts, the encrypted key part may be empty) and a JWT with an empty signature.
+    [InlineData("cookie eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..Ab12Cd34Ef56Gh78.Zm9vYmFyYmF6cXV4.dGFnMTIzNDU2 end", "cookie {token} end")]
+    [InlineData("jwe eyJhbGciOiJSU0EtT0FFUCJ9.a1B2c3D4e5F6.Ab12Cd34Ef56Gh78.Zm9vYmFyYmF6cXV4.dGFnMTIzNDU2 end", "jwe {token} end")]
+    [InlineData("unsigned eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0. end", "unsigned {token} end")]
+    // An opaque bearer value, also with characters outside the token68 alphabet.
+    [InlineData("Authorization: Bearer 7c1d9e0a%2Fb3:f5e2 rejected", "Authorization: Bearer {token} rejected")]
+    [InlineData("header Bearer a1b2c3d4e5f6a7b8c9d0e1f2 sent", "header Bearer {token} sent")]
+    // Form-encoded values.
+    [InlineData("body refresh_token=1%2F%2Fabc123def456&client_id=app", "body refresh_token={token}&client_id=app")]
+    [InlineData("grant access_token=abc.def&expires_in=3600", "grant access_token={token}&expires_in=3600")]
+    [InlineData("login user=ann&password=hunter2&next=%2Fhome", "login user=ann&password={token}&next=%2Fhome")]
+    [InlineData("GET /v1/usage?api_key=abcd1234efgh&format=json", "GET /v1/usage?api_key={token}&format=json")]
+    public void Sanitize_masks_jwe_opaque_bearer_and_form_encoded_credentials(string input, string expected)
+    {
+        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+    }
+
+    [Theory]
+    [InlineData("The password is required and the token was refreshed.")]
+    [InlineData("GET https://example.com/api/key/rotate returned 404")]
+    [InlineData("password= missing, token= empty, api_key=")]
+    [InlineData("see eyJ in the docs and version 1.2.3")]
+    public void Sanitize_leaves_a_plain_sentence_and_a_url_path_alone(string input)
+    {
+        Assert.Equal(input, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+    }
 }

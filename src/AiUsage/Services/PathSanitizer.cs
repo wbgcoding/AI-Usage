@@ -30,7 +30,7 @@ public static class PathSanitizer
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private static readonly Regex BearerToken = new(
-        @"(?<=\bBearer\s+)[A-Za-z0-9\-._~+/]+=*",
+        @"(?<=\bBearer\s+)[A-Za-z0-9\-._~+/%:]+=*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     // Also matches the JSON-escaped spelling (\"access_token\":\"...\") a nested payload has in a log line.
@@ -39,11 +39,16 @@ public static class PathSanitizer
         @"(?<key>\\?""(?:(?:(?:access|refresh|id|session|api|client)_?)?(?:token|key|secret)|authorization|cookie)\\?""\s*:\s*\\?"")(?:[^""\\]|\\(?!""))*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
+    // A credential in a form-encoded body or a query string: the value runs to the next separator.
+    private static readonly Regex FormCredential = new(
+        @"(?<![A-Za-z0-9])(?<key>[A-Za-z0-9_\-]*(?:_token|api_?key|password)=)[^&\s""';]+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     // Tokens with a recognisable prefix, wherever they stand: Anthropic and OpenAI keys (sk-...),
-    // GitHub tokens (gh?_ and github_pat_), JWTs (eyJ...), Google access and refresh tokens
+    // GitHub tokens (gh?_ and github_pat_), JWTs and JWEs (eyJ..., an empty part allowed), Google access and refresh tokens
     // (ya29. and 1//) and a claude.ai sessionKey cookie.
     private static readonly Regex PrefixedToken = new(
-        @"\b(?:sk-ant-[A-Za-z0-9_\-]{8,}|sk-(?:proj-)?[A-Za-z0-9_\-]{16,}|gh[opusr]_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}|ya29\.[A-Za-z0-9_\-.]{8,})|(?<![\w/])1//[A-Za-z0-9_\-]{8,}|(?<=\bsessionKey=)[^;\s""]+",
+        @"\b(?:sk-ant-[A-Za-z0-9_\-]{8,}|sk-(?:proj-)?[A-Za-z0-9_\-]{16,}|gh[opusr]_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|eyJ[A-Za-z0-9_\-]{8,}(?:\.[A-Za-z0-9_\-]*){2,4}|ya29\.[A-Za-z0-9_\-.]{8,})|(?<![\w/])1//[A-Za-z0-9_\-]{8,}|(?<=\bsessionKey=)[^;\s""]+",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static string Sanitize(string text, string? userProfile = null, string? userName = null, string? shortProfile = null)
@@ -59,6 +64,7 @@ public static class PathSanitizer
         text = EmailAddress.Replace(text, "{email}");
         text = BearerToken.Replace(text, "{token}");
         text = AccessTokenField.Replace(text, "${key}{token}");
+        text = FormCredential.Replace(text, "${key}{token}");
         text = PrefixedToken.Replace(text, "{token}");
 
         foreach (var profile in new[] { userProfile, shortProfile })
