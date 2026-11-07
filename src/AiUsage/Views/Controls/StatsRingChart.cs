@@ -85,7 +85,7 @@ public sealed class StatsRingChart : FrameworkElement
 
     /// <summary>Pure so the summary text is unit testable without a visual tree.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<Slice> slices) => string.Join(
-        "; ", slices.Select(slice => StatusTextMap.LabelValue(slice.Label, slice.LegendText ?? StatusTextMap.FormatShare(slice.Percent, CultureInfo.CurrentCulture))));
+        "; ", slices.Select(slice => StatusTextMap.LabelValue(slice.Label, slice.LegendText ?? StatusTextMap.FormatShare(slice.Percent, LocalizationService.Instance.DisplayCulture))));
 
     /// <summary>The index of the largest slice by <see cref="Slice.Total"/> - the same slice the ring
     /// center draws by name and value, and the same one <see cref="RefreshAccessibleName"/> announces
@@ -143,7 +143,7 @@ public sealed class StatsRingChart : FrameworkElement
             return "";
 
         var (name, value) = CenterHeadline(slices, thousandSuffix, millionSuffix, billionSuffix);
-        return name.Length == 0 ? "" : string.Format(CultureInfo.CurrentCulture, format, name, value);
+        return name.Length == 0 ? "" : string.Format(LocalizationService.Instance.DisplayCulture, format, name, value);
     }
 
     /// <summary>One brush per slice, matched by index - resolved fresh from whichever theme is
@@ -647,7 +647,7 @@ public sealed class StatsRingChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
@@ -722,21 +722,21 @@ public sealed class StatsRingChart : FrameworkElement
         // A hole too small for the figure even at the smallest font drops its decimal.
         var fitWidth = innerDiameter * 0.95;
         double ValueWidthAtMinimum(string text) => new FormattedText(
-            text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, boldTypeface, CenterTextMinFontSize, CenterTextBrush, dpi).Width;
+            text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, boldTypeface, CenterTextMinFontSize, CenterTextBrush, dpi).Width;
         if (ValueWidthAtMinimum(value) > fitWidth)
             value = CenterHeadline(slices, ThousandSuffix, MillionSuffix, BillionSuffix, wholeNumbers: true).Value;
 
         // Measured untrimmed: a line trimmed to the hole reports the trimmed width and would always
         // look as if it fit, so the font step below would never kick in.
         FormattedText BuildNameLine(double fontSize, int maxLines, bool trim) => new(
-            name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, CenterTextBrush, dpi)
+            name, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, CenterTextBrush, dpi)
         {
             MaxTextWidth = trim ? innerDiameter : 0,
             MaxLineCount = maxLines,
             Trimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
         };
         FormattedText BuildValueLine(double fontSize, bool trim) => new(
-            value, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, boldTypeface, fontSize, CenterTextBrush, dpi)
+            value, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, boldTypeface, fontSize, CenterTextBrush, dpi)
         {
             MaxTextWidth = trim ? innerDiameter : 0,
             MaxLineCount = 1,
@@ -757,7 +757,7 @@ public sealed class StatsRingChart : FrameworkElement
             // and size it to the widest word instead.
             var widestWord = name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(word => new FormattedText(
-                    word, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, nameBaseSize, CenterTextBrush, dpi).Width)
+                    word, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, nameBaseSize, CenterTextBrush, dpi).Width)
                 .Max();
             nameLines = 2;
             nameScale = FitScale(widestWord, naturalName.Height, fitWidth, innerDiameter, CenterTextMinFontSize / nameBaseSize);
@@ -787,7 +787,7 @@ public sealed class StatsRingChart : FrameworkElement
         var valueLine = BuildValueLine(valueSize, trim: true);
 
         FormattedText BuildCostLine(double fontSize, bool trim) => new(
-            costText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, TextBrush, dpi)
+            costText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, TextBrush, dpi)
         {
             MaxTextWidth = trim ? innerDiameter : 0,
             MaxLineCount = 1,
@@ -872,7 +872,7 @@ public sealed class StatsRingChart : FrameworkElement
             var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
             dc.DrawRectangle(brush, null, new Rect(x, y + (rowHeight - swatch) / 2, swatch, swatch));
 
-            var percentText = slices[i].LegendText ?? StatusTextMap.FormatShare(slices[i].Percent, CultureInfo.CurrentCulture);
+            var percentText = slices[i].LegendText ?? StatusTextMap.FormatShare(slices[i].Percent, LocalizationService.Instance.DisplayCulture);
             var legendWidth = Math.Max(1, width - x - swatch - 8);
             var fontSize = LegendBaseFontSize * textScale;
             var figure = LegendFigure(slices[i].Label, percentText, slices[i].CostText, legendWidth, dpi, typeface, fontSize);
@@ -896,7 +896,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         var longer = percentText + " \u00B7 " + costText;
         double Width(string text) => new FormattedText(
-            text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Black, dpi).Width;
+            text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Black, dpi).Width;
         return Width(label) + Width(" \u00B7 " + longer) <= maxWidth ? longer : percentText;
     }
 
@@ -907,7 +907,7 @@ public sealed class StatsRingChart : FrameworkElement
         string label, string figure, double maxWidth, double dpi, Typeface typeface, Brush brush, double fontSize = LegendBaseFontSize)
     {
         FormattedText Make(string text, double limit) =>
-            new(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, fontSize, brush, dpi)
+            new(text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, brush, dpi)
             {
                 MaxTextWidth = Math.Max(1, limit),
                 // One line per row: a wrapped second line would run into the next row.

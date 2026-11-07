@@ -284,7 +284,7 @@ public sealed class StatsHeatmap : FrameworkElement
         if (!HasData)
         {
             var empty = new FormattedText(
-                EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi)
+                EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi)
             {
                 MaxTextWidth = Math.Max(1, width),
                 TextAlignment = TextAlignment.Center,
@@ -308,7 +308,7 @@ public sealed class StatsHeatmap : FrameworkElement
 
             var x = LeftLabelWidth + column * (cellWidth + CellGap);
             var label = new FormattedText(
-                column.ToString(culture), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, LabelFontSize, TextBrush, dpi);
+                column.ToString(culture), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, LabelFontSize, TextBrush, dpi);
             drawingContext.DrawText(label, ChartDrawCache.Snap(x, (TopLabelHeight - label.Height) / 2, dpi));
         }
 
@@ -317,7 +317,7 @@ public sealed class StatsHeatmap : FrameworkElement
             var y = TopLabelHeight + row * (cellHeight + CellGap);
             var day = DayOfRow(FirstDay, row);
             var rowLabel = new FormattedText(
-                culture.DateTimeFormat.AbbreviatedDayNames[(int)day], CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                culture.DateTimeFormat.AbbreviatedDayNames[(int)day], LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight,
                 typeface, LabelFontSize, TextBrush, dpi);
             drawingContext.DrawText(rowLabel, ChartDrawCache.Snap(0, y + (cellHeight - rowLabel.Height) / 2, dpi));
 

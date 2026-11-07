@@ -237,7 +237,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     /// own full path, not the shortened label a sighted reader sees on the bar - a screen reader has
     /// no truncated label to disambiguate two same-named folders under different parents.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<StatsProjectRow> rows) =>
-        string.Join("; ", rows.Select(row => StatusTextMap.LabelValue(row.FullPath, row.Total.ToString(CultureInfo.CurrentCulture))));
+        string.Join("; ", rows.Select(row => StatusTextMap.LabelValue(row.FullPath, row.Total.ToString(LocalizationService.Instance.DisplayCulture))));
 
     public static readonly DependencyProperty TokenWordProperty = DependencyProperty.Register(
         nameof(TokenWord), typeof(string), typeof(StatsHorizontalBarChart), new PropertyMetadata(""));
@@ -580,7 +580,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
             _plainTooltipIndex = index;
             ToolTip = index >= 0 && index < rows.Count
-                ? rows[index].TooltipText ?? string.Join("\n", BuildTooltipLines(rows[index], TokenWord, TotalLabel, ActiveLabel, CultureInfo.CurrentCulture))
+                ? rows[index].TooltipText ?? string.Join("\n", BuildTooltipLines(rows[index], TokenWord, TotalLabel, ActiveLabel, LocalizationService.Instance.DisplayCulture))
                 : null;
             return;
         }
@@ -622,7 +622,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var anchorRect = new Rect(0, _hoverIndex * RichRowHeight, ActualWidth, RichRowHeight);
         var lines = BuildProjectDetailTooltipLines(
             rows[_hoverIndex], ProviderDisplayNames, FolderFormat, TokensFormat, InputOutputCacheFormat,
-            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, CultureInfo.CurrentCulture,
+            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, LocalizationService.Instance.DisplayCulture,
             DisplayNames(rows)[_hoverIndex]);
         _tooltipPopup ??= new ChartTooltipPopup();
         _tooltipPopup.Show(this, anchorRect, lines, TooltipBackground, TextBrush, TooltipBorderBrush, mouse);
@@ -693,7 +693,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var lines = BuildProjectDetailTooltipLines(
             rows[_focusedRowIndex], ProviderDisplayNames, FolderFormat, TokensFormat, InputOutputCacheFormat,
-            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, CultureInfo.CurrentCulture,
+            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, LocalizationService.Instance.DisplayCulture,
             DisplayNames(rows)[_focusedRowIndex]);
         AutomationProperties.SetName(this, string.Join(". ", lines));
     }
@@ -730,7 +730,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
@@ -755,7 +755,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var widestName = rows
             .Select(row => new FormattedText(
-                row.ShortLabel, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, NameFontSize, TextBrush, dpi).Width)
+                row.ShortLabel, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, NameFontSize, TextBrush, dpi).Width)
             .DefaultIfEmpty(0)
             .Max();
         var nameWidth = NameColumnWidthFor(width, widestName);
@@ -771,7 +771,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
                 break;
 
             var nameText = new FormattedText(
-                rows[i].ShortLabel, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, nameFontSize, TextBrush, dpi)
+                rows[i].ShortLabel, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, nameFontSize, TextBrush, dpi)
             {
                 MaxTextWidth = Math.Max(1, nameWidth),
                 MaxLineCount = 1,
@@ -787,7 +787,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             }
 
             var figureText = new FormattedText(
-                StatsAggregator.ShortenTokenCount(rows[i].Total, ThousandSuffix, MillionSuffix, BillionSuffix), CultureInfo.CurrentUICulture,
+                StatsAggregator.ShortenTokenCount(rows[i].Total, ThousandSuffix, MillionSuffix, BillionSuffix), LocalizationService.Instance.DisplayCulture,
                 FlowDirection.LeftToRight, typeface, 11, TextBrush, dpi);
             drawingContext.DrawText(figureText, new Point(width - figureText.Width, y + (RowHeight - figureText.Height) / 2));
         }
@@ -825,7 +825,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         DrawingContext drawingContext, StatsProjectRow row, string projectName, double y, double width, long maxValue,
         Typeface regular, Typeface semiBold, double dpi, bool isFocused)
     {
-        var culture = CultureInfo.CurrentUICulture;
+        var culture = LocalizationService.Instance.DisplayCulture;
         var textAreaHeight = RichRowHeight - RichBarHeight - RichBarGap;
         var textX = RichIconSize + RichIconGap;
 
@@ -844,7 +844,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         }
 
         var figureText = new FormattedText(
-            $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatusTextMap.FormatShare(row.Percent, CultureInfo.CurrentCulture)}",
+            $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatusTextMap.FormatShare(row.Percent, LocalizationService.Instance.DisplayCulture)}",
             culture, FlowDirection.LeftToRight, regular, 11, TextBrush, dpi);
         var costText = string.IsNullOrEmpty(row.CostText)
             ? null

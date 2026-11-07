@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using AiUsage.Services;
 
 namespace AiUsage.Views.Controls;
 
@@ -51,7 +52,7 @@ public static class TrimmedToolTip
             return false;
 
         var text = new FormattedText(
-            textBlock.Text, CultureInfo.CurrentUICulture, textBlock.FlowDirection,
+            textBlock.Text, LocalizationService.Instance.DisplayCulture, textBlock.FlowDirection,
             new Typeface(textBlock.FontFamily, textBlock.FontStyle, textBlock.FontWeight, textBlock.FontStretch),
             textBlock.FontSize, Brushes.Black, VisualTreeHelper.GetDpi(textBlock).PixelsPerDip);
         return text.Width > textBlock.ActualWidth + 0.5;

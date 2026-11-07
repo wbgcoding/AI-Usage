@@ -529,7 +529,7 @@ public sealed class HistoryChart : FrameworkElement
         var textBrush = (Brush)(TryFindResource("Text.Primary") ?? System.Windows.SystemColors.WindowTextBrush);
         var typeface = ChartFonts.UiTypeface(this);
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, typeface, 10, textBrush, dpi);
+        var formatted = new FormattedText(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, 10, textBrush, dpi);
 
         const double padding = 4;
         const double gap = 8;
@@ -620,7 +620,7 @@ public sealed class HistoryChart : FrameworkElement
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
 
         FormattedText MakeText(string text) =>
-            new(text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, typeface, 9, textBrush, dpi);
+            new(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, 9, textBrush, dpi);
 
         double TextTop(FormattedText text) => plotHeight + (CaptionStripHeight - text.Height) / 2;
 
@@ -824,7 +824,7 @@ public sealed class HistoryChart : FrameworkElement
         var textBrush = (Brush)(TryFindResource("Text.Muted") ?? System.Windows.SystemColors.GrayTextBrush);
         var text = new FormattedText(
             EmptyText,
-            CultureInfo.CurrentUICulture,
+            LocalizationService.Instance.DisplayCulture,
             System.Windows.FlowDirection.LeftToRight,
             ChartFonts.UiTypeface(this),
             11,

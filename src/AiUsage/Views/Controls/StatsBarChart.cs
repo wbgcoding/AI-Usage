@@ -73,7 +73,7 @@ public sealed class StatsBarChart : FrameworkElement
 
     /// <summary>Pure so the summary text is unit testable without a visual tree.</summary>
     internal static string BuildAccessibleSummary(IReadOnlyList<Bar> bars) =>
-        string.Join("; ", bars.Select(bar => StatusTextMap.LabelValue(bar.Label, bar.StackedValues.Sum().ToString(CultureInfo.CurrentCulture))));
+        string.Join("; ", bars.Select(bar => StatusTextMap.LabelValue(bar.Label, bar.StackedValues.Sum().ToString(LocalizationService.Instance.DisplayCulture))));
 
     public static readonly DependencyProperty SeriesBrushesProperty = DependencyProperty.Register(
         nameof(SeriesBrushes), typeof(IReadOnlyList<Brush>), typeof(StatsBarChart),
@@ -708,7 +708,7 @@ public sealed class StatsBarChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight,
                     ChartFonts.UiTypeface(this), 12, EmptyTextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (emptyChartHeight - formatted.Height) / 2));
             }
@@ -729,13 +729,13 @@ public sealed class StatsBarChart : FrameworkElement
         var scaleMax = yTicks.Count > 0 ? yTicks[^1] : 0;
         var tickTexts = yTicks
             .Select(tick => new FormattedText(
-                StatsAggregator.ShortenTokenCountAxis(tick, MillionSuffix, BillionSuffix), CultureInfo.CurrentUICulture,
+                StatsAggregator.ShortenTokenCountAxis(tick, MillionSuffix, BillionSuffix), LocalizationService.Instance.DisplayCulture,
                 FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi))
             .ToList();
         var widestTick = tickTexts.Select(text => text.Width).DefaultIfEmpty(0).Max();
         _leftMargin = ComputeLeftMargin(widestTick);
 
-        var axisLabelHeight = new FormattedText("0", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi).Height;
+        var axisLabelHeight = new FormattedText("0", LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi).Height;
         _bottomMargin = ComputeBottomMargin(axisLabelHeight);
 
         var chartHeight = Math.Max(0, height - _bottomMargin);
@@ -801,11 +801,11 @@ public sealed class StatsBarChart : FrameworkElement
         var monthIndices = hourIndices is null ? MonthLabelIndices(bars) : null;
         var bareHours = false;
         string LabelString(int index) =>
-            hourIndices is not null ? (bareHours ? index.ToString(CultureInfo.CurrentCulture) : HourAxisLabel(index))
+            hourIndices is not null ? (bareHours ? index.ToString(LocalizationService.Instance.DisplayCulture) : HourAxisLabel(index))
             : monthIndices is null ? FormatAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture)
             : FormatMonthAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture);
         FormattedText MakeLabel(int index) => new(
-            LabelString(index), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi);
+            LabelString(index), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi);
 
         var labelIndices = hourIndices ?? monthIndices;
         var measured = new Dictionary<int, FormattedText>();
@@ -954,7 +954,7 @@ public sealed class StatsBarChart : FrameworkElement
     {
         string WithUnit(long value)
         {
-            var number = value.ToString("N0", CultureInfo.CurrentCulture);
+            var number = value.ToString("N0", LocalizationService.Instance.DisplayCulture);
             return string.IsNullOrEmpty(tokenWord) ? number : $"{number} {tokenWord}";
         }
 

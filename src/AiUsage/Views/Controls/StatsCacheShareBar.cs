@@ -51,7 +51,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         {
             var name = i < labels.Count ? labels[i] : "?";
             var percent = value * 100.0 / total;
-            return StatusTextMap.LabelValue(name, StatusTextMap.FormatShare(percent, CultureInfo.CurrentCulture));
+            return StatusTextMap.LabelValue(name, StatusTextMap.FormatShare(percent, LocalizationService.Instance.DisplayCulture));
         }));
     }
 
@@ -171,8 +171,8 @@ public sealed class StatsCacheShareBar : FrameworkElement
         {
             var name = i < labels.Count ? labels[i] : "?";
             var percent = total > 0 ? values[i] * 100.0 / total : 0;
-            var text = $"{name} · {StatusTextMap.FormatShare(percent, CultureInfo.CurrentCulture)}";
-            texts.Add(new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, pixelsPerDip));
+            var text = $"{name} · {StatusTextMap.FormatShare(percent, LocalizationService.Instance.DisplayCulture)}";
+            texts.Add(new FormattedText(text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, pixelsPerDip));
         }
         return texts;
     }
@@ -210,7 +210,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
