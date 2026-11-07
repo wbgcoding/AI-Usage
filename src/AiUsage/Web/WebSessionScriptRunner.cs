@@ -51,6 +51,10 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
     private readonly TimeSpan _scriptTimeout;
     private readonly TimeProvider _timeProvider;
     private readonly Func<bool>? _profileExists;
+
+    // The folder of this profile, for the date of the last cache clear; null keeps the date in memory only.
+    private readonly string? _profileFolder;
+    private DateOnly? _cacheClearedOn;
     private IHiddenBrowserHost? _host;
     private Task? _ready;
 
@@ -123,7 +127,10 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         : this(() => new WebView2HiddenBrowserHost(new WebViewHost(descriptor), descriptor),
             providerId: descriptor.ProviderId, timingLog: WebReadTimingLog.Shared,
             writeTimingLine: LogService.Shared.LogInfo,
-            profileExists: () => WebViewHost.ProfileExists(descriptor.ProfileFolderName))
+            profileExists: () => WebViewHost.ProfileExists(descriptor.ProfileFolderName),
+            profileFolder: string.IsNullOrEmpty(descriptor.ProfileFolderName)
+                ? null
+                : WebViewHost.ProfileFolderPath(descriptor.ProfileFolderName))
     {
     }
 
@@ -134,9 +141,10 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
     internal WebSessionScriptRunner(
         Func<IHiddenBrowserHost> hostFactory, TimeSpan? navigationTimeout = null, TimeSpan? scriptTimeout = null, TimeProvider? timeProvider = null,
         TimeSpan? suspendWait = null, string providerId = "web", WebReadTimingLog? timingLog = null,
-        Action<string>? writeTimingLine = null, Func<bool>? profileExists = null)
+        Action<string>? writeTimingLine = null, Func<bool>? profileExists = null, string? profileFolder = null)
     {
         _profileExists = profileExists;
+        _profileFolder = profileFolder;
         _providerId = providerId;
         _timingLog = timingLog;
         _writeTimingLine = writeTimingLine;
@@ -298,7 +306,9 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         }
         try
         {
-            return await scriptTask;
+            var answer = await scriptTask;
+            await ClearDiskCacheWhenDueAsync(host);
+            return answer;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -314,6 +324,95 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             // the page: a suspended page holds that script until the next call resumes it.
             if (ReferenceEquals(_host, host) && Volatile.Read(ref _inFlight) <= 1)
                 _suspendTask = SuspendQuietlyAsync(host);
+        }
+    }
+
+    /// <summary>Name of the file in the profile folder that holds the day (ISO date) of the last cache clear.</summary>
+    internal const string CacheClearedFileName = "cache-cleared.txt";
+
+    internal static readonly TimeSpan CacheClearTimeout = TimeSpan.FromSeconds(20);
+
+    /// <summary>Empties the browser's disk caches (never cookies, local storage or IndexedDB: those are the
+    /// sign-in) at most once a day per profile, through the browser's own call on the idle session. Runs after
+    /// a successful script, only when no other call of this runner is queued, and only while the profile
+    /// folder exists. Never fails a read.</summary>
+    private async Task ClearDiskCacheWhenDueAsync(IHiddenBrowserHost host)
+    {
+        try
+        {
+            if (_disposed || !ReferenceEquals(_host, host) || Volatile.Read(ref _inFlight) > 1)
+                return;
+
+            var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
+            if (_cacheClearedOn == today)
+                return;
+
+            // The profile folder is the other half of "idle and safe": not there, nothing to clear.
+            if (_profileExists is { } profileExists && !profileExists())
+                return;
+            if (_profileFolder is { } folder && !Directory.Exists(folder))
+                return;
+
+            // A second runner on the same profile (the Console session) may have cleared today already.
+            if (ReadCacheClearedDate() == today)
+            {
+                _cacheClearedOn = today;
+                return;
+            }
+
+            // Marked before the attempt: a failing clear is tried again tomorrow, not on every read.
+            _cacheClearedOn = today;
+            var clear = host.ClearDiskCacheAsync();
+            if (!await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, CancellationToken.None))
+            {
+                _ = clear.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                LogService.Shared.LogInfo($"Hidden session: clearing the {_providerId} browser cache timed out.");
+                return;
+            }
+
+            await clear;
+            WriteCacheClearedDate(today);
+            LogService.Shared.LogInfo($"Hidden session: cleared the {_providerId} browser cache.");
+        }
+        catch (Exception ex)
+        {
+            LogService.Shared.LogInfo($"Hidden session: clearing the {_providerId} browser cache failed ({ex.GetType().Name}).");
+        }
+    }
+
+    private DateOnly? ReadCacheClearedDate()
+    {
+        if (_profileFolder is null)
+            return null;
+        try
+        {
+            var path = Path.Combine(_profileFolder, CacheClearedFileName);
+            return File.Exists(path)
+                && DateOnly.TryParseExact(File.ReadAllText(path).Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var date)
+                ? date
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private void WriteCacheClearedDate(DateOnly date)
+    {
+        // Only into a folder that is still there: a sign-out that deleted the profile meanwhile must not get
+        // it back as a stray folder (the next read would take it for a signed-in profile).
+        if (_profileFolder is null || _disposed || !Directory.Exists(_profileFolder))
+            return;
+        try
+        {
+            File.WriteAllText(Path.Combine(_profileFolder, CacheClearedFileName),
+                date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The date stays in memory; at worst the cache is cleared once more after the next start.
         }
     }
 
@@ -561,6 +660,10 @@ internal interface IHiddenBrowserHost : IAsyncDisposable
     /// <summary>Wakes the page before the next script. Safe when it was never suspended.</summary>
     void Resume();
 
+    /// <summary>Empties the browser's disk caches only (HTTP cache, cache storage). Cookies, local storage
+    /// and IndexedDB hold the sign-in and are never touched.</summary>
+    Task ClearDiskCacheAsync();
+
     /// <summary>The id of the browser process behind this session; null when unknown.</summary>
     int? BrowserProcessId => null;
 
@@ -778,6 +881,19 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
         webView.Visibility = Visibility.Hidden;
         core.MemoryUsageTargetLevel = Microsoft.Web.WebView2.Core.CoreWebView2MemoryUsageTargetLevel.Low;
         await core.TrySuspendAsync();
+    }
+
+    public async Task ClearDiskCacheAsync()
+    {
+        var core = _webView?.CoreWebView2;
+        if (core is null)
+            return;
+
+        // Exactly these two kinds, nothing else: the browser deletes its own cache data, so no file of the
+        // profile is touched by this app.
+        await core.Profile.ClearBrowsingDataAsync(
+            Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.DiskCache
+            | Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.CacheStorage);
     }
 
     public void Resume()

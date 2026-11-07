@@ -747,6 +747,8 @@ public class GeminiProviderTests : IDisposable
         {
         }
 
+        public Task ClearDiskCacheAsync() => Task.CompletedTask;
+
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

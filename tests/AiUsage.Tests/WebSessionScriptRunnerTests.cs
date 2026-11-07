@@ -1111,6 +1111,139 @@ public class WebSessionScriptRunnerTests
         Assert.DoesNotContain("_webView!", source, StringComparison.Ordinal);
     }
 
+    private static async Task<string> RunOnce(WebSessionScriptRunner runner, List<FakeHiddenBrowserHost> hosts, string answer)
+    {
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        hosts[^1].CompleteScript(answer);
+        return await call;
+    }
+
+    private static WebSessionScriptRunner CacheClearRunner(
+        List<FakeHiddenBrowserHost> hosts, TimeProvider clock, string? profileFolder = null, bool clearFails = false) =>
+        new(() =>
+        {
+            var host = new FakeHiddenBrowserHost { ClearFails = clearFails };
+            host.CompleteNavigate(true);
+            hosts.Add(host);
+            return host;
+        }, timeProvider: clock, profileFolder: profileFolder);
+
+    [Fact]
+    public async Task The_disk_cache_is_cleared_once_a_day_after_a_successful_script()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var runner = CacheClearRunner(hosts, clock);
+
+        await RunOnce(runner, hosts, "a");
+        await RunOnce(runner, hosts, "b");
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+
+        clock.Advance(TimeSpan.FromHours(2));
+        await RunOnce(runner, hosts, "c");
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+
+        clock.Advance(TimeSpan.FromDays(1));
+        await RunOnce(runner, hosts, "d");
+        Assert.Equal(2, hosts.Sum(h => h.ClearCalls));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_clear_day_is_kept_in_the_profile_folder_and_shared_with_a_second_runner()
+    {
+        using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache");
+        string folder = disposable;
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var hostsA = new List<FakeHiddenBrowserHost>();
+        var runnerA = CacheClearRunner(hostsA, clock, folder);
+        await RunOnce(runnerA, hostsA, "a");
+
+        Assert.Equal(1, hostsA.Sum(h => h.ClearCalls));
+        Assert.Equal("2026-11-07", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+
+        // A new runner (app restart, or the Console session on the same profile) finds today's date.
+        var hostsB = new List<FakeHiddenBrowserHost>();
+        var runnerB = CacheClearRunner(hostsB, clock, folder);
+        await RunOnce(runnerB, hostsB, "b");
+        Assert.Equal(0, hostsB.Sum(h => h.ClearCalls));
+
+        clock.Advance(TimeSpan.FromDays(1));
+        await RunOnce(runnerB, hostsB, "c");
+        Assert.Equal(1, hostsB.Sum(h => h.ClearCalls));
+        Assert.Equal("2026-11-08", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+        await runnerA.DisposeAsync();
+        await runnerB.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_disk_cache_is_not_cleared_while_the_profile_folder_is_missing()
+    {
+        var missing = TestPaths.GetPath("ai-usage-cache-missing");
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow), missing);
+
+        await RunOnce(runner, hosts, "a");
+
+        Assert.Equal(0, hosts.Sum(h => h.ClearCalls));
+        Assert.False(Directory.Exists(missing));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_disk_cache_is_not_cleared_while_another_script_is_queued()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+        var first = runner.ExecuteScriptAsync("one", CancellationToken.None);
+        await Task.Delay(50);
+        var second = runner.ExecuteScriptAsync("two", CancellationToken.None);
+        await Task.Delay(50);
+        Assert.Equal(2, hosts[0].Scripts.Count);
+
+        hosts[0].Scripts[0].SetResult("one");
+        await first;
+        Assert.Equal(0, hosts[0].ClearCalls);
+
+        hosts[0].Scripts[1].SetResult("two");
+        await second;
+        Assert.Equal(1, hosts[0].ClearCalls);
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task A_failing_cache_clear_does_not_fail_the_read_and_is_not_retried_the_same_day()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow), clearFails: true);
+
+        Assert.Equal("a", await RunOnce(runner, hosts, "a"));
+        Assert.Equal("b", await RunOnce(runner, hosts, "b"));
+
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public void The_cache_clear_names_only_the_two_cache_kinds_and_deletes_no_file()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+        var start = source.IndexOf("public async Task ClearDiskCacheAsync()", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var body = source[start..source.IndexOf("public void Resume()", start, StringComparison.Ordinal)];
+
+        Assert.Contains("CoreWebView2BrowsingDataKinds.DiskCache", body);
+        Assert.Contains("CoreWebView2BrowsingDataKinds.CacheStorage", body);
+        Assert.DoesNotContain("Cookies", body);
+        Assert.DoesNotContain("LocalStorage", body);
+        Assert.DoesNotContain("IndexedDb", body);
+        Assert.DoesNotContain("AllProfile", body);
+        Assert.DoesNotContain("Delete", body);
+        // The one call into the browser's clear lives in this method only.
+        Assert.Single(Regex.Matches(source, @"ClearBrowsingDataAsync"));
+    }
+
     private sealed class FakeTimeProvider(DateTimeOffset start) : TimeProvider
     {
         private DateTimeOffset _now = start;
@@ -1256,6 +1389,16 @@ public class WebSessionScriptRunnerTests
         }
 
         public void Resume() => ResumeCalls++;
+
+        public int ClearCalls { get; private set; }
+
+        public bool ClearFails { get; init; }
+
+        public Task ClearDiskCacheAsync()
+        {
+            ClearCalls++;
+            return ClearFails ? Task.FromException(new InvalidOperationException("clear failed")) : Task.CompletedTask;
+        }
 
         /// <summary>How long closing the host takes, to model a browser that shuts down slowly.</summary>
         public TimeSpan DisposeDelay { get; init; }
