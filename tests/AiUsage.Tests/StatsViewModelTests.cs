@@ -2017,8 +2017,12 @@ public class StatsViewModelCaptionTests
             Assert.NotEmpty(row.FilterKey);
         });
 
+        // Without a dispatcher the color refresh resumes on a pool thread; let it finish so it
+        // cannot write the unfiltered rows back over the filtered ones.
+        await viewModel.LastProjectColorRefresh;
         var opus = viewModel.Rows[0];
         viewModel.ToggleFilter(opus.FilterKind, opus.FilterKey);
+        await viewModel.LastProjectColorRefresh;
 
         Assert.True(viewModel.HasModelFilter);
         Assert.Equal(opus.Label, viewModel.SelectedModelFilter);
