@@ -204,7 +204,7 @@ public static class GeminiUsageParser
         if (summaryWindows.Count > 0)
             return notes;
 
-        if (ParseModelQuota(modelQuotaJson).Count == 0)
+        if (ParseModelQuota(modelQuotaJson).Count == 0 && !HoldsNoGeminiQuota(summaryJson, modelQuotaJson))
         {
             notes.Add($"neither the quota summary (groups: {string.Join(", ", GroupNames(summaryJson).Select(ReadChangeLog.SafeName))}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
             return notes;
@@ -232,6 +232,23 @@ public static class GeminiUsageParser
             notes.Add("the Gemini models no longer share one quota; the tile shows the most used one, check whether separate rows are needed.");
 
         return notes;
+    }
+
+    /// <summary>
+    /// True when both answers are intact but Antigravity simply has no Gemini quota for this account:
+    /// the summary lists only groups known to hold other models, and the per-model answer lists models
+    /// but no Gemini one. The tile then takes its numbers from the web session alone; this is no
+    /// changed answer.
+    /// </summary>
+    public static bool HoldsNoGeminiQuota(string summaryJson, string modelQuotaJson)
+    {
+        if (Parse(summaryJson).Count > 0)
+            return false;
+        var groups = GroupNames(summaryJson);
+        if (groups.Count == 0 || !groups.All(KnownOtherGroups.Contains))
+            return false;
+        var models = ModelBuckets(modelQuotaJson);
+        return models.Count > 0 && !models.Any(bucket => bucket.Model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

@@ -112,14 +112,18 @@ internal static class AntigravityLocalLogin
         if (!quota.Ok)
             return FailedFor(quota);
 
-        // The summary no longer lists a Gemini group for every account; the per-model answer still
-        // carries the Gemini models' shared quota. A failure there leaves the summary as it is.
+        // The summary no longer lists a Gemini group for every account; the per-model answer may still
+        // carry the Gemini models' shared quota. Without a Gemini group the summary has nothing to
+        // show, so a failure there fails the read rather than passing for a changed answer.
         var modelQuotaBody = "";
         if (Parsing.GeminiUsageParser.Parse(quota.Body).Count == 0)
         {
             var modelQuota = await LocalLoginHttp.SendAsync(HttpMethod.Post, ModelQuotaUrl, accessToken, quotaBody, UserAgent, ct);
-            if (modelQuota.Ok)
-                modelQuotaBody = modelQuota.Body;
+            if (modelQuota.StatusCode is 401 or 403)
+                return ForgetCachedTokenAndReportSignedOut();
+            if (!modelQuota.Ok)
+                return FailedFor(modelQuota);
+            modelQuotaBody = modelQuota.Body;
         }
 
         return new AntigravityUsage(LocalLoginOutcome.Ok, quota.Body, planName, ModelQuotaJson: modelQuotaBody);

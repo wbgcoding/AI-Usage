@@ -262,6 +262,8 @@ public sealed class GeminiProvider : IUsageProvider
                 var windows = GeminiUsageParser.Parse(usage.QuotaSummaryJson);
                 if (windows.Count == 0)
                     windows = GeminiUsageParser.ParseModelQuota(usage.ModelQuotaJson);
+                if (windows.Count == 0 && GeminiUsageParser.HoldsNoGeminiQuota(usage.QuotaSummaryJson, usage.ModelQuotaJson))
+                    return Empty(fetchedAt, ProviderStatus.NoLocalData, error: null) with { PlanType = usage.PlanName, SourceKind = SourceKind.LocalLogin };
                 if (windows.Count == 0)
                     return Empty(fetchedAt, ProviderStatus.Failed, error: null) with { UnreadableAnswer = true };
 

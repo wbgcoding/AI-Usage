@@ -216,6 +216,50 @@ public class GeminiProviderTests : IDisposable
         Assert.Contains("Claude and GPT models", note, StringComparison.Ordinal);
     }
 
+    // Antigravity lists only the Claude and GPT quota for some plans: both answers are intact, they
+    // just hold no Gemini model with a quota.
+    private const string ModelQuotaWithoutGemini = """
+        {"buckets":[
+          {"tokenType":"WTUS","modelId":"chat_20706","remainingFraction":1},
+          {"resetTime":"2026-10-17T15:18:53Z","tokenType":"WTUS","modelId":"claude-opus-5-5-high","remainingFraction":0.5},
+          {"tokenType":"WTUS","modelId":"tab_flash_lite_preview","remainingFraction":1}]}
+        """;
+
+    [Fact]
+    public void Intact_answers_without_a_Gemini_quota_need_no_change_note() =>
+        Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, ModelQuotaWithoutGemini));
+
+    [Fact]
+    public async Task Without_a_Gemini_quota_in_Antigravity_the_local_read_is_no_unreadable_answer()
+    {
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, SummaryWithoutGemini, "Pro", ModelQuotaJson: ModelQuotaWithoutGemini);
+        using var capture = ReadChangeLog.BeginCapture();
+
+        var snapshot = await Provider(usage, FakeEmail).FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.NoLocalData, snapshot.Status);
+        Assert.False(snapshot.UnreadableAnswer);
+        Assert.Equal("Pro", snapshot.PlanType);
+        Assert.Empty(capture.Lines);
+    }
+
+    [Fact]
+    public async Task Without_a_Gemini_quota_in_Antigravity_the_web_numbers_show_unflagged()
+    {
+        const string webTwoWindows = """
+            {"status":"ok","path":"/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc","body":"[2,[[2181,0.0,1,[[1792246090,0]]],[45607,0.6,2,[[1792652890,0]]]],false]"}
+            """;
+        var usage = new AntigravityUsage(LocalLoginOutcome.Ok, SummaryWithoutGemini, "Pro", ModelQuotaJson: ModelQuotaWithoutGemini);
+        var provider = ProviderWithWebSession(usage, _ => webTwoWindows, out _);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal(SourceKind.WebSession, snapshot.SourceKind);
+        Assert.False(snapshot.UnreadableAnswer);
+        Assert.Equal("Pro", snapshot.PlanType);
+    }
+
     [Fact]
     public void A_summary_group_of_an_unknown_name_is_named()
     {
