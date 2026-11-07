@@ -264,6 +264,36 @@ public class ClaudeConsoleRowTests : IDisposable
     }
 
     [Fact]
+    public async Task A_held_network_starts_no_balance_read_and_a_free_one_does()
+    {
+        var calls = 0;
+        var source = new ClaudeConsoleCreditSource((_, _) => { Interlocked.Increment(ref calls); return Task.FromResult(NotSignedIn); }, null);
+        var webSource = new WebUsageSource(
+            new WebSessionDescriptor("claude", "https://claude.ai/", "https://claude.ai/login", ["claude.ai"], "claude"),
+            new ClaudeUsageEndpoint(), (_, _) => Task.FromResult(NotSignedIn));
+        var claude = new ClaudeProvider(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "does-not-exist"), now: null, webSource, new AppSettings(), _ => { })
+        {
+            CreditSource = source,
+        };
+        var reread = typeof(ClaudeProvider).GetMethod("RereadCreditOnPlanChange", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+        using (FetchContext.HoldNetwork())
+        {
+            await claude.FetchAsync(CancellationToken.None);
+            reread.Invoke(claude, ["pro"]);
+            reread.Invoke(claude, ["max_5x"]);
+        }
+
+        await Task.Delay(200);
+        Assert.Equal(0, Volatile.Read(ref calls));
+
+        await claude.FetchAsync(CancellationToken.None);
+        await Task.Delay(200);
+        Assert.True(Volatile.Read(ref calls) > 0);
+    }
+
+    [Fact]
     public async Task Signing_out_of_the_console_drops_the_balance_and_the_console_session_only()
     {
         var (vm, claude, owner) = BuildClaude();

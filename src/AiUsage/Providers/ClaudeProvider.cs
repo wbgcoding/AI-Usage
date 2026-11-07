@@ -247,7 +247,7 @@ public sealed class ClaudeProvider : IUsageProvider
             return;
         var changed = _lastPlan is not null && plan != _lastPlan;
         _lastPlan = plan;
-        if (changed && CreditSource is { } source && _webSource is not null && !LocalOnly)
+        if (changed && CreditSource is { } source && _webSource is not null && !LocalOnly && !FetchContext.NetworkHeld)
             _ = source.RefreshAfterPlanChangeAsync();
     }
 
@@ -274,10 +274,11 @@ public sealed class ClaudeProvider : IUsageProvider
     internal Task ReadApiCreditNowAsync() => CreditSource?.ReadNowAsync() ?? Task.CompletedTask;
 
     /// <summary>Starts the next balance read when one is due, without waiting for it: a balance that is
-    /// slow or missing never delays or changes the usage read. Nothing for an account kept off the web session.</summary>
+    /// slow or missing never delays or changes the usage read. Nothing for an account kept off the web
+    /// session, and nothing while the network is held (pause, energy saving): the balance read is a network read.</summary>
     private void StartApiCreditRead()
     {
-        if (CreditSource is { } source && _webSource is not null && !LocalOnly)
+        if (CreditSource is { } source && _webSource is not null && !LocalOnly && !FetchContext.NetworkHeld)
             _ = source.RefreshIfDueAsync();
     }
 
