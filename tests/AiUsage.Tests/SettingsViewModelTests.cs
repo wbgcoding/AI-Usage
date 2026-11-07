@@ -2411,6 +2411,10 @@ public class SettingsViewModelTests : IDisposable
         public string AccountKey { get; } = accountKey ?? id;
         public string DisplayName => Id;
         public bool CanSkipWebSession => canSkipWebSession;
+        // A fetch a settings change starts (local-only switch, import) must land on the test thread:
+        // without a dispatcher a pool-thread fetch would apply its rows while the test thread
+        // re-applies thresholds to the same tile.
+        public bool RunsOnUiThread => true;
 
         public Task<ProviderSnapshot> FetchAsync(CancellationToken ct) =>
             Task.FromResult(new ProviderSnapshot(Id, [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300)],
