@@ -185,7 +185,7 @@ public class PathSanitizerTests
     // A JWE (five parts, the encrypted key part may be empty) and a JWT with an empty signature.
     [InlineData("cookie eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..Ab12Cd34Ef56Gh78.Zm9vYmFyYmF6cXV4.dGFnMTIzNDU2 end", "cookie {token} end")]
     [InlineData("jwe eyJhbGciOiJSU0EtT0FFUCJ9.a1B2c3D4e5F6.Ab12Cd34Ef56Gh78.Zm9vYmFyYmF6cXV4.dGFnMTIzNDU2 end", "jwe {token} end")]
-    [InlineData("unsigned eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0. end", "unsigned {token} end")]
+    [InlineData("unsigned eyJhbGciOiJub25lIn0.e30. end", "unsigned {token} end")]
     // An opaque bearer value, also with characters outside the token68 alphabet.
     [InlineData("Authorization: Bearer 7c1d9e0a%2Fb3:f5e2 rejected", "Authorization: Bearer {token} rejected")]
     [InlineData("header Bearer a1b2c3d4e5f6a7b8c9d0e1f2 sent", "header Bearer {token} sent")]
