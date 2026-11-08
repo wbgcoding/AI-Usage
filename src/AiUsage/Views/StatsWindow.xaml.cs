@@ -345,6 +345,8 @@ public partial class StatsWindow : Window
         RefreshModelRingBrushes();
         RefreshEffortRingBrushes();
         RefreshDayProviderBrushes();
+        foreach (var option in _viewModel.ProviderChoices)
+            option.RefreshBrush();
     }
 
     /// <summary>Every collapsible section this window owns, in no particular order - the list

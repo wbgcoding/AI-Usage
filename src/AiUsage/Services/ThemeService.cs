@@ -1,3 +1,4 @@
+using AiUsage.Stats;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
@@ -83,7 +84,30 @@ public static class ThemeService
     {
         Apply(theme, Application.Current.Resources.MergedDictionaries, uri => new ResourceDictionary { Source = uri },
             () => SystemParameters.HighContrast, IsWindowsUsingLightTheme, AccentColors.ReadSystemAccent);
+        var live = Application.Current.Resources.MergedDictionaries.FirstOrDefault(IsThemeDictionary);
+        ChartPalette.UseSurface(live is null ? ChartSurface.None : ChartSurfaceFor(live, SystemParameters.HighContrast));
         Applied?.Invoke(null, EventArgs.Empty);
+    }
+
+    /// <summary>The surfaces the chart colors are fitted to (the same three the accent is held to),
+    /// plus, in high contrast, the four system colors that replace the fixed palette.</summary>
+    internal static ChartSurface ChartSurfaceFor(ResourceDictionary theme, bool highContrast)
+    {
+        var surfaces = SurfaceKeys
+            .Select(key => theme.Contains(key) ? theme[key] as SolidColorBrush : null)
+            .Where(brush => brush is not null)
+            .Select(brush => brush!.Color)
+            .ToList();
+        if (!highContrast)
+            return new ChartSurface(surfaces);
+
+        return new ChartSurface(surfaces,
+        [
+            SystemColors.WindowTextColor,
+            SystemColors.HotTrackColor,
+            SystemColors.HighlightColor,
+            SystemColors.GrayTextColor,
+        ]);
     }
 
     /// <summary>Re-fits the fonts of the live theme to the UI language after a language switch; the

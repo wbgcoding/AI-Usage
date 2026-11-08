@@ -37,7 +37,22 @@ public static class ChartPalette
 
     /// <summary>The color of the <paramref name="index"/>-th category of a chart, in a fixed order;
     /// past the last color the sequence starts over.</summary>
-    public static Color Categorical(int index) => CategoricalColors[((index % CategoricalColors.Length) + CategoricalColors.Length) % CategoricalColors.Length];
+    public static Color Categorical(int index) => Categorical(index, Surface);
+
+    /// <summary>As <see cref="Categorical(int)"/>, lifted to 3:1 against <paramref name="surface"/>
+    /// (or a system colour in high contrast).</summary>
+    public static Color Categorical(int index, ChartSurface surface)
+    {
+        var slot = ((index % CategoricalColors.Length) + CategoricalColors.Length) % CategoricalColors.Length;
+        return surface.HighContrastColors is { Count: > 0 } hc ? hc[slot % hc.Count] : surface.Fit(CategoricalColors[slot]);
+    }
+
+    /// <summary>The surface the colors below are fitted to; <see cref="ChartSurface.None"/> (colors
+    /// untouched) until <see cref="UseSurface"/> is called with the active theme.</summary>
+    public static ChartSurface Surface { get; private set; } = ChartSurface.None;
+
+    /// <summary>Called when a theme is applied, before the charts read their colors again.</summary>
+    internal static void UseSurface(ChartSurface surface) => Surface = surface;
 
     private static readonly double[] ProviderHues = [.. ProviderColors.Values.Select(color => ToHsl(color).H)];
 
@@ -50,12 +65,35 @@ public static class ChartPalette
     /// <summary>The color that names a provider everywhere its share of tokens is drawn - one of the
     /// five fixed brand-adjacent colors for a known provider id, or a deterministic swatch off the
     /// golden-angle sequence below for anything else (an empty id included).</summary>
-    public static Color ForProvider(string providerId)
-    {
-        if (!string.IsNullOrEmpty(providerId) && ProviderColors.TryGetValue(providerId, out var color))
-            return color;
+    public static Color ForProvider(string providerId) => ForProvider(providerId, Surface);
 
-        return AccentColors.FromHsl(UnknownHue(providerId ?? ""), 0.55, 0.55);
+    /// <summary>As <see cref="ForProvider(string)"/>, lifted to 3:1 against <paramref name="surface"/>
+    /// keeping the hue; in high contrast one of four system colors, the legend labels carry the identity.</summary>
+    public static Color ForProvider(string providerId, ChartSurface surface)
+    {
+        if (surface.HighContrastColors is { Count: > 0 } hc)
+            return hc[HighContrastSlot(providerId) % hc.Count];
+
+        if (!string.IsNullOrEmpty(providerId) && ProviderColors.TryGetValue(providerId, out var color))
+            return surface.Fit(color);
+
+        return surface.Fit(AccentColors.FromHsl(UnknownHue(providerId ?? ""), 0.55, 0.55));
+    }
+
+    private static int HighContrastSlot(string? providerId)
+    {
+        if (!string.IsNullOrEmpty(providerId))
+        {
+            var index = 0;
+            foreach (var id in ProviderColors.Keys)
+            {
+                if (id == providerId)
+                    return index;
+                index++;
+            }
+        }
+
+        return (int)(Fnv1a(providerId ?? "") % 4u);
     }
 
     /// <summary>The color that names one model within <paramref name="providerId"/>'s own share: the
@@ -66,16 +104,35 @@ public static class ChartPalette
     /// palette does not recognize falls back to
     /// <see cref="ForProvider"/> outright - there is no per-provider hue to ramp lightness against,
     /// so every model under it shares that one deterministic swatch instead.</summary>
-    public static Color ForModel(string providerId, int rankWithinProvider)
+    public static Color ForModel(string providerId, int rankWithinProvider) => ForModel(providerId, rankWithinProvider, Surface);
+
+    /// <summary>As <see cref="ForModel(string, int)"/> on <paramref name="surface"/>: the lightness
+    /// ramp only runs over the band that still reads at 3:1, so the ranks stay apart on a light or
+    /// dark surface alike. In high contrast the rank steps through the four system colors.</summary>
+    public static Color ForModel(string providerId, int rankWithinProvider, ChartSurface surface)
     {
+        if (surface.HighContrastColors is { Count: > 0 } hc)
+            return hc[(HighContrastSlot(providerId) + Math.Max(0, rankWithinProvider)) % hc.Count];
+
         if (string.IsNullOrEmpty(providerId) || !ProviderColors.TryGetValue(providerId, out var baseColor))
-            return ForProvider(providerId);
+            return ForProvider(providerId, surface);
 
+        var fitted = surface.Fit(baseColor);
         if (rankWithinProvider <= 0)
-            return baseColor;
+            return fitted;
 
-        var hsl = ToHsl(baseColor);
-        return AccentColors.FromHsl(hsl.H, hsl.S, ModelLightness(hsl.L, rankWithinProvider));
+        var hsl = ToHsl(fitted);
+        var low = MinModelLightness;
+        var high = MaxModelLightness;
+        if (surface.Surfaces.Count > 0)
+        {
+            low = Math.Max(low, ToHsl(surface.Fit(AccentColors.FromHsl(hsl.H, hsl.S, MinModelLightness))).L);
+            high = Math.Min(high, ToHsl(surface.Fit(AccentColors.FromHsl(hsl.H, hsl.S, MaxModelLightness))).L);
+            if (high < low)
+                high = low;
+        }
+
+        return surface.Fit(AccentColors.FromHsl(hsl.H, hsl.S, ModelLightness(hsl.L, rankWithinProvider, low, high)));
     }
 
     private const double ModelLightnessStep = 0.08;
@@ -85,10 +142,13 @@ public static class ChartPalette
     /// <summary>The lightness of the model at <paramref name="rank"/> (1 and up): the ranks take the
     /// free steps above and below the provider's own lightness alternately, lighter first; once one
     /// side has no step left the other side continues, and past the last step the lightness stays.</summary>
-    internal static double ModelLightness(double baseLightness, int rank)
+    internal static double ModelLightness(double baseLightness, int rank) =>
+        ModelLightness(baseLightness, rank, MinModelLightness, MaxModelLightness);
+
+    internal static double ModelLightness(double baseLightness, int rank, double minLightness, double maxLightness)
     {
-        var lighterSteps = Math.Max(0, (int)Math.Floor((MaxModelLightness - baseLightness) / ModelLightnessStep + 1e-9));
-        var darkerSteps = Math.Max(0, (int)Math.Floor((baseLightness - MinModelLightness) / ModelLightnessStep + 1e-9));
+        var lighterSteps = Math.Max(0, (int)Math.Floor((maxLightness - baseLightness) / ModelLightnessStep + 1e-9));
+        var darkerSteps = Math.Max(0, (int)Math.Floor((baseLightness - minLightness) / ModelLightnessStep + 1e-9));
         int lighter = 0, darker = 0;
         var lightness = baseLightness;
         for (var n = 1; n <= rank; n++)

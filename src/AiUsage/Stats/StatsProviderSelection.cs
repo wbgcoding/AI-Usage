@@ -64,8 +64,23 @@ public sealed class StatsProviderOption : ObservableObject
     {
         Label = displayName;
         Value = value;
-        Brush = new SolidColorBrush(ChartPalette.ForProvider(value));
-        Brush.Freeze();
+        _brush = ColorBrush(value);
+    }
+
+    private Brush _brush;
+
+    private static SolidColorBrush ColorBrush(string providerId)
+    {
+        var brush = new SolidColorBrush(ChartPalette.ForProvider(providerId));
+        brush.Freeze();
+        return brush;
+    }
+
+    /// <summary>Takes the provider's colour again after a theme change (it is fitted to the surface).</summary>
+    internal void RefreshBrush()
+    {
+        _brush = ColorBrush(Value);
+        OnPropertyChanged(nameof(Brush));
     }
 
     /// <summary>The provider id.</summary>
@@ -75,7 +90,7 @@ public sealed class StatsProviderOption : ObservableObject
     public string Label { get; }
 
     /// <summary>The colour that names the provider in the charts, for the pill's dot and tint.</summary>
-    public Brush Brush { get; }
+    public Brush Brush => _brush;
 
     /// <summary>True while the provider counts toward the figures.</summary>
     public bool IsChecked => _isChecked;
