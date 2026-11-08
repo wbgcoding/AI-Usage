@@ -116,6 +116,31 @@ public sealed class StatusFileTests : IDisposable
     }
 
     [Fact]
+    public void TheGrantExpiryIsWrittenLikeEveryOtherTime()
+    {
+        var expiry = new DateTimeOffset(2026, 12, 1, 8, 30, 15, TimeSpan.Zero).AddTicks(1234567);
+        var entry = Claude() with { ApiCredit = new ClaudeApiCredit(99.71m, "USD", new ClaudeCreditGrant(100m, 99.71m, expiry)) };
+
+        using var document = JsonDocument.Parse(StatusFileWriter.BuildJson([entry], Now));
+
+        var written = document.RootElement.GetProperty("providers")[0].GetProperty("apiCredit").GetProperty("grant").GetProperty("nextExpiry").GetString();
+        Assert.Equal(StatusFileWriter.FormatTime(expiry), written);
+    }
+
+    [Fact]
+    public void AnUnexpectedErrorWhileWritingIsLoggedAndNeverEscapes()
+    {
+        var logged = new List<string>();
+        using var writer = new StatusFileWriter(() => throw new InvalidOperationException("no path"), TimeSpan.FromHours(1), logged.Add);
+        writer.Schedule("{}");
+
+        var error = Record.Exception(writer.Flush);
+
+        Assert.Null(error);
+        Assert.Contains("InvalidOperationException", Assert.Single(logged));
+    }
+
+    [Fact]
     public void ADisabledExtraUsageBlockWritesNullFigures()
     {
         var entry = Claude() with { Extra = new ClaudeExtraUsage(false, null, null, null, "USD") };

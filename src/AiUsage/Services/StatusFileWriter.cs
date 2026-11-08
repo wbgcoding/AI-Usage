@@ -78,7 +78,7 @@ public sealed class StatusFileWriter : IDisposable
             }
 
             if (json is not null)
-                TryWrite(_pathProvider(), json, _log);
+                TryWrite(_pathProvider, json, _log);
         }
     }
 
@@ -205,7 +205,7 @@ public sealed class StatusFileWriter : IDisposable
             json.WriteNumber("granted", grant.Granted);
             json.WriteNumber("remaining", grant.Remaining);
             if (grant.NextExpiry is { } expiry)
-                json.WriteString("nextExpiry", expiry.ToString("o", CultureInfo.InvariantCulture));
+                json.WriteString("nextExpiry", FormatTime(expiry));
             else
                 json.WriteNull("nextExpiry");
             json.WriteEndObject();
@@ -229,15 +229,16 @@ public sealed class StatusFileWriter : IDisposable
     private const int MoveAttempts = 20;
     private static readonly TimeSpan MoveRetryDelay = TimeSpan.FromMilliseconds(10);
 
-    private static void TryWrite(string path, string json, Action<string>? log)
+    private static void TryWrite(Func<string> pathProvider, string json, Action<string>? log)
     {
         try
         {
-            WriteAtomic(path, json);
+            WriteAtomic(pathProvider(), json);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            // A reader holding the file open or a read-only folder only costs this one update.
+            // A reader holding the file open, a read-only folder or an unusable path only costs this one
+            // update: Flush also runs on a timer thread, where an escaping exception ends the process.
             log?.Invoke($"Status file not written ({ex.GetType().Name}).");
         }
     }
