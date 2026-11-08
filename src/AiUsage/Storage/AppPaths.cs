@@ -506,8 +506,9 @@ public static class AppPaths
         {
             Directory.CreateDirectory(path);
             var probePath = Path.Combine(path, $".write-probe-{Guid.NewGuid():N}");
-            File.WriteAllBytes(probePath, []);
-            File.Delete(probePath);
+            using (new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
+            {
+            }
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException

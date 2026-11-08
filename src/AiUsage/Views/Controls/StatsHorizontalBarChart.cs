@@ -1,9 +1,7 @@
 ﻿using System.Globalization;
-using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using AiUsage.Services;
 using AiUsage.Stats;
 
@@ -502,11 +500,6 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             });
         });
     }
-
-    /// <summary>A frozen bitmap decoded to <paramref name="pixelWidth"/>; null for a file that cannot
-    /// be read as an image, whatever way the decoder fails on it.</summary>
-    internal static BitmapSource? DecodeIcon(string iconPath, int pixelWidth) =>
-        ProjectIconLoader.LoadBitmap(iconPath, pixelWidth);
 
     private int _hoverIndex = -1;
 

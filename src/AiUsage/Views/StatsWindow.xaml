@@ -293,7 +293,6 @@
                                                                           SegmentLabels="{Binding SelectedDayDetail.ProviderLabels}"
                                                                           TextBrush="{DynamicResource Text.Muted}"
                                                                           EmptyText="{Binding EmptyChartText}"
-                                                                          TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"
                                                                           MinHeight="70"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Margin="0,0,8,0">
@@ -699,8 +698,7 @@
                                                                   ToolTip="{Binding CacheShareTooltip}"
                                                                   SegmentLabels="{Binding CacheShareLabels}"
                                                                   TextBrush="{DynamicResource Text.Muted}"
-                                                                  EmptyText="{Binding EmptyChartText}"
-                                                                  TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
+                                                                  EmptyText="{Binding EmptyChartText}"/>
                                 </Border>
                             </StackPanel>
                             </controls:CollapsibleSection>

@@ -33,7 +33,7 @@ internal static class ClaudeConsoleCreditScript
     internal static string ListOrganizations() => $$"""
         (async () => {
             try {
-                const res = await fetch('/api/organizations', {method: 'GET', credentials: 'include', headers: {{ClientHeaders}}});
+                const res = await fetch('{{OrganizationsPath}}', {method: 'GET', credentials: 'include', headers: {{ClientHeaders}}});
                 if (res.status === 401 || res.status === 403) return {status: 'not_signed_in', code: String(res.status)};
                 if (res.status === 429) return {status: 'blocked', code: '429'};
                 if (!res.ok) return {status: 'failed', code: String(res.status)};

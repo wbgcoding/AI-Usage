@@ -155,7 +155,7 @@ public class FallbackPriceTests
         var path = Path.Combine(directory, FallbackPriceList.CacheFileName);
         new FallbackPriceList(() => directory).Replace(FallbackPriceList.Parse(Fixture), DateTimeOffset.UtcNow);
         using (var stream = new FileStream(path, FileMode.Open))
-            stream.SetLength(FallbackPriceList.MaxCacheBytes + 1);
+            stream.SetLength(PriceListKeys.MaxCacheBytes + 1);
 
         var list = new FallbackPriceList(() => directory);
         list.Load();

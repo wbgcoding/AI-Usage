@@ -24,13 +24,13 @@ public class StatsHorizontalBarChartTests
         var damaged = Path.Combine(dir.Path, "damaged.png");
         File.WriteAllBytes(damaged, [1, 2, 3, 4, 5, 6, 7, 8]);
 
-        var decoded = StatsHorizontalBarChart.DecodeIcon(png, 20);
+        var decoded = ProjectIconLoader.LoadBitmap(png, 20);
 
         Assert.NotNull(decoded);
         Assert.Equal(20, decoded!.PixelWidth);
         Assert.True(decoded.IsFrozen);
-        Assert.Null(StatsHorizontalBarChart.DecodeIcon(damaged, 20));
-        Assert.Null(StatsHorizontalBarChart.DecodeIcon(Path.Combine(dir.Path, "missing.png"), 20));
+        Assert.Null(ProjectIconLoader.LoadBitmap(damaged, 20));
+        Assert.Null(ProjectIconLoader.LoadBitmap(Path.Combine(dir.Path, "missing.png"), 20));
     }
 
     [Fact]

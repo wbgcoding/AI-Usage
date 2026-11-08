@@ -10,6 +10,9 @@ internal static class PriceListKeys
     /// 1000 tokens) and the field is dropped.</summary>
     internal const double MaxTokenPrice = 0.01;
 
+    /// <summary>The trimmed cache is far smaller than the download; a bigger file is not ours.</summary>
+    internal const long MaxCacheBytes = 16L * 1024 * 1024;
+
     internal static readonly ModelPrice FreePrice = new(0, 0, null, null);
 
     internal static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);

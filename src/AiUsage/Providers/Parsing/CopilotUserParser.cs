@@ -126,14 +126,7 @@ public static class CopilotUserParser
 
     public static IReadOnlyList<string> ChangeNotes(string responseText) => Read(responseText).ChangeNotes;
 
-    /// <summary>True when the response holds the <c>quota_snapshots</c> object this parser reads, even
-    /// if every bucket in it is unlimited or absent.</summary>
-    public static bool HasQuotaSnapshots(string responseText) => Read(responseText).HasQuotaSnapshots;
-
     public static IReadOnlyList<UsageWindow> Parse(string responseText) => Read(responseText).Windows;
-
-    /// <summary>The signed-in GitHub handle, when the response names one, never an email address.</summary>
-    public static string? ParseLogin(string responseText) => Read(responseText).Login;
 
     /// <summary>The account's tier as the response words it (<c>copilot_plan</c>, e.g.
     /// "individual_pro" or "business"), or null.</summary>

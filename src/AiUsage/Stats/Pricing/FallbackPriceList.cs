@@ -19,9 +19,6 @@ internal sealed class FallbackPriceList
     private const int MaxEntries = 100_000;
     private const int MaxIdLength = 200;
 
-    /// <summary>The trimmed cache is far smaller than the download; a bigger file is not ours.</summary>
-    internal const long MaxCacheBytes = 16L * 1024 * 1024;
-
     /// <summary>One model of one provider, with its price per token.</summary>
     internal sealed record Entry(string Provider, string Model, ModelPrice Price)
     {
@@ -197,7 +194,7 @@ internal sealed class FallbackPriceList
         {
             var path = Path.Combine(_cacheDirectory(), CacheFileName);
             var file = new FileInfo(path);
-            if (!file.Exists || file.Length > MaxCacheBytes)
+            if (!file.Exists || file.Length > PriceListKeys.MaxCacheBytes)
                 return;
 
             using var document = JsonDocument.Parse(File.ReadAllText(path, Encoding.UTF8), new JsonDocumentOptions { MaxDepth = 8 });

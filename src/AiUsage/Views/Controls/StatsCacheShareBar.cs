@@ -1,11 +1,7 @@
-﻿using System.Globalization;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Automation;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using AiUsage.Services;
-using AiUsage.Stats;
 
 namespace AiUsage.Views.Controls;
 
@@ -92,20 +88,6 @@ public sealed class StatsCacheShareBar : FrameworkElement
     {
         get => (string)GetValue(EmptyTextProperty);
         set => SetValue(EmptyTextProperty, value);
-    }
-
-    /// <summary>The same unit-word property <see cref="StatsBarChart.TokenWord"/> already carries,
-    /// kept here for the same API shape even though this bar never draws an absolute token figure of
-    /// its own - every inline label and every legend entry here is a percentage, and a percentage
-    /// never takes a unit.</summary>
-    public static readonly DependencyProperty TokenWordProperty = DependencyProperty.Register(
-        nameof(TokenWord), typeof(string), typeof(StatsCacheShareBar),
-        new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
-
-    public string TokenWord
-    {
-        get => (string)GetValue(TokenWordProperty);
-        set => SetValue(TokenWordProperty, value);
     }
 
     /// <summary>Every segment's own pixel width across <paramref name="totalWidth"/>, proportional to

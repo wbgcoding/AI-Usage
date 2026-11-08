@@ -215,7 +215,8 @@ public sealed class ModelPriceList
         try
         {
             var path = Path.Combine(_cacheDirectory(), CacheFileName);
-            if (!File.Exists(path))
+            var file = new FileInfo(path);
+            if (!file.Exists || file.Length > PriceListKeys.MaxCacheBytes)
                 return;
 
             using var document = JsonDocument.Parse(File.ReadAllText(path, Encoding.UTF8), new JsonDocumentOptions { MaxDepth = 8 });
