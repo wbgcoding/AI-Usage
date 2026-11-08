@@ -545,7 +545,7 @@
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Web'de oturum aç</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Sıra</value></data>
   <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Bu sağlayıcının çubuklarını, o penceredeki tokenların her modelin ya da ana ajan ve alt ajanların payına göre renklendirir.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Kullanım düzeyine göre</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Kullanıma göre</value></data>
   <data name="Settings.BarColor" xml:space="preserve"><value>Çubuk rengi</value></data>
   <data name="Window.TokensSinceReset" xml:space="preserve"><value>Bu pencerenin son sıfırlanmasından beri {0} token</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Özel</value></data>

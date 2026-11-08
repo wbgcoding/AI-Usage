@@ -545,7 +545,7 @@
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Inloggen op het web</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Volgorde</value></data>
   <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Kleurt de balken van deze aanbieder naar het aandeel van elk model of van hoofdagent en subagents in de tokens van dat venster.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Op verbruiksniveau</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Op verbruik</value></data>
   <data name="Settings.BarColor" xml:space="preserve"><value>Balkkleur</value></data>
   <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokens sinds de laatste reset van dit venster</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Aangepast</value></data>

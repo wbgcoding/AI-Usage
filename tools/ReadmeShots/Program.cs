@@ -26,7 +26,8 @@
 //                       min = the window's smallest width, default = its normal width (default: both)
 //   --theme <name>|all  Dark, Light, Nebula, Terminal or HighContrast (default: all)
 // Files are named <surface-id>-<theme>-<language>-<size>.png. Nothing is written outside <folder>.
-// <folder>/clipped.txt lists every single-line text that needs more width than it got, per picture.
+// <folder>/clipped.txt lists every single-line text that needs more width than it got, per picture;
+// the file is always written, empty when nothing is cut off.
 
 using System.Globalization;
 using System.IO;
@@ -121,7 +122,7 @@ internal static class Program
                 }
                 Directory.CreateDirectory(reviewDirectory);
                 ClipReport.ReportPath = Path.Combine(reviewDirectory, "clipped.txt");
-                File.Delete(ClipReport.ReportPath);
+                File.WriteAllText(ClipReport.ReportPath, "");
                 RenderReviewSet(application, dataDirectory, reviewDirectory, reviewOptions, themes, chosen);
             }
             else

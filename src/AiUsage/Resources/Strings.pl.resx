@@ -545,7 +545,7 @@
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Zaloguj w sieci</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Kolejność</value></data>
   <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Koloruje paski tego dostawcy według udziału każdego modelu albo agenta głównego i subagentów w tokenach tego okna.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Wg poziomu użycia</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Wg użycia</value></data>
   <data name="Settings.BarColor" xml:space="preserve"><value>Kolor pasków</value></data>
   <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokenów od ostatniego resetu tego okna</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Własna</value></data>

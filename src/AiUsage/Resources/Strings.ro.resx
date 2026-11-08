@@ -545,7 +545,7 @@
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Conectare pe web</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Ordine</value></data>
   <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Colorează barele acestui furnizor după ponderea fiecărui model sau a agentului principal și a subagenților în tokenii acelei ferestre.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>După nivelul de consum</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>După consum</value></data>
   <data name="Settings.BarColor" xml:space="preserve"><value>Culoarea barei</value></data>
   <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokeni de la ultima resetare a acestei ferestre</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Personalizat</value></data>

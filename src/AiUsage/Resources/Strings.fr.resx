@@ -545,7 +545,7 @@
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Se connecter sur le web</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Ordre</value></data>
   <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Colore les barres de ce fournisseur selon la part de tokens de chaque modèle, ou de l'agent principal et des sous-agents, dans cette fenêtre.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Par niveau d'utilisation</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Par utilisation</value></data>
   <data name="Settings.BarColor" xml:space="preserve"><value>Couleur des barres</value></data>
   <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} tokens depuis la dernière réinitialisation de cette fenêtre</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Perso</value></data>
