@@ -1414,9 +1414,9 @@ public partial class MainWindow : Window, IDisposable
     }
 
     // AllowsTransparency=True (needed for the real rounded corners + soft shadow) disables Win32's
-    // native non-client resize-border loop entirely for a layered window - confirmed by testing on
-    // the VM (self-test): dragging inside WindowChrome's ResizeBorderThickness never even
-    // started a resize. These eight Thumb grips (WPF's own drag-delta control) replace it.
+    // native non-client resize-border loop entirely for a layered window: dragging inside
+    // WindowChrome's ResizeBorderThickness never starts a resize. These eight Thumb grips (WPF's own
+    // drag-delta control) replace it.
     // A resize drag measures the tallest content once per width instead of on every mouse move, and
     // coalesces the density passes its size changes ask for; the drag's end settles the final one.
     private bool _resizeDragActive;

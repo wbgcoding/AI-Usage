@@ -23,8 +23,8 @@
          own worktree cannot allow that, so this switches the query off outright. -->
     <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
     <NeutralLanguage>en</NeutralLanguage>
-    <!-- The app ships English and German only. Without this the publish bundles the resource
-         assemblies of its dependencies for a dozen more languages. -->
+    <!-- Keep only the app's own languages. Without this the publish bundles the resource
+         assemblies of its dependencies for every other language they ship. -->
     <SatelliteResourceLanguages>en;de;es;fr;it;nl;pl;pt-BR;ro;tr;ja;zh-Hans</SatelliteResourceLanguages>
     <InvariantGlobalization>false</InvariantGlobalization>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
@@ -61,13 +61,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Strings.resx (EN, the fallback per NeutralLanguage above) embeds into the main assembly by
-         the SDK's own default convention. Strings.de.resx would normally route to a satellite
-         assembly (de\AI-Usage.resources.dll) because its name matches the "Name.culture.resx"
-         pattern - WithCulture=false + an explicit LogicalName instead force it into the SAME main
-         assembly under its own resource name, so a single-file publish never has to find a second
-         file on disk, and LocalizationService can pick between the two with a plain
-         ResourceManager each, no satellite/culture-fallback plumbing at all. -->
+    <!-- Strings.resx (English, the fallback per NeutralLanguage above) embeds into the main assembly
+         by the SDK's own default convention. Every Strings.{code}.resx would normally route to a
+         satellite assembly ({code}\AI-Usage.resources.dll) because its name matches the
+         "Name.culture.resx" pattern - WithCulture=false + an explicit LogicalName instead force it
+         into the SAME main assembly under its own resource name, so a single-file publish never has
+         to find a second file on disk, and LocalizationService can pick between the languages with
+         a plain ResourceManager each, no satellite/culture-fallback plumbing at all. -->
     <EmbeddedResource Update="Resources\Strings.de.resx">
       <WithCulture>false</WithCulture>
       <LogicalName>AiUsage.Resources.Strings.de.resources</LogicalName>

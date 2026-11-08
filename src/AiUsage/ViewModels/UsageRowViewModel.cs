@@ -352,14 +352,14 @@ public partial class UsageRowViewModel : ObservableObject
     /// the visible text stays the bare number.</summary>
     private string SpokenPercentText => Loc.Format("Window.UsedPercent", StatusTextMap.UsagePercent(UsedPercent).ToString(CultureInfo.CurrentCulture));
 
-    /// <summary>"42 % · noch 2h 14m" - the percent text itself carries no glyph; colour, plus the
+    /// <summary>"42 % · resets in 2h 14m" - the percent text itself carries no glyph; colour, plus the
     /// separate warning icon `UsageBar.xaml` shows next to it, carry the Crit warning instead. Token
     /// count and forecast sit beside the window label instead (<see cref="InlineTokensText"/>,
     /// <see cref="ForecastText"/>), so this part never loses the percent or the countdown to make
     /// room for either.</summary>
     public string RightLabelText => DetailText.Length > 0 ? TextCompose.Pair(PercentText, DetailText) : PercentText;
 
-    /// <summary>"noch 2h 14m · 21:15" - the countdown and the reset clock time, without the
+    /// <summary>"resets in 2h 14m · 21:15" - the countdown and the reset clock time, without the
     /// percentage, so the header can set them smaller and greyer than the number. Empty when neither
     /// is known.</summary>
     public string DetailText

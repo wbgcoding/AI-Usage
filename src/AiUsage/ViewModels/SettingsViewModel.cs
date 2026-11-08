@@ -14,8 +14,8 @@ using CommunityToolkit.Mvvm.Input;
 namespace AiUsage.ViewModels;
 
 /// <summary>
-/// Everything the Settings window shows. The "Anzeige" card's layout,
-/// per-provider visibility and Kacheldichte controls bind straight to the already-running
+/// Everything the Settings window shows. The display card's (Settings.Section.Display) layout,
+/// per-provider visibility and tile density (Settings.TileDensity) controls bind straight to the already-running
 /// <see cref="MainViewModel"/> passed in here - the same commands the eye-menu popup uses
 /// - so there is exactly one code path behind both surfaces, never a second write path that could
 /// drift from it. Every setter here saves immediately: the window
@@ -150,7 +150,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedTileOrderChoice));
     }
 
-    /// <summary>The Meldungen card's "wartenden Agenten markieren für" picker - Off first, then fixed
+    /// <summary>The notifications card's "Show the waiting mark for" picker (Settings.AttentionMaxAge) - Off first, then fixed
     /// rungs in hours (not a slider) because <see cref="Models.AppSettings.AttentionMaxAgeMinutes"/> is a threshold
     /// someone sets once and forgets, not a value worth fine dragging. Value is hours, converted to/
     /// from the stored minutes in <see cref="SetAttentionMaxAge"/> - the setting itself stays in
@@ -214,7 +214,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ForecastLeadChoices[i].Label = ForecastLeadLabel(ForecastLeadChoices[i].Value);
     }
 
-    /// <summary>The Anzeige card's layout picker is a <c>ComboBox</c> bound to this instead of driving
+    /// <summary>The display card's layout picker is a <c>ComboBox</c> bound to this instead of driving
     /// <see cref="LayoutChoices"/>' own <see cref="Choice{TValue}.IsSelected"/> flags through a radio
     /// group - same shape as <see cref="MainViewModel.SelectedDensityChoice"/>: a set forwards to
     /// <see cref="SetLayout"/>, which keeps this in step through the same <see cref="Choice.Select{TValue}"/>
@@ -521,7 +521,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public string DefaultThresholdLabelText => LocalizationService.Instance.Format("Settings.DefaultThreshold", $"{DefaultThreshold:0}");
 
-    /// <summary>Names what the global Ein/Aus check box actually toggles - the same reasoning as
+    /// <summary>Names what the global on/off check box (Settings.On) actually toggles - the same reasoning as
     /// <see cref="ThresholdRowViewModel.FiveHourEnabledFullLabel"/> and its siblings.</summary>
     public string DefaultThresholdEnabledFullLabel => LocalizationService.Instance.Format("Format.LabelValue", DefaultThresholdLabelText, LocalizationService.Instance["Settings.On"]);
 

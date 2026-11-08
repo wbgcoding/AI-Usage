@@ -355,7 +355,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     private const double NameBarGap = 6;
     private const double MinBarWidth = 4;
 
-    // The rich row (852): an icon/dot plus one text line on top of a thin colored share bar,
+    // The rich row: an icon/dot plus one text line on top of a thin colored share bar,
     // taller than the plain single-line row above.
     private const double RichRowHeight = 32;
     private const double RichIconSize = 16;
@@ -806,7 +806,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     internal static double RichNameNaturalWidth(string name, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
         new FormattedText(name, culture, FlowDirection.LeftToRight, semiBold, 12, brush, dpi).Width;
 
-    /// <summary>One 852-style row: an icon (or, missing one, a dot in the project's own color), the
+    /// <summary>One rich row: an icon (or, missing one, a dot in the project's own color), the
     /// project's name in semibold (the full path is in the tooltip only), cut to whatever width is
     /// left once the right-aligned value/share text is measured, and a thin bar under the whole row
     /// in the project's own color, proportional to its share of

@@ -5,10 +5,9 @@ namespace AiUsage.Services;
 /// <summary>
 /// The one place that labels a retention duration: days below a year, years
 /// (one decimal between whole years) from 365 days up. A year always counts as exactly 365 days.
-/// The wording (Duration.Days/.Year/.Years) is deliberately independent of the chosen UI language,
-/// same as every other number in the app (numbers/times follow the OS regional
-/// format, not the text language); the fractional-year decimal separator follows
-/// <see cref="CultureInfo.CurrentCulture"/> for the same reason.
+/// The unit words (Duration.*) come from the chosen UI language; the numbers follow the OS regional
+/// format like every other number in the app, so the fractional-year decimal separator follows
+/// <see cref="CultureInfo.CurrentCulture"/>.
 /// </summary>
 public static class DurationFormatter
 {

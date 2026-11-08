@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace AiUsage.ViewModels;
 
 /// <summary>One provider's own notification override: a single "own value" switch, and, only once
-/// that is ticked, three sliders (5-Stunden/Woche/Andere) with their own Ein/Aus switch each. Writes
+/// that is ticked, three sliders (5-hour/weekly/other) with their own on/off switch each. Writes
 /// straight into the shared <see cref="ThresholdSettings"/> instance
 /// <see cref="NotificationService"/> already reads (through <see cref="SettingsRanges.ResolveThreshold"/>).</summary>
 public sealed partial class ThresholdRowViewModel : ObservableObject
@@ -77,8 +77,8 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
     /// snapshot has told, the generic word until then.</summary>
     public string OtherWindowLabel => _otherWindowName() is { Length: > 0 } name ? name : Loc["Window.Other"];
 
-    /// <summary>Names what each window's own Ein/Aus check box actually toggles, including which
-    /// provider's row it lives in - without this a screen reader announces four bare "Ein" boxes
+    /// <summary>Names what each window's own on/off check box actually toggles, including which
+    /// provider's row it lives in - without this a screen reader announces four bare "On" boxes
     /// (the checkbox's own Content text) with no way to tell them apart.</summary>
     public string FiveHourEnabledFullLabel => Loc.Format("Format.LabelValue", TextCompose.NameAndItem(HeaderDisplayName, Loc["Window.FiveHour"]), Loc["Settings.On"]);
     public string WeeklyEnabledFullLabel => Loc.Format("Format.LabelValue", TextCompose.NameAndItem(HeaderDisplayName, Loc["Window.Weekly"]), Loc["Settings.On"]);

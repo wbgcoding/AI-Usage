@@ -194,10 +194,8 @@
              grips are 3 px for the same reason: the 8 px scroll bars sit flush against those edges. -->
         <!-- PreviewMouseLeftButtonDown, not MouseLeftButtonDown: Thumb's own OnMouseLeftButtonDown
              starts its drag capture and marks the bubbling event Handled before a plain sibling
-             handler on the same element ever sees it - confirmed on the test machine, where a
-             temporary probe showed zero hits on the bubbling event even for a drag Thumb itself
-             visibly acted on. The tunnelling Preview version reaches this handler first, ahead of
-             Thumb's own processing, so the click count is never lost. -->
+             handler on the same element ever sees it. The tunnelling Preview version reaches this
+             handler first, ahead of Thumb's own processing, so the click count is never lost. -->
         <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeTop_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeHeightGrip_MouseLeftButtonDown"/>
         <!-- The same 4 pixels as the top grip above: both carry the double click that sets the
              height back to "fits the content", and a 3 pixel target made the bottom one noticeably

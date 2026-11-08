@@ -71,10 +71,8 @@ public static class CountdownFormatter
             : DateLabels.ShortMonthDay(local.DateTime, culture) + " " + local.ToString(time, culture);
     }
 
-    /// <summary>"Last update … ago" for the Stale state
-    /// - same day/hour/minute rounding as <see cref="Format"/>, just phrased as
-    /// elapsed time. The bare duration ("2h 15m") is not looked up per language: it uses the compact
-    /// unit symbols the reset texts of both languages use as well.</summary>
+    /// <summary>"Last update … ago" for the Stale state - the same day/hour/minute rounding as
+    /// <see cref="Format"/>, phrased as elapsed time (the duration itself is <see cref="FormatElapsed"/>).</summary>
     public static string FormatAge(DateTimeOffset? dataTimestamp, DateTimeOffset now)
     {
         if (dataTimestamp is not { } timestamp)

@@ -121,10 +121,6 @@ internal static class ClaudeConsoleCreditParser
         }
     }
 
-    /// <summary>What in the two answers no longer matches what this parser was written for: an
-    /// organisation list whose entries carry no uuid or capabilities, a credit answer without a
-    /// numeric amount. Key names only, never a figure or an id; empty for text that is no JSON (a
-    /// challenge page is no change of shape).</summary>
     /// <summary>
     /// The free credit grants of the credit answer ("promo_tranches": each with "granted_amount_minor_units",
     /// "remaining_amount_minor_units" and an optional "expires_at"), summed over the grants not yet
@@ -193,6 +189,10 @@ internal static class ClaudeConsoleCreditParser
         return grant with { Remaining = Math.Clamp(balance, 0m, grant.Granted) };
     }
 
+    /// <summary>What in the two answers no longer matches what this parser was written for: an
+    /// organisation list whose entries carry no uuid or capabilities, a credit answer without a
+    /// numeric amount. Key names only, never a figure or an id; empty for text that is no JSON (a
+    /// challenge page is no change of shape).</summary>
     internal static IReadOnlyList<string> ChangeNotes(string? organizationsJson, string? creditJson)
     {
         var notes = new List<string>();

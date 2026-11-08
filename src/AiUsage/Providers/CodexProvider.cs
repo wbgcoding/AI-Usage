@@ -13,7 +13,8 @@ namespace AiUsage.Providers;
 /// Reads OpenAI Codex's usage: its local session files always, and - once the app's own browser
 /// session for chatgpt.com is signed in - the account's own usage endpoint on top of it, so the
 /// numbers keep moving on a day the tool was not used at all. Both sources go through the shared
-/// chooser; they are never mixed into one window list. Never throws.
+/// chooser; they are never mixed into one window list. A failed read comes back as a failed
+/// snapshot, not as an exception.
 /// </summary>
 public sealed partial class CodexProvider : IUsageProvider
 {

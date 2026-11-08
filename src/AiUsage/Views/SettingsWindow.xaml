@@ -226,7 +226,7 @@
                     </Style.Triggers>
                 </Style>
             </StackPanel.Style>
-            <!-- 1. Anzeige -->
+            <!-- 1. Display -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Display]}" Style="{StaticResource CardHeading}"/>
@@ -601,7 +601,7 @@
                     </Style.Triggers>
                 </Style>
             </StackPanel.Style>
-            <!-- 3. Meldungen -->
+            <!-- 3. Notifications -->
             <Border Style="{StaticResource Card}">
                 <Border.Resources>
                     <ResourceDictionary Source="Controls/CollapsibleSection.xaml"/>
@@ -864,7 +864,7 @@
                     </Style.Triggers>
                 </Style>
             </StackPanel.Style>
-            <!-- 4. Anbieter -->
+            <!-- 4. Providers -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.Providers]}" Style="{StaticResource CardHeading}"/>

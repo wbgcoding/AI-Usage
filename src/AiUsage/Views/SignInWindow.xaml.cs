@@ -154,9 +154,10 @@ public partial class SignInWindow : Window
         ShellOpen.TryOpen(WebViewAvailability.DownloadPageUrl);
     }
 
-    /// <summary>Without this, the CoreWebView2 keeps this window alive through its own event
-    /// subscriptions, and the WebView2 control's environment/controller lives until the process
-    /// dies instead of being released the moment the sign-in dialog closes.</summary>
+    /// <summary>Releases what would otherwise outlive the dialog: the language subscription and the
+    /// poll, every handler on the CoreWebView2 (its event subscriptions would keep this window
+    /// alive), the popup and the WebView2 control itself, so its environment and controller go
+    /// the moment the sign-in closes, not when the process ends.</summary>
     private void OnClosed(object? sender, EventArgs e)
     {
         _closed = true;

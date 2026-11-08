@@ -31,8 +31,9 @@ public readonly record struct StatsIndexCounters(int FilesSeen, int FilesRead, l
 /// last run into <see cref="StatsStore"/>. A single <see cref="IndexOnce"/> call is the whole
 /// contract: safe to call repeatedly (a file whose size and write time match what is already stored
 /// is skipped without being opened), safe to cancel mid-walk (already-finished files stay
-/// finished - the next call simply continues with whatever is left), and never throws (a file that
-/// vanishes or locks up mid-read is left for the next run rather than failing the whole walk).
+/// finished - the next call simply continues with whatever is left; cancelling throws
+/// <see cref="OperationCanceledException"/>). A file that vanishes or locks up mid-read is left for
+/// the next run rather than failing the whole walk.
 ///
 /// Copilot is not walked here at all: it keeps no local token count to index - <see
 /// cref="ProviderCoverage"/> is what the statistics window itself reads to say so.

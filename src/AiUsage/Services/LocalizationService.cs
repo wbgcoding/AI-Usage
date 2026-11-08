@@ -5,14 +5,14 @@ using System.Resources;
 namespace AiUsage.Services;
 
 /// <summary>
-/// The one place every visible piece of text comes from. Deliberately
-/// bypasses the normal ResourceManager satellite-assembly/culture-fallback mechanism: both
-/// <c>Strings.resx</c> (EN) and <c>Strings.de.resx</c> (DE) are embedded straight into the main
-/// assembly (see AiUsage.csproj), each behind its own <see cref="ResourceManager"/> instance, so
-/// switching languages is a plain lookup-table swap - no thread culture, no satellite assembly
-/// resolution, nothing that could interact with number/date formatting (those follow the OS
-/// regional format regardless of which UI language is picked here; only the names of days and
-/// months follow the UI language, through <see cref="DisplayCulture"/>).
+/// The one place every visible piece of text comes from. Deliberately bypasses the normal
+/// ResourceManager satellite-assembly/culture-fallback mechanism: the resources of every language in
+/// <see cref="Languages"/> (<c>Strings.resx</c> for English, <c>Strings.{code}.resx</c> for the rest)
+/// are embedded straight into the main assembly (see AiUsage.csproj), each behind its own
+/// <see cref="ResourceManager"/> instance, so switching languages is a plain lookup-table swap - no
+/// thread culture, no satellite assembly resolution, nothing that could interact with number/date
+/// formatting (those follow the OS regional format regardless of which UI language is picked here;
+/// only the names of days and months follow the UI language, through <see cref="DisplayCulture"/>).
 /// </summary>
 public sealed class LocalizationService : INotifyPropertyChanged
 {
@@ -65,7 +65,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
     {
     }
 
-    /// <summary>"System", "de" or "en" (AppSettings.Language). "System" resolves
+    /// <summary>"System" or a code from <see cref="Languages"/> (AppSettings.Language). "System" resolves
     /// once, at the moment this is called, from <see cref="CultureInfo.CurrentUICulture"/> - not
     /// re-evaluated later, so a language switch always needs an explicit call, never a background
     /// poll of the OS setting.</summary>

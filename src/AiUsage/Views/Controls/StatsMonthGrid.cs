@@ -231,7 +231,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         set => SetValue(TotalLabelProperty, value);
     }
 
-    /// <summary>The empty day's own tooltip line (e.g. "keine Nutzung"/"no usage") - shown in place of
+    /// <summary>The empty day's own tooltip line (e.g. "no usage") - shown in place of
     /// a provider breakdown and total, since neither exists for that day.</summary>
     public static readonly DependencyProperty NoUsageTextProperty = DependencyProperty.Register(
         nameof(NoUsageText), typeof(string), typeof(StatsMonthGrid),
@@ -878,9 +878,9 @@ public sealed class StatsMonthGrid : FrameworkElement
     private const double ScaleLabelGap = 4;
     private const double ScaleRightMargin = 4;
 
-    /// <summary>The five-square "less..more" scale, right-aligned in the available width - stepped
-    /// in the leading provider's colour with the same alpha steps the cells use (<see
-    /// cref="IntensityScaleColor"/>), neutral when no provider led a day.</summary>
+    /// <summary>The five-square "less..more" scale, right-aligned in the available width: an empty
+    /// square, then four steps in the <see cref="IntensityScaleColor"/> colour with the same alpha
+    /// steps the cells use.</summary>
     private void DrawIntensityScale(
         DrawingContext dc, double y, double width, double dpi, Typeface typeface, IReadOnlyList<LegendEntry> providerLegend)
     {

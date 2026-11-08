@@ -625,13 +625,11 @@ public sealed class StatsBarChart : FrameworkElement
         AutomationProperties.SetName(this, string.Join(". ", BuildTooltipLines(bars[_focusedIndex], SeriesLabels, TokenWord)));
     }
 
-    // The left/bottom bands <see cref="OnRender"/> measures fresh every pass, from the widest Y axis
-    // figure and the X axis label's own line height - never wider than the data actually needs.
-    // Cached here (rather than recomputed in <see cref="OnMouseMove"/>/<see cref="UpdateTooltip"/>,
-    // which have no drawing context to measure text with) so hit testing lines up with what the last
-    // render pass actually drew. The two DefaultLeftMargin/DefaultBottomMargin constants are the
-    // fallback for the one case nothing can be measured against: an empty chart, with no Y ticks and
-    // no bars to size a band from.
+    // The left and bottom bands OnRender measures fresh every pass: the widest Y axis figure and the
+    // X axis label's line height, so they are never wider than the data needs. Cached because
+    // OnMouseMove and UpdateTooltip have no drawing context to measure text with, and hit testing
+    // has to line up with what the last render pass drew. The Default* constants are the fallback
+    // for an empty chart, which has no Y ticks and no bars to size a band from.
     private double _leftMargin = DefaultLeftMargin;
     private double _bottomMargin = DefaultBottomMargin;
     private const double DefaultLeftMargin = 56;

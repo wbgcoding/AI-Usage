@@ -2055,7 +2055,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             RefreshTileHistory(tile.ProviderId);
     }
 
-    /// <summary>Settings window's threshold sliders and Ein/Aus switches call this so every bar's
+    /// <summary>Settings window's threshold sliders and on/off switches call this so every bar's
     /// marker moves at once instead of at the next fetch.</summary>
     internal void ApplyThresholdsToAllTiles()
     {

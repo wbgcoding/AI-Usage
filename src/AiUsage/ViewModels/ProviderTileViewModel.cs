@@ -342,11 +342,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     private string? planText;
 
     /// <summary>Which account this tile is reading, when the provider's response names one - may be
-    /// an email address or login. PRIVACY: shown on the tile itself and in the Settings window's provider row
-    /// (<see cref="SettingsRowText"/>) and nowhere else - never add this to
-    /// <see cref="DiagnosticsText"/>, never pass it to a logger, never fold it into whatever a future
-    /// "copy everything" feature collects. Same "must never reach a log" contract <c>PathSanitizer.cs</c>
-    /// documents for user paths.</summary>
+    /// an email address or login. PRIVACY: shown on the tile (header and name tooltip) and in the
+    /// Settings window's provider row (<see cref="SettingsRowText"/>) only - never add this to
+    /// <see cref="DiagnosticsText"/> or the support report, never pass it to a logger. Same "must never
+    /// reach a log" contract <c>PathSanitizer.cs</c> documents for user paths.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HeaderDisplayName))]
     [NotifyPropertyChangedFor(nameof(TitleName))]
@@ -1074,8 +1073,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         LocalizationService.Instance.Format("Format.LabelValue", HeaderDisplayName, LocalizationService.Instance[IsHidden ? "Tile.Show" : "Tile.Hide"]);
 
     /// <summary>Timestamp of the last snapshot that actually carried data, regardless of status - a
-    /// Stale snapshot still has a last-known timestamp. Feeds the Settings window's "zuletzt
-    /// aktualisiert" line per provider, and (via <see cref="LastUpdatedText"/>) the same line on the
+    /// Stale snapshot still has a last-known timestamp. Feeds the Settings window's "last
+    /// updated" line per provider, and (via <see cref="LastUpdatedText"/>) the same line on the
     /// tile itself.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LastUpdatedText))]

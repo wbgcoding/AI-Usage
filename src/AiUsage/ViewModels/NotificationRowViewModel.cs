@@ -59,12 +59,12 @@ public sealed partial class NotificationRowViewModel : ObservableObject
         ? Loc["Settings.NotifySummary.Off"]
         : Threshold.UseCustom ? Loc["Settings.NotifySummary.Custom"] : Loc["Settings.NotifySummary.Default"];
 
-    /// <summary>"Meldungen für Claude" - the row's own master-switch label, with the provider name
+    /// <summary>"Notifications for Claude" - the row's own master-switch label, with the provider name
     /// filled in so several rows never read as identical text.</summary>
     public string NotificationsForProviderText => Loc.Format("Settings.NotificationsForProvider", HeaderDisplayName);
 
     /// <summary>Names what the master switch actually toggles for a screen reader, which otherwise
-    /// only announces the checkbox's own bare "Ein" content.</summary>
+    /// only announces the checkbox's own bare "On" content.</summary>
     public string NotificationsEnabledFullLabel => Loc.Format("Format.LabelValue", NotificationsForProviderText, Loc["Settings.On"]);
 
     public string NotifyOnResetEnabledFullLabel =>

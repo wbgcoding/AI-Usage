@@ -67,10 +67,10 @@ public static class AntigravityStateReader
     }
 
     /// <summary>Shortens whatever long plan-tier wording a producer's own source hands back to the
-    /// one short form the rest of the program ever shows on a tile. Called from both places that
-    /// produce a plan name (this reader and <see cref="LocalLogin.AntigravityLocalLogin"/>), so the
-    /// long form never reaches anything downstream. A name that names none of the known tiers passes
-    /// through unchanged, so an unrecognised plan is never hidden rather than mislabeled.</summary>
+    /// one short form the rest of the program ever shows on a tile; <see cref="LocalLogin.AntigravityLocalLogin"/>
+    /// applies it to the plan name it reads, so the long form never reaches anything downstream. A
+    /// name that names none of the known tiers passes through unchanged, so an unrecognised plan is
+    /// shown as it is rather than mislabeled.</summary>
     public static string? ShortenPlanName(string? planName)
     {
         if (string.IsNullOrEmpty(planName))
