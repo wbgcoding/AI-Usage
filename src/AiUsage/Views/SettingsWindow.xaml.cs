@@ -180,12 +180,13 @@ public partial class SettingsWindow : Window
 
     private void ResizeLeft_DragDelta(object sender, DragDeltaEventArgs e)
     {
-        (Width, Left) = SettingsWindowResize.FromLeftEdge(ActualWidth, Left, e.HorizontalChange, MinWidth, MaxWidth);
+        var (width, left) = WindowEdgeResize.FromNearEdge(ActualWidth, Left, e.HorizontalChange, MinWidth, MaxWidth);
+        WindowEdgeResize.MoveAndResize(this, left, Top, width, Height);
     }
 
     private void ResizeRight_DragDelta(object sender, DragDeltaEventArgs e)
     {
-        Width = SettingsWindowResize.FromRightEdge(ActualWidth, Left, e.HorizontalChange, MinWidth, MaxWidth).Width;
+        Width = WindowEdgeResize.FromFarEdge(ActualWidth, Left, e.HorizontalChange, MinWidth, MaxWidth).Size;
     }
 
     private void Resize_DragCompleted(object sender, DragCompletedEventArgs e) =>

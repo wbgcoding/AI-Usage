@@ -1017,37 +1017,16 @@ public partial class StatsWindow : Window
 
     private void GrowLeft(double dx)
     {
-        var newWidth = Math.Max(MinWidth, Width - dx);
-        MoveAndResize(Left + Width - newWidth, Top, newWidth, Height);
+        var (newWidth, newLeft) = WindowEdgeResize.FromNearEdge(Width, Left, dx, MinWidth, MaxWidth);
+        WindowEdgeResize.MoveAndResize(this, newLeft, Top, newWidth, Height);
     }
 
     private void GrowDown(double dy) => Height = Math.Max(MinHeight, Height + dy);
 
     private void GrowUp(double dy)
     {
-        var newHeight = Math.Max(MinHeight, Height - dy);
-        MoveAndResize(Left, Top + Height - newHeight, Width, newHeight);
-    }
-
-    /// <summary>Place and size in one native call. Setting Top and then Height shows the window moved at
-    /// its old size for a frame, so its content jumps down and back up while the top edge is dragged.</summary>
-    private void MoveAndResize(double left, double top, double width, double height)
-    {
-        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero || PresentationSource.FromVisual(this)?.CompositionTarget is not { } target)
-        {
-            Left = left;
-            Top = top;
-            Width = width;
-            Height = height;
-            return;
-        }
-
-        var toDevice = target.TransformToDevice;
-        var origin = toDevice.Transform(new Point(left, top));
-        var size = toDevice.Transform(new Vector(width, height));
-        Win32.SetWindowPos(handle, IntPtr.Zero, Convert.ToInt32(origin.X), Convert.ToInt32(origin.Y),
-            Convert.ToInt32(size.X), Convert.ToInt32(size.Y), Win32.SwpNoZOrder | Win32.SwpNoActivate);
+        var (newHeight, newTop) = WindowEdgeResize.FromNearEdge(Height, Top, dy, MinHeight, MaxHeight);
+        WindowEdgeResize.MoveAndResize(this, Left, newTop, Width, newHeight);
     }
 
     private void ResizeTop_DragDelta(object sender, DragDeltaEventArgs e) => GrowUp(e.VerticalChange);

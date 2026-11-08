@@ -1443,9 +1443,8 @@ public partial class MainWindow : Window, IDisposable
     {
         _resizeDragActive = true;
         MarkWidthManual();
-        var newWidth = Math.Max(MinWidth, Width - dx);
-        Left += Width - newWidth;
-        Width = newWidth;
+        var (newWidth, newLeft) = WindowEdgeResize.FromNearEdge(Width, Left, dx, MinWidth, MaxWidth);
+        WindowEdgeResize.MoveAndResize(this, newLeft, Top, newWidth, Height);
     }
 
     /// <summary>A dragged width beats the automatic one until the eye menu switches it back on -
@@ -1512,8 +1511,7 @@ public partial class MainWindow : Window, IDisposable
         var workAreaHeight = CurrentArea().Height;
         MaxHeight = workAreaHeight;
         var newHeight = WindowPlacementService.GrowManualHeight(Height, -dy, MinHeight, workAreaHeight, TallestContentHeightForDrag(), _zoom);
-        Top += Height - newHeight;
-        Height = newHeight;
+        WindowEdgeResize.MoveAndResize(this, Left, WindowEdgeResize.AnchorFarEdge(Top, Height, newHeight), Width, newHeight);
     }
 
     private void ResizeTop_DragDelta(object sender, DragDeltaEventArgs e) => GrowUp(e.VerticalChange);
