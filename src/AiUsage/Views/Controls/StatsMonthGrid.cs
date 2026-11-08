@@ -353,7 +353,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     public static readonly DependencyProperty ProviderDisplayNamesProperty = DependencyProperty.Register(
         nameof(ProviderDisplayNames), typeof(IReadOnlyDictionary<string, string>), typeof(StatsMonthGrid),
-        new FrameworkPropertyMetadata(EmptyDisplayNames, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(EmptyDisplayNames, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
 
     /// <summary>Provider id to display name, for the hover tooltip's per-provider breakdown and the
     /// color-key legend - the control never resolves a display name itself (every other piece of

@@ -45,7 +45,7 @@ public sealed class StatsRingChart : FrameworkElement
 
     public static readonly DependencyProperty SlicesProperty = DependencyProperty.Register(
         nameof(Slices), typeof(IReadOnlyList<Slice>), typeof(StatsRingChart),
-        new FrameworkPropertyMetadata(Array.Empty<Slice>(), FrameworkPropertyMetadataOptions.AffectsRender, OnSlicesChanged));
+        new FrameworkPropertyMetadata(Array.Empty<Slice>(), FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure, OnSlicesChanged));
 
     public IReadOnlyList<Slice> Slices
     {
