@@ -645,7 +645,6 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         catch
         {
             _host = null;
-            _ready = null;
             try
             {
                 await host.DisposeAsync();
@@ -655,6 +654,9 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
                 // The start's own failure is what the caller gets, not the failure of closing its host.
                 LogService.Shared.LogError($"Disposing the hidden browser of a failed start failed ({ex.GetType().Name}).");
             }
+
+            // Cleared only after the half-built host is gone: the next start must not overlap its teardown.
+            _ready = null;
 
             throw;
         }
