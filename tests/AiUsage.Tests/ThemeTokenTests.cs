@@ -80,6 +80,36 @@ public class ThemeTokenTests
         Assert.Equal(ExpectedTokens.Count + GradientTokenKeys.Length, dictionary.Count);
     }
 
+    // Every fixed chart colour has to read on the surfaces a chart sits on (WCAG 1.4.11, 3:1).
+    [Theory]
+    [MemberData(nameof(Themes))]
+    public void Every_chart_token_reads_at_three_to_one_on_the_chart_surfaces(string fileName)
+    {
+        var dictionary = Load(fileName);
+        var surfaces = new[] { "Bg.Base", "Bg.Surface", "Bg.Raised" }
+            .Select(key => ((SolidColorBrush)dictionary[key]).Color).ToList();
+        var chartKeys = dictionary.Keys.Cast<object>().OfType<string>().Where(key => key.StartsWith("Chart.", StringComparison.Ordinal)).ToList();
+        Assert.NotEmpty(chartKeys);
+
+        foreach (var key in chartKeys)
+            foreach (var surface in surfaces)
+            {
+                var color = ((SolidColorBrush)dictionary[key]).Color;
+                var contrast = AiUsage.Services.AccentColors.Contrast(color, surface);
+                Assert.True(contrast >= AiUsage.Services.AccentColors.MinimumContrast - 0.02, $"{fileName}: {key} {color} on {surface} = {contrast:0.00}");
+            }
+    }
+
+    [Fact]
+    public void The_high_contrast_chart_tokens_are_system_colours()
+    {
+        var dictionary = Load("HighContrast.xaml");
+        var systemColors = new[] { SystemColors.WindowTextColor, SystemColors.HotTrackColor, SystemColors.GrayTextColor, SystemColors.HighlightColor };
+
+        foreach (var key in dictionary.Keys.Cast<object>().OfType<string>().Where(key => key.StartsWith("Chart.", StringComparison.Ordinal)))
+            Assert.Contains(((SolidColorBrush)dictionary[key]).Color, systemColors);
+    }
+
     [Fact]
     public void The_high_contrast_dictionary_also_defines_every_token_with_the_expected_type()
     {

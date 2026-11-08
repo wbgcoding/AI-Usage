@@ -23,8 +23,8 @@
     <!-- Cache share bar segments (cache read uses Accent). -->
     <!-- Notification threshold marker on the usage bar: the primary text colour at about 55% opacity. -->
     <SolidColorBrush x:Key="Bar.Marker" Color="#8C101828"/>
-    <SolidColorBrush x:Key="Chart.Cache.New" Color="#59A14F"/>
-    <SolidColorBrush x:Key="Chart.Cache.Write" Color="#F28E2B"/>
+    <SolidColorBrush x:Key="Chart.Cache.New" Color="#559A4C"/>
+    <SolidColorBrush x:Key="Chart.Cache.Write" Color="#D36F0D"/>
     <SolidColorBrush x:Key="Chart.Cache.Output" Color="#B072A1"/>
     <!-- Usage bar fill: same flat level color at the left, 15% lighter at the right. -->
     <LinearGradientBrush x:Key="Level.Ok.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
