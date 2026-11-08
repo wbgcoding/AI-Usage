@@ -30,14 +30,17 @@ internal static class AllowListedDownloader
     /// <summary>The handler and the limits are parameters so a test can stall the body: the stall limit
     /// restarts with the headers and after every chunk read. Without a handler the download uses one
     /// that does not follow redirects itself. The destination must not exist: a file or link already
-    /// there is never written through.</summary>
+    /// there is never written through. The time limits run on <paramref name="timeProvider"/> (the system
+    /// clock by default) so a test can drive them without waiting.</summary>
     internal static async Task DownloadAsync(
         string url, string destination, Func<Uri, bool> isAllowed, HttpMessageHandler? handler,
-        TimeSpan stallLimit, TimeSpan overallLimit, long maxBytes, IProgress<double>? progress, CancellationToken ct)
+        TimeSpan stallLimit, TimeSpan overallLimit, long maxBytes, IProgress<double>? progress, CancellationToken ct,
+        TimeProvider? timeProvider = null)
     {
-        using var overall = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        overall.CancelAfter(overallLimit);
-        using var limit = CancellationTokenSource.CreateLinkedTokenSource(overall.Token);
+        var clock = timeProvider ?? TimeProvider.System;
+        using var overall = new CancellationTokenSource(overallLimit, clock);
+        using var stall = new CancellationTokenSource(Timeout.InfiniteTimeSpan, clock);
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct, overall.Token, stall.Token);
         using var client = new HttpClient(handler ?? new SocketsHttpHandler { AllowAutoRedirect = false, ConnectCallback = Ipv4FirstConnect.ConnectAsync })
         {
             Timeout = Timeout.InfiniteTimeSpan,
@@ -50,7 +53,7 @@ internal static class AllowListedDownloader
             if (current.Scheme != Uri.UriSchemeHttps || !isAllowed(current))
                 throw new InvalidOperationException("download address is not on the allow-list");
 
-            limit.CancelAfter(stallLimit);
+            stall.CancelAfter(stallLimit);
             using var response = await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, limit.Token);
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
             {
@@ -68,10 +71,10 @@ internal static class AllowListedDownloader
             var buffer = new byte[81920];
             long received = 0;
             int read;
-            limit.CancelAfter(stallLimit);
+            stall.CancelAfter(stallLimit);
             while ((read = await source.ReadAsync(buffer, limit.Token)) > 0)
             {
-                limit.CancelAfter(stallLimit);
+                stall.CancelAfter(stallLimit);
                 received += read;
                 if (received > maxBytes)
                     throw new InvalidOperationException("download is larger than allowed");

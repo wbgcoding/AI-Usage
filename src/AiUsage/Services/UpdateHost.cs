@@ -122,12 +122,13 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     /// <summary>The handler and the limits are parameters so a test can stall the body. A failed
     /// download is <c>false</c>; only the caller's own cancellation propagates.</summary>
     internal static async Task<bool> DownloadAsync(
-        string url, string destination, HttpMessageHandler? handler, TimeSpan stallLimit, TimeSpan overallLimit, CancellationToken ct)
+        string url, string destination, HttpMessageHandler? handler, TimeSpan stallLimit, TimeSpan overallLimit, CancellationToken ct,
+        TimeProvider? timeProvider = null)
     {
         try
         {
             await AllowListedDownloader.DownloadAsync(
-                url, destination, uri => UpdateInstaller.IsAllowedUrl(uri.AbsoluteUri), handler, stallLimit, overallLimit, MaxUpdateBytes, null, ct);
+                url, destination, uri => UpdateInstaller.IsAllowedUrl(uri.AbsoluteUri), handler, stallLimit, overallLimit, MaxUpdateBytes, null, ct, timeProvider);
             return true;
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException
