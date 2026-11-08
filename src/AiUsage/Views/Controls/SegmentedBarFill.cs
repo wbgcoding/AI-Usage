@@ -46,28 +46,10 @@ public sealed class SegmentedBarFill : FrameworkElement
         return Math.Min(trackWidth, Math.Max(MinFilledWidth, trackWidth * Math.Clamp(usedPercent, 0, 100) / 100.0));
     }
 
-    // The palette is a handful of colors and a bar renders often: brushes are frozen once per color,
-    // and the clip is kept while the size stays the same.
-    private static readonly Dictionary<Color, SolidColorBrush> Brushes = [];
-
+    // A bar renders often: the clip is kept while the size stays the same.
     private RectangleGeometry? _clip;
     private double _clipWidth;
     private double _clipHeight;
-
-    private static SolidColorBrush BrushFor(Color color)
-    {
-        lock (Brushes)
-        {
-            if (!Brushes.TryGetValue(color, out var brush))
-            {
-                brush = new SolidColorBrush(color);
-                brush.Freeze();
-                Brushes[color] = brush;
-            }
-
-            return brush;
-        }
-    }
 
     private RectangleGeometry ClipFor(double width, double height)
     {
@@ -94,7 +76,7 @@ public sealed class SegmentedBarFill : FrameworkElement
         // color shows between two parts whose edge falls inside a pixel.
         foreach (var part in placed)
         {
-            drawingContext.DrawRectangle(BrushFor(part.Color), null, new Rect(part.Left, 0, filled - part.Left, ActualHeight));
+            drawingContext.DrawRectangle(ChartDrawCache.BrushFor(part.Color), null, new Rect(part.Left, 0, filled - part.Left, ActualHeight));
         }
 
         drawingContext.Pop();

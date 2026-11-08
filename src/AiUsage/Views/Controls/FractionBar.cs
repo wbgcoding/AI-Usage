@@ -82,7 +82,7 @@ public sealed class FractionBar : FrameworkElement
             return;
 
         var radius = height / 2;
-        var outline = Outline is { } brush && OutlineThickness.Left > 0 ? new Pen(brush, OutlineThickness.Left) : null;
+        var outline = Outline is { } brush && OutlineThickness.Left > 0 ? ChartDrawCache.PenFor(brush, OutlineThickness.Left) : null;
         drawingContext.DrawRoundedRectangle(Track, outline, new Rect(0, 0, width, height), radius, radius);
 
         var filled = FilledWidth(Fraction, width);

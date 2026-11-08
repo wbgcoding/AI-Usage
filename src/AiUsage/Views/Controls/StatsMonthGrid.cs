@@ -74,7 +74,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     private static void OnSummaryInputChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var grid = (StatsMonthGrid)d;
-        grid.ResetHover();
+        grid._hover.Reset();
         if (grid.IsKeyboardFocused && grid._focusedDay is not null)
             grid.UpdateFocusedAutomationName();
         else
@@ -739,20 +739,13 @@ public sealed class StatsMonthGrid : FrameworkElement
         Rect Rect, DateOnly Day, long Total, IReadOnlyList<ProviderTotal> ByProvider, string? CostLine = null);
 
     private readonly List<CellHit> _cellHits = [];
-    private CellHit? _hoverCell;
+    private readonly ChartCellHover<CellHit> _hover = new();
 
     /// <summary>True while a hovered cell is remembered - what a data change has to clear.</summary>
     internal bool HasHover
     {
-        get => _hoverCell is not null;
-        set => _hoverCell = value ? new CellHit(new Rect(0, 0, 1, 1), default, 0, []) : null;
-    }
-
-    // The data under a stationary pointer changed: the old cell and its tooltip text no longer match.
-    private void ResetHover()
-    {
-        _hoverCell = null;
-        _tooltipPopup?.Hide();
+        get => _hover.HasHover;
+        set => _hover.Remember(value ? new CellHit(new Rect(0, 0, 1, 1), default, 0, []) : null);
     }
 
     protected override void OnRender(DrawingContext drawingContext)
@@ -878,31 +871,35 @@ public sealed class StatsMonthGrid : FrameworkElement
     internal static Color IntensityScaleColor(IReadOnlyList<LegendEntry> providerLegend, Color neutral) =>
         providerLegend.Count > 0 ? ChartPalette.ForProvider(providerLegend[0].ProviderId) : neutral;
 
+    // Geometry of the intensity scale, shared by drawing and measuring.
+    private const int ScaleSteps = 5;
+    private const double ScaleSquare = 10;
+    private const double ScaleGap = 2;
+    private const double ScaleLabelGap = 4;
+    private const double ScaleRightMargin = 4;
+
     /// <summary>The five-square "less..more" scale, right-aligned in the available width - stepped
     /// in the leading provider's colour with the same alpha steps the cells use (<see
     /// cref="IntensityScaleColor"/>), neutral when no provider led a day.</summary>
     private void DrawIntensityScale(
         DrawingContext dc, double y, double width, double dpi, Typeface typeface, IReadOnlyList<LegendEntry> providerLegend)
     {
-        const double square = 10;
-        const double gap = 2;
-
         var lessText = new FormattedText(LegendLessText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
         var moreText = new FormattedText(LegendMoreText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
         var startX = Math.Max(0, width - IntensityScaleWidth(dpi, typeface));
 
         dc.DrawText(lessText, new Point(startX, y - 1));
-        var x = startX + lessText.Width + 4;
+        var x = startX + lessText.Width + ScaleLabelGap;
         var scaleColor = IntensityScaleColor(providerLegend, BrushColor(TextBrush));
-        for (var step = 0; step <= 4; step++)
+        for (var step = 0; step < ScaleSteps; step++)
         {
             var fill = step == 0 ? EmptyCellBrush : IntensityBrush(scaleColor, step);
-            dc.DrawRoundedRectangle(fill, null, new Rect(x, y, square, square), 2, 2);
-            x += square;
-            if (step < 4)
-                x += gap; // no trailing gap after the last square - contentWidth above counts exactly four
+            dc.DrawRoundedRectangle(fill, null, new Rect(x, y, ScaleSquare, ScaleSquare), 2, 2);
+            x += ScaleSquare;
+            if (step < ScaleSteps - 1)
+                x += ScaleGap; // no trailing gap after the last square
         }
-        dc.DrawText(moreText, new Point(x + 4, y - 1));
+        dc.DrawText(moreText, new Point(x + ScaleLabelGap, y - 1));
     }
 
     /// <summary>Width the intensity scale takes at the right edge, its right margin included: without
@@ -910,16 +907,13 @@ public sealed class StatsMonthGrid : FrameworkElement
     /// rounding alone is then enough to clip its last letter.</summary>
     private double IntensityScaleWidth(double dpi, Typeface typeface)
     {
-        const double square = 10;
-        const double gap = 2;
-        const double rightMargin = 4;
         var key = (LegendLessText, LegendMoreText, dpi, typeface);
         if (_scaleWidthKey == key)
             return _scaleWidth;
 
         var lessText = new FormattedText(LegendLessText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
         var moreText = new FormattedText(LegendMoreText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
-        _scaleWidth = lessText.Width + 4 + 5 * square + 4 * gap + 4 + moreText.Width + rightMargin;
+        _scaleWidth = lessText.Width + ScaleLabelGap + ScaleSteps * ScaleSquare + (ScaleSteps - 1) * ScaleGap + ScaleLabelGap + moreText.Width + ScaleRightMargin;
         _scaleWidthKey = key;
         return _scaleWidth;
     }
@@ -1061,13 +1055,10 @@ public sealed class StatsMonthGrid : FrameworkElement
         return lines;
     }
 
-    private ChartTooltipPopup? _tooltipPopup;
-
     private void ShowTooltip(CellHit hover)
     {
         var lines = BuildTooltipLines(hover, ProviderDisplayNames, TokenWord, TotalLabel, NoUsageText, LocalizationService.Instance.DisplayCulture);
-        _tooltipPopup ??= new ChartTooltipPopup();
-        _tooltipPopup.Show(this, hover.Rect, lines, TooltipBackground, TextBrush, TextBrush);
+        _hover.Show(this, hover.Rect, lines, TooltipBackground, TextBrush);
     }
 
     private DateOnly? _focusedDay;
@@ -1185,7 +1176,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             return;
 
         _focusedDay = null;
-        _tooltipPopup?.Hide();
+        _hover.Hide();
         AutomationProperties.SetName(this, BuildAccessibleSummary(Days, RangeStart, RangeEnd, LocalizationService.Instance.DisplayCulture));
         InvalidateVisual();
     }
@@ -1231,27 +1222,13 @@ public sealed class StatsMonthGrid : FrameworkElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        var point = e.GetPosition(this);
-        var hit = _cellHits.FirstOrDefault(cell => cell.Rect.Contains(point));
-        var hovered = hit.Rect.Width > 0 ? hit : (CellHit?)null;
-        if (Nullable.Equals(hovered, _hoverCell))
-            return;
-
-        _hoverCell = hovered;
-        if (hovered is { } cell)
-            ShowTooltip(cell);
-        else
-            _tooltipPopup?.Hide();
+        _hover.Move(e.GetPosition(this), _cellHits, hit => hit.Rect, ShowTooltip);
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
-        if (_hoverCell is null)
-            return;
-
-        _hoverCell = null;
-        _tooltipPopup?.Hide();
+        _hover.Leave();
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)

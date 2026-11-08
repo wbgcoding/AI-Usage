@@ -160,8 +160,7 @@ public sealed class StatsHeatmap : FrameworkElement
     private static void OnDataChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var heatmap = (StatsHeatmap)d;
-        heatmap._hoverCell = null;
-        heatmap._tooltipPopup?.Hide();
+        heatmap._hover.Reset();
         heatmap.UpdateSummaryName();
         if (heatmap._focusedCell is not null)
             heatmap.UpdateFocusedAutomationName();
@@ -222,13 +221,13 @@ public sealed class StatsHeatmap : FrameworkElement
     private readonly record struct CellHit(Rect Rect, int Row, int Column);
 
     private readonly List<CellHit> _cellHits = [];
-    private CellHit? _hoverCell;
+    private readonly ChartCellHover<CellHit> _hover = new();
 
     /// <summary>True while a hovered cell is remembered - what a data change has to clear.</summary>
     internal bool HasHover
     {
-        get => _hoverCell is not null;
-        set => _hoverCell = value ? new CellHit(new Rect(0, 0, 1, 1), 0, 0) : null;
+        get => _hover.HasHover;
+        set => _hover.Remember(value ? new CellHit(new Rect(0, 0, 1, 1), 0, 0) : null);
     }
     private (int Row, int Column)? _focusedCell;
 
@@ -344,8 +343,6 @@ public sealed class StatsHeatmap : FrameworkElement
 
     // ---- Tooltip, mouse, keyboard ----
 
-    private ChartTooltipPopup? _tooltipPopup;
-
     private string TextOf(int row, int column) =>
         BuildTooltip(TooltipFormat, DayOfRow(FirstDay, row), column, Values[row * Columns + column], LocalizationService.Instance.DisplayCulture);
 
@@ -376,36 +373,19 @@ public sealed class StatsHeatmap : FrameworkElement
     private string[] LinesOf(int row, int column) =>
         BuildLines(TextOf(row, column), CostOf(row, column), LeaderOf(row, column));
 
-    private void ShowTooltip(CellHit hit)
-    {
-        _tooltipPopup ??= new ChartTooltipPopup();
-        _tooltipPopup.Show(this, hit.Rect, LinesOf(hit.Row, hit.Column), TooltipBackground, TextBrush, TextBrush);
-    }
+    private void ShowTooltip(CellHit hit) =>
+        _hover.Show(this, hit.Rect, LinesOf(hit.Row, hit.Column), TooltipBackground, TextBrush);
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        var point = e.GetPosition(this);
-        var hit = _cellHits.FirstOrDefault(cell => cell.Rect.Contains(point));
-        var hovered = hit.Rect.Width > 0 ? hit : (CellHit?)null;
-        if (Nullable.Equals(hovered, _hoverCell))
-            return;
-
-        _hoverCell = hovered;
-        if (hovered is { } cell)
-            ShowTooltip(cell);
-        else
-            _tooltipPopup?.Hide();
+        _hover.Move(e.GetPosition(this), _cellHits, hit => hit.Rect, ShowTooltip);
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
-        if (_hoverCell is null)
-            return;
-
-        _hoverCell = null;
-        _tooltipPopup?.Hide();
+        _hover.Leave();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -440,7 +420,7 @@ public sealed class StatsHeatmap : FrameworkElement
             return;
 
         _focusedCell = null;
-        _tooltipPopup?.Hide();
+        _hover.Hide();
         UpdateSummaryName();
         InvalidateVisual();
     }

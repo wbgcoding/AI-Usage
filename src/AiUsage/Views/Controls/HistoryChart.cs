@@ -508,14 +508,14 @@ public sealed class HistoryChart : FrameworkElement
         if (matches.Count == 0)
             return;
 
-        dc.DrawLine(GetGridStyle().GuidePen, new Point(hover.X, 0), new Point(hover.X, plotHeight));
+        dc.DrawLine(GridSolidPen(), new Point(hover.X, 0), new Point(hover.X, plotHeight));
 
         var range = RangeEnd - RangeStart;
         var lines = new string[matches.Count];
         for (var i = 0; i < matches.Count; i++)
         {
             var (point, label, kind) = matches[i];
-            var dotBrush = GetSeriesColours(kind, UsageRowViewModel.Classify(point.Percent)).SolidPen.Brush;
+            var dotBrush = SeriesBrush(kind, UsageRowViewModel.Classify(point.Percent));
             var px = MapX(point.At, width);
             dc.DrawEllipse(dotBrush, null, new Point(px, HoverDotY(point.Percent, plotHeight)), 1.5, 1.5);
 
@@ -545,7 +545,7 @@ public sealed class HistoryChart : FrameworkElement
         var boxY = Math.Clamp(4, 0, Math.Max(0, height - boxHeight));
 
         var bgBrush = (Brush)(TryFindResource("Bg.Raised") ?? System.Windows.SystemColors.WindowBrush);
-        dc.DrawRoundedRectangle(bgBrush, GetGridStyle().SolidPen, new Rect(boxX, boxY, boxWidth, boxHeight), 4, 4);
+        dc.DrawRoundedRectangle(bgBrush, GridSolidPen(), new Rect(boxX, boxY, boxWidth, boxHeight), 4, 4);
         dc.DrawText(formatted, new Point(boxX + padding, boxY + padding));
     }
 
@@ -667,9 +667,8 @@ public sealed class HistoryChart : FrameworkElement
         }
 
         var plotHeight = PlotHeight(height, ShowAxes);
-        var gridStyle = GetGridStyle();
         foreach (var (y, dashed) in GridLines(plotHeight))
-            drawingContext.DrawLine(dashed ? gridStyle.DashedPen : gridStyle.SolidPen, new Point(0, y), new Point(width, y));
+            drawingContext.DrawLine(dashed ? GridDashedPen() : GridSolidPen(), new Point(0, y), new Point(width, y));
 
         // Null-safe: the default only applies while the property is unset - a binding can still
         // hand over an explicit null (e.g. before the source view model finishes initialising).
@@ -729,9 +728,9 @@ public sealed class HistoryChart : FrameworkElement
         LegendEntries(hasFiveHour, hasWeekly, FiveHourLabel, WeeklyLabel, hasPreviousWeek, PreviousWeekLabel)
             .Select(entry => (entry.Label, entry.Kind switch
             {
-                WindowKind.FiveHour => GetSeriesColours(WindowKind.FiveHour, UsageRowViewModel.Classify(fiveHourLastPercent)).DashedPen,
+                WindowKind.FiveHour => SeriesPen(WindowKind.FiveHour, UsageRowViewModel.Classify(fiveHourLastPercent), dashed: true),
                 PreviousWeekLegendKind => GetPreviousWeekPen(),
-                _ => GetSeriesColours(WindowKind.Weekly, UsageLevel.Ok).SolidPen,
+                _ => SeriesPen(WindowKind.Weekly, UsageLevel.Ok, dashed: false),
             }))
             .ToArray();
 
@@ -742,7 +741,7 @@ public sealed class HistoryChart : FrameworkElement
             return;
 
         var style = SeriesStyle(kind);
-        var levelStyle = GetSeriesColours(kind, UsageRowViewModel.Classify(reduced[^1].Percent));
+        var level = UsageRowViewModel.Classify(reduced[^1].Percent);
 
         var points = new Point[reduced.Count];
         for (var i = 0; i < reduced.Count; i++)
@@ -762,7 +761,7 @@ public sealed class HistoryChart : FrameworkElement
                     ctx.LineTo(point, isStroked: false, isSmoothJoin: false);
                 ctx.LineTo(new Point(points[^1].X, plotHeight), isStroked: false, isSmoothJoin: false);
             }
-            dc.DrawGeometry(levelStyle.Fill, null, areaGeometry);
+            dc.DrawGeometry(ChartDrawCache.WithOpacity(SeriesBrush(kind, level), FillOpacity), null, areaGeometry);
         }
 
         var lineGeometry = new StreamGeometry();
@@ -772,7 +771,7 @@ public sealed class HistoryChart : FrameworkElement
             for (var i = 1; i < points.Length; i++)
                 ctx.LineTo(points[i], isStroked: true, isSmoothJoin: true);
         }
-        dc.DrawGeometry(null, style.IsDashed ? levelStyle.DashedPen : levelStyle.SolidPen, lineGeometry);
+        dc.DrawGeometry(null, SeriesPen(kind, level, style.IsDashed), lineGeometry);
     }
 
     /// <summary>The previous-week points reduced to one per pixel column; empty when the line is not
@@ -852,126 +851,40 @@ public sealed class HistoryChart : FrameworkElement
     internal static string SeriesColourKey(WindowKind kind, UsageLevel level) =>
         kind == WindowKind.FiveHour ? LevelResourceKey(level) : "Accent";
 
-    /// <summary>Cached, frozen draw resources for one series colour: a solid pen (weekly-style series),
-    /// a dashed pen sharing the same color (five-hour-style series), and a 6%-opacity fill brush.
-    /// Built once per distinct resolved theme brush and reused across renders instead of allocating a
-    /// fresh Pen/Brush on every <see cref="OnRender"/> call. Rebuilt automatically the first time the
-    /// theme resource resolves to a different brush instance (e.g. the user switches theme),
-    /// so the cache stays correct across live theme switching instead of freezing colors forever.</summary>
-    private sealed class LevelStyle
-    {
-        public required Brush SourceBrush { get; init; }
-        public required Pen SolidPen { get; init; }
-        public required Pen DashedPen { get; init; }
-        public required Brush Fill { get; init; }
-    }
-
     /// <summary>How strongly the area under a filled line is tinted: just enough to read as a surface,
     /// faint enough that it never turns muddy on a dark background.</summary>
     internal const double FillOpacity = 0.06;
 
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, LevelStyle> LevelStyleCache = new();
+    private static readonly DoubleCollection FiveHourDashCollection = FrozenDashes(FiveHourDashes);
+    private static readonly DoubleCollection PreviousWeekDashCollection = FrozenDashes(PreviousWeekDashes);
+    private static readonly DoubleCollection HalfLineDashCollection = FrozenDashes([2, 3]);
 
-    private LevelStyle GetSeriesColours(WindowKind kind, UsageLevel level)
+    private static DoubleCollection FrozenDashes(double[] dashes)
     {
-        var key = SeriesColourKey(kind, level);
-        var resolved = (Brush)(TryFindResource(key) ?? ChartTheme.Muted(this, null));
-
-        if (LevelStyleCache.TryGetValue(key, out var cached) && ReferenceEquals(cached.SourceBrush, resolved))
-            return cached;
-
-        var solidPen = new Pen(resolved, SeriesThickness);
-        if (solidPen.CanFreeze)
-            solidPen.Freeze();
-
-        var dashedPen = new Pen(resolved, SeriesThickness) { DashStyle = new DashStyle(FiveHourDashes, 0) };
-        if (dashedPen.CanFreeze)
-            dashedPen.Freeze();
-
-        Brush fill = resolved is SolidColorBrush solid
-            ? new SolidColorBrush(solid.Color) { Opacity = FillOpacity }
-            : resolved;
-        if (fill.CanFreeze)
-            fill.Freeze();
-
-        var style = new LevelStyle { SourceBrush = resolved, SolidPen = solidPen, DashedPen = dashedPen, Fill = fill };
-        LevelStyleCache[key] = style;
-        return style;
+        var collection = new DoubleCollection(dashes);
+        collection.Freeze();
+        return collection;
     }
 
-    /// <summary>Cached, frozen draw resources for the grid lines and the hover guide line - a solid
-    /// pen (the top edge and the hover guide, both plain "Border"), a dashed pen at half opacity (the
-    /// 50% line), sharing the same "Border" theme resource the series colors are cached from. Built once per distinct resolved brush and reused across renders instead
-    /// of allocating three fresh Pen/Brush instances on every <see cref="OnRender"/> and every
-    /// <see cref="DrawHover"/> call.</summary>
-    private sealed class GridStyle
-    {
-        public required Brush SourceBrush { get; init; }
-        public required Pen SolidPen { get; init; }
-        public required Pen DashedPen { get; init; }
-        public required Pen GuidePen { get; init; }
-    }
+    /// <summary>The theme brush a series is drawn in; the pens and fills derived from it come from
+    /// <see cref="ChartDrawCache"/>, which starts afresh whenever a theme switch resolves a new brush.</summary>
+    private Brush SeriesBrush(WindowKind kind, UsageLevel level) =>
+        (Brush)(TryFindResource(SeriesColourKey(kind, level)) ?? ChartTheme.Muted(this, null));
 
-    private static GridStyle? _gridStyleCache;
+    private Pen SeriesPen(WindowKind kind, UsageLevel level, bool dashed) =>
+        ChartDrawCache.PenFor(SeriesBrush(kind, level), SeriesThickness, dashes: dashed ? FiveHourDashCollection : null);
 
-    private GridStyle GetGridStyle()
-    {
-        var resolved = ChartTheme.TooltipBorder(this, null);
+    /// <summary>The top edge, the hover guide and the tooltip border: a plain pen in the border colour.</summary>
+    private Pen GridSolidPen() => ChartDrawCache.PenFor(ChartTheme.TooltipBorder(this, null), 1);
 
-        var cached = _gridStyleCache;
-        if (cached is not null && ReferenceEquals(cached.SourceBrush, resolved))
-            return cached;
+    /// <summary>The 50% line: the border colour at half opacity, dashed.</summary>
+    private Pen GridDashedPen() =>
+        ChartDrawCache.PenFor(ChartDrawCache.WithOpacity(ChartTheme.TooltipBorder(this, null), 0.5), 1, dashes: HalfLineDashCollection);
 
-        var solidPen = new Pen(resolved, 1);
-        if (solidPen.CanFreeze)
-            solidPen.Freeze();
-
-        var dashedBrush = resolved is SolidColorBrush solidGrid
-            ? new SolidColorBrush(solidGrid.Color) { Opacity = 0.5 }
-            : resolved;
-        if (dashedBrush.CanFreeze)
-            dashedBrush.Freeze();
-        var dashedPen = new Pen(dashedBrush, 1) { DashStyle = new DashStyle([2, 3], 0) };
-        if (dashedPen.CanFreeze)
-            dashedPen.Freeze();
-
-        var guidePen = new Pen(resolved, 1);
-        if (guidePen.CanFreeze)
-            guidePen.Freeze();
-
-        var style = new GridStyle { SourceBrush = resolved, SolidPen = solidPen, DashedPen = dashedPen, GuidePen = guidePen };
-        _gridStyleCache = style;
-        return style;
-    }
-
-    /// <summary>Cached, frozen pen for the previous-week comparison line - built once per distinct
-    /// resolved "Text.Muted" brush and reused across renders instead of allocating a fresh
-    /// Brush/Pen on every <see cref="DrawPreviousWeekLine"/> call.</summary>
-    private static (Brush SourceBrush, Pen Pen)? _previousWeekPenCache;
-
-    private Pen GetPreviousWeekPen()
-    {
-        var resolved = ChartTheme.Muted(this, null);
-
-        var cached = _previousWeekPenCache;
-        if (cached is { } c && ReferenceEquals(c.SourceBrush, resolved))
-            return c.Pen;
-
-        var lineBrush = resolved is SolidColorBrush solidMuted
-            ? new SolidColorBrush(solidMuted.Color) { Opacity = 0.8 }
-            : resolved;
-        if (lineBrush.CanFreeze)
-            lineBrush.Freeze();
-
+    private Pen GetPreviousWeekPen() =>
         // Thin and dotted, clearly unlike the longer dashes of the five-hour line, so it stays
         // identifiable even where its value tracks a real series almost exactly.
-        var pen = new Pen(lineBrush, PreviousWeekThickness) { DashStyle = new DashStyle(PreviousWeekDashes, 0) };
-        if (pen.CanFreeze)
-            pen.Freeze();
-
-        _previousWeekPenCache = (resolved, pen);
-        return pen;
-    }
+        ChartDrawCache.PenFor(ChartDrawCache.WithOpacity(ChartTheme.Muted(this, null), 0.8), PreviousWeekThickness, dashes: PreviousWeekDashCollection);
 
     /// <summary>
     /// Reduces a raw series to at most <paramref name="columns"/> points by averaging every point
