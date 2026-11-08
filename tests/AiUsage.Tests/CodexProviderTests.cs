@@ -188,6 +188,25 @@ public class CodexProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task FetchAsync_keeps_the_windows_of_the_other_files_when_the_newest_one_is_locked()
+    {
+        var now = DateTimeOffset.Parse("2026-09-01T10:01:00Z");
+        var directory = NewSessionsDirectory();
+        PlaceFixture(directory, "codex-normal.jsonl", "rollout-older.jsonl", now.AddMinutes(-5));
+        PlaceFixture(directory, "codex-old.jsonl", "rollout-newest.jsonl", now.AddMinutes(-1));
+
+        // The writer of the newest session holds it exclusively.
+        using var lockedNewest = new FileStream(
+            Path.Combine(directory, "rollout-newest.jsonl"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var snapshot = await new CodexProvider(directory, () => now).FetchAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.False(snapshot.IsWaitingForUser);
+        Assert.Equal(2.0, snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+        Assert.Equal(88.0, snapshot.Windows.Single(w => w.Kind == WindowKind.Weekly).UsedPercent);
+    }
+
+    [Fact]
     public async Task FetchAsync_reports_zero_percent_when_every_file_is_older_than_a_week()
     {
         var now = DateTimeOffset.Parse("2026-09-01T10:01:00Z");

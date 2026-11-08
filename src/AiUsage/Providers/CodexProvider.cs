@@ -275,9 +275,17 @@ public sealed partial class CodexProvider : IUsageProvider
             DateTimeOffset? waitingSince = null;
             if (files.Count > 0)
             {
-                var (turnKind, turnTimestamp) = SessionTurnReader.ReadNewestCodexTurn(files[0].FullName);
-                isWaitingForUser = AttentionDetector.IsWaiting(turnKind, turnTimestamp, fetchedAt, _attentionMaxAge());
-                waitingSince = isWaitingForUser ? turnTimestamp : null;
+                try
+                {
+                    var (turnKind, turnTimestamp) = SessionTurnReader.ReadNewestCodexTurn(files[0].FullName);
+                    isWaitingForUser = AttentionDetector.IsWaiting(turnKind, turnTimestamp, fetchedAt, _attentionMaxAge());
+                    waitingSince = isWaitingForUser ? turnTimestamp : null;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // The newest file is locked: the attention state is unknown (not waiting), and the
+                    // windows of the other files are still read below.
+                }
             }
 
             foreach (var file in files)
