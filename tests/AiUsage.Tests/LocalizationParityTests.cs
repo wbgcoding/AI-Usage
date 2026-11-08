@@ -150,7 +150,11 @@ public class LocalizationParityTests
     private static readonly HashSet<string> AllowedXamlLiterals = ["AI-Usage", "AI"];
 
     private static readonly Regex XamlAttribute = new(
-        @"(?<![A-Za-z])(Content|Text|Header|ToolTip|Title)\s*=\s*""([^""]*)""", RegexOptions.Compiled);
+        @"(?<![A-Za-z])(Content|Text|Header|ToolTip|Title|AutomationProperties\.Name|AutomationProperties\.HelpText)\s*=\s*""([^""]*)""",
+        RegexOptions.Compiled);
+
+    // Text between two tags: <TextBlock>Hello</TextBlock>.
+    private static readonly Regex XamlElementContent = new(@">([^<>]*)<", RegexOptions.Compiled);
 
     private static readonly Regex XamlComment = new(@"<!--.*?-->", RegexOptions.Singleline | RegexOptions.Compiled);
 
@@ -183,6 +187,9 @@ public class LocalizationParityTests
         new(@"MessageBox\.Show\(\s*(?:this,\s*)?""([A-Za-zÄÖÜäöüß][^""]*\s[^""]*)""", RegexOptions.Compiled),
         new(@"new ToolStripMenuItem\(\s*""([A-Za-zÄÖÜäöüß][^""]*)""", RegexOptions.Compiled),
         new(@"\.Text\s*=\s*""([A-Za-zÄÖÜäöüß][^""]*\s[^""]*)""", RegexOptions.Compiled),
+        // No comma in the value: a CSV header row ("section,label,day") is data, not shown text.
+        new(@"\b(?:ToolTip|Header|Content|Title)\s*=\s*""([A-Za-zÄÖÜäöüß][^"",]*)""", RegexOptions.Compiled),
+        new(@"AutomationProperties\.SetName\([^,]+,\s*""([^""]+)""", RegexOptions.Compiled),
     ];
 
     [Fact]
@@ -200,6 +207,77 @@ public class LocalizationParityTests
         }
 
         Assert.True(offenders.Count == 0, "Unlocalized code text found:\n" + string.Join("\n", offenders));
+    }
+
+    [Theory]
+    [InlineData("<Button AutomationProperties.Name=\"Close window\" />")]
+    [InlineData("<Button AutomationProperties.HelpText=\"Closes it\" />")]
+    [InlineData("<TextBlock>Hello there</TextBlock>")]
+    public void TheXamlScanSeesAccessibleNamesAndElementText(string xaml)
+    {
+        Assert.True(XamlAttribute.IsMatch(xaml) || XamlElementContent.Matches(xaml).Any(m => ContainsLetters(m.Groups[1].Value)));
+    }
+
+    [Theory]
+    [InlineData("button.ToolTip = \"Close it\";")]
+    [InlineData("new MenuItem { Header = \"Open\" }")]
+    [InlineData("AutomationProperties.SetName(button, \"Close\");")]
+    public void TheCodeScanSeesToolTipHeaderAndAutomationNames(string code)
+    {
+        Assert.Contains(CodeSinks, sink => sink.IsMatch(code));
+    }
+
+    // Where a text is read by key: the indexer (loc["Key"], LocalizationService.Instance["Key"]),
+    // Format("Key", ...) and a XAML binding path ({Binding ..., Path=[Key]}).
+    private static readonly Regex[] CodeKeyReads =
+    [
+        new(@"\b(?:loc|Loc|_loc|localization|Instance)\[\s*""([^""]+)""\s*\]", RegexOptions.Compiled),
+        new(@"\.Format\(\s*""([A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+)""", RegexOptions.Compiled),
+    ];
+
+    private static readonly Regex XamlKeyRead = new(@"Path=\[([^\]]+)\]", RegexOptions.Compiled);
+
+    [Fact]
+    public void EveryKeyReadInCodeAndXamlExists()
+    {
+        // The indexer answers "" for an unknown key, so a typo would show an empty label and no test would notice.
+        var keys = LoadKeys(LocalizationService.Languages.Single(l => l.Code == "en").Resources!);
+        var offenders = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(SrcDir, "*.cs", SearchOption.AllDirectories))
+        {
+            var code = StripComments(File.ReadAllText(file));
+            foreach (var read in CodeKeyReads)
+                foreach (Match match in read.Matches(code))
+                    if (!keys.Contains(match.Groups[1].Value))
+                        offenders.Add($"{Path.GetFileName(file)}: {match.Groups[1].Value}");
+        }
+        foreach (var file in Directory.EnumerateFiles(SrcDir, "*.xaml", SearchOption.AllDirectories))
+        {
+            var text = XamlComment.Replace(File.ReadAllText(file), "");
+            foreach (Match match in XamlKeyRead.Matches(text))
+                if (!keys.Contains(match.Groups[1].Value))
+                    offenders.Add($"{Path.GetFileName(file)}: {match.Groups[1].Value}");
+        }
+
+        Assert.True(offenders.Count == 0, "Keys used but missing from Strings.resx:\n" + string.Join("\n", offenders));
+    }
+
+    [Fact]
+    public void NoUiCodeJoinsShownTextWithALiteralComma()
+    {
+        // A list shown to the user goes through TextCompose.List: the separator is a resource (CJK uses its own).
+        var offenders = new List<string>();
+        var uiFiles = new[] { "Views", "ViewModels", "Stats" }
+            .SelectMany(dir => Directory.EnumerateFiles(Path.Combine(SrcDir, dir), "*.cs", SearchOption.AllDirectories))
+            .Where(file => !Regex.IsMatch(Path.GetFileName(file), "Store|Parser"));
+        foreach (var file in uiFiles)
+        {
+            var code = StripComments(File.ReadAllText(file));
+            foreach (Match match in Regex.Matches(code, @"[Ss]tring\.Join\(\s*"", """))
+                offenders.Add(Path.GetFileName(file));
+        }
+
+        Assert.True(offenders.Count == 0, "A literal-comma Join in UI code (use TextCompose.List): " + string.Join(", ", offenders));
     }
 
     // A hyphen, en dash (0x2013) or em dash (0x2014) used as a sentence connector, surrounded by
