@@ -1285,6 +1285,24 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void A_failing_v4_backup_copy_leaves_the_previous_backup_intact()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-keepbackup");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteV4Database(dbPath);
+        var backupPath = Path.Combine(dataDir, "stats.v4.bak");
+        File.WriteAllText(backupPath, "earlier good copy");
+        // A folder under the temporary name makes the new copy fail before it can replace anything.
+        Directory.CreateDirectory(backupPath + ".tmp");
+
+        var store = new StatsStore(dataDir);
+        Assert.Empty(store.LoadAll());
+        Assert.False(store.IsUsable);
+
+        Assert.Equal("earlier good copy", File.ReadAllText(backupPath));
+    }
+
+    [Fact]
     public void Store_does_not_retry_a_failed_v4_backup_on_every_open()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-nobackup-latch");

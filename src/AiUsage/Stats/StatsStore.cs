@@ -1509,22 +1509,16 @@ public sealed class StatsStore
         command.ExecuteNonQuery();
     }
 
-    /// <summary>Version 4 to 5: copies the database next to itself as <c>stats.v4.bak</c>, adds the
-    /// <c>last_message_key</c> column and clears only the Claude rows, so the next indexer run reads
-    /// every Claude file again without counting repeated responses. Codex rows stay untouched. Runs
-    /// inside <see cref="EnsureSchema"/>'s write transaction, so the write lock is held while the
-    /// file is copied. Returns false and changes nothing when the backup cannot be written.</summary>
+    /// <summary>Version 4 to 5: copies the database next to itself as <c>stats.v4.bak</c> (written
+    /// under a temporary name and swapped in, so an earlier good copy survives a failing one), adds
+    /// the <c>last_message_key</c> column and clears only the Claude rows, so the next indexer run
+    /// reads every Claude file again without counting repeated responses. Codex rows stay untouched.
+    /// Runs inside <see cref="EnsureSchema"/>'s write transaction, so the write lock is held while
+    /// the file is copied. Returns false and changes nothing when the backup cannot be written.</summary>
     private bool MigrateFromV4(SqliteConnection connection)
     {
-        var backupPath = Path.Combine(Path.GetDirectoryName(DatabasePath)!, "stats.v4.bak");
-        try
-        {
-            File.Copy(DatabasePath, backupPath, overwrite: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        if (!BackUpBeforeMigration(4))
             return false;
-        }
 
         bool hasColumn;
         using (var info = connection.CreateCommand())
