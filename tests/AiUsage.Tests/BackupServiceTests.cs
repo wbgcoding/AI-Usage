@@ -332,7 +332,7 @@ public sealed class BackupServiceTests : IDisposable
         var pending = Path.Combine(data, "restore-pending.txt");
 
         File.WriteAllText(pending, zip);
-        File.SetLastWriteTimeUtc(pending, DateTime.UtcNow.AddHours(-25));
+        File.SetLastWriteTimeUtc(pending, LocalNow.ToUniversalTime().AddHours(-25));
         Assert.Equal(RestoreOutcome.Unchanged, BackupService.ApplyPendingRestore(data, LocalNow, _ => { }));
         Assert.False(File.Exists(pending));
 
@@ -1109,8 +1109,64 @@ public sealed class BackupServiceTests : IDisposable
 
         Assert.Equal(before.Count, Snapshot(data).Count);
         Assert.Equal(before["settings.json"], File.ReadAllBytes(Path.Combine(data, "settings.json")));
-        Assert.True(BackupService.IsInsideFolder(Path.Combine(data, "x", "..", "y.zip"), data));
-        Assert.False(BackupService.IsInsideFolder(data + "-other" + Path.DirectorySeparatorChar + "y.zip", data));
+        Assert.True(AppPaths.IsUnderRoot(Path.Combine(data, "x", "..", "y.zip"), data));
+        Assert.False(AppPaths.IsUnderRoot(data + "-other" + Path.DirectorySeparatorChar + "y.zip", data));
+    }
+
+    // A data folder that is a whole drive ends in a separator that must not be trimmed away: the
+    // target is still inside it. An unused drive letter keeps the test off the real disk.
+    [Fact]
+    public void A_backup_is_never_written_into_a_data_folder_that_is_a_drive_root()
+    {
+        var letter = Enumerable.Range('D', 'Z' - 'D' + 1).Select(c => (char)c)
+            .FirstOrDefault(c => !Directory.Exists($@"{c}:\"));
+        Assert.NotEqual('\0', letter);
+        var root = $@"{letter}:\";
+
+        var failure = Assert.ThrowsAny<IOException>(() => BackupService.Create(root, Path.Combine(root, "sub", "b.zip"), "1", IdA, "PC-A", Now, Temp()));
+
+        Assert.Contains("never written into the data folder", failure.Message, StringComparison.Ordinal);
+    }
+
+    // A history file name that only differs in case from the one in the journal is the same file on
+    // this file system: a rollback must not delete it as if it were a newly placed one.
+    [Fact]
+    public void A_rollback_does_not_delete_a_file_whose_journal_name_differs_only_in_case()
+    {
+        var data = Temp();
+        var setAside = Path.Combine(data, "before-restore-20261010-120000");
+        Directory.CreateDirectory(setAside);
+        File.WriteAllText(Path.Combine(data, "history-Claude.jsonl"), "original");
+        var journal = new
+        {
+            SetAside = "before-restore-20261010-120000",
+            Aside = new[] { new[] { "history-claude.jsonl" } },
+            Place = new[] { "history-CLAUDE.jsonl" },
+        };
+        var journalPath = Path.Combine(data, BackupService.JournalFileName);
+        File.WriteAllText(journalPath, System.Text.Json.JsonSerializer.Serialize(journal));
+
+        BackupService.ApplyPendingRestore(data, LocalNow, _ => { });
+
+        Assert.Equal("original", File.ReadAllText(Path.Combine(data, "history-Claude.jsonl")));
+    }
+
+    // The age of the request is measured against the clock the caller passes, not the machine clock.
+    [Theory]
+    [InlineData(23, RestoreOutcome.Restored)]
+    [InlineData(25, RestoreOutcome.Unchanged)]
+    public void A_restore_request_is_aged_against_the_passed_time(int hoursOld, RestoreOutcome expected)
+    {
+        var source = Temp();
+        var target = Temp();
+        Seed(source, IdA, 100);
+        Seed(target, IdA, 5);
+        var zip = Path.Combine(Temp(), "b.zip");
+        BackupService.Create(source, zip, "1", IdA, "PC-A", Now, Temp());
+        BackupService.SchedulePendingRestore(target, zip, BackupService.PlanSetAside(target, LocalNow));
+        File.SetLastWriteTimeUtc(Path.Combine(target, "restore-pending.txt"), LocalNow.ToUniversalTime().AddHours(-hoursOld));
+
+        Assert.Equal(expected, BackupService.ApplyPendingRestore(target, LocalNow, _ => { }));
     }
 
     [Fact]

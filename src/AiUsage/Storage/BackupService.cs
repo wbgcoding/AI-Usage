@@ -159,13 +159,6 @@ public static class BackupService
         return found;
     }
 
-    /// <summary>True when <paramref name="path"/> lies in <paramref name="folder"/> or below it.</summary>
-    internal static bool IsInsideFolder(string path, string folder)
-    {
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar;
-        return Path.GetFullPath(path).StartsWith(root, StringComparison.OrdinalIgnoreCase);
-    }
-
     /// <summary>The name of a data file that is a link (symlink or junction), or null.</summary>
     private static string? LinkedDataFileIn(string dataDirectory)
     {
@@ -195,7 +188,7 @@ public static class BackupService
     {
         var full = Path.GetFullPath(zipPath);
         var folder = Path.GetDirectoryName(full)!;
-        if (IsInsideFolder(full, dataDirectory))
+        if (AppPaths.IsUnderRoot(full, dataDirectory))
             throw new IOException("A backup is never written into the data folder it is made from.");
         // A linked data file would be left out silently; better no backup than one missing the index.
         if (LinkedDataFileIn(dataDirectory) is { } linked)
@@ -207,8 +200,10 @@ public static class BackupService
 
         try
         {
-            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
+            using var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            // The archive writes its central directory when it is disposed, so it is closed before the
+            // stream is flushed to disk; only then does the file get its final name.
+            using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
             {
                 WriteText(zip, ManifestName, JsonSerializer.Serialize(new
                 {
@@ -243,6 +238,8 @@ public static class BackupService
                 }
             }
 
+            stream.Flush(flushToDisk: true);
+            stream.Dispose();
             File.Move(temp, full, overwrite: true);
             return manifest;
         }
@@ -379,7 +376,7 @@ public static class BackupService
             CopyChecked(_entries[name], target, name, ref totalWritten);
         }
 
-        private static void CopyChecked(ZipArchiveEntry entry, Stream target, string name, ref long totalWritten)
+        internal static void CopyChecked(ZipArchiveEntry entry, Stream target, string name, ref long totalWritten)
         {
             // Never past what the entry itself declares: a size that lies low is caught as soon as the
             // real data exceeds it, not after the whole thing has been unpacked.
@@ -517,20 +514,10 @@ public static class BackupService
 
     private static BackupManifest ReadManifest(ZipArchiveEntry entry)
     {
+        // The same bounded, CRC and length checked copy every other entry gets.
         long total = 0;
         using var memory = new MemoryStream();
-        var buffer = new byte[4096];
-        using (var source = entry.Open())
-        {
-            int read;
-            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                total += read;
-                if (total > MaxManifestBytes)
-                    throw new RefusedException(BackupRefusal.NotABackup);
-                memory.Write(buffer, 0, read);
-            }
-        }
+        OpenedBackup.CopyChecked(entry, memory, ManifestName, ref total);
 
         try
         {
@@ -707,7 +694,7 @@ public static class BackupService
             refusal = ex.Refusal;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException
-            or FormatException or InvalidCastException or OverflowException)
+            or FormatException or InvalidCastException or OverflowException or OutOfMemoryException)
         {
             refusal = BackupRefusal.NotABackup;
         }
@@ -819,7 +806,7 @@ public static class BackupService
             return recovered ? RestoreOutcome.Unchanged : RestoreOutcome.NoPending;
         }
 
-        var request = ReadPending(pending);
+        var request = ReadPending(pending, now);
         if (request is null)
         {
             TryDeleteFile(pending);
@@ -878,11 +865,12 @@ public static class BackupService
         }
     }
 
-    private static PendingRequest? ReadPending(string pending)
+    private static PendingRequest? ReadPending(string pending, DateTime now)
     {
         try
         {
-            if (new FileInfo(pending).Length > 4096 || DateTime.UtcNow - File.GetLastWriteTimeUtc(pending) > PendingMaxAge)
+            // The callers pass local time; the file's write time is compared in UTC.
+            if (new FileInfo(pending).Length > 4096 || now.ToUniversalTime() - File.GetLastWriteTimeUtc(pending) > PendingMaxAge)
                 return null;
 
             var lines = File.ReadAllText(pending).Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -1104,7 +1092,7 @@ public static class BackupService
     private static bool RollBack(string dataDirectory, SwapJournal journal, Action<string> log)
     {
         var setAside = Path.Combine(dataDirectory, journal.SetAside);
-        var asideNames = journal.Aside.SelectMany(g => g).ToHashSet(StringComparer.Ordinal);
+        var asideNames = journal.Aside.SelectMany(g => g).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var complete = true;
 
         foreach (var name in journal.Place)
