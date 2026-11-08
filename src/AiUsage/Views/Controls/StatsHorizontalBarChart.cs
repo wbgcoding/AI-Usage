@@ -839,7 +839,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         {
             var dotY = y + (textAreaHeight - RichDotSize) / 2;
             drawingContext.DrawEllipse(
-                ChartDrawCache.BrushFor(row.Color), null,
+                PlainRowBrush(row, BarBrush), null,
                 new Point(RichIconSize / 2, dotY + RichDotSize / 2), RichDotSize / 2, RichDotSize / 2);
         }
 

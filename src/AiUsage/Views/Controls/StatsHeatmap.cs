@@ -274,7 +274,7 @@ public sealed class StatsHeatmap : FrameworkElement
         _cellHits.Clear();
 
         var width = ActualWidth;
-        if (width <= 0 || Values.Count < Rows * Columns)
+        if (width <= 0)
             return;
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;

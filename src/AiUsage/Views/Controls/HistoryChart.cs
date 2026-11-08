@@ -246,6 +246,9 @@ public sealed class HistoryChart : FrameworkElement
     internal static double StrokeY(double percent, double plotHeight, double thickness) =>
         Math.Min(MapY(percent, plotHeight), plotHeight - thickness / 2);
 
+    /// <summary>The y of the hover marker: on the drawn line, so a series at 0 % keeps the dot on its stroke.</summary>
+    internal static double HoverDotY(double percent, double plotHeight) => StrokeY(percent, plotHeight, SeriesThickness);
+
     /// <summary>The order the series are painted in: the solid weekly one first, the dashed five-hour
     /// one on top of it, so at equal values the dashes stay visible on the weekly line.</summary>
     internal static readonly IReadOnlyList<WindowKind> SeriesDrawOrder = [WindowKind.Weekly, WindowKind.FiveHour];
@@ -514,8 +517,7 @@ public sealed class HistoryChart : FrameworkElement
             var (point, label, kind) = matches[i];
             var dotBrush = GetSeriesColours(kind, UsageRowViewModel.Classify(point.Percent)).SolidPen.Brush;
             var px = MapX(point.At, width);
-            var py = MapY(point.Percent, plotHeight);
-            dc.DrawEllipse(dotBrush, null, new Point(px, py), 1.5, 1.5);
+            dc.DrawEllipse(dotBrush, null, new Point(px, HoverDotY(point.Percent, plotHeight)), 1.5, 1.5);
 
             var timeText = HoverTime(point.At, range);
             lines[i] = TextCompose.Pair(StatusTextMap.LabelValue(label, StatusTextMap.FormatUsagePercent(point.Percent)), timeText);
