@@ -29,6 +29,7 @@ public class ThemeTokenTests
         ["Level.Ok"] = typeof(SolidColorBrush),
         ["Level.Warn"] = typeof(SolidColorBrush),
         ["Level.Crit"] = typeof(SolidColorBrush),
+        ["Bar.Marker"] = typeof(SolidColorBrush),
         ["Chart.Cache.New"] = typeof(SolidColorBrush),
         ["Chart.Cache.Write"] = typeof(SolidColorBrush),
         ["Chart.Cache.Output"] = typeof(SolidColorBrush),

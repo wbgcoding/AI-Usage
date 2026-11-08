@@ -124,7 +124,7 @@
                                          fill - collapsed when that window's notification is off, and
                                          only ever shown at Full density (ShowThresholdMarker). -->
                                     <Rectangle x:Name="PART_ThresholdMarker" Width="1" HorizontalAlignment="Left"
-                                               Fill="{DynamicResource Text.Primary}" Opacity="0.55"
+                                               Fill="{DynamicResource Bar.Marker}"
                                                Visibility="{Binding ShowThresholdMarker, Converter={StaticResource BoolToVis}}">
                                         <Rectangle.Margin>
                                             <MultiBinding Converter="{StaticResource MarkerPositionConverter}">

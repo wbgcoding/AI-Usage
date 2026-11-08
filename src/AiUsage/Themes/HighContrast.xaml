@@ -24,6 +24,8 @@
     <SolidColorBrush x:Key="Level.Ok" Color="{x:Static SystemColors.WindowTextColor}"/>
     <SolidColorBrush x:Key="Level.Warn" Color="{x:Static SystemColors.HotTrackColor}"/>
     <SolidColorBrush x:Key="Level.Crit" Color="{x:Static SystemColors.HighlightColor}"/>
+    <!-- Threshold marker on the usage bar: the window colour, opaque, so it shows over every fill (the Ok fill is the text colour). -->
+    <SolidColorBrush x:Key="Bar.Marker" Color="{x:Static SystemColors.WindowColor}"/>
     <!-- Cache share bar segments (cache read uses Accent): four system colors that stay apart. -->
     <SolidColorBrush x:Key="Chart.Cache.New" Color="{x:Static SystemColors.WindowTextColor}"/>
     <SolidColorBrush x:Key="Chart.Cache.Write" Color="{x:Static SystemColors.HotTrackColor}"/>

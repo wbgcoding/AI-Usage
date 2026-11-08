@@ -22,6 +22,8 @@
     <SolidColorBrush x:Key="Level.Warn" Color="#F59E0B"/>
     <SolidColorBrush x:Key="Level.Crit" Color="#F43F5E"/>
     <!-- Cache share bar segments (cache read uses Accent). -->
+    <!-- Notification threshold marker on the usage bar: the primary text colour at about 55% opacity. -->
+    <SolidColorBrush x:Key="Bar.Marker" Color="#8CF2EDFA"/>
     <SolidColorBrush x:Key="Chart.Cache.New" Color="#59A14F"/>
     <SolidColorBrush x:Key="Chart.Cache.Write" Color="#F28E2B"/>
     <SolidColorBrush x:Key="Chart.Cache.Output" Color="#B072A1"/>
