@@ -555,8 +555,8 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>アップデートを完了できませんでした。プログラムファイルは現在 {0} にあります。アプリを再び起動するには、AI-Usage.exe に名前を戻してください。</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>インストーラーが起動しませんでした。管理者の確認を閉じた場合は、もう一度お試しください。</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>上限に達しそうなときに事前に警告</value></data>
-  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
-  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0}時間</value></data>
+  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0}分</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>警告の事前時間</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} は約{2}で上限に達しそうです(現在 {3}%)</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>毎日通知を許可</value></data>

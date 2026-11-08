@@ -555,8 +555,8 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>更新未能完成。你的程序文件现在位于 {0}。请把它改回 AI-Usage.exe 的名称,以便再次启动应用。</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>安装程序没有启动。如果你关闭了管理员权限提示,请重试。</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>在可能达到上限前预警</value></data>
-  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
-  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} 小时</value></data>
+  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} 分钟</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>预警提前时间</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}:{1} 预计约 {2} 后用满(目前 {3}%)</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>每天都允许通知</value></data>
