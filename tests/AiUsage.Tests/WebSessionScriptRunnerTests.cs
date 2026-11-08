@@ -511,7 +511,10 @@ public class WebSessionScriptRunnerTests
 
         clock.Advance(TimeSpan.FromMinutes(15));
 
+        // The idle timer may close the old host on another thread first, so the new host (and its
+        // script call) can appear after this call returned: wait for it instead of answering the old one.
         var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => starts == 2 && current!.ExecuteCalls == 1);
         current!.CompleteScript("second");
         var result = await secondCall;
 
@@ -540,7 +543,10 @@ public class WebSessionScriptRunnerTests
 
         clock.Advance(TimeSpan.FromMinutes(15));
 
+        // The idle timer may close the old host on another thread first, so the new host (and its
+        // script call) can appear after this call returned: wait for it instead of answering the old one.
         var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => starts == 2 && current!.ExecuteCalls == 1);
         current!.CompleteScript("second");
         var result = await secondCall;
 
@@ -679,10 +685,14 @@ public class WebSessionScriptRunnerTests
         var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
         current!.CompleteScript("first");
         await firstCall;
+        var firstHost = current!;
 
         clock.Advance(TimeSpan.FromMinutes(20));
 
+        // The idle timer may close the old host on another thread first, so the new host (and its
+        // script call) can appear after this call returned: wait for it instead of answering the old one.
         var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => !ReferenceEquals(current, firstHost) && current!.ExecuteCalls == 1);
         current!.CompleteScript("second");
         var result = await secondCall;
 
@@ -1172,9 +1182,26 @@ public class WebSessionScriptRunnerTests
 
     private static async Task<string> RunOnce(WebSessionScriptRunner runner, List<FakeHiddenBrowserHost> hosts, string answer)
     {
+        var before = TotalExecuteCalls(hosts);
         var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+
+        // After a clock jump the idle timer may close the old host on another thread first, so the
+        // host this call runs on can appear after the call returned: answer only once it asked for it.
+        await WaitUntilAsync(() => TotalExecuteCalls(hosts) == before + 1);
         hosts[^1].CompleteScript(answer);
         return await call;
+    }
+
+    private static int TotalExecuteCalls(List<FakeHiddenBrowserHost> hosts)
+    {
+        try
+        {
+            return hosts.Sum(h => h.ExecuteCalls);
+        }
+        catch (InvalidOperationException)
+        {
+            return -1; // the list grew while it was read: the next poll sees the settled state
+        }
     }
 
     private static WebSessionScriptRunner CacheClearRunner(
