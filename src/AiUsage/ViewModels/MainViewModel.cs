@@ -467,7 +467,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// Reuses the "Eye.HiddenCount" resx entry the visual badge already
     /// carries in spirit.</summary>
     public string EyeButtonAccessibleName => HiddenCount > 0
-        ? $"{LocalizationService.Instance["Eye.Menu"]}, {LocalizationService.Instance.Format("Eye.HiddenCount", HiddenCount)}"
+        ? TextCompose.List([LocalizationService.Instance["Eye.Menu"], LocalizationService.Instance.Format("Eye.HiddenCount", HiddenCount)])
         : LocalizationService.Instance["Eye.Menu"];
 
     [ObservableProperty]

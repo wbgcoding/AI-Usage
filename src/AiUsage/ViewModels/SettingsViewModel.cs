@@ -512,7 +512,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// takes on disk once that figure has been read. Composed here rather than from two Runs in the
     /// window, so the size half can never be the part that falls off the end of the row.</summary>
     public string RetentionSummaryText => HistorySizeText is { Length: > 0 } size
-        ? $"{RetentionLabel} · {size}"
+        ? TextCompose.Pair(RetentionLabel, size)
         : RetentionLabel;
 
     public string WindowOpacityLabel => LocalizationService.Instance.Format("Settings.WindowOpacityValue", WindowOpacityPercent);
@@ -1673,7 +1673,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ImportedPcs.Clear();
         foreach (var id in ids)
         {
-            var name = names.TryGetValue(id, out var known) ? known : unknownCount > 1 ? $"{unknown} ({id[..Math.Min(8, id.Length)]})" : unknown;
+            var name = names.TryGetValue(id, out var known) ? known : unknownCount > 1 ? TextCompose.WithDetail(unknown, id[..Math.Min(8, id.Length)]) : unknown;
             ImportedPcs.Add(new ImportedPcRow(id, name));
         }
 

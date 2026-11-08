@@ -80,9 +80,9 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
     /// <summary>Names what each window's own Ein/Aus check box actually toggles, including which
     /// provider's row it lives in - without this a screen reader announces four bare "Ein" boxes
     /// (the checkbox's own Content text) with no way to tell them apart.</summary>
-    public string FiveHourEnabledFullLabel => Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {Loc["Window.FiveHour"]}", Loc["Settings.On"]);
-    public string WeeklyEnabledFullLabel => Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {Loc["Window.Weekly"]}", Loc["Settings.On"]);
-    public string OtherEnabledFullLabel => Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {OtherWindowLabel}", Loc["Settings.On"]);
+    public string FiveHourEnabledFullLabel => Loc.Format("Format.LabelValue", TextCompose.NameAndItem(HeaderDisplayName, Loc["Window.FiveHour"]), Loc["Settings.On"]);
+    public string WeeklyEnabledFullLabel => Loc.Format("Format.LabelValue", TextCompose.NameAndItem(HeaderDisplayName, Loc["Window.Weekly"]), Loc["Settings.On"]);
+    public string OtherEnabledFullLabel => Loc.Format("Format.LabelValue", TextCompose.NameAndItem(HeaderDisplayName, OtherWindowLabel), Loc["Settings.On"]);
 
     public string OwnThresholdFullLabel => Loc.Format("Format.LabelValue", HeaderDisplayName, Loc["Settings.OwnThreshold"]);
 

@@ -137,10 +137,10 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// plain "Claude" with nothing to tell them apart, and a third account must not look like a
     /// second one.</summary>
     public string HeaderDisplayName => HasOwnAccountName
-        ? $"{DisplayName} · {AccountName}"
+        ? TextCompose.Pair(DisplayName, AccountName)
         : !IsExtraAccount
             ? DisplayName
-            : AccountText is { Length: > 0 } label ? $"{DisplayName} · {label}" : $"{DisplayName} ({AccountSuffixNumber})";
+            : AccountText is { Length: > 0 } label ? TextCompose.Pair(DisplayName, label) : TextCompose.WithDetail(DisplayName, AccountSuffixNumber);
 
     private string _accountName = "";
 
@@ -252,14 +252,15 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     public string TitleName => HasOwnAccountName ? DisplayName : HeaderDisplayName;
 
     /// <summary>" · name" for the quieter run after <see cref="TitleName"/>; empty without an own name.</summary>
-    public string TitleAccountSuffix => HasOwnAccountName ? $" · {_accountName}" : "";
+    public string TitleAccountSuffix =>
+        HasOwnAccountName && HeaderDisplayName.StartsWith(DisplayName, StringComparison.Ordinal) ? HeaderDisplayName[DisplayName.Length..] : "";
 
     /// <summary>"Claude (Work)" with an own name, else <see cref="HeaderDisplayName"/>; used by the
     /// tray tooltip.</summary>
-    public string TrayName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : HeaderDisplayName;
+    public string TrayName => HasOwnAccountName ? TextCompose.WithDetail(DisplayName, _accountName) : HeaderDisplayName;
 
     /// <summary>"Claude (Work)" with an own name, else the plain provider name; used by notifications.</summary>
-    public string NotificationName => HasOwnAccountName ? $"{DisplayName} ({_accountName})" : DisplayName;
+    public string NotificationName => HasOwnAccountName ? TextCompose.WithDetail(DisplayName, _accountName) : DisplayName;
 
     /// <summary>The screen-reader name of the tile's list item (WPF otherwise reads the type name).</summary>
     public override string ToString() => HeaderDisplayName;
@@ -384,7 +385,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         get
         {
             var via = ViaText();
-            return AccountText is { Length: > 0 } label ? $"{label} · {via}" : via;
+            return AccountText is { Length: > 0 } label ? TextCompose.Pair(label, via) : via;
         }
     }
 
@@ -416,7 +417,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         // A signed-in browser session the numbers do NOT come from: a local source delivers, and the
         // row says the web sign-in exists too, so both sign-ins are visible and which one delivers.
         return _webSessionSignedIn && source != SourceKind.WebSession
-            ? $"{via} · {loc["Settings.Via.WebAlsoSignedIn"]}"
+            ? TextCompose.Pair(via, loc["Settings.Via.WebAlsoSignedIn"])
             : via;
     }
 
@@ -1541,7 +1542,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
                 OnPropertyChanged(nameof(KnownWindowKinds));
             }
             RebuildWindowToggles(snapshot.Windows);
-            var otherName = string.Join(", ", snapshot.Windows
+            var otherName = TextCompose.List(snapshot.Windows
                 .Where(window => window.Kind == WindowKind.Other)
                 .Select(window => StatusTextMap.Resolve(window.Label))
                 .Where(name => name.Length > 0)
@@ -1652,8 +1653,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             OnPropertyChanged(nameof(ShowHeaderSignIn));
         }
         var (headlineKey, reasonKey, _) = ErrorPresenter.Describe(snapshot.Status, snapshot.Error, snapshot.SourceKind, SupportsInAppSignIn, RealProviderId);
-        FailureNoticeText = $"{StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus)} · "
-            + StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName);
+        FailureNoticeText = TextCompose.Pair(
+            StatusTextMap.ResolveFailure(headlineKey, DisplayName, snapshot.Error?.HttpStatus),
+            StatusTextMap.ResolveReason(reasonKey, snapshot.Error, DisplayName));
         IsShowingLastValues = true;
     }
 

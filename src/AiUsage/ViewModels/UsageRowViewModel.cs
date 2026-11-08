@@ -357,7 +357,7 @@ public partial class UsageRowViewModel : ObservableObject
     /// count and forecast sit beside the window label instead (<see cref="InlineTokensText"/>,
     /// <see cref="ForecastText"/>), so this part never loses the percent or the countdown to make
     /// room for either.</summary>
-    public string RightLabelText => DetailText.Length > 0 ? $"{PercentText} · {DetailText}" : PercentText;
+    public string RightLabelText => DetailText.Length > 0 ? TextCompose.Pair(PercentText, DetailText) : PercentText;
 
     /// <summary>"noch 2h 14m · 21:15" - the countdown and the reset clock time, without the
     /// percentage, so the header can set them smaller and greyer than the number. Empty when neither
@@ -373,7 +373,7 @@ public partial class UsageRowViewModel : ObservableObject
             // instead of the end date; its tooltip names the date.
             if (ClockText.Length > 0 && _ownInlineText is null)
                 segments.Add(ClockText);
-            return string.Join(" · ", segments);
+            return TextCompose.PairAll(segments);
         }
     }
 
@@ -455,7 +455,7 @@ public partial class UsageRowViewModel : ObservableObject
         // The bare duration, not "free again in 45m": at the limit the row already carries the
         // percentage, the state and the wall-clock time of the reset, and the whole line has to fit
         // without anything being cut off - the sentence around the number is what goes.
-        return $"{limitText} · {CountdownFormatter.FormatElapsed(reset - now)}";
+        return TextCompose.Pair(limitText, CountdownFormatter.FormatElapsed(reset - now));
     }
 
     /// <summary>Non-empty at every density once a reset instant is known - whether it actually fits

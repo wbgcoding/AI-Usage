@@ -697,4 +697,9 @@
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Nicht angemeldet</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Von der Claude Console abmelden</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Nur lokale Quellen nutzen</value></data>
+  <data name="Text.Pair" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Text.ListSeparator" xml:space="preserve"><value>, </value></data>
+  <data name="Text.WithDetail" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Text.NumberUnit" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
 </root>

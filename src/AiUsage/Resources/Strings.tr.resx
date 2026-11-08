@@ -698,4 +698,9 @@
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Oturum açık değil</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Claude Console oturumunu kapat</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Yalnızca yerel kaynakları kullan</value></data>
+  <data name="Text.Pair" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Text.ListSeparator" xml:space="preserve"><value>, </value></data>
+  <data name="Text.WithDetail" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Text.NumberUnit" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
 </root>

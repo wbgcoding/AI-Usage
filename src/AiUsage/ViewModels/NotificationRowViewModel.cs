@@ -68,7 +68,7 @@ public sealed partial class NotificationRowViewModel : ObservableObject
     public string NotificationsEnabledFullLabel => Loc.Format("Format.LabelValue", NotificationsForProviderText, Loc["Settings.On"]);
 
     public string NotifyOnResetEnabledFullLabel =>
-        Loc.Format("Format.LabelValue", $"{HeaderDisplayName} {Loc["Settings.NotifyOnResetForProvider"]}", Loc["Settings.On"]);
+        Loc.Format("Format.LabelValue", TextCompose.NameAndItem(HeaderDisplayName, Loc["Settings.NotifyOnResetForProvider"]), Loc["Settings.On"]);
 
     private static LocalizationService Loc => LocalizationService.Instance;
 

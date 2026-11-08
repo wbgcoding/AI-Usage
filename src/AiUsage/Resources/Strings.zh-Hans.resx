@@ -698,4 +698,9 @@
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>未登录</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>退出 Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>仅使用本地来源</value></data>
+  <data name="Text.Pair" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Text.ListSeparator" xml:space="preserve"><value>、</value></data>
+  <data name="Text.WithDetail" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Text.NumberUnit" xml:space="preserve"><value>{0}{1}</value></data>
+  <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
 </root>
