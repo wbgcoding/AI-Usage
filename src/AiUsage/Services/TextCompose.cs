@@ -19,6 +19,9 @@ public static class TextCompose
     /// <summary>"{name} {item}": a provider name followed by what it is about (a window label).</summary>
     public static string NameAndItem(string name, string item) => Loc.Format("Text.NameAndItem", name, item);
 
+    /// <summary>Two sentences, or a label and its figure, one after the other.</summary>
+    public static string Sentences(string first, string second) => Loc.Format("Text.Sentences", first, second);
+
     /// <summary>The parts joined with the language's list separator; empty parts are skipped.</summary>
     public static string List(IEnumerable<string> parts) =>
         string.Join(Loc["Text.ListSeparator"], parts.Where(part => part.Length > 0));

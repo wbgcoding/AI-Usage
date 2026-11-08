@@ -955,7 +955,7 @@ public sealed class StatsBarChart : FrameworkElement
         string WithUnit(long value)
         {
             var number = value.ToString("N0", LocalizationService.Instance.DisplayCulture);
-            return string.IsNullOrEmpty(tokenWord) ? number : $"{number} {tokenWord}";
+            return string.IsNullOrEmpty(tokenWord) ? number : TextCompose.NumberUnit(number, tokenWord);
         }
 
         var lines = new List<string>
@@ -966,8 +966,10 @@ public sealed class StatsBarChart : FrameworkElement
         {
             for (var s = 0; s < bar.StackedValues.Count; s++)
             {
-                var name = s < seriesLabels.Count ? seriesLabels[s] : "?";
-                lines.Add(StatusTextMap.LabelValue(name, WithUnit(bar.StackedValues[s])));
+                // A series without a name shows its value alone instead of a placeholder.
+                lines.Add(s < seriesLabels.Count
+                    ? StatusTextMap.LabelValue(seriesLabels[s], WithUnit(bar.StackedValues[s]))
+                    : WithUnit(bar.StackedValues[s]));
             }
         }
         else

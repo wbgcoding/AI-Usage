@@ -61,7 +61,7 @@ internal sealed class StatsCostView(CostService? service)
         {
             var line = StatusTextMap.LabelValue(labels[i], tokens[i].ToString("N0", CultureInfo.CurrentCulture));
             if (split is { AnyPriced: true } && tokens[i] > 0)
-                line += " \u00B7 " + Label(new CostSummary(split.AsParts[i], true, []));
+                line = TextCompose.Pair(line, Label(new CostSummary(split.AsParts[i], true, [])));
             lines.Add(line);
         }
 
@@ -81,9 +81,13 @@ internal sealed class StatsCostView(CostService? service)
         if (text.Length == 0)
             return null;
 
-        var line = LocalizationService.Instance["Stats.Cost.Column"] + " " + text;
+        var line = ColumnLine(text);
         return CostService.UnpricedLine(summary) is { } unpriced ? line + "\n" + unpriced : line;
     }
+
+    /// <summary>"API cost: ~2,00 €": the cost label followed by the figure; the one place that joins them.</summary>
+    internal static string ColumnLine(string figure) =>
+        TextCompose.Sentences(LocalizationService.Instance["Stats.Cost.Column"], figure);
 
     public string? Line(IEnumerable<StatsRecord> records) => _service is null ? null : Line(Sum(records));
 

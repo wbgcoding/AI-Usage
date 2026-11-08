@@ -1,3 +1,4 @@
+using AiUsage.Services;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -42,7 +43,7 @@ public sealed record StatsForecastProviderViewModel(
     IReadOnlyList<StatsForecastWindowViewModel> Windows, StatsForecastMonthViewModel? Month)
 {
     /// <summary>The small text beside the provider name: plan(s), then the account count when there are several.</summary>
-    public string Detail => PlanText.Length > 0 && AccountsText.Length > 0 ? PlanText + " · " + AccountsText : PlanText + AccountsText;
+    public string Detail => PlanText.Length > 0 && AccountsText.Length > 0 ? TextCompose.Pair(PlanText, AccountsText) : PlanText + AccountsText;
 
     public bool HasMonth => Month is not null;
 }

@@ -894,10 +894,10 @@ public sealed class StatsRingChart : FrameworkElement
         if (string.IsNullOrEmpty(costText))
             return percentText;
 
-        var longer = percentText + " \u00B7 " + costText;
+        var longer = TextCompose.Pair(percentText, costText);
         double Width(string text) => new FormattedText(
             text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Black, dpi).Width;
-        return Width(label) + Width(" \u00B7 " + longer) <= maxWidth ? longer : percentText;
+        return Width(label) + Width(TextCompose.Pair("", longer)) <= maxWidth ? longer : percentText;
     }
 
     /// <summary>One legend entry as two texts: the label, trimmed with an ellipsis to what is left of
@@ -915,7 +915,7 @@ public sealed class StatsRingChart : FrameworkElement
                 Trimming = TextTrimming.CharacterEllipsis,
             };
 
-        var figureText = Make(" · " + figure, maxWidth);
+        var figureText = Make(TextCompose.Pair("", figure), maxWidth);
         var labelText = Make(label, maxWidth - figureText.Width);
         return (labelText, figureText);
     }

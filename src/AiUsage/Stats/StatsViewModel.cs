@@ -792,7 +792,9 @@ public sealed partial class StatsViewModel : ObservableObject
         var dayCostText = costView.Text(dayRecords);
         SelectedDayHeadText = string.Format(
             CultureInfo.CurrentCulture, loc["Stats.DayDetail.Title"],
-            $"{dateText} · {shortened} {loc["Stats.TokenUnit"]}" + (dayCostText.Length > 0 ? " · " + dayCostText : ""));
+            dayCostText.Length > 0
+                ? TextCompose.Pair(TextCompose.Pair(dateText, TextCompose.NumberUnit(shortened, loc["Stats.TokenUnit"])), dayCostText)
+                : TextCompose.Pair(dateText, TextCompose.NumberUnit(shortened, loc["Stats.TokenUnit"])));
     }
 
     // Bumped by every call, so a slow resolution from an earlier, already-superseded period can
@@ -2332,13 +2334,13 @@ public sealed partial class StatsViewModel : ObservableObject
             var tooltip = string.Format(CultureInfo.CurrentCulture, loc["Stats.Session.Tooltip"], project, start, duration, totalText, model);
             var (costText, costUsd) = SessionCost(session, costView);
             if (costText.Length > 1)
-                tooltip += "\n" + loc["Stats.Cost.Column"] + " " + costText;
+                tooltip += "\n" + StatsCostView.ColumnLine(costText);
 
             tableRows.Add(new StatsSessionRowViewModel(project, start, duration, totalText, model, tooltip, costText));
-            exportRows.Add(new StatsRowViewModel($"{project} · {start}", session.TotalTokens, totalText, tooltip, CostUsd: costUsd));
+            exportRows.Add(new StatsRowViewModel(TextCompose.Pair(project, start), session.TotalTokens, totalText, tooltip, CostUsd: costUsd));
             if (barRows.Count < MaxSessionBars)
             {
-                var label = $"{StatsAggregator.MiddleEllipsis(project, SessionBarProjectChars)} · {start}";
+                var label = TextCompose.Pair(StatsAggregator.MiddleEllipsis(project, SessionBarProjectChars), start);
                 var startDay = session.StartDay;
                 barRows.Add(new StatsProjectRow(
                     label, label, session.TotalTokens, grandTotal > 0 ? session.TotalTokens * 100.0 / grandTotal : 0,

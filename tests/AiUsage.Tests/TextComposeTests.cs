@@ -7,11 +7,11 @@ namespace AiUsage.Tests;
 public sealed class TextComposeTests
 {
     [Theory]
-    [InlineData("en", "a · b", "a (b)", "1 x", "a b", "a, b")]
-    [InlineData("ja", "a · b", "a (b)", "1x", "a b", "a、b")]
-    [InlineData("zh-Hans", "a · b", "a (b)", "1x", "a b", "a、b")]
+    [InlineData("en", "a · b", "a (b)", "1 x", "a b", "a, b", "a b")]
+    [InlineData("ja", "a · b", "a (b)", "1x", "a b", "a、b", "ab")]
+    [InlineData("zh-Hans", "a · b", "a (b)", "1x", "a b", "a、b", "ab")]
     public void Each_helper_follows_the_language_format(
-        string language, string pair, string detail, string numberUnit, string nameAndItem, string list)
+        string language, string pair, string detail, string numberUnit, string nameAndItem, string list, string sentences)
     {
         var loc = LocalizationService.Instance;
         loc.SetLanguage(language);
@@ -22,6 +22,7 @@ public sealed class TextComposeTests
             Assert.Equal(numberUnit, TextCompose.NumberUnit("1", "x"));
             Assert.Equal(nameAndItem, TextCompose.NameAndItem("a", "b"));
             Assert.Equal(list, TextCompose.List(["a", "", "b"]));
+            Assert.Equal(sentences, TextCompose.Sentences("a", "b"));
         }
         finally
         {

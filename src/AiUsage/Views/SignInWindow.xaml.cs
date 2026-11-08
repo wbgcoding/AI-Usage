@@ -452,7 +452,7 @@ public partial class SignInWindow : Window
 
     /// <summary>The title text: the fixed title, and the host after a middle dot while there is one.</summary>
     internal static string JoinTitle(string baseTitle, string host) =>
-        host.Length == 0 ? baseTitle : baseTitle + " \u00B7 " + host;
+        host.Length == 0 ? baseTitle : TextCompose.Pair(baseTitle, host);
 
     internal static string TitleFor(string baseTitle, string? source, string providerHost) =>
         JoinTitle(baseTitle, TitleHostFor(source, providerHost));
@@ -560,8 +560,8 @@ public partial class SignInWindow : Window
         // "Allow" can never succeed for plain http (IsAllowed demands https for both lists), so
         // offering it would only bring the same notice back.
         var canAllow = CanAllow(uri);
-        BlockedReasonText.Text = loc.Format("SignIn.Blocked.Reason", host)
-            + (canAllow ? "" : " " + loc["SignIn.Blocked.PlainHttp"]);
+        var reason = loc.Format("SignIn.Blocked.Reason", host);
+        BlockedReasonText.Text = canAllow ? reason : TextCompose.Sentences(reason, loc["SignIn.Blocked.PlainHttp"]);
         AllowBlockedButton.Visibility = canAllow ? Visibility.Visible : Visibility.Collapsed;
         LoadingPanel.Visibility = Visibility.Collapsed;
         // The browser is a native child window, and WPF content is never composited over one (see the

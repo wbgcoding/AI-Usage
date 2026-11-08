@@ -62,6 +62,18 @@ public class StatsChartTests
     }
 
     [Fact]
+    public void BuildTooltipLines_shows_a_series_without_a_name_as_its_value_alone()
+    {
+        var bar = new StatsBarChart.Bar("2026-01-01", [100, 50]);
+
+        var lines = StatsBarChart.BuildTooltipLines(bar, ["Claude"], "");
+
+        Assert.Equal(3, lines.Count);
+        Assert.Equal("50", lines[2]);
+        Assert.DoesNotContain("?", string.Join(' ', lines));
+    }
+
+    [Fact]
     public void BuildTooltipLines_appends_the_token_word_to_a_single_total_line()
     {
         var bar = new StatsBarChart.Bar("modelA", [42]);

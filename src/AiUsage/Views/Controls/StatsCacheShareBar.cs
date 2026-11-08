@@ -49,9 +49,8 @@ public sealed class StatsCacheShareBar : FrameworkElement
         var total = Math.Max(1, values.Sum());
         return string.Join("; ", values.Select((value, i) =>
         {
-            var name = i < labels.Count ? labels[i] : "?";
-            var percent = value * 100.0 / total;
-            return StatusTextMap.LabelValue(name, StatusTextMap.FormatShare(percent, LocalizationService.Instance.DisplayCulture));
+            var share = StatusTextMap.FormatShare(value * 100.0 / total, LocalizationService.Instance.DisplayCulture);
+            return i < labels.Count ? StatusTextMap.LabelValue(labels[i], share) : share;
         }));
     }
 
@@ -169,9 +168,9 @@ public sealed class StatsCacheShareBar : FrameworkElement
         var texts = new List<FormattedText>(values.Count);
         for (var i = 0; i < values.Count; i++)
         {
-            var name = i < labels.Count ? labels[i] : "?";
             var percent = total > 0 ? values[i] * 100.0 / total : 0;
-            var text = $"{name} · {StatusTextMap.FormatShare(percent, LocalizationService.Instance.DisplayCulture)}";
+            var share = StatusTextMap.FormatShare(percent, LocalizationService.Instance.DisplayCulture);
+            var text = i < labels.Count ? TextCompose.Pair(labels[i], share) : share;
             texts.Add(new FormattedText(text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, pixelsPerDip));
         }
         return texts;
