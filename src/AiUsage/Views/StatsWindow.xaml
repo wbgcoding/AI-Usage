@@ -366,7 +366,7 @@
                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding TotalCostTooltip, Converter={StaticResource NullIfEmpty}}">
+                                                   TextWrapping="Wrap" ToolTip="{Binding TotalCostTooltip, Converter={StaticResource NullIfEmpty}}">
                                             <TextBlock.Text>
                                                 <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
                                                     <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.Total]" Mode="OneWay"/>
@@ -387,7 +387,7 @@
                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                   TextWrapping="Wrap">
                                             <TextBlock.Text>
                                                 <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
                                                     <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.PerDay]" Mode="OneWay"/>
@@ -405,7 +405,7 @@
                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                   TextWrapping="Wrap">
                                             <TextBlock.Text>
                                                 <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
                                                     <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.BusiestDay]" Mode="OneWay"/>
@@ -447,7 +447,7 @@
                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                   TextWrapping="Wrap">
                                             <TextBlock.Text>
                                                 <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
                                                     <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.PerActiveDay]" Mode="OneWay"/>
