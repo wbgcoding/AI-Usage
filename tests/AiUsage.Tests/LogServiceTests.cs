@@ -84,6 +84,33 @@ public class LogServiceTests : IDisposable
         }
     }
 
+    [Fact]
+    public void A_held_rotated_file_does_not_stop_later_lines_reaching_the_current_file()
+    {
+        var directory = TempDirectory();
+        var now = new DateTimeOffset(2026, 11, 8, 12, 0, 0, TimeSpan.Zero);
+        var log = new LogService(directory, maxFileSizeBytes: 10, maxFiles: 3, now: () => now);
+        log.LogInfo("entry one");
+        log.LogInfo("entry two");
+
+        // A viewer holds the rotated file without delete sharing: moving it on fails.
+        using (new FileStream(Path.Combine(directory, "app.1.log"), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            log.LogInfo("entry three");
+            log.LogInfo("entry four");
+        }
+
+        var text = File.ReadAllText(log.CurrentFile);
+        Assert.Contains("entry three", text);
+        Assert.Contains("entry four", text);
+
+        // After the retry interval rotation works again.
+        now = now.AddMinutes(2);
+        log.LogInfo("entry five");
+        Assert.Contains("entry five", File.ReadAllText(log.CurrentFile));
+        Assert.DoesNotContain("entry four", File.ReadAllText(log.CurrentFile));
+    }
+
     private readonly List<DisposableTestDirectory> _tempDirectories = [];
 
     private string TempDirectory()

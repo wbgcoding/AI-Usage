@@ -20,6 +20,8 @@ public sealed class LogService
     private readonly int _maxFiles;
     private readonly Func<DateTimeOffset> _now;
     private readonly object _gate = new();
+    private static readonly TimeSpan RotateRetryInterval = TimeSpan.FromMinutes(1);
+    private DateTimeOffset _nextRotateAttempt = DateTimeOffset.MinValue;
 
     /// <summary>The one log every part of the app writes to: a single lock over a single app.log, so
     /// concurrent writers queue instead of failing on each other's file handle. The folder is looked
@@ -63,14 +65,14 @@ public sealed class LogService
 
                 var current = CurrentFile;
                 var existingLength = File.Exists(current) ? new FileInfo(current).Length : 0;
-                if (existingLength > 0 && existingLength + bytes.Length > _maxFileSizeBytes)
+                if (existingLength > 0 && existingLength + bytes.Length > _maxFileSizeBytes && _now() >= _nextRotateAttempt)
                     Rotate();
 
                 using var stream = new FileStream(CurrentFile, FileMode.Append, FileAccess.Write, FileShare.Read);
                 stream.Write(bytes, 0, bytes.Length);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // A broken log target must never take the rest of the app down with it.
         }
@@ -82,15 +84,23 @@ public sealed class LogService
 
     private void Rotate()
     {
-        var oldest = PathFor(_maxFiles - 1);
-        if (File.Exists(oldest))
-            File.Delete(oldest);
-
-        for (var i = _maxFiles - 2; i >= 0; i--)
+        try
         {
-            var source = PathFor(i);
-            if (File.Exists(source))
-                File.Move(source, PathFor(i + 1));
+            var oldest = PathFor(_maxFiles - 1);
+            if (File.Exists(oldest))
+                File.Delete(oldest);
+
+            for (var i = _maxFiles - 2; i >= 0; i--)
+            {
+                var source = PathFor(i);
+                if (File.Exists(source))
+                    File.Move(source, PathFor(i + 1));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A viewer holds one of the files: keep appending to the current one and try again later.
+            _nextRotateAttempt = _now() + RotateRetryInterval;
         }
     }
 }
