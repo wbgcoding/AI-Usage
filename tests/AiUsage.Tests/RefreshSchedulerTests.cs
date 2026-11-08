@@ -417,7 +417,7 @@ public class RefreshSchedulerTests
             return Ok("claude"); // unreachable
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMinutes(5), maxFetchTimeout: TimeSpan.FromMinutes(10), retryDelay: TimeSpan.Zero);
+            minFetchTimeout: TimeSpan.FromSeconds(1), maxFetchTimeout: TimeSpan.FromSeconds(1), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
