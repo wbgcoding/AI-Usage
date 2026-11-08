@@ -222,54 +222,61 @@ public sealed class CostService
 
         try
         {
-            // A download replaced by the older cache arriving late would lose its prices.
-            await PricesLoaded;
-            var changed = false;
-            var now = _now();
-            if (Prices.IsStale(now) && now - _priceAttempt >= RetryAfterFailure)
-            {
-                _priceAttempt = now;
-                var text = await PriceDownloader.FetchTextAsync(
-                    PriceDownloader.PriceListUrl, PriceDownloader.PriceListHost, PriceDownloader.PriceListMaxBytes, _cacheDirectory, ct, _handler);
-                var parsed = text is null ? null : ModelPriceList.Parse(text);
-                if (parsed is { Count: > 0 })
-                {
-                    Prices.Replace(parsed, now);
-                    _priceAttempt = DateTimeOffset.MinValue;
-                    changed = true;
-                }
-                else if (text is not null)
-                {
-                    LogService.Shared.Log("WARN", "The downloaded price list held no usable prices; the earlier one stays.");
-                }
-            }
-
-            if (EffectiveCurrency == CostCurrency.Eur && Rate.IsStale(now) && now - _rateAttempt >= RetryAfterFailure)
-            {
-                _rateAttempt = now;
-                var xml = await PriceDownloader.FetchTextAsync(
-                    PriceDownloader.RateUrl, PriceDownloader.RateHost, PriceDownloader.RateMaxBytes, _cacheDirectory, ct, _handler);
-                if (xml is not null && EurRate.ParseEcb(xml) is { } rate)
-                {
-                    Rate.Set(rate, now);
-                    _rateAttempt = DateTimeOffset.MinValue;
-                    changed = true;
-                }
-                else if (xml is not null)
-                {
-                    LogService.Shared.Log("WARN", "The downloaded euro rate file held no usable rate; the earlier one stays.");
-                }
-            }
-
-            if (changed)
-                Changed?.Invoke();
-
-            await RefreshFallbackAsync(ct);
+            // Download, the megabytes of JSON parse and the cache write run on the pool, whatever thread
+            // asked: the caller is usually the UI thread, which must not carry any of it.
+            await Task.Run(() => RefreshCoreAsync(ct), CancellationToken.None);
         }
         finally
         {
             Interlocked.Exchange(ref _refreshing, 0);
         }
+    }
+
+    private async Task RefreshCoreAsync(CancellationToken ct)
+    {
+        // A download replaced by the older cache arriving late would lose its prices.
+        await PricesLoaded;
+        var changed = false;
+        var now = _now();
+        if (Prices.IsStale(now) && now - _priceAttempt >= RetryAfterFailure)
+        {
+            _priceAttempt = now;
+            var text = await PriceDownloader.FetchTextAsync(
+                PriceDownloader.PriceListUrl, PriceDownloader.PriceListHost, PriceDownloader.PriceListMaxBytes, _cacheDirectory, ct, _handler);
+            var parsed = text is null ? null : ModelPriceList.Parse(text);
+            if (parsed is { Count: > 0 })
+            {
+                Prices.Replace(parsed, now);
+                _priceAttempt = DateTimeOffset.MinValue;
+                changed = true;
+            }
+            else if (text is not null)
+            {
+                LogService.Shared.Log("WARN", "The downloaded price list held no usable prices; the earlier one stays.");
+            }
+        }
+
+        if (EffectiveCurrency == CostCurrency.Eur && Rate.IsStale(now) && now - _rateAttempt >= RetryAfterFailure)
+        {
+            _rateAttempt = now;
+            var xml = await PriceDownloader.FetchTextAsync(
+                PriceDownloader.RateUrl, PriceDownloader.RateHost, PriceDownloader.RateMaxBytes, _cacheDirectory, ct, _handler);
+            if (xml is not null && EurRate.ParseEcb(xml) is { } rate)
+            {
+                Rate.Set(rate, now);
+                _rateAttempt = DateTimeOffset.MinValue;
+                changed = true;
+            }
+            else if (xml is not null)
+            {
+                LogService.Shared.Log("WARN", "The downloaded euro rate file held no usable rate; the earlier one stays.");
+            }
+        }
+
+        if (changed)
+            Changed?.Invoke();
+
+        await RefreshFallbackAsync(ct);
     }
 
     /// <summary>Loads the second price table when it is stale, but only once the main list has met a

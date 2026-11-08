@@ -284,6 +284,46 @@ public class CostEstimateTests
     }
 
     [Fact]
+    public async Task Refresh_downloads_off_the_calling_context_even_when_the_caller_has_one()
+    {
+        var directory = TempDirectory();
+        var seenContext = new List<SynchronizationContext?>();
+        var seenPoolThread = new List<bool>();
+        var handler = new FakeHandler(uri =>
+        {
+            seenContext.Add(SynchronizationContext.Current);
+            seenPoolThread.Add(Thread.CurrentThread.IsThreadPoolThread);
+            return ForUrl(uri);
+        });
+        var service = Service(handler, directory);
+        var context = new CountingContext();
+        var changedOnContext = new List<SynchronizationContext?>();
+        service.Changed += () => changedOnContext.Add(SynchronizationContext.Current);
+
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            await service.RefreshAsync();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        Assert.Single(seenContext);
+        Assert.All(seenContext, c => Assert.Null(c));
+        Assert.All(seenPoolThread, Assert.True);
+        Assert.All(changedOnContext, c => Assert.Null(c));
+        Assert.False(service.Prices.IsEmpty);
+    }
+
+    private sealed class CountingContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state) => ThreadPool.QueueUserWorkItem(_ => d(state));
+    }
+
+    [Fact]
     public async Task A_background_load_brings_the_cached_prices_in_after_it_completes()
     {
         var directory = TempDirectory();
