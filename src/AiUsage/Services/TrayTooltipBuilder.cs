@@ -42,7 +42,7 @@ public static class TrayTooltipBuilder
 
     private static string BuildLines(IReadOnlyList<ProviderLine> providers, int limit, bool cutLastLine = true)
     {
-        const string noProviders = "AI-Usage";
+        const string noProviders = AppInfo.ProductName;
         if (providers.Count == 0)
             return noProviders.Length <= limit ? noProviders : "";
         if (limit <= 0)

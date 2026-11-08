@@ -311,11 +311,7 @@ public sealed partial class MainViewModel
             {
                 if (!accountGone && (hadWebSession || (IsWebBackedAccount(accountKey) && !_webRunners.ContainsKey(accountKey))))
                 {
-                    _scheduler.RemoveProvider(accountKey);
-                    var (freshProvider, freshRunner) = CreateWebAccount(accountKey);
-                    _webRunners[accountKey] = freshRunner;
-                    _scheduler.AddProvider(freshProvider);
-                    RegisterProvider(freshProvider);
+                    RebuildWebAccount(accountKey);
                 }
             }
             finally
@@ -325,6 +321,16 @@ public sealed partial class MainViewModel
         }
 
         return historyKept ? RemoveAccountResult.RemovedHistoryKept : RemoveAccountResult.Removed;
+    }
+
+    // Swaps the account's provider and runner for freshly built ones.
+    private void RebuildWebAccount(string accountKey)
+    {
+        _scheduler.RemoveProvider(accountKey);
+        var (freshProvider, freshRunner) = CreateWebAccount(accountKey);
+        _webRunners[accountKey] = freshRunner;
+        _scheduler.AddProvider(freshProvider);
+        RegisterProvider(freshProvider);
     }
 
     // Copilot has no web session, so a removal that keeps its account has no runner to rebuild.
@@ -513,11 +519,7 @@ public sealed partial class MainViewModel
             // Unless a removal overtook this sign-out meanwhile: that account must stay gone.
             if (hadWebSession && IsLiveAccount(accountKey))
             {
-                _scheduler.RemoveProvider(accountKey);
-                var (freshProvider, freshRunner) = CreateWebAccount(accountKey);
-                _webRunners[accountKey] = freshRunner;
-                _scheduler.AddProvider(freshProvider);
-                RegisterProvider(freshProvider);
+                RebuildWebAccount(accountKey);
             }
         }
 

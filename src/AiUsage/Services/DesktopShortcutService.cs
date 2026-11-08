@@ -35,7 +35,7 @@ public static class DesktopShortcutService
         {
             link = Activator.CreateInstance(Type.GetTypeFromCLSID(ShellLinkClsid)!);
             var shellLink = (IShellLinkW)link!;
-            shellLink.SetDescription("AI-Usage");
+            shellLink.SetDescription(AppInfo.ProductName);
             shellLink.SetPath(exePath);
             ((IPersistFile)shellLink).Save(ResolveTargetPath(), false);
             return true;

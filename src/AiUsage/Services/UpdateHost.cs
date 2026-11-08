@@ -327,7 +327,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
             {
                 var attributes = File.GetAttributes(entry);
                 var isFolder = (attributes & FileAttributes.Directory) != 0;
-                var written = isFolder ? Directory.GetLastWriteTimeUtc(entry) : File.GetLastWriteTimeUtc(entry);
+                var written = File.GetLastWriteTimeUtc(entry);
                 if (nowUtc - written <= StaleAfter)
                     continue;
 

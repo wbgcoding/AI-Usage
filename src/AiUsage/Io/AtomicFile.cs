@@ -44,22 +44,10 @@ public static class AtomicFile
         }
         catch
         {
-            TryDelete(tempPath);
+            QuietDelete.Delete(tempPath);
             throw;
         }
     }
 
     private static int _tempSequence;
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Best effort: the next start sweeps up what is left.
-        }
-    }
 }

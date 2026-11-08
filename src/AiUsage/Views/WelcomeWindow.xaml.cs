@@ -32,7 +32,7 @@ public partial class WelcomeWindow : Window
 
         // Esc closes dialogs, keyboard-only throughout - same contract as every other window built
         // on this chrome (ConfirmWindow, CrashWindow).
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
+        PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) Close(); };
         Loaded += WelcomeWindow_Loaded;
     }
 

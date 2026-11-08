@@ -34,7 +34,7 @@ public partial class CrashWindow : Window
         DetailsBox.Text = details;
 
         // Esc closes dialogs, keyboard-only throughout.
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
+        PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) Close(); };
     }
 
     /// <summary>

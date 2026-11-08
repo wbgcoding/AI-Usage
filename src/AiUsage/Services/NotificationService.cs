@@ -127,7 +127,7 @@ public sealed class NotificationService
 
     internal NotificationService(string dataDirectory, DateTimeOffset now)
     {
-        _filePath = Path.Combine(dataDirectory, "notifications.json");
+        _filePath = Path.Combine(dataDirectory, AppPaths.NotificationsFileName);
         LoadState(now);
     }
 
@@ -136,7 +136,7 @@ public sealed class NotificationService
     internal void Redirect(string dataDirectory)
     {
         lock (_gate)
-            _filePath = Path.Combine(dataDirectory, "notifications.json");
+            _filePath = Path.Combine(dataDirectory, AppPaths.NotificationsFileName);
     }
 
     // Provider fetches complete on their own ThreadPool threads and can call this

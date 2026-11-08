@@ -104,7 +104,7 @@ public sealed class TrayService : IDisposable
     private readonly MemoryStream _appIconStream;
     private readonly System.ComponentModel.PropertyChangedEventHandler _localizationChanged;
     private bool _suppressCheckEvents;
-    private string _tooltipText = "AI-Usage";
+    private string _tooltipText = AppInfo.ProductName;
     private UsageLevel? _lastLevel;
     private int? _lastPercent;
     private bool _lastDimmed;
@@ -445,7 +445,7 @@ public sealed class TrayService : IDisposable
     {
         var data = NewNotifyIconData(NIF_INFO);
         data.szInfo = text;
-        data.szInfoTitle = "AI-Usage";
+        data.szInfoTitle = AppInfo.ProductName;
         data.dwInfoFlags = NIIF_WARNING;
         Shell_NotifyIcon(NIM_MODIFY, ref data);
     }

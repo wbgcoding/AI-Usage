@@ -141,7 +141,7 @@ internal sealed class ToastNotifier(IToastBackend backend, Action<string> log)
 internal static partial class ToastRegistration
 {
     internal const string AppUserModelId = "BGCoding.AI-Usage";
-    internal const string DisplayName = "AI-Usage";
+    internal const string DisplayName = AppInfo.ProductName;
     internal const string KeyPath = @"Software\Classes\AppUserModelId\" + AppUserModelId;
     private const string IconFileName = "toast-icon.png";
 

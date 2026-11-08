@@ -87,7 +87,7 @@ public class HistoryStore
     }
 
     private string FilePath(string providerId) =>
-        Path.Combine(_dataDirectory, $"history-{AppPaths.SanitizeAccountKeyForFileName(providerId)}.jsonl");
+        Path.Combine(_dataDirectory, $"{AppPaths.HistoryFilePrefix}{AppPaths.SanitizeAccountKeyForFileName(providerId)}{AppPaths.HistoryFileExtension}");
 
     /// <summary>Called once a "move my data" operation has already copied every history file to
     /// <paramref name="dataDirectory"/> - every append/read/compact from this point on targets the
@@ -497,8 +497,7 @@ public class HistoryStore
                 // disk and skip writing the fresh one. Every label variant for this provider goes,
                 // not just the plain per-kind keys - the exact set of labels a provider used is not
                 // known here.
-                foreach (var key in _lastPoints.Keys.Where(key => key.ProviderId == providerId).ToList())
-                    _lastPoints[key] = null;
+                ForgetNewest(providerId);
                 StateOf(providerId).Points = null;
             });
         }
@@ -800,6 +799,13 @@ public class HistoryStore
         }
     }
 
+    // Every label variant of the provider goes, not just the plain per-kind keys.
+    private void ForgetNewest(string providerId)
+    {
+        foreach (var key in _lastPoints.Keys.Where(key => key.ProviderId == providerId).ToList())
+            _lastPoints[key] = null;
+    }
+
     /// <summary>
     /// A rewrite can drop or replace the newest point of any window, so the cache is rebuilt from
     /// what was actually written rather than invalidated - a pruned-empty file then answers "none"
@@ -807,8 +813,7 @@ public class HistoryStore
     /// </summary>
     private void RememberNewestOf(string providerId, List<HistoryPoint> written)
     {
-        foreach (var key in _lastPoints.Keys.Where(key => key.ProviderId == providerId).ToList())
-            _lastPoints[key] = null;
+        ForgetNewest(providerId);
 
         foreach (var point in written)
         {

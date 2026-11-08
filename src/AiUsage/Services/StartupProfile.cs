@@ -16,7 +16,7 @@ internal static class StartupProfile
 
     /// <summary>The machine-local cache folder: <c>%LOCALAPPDATA%\AI-Usage\cache</c>.</summary>
     internal static string CacheDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AI-Usage", "cache");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AiUsage.Storage.AppPaths.AppFolderName, "cache");
 
     /// <summary>Points the runtime at the cache folder and starts the profile. False when any step
     /// failed. The two actions are the test seams for the runtime calls.</summary>

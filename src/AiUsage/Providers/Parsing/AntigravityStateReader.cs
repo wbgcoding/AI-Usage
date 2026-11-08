@@ -42,7 +42,7 @@ public static class AntigravityStateReader
             foreach (var path in Directory.EnumerateFiles(directory, $"{SnapshotPrefix}*{SnapshotExtension}*"))
             {
                 if (DateTime.UtcNow - File.GetLastWriteTimeUtc(path) >= LeftoverMinAge)
-                    DeleteQuietly(path);
+                    Io.QuietDelete.Delete(path);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -60,17 +60,6 @@ public static class AntigravityStateReader
         {
             if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
                 Directory.Delete(directory);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-        }
-    }
-
-    private static void DeleteQuietly(string path)
-    {
-        try
-        {
-            File.Delete(path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

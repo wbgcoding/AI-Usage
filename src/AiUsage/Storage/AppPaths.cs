@@ -10,7 +10,13 @@ namespace AiUsage.Storage;
 /// </summary>
 public static class AppPaths
 {
-    private const string AppFolderName = "AI-Usage";
+    internal const string AppFolderName = AiUsage.Services.AppInfo.ProductName;
+
+    // Names of the files the data directory holds beside the stats database.
+    internal const string SettingsFileName = "settings.json";
+    internal const string NotificationsFileName = "notifications.json";
+    internal const string HistoryFilePrefix = "history-";
+    internal const string HistoryFileExtension = ".jsonl";
 
     /// <summary>Name of the one small file that can redirect the whole data directory elsewhere -
     /// see <see cref="LocationPointerFile"/>.</summary>
@@ -282,7 +288,7 @@ public static class AppPaths
     }
 
     public static string HistoryFile(string accountKey) =>
-        Path.Combine(DataDirectory, $"history-{SanitizeAccountKeyForFileName(accountKey)}.jsonl");
+        Path.Combine(DataDirectory, $"{HistoryFilePrefix}{SanitizeAccountKeyForFileName(accountKey)}{HistoryFileExtension}");
 
     /// <summary>An account key as a file name fragment: anything outside letters, digits, '-' and '_'
     /// becomes '-' ("claude#2" -> "claude-2"). A result with no letter or digit gets a short hash of
@@ -432,13 +438,13 @@ public static class AppPaths
         || name.StartsWith(Stats.ProjectColorResolver.CacheFileName + ".", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsOwnTempFileName(string name) =>
-        name.StartsWith("settings.json.", StringComparison.OrdinalIgnoreCase)
+        name.StartsWith(SettingsFileName + ".", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith("status.json.", StringComparison.OrdinalIgnoreCase)
-        || name.StartsWith("notifications.json", StringComparison.OrdinalIgnoreCase)
+        || name.StartsWith(NotificationsFileName, StringComparison.OrdinalIgnoreCase)
         || name.StartsWith(BackupService.PendingFileName + ".", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith(BackupService.JournalFileName + ".", StringComparison.OrdinalIgnoreCase)
-        || (name.StartsWith("history-",StringComparison.OrdinalIgnoreCase)
-            && name.Contains(".jsonl.", StringComparison.OrdinalIgnoreCase))
+        || (name.StartsWith(HistoryFilePrefix, StringComparison.OrdinalIgnoreCase)
+            && name.Contains(HistoryFileExtension + ".", StringComparison.OrdinalIgnoreCase))
         || (name.StartsWith("stats.v", StringComparison.OrdinalIgnoreCase)
             && name.EndsWith(".bak.tmp", StringComparison.OrdinalIgnoreCase));
 

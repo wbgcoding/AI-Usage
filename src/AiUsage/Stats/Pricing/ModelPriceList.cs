@@ -25,13 +25,7 @@ public sealed class ModelPriceList
     /// <summary>The list is fetched again once it is older than this.</summary>
     internal static readonly TimeSpan MaxAge = TimeSpan.FromHours(24);
 
-    /// <summary>A per-token price at or above this is not a real price (that would be 10 dollars per
-    /// 1000 tokens) and the field is dropped.</summary>
-    private const double MaxTokenPrice = 0.01;
-
     private static readonly string[] MakerPrefixes = ["anthropic/", "openai/", "gemini/", "vertex_ai/"];
-
-    private static readonly ModelPrice FreePrice = new(0, 0, null, null);
 
     // Models no price table will ever list (internal tool models without a public API price): their
     // tokens stay unpriced, but a warning at every start would only be noise.
@@ -42,8 +36,6 @@ public sealed class ModelPriceList
 
     private static readonly Regex AliasSuffix = new(@"-(default|[a-z])$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-
-    private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly Func<string> _cacheDirectory;
     private readonly object _gate;
@@ -154,7 +146,7 @@ public sealed class ModelPriceList
         if (!entry.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number
             || !value.TryGetDouble(out var number))
             return null;
-        return double.IsFinite(number) && number >= 0 && number < MaxTokenPrice ? number : null;
+        return double.IsFinite(number) && number >= 0 && number < PriceListKeys.MaxTokenPrice ? number : null;
     }
 
     /// <summary>Swaps in a new table and, when asked, writes the trimmed cache file.</summary>
@@ -277,7 +269,7 @@ public sealed class ModelPriceList
                 return cached;
         }
 
-        var price = IsFree(model) ? FreePrice : Lookup(prices, model);
+        var price = IsFree(model) ? PriceListKeys.FreePrice : Lookup(prices, model);
         if (price is null)
         {
             Fallback.MarkWanted();
@@ -328,7 +320,7 @@ public sealed class ModelPriceList
         if (Direct(prices, name) is { } direct)
             return direct;
 
-        var stripped = DateSuffix.Replace(name, "");
+        var stripped = PriceListKeys.DateSuffix.Replace(name, "");
         if (stripped.Length != name.Length && Direct(prices, stripped) is { } undated)
             return undated;
 
@@ -362,7 +354,7 @@ public sealed class ModelPriceList
             if (Family(bare) != family)
                 continue;
 
-            var candidate = new Candidate(price, bare, lowKey, string.Equals(MakerOf(lowKey), family, StringComparison.Ordinal));
+            var candidate = new Candidate(price, bare, lowKey, string.Equals(PriceListKeys.MakerOf(lowKey), family, StringComparison.Ordinal));
             if (string.Equals(bare, lowered, StringComparison.Ordinal))
             {
                 if (equal is null || candidate.Beats(equal, 0))
@@ -407,17 +399,6 @@ public sealed class ModelPriceList
     {
         var slash = key.LastIndexOf('/');
         return slash >= 0 ? key[(slash + 1)..] : key;
-    }
-
-    /// <summary>The path part just before the model name in a list key ("minimax" in
-    /// "minimax/minimax-m3"); empty when the key has no path.</summary>
-    private static string MakerOf(string key)
-    {
-        var slash = key.LastIndexOf('/');
-        if (slash < 0)
-            return "";
-        var before = key[..slash];
-        return before[(before.LastIndexOf('/') + 1)..];
     }
 
     /// <summary>The maker a model name belongs to, from its first word.</summary>

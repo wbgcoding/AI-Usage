@@ -76,7 +76,7 @@ public partial class ConfirmWindow : Window
         FitWidthToButtons();
 
         // Esc closes dialogs, keyboard-only throughout.
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) RequestClose(); };
+        PreviewKeyDown += (_, e) => { if (EscapeKey.ClosesWindow(e)) RequestClose(); };
         Closing += (_, e) =>
         {
             // A running work is stopped, never abandoned: the window closes once the work reports back.

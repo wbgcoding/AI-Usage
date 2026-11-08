@@ -246,7 +246,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
         }
 
         // The signature file has done its job.
-        DeleteQuietly(signaturePath);
+        QuietDelete.Delete(signaturePath);
         var held = lease!;
         try
         {
@@ -332,7 +332,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     /// <summary>Removes the run's files and, when nothing else is left, its folder.</summary>
     private static void CleanUpRun(string runFolder, params string[] files)
     {
-        DeleteQuietly(files);
+        QuietDelete.Delete(files);
         // Not empty or still in use: the next start's cleanup of the work folder removes it.
         FreshRunFolder.TryRemoveEmpty(runFolder);
     }
@@ -340,20 +340,6 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     private static bool IsNewerThanRunning(Version? offered, Version running) =>
         offered is not null && UpdateCheck.IsNewerVersion(offered, running);
 
-    private static void DeleteQuietly(params string[] paths)
-    {
-        foreach (var path in paths)
-        {
-            try
-            {
-                File.Delete(path);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // A file another process still holds goes with the next start's cleanup of the work folder.
-            }
-        }
-    }
 }
 
 /// <summary>How a portable swap ended.</summary>
@@ -530,19 +516,7 @@ public static class PortableSwap
         if (!File.Exists(runningExePath))
             return;
 
-        TryDelete(runningExePath + OldSuffix);
-        TryDelete(runningExePath + StagedSuffix);
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Still in use or read-only: tried again at the next start.
-        }
+        QuietDelete.Delete(runningExePath + OldSuffix);
+        QuietDelete.Delete(runningExePath + StagedSuffix);
     }
 }

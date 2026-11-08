@@ -64,7 +64,7 @@ public sealed class WebViewHost : IAsyncDisposable
     /// <summary>The ordinary profile root, ignoring any override - what a second instance's own root
     /// is derived from (see <see cref="Services.SecondInstanceMode"/>).</summary>
     public static string SharedRootFolder() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AI-Usage", "webview");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppPaths.AppFolderName, "webview");
 
     /// <summary>Where the profile folder of <paramref name="profileFolderName"/> lives, without
     /// creating or migrating anything - for asking whether one is still on disk.</summary>

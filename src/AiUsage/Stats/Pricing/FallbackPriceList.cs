@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using AiUsage.Services;
 
 namespace AiUsage.Stats.Pricing;
@@ -17,16 +16,11 @@ internal sealed class FallbackPriceList
 {
     internal const string CacheFileName = "model-prices-extra.json";
 
-    private const double MaxTokenPrice = 0.01;
     private const int MaxEntries = 100_000;
     private const int MaxIdLength = 200;
 
     /// <summary>The trimmed cache is far smaller than the download; a bigger file is not ours.</summary>
     internal const long MaxCacheBytes = 16L * 1024 * 1024;
-
-    private static readonly ModelPrice FreePrice = new(0, 0, null, null);
-
-    private static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     /// <summary>One model of one provider, with its price per token.</summary>
     internal sealed record Entry(string Provider, string Model, ModelPrice Price)
@@ -119,7 +113,7 @@ internal sealed class FallbackPriceList
         if (!cost.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number))
             return null;
         var perToken = number / 1_000_000;
-        return double.IsFinite(perToken) && perToken >= 0 && perToken < MaxTokenPrice ? perToken : null;
+        return double.IsFinite(perToken) && perToken >= 0 && perToken < PriceListKeys.MaxTokenPrice ? perToken : null;
     }
 
     /// <summary>Swaps in a new table and, when asked, writes the trimmed cache file.</summary>
@@ -245,7 +239,7 @@ internal sealed class FallbackPriceList
     {
         if (!item.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number))
             return null;
-        return double.IsFinite(number) && number >= 0 && number < MaxTokenPrice ? number : null;
+        return double.IsFinite(number) && number >= 0 && number < PriceListKeys.MaxTokenPrice ? number : null;
     }
 
     /// <summary>The price of <paramref name="model"/>, or null when no entry carries its name. The full
@@ -276,31 +270,22 @@ internal sealed class FallbackPriceList
         var last = LastSegment(name);
         var matches = Collect(index, name, last);
         if (matches.Count == 0)
-            matches = Collect(index, DateSuffix.Replace(name, ""), DateSuffix.Replace(last, ""));
+            matches = Collect(index, PriceListKeys.DateSuffix.Replace(name, ""), PriceListKeys.DateSuffix.Replace(last, ""));
         if (matches.Count == 0)
             return null;
 
         var paid = matches.Where(entry => !entry.IsZero).ToList();
         if (paid.Count == 0)
-            return FreePrice;
+            return PriceListKeys.FreePrice;
 
         var family = ModelPriceList.Family(last);
-        var own = paid.Where(entry => entry.Provider == family || MakerOf(entry.Model.ToLowerInvariant()) == family).ToList();
+        var own = paid.Where(entry => entry.Provider == family || PriceListKeys.MakerOf(entry.Model.ToLowerInvariant()) == family).ToList();
         var ordered = (own.Count > 0 ? own : paid)
             .OrderBy(entry => entry.Price.Input)
             .ThenBy(entry => entry.Provider, StringComparer.Ordinal)
             .ThenBy(entry => entry.Model, StringComparer.Ordinal)
             .ToList();
         return ordered[(ordered.Count - 1) / 2].Price;
-    }
-
-    private static string MakerOf(string id)
-    {
-        var slash = id.LastIndexOf('/');
-        if (slash < 0)
-            return "";
-        var before = id[..slash];
-        return before[(before.LastIndexOf('/') + 1)..];
     }
 
     private static List<Entry> Collect(IReadOnlyDictionary<string, List<Entry>> index, string first, string second)

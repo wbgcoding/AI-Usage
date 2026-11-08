@@ -1516,7 +1516,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (File.Exists(Path.Combine(destination, Stats.StatsStore.DatabaseFileName)) || File.Exists(Path.Combine(destination, "settings.json")))
+        if (File.Exists(Path.Combine(destination, Stats.StatsStore.DatabaseFileName)) || File.Exists(Path.Combine(destination, AppPaths.SettingsFileName)))
         {
             if (!AppPaths.SameDirectory(destination, OwnDefaultDataDirectory()))
             {
@@ -1621,10 +1621,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private static void CopySmallFiles(string source, string destination)
     {
-        CopyIfExists(Path.Combine(source, "settings.json"), Path.Combine(destination, "settings.json"));
-        CopyIfExists(Path.Combine(source, "settings.json.bak"), Path.Combine(destination, "settings.json.bak"));
-        CopyIfExists(Path.Combine(source, "notifications.json"), Path.Combine(destination, "notifications.json"));
-        foreach (var historyFile in Directory.EnumerateFiles(source, "history-*.jsonl"))
+        foreach (var name in new[] { AppPaths.SettingsFileName, AppPaths.SettingsFileName + ".bak", AppPaths.NotificationsFileName })
+            CopyIfExists(Path.Combine(source, name), Path.Combine(destination, name));
+        foreach (var historyFile in Directory.EnumerateFiles(source, AppPaths.HistoryFilePrefix + "*" + AppPaths.HistoryFileExtension))
             CopyIfExists(historyFile, Path.Combine(destination, Path.GetFileName(historyFile)));
     }
 

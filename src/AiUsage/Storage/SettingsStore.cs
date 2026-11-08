@@ -80,7 +80,7 @@ public sealed class SettingsStore : IDisposable
     /// production, but only this store's own field is the one a test can seed independently.</summary>
     internal string DataDirectory => _dataDirectory;
 
-    private string SettingsFilePath => Path.Combine(_dataDirectory, "settings.json");
+    private string SettingsFilePath => Path.Combine(_dataDirectory, AppPaths.SettingsFileName);
 
     /// <summary>Called once a "move my data" operation has already copied <c>settings.json</c> and
     /// its backup to <paramref name="dataDirectory"/> - every save from this point on lands in the

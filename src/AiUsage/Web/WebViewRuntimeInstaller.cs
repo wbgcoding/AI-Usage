@@ -70,7 +70,7 @@ public sealed class WebViewRuntimeInstaller
     /// process, and the runtime probe the sign-in flow already uses.</summary>
     public static WebViewRuntimeInstaller CreateDefault() => new(
         DownloadAsync, AuthenticodeSignature.Check, RunProcessAsync, WebViewAvailability.IsInstalled,
-        () => Path.Combine(Path.GetTempPath(), "AI-Usage"));
+        () => Path.Combine(Path.GetTempPath(), Storage.AppPaths.AppFolderName));
 
     /// <param name="downloadProgress">0..1 while the file comes down.</param>
     /// <param name="installing">Called once the downloaded file is about to run: from there on the

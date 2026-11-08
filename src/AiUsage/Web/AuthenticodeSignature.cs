@@ -34,10 +34,11 @@ internal static class AuthenticodeSignature
         if (!IsTrustResultAcceptable(trust, Services.NetworkStatus.HasInternet(), justDownloaded))
             return new SignatureCheckResult(false, $"signature: WinVerifyTrust 0x{trust:X8}");
 
-        if (!ReadSignerNames(path).Any(name => string.Equals(name, requiredSigner, StringComparison.OrdinalIgnoreCase)))
+        using var signer = ReadSigner(path);
+        if (signer is null || !ReadSignerNames(signer).Any(name => string.Equals(name, requiredSigner, StringComparison.OrdinalIgnoreCase)))
             return new SignatureCheckResult(false, "signature: signer is not the expected publisher");
 
-        return IsPinnedRoot(ReadChainRootThumbprint(path))
+        return IsPinnedRoot(ReadChainRootThumbprint(path, signer))
             ? new SignatureCheckResult(true, "")
             : new SignatureCheckResult(false, "signature: the signer's chain does not end in a Microsoft root");
     }
@@ -46,18 +47,31 @@ internal static class AuthenticodeSignature
     internal static bool IsPinnedRoot(string? thumbprint) =>
         thumbprint is not null && PinnedRootThumbprints.Contains(thumbprint, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>The thumbprint of the topmost certificate in the chain built for the file's signer; null
-    /// when the signer cannot be read or no chain can be built. Revocation was asked for by the trust
-    /// check above, so none is repeated here, and a signer certificate that has expired since signing
-    /// still has its chain read: the signature is timestamped, the root is what is asked for.</summary>
-    private static string? ReadChainRootThumbprint(string path)
+    /// <summary>The certificate the file is signed with; null when it cannot be read. Read once per check
+    /// and handed to the name and chain steps, so the file is opened one time.</summary>
+    private static X509Certificate2? ReadSigner(string path)
     {
         try
         {
 #pragma warning disable SYSLIB0057 // No replacement reads the signer of a signed file; WinVerifyTrust above has already proven the signature.
             using var certificate = X509Certificate.CreateFromSignedFile(path);
 #pragma warning restore SYSLIB0057
-            using var signer = new X509Certificate2(certificate);
+            return new X509Certificate2(certificate);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The thumbprint of the topmost certificate in the chain built for the file's signer; null
+    /// when the signer cannot be read or no chain can be built. Revocation was asked for by the trust
+    /// check above, so none is repeated here, and a signer certificate that has expired since signing
+    /// still has its chain read: the signature is timestamped, the root is what is asked for.</summary>
+    private static string? ReadChainRootThumbprint(string path, X509Certificate2 signer)
+    {
+        try
+        {
             var embedded = EmbeddedCertificates(path);
             try
             {
@@ -128,27 +142,16 @@ internal static class AuthenticodeSignature
     /// company name as the common name and others (the .NET runtime files) with a product name there
     /// and the company only as the organisation, so both count. Both come out of a certificate that
     /// Windows has already chained to a trusted root.</summary>
-    private static List<string> ReadSignerNames(string path)
+    private static List<string> ReadSignerNames(X509Certificate2 signer)
     {
-        try
+        var names = new List<string>();
+        foreach (var part in signer.SubjectName.EnumerateRelativeDistinguishedNames())
         {
-#pragma warning disable SYSLIB0057 // No replacement reads the signer of a signed file; WinVerifyTrust above has already proven the signature.
-            using var certificate = X509Certificate.CreateFromSignedFile(path);
-#pragma warning restore SYSLIB0057
-            using var certificate2 = new X509Certificate2(certificate);
-            var names = new List<string>();
-            foreach (var part in certificate2.SubjectName.EnumerateRelativeDistinguishedNames())
-            {
-                var type = part.GetSingleElementType().Value;
-                if (type is "2.5.4.3" or "2.5.4.10" && part.GetSingleElementValue() is { } value)
-                    names.Add(value);
-            }
-            return names;
+            var type = part.GetSingleElementType().Value;
+            if (type is "2.5.4.3" or "2.5.4.10" && part.GetSingleElementValue() is { } value)
+                names.Add(value);
         }
-        catch (System.Security.Cryptography.CryptographicException)
-        {
-            return [];
-        }
+        return names;
     }
 
     private static readonly Guid GenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");

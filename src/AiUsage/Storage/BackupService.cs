@@ -99,12 +99,13 @@ public static class BackupService
     /// restart that came late (the previous copy was slow to end).</summary>
     internal static readonly TimeSpan PendingMaxAge = TimeSpan.FromHours(24);
 
-    private const string SettingsName = "settings.json";
-    private const string NotificationsName = "notifications.json";
+    private const string SettingsName = AppPaths.SettingsFileName;
+    private const string NotificationsName = AppPaths.NotificationsFileName;
     private const string ProjectColorsName = Stats.ProjectColorResolver.CacheFileName;
     private const string StatsName = Stats.StatsStore.DatabaseFileName;
 
-    private static readonly Regex HistoryName = new(@"^history-[A-Za-z0-9_-]{1,100}\.jsonl\z", RegexOptions.CultureInvariant);
+    private static readonly Regex HistoryName = new(
+        $@"^{Regex.Escape(AppPaths.HistoryFilePrefix)}[A-Za-z0-9_-]{{1,100}}{Regex.Escape(AppPaths.HistoryFileExtension)}\z", RegexOptions.CultureInvariant);
 
     /// <summary>True for the exact file names a backup may hold besides the manifest.</summary>
     internal static bool IsDataFileName(string name) =>
@@ -245,7 +246,7 @@ public static class BackupService
         }
         finally
         {
-            TryDeleteFile(temp);
+            QuietDelete.Delete(temp);
             TryDeleteDirectory(scratch);
         }
     }
@@ -586,7 +587,7 @@ public static class BackupService
         var accounts = 0;
         foreach (var name in backup.DataNames.Where(n => HistoryName.IsMatch(n)))
         {
-            var providerId = name["history-".Length..^".jsonl".Length];
+            var providerId = name[AppPaths.HistoryFilePrefix.Length..^AppPaths.HistoryFileExtension.Length];
             var any = false;
             foreach (var line in backup.ReadLines(name))
             {
@@ -768,7 +769,7 @@ public static class BackupService
         }
         catch
         {
-            TryDeleteFile(temporary);
+            QuietDelete.Delete(temporary);
             throw;
         }
     }
@@ -776,8 +777,8 @@ public static class BackupService
     /// <summary>Takes a scheduled restore back (the restart did not happen).</summary>
     public static void CancelPendingRestore(string dataDirectory)
     {
-        TryDeleteFile(Path.Combine(dataDirectory, PendingFileName));
-        TryDeleteFile(Path.Combine(dataDirectory, PendingCopyFileName));
+        QuietDelete.Delete(Path.Combine(dataDirectory, PendingFileName));
+        QuietDelete.Delete(Path.Combine(dataDirectory, PendingCopyFileName));
     }
 
     public static RestoreOutcome ApplyPendingRestore(string dataDirectory, DateTime now, Action<string> log) =>
@@ -802,15 +803,15 @@ public static class BackupService
         var pendingCopy = Path.Combine(dataDirectory, PendingCopyFileName);
         if (!File.Exists(pending))
         {
-            TryDeleteFile(pendingCopy);
+            QuietDelete.Delete(pendingCopy);
             return recovered ? RestoreOutcome.Unchanged : RestoreOutcome.NoPending;
         }
 
         var request = ReadPending(pending, now);
         if (request is null)
         {
-            TryDeleteFile(pending);
-            TryDeleteFile(pendingCopy);
+            QuietDelete.Delete(pending);
+            QuietDelete.Delete(pendingCopy);
             log("Restore: the request was invalid or too old and was dropped.");
             return RestoreOutcome.Unchanged;
         }
@@ -860,8 +861,8 @@ public static class BackupService
         finally
         {
             DeleteStaging(staging);
-            TryDeleteFile(pending);
-            TryDeleteFile(pendingCopy);
+            QuietDelete.Delete(pending);
+            QuietDelete.Delete(pendingCopy);
         }
     }
 
@@ -1025,11 +1026,11 @@ public static class BackupService
         {
             log($"Restore: the swap failed ({ex.GetType().Name}); putting the previous files back.");
             if (RollBack(dataDirectory, journal, log))
-                TryDeleteFile(Path.Combine(dataDirectory, JournalFileName));
+                QuietDelete.Delete(Path.Combine(dataDirectory, JournalFileName));
             return RestoreOutcome.Unchanged;
         }
 
-        TryDeleteFile(Path.Combine(dataDirectory, JournalFileName));
+        QuietDelete.Delete(Path.Combine(dataDirectory, JournalFileName));
         setAsidePath = setAside;
         log($"Restore: done; the previous files are in {Path.GetFileName(setAside)}.");
         return RestoreOutcome.Restored;
@@ -1104,7 +1105,7 @@ public static class BackupService
             if (asideNames.Contains(name) && !File.Exists(Path.Combine(setAside, name)))
                 continue;
 
-            TryDeleteFile(current);
+            QuietDelete.Delete(current);
             if (File.Exists(current))
             {
                 complete = false;
@@ -1168,7 +1169,7 @@ public static class BackupService
 
         log("Restore: an interrupted restore was found; putting the previous files back.");
         if (RollBack(dataDirectory, journal, log))
-            TryDeleteFile(path);
+            QuietDelete.Delete(path);
         else
             log($"Restore: some files are still in {journal.SetAside}; the journal stays for the next start.");
         return true;
@@ -1197,17 +1198,6 @@ public static class BackupService
         {
             if (Directory.Exists(path))
                 Directory.Delete(path, recursive: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-        }
-    }
-
-    private static void TryDeleteFile(string path)
-    {
-        try
-        {
-            File.Delete(path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
