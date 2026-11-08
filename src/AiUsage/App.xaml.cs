@@ -362,6 +362,9 @@ public partial class App : Application, IDisposable
         RequestShutdown();
     }
 
+    // The quit waits this long for a portable update swap between its two renames to end.
+    private static readonly TimeSpan SwapWaitOnQuit = TimeSpan.FromSeconds(10);
+
     /// <summary>The one way to end the running app once the main window may exist: the window is marked
     /// as really closing first, because WPF ignores a cancelled Closing during a shutdown and would
     /// otherwise hide into the tray instead of saving and disposing. Shutdown calls made before the
@@ -370,6 +373,7 @@ public partial class App : Application, IDisposable
     {
         if (Current is App app)
             app._mainWindow?.PrepareForShutdown();
+        PortableSwap.WaitForSwapEnd(SwapWaitOnQuit);
         Current?.Shutdown();
     }
 

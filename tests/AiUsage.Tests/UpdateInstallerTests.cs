@@ -882,6 +882,31 @@ public class UpdateSignatureTests
 public class PortableSwapTests
 {
     [Fact]
+    public void WaitForSwapEndHoldsWhileARenameIsRunning()
+    {
+        var folder = TestPaths.CreateDirectory("swap-wait");
+        var running = Path.Combine(folder, "AI-Usage.exe");
+        File.WriteAllText(running, "old");
+        using var inRename = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+
+        var swap = Task.Run(() => PortableSwap.Replace(running, [.. "new"u8], (from, to, overwrite) =>
+        {
+            inRename.Set();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+            File.Move(from, to, overwrite);
+        }));
+        Assert.True(inRename.Wait(TimeSpan.FromSeconds(30)));
+
+        Assert.False(PortableSwap.WaitForSwapEnd(TimeSpan.FromMilliseconds(200)));
+
+        release.Set();
+        Assert.True(PortableSwap.WaitForSwapEnd(TimeSpan.FromSeconds(30)));
+        Assert.Equal(SwapResult.Replaced, swap.GetAwaiter().GetResult());
+        Assert.Equal("new", File.ReadAllText(running));
+    }
+
+    [Fact]
     public void ReplaceMovesTheRunningFileAsideAndPutsTheNewOneInItsPlace()
     {
         var folder = TestPaths.CreateDirectory("swap");

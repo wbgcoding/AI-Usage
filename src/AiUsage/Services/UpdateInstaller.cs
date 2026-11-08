@@ -387,8 +387,47 @@ public static class PortableSwap
     /// <summary>The name the previous program is parked under during a swap.</summary>
     public static string OldPathFor(string runningExePath) => runningExePath + OldSuffix;
 
+    private static readonly object SwapGate = new();
+    private static int _swapsRunning;
+
+    /// <summary>Waits, bounded, until no swap is between its two renames. A quit during the swap
+    /// would leave only the <c>.old</c> file at the program path, so the shutdown asks this first.
+    /// True when no swap is running (or none was left running within the time).</summary>
+    public static bool WaitForSwapEnd(TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        lock (SwapGate)
+        {
+            while (_swapsRunning > 0)
+            {
+                var left = deadline - DateTime.UtcNow;
+                if (left <= TimeSpan.Zero || !Monitor.Wait(SwapGate, left))
+                    return _swapsRunning == 0;
+            }
+            return true;
+        }
+    }
+
     /// <summary>The move is a parameter so a test can fail one of the renames.</summary>
     internal static SwapResult Replace(string runningExePath, byte[] newExe, Action<string, string, bool> move)
+    {
+        lock (SwapGate)
+            _swapsRunning++;
+        try
+        {
+            return ReplaceCore(runningExePath, newExe, move);
+        }
+        finally
+        {
+            lock (SwapGate)
+            {
+                _swapsRunning--;
+                Monitor.PulseAll(SwapGate);
+            }
+        }
+    }
+
+    private static SwapResult ReplaceCore(string runningExePath, byte[] newExe, Action<string, string, bool> move)
     {
         if (!File.Exists(runningExePath))
             return SwapResult.Unchanged;
