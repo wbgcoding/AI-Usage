@@ -689,7 +689,6 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>of which bought: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Free credit</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} of {1} used</value></data>
-  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>{0} left</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>{0} left; the earliest grant ends on {1}.</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} left.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>

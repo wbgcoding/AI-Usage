@@ -606,7 +606,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         RefreshApiGrantForecast();
     }
 
-    /// <summary>"Free credit"; what is left ("$120.00 left") sits beside it where a usage row shows its
+    /// <summary>"Free credit"; what is left (the bare amount, "$120.00") sits beside it where a usage row shows its
     /// token figure, so on a narrow tile it steps aside whole instead of trimming to a misleading
     /// "$12...". The bar's tooltip always names it.</summary>
     private string ApiGrantLabelText() => LocalizationService.Instance["Tile.ApiGrant.Label"];
@@ -615,7 +615,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     {
         var loc = LocalizationService.Instance;
         return _apiCredit is { Grant: { } grant } credit
-            ? loc.Format("Tile.ApiGrant.Left", credit.FormatMoney(grant.Remaining, loc.DisplayCulture))
+            ? credit.FormatMoney(grant.Remaining, loc.DisplayCulture)
             : "";
     }
 

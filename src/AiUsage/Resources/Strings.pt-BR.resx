@@ -689,7 +689,6 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>dos quais comprados: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Crédito gratuito</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} de {1} usados</value></data>
-  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>restam {0}</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Restam {0}; o primeiro crédito expira em {1}.</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Restam {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Entrar em platform.claude.com</value></data>

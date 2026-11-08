@@ -689,7 +689,6 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>satın alınan: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Ücretsiz kredi</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{1} kredinin {0} tutarı kullanıldı</value></data>
-  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>{0} kaldı</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>{0} kaldı; en erken kredi {1} tarihinde sona eriyor.</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} kaldı.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com'da oturum aç</value></data>

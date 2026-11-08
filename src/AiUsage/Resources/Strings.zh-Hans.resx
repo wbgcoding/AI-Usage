@@ -689,7 +689,6 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>其中已购买：{0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>免费额度</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>已用 {0}，共 {1}</value></data>
-  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>剩余 {0}</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>剩余 {0}；最早的额度于 {1} 到期。</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>剩余 {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>

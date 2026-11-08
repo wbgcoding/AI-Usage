@@ -689,7 +689,6 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>w tym kupione: {0}</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Darmowe środki</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>Wykorzystano {0} z {1}</value></data>
-  <data name="Tile.ApiGrant.Left" xml:space="preserve"><value>zostało {0}</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Zostało {0}; najwcześniejsze środki wygasają {1}.</value></data>
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Zostało {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Zaloguj do platform.claude.com</value></data>

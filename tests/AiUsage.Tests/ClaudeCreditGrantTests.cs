@@ -109,7 +109,7 @@ public class ClaudeCreditGrantTests
         var loc = LocalizationService.Instance;
         var row = tile.ApiGrantRow!;
         Assert.Equal(loc["Tile.ApiGrant.Label"], row.LabelText);
-        Assert.Equal(loc.Format("Tile.ApiGrant.Left", credit.FormatMoney(120m, loc.DisplayCulture)), row.InlineTokensText);
+        Assert.Equal(credit.FormatMoney(120m, loc.DisplayCulture), row.InlineTokensText);
         Assert.Equal("", row.InlineTokensToolTip);
         Assert.Equal(40, row.UsedPercent, 9);
         Assert.Contains(credit.FormatMoney(80m, loc.DisplayCulture), row.BarTooltipText);
