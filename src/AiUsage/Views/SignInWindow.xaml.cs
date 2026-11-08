@@ -45,6 +45,9 @@ public partial class SignInWindow : Window
     // (see SignInSessionCheck); null leaves the address alone to decide.
     private readonly string? _sessionCheckScript;
     private bool _checkingSession;
+    // A landing that looked finished while a session check held the window: asked once more when
+    // that check ends without closing it (see ReplayPendingLanding).
+    private bool _landingPending;
     // A login page that bounced straight back on a session the site no longer accepts gets its
     // cookies cleared and the login page loaded again, once per window.
     private bool _clearedStaleSession;
@@ -344,6 +347,12 @@ public partial class SignInWindow : Window
             ClosePopup();
             args.Handled = true;
             Browser.CoreWebView2?.Navigate(args.Uri);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // An async void handler: anything escaping here would end the process.
+            LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}': the popup request failed ({ex.GetType().Name}).");
+            args.Handled = true;
         }
         finally
         {
@@ -724,8 +733,24 @@ public partial class SignInWindow : Window
         // Only closes once the flow has actually been ON the login/OAuth path at least once -
         // otherwise the very first navigation to the provider's own start page (before the user has
         // done anything) would close the window instantly.
-        if (_sawLoginPage && isSuccess && !SignedIn && !_checkingSession && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
-            _ = ConfirmSignInAsync();
+        if (_sawLoginPage && isSuccess && !SignedIn && ShouldCloseAfterSignIn(uri, _startPath, _leftByLinkClick))
+        {
+            if (_checkingSession)
+                _landingPending = true;
+            else
+                _ = ConfirmSignInAsync();
+        }
+    }
+
+    /// <summary>Runs after a session check that did not close the window: a landing that arrived while
+    /// it ran was skipped, and nothing else would look at that page again.</summary>
+    private void ReplayPendingLanding()
+    {
+        if (!_landingPending)
+            return;
+        _landingPending = false;
+        if (!_closed && !SignedIn)
+            EvaluateLanding(isSuccess: true);
     }
 
     /// <summary>How often and how far apart the landing page is asked: a session cookie can land a
@@ -784,6 +809,7 @@ public partial class SignInWindow : Window
         finally
         {
             _checkingSession = false;
+            ReplayPendingLanding();
         }
     }
 
@@ -842,6 +868,7 @@ public partial class SignInWindow : Window
         finally
         {
             _checkingSession = false;
+            ReplayPendingLanding();
         }
     }
 
