@@ -707,4 +707,5 @@
   <data name="Text.NumberUnit" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
 </root>

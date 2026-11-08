@@ -296,7 +296,7 @@ public sealed class HistoryChart : FrameworkElement
 
         // A day-long range shows the same clock time at both ends, so the start names its day.
         if (range <= TimeSpan.FromHours(24) && start.LocalDateTime.Date != end.LocalDateTime.Date)
-            return (DateLabels.ShortMonthDay(start.LocalDateTime, LocalizationService.Instance.DisplayCulture) + " " + RangeCaption(start, range),
+            return (TextCompose.DayAndTime(DateLabels.ShortMonthDay(start.LocalDateTime, LocalizationService.Instance.DisplayCulture), RangeCaption(start, range)),
                 RangeCaption(end, range));
 
         var crossesYear = start.LocalDateTime.Year != end.LocalDateTime.Year;
@@ -311,7 +311,7 @@ public sealed class HistoryChart : FrameworkElement
         var local = at.LocalDateTime;
         return range <= TimeSpan.FromHours(24)
             ? local.ToString("t", culture)
-            : DateLabels.ShortMonthDay(local, culture) + " " + local.ToString("t", culture);
+            : TextCompose.DayAndTime(DateLabels.ShortMonthDay(local, culture), local.ToString("t", culture));
     }
 
     /// <summary>Maps an instant to its pixel x position across <see cref="RangeStart"/>..<see

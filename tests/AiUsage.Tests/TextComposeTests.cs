@@ -23,6 +23,7 @@ public sealed class TextComposeTests
             Assert.Equal(nameAndItem, TextCompose.NameAndItem("a", "b"));
             Assert.Equal(list, TextCompose.List(["a", "", "b"]));
             Assert.Equal(sentences, TextCompose.Sentences("a", "b"));
+            Assert.Equal("a b", TextCompose.DayAndTime("a", "b"));
         }
         finally
         {

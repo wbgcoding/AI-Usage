@@ -67,8 +67,8 @@ public static class CountdownFormatter
         // switch by an hour.
         var calendarDays = (local.Date - TimeZoneInfo.ConvertTime(now, zone).Date).Days;
         return calendarDays < 6
-            ? local.ToString("ddd " + time, culture)
-            : DateLabels.ShortMonthDay(local.DateTime, culture) + " " + local.ToString(time, culture);
+            ? TextCompose.DayAndTime(local.ToString("ddd", culture), local.ToString(time, culture))
+            : TextCompose.DayAndTime(DateLabels.ShortMonthDay(local.DateTime, culture), local.ToString(time, culture));
     }
 
     /// <summary>"Last update … ago" for the Stale state - the same day/hour/minute rounding as

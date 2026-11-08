@@ -22,6 +22,9 @@ public static class TextCompose
     /// <summary>Two sentences, or a label and its figure, one after the other.</summary>
     public static string Sentences(string first, string second) => Loc.Format("Text.Sentences", first, second);
 
+    /// <summary>A day (weekday or date) and a clock time, in the language's own order and spacing.</summary>
+    public static string DayAndTime(string day, string time) => Loc.Format("Text.DateTime", day, time);
+
     /// <summary>The parts joined with the language's list separator; empty parts are skipped.</summary>
     public static string List(IEnumerable<string> parts) =>
         string.Join(Loc["Text.ListSeparator"], parts.Where(part => part.Length > 0));
