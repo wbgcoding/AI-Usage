@@ -36,6 +36,10 @@ public class ProviderLinksTests
     }
 
     [Fact]
+    public void TheGeminiStatusPageIsAStatusPageNotTheUsagePage() =>
+        Assert.Equal("https://aistudio.google.com/status", ProviderLinks.StatusPage("gemini")!.AbsoluteUri);
+
+    [Fact]
     public void AnUnknownProviderIdHasNoStatusPage() =>
         Assert.Null(ProviderLinks.StatusPage("not-a-real-provider"));
 }
