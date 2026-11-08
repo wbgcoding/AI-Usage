@@ -169,31 +169,31 @@ public sealed class StatsMonthGrid : FrameworkElement
 
     public static readonly DependencyProperty TextBrushProperty = DependencyProperty.Register(
         nameof(TextBrush), typeof(Brush), typeof(StatsMonthGrid),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TextBrush
     {
-        get => (Brush)GetValue(TextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(TextBrushProperty));
         set => SetValue(TextBrushProperty, value);
     }
 
     public static readonly DependencyProperty EmptyTextBrushProperty = DependencyProperty.Register(
         nameof(EmptyTextBrush), typeof(Brush), typeof(StatsMonthGrid),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush EmptyTextBrush
     {
-        get => (Brush)GetValue(EmptyTextBrushProperty);
+        get => ChartTheme.Muted(this, (Brush?)GetValue(EmptyTextBrushProperty));
         set => SetValue(EmptyTextBrushProperty, value);
     }
 
     public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
         nameof(TooltipBackground), typeof(Brush), typeof(StatsMonthGrid),
-        new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TooltipBackground
     {
-        get => (Brush)GetValue(TooltipBackgroundProperty);
+        get => ChartTheme.TooltipBackground(this, (Brush?)GetValue(TooltipBackgroundProperty));
         set => SetValue(TooltipBackgroundProperty, value);
     }
 
@@ -317,11 +317,11 @@ public sealed class StatsMonthGrid : FrameworkElement
     /// <summary>The selected-day outline's own color - drawn as a halo just outside the cell.</summary>
     public static readonly DependencyProperty AccentBrushProperty = DependencyProperty.Register(
         nameof(AccentBrush), typeof(Brush), typeof(StatsMonthGrid),
-        new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush AccentBrush
     {
-        get => (Brush)GetValue(AccentBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(AccentBrushProperty));
         set => SetValue(AccentBrushProperty, value);
     }
 
@@ -634,7 +634,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             return brush;
         });
 
-    private static Color BrushColor(Brush brush) => brush is SolidColorBrush solid ? solid.Color : Colors.Gray;
+    private static Color BrushColor(Brush brush) => brush is SolidColorBrush solid ? solid.Color : ChartTheme.MutedColor;
 
     /// <summary>Where the cells start on the left: after the weekday column, or - while <see
     /// cref="ShowAxisLabels"/> is off - after just the edge margin, instead of leaving a blank gutter
@@ -804,7 +804,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
             var y = EffectiveTopLabelHeight + row * (cellSize + fit.Gap);
             var text = new FormattedText(
-                dayAbbreviations[(int)dayOfWeek], LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 8, EmptyTextBrush, dpi);
+                dayAbbreviations[(int)dayOfWeek], LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
             dc.DrawText(text, ChartDrawCache.Snap(0, y + (cellSize - text.Height) / 2, dpi));
         }
     }
@@ -814,7 +814,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         foreach (var (column, label) in MonthLabels(columns, LocalizationService.Instance.DisplayCulture))
         {
             var x = EffectiveLeftLabelWidth + column * (fit.CellSize + fit.Gap);
-            var text = new FormattedText(label, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 11, TextBrush, dpi);
+            var text = new FormattedText(label, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Small", 11), TextBrush, dpi);
             // A month that only just began in the last column has no room for its name; a cut-off
             // name reads worse than none.
             if (x + text.Width > ActualWidth)
@@ -887,8 +887,8 @@ public sealed class StatsMonthGrid : FrameworkElement
         const double square = 10;
         const double gap = 2;
 
-        var lessText = new FormattedText(LegendLessText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 9, EmptyTextBrush, dpi);
-        var moreText = new FormattedText(LegendMoreText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 9, EmptyTextBrush, dpi);
+        var lessText = new FormattedText(LegendLessText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
+        var moreText = new FormattedText(LegendMoreText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
         var startX = Math.Max(0, width - IntensityScaleWidth(dpi, typeface));
 
         dc.DrawText(lessText, new Point(startX, y - 1));
@@ -917,8 +917,8 @@ public sealed class StatsMonthGrid : FrameworkElement
         if (_scaleWidthKey == key)
             return _scaleWidth;
 
-        var lessText = new FormattedText(LegendLessText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 9, EmptyTextBrush, dpi);
-        var moreText = new FormattedText(LegendMoreText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 9, EmptyTextBrush, dpi);
+        var lessText = new FormattedText(LegendLessText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
+        var moreText = new FormattedText(LegendMoreText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), EmptyTextBrush, dpi);
         _scaleWidth = lessText.Width + 4 + 5 * square + 4 * gap + 4 + moreText.Width + rightMargin;
         _scaleWidthKey = key;
         return _scaleWidth;
@@ -950,7 +950,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         for (var i = 0; i < legend.Count; i++)
         {
             var name = names[i];
-            var nameText = new FormattedText(name, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
+            var nameText = new FormattedText(name, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
             widths[i] = LegendSwatch + 4 + nameText.Width;
         }
 
@@ -1007,7 +1007,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             dc.DrawRoundedRectangle(IntensityBrush(color, 4), null, new Rect(x, rowY, LegendSwatch, LegendSwatch), 2, 2);
 
             var name = providerNames.GetValueOrDefault(legend[i].ProviderId, legend[i].ProviderId);
-            var nameText = new FormattedText(name, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, dpi);
+            var nameText = new FormattedText(name, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
             dc.DrawText(nameText, new Point(x + LegendSwatch + 4, rowY - 1));
         }
     }
@@ -1019,7 +1019,7 @@ public sealed class StatsMonthGrid : FrameworkElement
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var formatted = new FormattedText(
-            EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, ChartFonts.UiTypeface(this), 12, EmptyTextBrush, dpi);
+            EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, ChartFonts.UiTypeface(this), ChartTheme.FontSize(this, "Font.Size.Body", 12), EmptyTextBrush, dpi);
         dc.DrawText(formatted, new Point(Math.Max(0, (width - formatted.Width) / 2), 20));
     }
 

@@ -98,20 +98,20 @@ public sealed class StatsFigureMiniChart : FrameworkElement
     }
 
     public static readonly DependencyProperty AccentBrushProperty = DependencyProperty.Register(
-        nameof(AccentBrush), typeof(Brush), typeof(StatsFigureMiniChart), new FrameworkPropertyMetadata(Brushes.SteelBlue, FrameworkPropertyMetadataOptions.AffectsRender));
+        nameof(AccentBrush), typeof(Brush), typeof(StatsFigureMiniChart), new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush AccentBrush
     {
-        get => (Brush)GetValue(AccentBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(AccentBrushProperty));
         set => SetValue(AccentBrushProperty, value);
     }
 
     public static readonly DependencyProperty MutedBrushProperty = DependencyProperty.Register(
-        nameof(MutedBrush), typeof(Brush), typeof(StatsFigureMiniChart), new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        nameof(MutedBrush), typeof(Brush), typeof(StatsFigureMiniChart), new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush MutedBrush
     {
-        get => (Brush)GetValue(MutedBrushProperty);
+        get => ChartTheme.Muted(this, (Brush?)GetValue(MutedBrushProperty));
         set => SetValue(MutedBrushProperty, value);
     }
 

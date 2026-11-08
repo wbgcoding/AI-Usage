@@ -130,11 +130,11 @@ public sealed class StatsBarChart : FrameworkElement
 
     public static readonly DependencyProperty OverlayBrushProperty = DependencyProperty.Register(
         nameof(OverlayBrush), typeof(Brush), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush OverlayBrush
     {
-        get => (Brush)GetValue(OverlayBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(OverlayBrushProperty));
         set => SetValue(OverlayBrushProperty, value);
     }
 
@@ -221,32 +221,32 @@ public sealed class StatsBarChart : FrameworkElement
 
     public static readonly DependencyProperty TextBrushProperty = DependencyProperty.Register(
         nameof(TextBrush), typeof(Brush), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TextBrush
     {
-        get => (Brush)GetValue(TextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(TextBrushProperty));
         set => SetValue(TextBrushProperty, value);
     }
 
     /// <summary>The ring drawn around the bar the keyboard focus is on - the theme's focus brush.</summary>
     public static readonly DependencyProperty FocusBrushProperty = DependencyProperty.Register(
         nameof(FocusBrush), typeof(Brush), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush FocusBrush
     {
-        get => (Brush)GetValue(FocusBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(FocusBrushProperty));
         set => SetValue(FocusBrushProperty, value);
     }
 
     public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
         nameof(TooltipBackground), typeof(Brush), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TooltipBackground
     {
-        get => (Brush)GetValue(TooltipBackgroundProperty);
+        get => ChartTheme.TooltipBackground(this, (Brush?)GetValue(TooltipBackgroundProperty));
         set => SetValue(TooltipBackgroundProperty, value);
     }
 
@@ -274,21 +274,21 @@ public sealed class StatsBarChart : FrameworkElement
 
     public static readonly DependencyProperty AxisBrushProperty = DependencyProperty.Register(
         nameof(AxisBrush), typeof(Brush), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush AxisBrush
     {
-        get => (Brush)GetValue(AxisBrushProperty);
+        get => ChartTheme.Muted(this, (Brush?)GetValue(AxisBrushProperty));
         set => SetValue(AxisBrushProperty, value);
     }
 
     public static readonly DependencyProperty EmptyTextBrushProperty = DependencyProperty.Register(
         nameof(EmptyTextBrush), typeof(Brush), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush EmptyTextBrush
     {
-        get => (Brush)GetValue(EmptyTextBrushProperty);
+        get => ChartTheme.Muted(this, (Brush?)GetValue(EmptyTextBrushProperty));
         set => SetValue(EmptyTextBrushProperty, value);
     }
 
@@ -709,7 +709,7 @@ public sealed class StatsBarChart : FrameworkElement
             {
                 var formatted = new FormattedText(
                     EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight,
-                    ChartFonts.UiTypeface(this), 12, EmptyTextBrush, dpi);
+                    ChartFonts.UiTypeface(this), ChartTheme.FontSize(this, "Font.Size.Body", 12), EmptyTextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (emptyChartHeight - formatted.Height) / 2));
             }
             return;
@@ -730,12 +730,12 @@ public sealed class StatsBarChart : FrameworkElement
         var tickTexts = yTicks
             .Select(tick => new FormattedText(
                 StatsAggregator.ShortenTokenCountAxis(tick, MillionSuffix, BillionSuffix), LocalizationService.Instance.DisplayCulture,
-                FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi))
+                FlowDirection.LeftToRight, tickTypeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi))
             .ToList();
         var widestTick = tickTexts.Select(text => text.Width).DefaultIfEmpty(0).Max();
         _leftMargin = ComputeLeftMargin(widestTick);
 
-        var axisLabelHeight = new FormattedText("0", LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi).Height;
+        var axisLabelHeight = new FormattedText("0", LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi).Height;
         _bottomMargin = ComputeBottomMargin(axisLabelHeight);
 
         var chartHeight = Math.Max(0, height - _bottomMargin);
@@ -777,8 +777,8 @@ public sealed class StatsBarChart : FrameworkElement
                 if (segmentHeight <= 0)
                     continue;
                 var brush = barBrushes.Count > 0
-                    ? (i < barBrushes.Count ? barBrushes[i] : Brushes.Gray)
-                    : (s < brushes.Count ? brushes[s] : Brushes.Gray);
+                    ? (i < barBrushes.Count ? barBrushes[i] : ChartTheme.Track(this, null))
+                    : (s < brushes.Count ? brushes[s] : ChartTheme.Track(this, null));
                 drawingContext.DrawRectangle(brush, null, new Rect(x, y - segmentHeight, barWidth, segmentHeight));
                 y -= segmentHeight;
             }
@@ -805,7 +805,7 @@ public sealed class StatsBarChart : FrameworkElement
             : monthIndices is null ? FormatAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture)
             : FormatMonthAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture);
         FormattedText MakeLabel(int index) => new(
-            LabelString(index), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, 9, TextBrush, dpi);
+            LabelString(index), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
 
         var labelIndices = hourIndices ?? monthIndices;
         var measured = new Dictionary<int, FormattedText>();

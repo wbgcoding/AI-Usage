@@ -162,21 +162,21 @@ public sealed class StatsRingChart : FrameworkElement
     /// <summary>The brush both ring center lines are drawn in (the theme's normal text color).</summary>
     public static readonly DependencyProperty CenterTextBrushProperty = DependencyProperty.Register(
         nameof(CenterTextBrush), typeof(Brush), typeof(StatsRingChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush CenterTextBrush
     {
-        get => (Brush)GetValue(CenterTextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(CenterTextBrushProperty));
         set => SetValue(CenterTextBrushProperty, value);
     }
 
     public static readonly DependencyProperty TextBrushProperty = DependencyProperty.Register(
         nameof(TextBrush), typeof(Brush), typeof(StatsRingChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TextBrush
     {
-        get => (Brush)GetValue(TextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(TextBrushProperty));
         set => SetValue(TextBrushProperty, value);
     }
 
@@ -394,11 +394,11 @@ public sealed class StatsRingChart : FrameworkElement
     /// <summary>The outline drawn around the slice the keyboard focus is on - the theme's focus brush.</summary>
     public static readonly DependencyProperty FocusBrushProperty = DependencyProperty.Register(
         nameof(FocusBrush), typeof(Brush), typeof(StatsRingChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush FocusBrush
     {
-        get => (Brush)GetValue(FocusBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(FocusBrushProperty));
         set => SetValue(FocusBrushProperty, value);
     }
 
@@ -529,11 +529,11 @@ public sealed class StatsRingChart : FrameworkElement
 
     public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
         nameof(TooltipBackground), typeof(Brush), typeof(StatsRingChart),
-        new FrameworkPropertyMetadata(Brushes.Black));
+        new FrameworkPropertyMetadata((Brush?)null));
 
     public Brush TooltipBackground
     {
-        get => (Brush)GetValue(TooltipBackgroundProperty);
+        get => ChartTheme.TooltipBackground(this, (Brush?)GetValue(TooltipBackgroundProperty));
         set => SetValue(TooltipBackgroundProperty, value);
     }
 
@@ -666,7 +666,7 @@ public sealed class StatsRingChart : FrameworkElement
             if (sweeps[i].SweepAngle <= 0)
                 continue;
 
-            var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
+            var brush = i < brushes.Count ? brushes[i] : ChartTheme.Track(this, null);
             var pen = ChartDrawCache.PenFor(brush, strokeThickness);
             drawingContext.DrawGeometry(null, pen, ArcGeometry(center, radius, sweeps[i].StartAngle, sweeps[i].SweepAngle));
         }
@@ -869,7 +869,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         for (var i = 0; i < slices.Count; i++)
         {
-            var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
+            var brush = i < brushes.Count ? brushes[i] : ChartTheme.Track(this, null);
             dc.DrawRectangle(brush, null, new Rect(x, y + (rowHeight - swatch) / 2, swatch, swatch));
 
             var percentText = slices[i].LegendText ?? StatusTextMap.FormatShare(slices[i].Percent, LocalizationService.Instance.DisplayCulture);
@@ -896,7 +896,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         var longer = TextCompose.Pair(percentText, costText);
         double Width(string text) => new FormattedText(
-            text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Black, dpi).Width;
+            text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, Brushes.Transparent, dpi).Width;
         return Width(label) + Width(TextCompose.Pair("", longer)) <= maxWidth ? longer : percentText;
     }
 

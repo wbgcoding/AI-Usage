@@ -119,41 +119,41 @@ public sealed class StatsHeatmap : FrameworkElement
 
     public static readonly DependencyProperty AccentBrushProperty = DependencyProperty.Register(
         nameof(AccentBrush), typeof(Brush), typeof(StatsHeatmap),
-        new FrameworkPropertyMetadata(Brushes.SteelBlue, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush AccentBrush
     {
-        get => (Brush)GetValue(AccentBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(AccentBrushProperty));
         set => SetValue(AccentBrushProperty, value);
     }
 
     public static readonly DependencyProperty EmptyCellBrushProperty = DependencyProperty.Register(
         nameof(EmptyCellBrush), typeof(Brush), typeof(StatsHeatmap),
-        new FrameworkPropertyMetadata(Brushes.LightGray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush EmptyCellBrush
     {
-        get => (Brush)GetValue(EmptyCellBrushProperty);
+        get => ChartTheme.Track(this, (Brush?)GetValue(EmptyCellBrushProperty));
         set => SetValue(EmptyCellBrushProperty, value);
     }
 
     public static readonly DependencyProperty TextBrushProperty = DependencyProperty.Register(
         nameof(TextBrush), typeof(Brush), typeof(StatsHeatmap),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TextBrush
     {
-        get => (Brush)GetValue(TextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(TextBrushProperty));
         set => SetValue(TextBrushProperty, value);
     }
 
     public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
         nameof(TooltipBackground), typeof(Brush), typeof(StatsHeatmap),
-        new FrameworkPropertyMetadata(Brushes.Black));
+        new FrameworkPropertyMetadata((Brush?)null));
 
     public Brush TooltipBackground
     {
-        get => (Brush)GetValue(TooltipBackgroundProperty);
+        get => ChartTheme.TooltipBackground(this, (Brush?)GetValue(TooltipBackgroundProperty));
         set => SetValue(TooltipBackgroundProperty, value);
     }
 
@@ -299,7 +299,7 @@ public sealed class StatsHeatmap : FrameworkElement
         var cellWidth = CellWidthFor(width);
         var cellHeight = CellHeightFor(width);
         var sorted = SortedNonZero(Values);
-        var accent = AccentBrush is SolidColorBrush solid ? solid.Color : Colors.SteelBlue;
+        var accent = AccentBrush is SolidColorBrush solid ? solid.Color : System.Windows.SystemColors.HighlightColor;
 
         for (var column = 0; column < Columns; column++)
         {

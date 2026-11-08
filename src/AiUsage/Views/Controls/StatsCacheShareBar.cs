@@ -76,11 +76,11 @@ public sealed class StatsCacheShareBar : FrameworkElement
 
     public static readonly DependencyProperty TextBrushProperty = DependencyProperty.Register(
         nameof(TextBrush), typeof(Brush), typeof(StatsCacheShareBar),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TextBrush
     {
-        get => (Brush)GetValue(TextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(TextBrushProperty));
         set => SetValue(TextBrushProperty, value);
     }
 
@@ -224,7 +224,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         for (var i = 0; i < values.Count; i++)
         {
             var segmentWidth = widths[i];
-            var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
+            var brush = i < brushes.Count ? brushes[i] : ChartTheme.Track(this, null);
             if (segmentWidth > 0)
                 drawingContext.DrawRectangle(brush, null, new Rect(x, 0, segmentWidth, barHeight));
 
@@ -237,7 +237,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
         var positions = LegendPositions(EntryWidths(legendTexts), width);
         for (var i = 0; i < legendTexts.Count; i++)
         {
-            var brush = i < brushes.Count ? brushes[i] : Brushes.Gray;
+            var brush = i < brushes.Count ? brushes[i] : ChartTheme.Track(this, null);
             var (legendX, row) = positions[i];
             var legendY = BarHeight + LegendGap + row * LegendRowHeight;
             drawingContext.DrawRectangle(brush, null, new Rect(legendX, legendY + (LegendRowHeight - LegendSwatch) / 2, LegendSwatch, LegendSwatch));

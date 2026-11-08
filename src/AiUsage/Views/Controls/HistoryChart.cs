@@ -615,7 +615,7 @@ public sealed class HistoryChart : FrameworkElement
             return;
 
         var plotHeight = PlotHeight(height, ShowAxes);
-        var textBrush = (Brush)(TryFindResource("Text.Muted") ?? System.Windows.SystemColors.GrayTextBrush);
+        var textBrush = ChartTheme.Muted(this, null);
         var typeface = ChartFonts.UiTypeface(this);
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
 
@@ -821,7 +821,7 @@ public sealed class HistoryChart : FrameworkElement
         if (string.IsNullOrEmpty(EmptyText))
             return;
 
-        var textBrush = (Brush)(TryFindResource("Text.Muted") ?? System.Windows.SystemColors.GrayTextBrush);
+        var textBrush = ChartTheme.Muted(this, null);
         var text = new FormattedText(
             EmptyText,
             LocalizationService.Instance.DisplayCulture,
@@ -873,7 +873,7 @@ public sealed class HistoryChart : FrameworkElement
     private LevelStyle GetSeriesColours(WindowKind kind, UsageLevel level)
     {
         var key = SeriesColourKey(kind, level);
-        var resolved = (Brush)(TryFindResource(key) ?? System.Windows.SystemColors.GrayTextBrush);
+        var resolved = (Brush)(TryFindResource(key) ?? ChartTheme.Muted(this, null));
 
         if (LevelStyleCache.TryGetValue(key, out var cached) && ReferenceEquals(cached.SourceBrush, resolved))
             return cached;
@@ -914,7 +914,7 @@ public sealed class HistoryChart : FrameworkElement
 
     private GridStyle GetGridStyle()
     {
-        var resolved = (Brush)(TryFindResource("Border") ?? System.Windows.SystemColors.GrayTextBrush);
+        var resolved = ChartTheme.TooltipBorder(this, null);
 
         var cached = _gridStyleCache;
         if (cached is not null && ReferenceEquals(cached.SourceBrush, resolved))
@@ -949,7 +949,7 @@ public sealed class HistoryChart : FrameworkElement
 
     private Pen GetPreviousWeekPen()
     {
-        var resolved = (Brush)(TryFindResource("Text.Muted") ?? System.Windows.SystemColors.GrayTextBrush);
+        var resolved = ChartTheme.Muted(this, null);
 
         var cached = _previousWeekPenCache;
         if (cached is { } c && ReferenceEquals(c.SourceBrush, resolved))

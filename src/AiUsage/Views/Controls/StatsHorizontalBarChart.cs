@@ -80,13 +80,13 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
     public static readonly DependencyProperty MutedBrushProperty = DependencyProperty.Register(
         nameof(MutedBrush), typeof(Brush), typeof(StatsHorizontalBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>The folder-path line under a rich row's own name - <see cref="TextBrush"/> stays the
     /// name and figure's own, more prominent color.</summary>
     public Brush MutedBrush
     {
-        get => (Brush)GetValue(MutedBrushProperty);
+        get => ChartTheme.Muted(this, (Brush?)GetValue(MutedBrushProperty));
         set => SetValue(MutedBrushProperty, value);
     }
 
@@ -100,11 +100,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     }
 
     public static readonly DependencyProperty TooltipBorderBrushProperty = DependencyProperty.Register(
-        nameof(TooltipBorderBrush), typeof(Brush), typeof(StatsHorizontalBarChart), new PropertyMetadata(Brushes.Gray));
+        nameof(TooltipBorderBrush), typeof(Brush), typeof(StatsHorizontalBarChart), new PropertyMetadata((Brush?)null));
 
     public Brush TooltipBorderBrush
     {
-        get => (Brush)GetValue(TooltipBorderBrushProperty);
+        get => ChartTheme.TooltipBorder(this, (Brush?)GetValue(TooltipBorderBrushProperty));
         set => SetValue(TooltipBorderBrushProperty, value);
     }
 
@@ -293,21 +293,21 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
     public static readonly DependencyProperty BarBrushProperty = DependencyProperty.Register(
         nameof(BarBrush), typeof(Brush), typeof(StatsHorizontalBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush BarBrush
     {
-        get => (Brush)GetValue(BarBrushProperty);
+        get => ChartTheme.Accent(this, (Brush?)GetValue(BarBrushProperty));
         set => SetValue(BarBrushProperty, value);
     }
 
     public static readonly DependencyProperty TextBrushProperty = DependencyProperty.Register(
         nameof(TextBrush), typeof(Brush), typeof(StatsHorizontalBarChart),
-        new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata((Brush?)null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public Brush TextBrush
     {
-        get => (Brush)GetValue(TextBrushProperty);
+        get => ChartTheme.Text(this, (Brush?)GetValue(TextBrushProperty));
         set => SetValue(TextBrushProperty, value);
     }
 
