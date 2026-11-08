@@ -36,7 +36,7 @@ public static class DateLabels
 
     /// <summary>Weekday, day and month: German "Do, 1. Okt", English "Thu, Oct 1".</summary>
     public static string WeekdayDayMonthShort(DateOnly date, CultureInfo culture) =>
-        culture.DateTimeFormat.AbbreviatedDayNames[(int)date.DayOfWeek] + ", " + DayMonthShort(date, culture);
+        TextCompose.List([culture.DateTimeFormat.AbbreviatedDayNames[(int)date.DayOfWeek], DayMonthShort(date, culture)]);
 
     /// <summary>Same label as <see cref="DayMonthShort"/> for a caller that holds a
     /// <see cref="DateTime"/>.</summary>

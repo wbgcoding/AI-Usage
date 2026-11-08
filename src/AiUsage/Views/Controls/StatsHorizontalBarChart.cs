@@ -175,7 +175,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         if (row.ProviderIds is { Count: > 0 } providerIds)
         {
-            var joined = string.Join(", ", providerIds.Select(id => providerDisplayNames.GetValueOrDefault(id, id)));
+            var joined = TextCompose.List(providerIds.Select(id => providerDisplayNames.GetValueOrDefault(id, id)));
             lines.Add(string.IsNullOrEmpty(providersFormat) ? joined : string.Format(culture, providersFormat, joined));
         }
 

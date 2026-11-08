@@ -92,12 +92,10 @@ public partial class UsageRowViewModel : ObservableObject
     public bool ShowAlertIcon => Level == UsageLevel.Warn;
 
     /// <summary>The bar's automation name: the window label, plus the level name once it is not Ok.</summary>
-    public string BarAccessibleName => LevelName.Length > 0 ? $"{LabelText}, {LevelName}" : LabelText;
+    public string BarAccessibleName => TextCompose.List([LabelText, LevelName]);
 
     /// <summary>The Mini row's automation name: label and percentage, plus the level name once it is not Ok.</summary>
-    public string MiniAccessibleName => LevelName.Length > 0
-        ? $"{LabelText}, {SpokenPercentText}, {LevelName}"
-        : $"{LabelText}, {SpokenPercentText}";
+    public string MiniAccessibleName => TextCompose.List([LabelText, SpokenPercentText, LevelName]);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightLabelText))]

@@ -438,7 +438,7 @@ public sealed class StatsHeatmap : FrameworkElement
         if (_focusedCell is not { } cell || Values.Count < Rows * Columns)
             return;
 
-        AutomationProperties.SetName(this, string.Join(", ", LinesOf(cell.Row, cell.Column)));
+        AutomationProperties.SetName(this, TextCompose.List(LinesOf(cell.Row, cell.Column)));
     }
 
     /// <summary>What a screen reader announces for the whole grid: the busiest weekday and hour.</summary>
@@ -457,6 +457,6 @@ public sealed class StatsHeatmap : FrameworkElement
                 best = i;
         }
 
-        AutomationProperties.SetName(this, string.Join(", ", LinesOf(best / Columns, best % Columns)));
+        AutomationProperties.SetName(this, TextCompose.List(LinesOf(best / Columns, best % Columns)));
     }
 }

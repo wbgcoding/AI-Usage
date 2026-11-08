@@ -623,7 +623,7 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The muted line under the selectors naming the PCs whose history is in the figures.</summary>
     public string ImportedFromText => ImportedMachineNames() is { Count: > 0 } names
-        ? LocalizationService.Instance.Format("Stats.ImportedFrom", string.Join(", ", names))
+        ? LocalizationService.Instance.Format("Stats.ImportedFrom", TextCompose.List(names))
         : "";
 
     public bool HasImportedFrom => ImportedFromText.Length > 0;
@@ -2393,7 +2393,7 @@ public sealed partial class StatsViewModel : ObservableObject
     /// null when nothing was merged into it.</summary>
     private static string? FormerPathsLine(ProjectAliases aliases, string project) =>
         aliases.FormerPaths(project) is { Count: > 0 } former
-            ? string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Project.Tip.FormerPaths"], string.Join(", ", former))
+            ? string.Format(CultureInfo.CurrentCulture, LocalizationService.Instance["Stats.Project.Tip.FormerPaths"], TextCompose.List(former))
             : null;
 
     /// <summary>The non-empty parts as tooltip lines, or null when there are none.</summary>

@@ -163,7 +163,7 @@ public sealed class CostService
 
     /// <summary>The "no price known for ..." tooltip line, or null when every model is priced.</summary>
     public static string? UnpricedLine(CostSummary summary) => summary.HasUnpriced
-        ? LocalizationService.Instance.Format("Stats.Cost.Unpriced", string.Join(", ", summary.UnpricedModels))
+        ? LocalizationService.Instance.Format("Stats.Cost.Unpriced", TextCompose.List(summary.UnpricedModels))
         : null;
 
     /// <summary>The explanation that goes under a cost figure: where the numbers come from and as of
