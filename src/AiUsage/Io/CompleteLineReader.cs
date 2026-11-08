@@ -15,7 +15,7 @@ internal static class CompleteLineReader
     /// checked per line. <paramref name="endLimit"/> caps the read; lines the <paramref
     /// name="prefilter"/> rejects go to <paramref name="onFiltered"/>.</summary>
     internal static long Read(
-        FileStream stream, long startOffset, bool acceptTrailingLineWithoutNewline, int maxRecordBytes, Action onOversized,
+        Stream stream, long startOffset, bool acceptTrailingLineWithoutNewline, int maxRecordBytes, Action onOversized,
         Action<string> onLine, CancellationToken cancellationToken, LinePrefilter? prefilter = null, Action? onFiltered = null,
         long? endLimit = null)
     {

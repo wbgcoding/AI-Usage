@@ -36,6 +36,19 @@ public sealed class ClaudeSessionTokenReader
     private readonly Lock _gate = new();
     private FileState? _current;
 
+    // How a transcript is opened; a test replaces it with a stream that fails halfway.
+    private readonly Func<string, Stream> _open;
+
+    public ClaudeSessionTokenReader()
+        : this(OpenShared)
+    {
+    }
+
+    internal ClaudeSessionTokenReader(Func<string, Stream> open) => _open = open;
+
+    private static FileStream OpenShared(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
     // A single line longer than this is never a usage line; it is skipped without being buffered.
     private const int MaxLineBytes = 8 * 1024 * 1024;
 
@@ -82,9 +95,12 @@ public sealed class ClaudeSessionTokenReader
             Reset(state);
 
         var offsetBefore = state.Offset;
+        var sumBefore = state.Sum;
+        var lastEventBefore = state.LastEventAt;
+        var addedKeys = new List<string>();
         try
         {
-            using var stream = new FileStream(sessionFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var stream = _open(sessionFile);
             // Only newline-terminated lines are consumed: the resume offset ends at the last one, so a
             // line the writer has not finished yet is read whole on the next call instead of being
             // cut in two and lost. Growth after the stream was opened is the next call's business.
@@ -92,19 +108,27 @@ public sealed class ClaudeSessionTokenReader
             {
                 if (!ClaudeUsageLogParser.TryParse(line, out var usage))
                     return;
-                if (usage.MessageKey.Length > 0 && !state.SeenMessages.Add(usage.MessageKey))
-                    return;
+                if (usage.MessageKey.Length > 0)
+                {
+                    if (!state.SeenMessages.Add(usage.MessageKey))
+                        return;
+                    addedKeys.Add(usage.MessageKey);
+                }
 
                 if (state.LastEventAt is not { } newest || usage.Timestamp > newest)
                     state.LastEventAt = usage.Timestamp;
                 state.Sum += usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens;
             }, ct);
         }
-        catch (OperationCanceledException)
+        catch
         {
-            // The lines summed before the cancel are past the stored offset; the file is read whole
-            // next time rather than counted twice.
-            Reset(state);
+            // A cancel or a read error halfway: the lines summed so far are past the stored offset and
+            // would be counted twice by the next read, so the state goes back to what it was before.
+            state.Sum = sumBefore;
+            state.Offset = offsetBefore;
+            state.LastEventAt = lastEventBefore;
+            foreach (var key in addedKeys)
+                state.SeenMessages.Remove(key);
             throw;
         }
 

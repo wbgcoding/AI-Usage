@@ -185,6 +185,41 @@ public class ClaudeSessionTokenReaderTests : IDisposable
         "{\"type\":\"assistant\",\"timestamp\":\"" + timestamp + "\",\"requestId\":\"" + requestId + "\",\"message\":{\"id\":\"" + messageId +
         "\",\"model\":\"claude-opus-5\",\"usage\":{\"input_tokens\":" + input + ",\"output_tokens\":" + output + "}}}";
 
+    [Fact]
+    public void A_read_error_halfway_leaves_the_state_as_it_was_so_the_next_read_counts_each_line_once()
+    {
+        var path = WriteFile(
+            ClaudeLine("2026-01-01T12:00:00Z", input: 10, output: 20, cacheCreation: 30, cacheRead: 40),
+            ClaudeLine("2026-01-01T12:00:05Z", input: 1, output: 2, cacheCreation: 3, cacheRead: 4),
+            ClaudeLine("2026-01-01T12:00:10Z", input: 100, output: 200, cacheCreation: 300, cacheRead: 400));
+        var failing = true;
+        var reader = new ClaudeSessionTokenReader(file =>
+            new TrickleStream(File.ReadAllBytes(file), failAfterReads: failing ? 8 : int.MaxValue));
+
+        Assert.Throws<IOException>(() => reader.SumTokens(path));
+        Assert.Equal(0, reader.LastReadOffset);
+        Assert.Null(reader.LastEventAt);
+
+        failing = false;
+        var sum = reader.SumTokens(path);
+
+        Assert.Equal(10 + 20 + 30 + 40 + 1 + 2 + 3 + 4 + 100 + 200 + 300 + 400, sum);
+        Assert.Equal(new FileInfo(path).Length, reader.LastReadOffset);
+    }
+
+    /// <summary>A stream that hands out a few bytes per read and fails with an IO error on a later read.</summary>
+    private sealed class TrickleStream(byte[] content, int failAfterReads) : MemoryStream(content, writable: false)
+    {
+        private int _reads;
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (++_reads > failAfterReads)
+                throw new IOException("The file went away.");
+            return base.Read(buffer, offset, Math.Min(count, 60));
+        }
+    }
+
     private static string ClaudeLine(string timestamp, long input, long output, long cacheCreation, long cacheRead) =>
         "{\"type\":\"assistant\",\"timestamp\":\"" + timestamp + "\",\"message\":{\"model\":\"claude-opus-5\"," +
         "\"usage\":{\"input_tokens\":" + input + ",\"output_tokens\":" + output +
