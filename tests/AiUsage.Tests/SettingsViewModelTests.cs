@@ -1131,9 +1131,9 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal([3, 5, 10, 15, 30, 45, 60, 90, 120], vm.ForecastLeadChoices.Select(choice => choice.Value));
         Assert.Equal(30, vm.SelectedForecastLeadChoice!.Value);
         Assert.Equal("3 min", vm.ForecastLeadChoices[0].Label);
-        Assert.Equal("1 h", vm.ForecastLeadChoices.Single(choice => choice.Value == 60).Label);
+        Assert.Equal("1 Std", vm.ForecastLeadChoices.Single(choice => choice.Value == 60).Label);
         Assert.Equal("90 min", vm.ForecastLeadChoices.Single(choice => choice.Value == 90).Label);
-        Assert.Equal("2 h", vm.ForecastLeadChoices.Single(choice => choice.Value == 120).Label);
+        Assert.Equal("2 Std", vm.ForecastLeadChoices.Single(choice => choice.Value == 120).Label);
 
         vm.SelectedForecastLeadChoice = vm.ForecastLeadChoices.Single(choice => choice.Value == 120);
         Assert.Equal(120, settings.ForecastLeadMinutes);
