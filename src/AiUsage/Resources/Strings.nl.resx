@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Terugzetten</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Back-up opgeslagen.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Dit bestand is geen AI-Usage-back-up of komt van een nieuwere versie.</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Het herstel kon niet worden voorbereid. Je huidige gegevens zijn ongewijzigd.</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage kon niet opnieuw starten, dus er is niets hersteld. Je huidige gegevens zijn ongewijzigd.</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Geschiedenis importeren…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Leest de tokengeschiedenis uit de back-up van een andere pc en voegt die samen met de geschiedenis hier. De eigen gegevens van deze pc blijven ongemoeid; dezelfde pc opnieuw importeren vervangt zijn eerdere kopie.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Deze back-up komt van deze pc.</value></data>

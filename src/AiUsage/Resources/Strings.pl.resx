@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Przywróć</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Kopia zapasowa zapisana.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Ten plik nie jest kopią zapasową AI-Usage albo pochodzi z nowszej wersji.</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Nie udało się przygotować przywracania. Twoje obecne dane pozostały bez zmian.</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage nie mógł się uruchomić ponownie, więc nic nie zostało przywrócone. Twoje obecne dane pozostały bez zmian.</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importuj historię…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Odczytuje historię tokenów z kopii zapasowej innego komputera i łączy ją z historią tutaj. Dane tego komputera zostają nietknięte; ponowny import tego samego komputera zastępuje jego wcześniejszą kopię.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Ta kopia zapasowa pochodzi z tego komputera.</value></data>

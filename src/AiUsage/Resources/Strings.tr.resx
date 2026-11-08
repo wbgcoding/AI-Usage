@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Geri yükle</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Yedek kaydedildi.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Bu dosya bir AI-Usage yedeği değil ya da daha yeni bir sürümden.</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Geri yükleme hazırlanamadı. Mevcut verileriniz değişmedi.</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage yeniden başlatılamadı, bu yüzden hiçbir şey geri yüklenmedi. Mevcut verileriniz değişmedi.</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Geçmişi içe aktar…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Token geçmişini başka bir bilgisayarın yedeğinden okur ve buradaki geçmişle birleştirir. Bu bilgisayarın kendi verilerine dokunulmaz; aynı bilgisayarı yeniden içe aktarmak onun önceki kopyasını değiştirir.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Bu yedek bu bilgisayardan.</value></data>

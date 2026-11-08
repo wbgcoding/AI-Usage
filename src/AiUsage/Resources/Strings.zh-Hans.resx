@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>恢复</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>备份已保存。</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>此文件不是 AI-Usage 备份,或来自更新的版本。</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>无法准备还原。您当前的数据未更改。</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage 无法重新启动，因此未还原任何内容。您当前的数据未更改。</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>导入历史…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>从另一台电脑的备份中读取令牌历史,并与这里的历史合并。这台电脑自己的数据不受影响;再次导入同一台电脑会替换其之前的副本。</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>此备份来自这台电脑。</value></data>

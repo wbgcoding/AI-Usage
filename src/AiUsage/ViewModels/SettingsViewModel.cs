@@ -1608,6 +1608,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         // Every migration backup (stats.v4.bak, stats.v5.bak, ...) stays next to the index it protects.
         foreach (var backup in Directory.EnumerateFiles(source, "stats.v*.bak"))
             CopyIfExists(backup, Path.Combine(destination, Path.GetFileName(backup)));
+        // The weekly copies of the index are the other safety net and follow the index as well.
+        var copyFolder = Path.Combine(source, Stats.StatsStore.WeeklyCopyFolder);
+        if (Directory.Exists(copyFolder))
+        {
+            var target = Path.Combine(destination, Stats.StatsStore.WeeklyCopyFolder);
+            Directory.CreateDirectory(target);
+            foreach (var copy in Directory.EnumerateFiles(copyFolder, "stats-*.db"))
+                CopyIfExists(copy, Path.Combine(target, Path.GetFileName(copy)));
+        }
     }
 
     private static void CopySmallFiles(string source, string destination)
@@ -1759,14 +1768,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 BackupService.CancelPendingRestore(dataDirectory);
-                _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+                _showMessage(LocalizationService.Instance["Settings.RestoreNotScheduled"]);
                 return;
             }
 
             if (!_restartApp())
             {
                 BackupService.CancelPendingRestore(dataDirectory);
-                _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+                _showMessage(LocalizationService.Instance["Settings.RestoreRestartFailed"]);
             }
         }
         finally

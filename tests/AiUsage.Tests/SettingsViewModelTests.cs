@@ -2437,6 +2437,23 @@ public class SettingsViewModelTests : IDisposable
         Assert.False(File.Exists(Path.Combine(destination, "stats.v6.bak.tmp")));
     }
 
+    [Fact]
+    public void Moving_the_data_folder_carries_the_weekly_index_copies_along()
+    {
+        var source = TempDirectory();
+        var destination = TempDirectory();
+        var folder = Path.Combine(source, "stats-backups");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "stats-2026-10-05.db"), "weekly");
+        File.WriteAllText(Path.Combine(folder, "stats-2026-10-12.db.tmp"), "half");
+
+        SettingsViewModel.CopyIndexFiles(source, destination);
+
+        Assert.Equal("weekly", File.ReadAllText(Path.Combine(destination, "stats-backups", "stats-2026-10-05.db")));
+        Assert.False(File.Exists(Path.Combine(destination, "stats-backups", "stats-2026-10-12.db.tmp")));
+        Assert.True(File.Exists(Path.Combine(folder, "stats-2026-10-05.db"))); // the source stays
+    }
+
     // ---- backup, restore and importing another PC ----------------------------------------------
 
     private const string OtherPc = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -2535,6 +2552,24 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal(Path.Combine(data, "restore-source.zip") + "\n" + Path.GetFileName(offered), File.ReadAllText(Path.Combine(data, "restore-pending.txt")));
         // Nothing in the data folder is touched by the running process: the next start does the swap.
         Assert.Equal(10, new Stats.StatsStore(data).LoadAll().Single().InputTokens);
+        IndexPools.Release(data);
+    }
+
+    [Fact]
+    public async Task A_failed_restart_says_nothing_was_restored_and_cancels_the_request()
+    {
+        var data = SeededDataFolder(OtherPc, 10);
+        var zip = Path.Combine(TempDirectory(), "b.zip");
+        BackupService.Create(SeededDataFolder(OtherPc, 99), zip, "1", OtherPc, "PC", DateTimeOffset.UtcNow, TempDirectory());
+        var messages = new List<string>();
+        var (vm, _) = Build(dataDirectory: data, askForBackupOpenPath: () => zip, confirmRestore: (_, _) => true,
+            restartApp: () => false, showMessage: messages.Add);
+
+        await vm.RestoreBackupCommand.ExecuteAsync(null);
+
+        Assert.Equal([Loc("Settings.RestoreRestartFailed")], messages);
+        Assert.NotEqual(Loc("Settings.ExportFailed"), Loc("Settings.RestoreRestartFailed"));
+        Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
         IndexPools.Release(data);
     }
 

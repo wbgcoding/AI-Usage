@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>復元</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>バックアップを保存しました。</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>このファイルはAI-Usageのバックアップではないか、新しいバージョンのものです。</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>復元を準備できませんでした。現在のデータは変更されていません。</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage を再起動できなかったため、何も復元されていません。現在のデータは変更されていません。</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>履歴をインポート…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>別のPCのバックアップからトークン履歴を読み込み、ここの履歴と統合します。このPC自身のデータは変更されません。同じPCをもう一度インポートすると、以前のコピーが置き換わります。</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>このバックアップはこのPCのものです。</value></data>

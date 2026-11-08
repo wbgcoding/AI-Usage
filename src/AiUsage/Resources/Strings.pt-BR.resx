@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restaurar</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup salvo.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Este arquivo não é um backup do AI-Usage ou vem de uma versão mais nova.</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Não foi possível preparar a restauração. Seus dados atuais não foram alterados.</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>O AI-Usage não conseguiu reiniciar, então nada foi restaurado. Seus dados atuais não foram alterados.</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importar histórico…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Lê o histórico de tokens do backup de outro PC e o combina com o histórico daqui. Os dados deste PC não são alterados; importar o mesmo PC de novo substitui a cópia anterior dele.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Este backup vem deste PC.</value></data>

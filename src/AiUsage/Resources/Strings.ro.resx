@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restaurează</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Copia de rezervă a fost salvată.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Acest fișier nu este o copie de rezervă AI-Usage sau provine dintr-o versiune mai nouă.</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Restaurarea nu a putut fi pregătită. Datele tale actuale nu au fost modificate.</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage nu a putut reporni, așa că nu s-a restaurat nimic. Datele tale actuale nu au fost modificate.</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importă istoric…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Citește istoricul de tokeni din copia de rezervă a altui PC și îl îmbină cu istoricul de aici. Datele proprii ale acestui PC rămân neatinse; importarea aceluiași PC din nou îi înlocuiește copia anterioară.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Această copie de rezervă provine de pe acest PC.</value></data>

@@ -643,6 +643,8 @@
   <data name="Settings.Backup.RestoreButton" xml:space="preserve"><value>Restore</value></data>
   <data name="Settings.Backup.Saved" xml:space="preserve"><value>Backup saved.</value></data>
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
+  <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>The restore could not be prepared. Your current data is unchanged.</value></data>
+  <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage could not restart, so nothing was restored. Your current data is unchanged.</value></data>
   <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import history…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Reads the token history from another PC's backup and merges it with the history here. This PC's own data stays untouched; importing the same PC again replaces its earlier copy.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
