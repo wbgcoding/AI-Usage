@@ -83,6 +83,42 @@ public partial class SignInWindow : Window
         Closing += OnClosing;
         Loaded += OnLoaded;
         Closed += OnClosed;
+        // The notices are filled from code, so a language switch while one stands has to rewrite it.
+        LocalizationService.Instance.PropertyChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_closed)
+            return;
+
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(ApplyNoticeTexts);
+            return;
+        }
+
+        ApplyNoticeTexts();
+    }
+
+    /// <summary>Writes the texts of the notice panel that stands in the current language.</summary>
+    private void ApplyNoticeTexts()
+    {
+        var loc = LocalizationService.Instance;
+        if (RuntimeMissingPanel.Visibility == Visibility.Visible)
+        {
+            RuntimeMissingHeadText.Text = loc["State.RuntimeMissing.Head"];
+            RuntimeMissingReasonText.Text = loc["State.RuntimeMissing.Reason"];
+        }
+
+        if (BlockedPanel.Visibility == Visibility.Visible && _blockedUri is { } blocked)
+            ApplyBlockedTexts(blocked);
+
+        if (AlreadySignedInPanel.Visibility == Visibility.Visible)
+        {
+            AlreadySignedInHeadText.Text = loc["SignIn.AlreadySignedIn.Head"];
+            AlreadySignedInReasonText.Text = loc["SignIn.AlreadySignedIn.Reason"];
+        }
     }
 
     private void CloseOnPurpose()
@@ -121,6 +157,7 @@ public partial class SignInWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _closed = true;
+        LocalizationService.Instance.PropertyChanged -= OnLanguageChanged;
         _loginPagePoll.Stop();
         if (!SignedIn && _sawLoginPage)
             LogService.Shared.LogInfo($"Sign-in window for '{_accountKey}' closed before the sign-in finished.");
@@ -549,6 +586,22 @@ public partial class SignInWindow : Window
     private void ShowBlockedNotice(string uri)
     {
         _blockedUri = uri;
+        ApplyBlockedTexts(uri);
+        LoadingPanel.Visibility = Visibility.Collapsed;
+        // The browser is a native child window, and WPF content is never composited over one (see the
+        // comment in this window's XAML) - a notice drawn beside it would simply not be on screen
+        // while a page is loaded, which is exactly when this one has something to say. Hiding the
+        // page for as long as the notice stands is what makes it visible, the same way the
+        // runtime-missing panel does it.
+        Browser.Visibility = Visibility.Collapsed;
+        BlockedPanel.Visibility = Visibility.Visible;
+        // The page may have been mid-request for a cursor of its own when it went away; the notice
+        // and every other window of the app need a visible pointer from this moment on.
+        CursorRestore.Reset();
+    }
+
+    private void ApplyBlockedTexts(string uri)
+    {
         // A url with no host of its own (about:blank from a redirected popup, mailto:, data:) still
         // parses, and its empty host would leave a sentence with a hole in it - the whole url is the
         // only honest thing left to name there.
@@ -563,17 +616,6 @@ public partial class SignInWindow : Window
         var reason = loc.Format("SignIn.Blocked.Reason", host);
         BlockedReasonText.Text = canAllow ? reason : TextCompose.Sentences(reason, loc["SignIn.Blocked.PlainHttp"]);
         AllowBlockedButton.Visibility = canAllow ? Visibility.Visible : Visibility.Collapsed;
-        LoadingPanel.Visibility = Visibility.Collapsed;
-        // The browser is a native child window, and WPF content is never composited over one (see the
-        // comment in this window's XAML) - a notice drawn beside it would simply not be on screen
-        // while a page is loaded, which is exactly when this one has something to say. Hiding the
-        // page for as long as the notice stands is what makes it visible, the same way the
-        // runtime-missing panel does it.
-        Browser.Visibility = Visibility.Collapsed;
-        BlockedPanel.Visibility = Visibility.Visible;
-        // The page may have been mid-request for a cursor of its own when it went away; the notice
-        // and every other window of the app need a visible pointer from this moment on.
-        CursorRestore.Reset();
     }
 
     /// <summary>Dismisses the blocked-navigation notice and brings the page back: the blocked

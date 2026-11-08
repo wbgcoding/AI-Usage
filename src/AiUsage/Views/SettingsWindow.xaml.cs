@@ -57,11 +57,28 @@ public partial class SettingsWindow : Window
         // switch while this window is open has to rebuild it.
         LocalizationService.Instance.PropertyChanged += OnAboutInputsChanged;
         ThemeService.Applied += OnAboutInputsChanged;
+        // A background check can find an update while this window is open.
+        _viewModel.Main.Update.PropertyChanged += OnUpdateNoticeChanged;
         Closed += (_, _) =>
         {
             LocalizationService.Instance.PropertyChanged -= OnAboutInputsChanged;
             ThemeService.Applied -= OnAboutInputsChanged;
+            _viewModel.Main.Update.PropertyChanged -= OnUpdateNoticeChanged;
         };
+    }
+
+    private void OnUpdateNoticeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(UpdateNoticeViewModel.HasUpdate) or nameof(UpdateNoticeViewModel.AvailableVersion)))
+            return;
+
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(ApplyAboutUpdateStatus);
+            return;
+        }
+
+        ApplyAboutUpdateStatus();
     }
 
     private void OnAboutInputsChanged(object? sender, EventArgs e)

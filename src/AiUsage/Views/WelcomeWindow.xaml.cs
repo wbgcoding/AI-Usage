@@ -27,11 +27,24 @@ public partial class WelcomeWindow : Window
         ProviderList.ItemsSource = rows;
         // The tiles belong to the main window and outlive this one: the rows let go of them on close.
         Closed += (_, _) => rows.ForEach(row => row.Dispose());
+        LocalizationService.Instance.PropertyChanged += OnLanguageChanged;
+        Closed += (_, _) => LocalizationService.Instance.PropertyChanged -= OnLanguageChanged;
 
         // Esc closes dialogs, keyboard-only throughout - same contract as every other window built
         // on this chrome (ConfirmWindow, CrashWindow).
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
         Loaded += WelcomeWindow_Loaded;
+    }
+
+    private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => TitleBarControl.TitleText = LocalizationService.Instance["Welcome.Title"]);
+            return;
+        }
+
+        TitleBarControl.TitleText = LocalizationService.Instance["Welcome.Title"];
     }
 
     /// <summary>Centres on whichever monitor the mouse is on right now - the same recovery-position
@@ -66,8 +79,16 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged, I
     public WelcomeRow(ProviderTileViewModel tile)
     {
         Tile = tile;
-        Hint = HintFor(tile.RealProviderId);
         tile.PropertyChanged += OnTileChanged;
+        LocalizationService.Instance.PropertyChanged += OnLanguageChanged;
+    }
+
+    // The hint and the button's spoken name are texts, so a language switch re-raises them.
+    private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        PropertyChanged?.Invoke(this, new(nameof(Hint)));
+        PropertyChanged?.Invoke(this, new(nameof(HasHint)));
+        PropertyChanged?.Invoke(this, new(nameof(SignInAutomationName)));
     }
 
     private void OnTileChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -82,7 +103,11 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged, I
     }
 
     /// <summary>Stops listening to the tile, which lives on after the welcome window is closed.</summary>
-    public void Dispose() => Tile.PropertyChanged -= OnTileChanged;
+    public void Dispose()
+    {
+        Tile.PropertyChanged -= OnTileChanged;
+        LocalizationService.Instance.PropertyChanged -= OnLanguageChanged;
+    }
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 
@@ -99,7 +124,7 @@ public sealed class WelcomeRow : System.ComponentModel.INotifyPropertyChanged, I
     public string SignInAutomationName =>
         LocalizationService.Instance.Format("Format.LabelValue", Tile.DisplayName, Tile.ActionLabelText ?? "");
 
-    public string? Hint { get; }
+    public string? Hint => HintFor(Tile.RealProviderId);
 
     public bool HasHint => Hint is not null;
 

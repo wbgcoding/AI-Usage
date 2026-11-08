@@ -109,7 +109,7 @@ public sealed class StatsHeatmap : FrameworkElement
 
     public static readonly DependencyProperty EmptyTextProperty = DependencyProperty.Register(
         nameof(EmptyText), typeof(string), typeof(StatsHeatmap),
-        new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender, OnDataChanged));
 
     public string EmptyText
     {
