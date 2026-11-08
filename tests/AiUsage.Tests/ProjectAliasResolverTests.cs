@@ -303,4 +303,22 @@ public class ProjectAliasResolverTests
 
         Assert.Equal(@"C:\old\Alpha\src", aliases.Resolve(@"C:\old\Alpha\src"));
     }
+
+    [Fact]
+    public void A_share_path_is_never_probed_and_counts_as_gone()
+    {
+        // Two crafted share paths with one leaf name must not open a connection to a foreign host.
+        var probed = new List<string>();
+        bool Probe(string path)
+        {
+            probed.Add(path);
+            return true;
+        }
+
+        Assert.False(ProjectAliasResolver.SafeDirectoryExists(@"\\nonexistent-host.invalid\share\proj", Probe));
+        Assert.False(ProjectAliasResolver.SafeDirectoryExists(@"\\?\UNC\other-host.invalid\share\proj", Probe));
+        Assert.Empty(probed);
+        Assert.True(ProjectAliasResolver.SafeDirectoryExists(AppContext.BaseDirectory, Probe));
+        Assert.Single(probed);
+    }
 }

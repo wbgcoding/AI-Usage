@@ -1,4 +1,6 @@
-﻿namespace AiUsage.Stats;
+﻿using AiUsage.Io;
+
+namespace AiUsage.Stats;
 
 /// <summary>
 /// Which project paths of the index are one project that moved: worked out at query time from the
@@ -274,11 +276,18 @@ public static class ProjectAliasResolver
     public static ProjectAliases Build(IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions) =>
         Build(records, sessions, SafeDirectoryExists);
 
-    private static bool SafeDirectoryExists(string path)
+    private static bool SafeDirectoryExists(string path) => SafeDirectoryExists(path, Directory.Exists);
+
+    /// <summary>The paths come verbatim from session logs and imported indexes, so only a local drive
+    /// path is probed: a share spelling counts as gone without a connection to its host.</summary>
+    internal static bool SafeDirectoryExists(string path, Func<string, bool> probe)
     {
+        if (!GuardedRead.IsLocalDrivePath(path))
+            return false;
+
         try
         {
-            return Directory.Exists(path);
+            return probe(path);
         }
         catch (Exception)
         {
