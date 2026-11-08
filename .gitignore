@@ -53,6 +53,5 @@ id_ed25519*
 .idea/
 *.suo
 
-# Local tool settings and the app's own backups
-.claude/settings.local.json
+# The app's own backups
 ai-usage-backup*.zip

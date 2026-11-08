@@ -779,6 +779,11 @@ function PsQuote(const Value: String): String;
 begin
   Result := Value;
   StringChangeEx(Result, '''', '''''', True);
+  { Typographic quotes U+2018 to U+201B also end a PowerShell string. }
+  StringChangeEx(Result, #$2018, #$2018 + #$2018, True);
+  StringChangeEx(Result, #$2019, #$2019 + #$2019, True);
+  StringChangeEx(Result, #$201A, #$201A + #$201A, True);
+  StringChangeEx(Result, #$201B, #$201B + #$201B, True);
 end;
 
 { An exclusive open fails while any process runs the file or still maps it. }

@@ -273,7 +273,7 @@ if not "%AIUSAGE_NOSTART%"=="1" (
     echo.
     echo === start ===
     powershell -NoProfile -Command ^
-        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } };" ^
+        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%\', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } };" ^
         "$p = Start-Process -FilePath '%DIST%\AI-Usage.exe' -ArgumentList '--second-instance' -PassThru;" ^
         "Start-Sleep -Seconds 8;" ^
         "if ($p.HasExited) { Write-Host ('ERROR: the fresh copy exited on its own, code ' + $p.ExitCode + '.'); exit 1 };" ^
@@ -293,7 +293,7 @@ rem (a keypress ends the countdown early), so a finished build leaves nothing op
 if "%DOUBLECLICK%"=="1" timeout /t 10
 if not "%AIUSAGE_NOSTART%"=="1" (
     powershell -NoProfile -Command ^
-        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } }"
+        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%\', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } }"
 )
 endlocal
 exit /b 0
