@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>每天检查一次新版本</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>免打扰时段</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>至</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>请使用 22:00 这样的格式。</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>24 小时制，例如 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>从 {0}% 起通知</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>此服务商的自定义值</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>进度条超过 {0} 变黄,超过 {1} 变红。默认通知与红色一致。</value></data>

@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>1日1回、新しいバージョンを確認する</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>通知しない時間帯</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>から</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>22:00 の形式で入力してください。</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value>まで</value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>24時間表記で入力してください(例: 22:00)</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>{0}%から通知</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>このプロバイダー専用の値</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>バーは {0} を超えると黄色、{1} を超えると赤になります。既定の通知は赤と同じです。</value></data>

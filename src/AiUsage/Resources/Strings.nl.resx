@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Eén keer per dag op een nieuwere versie controleren</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Geen meldingen tussen</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>en</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Gebruik de vorm 22:00.</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>24-uursnotatie, bijv. 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Melden vanaf {0}%</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>Eigen waarde voor deze aanbieder</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>De balk wordt geel boven {0} en rood boven {1}. De standaardmelding komt overeen met rood.</value></data>

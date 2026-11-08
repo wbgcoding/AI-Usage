@@ -326,7 +326,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Einmal täglich auf eine neuere Version prüfen</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Keine Meldungen zwischen</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>und</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Bitte in der Form 22:00 angeben.</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>24-Stunden-Zeit, z. B. 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Meldung ab {0} %</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>Eigener Wert für diesen Anbieter</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>Der Balken wird über {0} gelb und über {1} rot. Die Vorgabe für die Meldung entspricht Rot.</value></data>

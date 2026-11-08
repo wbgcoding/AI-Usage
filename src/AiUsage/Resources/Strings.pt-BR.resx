@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Verificar uma vez por dia se há versão mais nova</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Sem avisos entre</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>e</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Use o formato 22:00.</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>Hora no formato de 24 horas, p. ex. 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Avisar a partir de {0}%</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>Valor próprio para este provedor</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>A barra fica amarela acima de {0} e vermelha acima de {1}. O aviso padrão coincide com o vermelho.</value></data>

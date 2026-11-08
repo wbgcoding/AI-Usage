@@ -712,12 +712,25 @@
                                     </Style>
                                 </TextBox.Style>
                             </TextBox>
+                            <!-- Closing word of the sentence, for languages that put one after the second time (ja); empty elsewhere. -->
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHoursEnd]}"
+                                       VerticalAlignment="Center" Margin="8,0,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Text}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </WrapPanel>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TimeInvalid]}"
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours.Format]}"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Level.Crit}">
-                        <!-- One line for both fields: the two red borders already show which field is meant,
-                             so this only needs to appear, not repeat itself, when either flag is set. -->
+                        <!-- One line for both fields, shown only after a wrong entry: the two red borders already
+                             show which field is meant, so this names the accepted form once. -->
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource TextBlock.GapS}">
                                 <Setter Property="Visibility" Value="Collapsed"/>

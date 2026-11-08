@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Yeni sürümü günde bir kez denetle</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Şu saatler arasında bildirim yok</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>ile</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>22:00 biçimini kullan.</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>24 saatlik biçim, örn. 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>%{0} değerinden itibaren bildir</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>Bu sağlayıcı için özel değer</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>Çubuk {0} üzerinde sarıya, {1} üzerinde kırmızıya döner. Varsayılan bildirim kırmızıya denk gelir.</value></data>

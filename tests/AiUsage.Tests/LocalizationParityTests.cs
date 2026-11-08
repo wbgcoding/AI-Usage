@@ -68,8 +68,13 @@ public class LocalizationParityTests
             var isNew = language.Code is not "de";
             foreach (var (key, value) in Values(language.Resources!))
             {
+                // A text that is empty in English on purpose (the closing word of a sentence that only
+                // some languages have) may be empty in the others too.
                 if (string.IsNullOrWhiteSpace(value))
-                    offenders.Add($"{language.Code}:{key} is empty");
+                {
+                    if (!english.TryGetValue(key, out var englishValue) || !string.IsNullOrWhiteSpace(englishValue))
+                        offenders.Add($"{language.Code}:{key} is empty");
+                }
                 // Formats like "{0} min {1} s" stay as they are; only real text counts.
                 else if (isNew && !key.StartsWith("Language.", StringComparison.Ordinal)
                     && english.TryGetValue(key, out var source) && source == value

@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Caută o versiune mai nouă o dată pe zi</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Fără notificări între</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>și</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Folosește forma 22:00.</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>Oră în format de 24 de ore, de ex. 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Notifică de la {0}%</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>Valoare proprie pentru acest furnizor</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>Bara devine galbenă peste {0} și roșie peste {1}. Notificarea implicită corespunde roșului.</value></data>

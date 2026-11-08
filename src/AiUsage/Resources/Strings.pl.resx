@@ -327,7 +327,8 @@
   <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Raz dziennie sprawdzaj, czy jest nowsza wersja</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Bez powiadomień między</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>a</value></data>
-  <data name="Settings.TimeInvalid" xml:space="preserve"><value>Użyj formatu 22:00.</value></data>
+  <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
+  <data name="Settings.QuietHours.Format" xml:space="preserve"><value>Godzina w formacie 24-godzinnym, np. 22:00</value></data>
   <data name="Settings.DefaultThreshold" xml:space="preserve"><value>Powiadom od {0}%</value></data>
   <data name="Settings.OwnThreshold" xml:space="preserve"><value>Własna wartość dla tego dostawcy</value></data>
   <data name="Settings.LevelExplainer" xml:space="preserve"><value>Pasek robi się żółty powyżej {0} i czerwony powyżej {1}. Domyślne powiadomienie odpowiada kolorowi czerwonemu.</value></data>
