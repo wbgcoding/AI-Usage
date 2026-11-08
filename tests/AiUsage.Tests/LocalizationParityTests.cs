@@ -53,7 +53,7 @@ public class LocalizationParityTests
     private static readonly HashSet<string> SameAsEnglishOnPurpose =
     [
         "fr:Settings.Section.Notifications", "fr:Settings.Via.ClaudeCode", "nl:Settings.Via.ClaudeCode",
-        "it:Stats.Project.Tip.InputOutputCache",
+        "it:Stats.Project.Tip.InputOutputCache", "pl:Settings.Section.System",
     ];
 
     private static readonly Regex Placeholder = new(@"\{\d+[^}]*\}", RegexOptions.Compiled);
@@ -65,7 +65,6 @@ public class LocalizationParityTests
         var offenders = new List<string>();
         foreach (var language in LocalizationService.Languages.Where(l => l.Resources is not null && l.Code is not "en"))
         {
-            var isNew = language.Code is not "de";
             foreach (var (key, value) in Values(language.Resources!))
             {
                 // A text that is empty in English on purpose (the closing word of a sentence that only
@@ -76,7 +75,7 @@ public class LocalizationParityTests
                         offenders.Add($"{language.Code}:{key} is empty");
                 }
                 // Formats like "{0} min {1} s" stay as they are; only real text counts.
-                else if (isNew && !key.StartsWith("Language.", StringComparison.Ordinal)
+                else if (!key.StartsWith("Language.", StringComparison.Ordinal)
                     && english.TryGetValue(key, out var source) && source == value
                     && Placeholder.Replace(value, "").Count(char.IsLetter) >= 12
                     && !SameAsEnglishOnPurpose.Contains($"{language.Code}:{key}"))
@@ -85,6 +84,34 @@ public class LocalizationParityTests
         }
 
         Assert.True(offenders.Count == 0, string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void ATextTranslatedUnderOneKeyIsNotLeftEnglishUnderAnother()
+    {
+        // The same English wording is often reused under several keys ("{0} min" in a tooltip and in
+        // a list). When a language translates it under one key, the key still in English is a miss
+        // that the length threshold above lets through for short texts.
+        var english = Values(LocalizationService.Languages.Single(l => l.Code == "en").Resources!);
+        var offenders = new List<string>();
+        foreach (var language in LocalizationService.Languages.Where(l => l.Resources is not null && l.Code is not "en"))
+        {
+            var values = Values(language.Resources!);
+            var groups = english
+                .Where(e => !e.Key.StartsWith("Language.", StringComparison.Ordinal) && ContainsLetters(Placeholder.Replace(e.Value, "")))
+                .GroupBy(e => e.Value, e => e.Key);
+            foreach (var group in groups)
+            {
+                var keys = group.Where(values.ContainsKey).ToList();
+                var translated = keys.Any(k => values[k] != group.Key);
+                if (!translated)
+                    continue;
+                foreach (var key in keys.Where(k => values[k] == group.Key && !SameAsEnglishOnPurpose.Contains($"{language.Code}:{k}")))
+                    offenders.Add($"{language.Code}:{key} ('{group.Key}')");
+            }
+        }
+
+        Assert.True(offenders.Count == 0, "Left English although translated elsewhere:\n" + string.Join("\n", offenders));
     }
 
     private static Dictionary<string, string> Values(ResourceManager manager) =>

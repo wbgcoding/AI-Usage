@@ -555,7 +555,7 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update ließ sich nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuche es noch einmal.</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, bevor ein Limit voraussichtlich erreicht ist</value></data>
-  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} Std</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Vorlauf der Warnung</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
