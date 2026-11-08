@@ -271,14 +271,16 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
                     return UpdateOutcome.DownloadFailed;
                 }
 
-                host.StartSetupAndExit(filePath);
+                // The process start can show an administrator prompt and the swap writes a whole exe:
+                // neither runs on the UI thread. The host ends the program on that thread itself.
+                await Task.Run(() => host.StartSetupAndExit(filePath), CancellationToken.None);
             }
             else
             {
                 // The swap writes the verified bytes itself; the downloaded file is not needed any more.
                 held.Dispose();
                 CleanUpRun(runFolder, filePath);
-                if (!host.ReplaceRunningAndRestart(verifiedBytes))
+                if (!await Task.Run(() => host.ReplaceRunningAndRestart(verifiedBytes), CancellationToken.None))
                     return UpdateOutcome.InstalledRestartNeeded;
             }
         }

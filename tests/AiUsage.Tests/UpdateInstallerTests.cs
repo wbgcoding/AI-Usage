@@ -108,8 +108,12 @@ public class UpdateInstallerTests
             return Task.FromResult(true);
         }
 
+        /// <summary>The managed thread each swap or setup start ran on.</summary>
+        public List<int> CallThreads { get; } = [];
+
         public void StartSetupAndExit(string setupPath)
         {
+            CallThreads.Add(Environment.CurrentManagedThreadId);
             if (SetupStartThrows is not null)
                 throw SetupStartThrows;
 
@@ -120,6 +124,7 @@ public class UpdateInstallerTests
 
         public bool ReplaceRunningAndRestart(byte[] verifiedExe)
         {
+            CallThreads.Add(Environment.CurrentManagedThreadId);
             if (SwapThrows is not null)
                 throw SwapThrows;
 
@@ -150,6 +155,26 @@ public class UpdateInstallerTests
         host.Files[ExeUrl] = exeBytes;
         host.Files[SigUrl] = [.. System.Text.Encoding.ASCII.GetBytes(signature)];
         return host;
+    }
+
+    // Writing the new exe and starting the setup (which may wait on an administrator prompt) must not
+    // run on the thread that awaits the install: for the app that is the UI thread.
+    [Fact]
+    public async Task The_swap_and_the_setup_start_run_off_the_calling_thread()
+    {
+        var (publicKey, key) = NewKey();
+        using var ui = new SingleThreadContext();
+
+        var portable = PortableHost(publicKey, Payload, Sign(key, Payload));
+        Assert.Equal(UpdateOutcome.Started, await ui.RunAsync(() => new UpdateInstaller(portable).InstallAsync(PortableRelease(), CancellationToken.None)));
+
+        var installed = SignedSetup();
+        Assert.Equal(UpdateOutcome.Started, await ui.RunAsync(() => new UpdateInstaller(installed).InstallAsync(PortableRelease(), CancellationToken.None)));
+
+        Assert.Single(portable.CallThreads);
+        Assert.Single(installed.CallThreads);
+        Assert.DoesNotContain(ui.ThreadId, portable.CallThreads);
+        Assert.DoesNotContain(ui.ThreadId, installed.CallThreads);
     }
 
     [Fact]

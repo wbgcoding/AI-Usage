@@ -11,6 +11,18 @@ namespace AiUsage.Services;
 /// </summary>
 public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 {
+    // The swap and the setup start run on a pool thread; ending the program belongs to the thread the
+    // host was made on (the UI thread). Without a context (tests, console) the call runs inline.
+    private readonly SynchronizationContext? _uiContext = SynchronizationContext.Current;
+
+    internal void Exit()
+    {
+        if (_uiContext is null || SynchronizationContext.Current == _uiContext)
+            exitApplication();
+        else
+            _uiContext.Send(_ => exitApplication(), null);
+    }
+
     /// <summary>The restart switch of a portable update: the new copy waits for the old one to end
     /// before it takes the single-instance lock.</summary>
     public const string AfterUpdateSwitch = "--after-update";
@@ -134,7 +146,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
         // verified file; a declined administrator prompt throws before anything is ended.
         Process.Start(BuildSetupStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)))?.Dispose();
 
-        exitApplication();
+        Exit();
     }
 
     /// <summary>A per-machine setup is started elevated right away, from the verified file: left to
@@ -253,7 +265,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
             return false;
         }
 
-        exitApplication();
+        Exit();
         return true;
     }
 
