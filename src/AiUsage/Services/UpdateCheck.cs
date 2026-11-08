@@ -57,13 +57,15 @@ public static class UpdateCheck
     /// <see cref="AppSettings.CheckForUpdates"/> is on - otherwise returns null without ever calling
     /// it. The timestamp is written on every real attempt, successful or not, so a persistent
     /// failure (offline, or no release published yet and the API answering 404) is retried at most
-    /// once a day, never hammered on every About window open.
+    /// once a day, never hammered on every About window open. While <paramref name="networkAllowed"/>
+    /// says no (pause, energy saver) nothing is fetched and nothing is stamped, so the check runs once
+    /// the hold ends.
     /// </summary>
     public static async Task<Release?> CheckIfDueAsync(
         AppSettings settings, Action<AppSettings> save, Func<CancellationToken, Task<Release?>> fetchRelease,
-        DateTimeOffset now, CancellationToken ct)
+        DateTimeOffset now, CancellationToken ct, Func<bool>? networkAllowed = null)
     {
-        if (!settings.CheckForUpdates)
+        if (!settings.CheckForUpdates || networkAllowed is not null && !networkAllowed())
             return null;
         if (settings.LastUpdateCheckUtc is { } last && now - last < MinCheckInterval)
             return null;

@@ -140,6 +140,7 @@ public partial class MainWindow : Window, IDisposable
         // hook instead, the same pair of calls a provider's own toggle reaches through HiddenCount.
         ViewModel.DayGridTile.PropertyChanged += DayGridTile_PropertyChanged;
         ViewModel.Update.RequestExit = ShutdownFromTray;
+        ViewModel.NetworkResumed += async () => await CheckForUpdateAsync();
         StartUpdateChecks();
         // Opens (or focuses) the statistics window on the clicked day - reuses the exact same window
         // TitleBarControl_StatsRequested already opens, never a second one of its own.

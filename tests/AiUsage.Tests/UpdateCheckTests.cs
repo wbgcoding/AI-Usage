@@ -100,4 +100,30 @@ public class UpdateCheckTests
         Assert.Equal(Now, settings.LastUpdateCheckUtc);
         Assert.Same(settings, saved);
     }
+
+    [Fact]
+    public async Task CheckIfDueAsync_waits_while_the_network_is_held_and_runs_once_it_is_free()
+    {
+        var settings = new AppSettings();
+        var saves = 0;
+        var calls = 0;
+        Task<UpdateCheck.Release?> Fetch(CancellationToken _)
+        {
+            calls++;
+            return Task.FromResult<UpdateCheck.Release?>(new("v9.9.9", "https://example.invalid"));
+        }
+
+        var held = await UpdateCheck.CheckIfDueAsync(settings, _ => saves++, Fetch, Now, CancellationToken.None, () => false);
+
+        Assert.Null(held);
+        Assert.Equal(0, calls);
+        Assert.Equal(0, saves);
+        Assert.Null(settings.LastUpdateCheckUtc);
+
+        var free = await UpdateCheck.CheckIfDueAsync(settings, _ => saves++, Fetch, Now, CancellationToken.None, () => true);
+
+        Assert.NotNull(free);
+        Assert.Equal(1, calls);
+        Assert.Equal(Now, settings.LastUpdateCheckUtc);
+    }
 }

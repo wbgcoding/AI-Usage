@@ -36,6 +36,9 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
     /// <summary>The release lookup; replaced in tests so nothing here touches the network.</summary>
     internal Func<CancellationToken, Task<UpdateCheck.Release?>> FetchLatestRelease { get; set; } = UpdateCheck.FetchLatestAsync;
 
+    /// <summary>False while a pause or the energy saver holds the network back: the daily check waits.</summary>
+    internal Func<bool> NetworkAllowed { get; set; } = () => true;
+
     /// <summary>Test seam for the clock the daily check compares against.</summary>
     internal Func<DateTimeOffset> Now { get; set; } = () => DateTimeOffset.UtcNow;
 
@@ -82,7 +85,7 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
     /// check was off, not due or failed.</summary>
     public async Task<UpdateCheck.Release?> CheckAsync(CancellationToken ct)
     {
-        var release = await UpdateCheck.CheckIfDueAsync(_settings, _save, FetchLatestRelease, Now(), ct);
+        var release = await UpdateCheck.CheckIfDueAsync(_settings, _save, FetchLatestRelease, Now(), ct, NetworkAllowed);
         if (release is not null)
             Record(release);
 

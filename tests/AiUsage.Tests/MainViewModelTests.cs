@@ -3673,4 +3673,25 @@ public partial class MainViewModelTests : IDisposable
 
         Assert.Equal(WindowLayers.Normal, vm.WindowLayer);
     }
+
+    [Fact]
+    public void ThePauseHoldsBackTheSideDownloadsAndTheirCatchUpRunsOnceWhenItEnds()
+    {
+        var (vm, _, _) = Build(new AppSettings());
+        var resumed = 0;
+        vm.NetworkResumed += () => resumed++;
+        vm.Tick(Now);
+        Assert.True(vm.Update.NetworkAllowed());
+
+        vm.TogglePause();
+        vm.Tick(Now);
+        Assert.False(vm.Update.NetworkAllowed());
+        Assert.Equal(0, resumed);
+
+        vm.TogglePause();
+        vm.Tick(Now);
+        vm.Tick(Now);
+        Assert.True(vm.Update.NetworkAllowed());
+        Assert.Equal(1, resumed);
+    }
 }

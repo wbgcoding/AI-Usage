@@ -199,4 +199,22 @@ public class RefreshSchedulerPauseTests
         await Task.WhenAll(scheduler.Tick());
         Assert.Equal(2, web.FetchCount);
     }
+
+    [Fact]
+    public void NetworkIsOff_follows_the_pause_and_ends_with_it()
+    {
+        var clock = new FakeClock();
+        var scheduler = new RefreshScheduler([new Provider("web", SourceKind.WebSession)], BaseInterval, clock);
+        Assert.False(scheduler.NetworkIsOff());
+
+        scheduler.PauseFor(Hour);
+        Assert.True(scheduler.NetworkIsOff());
+
+        clock.Advance(Hour);
+        Assert.False(scheduler.NetworkIsOff());
+
+        scheduler.PauseFor(Hour);
+        scheduler.Resume();
+        Assert.False(scheduler.NetworkIsOff());
+    }
 }

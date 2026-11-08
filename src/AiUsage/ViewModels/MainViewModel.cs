@@ -618,6 +618,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _scheduler = new RefreshScheduler(providers, TimeSpan.FromSeconds(settings.RefreshSeconds),
             log: line => (_logService ?? LogService.Shared).LogError(line));
         _scheduler.SetSaveEnergyOnBattery(settings.SaveEnergyOnBattery);
+        Update.NetworkAllowed = () => !_scheduler.NetworkIsOff();
         _scheduler.SnapshotReady += OnSnapshotReady;
         _scheduler.FetchStarted += OnFetchStarted;
         _scheduler.FetchEnded += OnFetchEnded;
@@ -1047,6 +1048,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(NewerVersionWarningText));
     }
 
+    private void CatchUpAfterNetworkHold()
+    {
+        var off = _scheduler.NetworkIsOff();
+        var resumed = _networkWasOff && !off;
+        _networkWasOff = off;
+        if (!resumed)
+            return;
+
+        _ = _cost?.RefreshAsync();
+        NetworkResumed?.Invoke();
+    }
+
     /// <summary>
     /// Called once a second by MainWindow's DispatcherTimer. A hidden provider or a closed/minimized
     /// window never skips a fetch outright - both only ever lengthen that provider's interval (see
@@ -1064,6 +1077,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 TryClearFetching(providerId);
         }
         PausedUntil = _scheduler.PausedUntil;
+        CatchUpAfterNetworkHold();
         _scheduler.Tick(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWindowTokens(now);
         if (OrderedByUsage)
@@ -2001,7 +2015,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The cost estimate of the token statistics: one instance per process, created on first
     /// use so nothing is read from disk before the statistics are wanted. Its price cache loads in the
     /// background, open statistics redraw when it is in.</summary>
-    internal CostService Cost => _cost ??= new CostService(() => _settings.ShowCostEstimate, () => _settings.CostCurrency, loadPricesInBackground: true);
+    internal CostService Cost => _cost ??= new CostService(
+        () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
+        loadPricesInBackground: true);
+
+    /// <summary>Raised on the UI thread when a pause or the energy saver that held the network back
+    /// has ended: the downloads outside the provider reads (price lists, update check) catch up.</summary>
+    internal event Action? NetworkResumed;
+
+    private bool _networkWasOff;
 
     /// <summary>Settings window calls this after the estimate switch or its currency changed, so open
     /// statistics redraw and a needed download starts.</summary>

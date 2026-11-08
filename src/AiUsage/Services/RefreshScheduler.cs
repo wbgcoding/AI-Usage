@@ -470,6 +470,15 @@ public sealed class RefreshScheduler
         return ignoreNetworkSkip || !NetworkIsOffLocked(now) || (provider.HasLocalSource && IsLocalSource(state));
     }
 
+    /// <summary>Whether fetches that use the network are held back right now (a pause is running, or
+    /// the energy saver is on and the setting asks to honour it). The downloads outside the provider
+    /// reads (price lists, update check) follow this too.</summary>
+    public bool NetworkIsOff()
+    {
+        lock (_gate)
+            return NetworkIsOffLocked(_timeProvider.GetUtcNow());
+    }
+
     /// <summary>Whether fetches that use the network are held back right now: a pause is running, or
     /// the energy saver is on and the setting asks to honour it. Caller must already hold <see
     /// cref="_gate"/>.</summary>

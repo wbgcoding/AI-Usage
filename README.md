@@ -243,7 +243,8 @@ status** (or your agent's name) under the reason.
 
 **Numbers update less often on battery.**
 With **Save energy on battery** on, AI-Usage fetches half as often on battery and reads only local
-sources in energy saver. Switch it off under **Settings > Refresh**.
+sources in energy saver, with no price list or update downloads either. Switch it off under
+**Settings > Refresh**.
 
 **My token history starts later than I expected.**
 Only session logs that still exist can be read. Claude Code deletes them after 30 days by default;
