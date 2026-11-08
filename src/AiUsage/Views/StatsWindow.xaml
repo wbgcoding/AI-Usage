@@ -24,6 +24,7 @@
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <controls:NullIfEmptyStringConverter x:Key="NullIfEmpty"/>
+            <controls:LabelAndValueConverter x:Key="LabelAndValue"/>
             <controls:FigureCardColumnsConverter x:Key="FigureCardColumns"/>
             <controls:AtLeastWidthConverter x:Key="AtLeastWidth"/>
             <controls:PercentOffsetConverter x:Key="LimitTickOffset"/>
@@ -365,9 +366,13 @@
                                                        FontSize="{StaticResource Font.Size.Figure}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total], Mode=OneWay}"/>
-                                            <Run Text="{Binding TotalCostText, Mode=OneWay}" ToolTip="{Binding TotalCostTooltip}"/>
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding TotalCostTooltip, Converter={StaticResource NullIfEmpty}}">
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
+                                                    <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.Total]" Mode="OneWay"/>
+                                                    <Binding Path="TotalCostText" Mode="OneWay"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
                                         </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="AreaSparkline" Values="{Binding DailyTotalsSeries}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
@@ -383,8 +388,12 @@
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerDay], Mode=OneWay}"/>
-                                            <Run Text="{Binding PerDayCostText, Mode=OneWay}"/>
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
+                                                    <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.PerDay]" Mode="OneWay"/>
+                                                    <Binding Path="PerDayCostText" Mode="OneWay"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
                                         </TextBlock>
                                         <Border Height="28" Margin="0,4,0,0"/>
                                     </StackPanel>
@@ -397,8 +406,12 @@
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.BusiestDay], Mode=OneWay}"/>
-                                            <Run Text="{Binding BusiestDayCostText, Mode=OneWay}"/>
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
+                                                    <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.BusiestDay]" Mode="OneWay"/>
+                                                    <Binding Path="BusiestDayCostText" Mode="OneWay"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
                                         </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="Columns" Values="{Binding DailyTotalsSeries}"
                                                                         AccentBrush="{DynamicResource Accent}" MutedBrush="{DynamicResource Text.Muted}"
@@ -435,8 +448,12 @@
                                         </Viewbox>
                                         <TextBlock Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Small}" Margin="0,4,0,0"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.PerActiveDay], Mode=OneWay}"/>
-                                            <Run Text="{Binding PerActiveDayCostText, Mode=OneWay}"/>
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource LabelAndValue}" Mode="OneWay">
+                                                    <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Stats.PerActiveDay]" Mode="OneWay"/>
+                                                    <Binding Path="PerActiveDayCostText" Mode="OneWay"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
                                         </TextBlock>
                                         <controls:StatsFigureMiniChart Kind="Progress" Numerator="{Binding ActiveDayCountRaw}"
                                                                         Denominator="{Binding PeriodDayCountRaw}"
