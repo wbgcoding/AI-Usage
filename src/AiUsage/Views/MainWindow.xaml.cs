@@ -2057,7 +2057,8 @@ public partial class MainWindow : Window, IDisposable
         _alerts.FlushAll();
         _tray.Dispose();
         // Blocking is safe here: this only ever runs from MainWindow_Closing on the UI thread, and
-        // nothing DisposeAsync awaits needs to marshal back onto that same thread to complete.
+        // the shutdown disposal never waits on anything that needs this thread (the web runner takes
+        // its gate only when it is free and skips a start still in flight).
         ViewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
         GC.SuppressFinalize(this);
     }

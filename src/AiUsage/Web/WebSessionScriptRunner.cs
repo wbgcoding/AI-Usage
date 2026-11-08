@@ -701,27 +701,35 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             }
         }
 
-        await _hostGate.WaitAsync();
-        try
+        // At shutdown the caller blocks the UI thread, so the gate is only taken when it is free: a holder
+        // that still needs this thread to finish would otherwise hang the exit. A host left behind then
+        // is the exit's to end; a start in flight closes its own half-built host on the cancellation.
+        var gateTaken = waitForPendingStart
+            ? await _hostGate.WaitAsync(Timeout.InfiniteTimeSpan)
+            : await _hostGate.WaitAsync(TimeSpan.Zero);
+        if (gateTaken)
         {
-            if (_host is not null)
+            try
             {
-                var host = _host;
-                _host = null;
-                try
+                if (_host is not null)
                 {
-                    await host.DisposeAsync();
-                }
-                catch (Exception ex)
-                {
-                    // The caller goes on to delete the profile folder; a browser that cannot close must not stop that.
-                    LogService.Shared.LogError($"Disposing the hidden browser failed ({ex.GetType().Name}).");
+                    var host = _host;
+                    _host = null;
+                    try
+                    {
+                        await host.DisposeAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        // The caller goes on to delete the profile folder; a browser that cannot close must not stop that.
+                        LogService.Shared.LogError($"Disposing the hidden browser failed ({ex.GetType().Name}).");
+                    }
                 }
             }
-        }
-        finally
-        {
-            _hostGate.Release();
+            finally
+            {
+                _hostGate.Release();
+            }
         }
 
         // Every wait on the token has ended by now or sees it cancelled.
