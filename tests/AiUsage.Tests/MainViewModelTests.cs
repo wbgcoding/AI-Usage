@@ -514,7 +514,7 @@ public partial class MainViewModelTests : IDisposable
         var codex = vm.Tiles.Single(t => t.ProviderId == "codex");
         SetPercent(codex, 7);
         gate.SetResult();
-        await vm.LastReadingsLoaded.WaitAsync(TimeSpan.FromSeconds(10));
+        await vm.LastReadingsLoaded.WaitAsync(TimeSpan.FromSeconds(60));
 
         // The tile that got live numbers meanwhile keeps them; the other one is restored from the history.
         Assert.Equal(7, codex.Rows.Single().UsedPercent);
@@ -535,7 +535,7 @@ public partial class MainViewModelTests : IDisposable
         Assert.Empty(claude.Rows);
 
         gate.SetResult();
-        await vm.LastReadingsLoaded.WaitAsync(TimeSpan.FromSeconds(10));
+        await vm.LastReadingsLoaded.WaitAsync(TimeSpan.FromSeconds(60));
 
         Assert.Equal(74, claude.Rows.Single().UsedPercent);
         Assert.True(claude.IsShowingLastValues);

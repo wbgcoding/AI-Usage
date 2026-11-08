@@ -817,7 +817,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 }
             }
             return found;
-        });
+        }).ConfigureAwait(false);
 
         void Apply()
         {
