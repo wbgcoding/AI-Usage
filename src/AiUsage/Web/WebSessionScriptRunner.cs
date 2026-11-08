@@ -89,6 +89,13 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
     // Owns the shared start (_ready): one caller's own token must not cancel a start other callers
     // are waiting on. Cancelled by DisposeAsync.
     private readonly CancellationTokenSource _lifetime = new();
+    // Taken once: the source's own Token throws after it is disposed, this copy stays readable (and
+    // cancelled) for a call that is still winding down.
+    private readonly CancellationToken _lifetimeToken;
+
+    // One host is created or torn down at a time: a second caller must not start a browser on the
+    // profile folder while the previous one is still closing.
+    private readonly SemaphoreSlim _hostGate = new(1, 1);
 
     // A second session owned by the same account (the Claude Console's), closed together with this one so
     // a sign-out or shutdown leaves no browser open on the account's profile folder.
@@ -150,6 +157,7 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         _writeTimingLine = writeTimingLine;
         _suspendWait = suspendWait ?? DefaultSuspendWait;
         _hostFactory = hostFactory;
+        _lifetimeToken = _lifetime.Token;
         _navigationTimeout = navigationTimeout ?? DefaultNavigationTimeout;
         _scriptTimeout = scriptTimeout ?? DefaultScriptTimeout;
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -234,28 +242,40 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
 
     private async Task<string> RunScriptAsync(string script, CancellationToken ct)
     {
-
-        // A host that has sat unused past the idle span is torn down here, before it is asked to do
-        // anything else - EnsureReadyAsync below then starts a completely fresh one, the same path a
-        // timed out script already takes.
-        if (_host is not null && _lastActivityAt is { } lastActivity && _timeProvider.GetUtcNow() - lastActivity >= IdleDisposalSpan)
+        Task ready;
+        await _hostGate.WaitAsync(ct);
+        try
         {
-            var idleHost = _host;
-            _host = null;
-            _ready = null;
-            try
+            if (_disposed)
+                throw new OperationCanceledException("The hidden session was closed.");
+
+            // A host that has sat unused past the idle span is torn down here, before it is asked to do
+            // anything else - EnsureReadyAsync below then starts a completely fresh one, the same path a
+            // timed out script already takes.
+            if (_host is not null && _lastActivityAt is { } lastActivity && _timeProvider.GetUtcNow() - lastActivity >= IdleDisposalSpan)
             {
-                await idleHost.DisposeAsync();
+                var idleHost = _host;
+                _host = null;
+                _ready = null;
+                try
+                {
+                    await idleHost.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogService.Shared.LogError($"Disposing the idle hidden browser failed ({ex.GetType().Name}).");
+                }
             }
-            catch (Exception ex)
-            {
-                LogService.Shared.LogError($"Disposing the idle hidden browser failed ({ex.GetType().Name}).");
-            }
+
+            _lastActivityAt = _timeProvider.GetUtcNow();
+
+            ready = _ready ??= EnsureReadyAsync(_lifetimeToken);
+        }
+        finally
+        {
+            _hostGate.Release();
         }
 
-        _lastActivityAt = _timeProvider.GetUtcNow();
-
-        var ready = _ready ??= EnsureReadyAsync(_lifetime.Token);
         try
         {
             await ready.WaitAsync(ct);
@@ -299,15 +319,24 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             // busy with (or stuck on) this call, and the abandoned task's eventual fault is
             // observed so it never surfaces as an unobserved task exception.
             _ = scriptTask.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
-            await DropHostAsync(host);
 
+            // The caller walking away says nothing about the browser: it stays warm for the next read
+            // (the script was handed the same token and ends on its own). Only a real timeout replaces it.
             ct.ThrowIfCancellationRequested();
+            await DropHostAsync(host);
             throw new TimeoutException("Script execution timed out.");
         }
         var succeeded = false;
         try
         {
             var answer = await scriptTask;
+
+            // A later navigation of the page was sent to Google's traffic check and cancelled: the
+            // answer comes from a page the site has not let through, and only the sign-in window can
+            // show the check. The session is replaced like after any failed call.
+            if (host.TrafficCheckSeen)
+                throw new WebSessionCheckRequiredException();
+
             succeeded = true;
             return answer;
         }
@@ -372,7 +401,7 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             _cacheClearedOn = today;
             var clear = host.ClearDiskCacheAsync();
             // Sign-out and disposal end the wait, so an abandoned clear is not left holding the profile.
-            var finished = await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, _lifetime.Token);
+            var finished = await WinsAgainstTimeoutAsync(clear, CacheClearTimeout, _lifetimeToken);
             if (_lifetime.IsCancellationRequested)
             {
                 _ = clear.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
@@ -439,15 +468,27 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         if (!ReferenceEquals(_host, host))
             return;
 
-        _host = null;
-        _ready = null;
+        await _hostGate.WaitAsync();
         try
         {
-            await host.DisposeAsync();
+            // Dropped by another caller while this one waited.
+            if (!ReferenceEquals(_host, host))
+                return;
+
+            _host = null;
+            _ready = null;
+            try
+            {
+                await host.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.Shared.LogError($"Disposing the failed hidden browser failed ({ex.GetType().Name}).");
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            LogService.Shared.LogError($"Disposing the failed hidden browser failed ({ex.GetType().Name}).");
+            _hostGate.Release();
         }
     }
 
@@ -487,7 +528,7 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         try
         {
             // Ends early when the runner is disposed meanwhile: nothing is left to resume.
-            await pending.WaitAsync(_suspendWait, _lifetime.Token);
+            await pending.WaitAsync(_suspendWait, _lifetimeToken);
         }
         catch (OperationCanceledException) when (_disposed)
         {
@@ -549,16 +590,27 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             return;
         }
 
-        var host = _host;
-        _host = null;
-        _ready = null;
+        await _hostGate.WaitAsync();
         try
         {
-            await host.DisposeAsync();
+            // A call may have taken the host over while this one waited for the gate.
+            if (_disposed || Volatile.Read(ref _inFlight) > 0 || _host is not { } host)
+                return;
+
+            _host = null;
+            _ready = null;
+            try
+            {
+                await host.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.Shared.LogError($"Disposing the idle hidden browser failed ({ex.GetType().Name}).");
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            LogService.Shared.LogError($"Disposing the idle hidden browser failed ({ex.GetType().Name}).");
+            _hostGate.Release();
         }
     }
 
@@ -621,7 +673,15 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         DisarmIdleTimer();
         await DisposeCompanionAsync(forShutdown: !waitForPendingStart);
         var pendingStart = _ready;
-        _lifetime.Cancel();
+        try
+        {
+            _lifetime.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The other disposal path (sign-out, then shutdown) already finished.
+        }
+
         _ready = null;
 
         // A start still in flight tears its own half-built host down once it sees the cancellation;
@@ -639,20 +699,31 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             }
         }
 
-        if (_host is not null)
+        await _hostGate.WaitAsync();
+        try
         {
-            var host = _host;
-            _host = null;
-            try
+            if (_host is not null)
             {
-                await host.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                // The caller goes on to delete the profile folder; a browser that cannot close must not stop that.
-                LogService.Shared.LogError($"Disposing the hidden browser failed ({ex.GetType().Name}).");
+                var host = _host;
+                _host = null;
+                try
+                {
+                    await host.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    // The caller goes on to delete the profile folder; a browser that cannot close must not stop that.
+                    LogService.Shared.LogError($"Disposing the hidden browser failed ({ex.GetType().Name}).");
+                }
             }
         }
+        finally
+        {
+            _hostGate.Release();
+        }
+
+        // Every wait on the token has ended by now or sees it cancelled.
+        _lifetime.Dispose();
     }
 }
 
@@ -682,6 +753,10 @@ internal interface IHiddenBrowserHost : IAsyncDisposable
 
     /// <summary>The id of the browser process behind this session; null when unknown.</summary>
     int? BrowserProcessId => null;
+
+    /// <summary>Whether a navigation of the page was sent to Google's traffic check and cancelled.
+    /// Checked after every script: the check can come on a later navigation, not only the first.</summary>
+    bool TrafficCheckSeen => false;
 
     /// <summary>Raised when the browser process or the page's renderer died; the session cannot be
     /// used any more and the owner replaces it.</summary>
@@ -727,7 +802,9 @@ internal sealed class WebView2HiddenBrowserHost : IHiddenBrowserHost
     private volatile bool _disposed;
     private TaskCompletionSource<bool>? _navigated;
     // Set when the start navigation was sent to Google's traffic check, which this session never loads.
-    private bool _trafficCheckSeen;
+    private volatile bool _trafficCheckSeen;
+
+    public bool TrafficCheckSeen => _trafficCheckSeen;
 
     // Read once on the UI thread, where the browser object may be used; the runner reads it later.
     private int? _browserProcessId;

@@ -303,6 +303,65 @@ public class WebSessionScriptRunnerTests
         Assert.Equal(2, starts);
     }
 
+    // The check can arrive on a navigation the page makes after the start: the answer of that script
+    // comes from a page the site did not let through, so the read says "signed out" and the session is
+    // replaced instead of reporting a generic failure.
+    [Fact]
+    public async Task A_traffic_check_seen_after_a_later_script_reads_as_signed_out_and_drops_the_host()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() => fake);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => fake.ExecuteCalls == 1);
+        fake.TrafficCheckSeen = true;
+        fake.CompleteScript("""{"status":"ok"}""");
+
+        Assert.Equal("""{"status":"not_signed_in"}""", await call.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(fake.Disposed);
+    }
+
+    // A caller that stops waiting (its own cancel, not the script timeout) says nothing about the
+    // browser: the warm host serves the next read instead of being rebuilt.
+    [Fact]
+    public async Task A_caller_cancel_during_a_script_keeps_the_warm_host()
+    {
+        var starts = 0;
+        var fake = new FakeHiddenBrowserHost();
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            return fake;
+        });
+        using var cancel = new CancellationTokenSource();
+
+        var first = runner.ExecuteScriptAsync("script", cancel.Token);
+        await WaitUntilAsync(() => fake.ExecuteCalls == 1);
+        cancel.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(fake.Disposed);
+
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => fake.ExecuteCalls == 2);
+        fake.CompleteScript("answer");
+
+        Assert.Equal("answer", await second.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, starts);
+        Assert.False(fake.Disposed);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!condition())
+        {
+            Assert.True(DateTime.UtcNow < deadline, "The condition never became true.");
+            await Task.Delay(5);
+        }
+    }
+
     // The host cannot be instantiated without a live WebView2, so its wiring is read as text.
     [Fact]
     public void The_hidden_session_spots_the_traffic_check_before_the_allow_list_cancels_it()
@@ -1414,6 +1473,8 @@ public class WebSessionScriptRunnerTests
         private TaskCompletionSource<string> _script = new();
 
         public bool Disposed { get; private set; }
+
+        public bool TrafficCheckSeen { get; set; }
 
         /// <summary>Closing the host throws, like a browser control whose process already died.</summary>
         public bool DisposeFails { get; init; }
