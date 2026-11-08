@@ -31,7 +31,7 @@ public class StatsViewModelCostTests
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-cost-store");
         var store = new StatsStore(dataDir);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(DateTime.Now);
         store.AddDelta([
             new StatsRecord("claude", today, "claude-sonnet-4-5", "projA", 1_000_000, 0, 0, 0),
             new StatsRecord("claude", today, "mystery-model", "projB", 500, 500, 0, 0),
@@ -322,7 +322,7 @@ public class StatsViewModelCostTests
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-cost-sessions");
         var store = new StatsStore(dataDir);
-        var noon = DateTimeOffset.UtcNow.Date.AddHours(12);
+        var noon = new DateTimeOffset(DateTime.Today.AddHours(12));
         store.ApplyIndexResult(
             [], new StatsSourceFileState("seed-cost", "claude", 0, 0, DateTime.UtcNow),
             [
@@ -354,7 +354,7 @@ public class StatsViewModelCostTests
     [Fact]
     public void The_previous_period_figure_names_its_cost()
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(DateTime.Now);
         var earlier = Enumerable.Range(0, 20).Select(offset =>
             new StatsRecord("claude", today.AddDays(-35 - offset), "claude-sonnet-4-5", "projA", 2_000_000, 0, 0, 0));
         var viewModel = Create(Service(), vm => vm.SelectedRange = "Month", extra: earlier);
