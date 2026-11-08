@@ -153,7 +153,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
             var percent = total > 0 ? values[i] * 100.0 / total : 0;
             var share = StatusTextMap.FormatShare(percent, LocalizationService.Instance.DisplayCulture);
             var text = i < labels.Count ? TextCompose.Pair(labels[i], share) : share;
-            texts.Add(new FormattedText(text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 10, TextBrush, pixelsPerDip));
+            texts.Add(new FormattedText(text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, pixelsPerDip));
         }
         return texts;
     }
@@ -191,7 +191,7 @@ public sealed class StatsCacheShareBar : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;

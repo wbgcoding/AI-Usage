@@ -645,7 +645,7 @@ public sealed class StatsRingChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
@@ -684,8 +684,6 @@ public sealed class StatsRingChart : FrameworkElement
         DrawLegend(drawingContext, slices, brushes, place.LegendX, place.LegendTop, width, place.TextScale, dpi, typeface);
     }
 
-    private const double CenterValueBaseFontSize = 13;
-    private const double CenterNameBaseFontSize = 10;
     private const double CenterTextMinFontSize = 7;
     // The cost line under the figure: this share of the figure's size, never below the floor.
     private const double CenterCostFontRatio = 0.55;
@@ -702,8 +700,8 @@ public sealed class StatsRingChart : FrameworkElement
         DrawingContext dc, IReadOnlyList<Slice> slices,
         Point center, double radius, double strokeThickness, double textScale, double dpi, Typeface typeface)
     {
-        var nameBaseSize = CenterNameBaseFontSize * textScale;
-        var valueBaseSize = CenterValueBaseFontSize * textScale;
+        var nameBaseSize = ChartTheme.FontSize(this, "Font.Size.Micro", 10) * textScale;
+        var valueBaseSize = ChartTheme.FontSize(this, "Font.Size.Strong", 13) * textScale;
         var innerDiameter = Math.Max(0, 2 * (radius - strokeThickness / 2) - CenterTextPadding * 2);
         if (innerDiameter <= 0)
             return;
@@ -872,7 +870,7 @@ public sealed class StatsRingChart : FrameworkElement
 
             var percentText = slices[i].LegendText ?? StatusTextMap.FormatShare(slices[i].Percent, LocalizationService.Instance.DisplayCulture);
             var legendWidth = Math.Max(1, width - x - swatch - 8);
-            var fontSize = LegendBaseFontSize * textScale;
+            var fontSize = ChartTheme.FontSize(this, "Font.Size.Micro", 10) * textScale;
             var figure = LegendFigure(slices[i].Label, percentText, slices[i].CostText, legendWidth, dpi, typeface, fontSize);
             var (label, percent) = LegendEntryTexts(slices[i].Label, figure, legendWidth, dpi, typeface, TextBrush, fontSize);
             var textX = x + swatch + 4 * textScale;

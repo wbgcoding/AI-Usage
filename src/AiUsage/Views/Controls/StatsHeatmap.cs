@@ -28,7 +28,6 @@ public sealed class StatsHeatmap : FrameworkElement
     private const double CellCorner = 2;
     private const double MaxCellHeight = 22;
     private const double MinCellHeight = 12;
-    private const double LabelFontSize = 10;
     private const double DefaultWidth = 480;
 
     public StatsHeatmap()
@@ -283,7 +282,7 @@ public sealed class StatsHeatmap : FrameworkElement
         if (!HasData)
         {
             var empty = new FormattedText(
-                EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi)
+                EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi)
             {
                 MaxTextWidth = Math.Max(1, width),
                 TextAlignment = TextAlignment.Center,
@@ -307,7 +306,7 @@ public sealed class StatsHeatmap : FrameworkElement
 
             var x = LeftLabelWidth + column * (cellWidth + CellGap);
             var label = new FormattedText(
-                column.ToString(culture), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, LabelFontSize, TextBrush, dpi);
+                column.ToString(culture), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
             drawingContext.DrawText(label, ChartDrawCache.Snap(x, (TopLabelHeight - label.Height) / 2, dpi));
         }
 
@@ -317,7 +316,7 @@ public sealed class StatsHeatmap : FrameworkElement
             var day = DayOfRow(FirstDay, row);
             var rowLabel = new FormattedText(
                 culture.DateTimeFormat.AbbreviatedDayNames[(int)day], LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight,
-                typeface, LabelFontSize, TextBrush, dpi);
+                typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
             drawingContext.DrawText(rowLabel, ChartDrawCache.Snap(0, y + (cellHeight - rowLabel.Height) / 2, dpi));
 
             for (var column = 0; column < Columns; column++)

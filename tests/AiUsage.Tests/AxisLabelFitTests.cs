@@ -76,6 +76,14 @@ public class AxisLabelFitTests
     }
 
     [Fact]
+    public void NameFontSizeFor_follows_the_size_the_type_scale_gives()
+    {
+        Assert.Equal(12, StatsHorizontalBarChart.NameFontSizeFor(50, 60, 12));
+        Assert.Equal(12 * 50.0 / 60, StatsHorizontalBarChart.NameFontSizeFor(60, 50, 12), 6);
+        Assert.Equal(8.5, StatsHorizontalBarChart.NameFontSizeFor(200, 50, 12));
+    }
+
+    [Fact]
     public void RequiredLabelsTouch_is_true_only_when_two_required_labels_come_closer_than_the_gap()
     {
         var apart = new List<(int Index, double Left, double Width)> { (0, 0, 30), (6, 40, 30), (12, 100, 30) };

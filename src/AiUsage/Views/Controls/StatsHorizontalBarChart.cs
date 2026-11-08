@@ -383,11 +383,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     /// its column, stepping down in proportion to a lower limit when it does not, so a narrow chart
     /// shows as much of every name as it can before the ellipsis takes over. Pure so it is unit
     /// testable without a visual tree.</summary>
-    internal static double NameFontSizeFor(double widestNameAtRegular, double nameColumnWidth)
+    internal static double NameFontSizeFor(double widestNameAtRegular, double nameColumnWidth, double regularSize = NameFontSize)
     {
         if (widestNameAtRegular <= 0 || widestNameAtRegular <= nameColumnWidth)
-            return NameFontSize;
-        return Math.Clamp(NameFontSize * nameColumnWidth / widestNameAtRegular, NameFontSizeMin, NameFontSize);
+            return regularSize;
+        return Math.Clamp(regularSize * nameColumnWidth / widestNameAtRegular, Math.Min(NameFontSizeMin, regularSize), regularSize);
     }
 
     private const double NameFontSize = 11;
@@ -723,7 +723,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, 12, TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
@@ -746,13 +746,14 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             return;
         }
 
+        var regularNameSize = ChartTheme.FontSize(this, "Font.Size.Small", 11);
         var widestName = rows
             .Select(row => new FormattedText(
-                row.ShortLabel, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, NameFontSize, TextBrush, dpi).Width)
+                row.ShortLabel, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, regularNameSize, TextBrush, dpi).Width)
             .DefaultIfEmpty(0)
             .Max();
         var nameWidth = NameColumnWidthFor(width, widestName);
-        var nameFontSize = NameFontSizeFor(widestName, nameWidth);
+        var nameFontSize = NameFontSizeFor(widestName, nameWidth, regularNameSize);
         var barAreaX = nameWidth + NameBarGap;
         var barAreaWidth = Math.Max(0, width - barAreaX - FigureColumnWidth);
         var plainTops = RowTops(rows.Count);
@@ -781,7 +782,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
             var figureText = new FormattedText(
                 StatsAggregator.ShortenTokenCount(rows[i].Total, ThousandSuffix, MillionSuffix, BillionSuffix), LocalizationService.Instance.DisplayCulture,
-                FlowDirection.LeftToRight, typeface, 11, TextBrush, dpi);
+                FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Small", 11), TextBrush, dpi);
             drawingContext.DrawText(figureText, new Point(width - figureText.Width, y + (RowHeight - figureText.Height) / 2));
         }
     }
@@ -793,8 +794,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
     /// <summary>The project name of a rich row: always one line, cut with an ellipsis - without the
     /// line limit a long name wraps into the bar beneath it.</summary>
-    internal static FormattedText CreateRichNameText(string name, double maxWidth, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
-        new(name, culture, FlowDirection.LeftToRight, semiBold, 12, brush, dpi)
+    internal static FormattedText CreateRichNameText(string name, double maxWidth, CultureInfo culture, Typeface semiBold, Brush brush, double dpi, double fontSize = 12) =>
+        new(name, culture, FlowDirection.LeftToRight, semiBold, fontSize, brush, dpi)
         {
             MaxTextWidth = maxWidth,
             MaxLineCount = 1,
@@ -803,8 +804,8 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
     /// <summary>The uncut width of a project name. Measured without a width limit: WPF refuses an
     /// infinite MaxTextWidth.</summary>
-    internal static double RichNameNaturalWidth(string name, CultureInfo culture, Typeface semiBold, Brush brush, double dpi) =>
-        new FormattedText(name, culture, FlowDirection.LeftToRight, semiBold, 12, brush, dpi).Width;
+    internal static double RichNameNaturalWidth(string name, CultureInfo culture, Typeface semiBold, Brush brush, double dpi, double fontSize = 12) =>
+        new FormattedText(name, culture, FlowDirection.LeftToRight, semiBold, fontSize, brush, dpi).Width;
 
     /// <summary>One rich row: an icon (or, missing one, a dot in the project's own color), the
     /// project's name in semibold (the full path is in the tooltip only), cut to whatever width is
@@ -838,13 +839,13 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var figureText = new FormattedText(
             $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatusTextMap.FormatShare(row.Percent, LocalizationService.Instance.DisplayCulture)}",
-            culture, FlowDirection.LeftToRight, regular, 11, TextBrush, dpi);
+            culture, FlowDirection.LeftToRight, regular, ChartTheme.FontSize(this, "Font.Size.Small", 11), TextBrush, dpi);
         var costText = string.IsNullOrEmpty(row.CostText)
             ? null
-            : new FormattedText(row.CostText, culture, FlowDirection.LeftToRight, regular, 11, MutedBrush, dpi);
+            : new FormattedText(row.CostText, culture, FlowDirection.LeftToRight, regular, ChartTheme.FontSize(this, "Font.Size.Small", 11), MutedBrush, dpi);
         if (costText is not null)
         {
-            var nameNatural = RichNameNaturalWidth(projectName, culture, semiBold, TextBrush, dpi);
+            var nameNatural = RichNameNaturalWidth(projectName, culture, semiBold, TextBrush, dpi, ChartTheme.FontSize(this, "Font.Size.Body", 12));
             if (!CostFits(width, textX, figureText.Width, costText.Width, nameNatural))
                 costText = null;
         }
@@ -857,7 +858,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var nameAreaWidth = Math.Max(1, figureX - textX - RichFigureGap);
 
-        var nameText = CreateRichNameText(projectName, nameAreaWidth, culture, semiBold, TextBrush, dpi);
+        var nameText = CreateRichNameText(projectName, nameAreaWidth, culture, semiBold, TextBrush, dpi, ChartTheme.FontSize(this, "Font.Size.Body", 12));
         drawingContext.DrawText(nameText, new Point(textX, y + (textAreaHeight - nameText.Height) / 2));
 
         var barWidth = BarWidth(row.Total, maxValue, width);
