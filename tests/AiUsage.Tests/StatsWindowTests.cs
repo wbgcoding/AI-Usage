@@ -63,19 +63,21 @@ public class StatsWindowTests
             throw new InvalidOperationException("StatsWindow visual walk failed.", failure);
     }
 
-    // the window resizes from every edge and corner now, the same eight-Thumb pattern
-    // MainWindow already uses instead of the native (AllowsTransparency-disabled) resize border.
+    // The window resizes through the native sizing frame (as the settings window does): grips that
+    // set Width on every mouse move laid the heavy chart window out again for each move and lagged.
     [Fact]
-    public void StatsWindow_exposes_eight_resize_grips()
+    public void StatsWindow_resizes_through_the_native_sizing_frame()
     {
         Exception? failure = null;
         var gripCount = -1;
+        var resizeMode = ResizeMode.NoResize;
+        var border = default(Thickness);
 
         var worker = new Thread(() =>
         {
             try
             {
-                gripCount = CountResizeGrips();
+                (gripCount, resizeMode, border) = CountResizeGrips();
             }
             catch (Exception ex)
             {
@@ -94,7 +96,9 @@ public class StatsWindowTests
         if (failure is not null)
             throw new InvalidOperationException("StatsWindow grip-count walk failed.", failure);
 
-        Assert.Equal(8, gripCount);
+        Assert.Equal(0, gripCount);
+        Assert.Equal(ResizeMode.CanResize, resizeMode);
+        Assert.True(border.Left > 0 && border.Top > 0 && border.Right > 0 && border.Bottom > 0, $"Resize border {border}.");
     }
 
     // The window itself starting the shared indexer and reloading on IndexCompleted is covered at
@@ -190,7 +194,7 @@ public class StatsWindowTests
             CollectSections(VisualTreeHelper.GetChild(node, i), found);
     }
 
-    private static int CountResizeGrips()
+    private static (int Grips, ResizeMode Mode, Thickness Border) CountResizeGrips()
     {
         typeof(Application).GetField("_appCreatedInThisAppDomain", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
 
@@ -212,13 +216,11 @@ public class StatsWindowTests
             root.Arrange(new Rect(0, 0, 720, 520));
             root.UpdateLayout();
 
-            // Later panels gave the window's own scroll region enough chart panels to actually need
-            // scrolling at the 720x520 default size, which realises a genuine ScrollBar Thumb inside
-            // the visual tree alongside the eight resize grips this test means to count - so only the
-            // grips sharing the ResizeGrip style are counted, the same style every one of the eight
-            // Thumb elements in StatsWindow.xaml itself is given.
+            // Only thumbs in the ResizeGrip style count: the scroll region realises a real ScrollBar
+            // Thumb at the 720x520 default size.
             var resizeGripStyle = window.FindResource("ResizeGrip");
-            return CountResizeGripThumbs(root, resizeGripStyle);
+            var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(window);
+            return (CountResizeGripThumbs(root, resizeGripStyle), window.ResizeMode, chrome?.ResizeBorderThickness ?? default);
         }
         finally
         {

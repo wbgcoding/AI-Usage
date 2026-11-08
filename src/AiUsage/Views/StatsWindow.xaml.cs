@@ -18,10 +18,8 @@ using AiUsage.Views.Controls;
 namespace AiUsage.Views;
 
 /// <summary>
-/// The statistics window. Resizable in every direction the same way <see cref="MainWindow"/>
-/// is - eight Thumb grips dragging <see cref="Width"/>/<see cref="Height"/>, needed regardless of
-/// <c>AllowsTransparency</c> since <c>ResizeMode=NoResize</c> already keeps WPF's own native resize
-/// border out of it. The selected period never survives a close, but the size does,
+/// The statistics window. Resizable from every edge and corner through the native sizing frame
+/// (see the WindowChrome in its XAML). The selected period never survives a close, but the size does,
 /// persisted through <see cref="WindowPlacementService.Shared"/> - it falls back to the fixed
 /// 720x520 default only once a remembered size no longer fits the monitor the window is about to
 /// open on. <see cref="StatsViewModel"/> itself still carries no <see cref="Models.AppSettings"/> -
@@ -95,6 +93,7 @@ public partial class StatsWindow : Window
 
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += (_, _) => HideUntilFirstFrame();
+        SourceInitialized += (_, _) => WindowChromeNative.SourceOf(this)?.AddHook(RememberSizeHook);
         Loaded += StatsWindow_Loaded;
         IsVisibleChanged += StatsWindow_IsVisibleChanged;
         Closed += StatsWindow_Closed;
@@ -111,10 +110,33 @@ public partial class StatsWindow : Window
         MonthGrid.ProviderDisplayNames = Stats.StatsViewModel.ProviderDisplayNames;
         // The grid reaches back as far as its scroller's width fits; the view model only re-slices in
         // memory when that moves the start. A narrow window keeps the horizontal scroll, parked on the
-        // newest end.
+        // newest end. While the window is being resized the re-slice (every record, plus the day
+        // costs) waits until the size has rested for a moment, instead of running for every column
+        // the edge passes; the first width goes through at once.
+        var monthGridWidthTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(150),
+        };
+        var pendingMonthGridWidth = 0.0;
+        monthGridWidthTimer.Tick += (_, _) =>
+        {
+            monthGridWidthTimer.Stop();
+            _viewModel.MonthGridAvailableWidth = pendingMonthGridWidth;
+            MonthGridScroller.ScrollToRightEnd();
+        };
         MonthGridScroller.SizeChanged += (_, e) =>
         {
-            _viewModel.MonthGridAvailableWidth = e.NewSize.Width;
+            if (_viewModel.MonthGridAvailableWidth <= 0 || e.PreviousSize.Width <= 0)
+            {
+                _viewModel.MonthGridAvailableWidth = e.NewSize.Width;
+            }
+            else
+            {
+                pendingMonthGridWidth = e.NewSize.Width;
+                monthGridWidthTimer.Stop();
+                monthGridWidthTimer.Start();
+            }
+
             MonthGridScroller.ScrollToRightEnd();
         };
         MonthGrid.SizeChanged += (_, _) => MonthGridScroller.ScrollToRightEnd();
@@ -1013,60 +1035,14 @@ public partial class StatsWindow : Window
     /// from outside this window can never mean "deselect".</summary>
     public void SelectDay(DateOnly day) => _viewModel.SelectDay(day);
 
-    // AllowsTransparency=True disables Win32's native non-client resize-border loop entirely for a
-    // layered window, the same reason MainWindow.xaml.cs replaces it with eight Thumb grips.
-    private void GrowRight(double dx) => Width = Math.Max(MinWidth, Width + dx);
+    private const int WmExitSizeMove = 0x0232;
 
-    private void GrowLeft(double dx)
+    /// <summary>Remembers the size as soon as a native resize ends, not only when the window hides.</summary>
+    private IntPtr RememberSizeHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        var (newWidth, newLeft) = WindowEdgeResize.FromNearEdge(Width, Left, dx, MinWidth, MaxWidth);
-        WindowEdgeResize.MoveAndResize(this, newLeft, Top, newWidth, Height);
-    }
-
-    private void GrowDown(double dy) => Height = Math.Max(MinHeight, Height + dy);
-
-    private void GrowUp(double dy)
-    {
-        var (newHeight, newTop) = WindowEdgeResize.FromNearEdge(Height, Top, dy, MinHeight, MaxHeight);
-        WindowEdgeResize.MoveAndResize(this, Left, newTop, Width, newHeight);
-    }
-
-    private void ResizeTop_DragDelta(object sender, DragDeltaEventArgs e) => GrowUp(e.VerticalChange);
-
-    private void ResizeBottom_DragDelta(object sender, DragDeltaEventArgs e) => GrowDown(e.VerticalChange);
-
-    private void ResizeLeft_DragDelta(object sender, DragDeltaEventArgs e) => GrowLeft(e.HorizontalChange);
-
-    private void ResizeRight_DragDelta(object sender, DragDeltaEventArgs e) => GrowRight(e.HorizontalChange);
-
-    private void ResizeTopLeft_DragDelta(object sender, DragDeltaEventArgs e)
-    {
-        GrowUp(e.VerticalChange);
-        GrowLeft(e.HorizontalChange);
-    }
-
-    private void ResizeTopRight_DragDelta(object sender, DragDeltaEventArgs e)
-    {
-        GrowUp(e.VerticalChange);
-        GrowRight(e.HorizontalChange);
-    }
-
-    private void ResizeBottomLeft_DragDelta(object sender, DragDeltaEventArgs e)
-    {
-        GrowDown(e.VerticalChange);
-        GrowLeft(e.HorizontalChange);
-    }
-
-    private void ResizeBottomRight_DragDelta(object sender, DragDeltaEventArgs e)
-    {
-        GrowDown(e.VerticalChange);
-        GrowRight(e.HorizontalChange);
-    }
-
-    private void Resize_DragCompleted(object sender, DragCompletedEventArgs e)
-    {
-        if (WindowPlacementService.Shared is { } placement)
+        if (msg == WmExitSizeMove && _opened && WindowPlacementService.Shared is { } placement)
             placement.RememberedStatsWindowSize = (Width, Height);
+        return IntPtr.Zero;
     }
 }
 

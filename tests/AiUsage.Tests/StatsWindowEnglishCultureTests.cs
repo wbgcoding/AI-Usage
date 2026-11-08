@@ -21,7 +21,7 @@ public class StatsWindowEnglishCultureTests
         {
             var stats = new StatsWindowTests();
             stats.StatsWindow_builds_and_renders_without_throwing_across_every_theme();
-            stats.StatsWindow_exposes_eight_resize_grips();
+            stats.StatsWindow_resizes_through_the_native_sizing_frame();
             stats.ChartIsNestedInsideTheBreakdownSectionsOwnContentHost();
 
             var chrome = new WindowChromeTests();

@@ -12,9 +12,17 @@
         Background="{DynamicResource Bg.Window}"
         FontFamily="{DynamicResource Font.Ui}"
         Width="720" Height="520" MinWidth="480" MinHeight="420"
-        ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Foreground="{DynamicResource Text.Primary}">
+    <!-- Native sizing frame, like the settings window: Windows runs the resize loop and hands the
+         window one size per frame, where grips setting Width on every mouse move laid the whole
+         window out again for each of them. The shell WindowChrome takes the non-client area over,
+         so only the app's own title bar shows; the right edge stays slim to leave the scroll bar
+         its full width. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="6,4,3,4"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -1170,13 +1178,5 @@
                 </Grid>
             </DockPanel>
         </Border>
-        <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeTop_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNWSE" DragDelta="ResizeTopLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNESW" DragDelta="ResizeTopRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNESW" DragDelta="ResizeBottomLeft_DragDelta" DragCompleted="Resize_DragCompleted"/>
-        <Thumb Style="{StaticResource ResizeGrip}" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNWSE" DragDelta="ResizeBottomRight_DragDelta" DragCompleted="Resize_DragCompleted"/>
     </Grid>
 </Window>
