@@ -300,7 +300,7 @@ public class RefreshSchedulerTests
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return Ok("codex"); // unreachable
-        });
+        }) { RunsOnUiThread = true };
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
             minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
@@ -325,7 +325,7 @@ public class RefreshSchedulerTests
         // Never resolves AND never even looks at the token it is handed - the scheduler's own
         // caller-side timeout, not the provider's cooperation, must be what frees this provider up.
         var neverCompletes = new TaskCompletionSource<ProviderSnapshot>();
-        var provider = new FakeProvider("codex", _ => neverCompletes.Task);
+        var provider = new FakeProvider("codex", _ => neverCompletes.Task) { RunsOnUiThread = true };
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
             minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
@@ -417,7 +417,7 @@ public class RefreshSchedulerTests
             return Ok("claude"); // unreachable
         });
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
+            minFetchTimeout: TimeSpan.FromMinutes(5), maxFetchTimeout: TimeSpan.FromMinutes(10), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
@@ -561,9 +561,9 @@ public class RefreshSchedulerTests
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return Ok("claude");
-        });
+        }) { RunsOnUiThread = true };
         var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
-            minFetchTimeout: TimeSpan.FromMilliseconds(20), maxFetchTimeout: TimeSpan.FromMilliseconds(50), retryDelay: TimeSpan.Zero);
+            minFetchTimeout: TimeSpan.FromSeconds(1), maxFetchTimeout: TimeSpan.FromSeconds(1), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
         scheduler.SnapshotReady += reported.Add;
 
@@ -775,10 +775,12 @@ public class RefreshSchedulerTests
     // A fetch that fails by itself must be classified by its own error, so those tests get a timeout far
     // out of reach; only the timeout test asks for a short one. A short budget in every test lets a
     // loaded machine fire the timeout before a fetch that throws at once has even been scheduled.
+    // The short-timeout fetch starts on the calling thread for the same reason: a pooled start can lag
+    // behind the budget and the attempt is then abandoned before the provider ever runs.
     private static async Task<ProviderSnapshot> TickOnceWith(Func<CancellationToken, Task<ProviderSnapshot>> fetch, bool shortTimeout = false)
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
-        var scheduler = new RefreshScheduler([new FakeProvider("codex", fetch)], BaseInterval, clock,
+        var scheduler = new RefreshScheduler([new FakeProvider("codex", fetch) { RunsOnUiThread = shortTimeout }], BaseInterval, clock,
             minFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(20) : TimeSpan.FromMinutes(5),
             maxFetchTimeout: shortTimeout ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMinutes(10), retryDelay: TimeSpan.Zero);
         var reported = new List<ProviderSnapshot>();
