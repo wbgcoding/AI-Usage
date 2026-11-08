@@ -749,8 +749,16 @@ public partial class SignInWindow : Window
         if (!_landingPending)
             return;
         _landingPending = false;
-        if (!_closed && !SignedIn)
+        if (_closed || SignedIn)
+            return;
+        try
+        {
             EvaluateLanding(isSuccess: true);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
+        {
+            // The browser went away: the window is closing anyway (this runs from an async void handler).
+        }
     }
 
     /// <summary>How often and how far apart the landing page is asked: a session cookie can land a
