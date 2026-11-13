@@ -45,11 +45,14 @@ More than one account per agent? Add it, and it gets its own tile, name and hist
   in about 3h" forecast; a tick shows how much of the window's time has passed
 - Bars colored by level (with a warning sign, never colour alone), or split by model or by main
   agent and subagents
-- A tray icon showing the busiest quota, or the agent and window you pick
+- A tray icon showing the busiest quota, or the agent and window you pick; its tooltip lists every agent with the percentages and, as far as the tooltip has room, the reset times
 - A waiting mark on Claude, Codex and Gemini when the agent has finished and waits for your reply
 - Windows notifications at thresholds you set, before a window fills, when a limit is reached and
-  when it is free again, or when a sign-in expires; they respect Do Not Disturb and quiet weekdays,
+  when it is free again, optionally ten minutes before a full window resets, or when a sign-in
+  expires; they respect Do Not Disturb and quiet weekdays,
   and offer "Not again today"
+- A quiet line on a tile for a week after the account's plan changed (for example Max to Ultra),
+  which you can dismiss
 - History over 24 hours up to everything, kept locally for up to ten years
 - An optional "Usage per day" tile: one square per day, colored by the agent you used most, so a
   glance shows how your work splits between Claude, Codex and Gemini
@@ -94,7 +97,9 @@ a dashboard for any period (7 days, 30 days, a month, a year, everything or a cu
 - **Limits:** how often you hit each limit
 - **API cost estimate:** what your tokens would cost at public API prices, in dollars, euros or your
   region's currency, marked with ~ (a star marks sums with a model of unknown price). Switch it off
-  under **Settings > Display > Show API cost** and nothing is downloaded.
+  under **Settings > Display > Show API cost** and nothing is downloaded. Optionally the tile shows
+  the same estimate beside the tokens of its 5-hour and weekly windows (**Show the API value next to
+  a window's tokens**).
 - **CSV export** of all figures, and a layout you arrange by dragging sections (or Alt+Up/Down)
 
 Cursor and Copilot keep no token counts on your PC, so the window says so instead of guessing.

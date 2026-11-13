@@ -218,6 +218,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ClickThroughChanged += (_, value) => ApplyClickThrough(value);
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
         ViewModel.ResetRaised += ViewModel_ResetRaised;
+        ViewModel.BeforeResetRaised += ViewModel_BeforeResetRaised;
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
         ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
         ViewModel.SignInExpiredRaised += ViewModel_SignInExpiredRaised;
@@ -323,6 +324,10 @@ public partial class MainWindow : Window, IDisposable
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ResetRaised(ResetNotification notification) =>
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
+    private void ViewModel_BeforeResetRaised(BeforeResetNotification notification) =>
         ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
@@ -532,7 +537,9 @@ public partial class MainWindow : Window, IDisposable
                 t.TrayName,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.UsedPercent,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent,
-                TrayNote(t)))
+                TrayNote(t),
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.ResetsAt,
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.ResetsAt))
             .ToList();
 
     // Numbers from a stale read or kept after a failed one are old: the tray says so instead of

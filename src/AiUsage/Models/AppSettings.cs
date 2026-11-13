@@ -227,6 +227,14 @@ public sealed class AppSettings
     /// <summary>"Ctrl+Alt+U"-style text, parsed by <see cref="Services.GlobalHotkey.TryParse"/>.</summary>
     public string Hotkey { get; set; } = "Ctrl+Alt+U";
 
+    /// <summary>Whether a five-hour or weekly row on the tile shows the estimated API value of its
+    /// tokens next to the token count. Default off; needs <see cref="ShowCostEstimate"/> too.</summary>
+    public bool ShowTileTokenCost { get; set; }
+
+    /// <summary>Whether a window at 90 % or more is announced ten minutes before it resets, once per
+    /// reset. Default off; each tile's own notification switch still gates it.</summary>
+    public bool NotifyBeforeReset { get; set; }
+
     /// <summary>Opt-out: the app ships as a file, not through a store, so this is the only way a
     /// user ever learns a newer version exists. See <see cref="Services.UpdateCheck"/> - the check
     /// itself only reads; installing is a separate, signature-gated step.</summary>
@@ -468,6 +476,15 @@ public sealed class ProviderSettings
     /// on, same as the other two.</summary>
     public bool NotifyOnResetEnabled { get; set; } = true;
 
+    /// <summary>The plan this account was last seen on (<see cref="Services.PlanTier.Normalize"/> output),
+    /// empty until a read carried one. A later read with a different plan sets <see cref="PlanChange"/>.</summary>
+    public string LastPlan { get; set; } = "";
+
+    /// <summary>The last plan change seen on this account, shown on the tile for a week unless dismissed;
+    /// null when none was seen.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StoredPlanChange? PlanChange { get; set; }
+
     /// <summary>Set by the sign-out action (Settings.SignOut), cleared by the sign-in action
     /// (Settings.SignIn) - while true, the scheduler reads this account through no source at all (no
     /// web session, no local file, no CLI call), keyed by account so a further account of the same
@@ -485,6 +502,24 @@ public sealed class ProviderSettings
     /// <summary>How this tile's bars are colored: one of <see cref="BarColorModes"/>. Anything else, and
     /// a mode this provider cannot offer, reads back as Level (see <see cref="BarColorModes.Normalize"/>).</summary>
     public string BarColorMode { get; set; } = BarColorModes.Level;
+}
+
+/// <summary>One plan change as settings.json holds it (see <see cref="ProviderSettings.PlanChange"/>).</summary>
+public sealed class StoredPlanChange
+{
+    /// <summary>How long the tile names the change.</summary>
+    public static readonly TimeSpan ShowFor = TimeSpan.FromDays(7);
+
+    public string From { get; set; } = "";
+
+    public string To { get; set; } = "";
+
+    public DateTimeOffset AtUtc { get; set; }
+
+    public bool Dismissed { get; set; }
+
+    /// <summary>Whether the tile still names this change at <paramref name="now"/>.</summary>
+    public bool IsShown(DateTimeOffset now) => !Dismissed && now >= AtUtc && now - AtUtc < ShowFor;
 }
 
 /// <summary>One account's last good API credit balance as settings.json holds it (see

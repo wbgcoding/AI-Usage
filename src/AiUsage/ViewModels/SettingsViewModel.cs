@@ -421,6 +421,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool notifyOnReset;
 
     [ObservableProperty]
+    private bool notifyBeforeReset;
+
+    [ObservableProperty]
+    private bool showTileTokenCost;
+
+    [ObservableProperty]
     private bool forecastAlertEnabled;
 
     [ObservableProperty]
@@ -663,6 +669,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         defaultThreshold = settings.DefaultThreshold;
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
         notifyOnReset = settings.NotifyOnReset;
+        notifyBeforeReset = settings.NotifyBeforeReset;
+        showTileTokenCost = settings.ShowTileTokenCost;
         forecastAlertEnabled = settings.ForecastAlertEnabled;
         limitReachedAlertEnabled = settings.LimitReachedAlertEnabled;
         showAttentionMark = settings.ShowAttentionMark;
@@ -1118,6 +1126,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.NotifyOnReset = value;
         _store.RequestSave(_settings);
+    }
+
+    partial void OnNotifyBeforeResetChanged(bool value)
+    {
+        _settings.NotifyBeforeReset = value;
+        _store.RequestSave(_settings);
+    }
+
+    partial void OnShowTileTokenCostChanged(bool value)
+    {
+        _settings.ShowTileTokenCost = value;
+        _store.RequestSave(_settings);
+        Main.CostSettingsChanged();
     }
 
     partial void OnForecastAlertEnabledChanged(bool value)
@@ -2034,6 +2055,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 continue;
             // A balance read on this PC stays; one in a foreign file never comes along.
             value.ApiCredit = previous.TryGetValue(key, out var kept) ? kept.ApiCredit : null;
+            // The plan an account is on is read from this PC's own sign-in, never taken from a file.
+            value.LastPlan = kept?.LastPlan ?? "";
+            value.PlanChange = kept?.PlanChange;
             result[key] = value;
         }
 
@@ -2084,6 +2108,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThreshold = source.DefaultThreshold;
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
+        _settings.NotifyBeforeReset = source.NotifyBeforeReset;
+        _settings.ShowTileTokenCost = source.ShowTileTokenCost;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
         _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(source.ForecastLeadMinutes);
         _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
@@ -2147,6 +2173,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             Main.ApplyLocalOnlyFromSettings(tile, providerSettings.LocalOnly);
             tile.BarColorMode = BarColorModes.Normalize(providerSettings.BarColorMode, tile.RealProviderId);
             tile.RefreshMinutes = providerSettings.RefreshMinutes;
+            tile.SetPlanChange(providerSettings.PlanChange, DateTimeOffset.UtcNow);
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();
         }
@@ -2178,6 +2205,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThreshold = _settings.DefaultThreshold;
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
+        NotifyBeforeReset = _settings.NotifyBeforeReset;
+        ShowTileTokenCost = _settings.ShowTileTokenCost;
         ForecastAlertEnabled = _settings.ForecastAlertEnabled;
         Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
         OnPropertyChanged(nameof(SelectedForecastLeadChoice));

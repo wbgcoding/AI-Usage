@@ -48,6 +48,9 @@ public partial class UsageRowViewModel : ObservableObject
     /// told apart by their label. <see cref="Update"/> moves it along with the window it shows.</summary>
     public string Label { get; private set; }
 
+    /// <summary>When this window resets, null when the provider does not say.</summary>
+    public DateTimeOffset? ResetsAt => _resetsAt;
+
     /// <summary>Raw window kind, next to the already-localized <see cref="LabelText"/> - the tray
     /// tooltip needs "5h"/"7d" as fixed short tokens, not whatever the active
     /// language's full label happens to say. Never reassigned after construction: it is this row's
@@ -135,6 +138,17 @@ public partial class UsageRowViewModel : ObservableObject
     /// <summary>Which slice of the index <see cref="WindowTokens"/> counts; set by the tile, null
     /// when the provider has no local index or the window has no known reset.</summary>
     internal WindowTokenKey? TokenKey { get; set; }
+
+    /// <summary>Whether this row may show the cost of its tokens: the five-hour and weekly windows over
+    /// the whole provider, never a per-model window or an "Other" row.</summary>
+    internal bool CostEligible => TokenKey is { ModelContains: null } && Kind is WindowKind.FiveHour or WindowKind.Weekly;
+
+    /// <summary>The estimated API value of <see cref="WindowTokens"/> ("~3,10 $"), handed in by the tile
+    /// while the tile cost switch is on; empty when off, unpriced or not asked yet, which leaves the
+    /// token text as it is.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InlineTokensText))]
+    private string windowCost = "";
 
     /// <summary>The index slice a window shows, or null: only providers with a local token index
     /// (<see cref="ProviderCoverage.HasLocalTokenData"/>) and only windows with a known reset. The
@@ -382,10 +396,14 @@ public partial class UsageRowViewModel : ObservableObject
     public string InlineTokensText => _ownLabelText is not null
         ? _ownInlineText?.Invoke() ?? ""
         : InlineTokens is { } tokens
-            ? Loc.Format(
+            ? WithCost(Loc.Format(
                 "Window.TokensInline",
-                StatsAggregator.ShortenTokenCount(tokens, Loc["Number.Thousand"], Loc["Number.Million"], Loc["Number.Billion"]))
+                StatsAggregator.ShortenTokenCount(tokens, Loc["Number.Thousand"], Loc["Number.Million"], Loc["Number.Billion"])))
             : "";
+
+    // "42k tokens · ~3,10 $": the cost joins the token text, so the row's fit-or-drop rule treats both as one.
+    private string WithCost(string tokenText) =>
+        WindowCost.Length > 0 && WindowTokens is not null ? TextCompose.Pair(tokenText, WindowCost) : tokenText;
 
     /// <summary>The exact count behind <see cref="InlineTokensText"/> with what it covers ("since this
     /// window last reset" or "in this window"); empty when the text is.</summary>

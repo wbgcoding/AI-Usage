@@ -697,6 +697,13 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>La session Claude Console a expiré, le solde n'est donc plus lu. Reconnectez-vous dans les Paramètres, sous Claude Console (crédit API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>La connexion à Console a expiré, le solde API n'est pas lu.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Se reconnecter</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Afficher la valeur API à côté des tokens d'une fenêtre</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimation pour les fenêtres de cinq heures et hebdomadaires. Nécessite l'estimation des coûts activée.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Prévenir 10 minutes avant la réinitialisation d'une fenêtre pleine</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Uniquement pour les fenêtres à 90 % ou plus, une fois par réinitialisation.</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0} : {1} sera réinitialisé dans {2} min</value></data>
+  <data name="Tile.PlanChanged" xml:space="preserve"><value>Forfait modifié : {0} → {1}</value></data>
+  <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Masquer</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Crédit offert</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} sur {1} utilisés</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Il reste {0} ; le premier crédit expire le {1}.</value></data>

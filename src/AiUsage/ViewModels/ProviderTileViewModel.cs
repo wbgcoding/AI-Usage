@@ -464,6 +464,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(IsStale))]
     [NotifyPropertyChangedFor(nameof(HasNumbers))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleExpiredNotice))]
@@ -794,6 +795,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(IsMini))]
     [NotifyPropertyChangedFor(nameof(ShowHeader))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
@@ -891,6 +893,35 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     // is not recomputed per call.
     private IReadOnlyList<WindowTokenKey> _windowTokenKeys = [];
 
+    /// <summary>The slices of <see cref="WindowTokenKeys"/> whose rows may show a cost (see <see
+    /// cref="UsageRowViewModel.CostEligible"/>).</summary>
+    internal IReadOnlyList<WindowTokenKey> WindowCostKeys => _windowCostKeys;
+
+    private IReadOnlyList<WindowTokenKey> _windowCostKeys = [];
+
+    // The cost texts of those slices, kept like _windowTokens so a window hidden and shown again
+    // brings its figure back at once.
+    private readonly Dictionary<WindowTokenKey, string> _windowCosts = new();
+
+    /// <summary>Hands a slice's cost text ("~3,10 $", empty when nothing is priced) to the rows showing it.</summary>
+    internal void SetWindowCost(WindowTokenKey key, string text)
+    {
+        if (text.Length > 0)
+            _windowCosts[key] = text;
+        else
+            _windowCosts.Remove(key);
+        PushWindowTokensToRows();
+    }
+
+    /// <summary>Drops every cost text: the tile cost switch went off.</summary>
+    internal void ClearWindowCosts()
+    {
+        if (_windowCosts.Count == 0)
+            return;
+        _windowCosts.Clear();
+        PushWindowTokensToRows();
+    }
+
     // The answers to those queries, per slice: set from outside, never computed here (same split as
     // IsFetching). Kept for every window of the last snapshot, so a window hidden and shown again
     // brings its figure back at once.
@@ -961,6 +992,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         foreach (var row in Rows)
         {
             row.WindowTokens = row.TokenKey is { } key && _windowTokens.TryGetValue(key, out var tokens) ? tokens : null;
+            row.WindowCost = row.CostEligible && _windowCosts.TryGetValue(row.TokenKey!.Value, out var cost) ? cost : "";
             row.SetBarSegments(row.TokenKey is { } shareKey && _windowShares.TryGetValue(shareKey, out var shares)
                 ? WindowShares.Build(BarColorMode, RealProviderId, shares, loc["Stats.Agent.Main"], loc["Stats.SubagentShare"], modelOrder)
                 : []);
@@ -1517,6 +1549,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         SyncApiGrantRow();
         OnPropertyChanged(nameof(ShowApiCredit));
         OnPropertyChanged(nameof(ConsoleStatusText));
+        OnPropertyChanged(nameof(PlanChangeText));
         foreach (var choice in BarColorChoices)
             choice.RefreshLabel();
         // The chart's legend and hover caption are otherwise only rebuilt with the next history load.
@@ -1620,6 +1653,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         // Same rule as the account name below: a tick whose source cannot know the tier (a local
         // limit hit, a failed read) keeps the last one shown; only a sign-out forgets it.
         PlanText = PlanTier.Normalize(snapshot.PlanType) ?? (snapshot.Status == ProviderStatus.NotSignedIn ? null : PlanText);
+        // A change older than its week drops off the next time a read lands.
+        SetPlanChange(_planChange, now);
         // One tick without a name (a failed read, a source that cannot know it) must not blank the
         // account again; only a sign-out forgets it.
         AccountText = snapshot.AccountLabel ?? (snapshot.Status == ProviderStatus.NotSignedIn ? null : AccountText);
@@ -1766,6 +1801,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         for (var i = 0; i < Rows.Count; i++)
             Rows[i].TokenKey = UsageRowViewModel.TokenKeyFor(visibleWindows[i], RealProviderId);
         _windowTokenKeys = Rows.Select(row => row.TokenKey).OfType<WindowTokenKey>().Distinct().ToList();
+        _windowCostKeys = Rows.Where(row => row.CostEligible).Select(row => row.TokenKey!.Value).Distinct().ToList();
 
         // A window that is gone from the snapshot (its reset moved on) takes its old answer along.
         var current = windows.Select(window => UsageRowViewModel.TokenKeyFor(window, RealProviderId)).OfType<WindowTokenKey>().ToHashSet();
@@ -1773,6 +1809,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
             _windowTokens.Remove(stale);
         foreach (var stale in _windowShares.Keys.Where(key => !current.Contains(key)).ToList())
             _windowShares.Remove(stale);
+        foreach (var stale in _windowCosts.Keys.Where(key => !current.Contains(key)).ToList())
+            _windowCosts.Remove(stale);
         PushWindowTokensToRows();
         OnPropertyChanged(nameof(IsLimitReached));
         // Rebuilt rows start without a forecast: hand them the series the last history read produced.
