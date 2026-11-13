@@ -336,7 +336,8 @@ public class StatsViewModelCostTests
         await viewModel.SetGroupingCommand.ExecuteAsync(StatsGrouping.Session);
 
         Assert.Contains(viewModel.SessionRows, row => row.CostText == "~$3.00");
-        Assert.Contains(viewModel.SessionRows, row => row.CostText == "?");
+        var unknown = Assert.Single(viewModel.SessionRows, row => row.CostText == "?*");
+        Assert.Contains("mystery-model", unknown.ToolTip, StringComparison.Ordinal);
         Assert.Contains(viewModel.SessionRows, row => row.ToolTip.Contains("~$3.00"));
     }
 
@@ -350,6 +351,27 @@ public class StatsViewModelCostTests
         Assert.Equal("~$3.00*", viewModel.PerActiveDayCostText);
         Assert.StartsWith("~$", viewModel.PerDayCostText);
         Assert.EndsWith("*", viewModel.PerDayCostText);
+    }
+
+    // A star beside a figure's cost was unexplained wherever the card's tooltip did not name the model.
+    [Fact]
+    public void Every_starred_figure_cost_explains_its_star_in_the_tooltip()
+    {
+        var viewModel = Create(Service());
+
+        Assert.Contains("mystery-model", viewModel.PeriodCostNote, StringComparison.Ordinal);
+        Assert.Contains("mystery-model", viewModel.BusiestDayCostNote, StringComparison.Ordinal);
+        Assert.StartsWith("*", viewModel.PeriodCostNote, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_fully_priced_figure_has_no_star_note()
+    {
+        var viewModel = Create(Service(enabled: false));
+
+        Assert.Equal("", viewModel.PeriodCostNote);
+        Assert.Equal("", viewModel.BusiestDayCostNote);
+        Assert.Equal("", viewModel.PreviousCostNote);
     }
 
     [Fact]

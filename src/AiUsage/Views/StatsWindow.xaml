@@ -33,6 +33,7 @@
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <controls:NullIfEmptyStringConverter x:Key="NullIfEmpty"/>
             <controls:LabelAndValueConverter x:Key="LabelAndValue"/>
+            <controls:TooltipLinesConverter x:Key="TooltipLines"/>
             <controls:FigureCardColumnsConverter x:Key="FigureCardColumns"/>
             <controls:AtLeastWidthConverter x:Key="AtLeastWidth"/>
             <controls:PercentOffsetConverter x:Key="LimitTickOffset"/>
@@ -275,7 +276,8 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding SelectedDayHeadText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="0" Text="{Binding SelectedDayHeadText}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                   ToolTip="{Binding SelectedDayCostNote, Converter={StaticResource NullIfEmpty}}"/>
                                         <Button Grid.Column="1" x:Name="CloseDayDetailButton" Style="{StaticResource AiUsageQuietButton}"
                                                 Padding="8,4" VerticalAlignment="Center"
                                                 Command="{Binding CloseDayDetailCommand}"
@@ -387,8 +389,13 @@
                                                                         Height="28" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
-                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.PerDay]}">
+                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8">
+                                    <Border.ToolTip>
+                                        <MultiBinding Converter="{StaticResource TooltipLines}">
+                                            <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Tip.Stats.PerDay]" Mode="OneWay"/>
+                                            <Binding Path="PeriodCostNote" Mode="OneWay"/>
+                                        </MultiBinding>
+                                    </Border.ToolTip>
                                     <StackPanel>
                                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
                                             <TextBlock Text="{Binding PerDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
@@ -406,7 +413,8 @@
                                         <Border Height="28" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8">
+                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
+                                        ToolTip="{Binding BusiestDayCostNote, Converter={StaticResource NullIfEmpty}}">
                                     <StackPanel>
                                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
                                             <TextBlock Text="{Binding BusiestDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"
@@ -428,8 +436,13 @@
                                                    FontSize="{StaticResource Font.Size.Micro}" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
-                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.VsPrevious]}">
+                                <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8">
+                                    <Border.ToolTip>
+                                        <MultiBinding Converter="{StaticResource TooltipLines}">
+                                            <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Tip.Stats.VsPrevious]" Mode="OneWay"/>
+                                            <Binding Path="PreviousCostNote" Mode="OneWay"/>
+                                        </MultiBinding>
+                                    </Border.ToolTip>
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal">
                                             <Path Style="{StaticResource ChangeDirectionIcon}" Width="10" Height="10" Stretch="Uniform"
@@ -447,8 +460,13 @@
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource FigureCard}" Margin="0,0,8,8"
-                                        Visibility="{Binding ShowPerActiveDay, Converter={StaticResource BoolToVis}}"
-                                        ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.PerActiveDay]}">
+                                        Visibility="{Binding ShowPerActiveDay, Converter={StaticResource BoolToVis}}">
+                                    <Border.ToolTip>
+                                        <MultiBinding Converter="{StaticResource TooltipLines}">
+                                            <Binding Source="{x:Static services:LocalizationService.Instance}" Path="[Tip.Stats.PerActiveDay]" Mode="OneWay"/>
+                                            <Binding Path="PeriodCostNote" Mode="OneWay"/>
+                                        </MultiBinding>
+                                    </Border.ToolTip>
                                     <StackPanel>
                                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
                                             <TextBlock Text="{Binding PerActiveDayFigureText}" FontFamily="{DynamicResource Font.Numeric}"

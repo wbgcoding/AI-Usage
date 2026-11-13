@@ -427,6 +427,20 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private string busiestDayCostText = "";
 
+    // The "* no price known for ..." line under a card's own tooltip while its cost carries a star;
+    // empty when every model of that figure is priced.
+    [ObservableProperty]
+    private string periodCostNote = "";
+
+    [ObservableProperty]
+    private string busiestDayCostNote = "";
+
+    [ObservableProperty]
+    private string previousCostNote = "";
+
+    [ObservableProperty]
+    private string selectedDayCostNote = "";
+
     [ObservableProperty]
     private string perDayFigureText = "";
 
@@ -758,6 +772,7 @@ public sealed partial class StatsViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedDayIsEmpty));
             SelectedDayDetail = DayDetailView.Empty;
             SelectedDayHeadText = "";
+            SelectedDayCostNote = "";
             return;
         }
 
@@ -789,7 +804,9 @@ public sealed partial class StatsViewModel : ObservableObject
         var dayTotal = detail.ByProvider.Sum(slice => slice.Total);
         var dateText = day.ToDateTime(TimeOnly.MinValue).ToString("D", LocalizationService.Instance.DisplayCulture);
         var shortened = StatsAggregator.ShortenTokenCount(dayTotal, loc["Number.Thousand"], loc["Number.Million"], loc["Number.Billion"]);
-        var dayCostText = costView.Text(dayRecords);
+        var dayCost = costView.Sum(dayRecords);
+        var dayCostText = costView.Text(dayCost);
+        SelectedDayCostNote = dayCostText.Length > 0 ? CostService.UnpricedLine(dayCost) ?? "" : "";
         SelectedDayHeadText = string.Format(
             CultureInfo.CurrentCulture, loc["Stats.DayDetail.Title"],
             dayCostText.Length > 0
@@ -1641,6 +1658,9 @@ public sealed partial class StatsViewModel : ObservableObject
         public string BusiestDayCostText { get; set; } = "";
         public string PerDayCostText { get; set; } = "";
         public string PerActiveDayCostText { get; set; } = "";
+        public string PeriodCostNote { get; set; } = "";
+        public string BusiestDayCostNote { get; set; } = "";
+        public string PreviousCostNote { get; set; } = "";
         public bool HasPreviousPeriod { get; set; }
         public string VsPreviousCaption { get; set; } = "";
         public string ChangeFigureText { get; set; } = "";
@@ -2087,6 +2107,9 @@ public sealed partial class StatsViewModel : ObservableObject
         BusiestDayCostText = o.BusiestDayCostText;
         PerDayCostText = o.PerDayCostText;
         PerActiveDayCostText = o.PerActiveDayCostText;
+        PeriodCostNote = o.PeriodCostNote;
+        BusiestDayCostNote = o.BusiestDayCostNote;
+        PreviousCostNote = o.PreviousCostNote;
         HasPreviousPeriod = o.HasPreviousPeriod;
         VsPreviousCaption = o.VsPreviousCaption;
         ChangeFigureText = o.ChangeFigureText;
@@ -2332,9 +2355,11 @@ public sealed partial class StatsViewModel : ObservableObject
             var model = string.IsNullOrEmpty(session.MainModel) ? "" : ModelDisplayNames.Resolve(session.MainModel);
             var totalText = session.TotalTokens.ToString("N0", CultureInfo.CurrentCulture);
             var tooltip = string.Format(CultureInfo.CurrentCulture, loc["Stats.Session.Tooltip"], project, start, duration, totalText, model);
-            var (costText, costUsd) = SessionCost(session, costView);
+            var (costText, costUsd, unpricedLine) = SessionCost(session, costView);
             if (costText.Length > 1)
                 tooltip += "\n" + StatsCostView.ColumnLine(costText);
+            if (unpricedLine is not null)
+                tooltip += "\n" + unpricedLine;
 
             tableRows.Add(new StatsSessionRowViewModel(project, start, duration, totalText, model, tooltip, costText));
             exportRows.Add(new StatsRowViewModel(TextCompose.Pair(project, start), session.TotalTokens, totalText, tooltip, CostUsd: costUsd));
@@ -2403,19 +2428,22 @@ public sealed partial class StatsViewModel : ObservableObject
         return present.Count == 0 ? null : string.Join('\n', present);
     }
 
-    /// <summary>A session's cost: priced by its main model and its four token counts. "?" when that model
-    /// has no price, empty when no estimate is shown or the session holds no tokens.</summary>
-    private static (string Text, string Usd) SessionCost(StatsSessionRecord session, StatsCostView costView)
+    /// <summary>A session's cost: priced by its main model and its four token counts. "?*" when that model
+    /// has no price (the tooltip line names it), "?" when the session names no model, empty when no
+    /// estimate is shown or the session holds no tokens.</summary>
+    private static (string Text, string Usd, string? Unpriced) SessionCost(StatsSessionRecord session, StatsCostView costView)
     {
         if (!costView.Active || session.TotalTokens == 0)
-            return ("", "");
+            return ("", "", null);
 
         var summary = string.IsNullOrEmpty(session.MainModel)
             ? CostSummary.Empty
             : costView.Sum([new StatsRecord(
                 session.Provider, session.StartDay, session.MainModel, session.Project,
                 session.InputTokens, session.OutputTokens, session.CacheCreationTokens, session.CacheReadTokens)]);
-        return summary.AnyPriced ? (costView.Text(summary), StatsCostView.UsdForExport(summary)) : ("?", "");
+        if (summary.AnyPriced)
+            return (costView.Text(summary), StatsCostView.UsdForExport(summary), CostService.UnpricedLine(summary));
+        return summary.HasUnpriced ? (costView.Text(summary), "", CostService.UnpricedLine(summary)) : ("?", "", null);
     }
 
     /// <summary>How many characters of the project name a session bar's label keeps.</summary>
@@ -2485,25 +2513,36 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             o.BusiestDayFigureText = StatsAggregator.ShortenTokenCount(figures.BusiestDayTotal, thousand, million, billion);
             o.BusiestDayDateText = DateLabels.WeekdayDayMonthShort(busiestDay, displayCulture);
-            o.BusiestDayCostText = costView.Text(costView.Sum(inRange.Where(record => record.Day == busiestDay)));
+            var busiestCost = costView.Sum(inRange.Where(record => record.Day == busiestDay));
+            o.BusiestDayCostText = costView.Text(busiestCost);
+            o.BusiestDayCostNote = o.BusiestDayCostText.Length > 0 ? CostService.UnpricedLine(busiestCost) ?? "" : "";
         }
         else
         {
             o.BusiestDayFigureText = "–";
             o.BusiestDayDateText = "";
             o.BusiestDayCostText = "";
+            o.BusiestDayCostNote = "";
         }
 
         // The averages carry the same share of the period's cost as of its tokens.
         var periodCost = costView.Sum(inRange);
         o.PerDayCostText = figures.Total > 0 ? costView.Text(Scaled(periodCost, figures.PerDayAverage / figures.Total)) : "";
         o.PerActiveDayCostText = figures.ActiveDayCount > 0 ? costView.Text(Scaled(periodCost, 1.0 / figures.ActiveDayCount)) : "";
+        o.PeriodCostNote = o.PerDayCostText.Length > 0 || o.PerActiveDayCostText.Length > 0
+            ? CostService.UnpricedLine(periodCost) ?? ""
+            : "";
+        var previousCost = costView.Sum(previous);
+        var previousCostText = costView.Text(previousCost);
+        o.PreviousCostNote = figures.HasPreviousPeriod && previousCostText.Length > 0
+            ? CostService.UnpricedLine(previousCost) ?? ""
+            : "";
 
         o.HasPreviousPeriod = figures.HasPreviousPeriod;
         o.VsPreviousCaption = figures.HasPreviousPeriod
             ? string.Format(CultureInfo.CurrentCulture, loc["Stats.VsPreviousValue"],
                 StatsAggregator.ShortenTokenCount(previousTotal, thousand, million, billion)
-                    + (costView.Text(costView.Sum(previous)) is { Length: > 0 } previousCost ? " " + previousCost : ""))
+                    + (previousCostText.Length > 0 ? " " + previousCostText : ""))
             : loc["Stats.VsPrevious"];
         if (figures.HasPreviousPeriod)
         {
