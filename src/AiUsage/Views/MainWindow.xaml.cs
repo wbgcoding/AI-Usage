@@ -537,7 +537,9 @@ public partial class MainWindow : Window, IDisposable
                 t.TrayName,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.UsedPercent,
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent,
-                TrayNote(t)))
+                TrayNote(t),
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.ResetsAt,
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.ResetsAt))
             .ToList();
 
     // Numbers from a stale read or kept after a failed one are old: the tray says so instead of
