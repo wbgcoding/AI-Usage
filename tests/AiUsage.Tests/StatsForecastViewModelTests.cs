@@ -118,6 +118,9 @@ public class StatsForecastViewModelTests
     [Fact]
     public async Task Tokens_of_another_vendors_models_do_not_count_toward_the_forecast()
     {
+        // Both view models format with one fixed language: the comparison is about the numbers, and a
+        // language switch between the two builds must not make equal figures read differently.
+        using var language = LocalizationService.Enter(LocalizationService.Instance.Capture());
         var (plain, plainDirectory) = await CreateAsync(100);
         var (mixed, mixedDirectory) = await CreateAsync(
             100, extraRecords: records => records.Select(record => record with { Model = "minimax-m3", InputTokens = record.InputTokens * 7 }));
