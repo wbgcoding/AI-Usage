@@ -1629,6 +1629,35 @@ public class StatsRingChartGeometryTests
         Assert.Equal(72.0, sweeps[2].SweepAngle);
     }
 
+    // Slices that only meet edge to edge showed a thin unpainted line at the joint.
+    [Fact]
+    public void Drawn_slices_overlap_their_neighbour_by_one_pixel_on_the_outer_edge()
+    {
+        var sweeps = StatsRingChart.SweepAngles([50.0, 30.0, 20.0]);
+        var outerRadius = 60.0;
+
+        var drawn = StatsRingChart.OverlappedSweeps(sweeps, outerRadius);
+
+        var onePixel = 180.0 / Math.PI / outerRadius;
+        for (var i = 0; i < sweeps.Count; i++)
+        {
+            Assert.Equal(sweeps[i].StartAngle, drawn[i].StartAngle);
+            Assert.Equal(sweeps[i].SweepAngle + onePixel, drawn[i].SweepAngle, 9);
+        }
+    }
+
+    [Fact]
+    public void A_lone_slice_and_empty_slices_keep_their_own_sweep()
+    {
+        var lone = StatsRingChart.SweepAngles([100.0]);
+        Assert.Equal(lone, StatsRingChart.OverlappedSweeps(lone, 60));
+
+        var withEmpty = StatsRingChart.SweepAngles([100.0, 0.0]);
+        var drawn = StatsRingChart.OverlappedSweeps(withEmpty, 60);
+        Assert.Equal(360.0, drawn[0].SweepAngle);
+        Assert.Equal(0.0, drawn[1].SweepAngle);
+    }
+
     [Fact]
     public void BuildAccessibleSummaryNamesEverySliceAndItsPercent()
     {

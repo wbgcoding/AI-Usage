@@ -264,6 +264,23 @@ public sealed class StatsRingChart : FrameworkElement
         return (Math.Max(0, outerRadius - strokeThickness / 2), strokeThickness);
     }
 
+    /// <summary>The sweeps as drawn: two slices that only meet edge to edge leave an anti-aliased
+    /// hairline of the card behind them along the joint, so each slice runs one pixel (measured on the
+    /// outer edge) into the next one, which is drawn later and covers it. A lone slice keeps its own
+    /// sweep. Pure so it is unit testable without a visual tree.</summary>
+    internal static IReadOnlyList<(double StartAngle, double SweepAngle)> OverlappedSweeps(
+        IReadOnlyList<(double StartAngle, double SweepAngle)> sweeps, double outerRadius)
+    {
+        var visible = sweeps.Count(sweep => sweep.SweepAngle > 0);
+        if (visible < 2 || outerRadius <= 0)
+            return sweeps;
+
+        var overlap = 180.0 / Math.PI / outerRadius;
+        return sweeps
+            .Select(sweep => sweep.SweepAngle > 0 ? (sweep.StartAngle, Math.Min(359.0, sweep.SweepAngle + overlap)) : sweep)
+            .ToList();
+    }
+
     private const double LegendGap = 12;
     private const double MinLegendWidth = 100;
     private const double LegendRowHeight = 18;
@@ -658,6 +675,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         var brushes = SliceBrushes;
         var sweeps = SweepAngles(slices.Select(s => s.Percent).ToList());
+        var drawn = OverlappedSweeps(sweeps, radius + strokeThickness / 2);
 
         for (var i = 0; i < slices.Count; i++)
         {
@@ -666,7 +684,7 @@ public sealed class StatsRingChart : FrameworkElement
 
             var brush = i < brushes.Count ? brushes[i] : ChartTheme.Track(this, null);
             var pen = ChartDrawCache.PenFor(brush, strokeThickness);
-            drawingContext.DrawGeometry(null, pen, ArcGeometry(center, radius, sweeps[i].StartAngle, sweeps[i].SweepAngle));
+            drawingContext.DrawGeometry(null, pen, ArcGeometry(center, radius, drawn[i].StartAngle, drawn[i].SweepAngle));
         }
 
         if (IsKeyboardFocused && _focusedIndex >= 0 && _focusedIndex < slices.Count && sweeps[_focusedIndex].SweepAngle > 0)
