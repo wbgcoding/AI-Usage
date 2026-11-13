@@ -22,6 +22,7 @@ set ROOT=%~dp0
 set DIST=%ROOT%dist
 set STAGE=%ROOT%build\publish
 set CONFIG=Release
+set UPTODATE=
 
 rem An older build kept its settings and history next to the exe, so starting the portable copy out
 rem of dist\ left a data folder there. dist\ is cleared further down anyway, but only after a long
@@ -268,7 +269,9 @@ rem its own data folder and its own browser sign-ins, so the everyday copy's set
 rem sessions are never written from here. A copy an earlier build left running out of dist\ is
 rem closed first, so only the newest one stays. Start-Process hands the new copy none of this
 rem console's handles; the end of the build closes it again after a short countdown.
-rem AIUSAGE_NOSTART=1 skips the start for an automated run.
+rem AIUSAGE_NOSTART=1 skips the start for an automated run. A run with nothing to rebuild lands here
+rem too: the person who started it still wants to see the current build.
+:start_copy
 if not "%AIUSAGE_NOSTART%"=="1" (
     echo.
     echo === start ===
@@ -281,6 +284,7 @@ if not "%AIUSAGE_NOSTART%"=="1" (
     if !errorlevel! neq 0 goto :error
     echo The fresh copy is running ^(second instance, own data folder^).
 )
+if "%UPTODATE%"=="1" goto :finish
 
 echo.
 rem === build freshness: save (every final file in dist: exes, signatures, checksums) ===
@@ -288,6 +292,7 @@ set "BSART=dist\AI-Usage.exe"
 for %%f in ("%DIST%\*.exe" "%DIST%\*.sig" "%DIST%\SHA256SUMS.txt") do if /i not "%%~nxf"=="AI-Usage.exe" set "BSART=!BSART!,dist\%%~nxf"
 if exist "%BS%" powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Save -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%" -Artifact "!BSART!" >nul 2>&1
 echo BUILD OK - artifacts are in dist\.
+:finish
 rem The started copy is a test run: after the countdown it closes again together with this window
 rem (a keypress ends the countdown early), so a finished build leaves nothing open.
 if "%DOUBLECLICK%"=="1" timeout /t 10
@@ -307,6 +312,6 @@ endlocal
 exit /b 1
 
 :bs_uptodate
-for %%F in ("%BSFRESH%") do echo Build is up to date (last build %%~tF), nothing to do: %%~fF
-if "%DOUBLECLICK%"=="1" timeout /t 10
-exit /b 0
+for %%F in ("%BSFRESH%") do echo Build is up to date (last build %%~tF), nothing to rebuild: %%~fF
+set UPTODATE=1
+goto :start_copy
