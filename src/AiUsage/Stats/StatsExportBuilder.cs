@@ -205,7 +205,7 @@ internal static class StatsExportBuilder
         var builder = new StringBuilder();
         foreach (var letter in text)
         {
-            if (char.IsUpper(letter) && builder.Length > 0)
+            if (char.IsUpper(letter) && builder.Length > 0 && builder[^1] != '_')
                 builder.Append('_');
             builder.Append(letter is ' ' or '-' ? '_' : char.ToLowerInvariant(letter));
         }

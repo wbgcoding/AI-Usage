@@ -299,7 +299,7 @@ public class StatsExportBuilderTests
     public void Window_names_map_the_two_common_windows_and_snake_case_the_rest(string key, string expected) =>
         Assert.Equal(expected, StatsExportBuilder.WindowName(key));
 
-    [Fact(Skip = "Bug: WindowName turns a spaced label such as 'Sonnet Only' into 'sonnet__only' (space plus capital adds two underscores)")]
+    [Fact]
     public void Window_names_of_spaced_labels_use_a_single_underscore() =>
         Assert.Equal("sonnet_only", StatsExportBuilder.WindowName("Sonnet Only"));
 
