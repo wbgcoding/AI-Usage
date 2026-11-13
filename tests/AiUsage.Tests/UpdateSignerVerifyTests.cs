@@ -13,7 +13,7 @@ public class UpdateSignerVerifyTests
         var folder = TestPaths.CreateDirectory(name);
         var keyPath = Path.Combine(folder, name + ".pem");
         var source = Path.Combine(folder, name + "-UpdatePublicKey.cs");
-        Assert.Equal(0, UpdateSignerToolTests.Run($"keygen --key \"{keyPath}\" --out-cs \"{source}\"").ExitCode);
+        UpdateSignerToolTests.AssertSucceeded(UpdateSignerToolTests.Run($"keygen --key \"{keyPath}\" --out-cs \"{source}\""));
         return (folder, keyPath, source);
     }
 
@@ -21,7 +21,7 @@ public class UpdateSignerVerifyTests
     {
         var file = Path.Combine(folder, "AI-Usage.exe");
         File.WriteAllBytes(file, [1, 2, 3, 4]);
-        Assert.Equal(0, UpdateSignerToolTests.Run($"sign --key \"{keyPath}\" \"{file}\"").ExitCode);
+        UpdateSignerToolTests.AssertSucceeded(UpdateSignerToolTests.Run($"sign --key \"{keyPath}\" \"{file}\""));
         return file;
     }
 
@@ -33,7 +33,7 @@ public class UpdateSignerVerifyTests
 
         var result = UpdateSignerToolTests.Run($"verify --pubkey \"{publicKey}\" \"{file}\"");
 
-        Assert.Equal(0, result.ExitCode);
+        UpdateSignerToolTests.AssertSucceeded(result);
         Assert.Contains("Verified", result.Output);
     }
 

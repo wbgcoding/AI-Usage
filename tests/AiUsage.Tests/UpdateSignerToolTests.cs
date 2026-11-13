@@ -20,7 +20,7 @@ public class UpdateSignerToolTests
         return Path.Combine(dir?.FullName ?? throw new InvalidOperationException("tools/UpdateSigner not found"), "tools", "UpdateSigner");
     }
 
-    internal static (int ExitCode, string Output) Run(string arguments, string? keyFromEnvironment = null)
+    internal static (int ExitCode, string Output, string Error) Run(string arguments, string? keyFromEnvironment = null)
     {
         var start = new ProcessStartInfo("dotnet", $"run --project \"{ToolProject()}\" -c Release -- {arguments}")
         {
@@ -30,11 +30,20 @@ public class UpdateSignerToolTests
             start.Environment["AIUSAGE_SIGNING_KEY"] = keyFromEnvironment;
 
         using var process = Process.Start(start)!;
+        // Both streams are read at once: a tool that fills one while the test waits on the other would hang.
+        var error = process.StandardError.ReadToEndAsync();
         var output = process.StandardOutput.ReadToEnd();
-        process.StandardError.ReadToEnd();
         process.WaitForExit();
-        return (process.ExitCode, output.Trim());
+        return (process.ExitCode, output.Trim(), error.Result.Trim());
     }
+
+    /// <summary>Fails with what the tool (or the build in front of it) wrote, not just its exit code, so a
+    /// failure on another machine says why.</summary>
+    internal static void AssertSucceeded((int ExitCode, string Output, string Error) result) =>
+        Assert.True(result.ExitCode == 0,
+            $"The signing tool ended with exit code {result.ExitCode}.\nOutput:\n{Tail(result.Output)}\nErrors:\n{Tail(result.Error)}");
+
+    private static string Tail(string text) => text.Length > 4000 ? text[^4000..] : text;
 
     [Fact]
     public void KeygenThenSignProducesASignatureTheProgramAccepts_AndNeverOverwritesAKey()
@@ -44,7 +53,7 @@ public class UpdateSignerToolTests
         var csPath = Path.Combine(folder, "UpdatePublicKey.cs");
 
         var generated = Run($"keygen --key \"{keyPath}\" --out-cs \"{csPath}\"");
-        Assert.Equal(0, generated.ExitCode);
+        AssertSucceeded(generated);
         var publicKey = generated.Output;
         Assert.Contains(publicKey, File.ReadAllText(csPath), StringComparison.Ordinal);
         var keyBefore = File.ReadAllText(keyPath);
@@ -55,7 +64,7 @@ public class UpdateSignerToolTests
 
         var file = Path.Combine(folder, "AI-Usage.exe");
         File.WriteAllBytes(file, [7, 7, 7, 1, 2, 3]);
-        Assert.Equal(0, Run($"sign --key \"{keyPath}\" \"{file}\"").ExitCode);
+        AssertSucceeded(Run($"sign --key \"{keyPath}\" \"{file}\""));
 
         var signature = File.ReadAllText(file + ".sig");
         Assert.True(UpdateSignature.Verify(File.ReadAllBytes(file), signature, publicKey));
@@ -65,7 +74,7 @@ public class UpdateSignerToolTests
 
         // The environment variable names the key when no --key is given.
         File.WriteAllBytes(file, [5]);
-        Assert.Equal(0, Run($"sign \"{file}\"", keyFromEnvironment: keyPath).ExitCode);
+        AssertSucceeded(Run($"sign \"{file}\"", keyFromEnvironment: keyPath));
         Assert.True(UpdateSignature.Verify([5], File.ReadAllText(file + ".sig"), publicKey));
     }
 
@@ -73,7 +82,7 @@ public class UpdateSignerToolTests
     public void KeygenGivesOnlyTheCurrentUserAndSystemAccessToTheKey()
     {
         var keyPath = Path.Combine(TestPaths.CreateDirectory("signer-acl"), "k.pem");
-        Assert.Equal(0, Run($"keygen --key \"{keyPath}\"").ExitCode);
+        AssertSucceeded(Run($"keygen --key \"{keyPath}\""));
 
         var security = new FileInfo(keyPath).GetAccessControl();
         Assert.True(security.AreAccessRulesProtected);
