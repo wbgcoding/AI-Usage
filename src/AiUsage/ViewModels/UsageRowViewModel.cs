@@ -48,6 +48,9 @@ public partial class UsageRowViewModel : ObservableObject
     /// told apart by their label. <see cref="Update"/> moves it along with the window it shows.</summary>
     public string Label { get; private set; }
 
+    /// <summary>When this window resets, null when the provider does not say.</summary>
+    public DateTimeOffset? ResetsAt => _resetsAt;
+
     /// <summary>Raw window kind, next to the already-localized <see cref="LabelText"/> - the tray
     /// tooltip needs "5h"/"7d" as fixed short tokens, not whatever the active
     /// language's full label happens to say. Never reassigned after construction: it is this row's

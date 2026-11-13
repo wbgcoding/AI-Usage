@@ -48,8 +48,11 @@ More than one account per agent? Add it, and it gets its own tile, name and hist
 - A tray icon showing the busiest quota, or the agent and window you pick
 - A waiting mark on Claude, Codex and Gemini when the agent has finished and waits for your reply
 - Windows notifications at thresholds you set, before a window fills, when a limit is reached and
-  when it is free again, or when a sign-in expires; they respect Do Not Disturb and quiet weekdays,
+  when it is free again, optionally ten minutes before a full window resets, or when a sign-in
+  expires; they respect Do Not Disturb and quiet weekdays,
   and offer "Not again today"
+- A quiet line on a tile for a week after the account's plan changed (for example Max to Ultra),
+  which you can dismiss
 - History over 24 hours up to everything, kept locally for up to ten years
 - An optional "Usage per day" tile: one square per day, colored by the agent you used most, so a
   glance shows how your work splits between Claude, Codex and Gemini

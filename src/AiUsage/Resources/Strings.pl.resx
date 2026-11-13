@@ -691,6 +691,9 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Logowanie do Claude Console wygasło, więc saldo nie jest już odczytywane. Zaloguj się ponownie w Ustawieniach w sekcji Claude Console (środki API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Logowanie do Console wygasło, saldo API nie jest odczytywane.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Zaloguj ponownie</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Powiadom 10 minut przed zresetowaniem pełnego okna</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Tylko dla okien od 90 %, raz na reset.</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} zresetuje się za {2} min</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan zmieniony: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ukryj</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Darmowe środki</value></data>

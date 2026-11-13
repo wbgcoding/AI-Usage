@@ -691,6 +691,9 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>La sesión de Claude Console ha caducado, por lo que ya no se lee el saldo. Vuelve a iniciar sesión en Ajustes, en Claude Console (crédito de API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>La sesión de Console ha caducado, no se lee el saldo de la API.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Volver a iniciar sesión</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Avisar 10 minutos antes de que se restablezca una ventana llena</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Solo para ventanas al 90 % o más, una vez por restablecimiento.</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} se restablece en {2} min</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan cambiado: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ocultar</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Crédito gratuito</value></data>

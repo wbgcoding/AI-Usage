@@ -691,6 +691,9 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>The Claude Console sign-in has expired, so the balance is no longer read. Sign in again in Settings under Claude Console (API credits).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console sign-in expired, the API balance is not read.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Sign in again</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Notify 10 minutes before a full window resets</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Only for windows at 90 % or more, once per reset.</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} resets in {2} min</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan changed: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Dismiss</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Free credit</value></data>

@@ -690,6 +690,9 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Die Anmeldung bei der Claude Console ist abgelaufen, daher wird das Guthaben nicht mehr gelesen. In den Einstellungen unter „Claude Console (API-Guthaben)“ neu anmelden.</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console-Anmeldung abgelaufen, das API-Guthaben wird nicht gelesen.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Neu anmelden</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>10 Minuten vor dem Zurücksetzen eines vollen Fensters melden</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Nur für Fenster ab 90 %, einmal je Zurücksetzen.</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} wird in {2} Min. zurückgesetzt</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Tarif gewechselt: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ausblenden</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Gratis-Guthaben</value></data>

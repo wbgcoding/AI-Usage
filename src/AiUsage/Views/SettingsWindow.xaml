@@ -650,6 +650,10 @@
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnReset]}"
                               IsChecked="{Binding NotifyOnReset}" Style="{StaticResource CheckBox.GapS}"/>
 
+                    <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyBeforeReset]}"
+                              IsChecked="{Binding NotifyBeforeReset}" Style="{StaticResource CheckBox.GapS}"
+                              ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.NotifyBeforeReset]}"/>
+
                     <Grid Style="{StaticResource Gap.Top8}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

@@ -691,6 +691,9 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Consoleのサインインの期限が切れたため、残高は読み取られません。設定の「Claude Console(APIクレジット)」で再度サインインしてください。</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Consoleのサインインが期限切れのため、API残高を読み取れません。</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>再サインイン</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>上限に近い枠のリセット10分前に通知する</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>使用率90 %以上の枠のみ、リセットごとに1回。</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} は{2}分後にリセットされます</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>プランが変わりました: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>非表示</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>無料クレジット</value></data>

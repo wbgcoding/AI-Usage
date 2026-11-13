@@ -691,6 +691,9 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Console 的登录已过期,因此不再读取余额。请在设置的 Claude Console(API 额度)中重新登录。</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console 登录已过期，无法读取 API 余额。</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>重新登录</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>额度接近用满时,在窗口重置前 10 分钟通知我</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>仅限已用 90 % 以上的窗口,每次重置通知一次。</value></data>
+  <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}:{1} 将在 {2} 分钟后重置</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>套餐已更改：{0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>隐藏</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>免费额度</value></data>

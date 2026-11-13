@@ -218,6 +218,7 @@ public partial class MainWindow : Window, IDisposable
         ViewModel.ClickThroughChanged += (_, value) => ApplyClickThrough(value);
         ViewModel.NotificationRaised += ViewModel_NotificationRaised;
         ViewModel.ResetRaised += ViewModel_ResetRaised;
+        ViewModel.BeforeResetRaised += ViewModel_BeforeResetRaised;
         ViewModel.ForecastRaised += ViewModel_ForecastRaised;
         ViewModel.LimitReachedRaised += ViewModel_LimitReachedRaised;
         ViewModel.SignInExpiredRaised += ViewModel_SignInExpiredRaised;
@@ -323,6 +324,10 @@ public partial class MainWindow : Window, IDisposable
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
     private void ViewModel_ResetRaised(ResetNotification notification) =>
+        ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
+
+    /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>
+    private void ViewModel_BeforeResetRaised(BeforeResetNotification notification) =>
         ShowUsageAlert(notification.ProviderId, notification.ProviderDisplayName, notification.Text());
 
     /// <summary>Same thread as <see cref="ViewModel_NotificationRaised"/>.</summary>

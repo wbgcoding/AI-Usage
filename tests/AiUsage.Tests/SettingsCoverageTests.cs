@@ -24,6 +24,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.Hotkey), nameof(AppSettings.ClickThrough), nameof(AppSettings.TrayProvider),
         nameof(AppSettings.TrayWindow), nameof(AppSettings.StatsSectionLayout), nameof(AppSettings.StatsSectionsCollapsed),
         nameof(AppSettings.Providers),
+        nameof(AppSettings.NotifyBeforeReset),
         // The token usage window's view choices are preferences, so they travel too.
         nameof(AppSettings.StatsRange), nameof(AppSettings.StatsGrouping), nameof(AppSettings.StatsColorBy),
         nameof(AppSettings.StatsProvider), nameof(AppSettings.StatsCustomFrom), nameof(AppSettings.StatsCustomTo),

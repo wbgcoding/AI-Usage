@@ -421,6 +421,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool notifyOnReset;
 
     [ObservableProperty]
+    private bool notifyBeforeReset;
+
+    [ObservableProperty]
     private bool forecastAlertEnabled;
 
     [ObservableProperty]
@@ -663,6 +666,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         defaultThreshold = settings.DefaultThreshold;
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
         notifyOnReset = settings.NotifyOnReset;
+        notifyBeforeReset = settings.NotifyBeforeReset;
         forecastAlertEnabled = settings.ForecastAlertEnabled;
         limitReachedAlertEnabled = settings.LimitReachedAlertEnabled;
         showAttentionMark = settings.ShowAttentionMark;
@@ -1117,6 +1121,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnNotifyOnResetChanged(bool value)
     {
         _settings.NotifyOnReset = value;
+        _store.RequestSave(_settings);
+    }
+
+    partial void OnNotifyBeforeResetChanged(bool value)
+    {
+        _settings.NotifyBeforeReset = value;
         _store.RequestSave(_settings);
     }
 
@@ -2087,6 +2097,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThreshold = source.DefaultThreshold;
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
+        _settings.NotifyBeforeReset = source.NotifyBeforeReset;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
         _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(source.ForecastLeadMinutes);
         _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
@@ -2182,6 +2193,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThreshold = _settings.DefaultThreshold;
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
+        NotifyBeforeReset = _settings.NotifyBeforeReset;
         ForecastAlertEnabled = _settings.ForecastAlertEnabled;
         Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
         OnPropertyChanged(nameof(SelectedForecastLeadChoice));

@@ -1127,6 +1127,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         CatchUpAfterNetworkHold();
         _scheduler.Tick(IsTileHidden, RefreshAttended, IsAccountDisconnected, _lifetimeCts.Token);
         RefreshWindowTokens(now);
+        EvaluateBeforeReset(now);
         if (OrderedByUsage)
             ApplyTileOrder();
     }

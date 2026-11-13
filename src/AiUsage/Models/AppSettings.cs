@@ -227,6 +227,10 @@ public sealed class AppSettings
     /// <summary>"Ctrl+Alt+U"-style text, parsed by <see cref="Services.GlobalHotkey.TryParse"/>.</summary>
     public string Hotkey { get; set; } = "Ctrl+Alt+U";
 
+    /// <summary>Whether a window at 90 % or more is announced ten minutes before it resets, once per
+    /// reset. Default off; each tile's own notification switch still gates it.</summary>
+    public bool NotifyBeforeReset { get; set; }
+
     /// <summary>Opt-out: the app ships as a file, not through a store, so this is the only way a
     /// user ever learns a newer version exists. See <see cref="Services.UpdateCheck"/> - the check
     /// itself only reads; installing is a separate, signature-gated step.</summary>
