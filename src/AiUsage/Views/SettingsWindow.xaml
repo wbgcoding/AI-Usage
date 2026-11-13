@@ -1055,6 +1055,16 @@
                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.WeeklyCopy]}">
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.WeeklyCopy]}" TextWrapping="Wrap"/>
                     </CheckBox>
+                    <CheckBox IsChecked="{Binding StatsWeeklyCsv}" Style="{StaticResource CheckBox.GapS}"
+                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsv]}">
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsv]}" TextWrapping="Wrap"/>
+                    </CheckBox>
+                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvFolder]}" Style="{StaticResource SystemAction}"
+                            HorizontalAlignment="Left" Margin="0,0,0,4" Command="{Binding ChooseStatsWeeklyCsvFolderCommand}"/>
+                    <TextBlock Text="{Binding StatsWeeklyCsvFolder, Mode=OneWay}" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding StatsWeeklyCsvFolder, Mode=OneWay}" Margin="0,0,0,4"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                               Visibility="{Binding HasStatsWeeklyCsvFolder, Converter={StaticResource BoolToVis}}"/>
                     <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource SystemAction}"
                             HorizontalAlignment="Left" Margin="0,8,0,8"
                             ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.ImportPc]}" Command="{Binding ImportPcCommand}"/>

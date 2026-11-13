@@ -20,6 +20,12 @@ public sealed class StatsIndexerService : IDisposable
     private readonly LogService? _logService;
     // Writes the weekly copy of the index; null for a service that keeps none.
     private readonly Action<DateTimeOffset>? _weeklyCopy;
+    // Saves the CSV of the previous week into the folder; null for a stand-in service.
+    private readonly Func<string, DateOnly, StatsWeeklyCsv.Outcome>? _weeklyCsv;
+    // The folder of the weekly CSV; null or empty = off.
+    private volatile string? _weeklyCsvFolder;
+    // The week whose failure was logged already, so a folder that stays away is reported once per week.
+    private string _weeklyCsvLoggedWeek = "";
     // Reads one folder once (see IndexFolderOnceAsync); null for a stand-in service.
     private readonly Func<string, CancellationToken, (int FilesRead, int FilesAdded)>? _indexFolderOnce;
     // The added folders as of now; replaced as a whole, so a walk in flight keeps the list it started with.
@@ -126,7 +132,8 @@ public sealed class StatsIndexerService : IDisposable
         : this((token, progress) => link.Prepare(createIndexer()).IndexOnce(progress, token), () => StatsDataSnapshot.Load(store), logService,
             () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath,
             now => store.WriteWeeklyCopy(store.DataDirectory, now),
-            (folder, token) => link.Prepare(createIndexer()).IndexFolderOnce(folder, token))
+            (folder, token) => link.Prepare(createIndexer()).IndexFolderOnce(folder, token),
+            (folder, today) => StatsWeeklyCsv.Write(folder, today, store, link.Service?.CostProvider?.Invoke()))
     {
         link.Service = this;
     }
@@ -244,6 +251,21 @@ public sealed class StatsIndexerService : IDisposable
         set => _weeklyCopyEnabled = value;
     }
 
+    /// <summary>The folder the CSV of the previous week is saved into after a walk; null or empty switches
+    /// it off. The week's file is written once, when the folder exists and the file is not there yet.</summary>
+    public string? WeeklyCsvFolder
+    {
+        get => _weeklyCsvFolder;
+        set => _weeklyCsvFolder = string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>The cost estimate the weekly CSV takes its costs from (null = none), asked on the walk's
+    /// thread each time a file is written.</summary>
+    internal Func<Pricing.CostService?>? CostProvider { get; set; }
+
+    /// <summary>The clock of the weekly CSV; a test replaces it.</summary>
+    internal Func<DateTimeOffset> Clock { get; set; } = () => DateTimeOffset.Now;
+
     /// <summary>Test seam: a controllable stand-in for the real walk, so the one-instance and
     /// cancel-aborts-it contracts can be driven and observed without touching this machine's own
     /// session history.</summary>
@@ -261,9 +283,10 @@ public sealed class StatsIndexerService : IDisposable
     internal static StatsIndexerService ForTest(
         Func<CancellationToken, StatsIndexResult> runIndexOnce, Func<DateOnly>? today = null,
         Func<StatsDataSnapshot>? loadSnapshot = null, LogService? logService = null, Func<string>? snapshotPath = null,
-        Action<DateTimeOffset>? weeklyCopy = null)
+        Action<DateTimeOffset>? weeklyCopy = null, Func<string, DateOnly, StatsWeeklyCsv.Outcome>? weeklyCsv = null)
     {
-        var service = new StatsIndexerService((token, _) => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy);
+        var service = new StatsIndexerService(
+            (token, _) => runIndexOnce(token), loadSnapshot, logService, snapshotPath, weeklyCopy, weeklyCsv: weeklyCsv);
         if (today is not null)
             service._today = today;
         return service;
@@ -277,9 +300,11 @@ public sealed class StatsIndexerService : IDisposable
     private StatsIndexerService(
         Func<CancellationToken, Action<int, int>, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
         Func<string>? snapshotPath = null, Action<DateTimeOffset>? weeklyCopy = null,
-        Func<string, CancellationToken, (int FilesRead, int FilesAdded)>? indexFolderOnce = null)
+        Func<string, CancellationToken, (int FilesRead, int FilesAdded)>? indexFolderOnce = null,
+        Func<string, DateOnly, StatsWeeklyCsv.Outcome>? weeklyCsv = null)
     {
         _weeklyCopy = weeklyCopy;
+        _weeklyCsv = weeklyCsv;
         _indexFolderOnce = indexFolderOnce;
         _runIndexOnce = runIndexOnce;
         _loadSnapshot = loadSnapshot;
@@ -414,6 +439,8 @@ public sealed class StatsIndexerService : IDisposable
                 // After the window has its data, so the copy never delays what the user sees.
                 if (walkFinished && _weeklyCopyEnabled && !token.IsCancellationRequested)
                     WriteWeeklyCopy();
+                if (walkFinished && !token.IsCancellationRequested && _weeklyCsvFolder is { } csvFolder)
+                    WriteWeeklyCsv(csvFolder);
             }
             finally
             {
@@ -479,6 +506,30 @@ public sealed class StatsIndexerService : IDisposable
         {
             _logService?.LogError($"Statistics weekly copy failed ({ex.GetType().Name}).");
         }
+    }
+
+    // The failure of a week is logged once, whatever the number of walks that meet it.
+    private void WriteWeeklyCsv(string folder)
+    {
+        string? failure = null;
+        var week = "";
+        try
+        {
+            var today = DateOnly.FromDateTime(Clock().LocalDateTime);
+            week = StatsWeeklyCsv.PreviousWeek(today).FileName;
+            if (_weeklyCsv?.Invoke(folder, today) == StatsWeeklyCsv.Outcome.FolderMissing)
+                failure = "the folder is not available";
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            failure = $"it failed ({ex.GetType().Name})";
+        }
+
+        if (failure is null || week == _weeklyCsvLoggedWeek)
+            return;
+
+        _weeklyCsvLoggedWeek = week;
+        _logService?.LogError($"Statistics weekly CSV: {failure}.");
     }
 
     /// <summary>Drops the prepared data at once and loads it again on a pool thread, for a change to

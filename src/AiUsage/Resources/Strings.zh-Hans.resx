@@ -696,6 +696,8 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>剩余 {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>在磁贴上显示你的 Claude Console 的 API 额度余额。只读取余额。</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>每周一保存上一周的 CSV 文件</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>选择文件夹…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>更多文件夹(每次运行时读取)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>添加文件夹…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>移除</value></data>

@@ -216,6 +216,7 @@ public partial class App : Application, IDisposable
         {
             WeeklyCopyEnabled = settings.StatsWeeklyCopy,
             ExtraClaudeRoots = settings.StatsExtraFolders ?? [],
+            WeeklyCsvFolder = settings.StatsWeeklyCsv ? settings.StatsWeeklyCsvFolder : null,
         };
         StatsIndexerService.Shared = _statsIndexerService;
         // The data the last run left behind, so a statistics window opened before the first walk is
@@ -232,6 +233,8 @@ public partial class App : Application, IDisposable
         // Kept in a field (not a local) so the running instance has an explicit GC root regardless
         // of Show() being called.
         _mainWindow = new MainWindow(settingsStore, settings, logService);
+        var mainViewModel = _mainWindow.ViewModel;
+        _statsIndexerService.CostProvider = () => settings.ShowCostEstimate ? mainViewModel.Cost : null;
         // The previous program a portable update left beside the exe is the way back if this copy
         // cannot run, so it goes only once the window has rendered.
         if (Environment.ProcessPath is { } runningExe)

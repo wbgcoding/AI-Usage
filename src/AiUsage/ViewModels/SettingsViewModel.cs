@@ -284,6 +284,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool statsWeeklyCopy;
 
+    /// <summary>Whether a CSV file of the previous week is saved into <see cref="StatsWeeklyCsvFolder"/> every Monday.</summary>
+    [ObservableProperty]
+    private bool statsWeeklyCsv;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RetentionLabel))]
     [NotifyPropertyChangedFor(nameof(RetentionFullLabel))]
@@ -663,6 +667,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         hideOnFullscreen = settings.HideOnFullscreen;
         saveEnergyOnBattery = settings.SaveEnergyOnBattery;
         statsWeeklyCopy = settings.StatsWeeklyCopy;
+        statsWeeklyCsv = settings.StatsWeeklyCsv;
         zoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
         Choice.Select(ZoomChoices, zoomPercent);
         showTooltips = settings.ShowTooltips;
@@ -1163,6 +1168,60 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
         if (Stats.StatsIndexerService.Shared is { } indexer)
             indexer.WeeklyCopyEnabled = value;
+    }
+
+    /// <summary>Switching the weekly CSV on with no folder chosen yet opens the folder picker; cancelling it
+    /// leaves the switch off.</summary>
+    partial void OnStatsWeeklyCsvChanged(bool value)
+    {
+        if (_loadingStatsWeeklyCsv)
+            return;
+
+        if (value && string.IsNullOrWhiteSpace(_settings.StatsWeeklyCsvFolder))
+        {
+            var picked = _askForExtraFolder();
+            if (string.IsNullOrWhiteSpace(picked))
+            {
+                StatsWeeklyCsv = false;
+                return;
+            }
+
+            _settings.StatsWeeklyCsvFolder = picked;
+            OnPropertyChanged(nameof(StatsWeeklyCsvFolder));
+        }
+
+        _settings.StatsWeeklyCsv = value;
+        _store.RequestSave(_settings);
+        PushStatsWeeklyCsv();
+    }
+
+    private bool _loadingStatsWeeklyCsv;
+
+    /// <summary>The folder of the weekly CSV files as the settings hold it ("" = none chosen yet).</summary>
+    public string StatsWeeklyCsvFolder => _settings.StatsWeeklyCsvFolder ?? "";
+
+    public bool HasStatsWeeklyCsvFolder => StatsWeeklyCsvFolder.Length > 0;
+
+    /// <summary>Picks the folder of the weekly CSV files; cancelling changes nothing.</summary>
+    [RelayCommand]
+    private void ChooseStatsWeeklyCsvFolder()
+    {
+        var picked = _askForExtraFolder();
+        if (string.IsNullOrWhiteSpace(picked))
+            return;
+
+        _settings.StatsWeeklyCsvFolder = picked;
+        _store.RequestSave(_settings);
+        OnPropertyChanged(nameof(StatsWeeklyCsvFolder));
+        OnPropertyChanged(nameof(HasStatsWeeklyCsvFolder));
+        PushStatsWeeklyCsv();
+    }
+
+    private void PushStatsWeeklyCsv()
+    {
+        OnPropertyChanged(nameof(HasStatsWeeklyCsvFolder));
+        if (Stats.StatsIndexerService.Shared is { } indexer)
+            indexer.WeeklyCsvFolder = _settings.StatsWeeklyCsv ? _settings.StatsWeeklyCsvFolder : null;
     }
 
     partial void OnCheckForUpdatesChanged(bool value)
@@ -2100,6 +2159,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
+        _settings.StatsWeeklyCsv = source.StatsWeeklyCsv;
         _settings.StatsOpenRange = source.StatsOpenRange;
         _settings.StatsWeekStart = source.StatsWeekStart;
         _settings.StatsHiddenSections = [.. source.StatsHiddenSections ?? []];
@@ -2197,6 +2257,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
         StatsWeeklyCopy = _settings.StatsWeeklyCopy;
+        // Taken over without the picker: switching on without a folder would open it during an import.
+        _loadingStatsWeeklyCsv = true;
+        StatsWeeklyCsv = _settings.StatsWeeklyCsv;
+        _loadingStatsWeeklyCsv = false;
+        OnPropertyChanged(nameof(StatsWeeklyCsvFolder));
+        PushStatsWeeklyCsv();
         RefreshStatsDisplayChoices();
         QuietHoursEnabled = _settings.QuietHoursEnabled;
         AllDaysAllowed = _settings.AllDaysAllowed;

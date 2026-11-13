@@ -315,6 +315,58 @@ public class StatsDisplayChoicesTests : IDisposable
         Assert.False(vm.HasStatsFolderImportResult);
     }
 
+    [Fact]
+    public void Switching_the_weekly_csv_on_without_a_folder_asks_for_one_and_stays_off_when_cancelled()
+    {
+        var settings = new AppSettings();
+        var asked = 0;
+        var vm = BuildViewModelWithDialogs(settings, askFolder: () => { asked++; return null; });
+
+        vm.StatsWeeklyCsv = true;
+
+        Assert.Equal(1, asked);
+        Assert.False(vm.StatsWeeklyCsv);
+        Assert.False(settings.StatsWeeklyCsv);
+        Assert.Equal("", settings.StatsWeeklyCsvFolder);
+    }
+
+    [Fact]
+    public void Switching_the_weekly_csv_on_with_a_picked_folder_keeps_both_and_the_folder_stays_for_later()
+    {
+        var settings = new AppSettings();
+        var vm = BuildViewModelWithDialogs(settings, askFolder: () => @"E:\Reports");
+
+        vm.StatsWeeklyCsv = true;
+
+        Assert.True(settings.StatsWeeklyCsv);
+        Assert.Equal(@"E:\Reports", settings.StatsWeeklyCsvFolder);
+        Assert.True(vm.HasStatsWeeklyCsvFolder);
+
+        var asked = 0;
+        var again = BuildViewModelWithDialogs(settings, askFolder: () => { asked++; return null; });
+        again.StatsWeeklyCsv = false;
+        again.StatsWeeklyCsv = true;
+
+        Assert.Equal(0, asked);
+        Assert.True(settings.StatsWeeklyCsv);
+    }
+
+    [Fact]
+    public void The_weekly_csv_folder_button_works_with_the_switch_off_and_cancelling_changes_nothing()
+    {
+        var settings = new AppSettings();
+        var picks = new Queue<string?>([@"E:\Reports", null]);
+        var vm = BuildViewModelWithDialogs(settings, askFolder: () => picks.Dequeue());
+
+        Assert.True(vm.ChooseStatsWeeklyCsvFolderCommand.CanExecute(null));
+        vm.ChooseStatsWeeklyCsvFolderCommand.Execute(null);
+        vm.ChooseStatsWeeklyCsvFolderCommand.Execute(null);
+
+        Assert.Equal(@"E:\Reports", settings.StatsWeeklyCsvFolder);
+        Assert.False(settings.StatsWeeklyCsv);
+        Assert.Equal(@"E:\Reports", vm.StatsWeeklyCsvFolder);
+    }
+
     private SettingsViewModel BuildViewModelWithDialogs(AppSettings settings, Func<string, string?>? askExport = null, Func<string?>? askImport = null,
         Func<string?>? askFolder = null, Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>>? importFolder = null)
     {

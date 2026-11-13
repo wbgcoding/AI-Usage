@@ -2072,9 +2072,21 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The cost estimate of the token statistics: one instance per process, created on first
     /// use so nothing is read from disk before the statistics are wanted. Its price cache loads in the
     /// background, open statistics redraw when it is in.</summary>
-    internal CostService Cost => _cost ??= new CostService(
-        () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
-        loadPricesInBackground: true);
+    internal CostService Cost
+    {
+        get
+        {
+            // Also asked from the statistics indexer's thread (the weekly CSV), so created under a lock.
+            lock (_costGate)
+            {
+                return _cost ??= new CostService(
+                    () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
+                    loadPricesInBackground: true);
+            }
+        }
+    }
+
+    private readonly object _costGate = new();
 
     /// <summary>Raised on the UI thread when a pause or the energy saver that held the network back
     /// has ended: the downloads outside the provider reads (price lists, update check) catch up.</summary>

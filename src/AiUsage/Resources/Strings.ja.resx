@@ -696,6 +696,8 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>毎週月曜日に前の週の CSV ファイルを保存する</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>フォルダーを選択…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>追加のフォルダー(実行のたびに読み込み)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>フォルダーを追加…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>削除</value></data>

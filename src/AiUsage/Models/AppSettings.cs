@@ -29,6 +29,13 @@ public sealed class AppSettings
     /// three copies are kept and a damaged index is restored from them).</summary>
     public bool StatsWeeklyCopy { get; set; } = true;
 
+    /// <summary>Whether the token index saves a CSV file of the previous week into <see cref="StatsWeeklyCsvFolder"/>
+    /// (once per ISO week, after a walk).</summary>
+    public bool StatsWeeklyCsv { get; set; }
+
+    /// <summary>The folder of the weekly CSV files. A path on this PC, so a settings import or a reset keeps it.</summary>
+    public string StatsWeeklyCsvFolder { get; set; } = "";
+
     /// <summary>Further folders of Claude session files (a copy of another PC's sessions, an old drive)
     /// the token index reads on every run next to this PC's own. Machine-local, so a settings import or
     /// a reset leaves them alone.</summary>

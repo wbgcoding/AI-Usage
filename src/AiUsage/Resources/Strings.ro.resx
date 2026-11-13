@@ -696,6 +696,8 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Mai rămân {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Conectare la platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Arată pe card soldul de credite API al Claude Console. Se citește doar soldul.</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salvează în fiecare luni un fișier CSV al săptămânii anterioare</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Alege folderul…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Mai multe foldere (citite la fiecare rulare)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Adaugă folder…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Elimină</value></data>

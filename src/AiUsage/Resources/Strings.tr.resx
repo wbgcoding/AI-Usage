@@ -696,6 +696,8 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} kaldı.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com'da oturum aç</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude Console'unun API kredi bakiyesini kutucukta gösterir. Yalnızca bakiye okunur.</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Her pazartesi önceki haftanın CSV dosyasını kaydet</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Klasör seç…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Diğer klasörler (her çalıştırmada okunur)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Klasör ekle…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Kaldır</value></data>

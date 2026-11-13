@@ -695,6 +695,8 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} übrig.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Bei platform.claude.com anmelden</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Zeigt das API-Guthaben deiner Claude Console auf der Kachel. Gelesen wird nur das Guthaben.</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Jeden Montag eine CSV-Datei der Vorwoche speichern</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Ordner wählen…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Weitere Ordner (werden bei jedem Lauf mitgelesen)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Ordner hinzufügen…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Entfernen</value></data>

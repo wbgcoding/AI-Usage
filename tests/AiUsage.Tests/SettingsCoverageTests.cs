@@ -19,7 +19,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.DefaultThreshold), nameof(AppSettings.DefaultThresholdEnabled), nameof(AppSettings.NotifyOnReset),
         nameof(AppSettings.ForecastAlertEnabled), nameof(AppSettings.ForecastLeadMinutes), nameof(AppSettings.LimitReachedAlertEnabled),
         nameof(AppSettings.ShowAttentionMark), nameof(AppSettings.AttentionMaxAgeMinutes), nameof(AppSettings.CheckForUpdates),
-        nameof(AppSettings.SaveEnergyOnBattery), nameof(AppSettings.StatsWeeklyCopy),
+        nameof(AppSettings.SaveEnergyOnBattery), nameof(AppSettings.StatsWeeklyCopy), nameof(AppSettings.StatsWeeklyCsv),
         nameof(AppSettings.StatsOpenRange), nameof(AppSettings.StatsWeekStart), nameof(AppSettings.StatsHiddenSections),
         nameof(AppSettings.QuietHoursEnabled), nameof(AppSettings.AllDaysAllowed), nameof(AppSettings.QuietDays),
         nameof(AppSettings.QuietHoursStart), nameof(AppSettings.QuietHoursEnd), nameof(AppSettings.HotkeyEnabled),
@@ -44,6 +44,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.ClickThroughHintShown), // one-time hint already seen on this PC
         nameof(AppSettings.WebUsagePaths), // paths on this PC
         nameof(AppSettings.StatsExtraFolders), // folders on this PC
+        nameof(AppSettings.StatsWeeklyCsvFolder), // a folder on this PC
         nameof(AppSettings.LastUpdateCheckUtc), // update check state of this PC
         nameof(AppSettings.KnownLatestTag), // update check state of this PC
         nameof(AppSettings.KnownLatestUrl), // update check state of this PC
