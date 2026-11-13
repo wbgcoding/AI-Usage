@@ -432,9 +432,6 @@
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Pe baza consumului tău din ultimele 12 săptămâni. Intervalul de sus nu se aplică aici.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>O lună se numără ca aproximativ 4,3 săptămâni. Prețurile abonamentelor sunt prețuri de listă publice; taxele și prețurile regionale pot diferi.</value></data>
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokeni dintr-o fereastră medie cu consum și vârful mediu atins al cotei.</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× la limită</value></data>
-  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>niciodată la limită</value></data>
-  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Vârf {0} · vârf mediu {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Vârf: cel mai înalt nivel din interval. Vârf mediu: media celui mai înalt nivel al fiecărei ferestre, marcată ca linie pe bară.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Încă niciun istoric de cotă în această perioadă.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din {0} ore de consum propriu. Citirile din cache se numără separat: 1% ≈ {1} tokeni din cache.</value></data>
@@ -569,6 +566,11 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>Cost API:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Cost aproximativ dacă acești tokeni ar fi fost facturați la prețurile publice de listă ale API-ului (lista de prețuri LiteLLM, la data de {0}). Abonamentele sunt facturate diferit.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Preț necunoscut pentru: {0}. Nu este inclus.</value></data>
+  <data name="Stats.Limits.ReachedShare" xml:space="preserve"><value>{0} din {1} cicluri la limită ({2})</value></data>
+  <data name="Stats.Limits.NeverReachedOf" xml:space="preserve"><value>Niciodată la limită în {0} cicluri</value></data>
+  <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Vârf mediu {0} · maxim {1}</value></data>
+  <data name="Stats.Limits.LastReached" xml:space="preserve"><value>ultima dată la limită {0} · blocat circa {1}</value></data>
+  <data name="Stats.Limits.Period" xml:space="preserve"><value>Măsurători de la {0} până la {1}</value></data>
   <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · până la {1}</value></data>
   <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} are {1} capacitatea</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} costă cu {1} mai mult pe lună</value></data>

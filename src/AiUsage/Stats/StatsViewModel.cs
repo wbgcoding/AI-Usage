@@ -2257,24 +2257,35 @@ public sealed partial class StatsViewModel : ObservableObject
                     return new StatsLimitRowViewModel(
                         StatusTextMap.Resolve(row.WindowLabelKey),
                         row.ReachedCount > 0
-                            ? string.Format(CultureInfo.CurrentCulture, loc["Stats.Limits.ReachedCount"], row.ReachedCount)
-                            : loc["Stats.Limits.NeverReached"],
+                            ? loc.Format("Stats.Limits.ReachedShare", row.ReachedCount, row.PeriodCount,
+                                FormatLimitPercent(row.ReachedCount * 100.0 / row.PeriodCount))
+                            : loc.Format("Stats.Limits.NeverReachedOf", row.PeriodCount),
                         highest,
                         averagePeak,
-                        loc.Format("Stats.Limits.Detail", highest, averagePeak),
+                        loc.Format("Stats.Limits.Detail2", averagePeak, highest),
                         Math.Clamp(row.Highest, 0, 100),
                         Math.Clamp(row.AveragePeak, 0, 100),
                         row.ReachedCount,
+                        row.PeriodCount,
+                        row.LastReachedAt is { } reached
+                            ? loc.Format("Stats.Limits.LastReached", LimitDate(reached, loc), DurationFormatter.Describe(row.BlockedTime))
+                            : "",
                         row.WindowLabelKey);
                 }).ToList();
+                var groupRows = group.ToList();
                 return new StatsLimitGroupViewModel(
-                    group.Key, ProviderDisplayNames.GetValueOrDefault(group.Key, group.Key), rows);
+                    group.Key, ProviderDisplayNames.GetValueOrDefault(group.Key, group.Key), rows,
+                    loc.Format("Stats.Limits.Period",
+                        LimitDate(groupRows.Min(row => row.FirstReading), loc), LimitDate(groupRows.Max(row => row.LastReading), loc)));
             })
             .ToList();
     }
 
     private static string FormatLimitPercent(double percent) =>
         StatusTextMap.FormatUsagePercent(percent);
+
+    private static string LimitDate(DateTimeOffset moment, LocalizationService loc) =>
+        DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(moment.LocalDateTime), loc.DisplayCulture);
 
     /// <summary>How many pooled models the "Other" ring slice names in its hover text.</summary>
     private const int OtherModelsTooltipNames = 8;

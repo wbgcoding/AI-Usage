@@ -4,9 +4,14 @@ namespace AiUsage.Stats;
 
 /// <summary>One quota window of one provider, summed up over the shown range: how often its limit was
 /// hit, the highest value it reached and the mean of the per-period peaks. The label is the resource
-/// key (or a plain name) the view resolves; this record holds numbers only.</summary>
+/// key (or a plain name) the view resolves; this record holds numbers only. The readings span from
+/// <see cref="FirstReading"/> to <see cref="LastReading"/>; <see cref="LastReachedAt"/> is the newest
+/// reading at the limit (null when it never was) and <see cref="BlockedTime"/> the time the window stayed
+/// at the limit, summed over its periods.</summary>
 public sealed record StatsLimitRow(
-    string ProviderId, WindowKind Window, string WindowLabelKey, int PeriodCount, int ReachedCount, double Highest, double AveragePeak);
+    string ProviderId, WindowKind Window, string WindowLabelKey, int PeriodCount, int ReachedCount, double Highest, double AveragePeak,
+    DateTimeOffset FirstReading = default, DateTimeOffset LastReading = default, DateTimeOffset? LastReachedAt = null,
+    TimeSpan BlockedTime = default);
 
 /// <summary>
 /// Turns the stored quota history into the rows of the statistics window's limits section. A period
@@ -37,13 +42,41 @@ public static class StatsLimitsAggregator
             {
                 var periods = SplitIntoPeriods(group);
                 var peaks = periods.Select(period => period.Max(point => point.Percent)).ToList();
+                var reached = group.Where(point => point.Percent >= LimitPercent).Select(point => (DateTimeOffset?)point.Timestamp).Max();
                 rows.Add(new StatsLimitRow(
                     providerId, group.Key.Window, group.Key.Key, periods.Count,
-                    peaks.Count(peak => peak >= LimitPercent), peaks.Max(), peaks.Average()));
+                    peaks.Count(peak => peak >= LimitPercent), peaks.Max(), peaks.Average(),
+                    group.Min(point => point.Timestamp), group.Max(point => point.Timestamp), reached,
+                    BlockedTimeOf(group.Key.Window, periods)));
             }
         }
 
         return rows;
+    }
+
+    /// <summary>How long a window stayed blocked: per period the time from its first reading at the limit to its reset,
+    /// never below zero and, for the five-hour and weekly window, never above the window's own length (a reset time
+    /// that wobbles or lies far ahead must not claim more). A period without a reset time counts for nothing.</summary>
+    private static TimeSpan BlockedTimeOf(WindowKind window, List<List<HistoryPoint>> periods)
+    {
+        var total = TimeSpan.Zero;
+        foreach (var period in periods)
+        {
+            if (period.Where(point => point.Percent >= LimitPercent).Select(point => (DateTimeOffset?)point.Timestamp).Min() is not { } hit
+                || period.Max(point => point.ResetsAt) is not { } reset)
+                continue;
+
+            var blocked = reset - hit;
+            var longest = window switch
+            {
+                WindowKind.FiveHour => TimeSpan.FromHours(5),
+                WindowKind.Weekly => TimeSpan.FromDays(7),
+                _ => TimeSpan.MaxValue,
+            };
+            total += blocked < TimeSpan.Zero ? TimeSpan.Zero : blocked > longest ? longest : blocked;
+        }
+
+        return total;
     }
 
     /// <summary>The resource key naming a point's window: its own label, or the generic one for its kind.</summary>

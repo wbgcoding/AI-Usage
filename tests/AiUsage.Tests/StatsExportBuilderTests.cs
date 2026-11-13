@@ -270,9 +270,9 @@ public class StatsExportBuilderTests
         {
             new StatsLimitGroupViewModel("claude", "Claude",
             [
-                new StatsLimitRowViewModel("5 Stunden", "", "", "", "", 0, 0, 0, "Window_FiveHour"),
-                new StatsLimitRowViewModel("Woche", "", "", "", "", 0, 0, 0, "Window_Weekly"),
-                new StatsLimitRowViewModel("Sonnet Weekly", "", "", "", "", 0, 0, 0, "Window_SonnetWeekly"),
+                new StatsLimitRowViewModel("5 Stunden", "", "", "", "", 0, 0, 0, 0, "", "Window_FiveHour"),
+                new StatsLimitRowViewModel("Woche", "", "", "", "", 0, 0, 0, 0, "", "Window_Weekly"),
+                new StatsLimitRowViewModel("Sonnet Weekly", "", "", "", "", 0, 0, 0, 0, "", "Window_SonnetWeekly"),
             ]),
         };
 

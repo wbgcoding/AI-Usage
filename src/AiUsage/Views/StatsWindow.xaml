@@ -843,6 +843,10 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
                                                         <StackPanel>
+                                                            <TextBlock Text="{Binding PeriodText}" Margin="0,0,0,4" TextWrapping="Wrap"
+                                                                       Foreground="{DynamicResource Text.Muted}"
+                                                                       FontSize="{StaticResource Font.Size.Small}"
+                                                                       Visibility="{Binding HasPeriod, Converter={StaticResource BoolToVis}}"/>
                                                             <ItemsControl ItemsSource="{Binding Rows}">
                                                                 <ItemsControl.ItemContainerStyle>
                                                                     <Style TargetType="ContentPresenter">
@@ -926,6 +930,9 @@
                                                                             </Grid>
                                                                             <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource Text.Secondary}"
                                                                                        FontSize="{StaticResource Font.Size.Micro}"/>
+                                                                            <TextBlock Text="{Binding LastReachedText}" Foreground="{DynamicResource Text.Muted}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}"
+                                                                                       Visibility="{Binding HasLastReached, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
                                                                     </DataTemplate>
                                                                 </ItemsControl.ItemTemplate>

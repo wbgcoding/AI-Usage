@@ -432,9 +432,6 @@
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Gebaseerd op je eigen verbruik van de afgelopen 12 weken. De periode hierboven geldt hier niet.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Een maand wordt gerekend als ongeveer 4,3 weken. Abonnementsprijzen zijn openbare lijstprijzen; belasting en regionale prijzen kunnen afwijken.</value></data>
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens in een gemiddeld venster met verbruik en de gemiddeld bereikte piek van het quotum.</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× aan de limiet</value></data>
-  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>nooit aan de limiet</value></data>
-  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Piek {0} · gem. piek {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Piek: het hoogste niveau in het bereik. Gem. piek: het gemiddelde van het hoogste niveau van elk venster, als lijn op de balk aangegeven.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Nog geen quotageschiedenis in deze periode.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schatting op basis van {0} uur eigen verbruik. Cache-leesacties tellen apart: 1% ≈ {1} gecachete tokens.</value></data>
@@ -569,6 +566,11 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API-kosten:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Geschatte kosten als deze tokens tegen de openbare API-lijstprijzen waren gefactureerd (LiteLLM-prijslijst, stand {0}). Abonnementen worden anders gefactureerd.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Geen prijs bekend voor: {0}. Niet meegeteld.</value></data>
+  <data name="Stats.Limits.ReachedShare" xml:space="preserve"><value>{0} van {1} cycli aan de limiet ({2})</value></data>
+  <data name="Stats.Limits.NeverReachedOf" xml:space="preserve"><value>In {0} cycli nooit aan de limiet</value></data>
+  <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Gem. piek {0} · hoogste {1}</value></data>
+  <data name="Stats.Limits.LastReached" xml:space="preserve"><value>laatst aan de limiet {0} · geblokkeerd ca. {1}</value></data>
+  <data name="Stats.Limits.Period" xml:space="preserve"><value>Metingen {0} t/m {1}</value></data>
   <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · tot {1}</value></data>
   <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} heeft {1} de capaciteit</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} kost {1} meer per maand</value></data>

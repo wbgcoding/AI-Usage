@@ -432,9 +432,6 @@
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>直近12週間のご自身の使用量に基づきます。上の期間設定はここには適用されません。</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>1か月は約4.3週間として計算しています。プラン料金は公開されている定価で、税金や地域別価格は異なる場合があります。</value></data>
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>使用があった平均的な枠のトークン数と、平均して到達したクォータのピークです。</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>上限到達 {0}回</value></data>
-  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>上限到達なし</value></data>
-  <data name="Stats.Limits.Detail" xml:space="preserve"><value>ピーク {0} · 平均ピーク {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>ピーク: 期間内の最高値。平均ピーク: 各ウィンドウの最高値の平均で、バー上に線で表示されます。</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>この期間の使用枠の履歴はまだありません。</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>ご自身の {0} 時間分の使用量からの推定です。キャッシュ読み取りは別集計で、1% ≈ キャッシュトークン {1} です。</value></data>
@@ -569,6 +566,11 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>APIコスト:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>これらのトークンが公開APIの定価で課金された場合のおおよその費用です(LiteLLM価格表、{0}時点)。サブスクリプションの課金方法は異なります。</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* 価格不明: {0}。集計に含まれません。</value></data>
+  <data name="Stats.Limits.ReachedShare" xml:space="preserve"><value>{1}サイクル中{0}回が上限に到達（{2}）</value></data>
+  <data name="Stats.Limits.NeverReachedOf" xml:space="preserve"><value>{0}サイクルで上限に達したことはありません</value></data>
+  <data name="Stats.Limits.Detail2" xml:space="preserve"><value>平均ピーク {0} · 最高 {1}</value></data>
+  <data name="Stats.Limits.LastReached" xml:space="preserve"><value>最後に上限に到達 {0} · 約{1}利用不可</value></data>
+  <data name="Stats.Limits.Period" xml:space="preserve"><value>測定値 {0} から {1}</value></data>
   <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · {1}まで</value></data>
   <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0}の容量は{1}です</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0}は月額{1}高くなります</value></data>

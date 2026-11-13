@@ -432,9 +432,6 @@
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Basato sul tuo utilizzo delle ultime 12 settimane. L'intervallo di tempo sopra non si applica qui.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Un mese è calcolato come circa 4,3 settimane. I prezzi dei piani sono prezzi di listino pubblici; tasse e prezzi regionali possono variare.</value></data>
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Token di una finestra media con utilizzo e picco di quota raggiunto in media.</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× al limite</value></data>
-  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>mai al limite</value></data>
-  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Picco {0} · picco medio {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Picco: il livello più alto nel periodo. Picco medio: la media del livello più alto di ogni finestra, segnata come linea sulla barra.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Ancora nessuna cronologia delle quote per questo periodo.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Stima basata su {0} ore del tuo utilizzo. Le letture dalla cache sono conteggiate a parte: 1% ≈ {1} token in cache.</value></data>
@@ -569,6 +566,11 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>Costo API:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Costo approssimativo se questi token fossero stati fatturati ai prezzi di listino pubblici dell'API (listino LiteLLM, al {0}). Gli abbonamenti sono fatturati in modo diverso.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Nessun prezzo noto per: {0}. Non conteggiato.</value></data>
+  <data name="Stats.Limits.ReachedShare" xml:space="preserve"><value>{0} cicli su {1} al limite ({2})</value></data>
+  <data name="Stats.Limits.NeverReachedOf" xml:space="preserve"><value>Mai al limite in {0} cicli</value></data>
+  <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Picco medio {0} · massimo {1}</value></data>
+  <data name="Stats.Limits.LastReached" xml:space="preserve"><value>ultima volta al limite {0} · bloccato circa {1}</value></data>
+  <data name="Stats.Limits.Period" xml:space="preserve"><value>Misurazioni dal {0} al {1}</value></data>
   <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · fino al {1}</value></data>
   <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} ha {1} la capacità</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} costa {1} in più al mese</value></data>

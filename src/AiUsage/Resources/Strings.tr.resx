@@ -432,9 +432,6 @@
   <data name="Tip.Stats.Forecast" xml:space="preserve"><value>Son 12 haftalık kendi kullanımına dayanır. Yukarıdaki zaman aralığı burada geçerli değildir.</value></data>
   <data name="Tip.Stats.Forecast.Month" xml:space="preserve"><value>Bir ay yaklaşık 4,3 hafta sayılır. Abonelik fiyatları herkese açık liste fiyatlarıdır; vergiler ve bölgesel fiyatlar farklı olabilir.</value></data>
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Kullanım görülen ortalama bir penceredeki tokenlar ve ortalama ulaşılan kota zirvesi.</value></data>
-  <data name="Stats.Limits.ReachedCount" xml:space="preserve"><value>{0}× sınırda</value></data>
-  <data name="Stats.Limits.NeverReached" xml:space="preserve"><value>hiç sınırda olmadı</value></data>
-  <data name="Stats.Limits.Detail" xml:space="preserve"><value>Zirve {0} · ort. zirve {1}</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Zirve: aralıktaki en yüksek düzey. Ort. zirve: her pencerenin en yüksek düzeyinin ortalaması, çubukta bir çizgiyle işaretlenir.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Bu dönem için henüz kota geçmişi yok.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Kendi kullanımının {0} saatinden yapılan tahmin. Önbellek okumaları ayrı sayılır: %1 ≈ {1} önbellek tokeni.</value></data>
@@ -569,6 +566,11 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API maliyeti:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Bu tokenlar herkese açık API liste fiyatlarından faturalansaydı yaklaşık maliyet (LiteLLM fiyat listesi, {0} itibarıyla). Abonelikler farklı faturalanır.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Şunlar için bilinen fiyat yok: {0}. Sayılmadı.</value></data>
+  <data name="Stats.Limits.ReachedShare" xml:space="preserve"><value>{1} döngüden {0} tanesinde sınıra ulaşıldı ({2})</value></data>
+  <data name="Stats.Limits.NeverReachedOf" xml:space="preserve"><value>{0} döngüde hiç sınıra ulaşılmadı</value></data>
+  <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Ort. tepe {0} · en yüksek {1}</value></data>
+  <data name="Stats.Limits.LastReached" xml:space="preserve"><value>son sınır {0} · yaklaşık {1} engelli</value></data>
+  <data name="Stats.Limits.Period" xml:space="preserve"><value>{0} ile {1} arası ölçümler</value></data>
   <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · {1} tarihine kadar</value></data>
   <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} planı {1} kapasiteye sahip</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} ayda {1} daha pahalı</value></data>

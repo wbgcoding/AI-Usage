@@ -87,6 +87,79 @@ public class StatsLimitsAggregatorTests
     }
 
     [Fact]
+    public void A_row_names_its_first_and_last_reading_and_when_it_last_hit_the_limit()
+    {
+        var firstReset = Start.AddDays(7);
+        var secondReset = Start.AddDays(14);
+        var row = Assert.Single(Build(("claude", new[]
+        {
+            Point(WindowKind.Weekly, 40, firstReset, 5),
+            Point(WindowKind.Weekly, 100, firstReset, 10),
+            Point(WindowKind.Weekly, 100, firstReset, 12),
+            Point(WindowKind.Weekly, 70, firstReset, 20),
+            Point(WindowKind.Weekly, 30, secondReset, 200),
+        })));
+
+        Assert.Equal(Start.AddHours(5), row.FirstReading);
+        Assert.Equal(Start.AddHours(200), row.LastReading);
+        Assert.Equal(Start.AddHours(12), row.LastReachedAt);
+    }
+
+    [Fact]
+    public void A_window_that_never_hit_the_limit_has_no_last_reached_time_and_no_blocked_time()
+    {
+        var row = Assert.Single(Build(("claude", new[] { Point(WindowKind.Weekly, 99.9, Start.AddDays(7), 3) })));
+
+        Assert.Null(row.LastReachedAt);
+        Assert.Equal(TimeSpan.Zero, row.BlockedTime);
+    }
+
+    [Fact]
+    public void Blocked_time_runs_from_the_first_hit_of_a_period_to_its_reset()
+    {
+        var firstReset = Start.AddDays(7);
+        var secondReset = Start.AddDays(14);
+        var row = Assert.Single(Build(("claude", new[]
+        {
+            // Hits at 90 minutes before the reset and stays there: 90 minutes blocked.
+            Point(WindowKind.Weekly, 60, firstReset, 100),
+            new HistoryPoint(1, firstReset.AddMinutes(-90), WindowKind.Weekly, 100, firstReset),
+            new HistoryPoint(1, firstReset.AddMinutes(-30), WindowKind.Weekly, 100, firstReset),
+            // A period that never hit the limit adds nothing.
+            Point(WindowKind.Weekly, 50, secondReset, 200),
+        })));
+
+        Assert.Equal(2, row.PeriodCount);
+        Assert.Equal(1, row.ReachedCount);
+        Assert.Equal(TimeSpan.FromMinutes(90), row.BlockedTime);
+    }
+
+    [Fact]
+    public void Blocked_time_is_clamped_to_the_windows_own_length_and_never_negative()
+    {
+        var hit = Start.AddHours(1);
+        var fiveHour = Assert.Single(Build(("claude", new[] { Point(WindowKind.FiveHour, 100, hit.AddHours(9), 1) })));
+        var weekly = Assert.Single(Build(("claude", new[] { Point(WindowKind.Weekly, 100, hit.AddDays(12), 1) })));
+        var other = Assert.Single(Build(("claude", new[] { Point(WindowKind.Other, 100, hit.AddDays(12), 1) })));
+        var behind = Assert.Single(Build(("claude", new[] { Point(WindowKind.Weekly, 100, hit.AddMinutes(-20), 1) })));
+
+        Assert.Equal(TimeSpan.FromHours(5), fiveHour.BlockedTime);
+        Assert.Equal(TimeSpan.FromDays(7), weekly.BlockedTime);
+        Assert.Equal(TimeSpan.FromDays(12), other.BlockedTime);
+        Assert.Equal(TimeSpan.Zero, behind.BlockedTime);
+    }
+
+    [Fact]
+    public void A_period_without_a_reset_time_is_not_blocked_for_any_time()
+    {
+        var row = Assert.Single(Build(("claude", new[] { Point(WindowKind.Weekly, 100, null, 1) })));
+
+        Assert.Equal(1, row.ReachedCount);
+        Assert.Equal(TimeSpan.Zero, row.BlockedTime);
+        Assert.NotNull(row.LastReachedAt);
+    }
+
+    [Fact]
     public void A_provider_without_points_gives_no_row()
     {
         Assert.Empty(Build(("claude", Array.Empty<HistoryPoint>())));
@@ -346,5 +419,76 @@ public class StatsViewModelHistoryThreadTests
             Assert.DoesNotContain(windowThread, readThreads);
             Assert.Single(viewModel.LimitGroups);
         });
+    }
+}
+
+[Collection(SharedStateTestsCollection.Name)]
+public class StatsLimitTextTests
+{
+    private static StatsViewModel Create(IReadOnlyList<HistoryPoint> claude)
+    {
+        using var directory = TestPaths.CreateDisposableDirectory("stats-limits-text");
+        var viewModel = new StatsViewModel(new StatsStore(directory)) { LoadHistory = (id, _, _) => id == "claude" ? claude : [] };
+        viewModel.Recompute();
+        return viewModel;
+    }
+
+    private static string Date(DateTimeOffset moment) =>
+        DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(moment.LocalDateTime), LocalizationService.Instance.DisplayCulture);
+
+    [Fact]
+    public void A_row_says_how_many_cycles_hit_the_limit_when_last_and_for_how_long()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            var firstReset = DateTimeOffset.Now.AddDays(-10);
+            var secondReset = DateTimeOffset.Now.AddDays(2);
+            var lastHit = firstReset.AddMinutes(-30);
+            var latest = DateTimeOffset.Now.AddHours(-3);
+            var viewModel = Create(
+            [
+                new HistoryPoint(1, firstReset.AddMinutes(-90), WindowKind.Weekly, 100, firstReset),
+                new HistoryPoint(1, lastHit, WindowKind.Weekly, 100, firstReset),
+                new HistoryPoint(1, latest, WindowKind.Weekly, 40, secondReset),
+            ]);
+
+            var group = Assert.Single(viewModel.LimitGroups);
+            var row = Assert.Single(group.Rows);
+            Assert.Equal($"1 of 2 cycles hit the limit ({StatusTextMap.FormatPercent("50")})", row.ReachedText);
+            Assert.Equal(
+                $"Avg peak {StatusTextMap.FormatPercent("70")} · highest {StatusTextMap.FormatPercent("100")}", row.DetailText);
+            Assert.Equal($"last at the limit {Date(lastHit)} · blocked about {DurationFormatter.Describe(TimeSpan.FromMinutes(90))}", row.LastReachedText);
+            Assert.Equal($"Readings {Date(firstReset.AddMinutes(-90))} to {Date(latest)}", group.PeriodText);
+            Assert.Equal(2, row.PeriodCount);
+            Assert.Equal("Crit", row.Level);
+            Assert.Contains(row.LastReachedText, row.AutomationText, StringComparison.Ordinal);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
+
+    [Fact]
+    public void A_row_that_never_hit_the_limit_names_the_cycles_and_has_no_last_reached_line()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            var viewModel = Create([new HistoryPoint(1, DateTimeOffset.Now.AddHours(-3), WindowKind.Weekly, 40, DateTimeOffset.Now.AddDays(2))]);
+
+            var row = Assert.Single(Assert.Single(viewModel.LimitGroups).Rows);
+            Assert.Equal("Never at the limit in 1 cycles", row.ReachedText);
+            Assert.Equal("", row.LastReachedText);
+            Assert.False(row.HasLastReached);
+            Assert.Equal("Ok", row.Level);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
     }
 }
