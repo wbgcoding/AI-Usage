@@ -531,9 +531,19 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     // The Claude Console balance last read for this account; null until one was read.
     private ClaudeApiCredit? _apiCredit;
 
-    /// <summary>The "API credits: $18.40" line, empty while there is no balance above zero.</summary>
+    // True while the Console sign-in has expired (the session ended behind the profile the app holds).
+    private bool _consoleSignInExpired;
+
+    /// <summary>The Console sign-in is expired and no balance is current, so the tile and the Console row
+    /// say so instead of staying silent. A balance that still arrives (through the Claude sign-in) wins.</summary>
+    private bool ShowsExpiredCredit => _consoleSignInExpired && _apiCredit is null;
+
+    /// <summary>The "API credits: $18.40" line, empty while there is no balance above zero; "Console sign-in
+    /// expired" while the Console sign-in has expired and no balance is current.</summary>
     // A balance written as $0.00 (under half a cent) shows nothing, the same as none.
-    public string ApiCreditText => _apiCredit is { Amount: >= 0.005m } credit
+    public string ApiCreditText => ShowsExpiredCredit
+        ? LocalizationService.Instance["Tile.ApiCredit.Expired"]
+        : _apiCredit is { Amount: >= 0.005m } credit
         ? LocalizationService.Instance.Format(
             "Format.LabelValue", LocalizationService.Instance["Tile.ApiCredit.Label"],
             credit.FormatAmount(LocalizationService.Instance.DisplayCulture))
@@ -545,6 +555,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     {
         get
         {
+            if (ShowsExpiredCredit)
+                return LocalizationService.Instance["Tile.ApiCredit.ExpiredHint"];
+
             var text = ApiCreditText;
             if (text.Length == 0 || _apiCredit is not { Grant: { } grant } credit)
                 return text;
@@ -563,7 +576,9 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     /// <summary>"· $18.40" after the plan in the header: the balance needs no row of its own; the
     /// name's tooltip says what the figure is. Shown only when it fits whole beside the name.</summary>
-    public string HeaderCreditText => ShowApiCredit && _apiCredit is { } credit
+    public string HeaderCreditText => ShowApiCredit && ShowsExpiredCredit
+        ? "\u2022\u2002" + ApiCreditText
+        : ShowApiCredit && _apiCredit is { } credit
         ? "\u2022\u2002" + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
         : "";
 
@@ -682,7 +697,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     public bool ConsoleSessionExists => HasConsoleSession || _apiCreditRoute == ClaudeCreditRoute.Console;
 
     /// <summary>The Console row offers its sign-in while there is neither a Console session nor a balance.</summary>
-    public bool ShowConsoleSignIn => ShowConsoleRow && !ConsoleSessionExists && _apiCredit is null;
+    public bool ShowConsoleSignIn => ShowConsoleRow && ((!ConsoleSessionExists && _apiCredit is null) || ShowsExpiredCredit);
 
     /// <summary>The Console row offers its sign-out while the app holds a Console session.</summary>
     public bool ShowConsoleSignOut => ShowConsoleRow && ConsoleSessionExists;
@@ -694,6 +709,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         get
         {
             var loc = LocalizationService.Instance;
+            if (ShowsExpiredCredit)
+                return loc["Settings.ConsoleStatus.Expired"];
             if (_apiCredit is not null)
                 return loc[_apiCreditRoute == ClaudeCreditRoute.ClaudeSignIn ? "Settings.ConsoleStatus.ViaClaude" : "Settings.ConsoleStatus.SignedIn"];
 
@@ -718,6 +735,22 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(ConsoleSessionExists));
         OnPropertyChanged(nameof(ShowConsoleSignIn));
         OnPropertyChanged(nameof(ShowConsoleSignOut));
+        OnPropertyChanged(nameof(ConsoleStatusText));
+    }
+
+    /// <summary>Takes whether the Console sign-in has expired: the Console row then says so and offers the
+    /// sign-in again, and the credit line names it while no balance is current.</summary>
+    public void SetConsoleSignInExpired(bool expired)
+    {
+        if (_consoleSignInExpired == expired)
+            return;
+
+        _consoleSignInExpired = expired;
+        OnPropertyChanged(nameof(ApiCreditText));
+        OnPropertyChanged(nameof(ApiCreditToolTip));
+        OnPropertyChanged(nameof(ShowApiCredit));
+        OnPropertyChanged(nameof(HeaderCreditText));
+        OnPropertyChanged(nameof(ShowConsoleSignIn));
         OnPropertyChanged(nameof(ConsoleStatusText));
     }
 

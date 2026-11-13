@@ -687,6 +687,8 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>Crédits API</value></data>
   <data name="Tile.ApiCredit.Free" xml:space="preserve"><value>dont gratuit : {0}</value></data>
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>dont acheté : {0}</value></data>
+  <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Session Console expirée</value></data>
+  <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>La session Claude Console a expiré, le solde n'est donc plus lu. Reconnectez-vous dans les Paramètres, sous Claude Console (crédit API).</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Crédit offert</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} sur {1} utilisés</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Il reste {0} ; le premier crédit expire le {1}.</value></data>
@@ -697,6 +699,7 @@
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Connecté</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Connecté via la connexion Claude</value></data>
   <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Connecté · solde pas encore lu</value></data>
+  <data name="Settings.ConsoleStatus.Expired" xml:space="preserve"><value>Session expirée · reconnectez-vous pour lire le solde</value></data>
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Non connecté</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Se déconnecter de Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Utiliser uniquement les sources locales</value></data>

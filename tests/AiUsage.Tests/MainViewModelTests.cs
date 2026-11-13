@@ -1327,6 +1327,88 @@ public partial class MainViewModelTests : IDisposable
         Assert.Equal(18.40m, entry.GetProperty("apiCredit").GetProperty("amount").GetDecimal());
     }
 
+    private sealed class CreditClock : TimeProvider
+    {
+        private DateTimeOffset _now = new(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan span) => _now += span;
+    }
+
+    private sealed class NoDispose : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task AnExpiredConsoleSignInShowsOnTheTileAndKeepsTheLastBalanceWithItsReadTimeInTheStatusFile()
+    {
+        var settings = SettingsWithVisibility(("claude", true));
+        var clock = new CreditClock();
+        var consoleAnswer = "{\"status\":\"ok\",\"body\":\"{\\\"amount\\\":1840}\"}";
+        var notSignedIn = false;
+        var source = new AiUsage.Providers.ClaudeConsoleCreditSource(
+            null,
+            () => new AiUsage.Providers.ClaudeConsoleCreditSource.ConsoleRunner(
+                (script, _) => Task.FromResult(notSignedIn
+                    ? "{\"status\":\"not_signed_in\"}"
+                    : script.Contains("'/api/organizations'", StringComparison.Ordinal) ? CreditOrgsEnvelope : consoleAnswer),
+                new NoDispose()),
+            clock);
+        var webSource = new AiUsage.Providers.WebUsageSource(
+            new WebSessionDescriptor("claude", "https://claude.ai/", "https://claude.ai/login", ["claude.ai"], "claude"),
+            new AiUsage.Providers.ClaudeUsageEndpoint(), (_, _) => Task.FromResult("{\"status\":\"not_signed_in\"}"));
+        var claude = new AiUsage.Providers.ClaudeProvider(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "does-not-exist"), now: null, webSource, settings, _ => { }) { CreditSource = source };
+        var vm = new MainViewModel(new SettingsStore(TempDirectory()), settings, [claude], new HistoryStore(TempDirectory(), () => Now),
+            notifications: new NotificationService(TempDirectory()));
+        var path = Path.Combine(TempDirectory(), StatusFileWriter.FileName);
+        vm.StatusFile = new StatusFileWriter(() => path, TimeSpan.FromHours(1));
+        var window = new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(2), 300);
+        vm.OnSnapshotReady(new ProviderSnapshot("claude", [window], null, SourceKind.WebSession, Now, Now, ProviderStatus.Ok, null));
+        var tile = vm.Tiles.Single();
+        var loc = LocalizationService.Instance;
+
+        await claude.ReadApiCreditNowAsync();
+        var firstRead = clock.GetUtcNow();
+        Assert.DoesNotContain(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+        vm.StatusFile.Flush();
+        using (var good = JsonDocument.Parse(File.ReadAllText(path)))
+        {
+            var credit = good.RootElement.GetProperty("providers")[0].GetProperty("apiCredit");
+            Assert.False(credit.GetProperty("stale").GetBoolean());
+            Assert.Equal(StatusFileWriter.FormatTime(firstRead), credit.GetProperty("readAt").GetString());
+        }
+
+        notSignedIn = true;
+        clock.Advance(TimeSpan.FromHours(3));
+        await claude.ReadApiCreditNowAsync();
+
+        Assert.Contains(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+        Assert.Equal(loc["Settings.ConsoleStatus.Expired"], tile.ConsoleStatusText);
+        Assert.True(tile.ShowConsoleSignIn);
+        vm.StatusFile.Flush();
+        using (var expired = JsonDocument.Parse(File.ReadAllText(path)))
+        {
+            var credit = expired.RootElement.GetProperty("providers")[0].GetProperty("apiCredit");
+            Assert.Equal(18.40m, credit.GetProperty("amount").GetDecimal());
+            Assert.True(credit.GetProperty("stale").GetBoolean());
+            Assert.True(credit.GetProperty("signInExpired").GetBoolean());
+            Assert.Equal(StatusFileWriter.FormatTime(firstRead), credit.GetProperty("readAt").GetString());
+        }
+
+        notSignedIn = false;
+        clock.Advance(TimeSpan.FromMinutes(5));
+        await claude.ReadApiCreditNowAsync();
+
+        Assert.DoesNotContain(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+        vm.StatusFile.Flush();
+        using var again = JsonDocument.Parse(File.ReadAllText(path));
+        var fresh = again.RootElement.GetProperty("providers")[0].GetProperty("apiCredit");
+        Assert.False(fresh.GetProperty("stale").GetBoolean());
+        Assert.False(fresh.GetProperty("signInExpired").GetBoolean());
+        Assert.Equal(StatusFileWriter.FormatTime(clock.GetUtcNow()), fresh.GetProperty("readAt").GetString());
+    }
+
     [Fact]
     public void TheStatusFileListsAHiddenTileAndKeepsTheLastNumbersThroughAFailedRead()
     {

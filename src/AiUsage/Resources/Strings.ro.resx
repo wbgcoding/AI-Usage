@@ -687,6 +687,8 @@
   <data name="Tile.ApiCredit.Label" xml:space="preserve"><value>Credite API</value></data>
   <data name="Tile.ApiCredit.Free" xml:space="preserve"><value>din care gratuit: {0}</value></data>
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>din care cumpărat: {0}</value></data>
+  <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Autentificarea la Console a expirat</value></data>
+  <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Autentificarea la Claude Console a expirat, așa că soldul nu mai este citit. Autentifică-te din nou în Setări, la Claude Console (credit API).</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Credit gratuit</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} din {1} folosiți</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Mai rămân {0}; primul credit expiră la {1}.</value></data>
@@ -697,6 +699,7 @@
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Conectat</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Conectat prin conectarea la Claude</value></data>
   <data name="Settings.ConsoleStatus.NoBalance" xml:space="preserve"><value>Conectat · soldul nu a fost citit încă</value></data>
+  <data name="Settings.ConsoleStatus.Expired" xml:space="preserve"><value>Autentificarea a expirat · autentifică-te din nou pentru a citi soldul</value></data>
   <data name="Settings.ConsoleStatus.SignedOut" xml:space="preserve"><value>Neconectat</value></data>
   <data name="Settings.ConsoleSignOut" xml:space="preserve"><value>Deconectare de la Claude Console</value></data>
   <data name="Settings.LocalOnly" xml:space="preserve"><value>Folosește doar surse locale</value></data>

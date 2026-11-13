@@ -46,6 +46,9 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     private ClaudeCreditRoute _preferredRoute;
     private bool _consoleOff;
     private DateTimeOffset _creditReadAt;
+    // The last good balance with its read time and route, kept beyond KeepFor for the status file.
+    private (ClaudeApiCredit Credit, DateTimeOffset ReadAt, ClaudeCreditRoute Route)? _lastKnown;
+    private bool _consoleSignInExpired;
     private DateTimeOffset? _lastAttemptAt;
     private DateTimeOffset? _consoleBlockedUntil;
     private ConsoleRunner? _console;
@@ -74,7 +77,7 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     private readonly Action<StoredApiCredit?>? _saveStored;
 
     /// <summary>Takes over the balance of the last run: shown while it is younger than <see cref="KeepFor"/>,
-    /// and its route tells where to ask first either way. Anything unreadable is ignored.</summary>
+    /// kept as <see cref="LastKnown"/> either way, and its route tells where to ask first. Anything unreadable is ignored.</summary>
     private void TakeStored(Func<StoredApiCredit?>? load)
     {
         StoredApiCredit? stored;
@@ -97,13 +100,15 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
             return;
 
         _preferredRoute = stored.Route;
-        if (now - stored.ReadAt >= KeepFor)
-            return;
-
         ClaudeCreditGrant? grant = stored.Granted is { } granted && stored.Remaining is { } remaining
             ? new ClaudeCreditGrant(granted, remaining, stored.NextExpiry)
             : null;
-        _credit = new ClaudeApiCredit(stored.Amount, stored.Currency!.ToUpperInvariant(), grant);
+        var credit = new ClaudeApiCredit(stored.Amount, stored.Currency!.ToUpperInvariant(), grant);
+        _lastKnown = (credit, stored.ReadAt, stored.Route);
+        if (now - stored.ReadAt >= KeepFor)
+            return;
+
+        _credit = credit;
         _creditRoute = stored.Route;
         _creditReadAt = stored.ReadAt;
     }
@@ -147,6 +152,42 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         {
             lock (_gate)
                 return _credit is not null && _time.GetUtcNow() - _creditReadAt < KeepFor ? _credit : null;
+        }
+    }
+
+    /// <summary>True while the Console sign-in answered "not signed in" and no Console read has delivered since:
+    /// the app still holds the profile, but the session behind it ended and only a new sign-in brings it back.</summary>
+    internal bool ConsoleSignInExpired
+    {
+        get
+        {
+            lock (_gate)
+                return _consoleSignInExpired;
+        }
+    }
+
+    /// <summary>The last good balance with its read time, however old; null until one was read (or after the
+    /// Console sign-out that delivered it). <see cref="Current"/> drops it after <see cref="KeepFor"/>, this stays.</summary>
+    internal (ClaudeApiCredit Credit, DateTimeOffset ReadAt)? LastKnown
+    {
+        get
+        {
+            lock (_gate)
+                return _lastKnown is { } known ? (known.Credit, known.ReadAt) : null;
+        }
+    }
+
+    /// <summary>What the status file says about the balance: <see cref="LastKnown"/> with its read time,
+    /// stale once older than <see cref="KeepFor"/> or while the Console sign-in is expired. Null without a reading.</summary>
+    internal ApiCreditReading? StatusReading()
+    {
+        lock (_gate)
+        {
+            if (_lastKnown is not { } known)
+                return null;
+
+            return new ApiCreditReading(
+                known.Credit, known.ReadAt, _consoleSignInExpired || _time.GetUtcNow() - known.ReadAt >= KeepFor, _consoleSignInExpired);
         }
     }
 
@@ -196,14 +237,19 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     internal async Task ReadNowAsync()
     {
         Task pending;
+        bool expiredCleared;
         lock (_gate)
         {
             _consoleBlockedUntil = null;
             _consoleOff = false;
             _lastAttemptAt = null;
             pending = _running;
+            expiredCleared = _consoleSignInExpired;
+            _consoleSignInExpired = false;
         }
 
+        if (expiredCleared)
+            Changed?.Invoke();
         await pending;
         await RefreshIfDueAsync();
     }
@@ -289,8 +335,17 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         outcome.Add("console " + Word(step) + stage);
         if (step == Step.NotSignedIn)
         {
+            var expiredNow = false;
             lock (_gate)
+            {
                 _consoleBlockedUntil = _time.GetUtcNow() + ConsoleBackoff;
+                // A profile exists, so a sign-in did: its session ended. Not after a sign-out or a shutdown.
+                if (!_disposed && !_consoleOff && _hasProfile() && !_consoleSignInExpired)
+                    expiredNow = _consoleSignInExpired = true;
+            }
+
+            if (expiredNow)
+                Changed?.Invoke();
         }
 
         return step;
@@ -399,11 +454,20 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
             if (_disposed || (route == ClaudeCreditRoute.Console && _consoleOff))
                 return;
 
-            changed = _credit != credit || _creditRoute != route;
+            // Also when the balance was unchanged but had aged out of Current: it is shown again, and the
+            // status file's read time moves on.
+            changed = _credit != credit || _creditRoute != route || _time.GetUtcNow() - _creditReadAt >= KeepFor;
+            if (route == ClaudeCreditRoute.Console && _consoleSignInExpired)
+            {
+                _consoleSignInExpired = false;
+                changed = true;
+            }
+
             _credit = credit;
             _creditRoute = route;
             _preferredRoute = route;
             _creditReadAt = _time.GetUtcNow();
+            _lastKnown = (credit, _creditReadAt, route);
             stored = ToStored(credit, route, _creditReadAt);
         }
 
@@ -493,9 +557,13 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         bool storedGoes;
         lock (_gate)
         {
-            changed = _credit is not null && _creditRoute == ClaudeCreditRoute.Console;
-            storedGoes = changed || _preferredRoute == ClaudeCreditRoute.Console;
-            if (changed)
+            var creditGoes = _credit is not null && _creditRoute == ClaudeCreditRoute.Console;
+            changed = creditGoes || _consoleSignInExpired;
+            storedGoes = creditGoes || _preferredRoute == ClaudeCreditRoute.Console;
+            _consoleSignInExpired = false;
+            if (_lastKnown is { Route: ClaudeCreditRoute.Console })
+                _lastKnown = null;
+            if (creditGoes)
             {
                 _credit = null;
                 _creditRoute = ClaudeCreditRoute.None;

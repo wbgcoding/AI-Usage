@@ -415,7 +415,7 @@ public sealed partial class MainViewModel
                 tile.HasConsoleSession = ConsoleProfileExists(accountKey);
                 if (_statusReadings.TryGetValue(accountKey, out var reading))
                 {
-                    _statusReadings[accountKey] = reading with { ApiCredit = claude.CurrentApiCredit };
+                    _statusReadings[accountKey] = reading with { ApiCredit = StatusCreditOf(claude, DateTimeOffset.Now) };
                     QueueStatusFile(DateTimeOffset.Now);
                 }
             }

@@ -224,6 +224,77 @@ public class ClaudeConsoleCreditSourceTests
     }
 
     [Fact]
+    public async Task A_console_that_says_not_signed_in_marks_the_sign_in_expired_and_a_good_read_clears_it()
+    {
+        var time = new ManualTime();
+        var console = new FakeRunner();
+        var source = new ClaudeConsoleCreditSource(null, console.AsConsole, time);
+        var changes = 0;
+        source.Changed += () => changes++;
+        await source.RefreshIfDueAsync();
+        Assert.False(source.ConsoleSignInExpired);
+        var readAt = time.GetUtcNow();
+
+        console.Organizations = NotSignedIn;
+        time.Advance(TimeSpan.FromHours(3));
+        await source.RefreshIfDueAsync();
+
+        Assert.True(source.ConsoleSignInExpired);
+        Assert.Null(source.Current);
+        Assert.Equal(18.40m, source.LastKnown!.Value.Credit.Amount);
+        Assert.Equal(readAt, source.LastKnown.Value.ReadAt);
+        var reading = source.StatusReading()!;
+        Assert.True(reading.Stale);
+        Assert.True(reading.SignInExpired);
+        var changesWhenExpired = changes;
+
+        console.Organizations = OrgsOk;
+        await source.ReadNowAsync();
+
+        Assert.False(source.ConsoleSignInExpired);
+        Assert.Equal(18.40m, source.Current!.Amount);
+        Assert.Equal(time.GetUtcNow(), source.LastKnown!.Value.ReadAt);
+        Assert.False(source.StatusReading()!.Stale);
+        Assert.True(changes > changesWhenExpired);
+    }
+
+    [Fact]
+    public async Task A_console_without_a_profile_or_after_sign_out_is_not_called_expired()
+    {
+        var time = new ManualTime();
+        var hasProfile = true;
+        var console = new FakeRunner { Organizations = NotSignedIn };
+        var source = new ClaudeConsoleCreditSource(null, console.AsConsole, time, () => hasProfile);
+        hasProfile = false;
+        await source.RefreshIfDueAsync();
+        Assert.False(source.ConsoleSignInExpired);
+
+        hasProfile = true;
+        await source.ReadNowAsync();
+        Assert.True(source.ConsoleSignInExpired);
+
+        await source.DisconnectConsoleAsync();
+        Assert.False(source.ConsoleSignInExpired);
+        time.Advance(TimeSpan.FromHours(7));
+        await source.RefreshIfDueAsync();
+        Assert.False(source.ConsoleSignInExpired);
+    }
+
+    [Fact]
+    public void A_stored_balance_older_than_the_keep_time_stays_known_but_is_not_current()
+    {
+        var time = new ManualTime();
+        var source = new ClaudeConsoleCreditSource(
+            null, () => new FakeRunner().AsConsole(), time, loadStored: () => Stored(time, TimeSpan.FromHours(5), ClaudeCreditRoute.Console));
+
+        Assert.Null(source.Current);
+        Assert.NotNull(source.LastKnown);
+        Assert.Equal(time.GetUtcNow() - TimeSpan.FromHours(5), source.LastKnown.Value.ReadAt);
+        Assert.True(source.StatusReading()!.Stale);
+        Assert.False(source.StatusReading()!.SignInExpired);
+    }
+
+    [Fact]
     public async Task A_blocked_answer_from_the_preferred_console_stops_the_read()
     {
         var time = new ManualTime();

@@ -101,6 +101,28 @@ public sealed class StatusFileTests : IDisposable
     }
 
     [Fact]
+    public void AStaleApiCreditKeepsItsReadTimeAndSaysTheSignInExpired()
+    {
+        var readAt = Now.AddHours(-5);
+        var credit = new ClaudeApiCredit(18.40m, "USD");
+        var stale = Claude() with { ApiCredit = credit, ApiCreditInfo = new ApiCreditReading(credit, readAt, true, true) };
+        var fresh = Claude() with { ApiCredit = credit, ApiCreditInfo = new ApiCreditReading(credit, Now, false, false) };
+
+        using var staleDocument = JsonDocument.Parse(StatusFileWriter.BuildJson([stale], Now));
+        using var freshDocument = JsonDocument.Parse(StatusFileWriter.BuildJson([fresh], Now));
+
+        var old = staleDocument.RootElement.GetProperty("providers")[0].GetProperty("apiCredit");
+        Assert.Equal(["amount", "currency", "readAt", "stale", "signInExpired"], old.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(StatusFileWriter.FormatTime(readAt), old.GetProperty("readAt").GetString());
+        Assert.True(old.GetProperty("stale").GetBoolean());
+        Assert.True(old.GetProperty("signInExpired").GetBoolean());
+        var current = freshDocument.RootElement.GetProperty("providers")[0].GetProperty("apiCredit");
+        Assert.Equal(StatusFileWriter.FormatTime(Now), current.GetProperty("readAt").GetString());
+        Assert.False(current.GetProperty("stale").GetBoolean());
+        Assert.False(current.GetProperty("signInExpired").GetBoolean());
+    }
+
+    [Fact]
     public void AGrantGoesIntoTheApiCreditBlock()
     {
         var expiry = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero);

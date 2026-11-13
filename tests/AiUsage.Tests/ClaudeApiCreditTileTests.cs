@@ -33,6 +33,34 @@ public class ClaudeApiCreditTileTests
     }
 
     [Fact]
+    public void An_expired_console_sign_in_is_named_on_the_tile_and_offered_again_in_the_settings()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { HasConsoleSession = true };
+        tile.Apply(Snapshot(null), Now);
+        var loc = LocalizationService.Instance;
+        Assert.False(tile.ShowApiCredit);
+        Assert.False(tile.ShowConsoleSignIn);
+        Assert.Equal(loc["Settings.ConsoleStatus.NoBalance"], tile.ConsoleStatusText);
+
+        tile.SetConsoleSignInExpired(true);
+
+        Assert.True(tile.ShowApiCredit);
+        Assert.Contains(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+        Assert.Equal(loc["Tile.ApiCredit.ExpiredHint"], tile.ApiCreditToolTip);
+        Assert.Equal(loc["Settings.ConsoleStatus.Expired"], tile.ConsoleStatusText);
+        Assert.True(tile.ShowConsoleSignIn);
+        Assert.True(tile.ShowConsoleSignOut);
+
+        tile.SetApiCredit(new ClaudeApiCredit(18.40m, "USD"), ClaudeCreditRoute.Console);
+        Assert.DoesNotContain(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+
+        tile.SetApiCredit(null);
+        tile.SetConsoleSignInExpired(false);
+        Assert.False(tile.ShowApiCredit);
+        Assert.False(tile.ShowConsoleSignIn);
+    }
+
+    [Fact]
     public void A_positive_balance_shows_as_a_label_and_value_line()
     {
         var tile = new ProviderTileViewModel("claude", "Claude");

@@ -298,6 +298,16 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>Which sign-in delivered <see cref="CurrentApiCredit"/>.</summary>
     internal ClaudeCreditRoute CurrentApiCreditRoute => CurrentApiCredit is null ? ClaudeCreditRoute.None : CreditSource?.CurrentRoute ?? ClaudeCreditRoute.None;
 
+    /// <summary>True while the Console sign-in has expired: the profile exists, the session behind it ended.</summary>
+    internal bool ConsoleSignInExpired => _webSource is not null && !LocalOnly && CreditSource?.ConsoleSignInExpired == true;
+
+    /// <summary>The last good balance and when it was read, however old (the status file keeps it).</summary>
+    internal (ClaudeApiCredit Credit, DateTimeOffset ReadAt)? LastKnownApiCredit =>
+        _webSource is null || LocalOnly ? null : CreditSource?.LastKnown;
+
+    /// <summary>The last balance as the status file states it: read time, stale and expired flags.</summary>
+    internal ApiCreditReading? StatusApiCredit => _webSource is null || LocalOnly ? null : CreditSource?.StatusReading();
+
     /// <summary>The user signed out of the Claude Console: its session closes and its reads stop until the next console sign-in.</summary>
     internal Task DisconnectConsoleAsync() => CreditSource?.DisconnectConsoleAsync() ?? Task.CompletedTask;
 

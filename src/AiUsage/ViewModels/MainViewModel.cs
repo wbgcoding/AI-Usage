@@ -42,7 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     // What the status file shows per account: the newest state and the newest windows that carried
     // any, so a failed read still lists the last numbers next to its state, like the tile does.
-    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows, ClaudeExtraUsage? Extra, ClaudeApiCredit? ApiCredit)> _statusReadings = new();
+    private readonly Dictionary<string, (ProviderStatus Status, IReadOnlyList<UsageWindow> Windows, ClaudeExtraUsage? Extra, ApiCreditReading? ApiCredit)> _statusReadings = new();
 
     /// <summary>Writes <c>status.json</c> after snapshots; null (no file) in every test and design-time path.</summary>
     internal StatusFileWriter? StatusFile { get; set; }
@@ -1676,7 +1676,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             .Select(tile => new StatusEntry(
                 tile.ProviderId, tile.DisplayName, tile.HasOwnAccountName ? tile.AccountName : null,
                 _statusReadings[tile.ProviderId].Status, _statusReadings[tile.ProviderId].Windows, _statusReadings[tile.ProviderId].Extra,
-                _statusReadings[tile.ProviderId].ApiCredit));
+                _statusReadings[tile.ProviderId].ApiCredit?.Credit, _statusReadings[tile.ProviderId].ApiCredit));
         writer.Schedule(StatusFileWriter.BuildJson(entries, now));
     }
 
@@ -1783,8 +1783,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 && _statusReadings.ContainsKey(snapshot.ProviderId);
             var before = keepLast ? _statusReadings[snapshot.ProviderId] : default;
             _statusReadings[snapshot.ProviderId] = keepLast
-                ? (snapshot.Status, before.Windows, before.Extra, snapshot.ApiCredit)
-                : (snapshot.Status, snapshot.Windows, snapshot.Extra, snapshot.ApiCredit);
+                ? (snapshot.Status, before.Windows, before.Extra, StatusCreditOf(snapshot, now))
+                : (snapshot.Status, snapshot.Windows, snapshot.Extra, StatusCreditOf(snapshot, now));
             QueueStatusFile(now);
             SnapshotApplied?.Invoke();
         }
@@ -1810,12 +1810,23 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         var credit = claude.CurrentApiCredit;
         tile.SetApiCredit(credit, claude.CurrentApiCreditRoute);
+        tile.SetConsoleSignInExpired(claude.ConsoleSignInExpired);
         if (credit?.Grant is { } grant)
         {
             _historyStore.Append(ApiGrantHistoryId(accountKey), WindowKind.Other, grant.UsedFraction * 100, grant.NextExpiry, label: "Tile.ApiGrant.Label");
             RefreshTileHistory(accountKey);
         }
     }
+
+    /// <summary>The balance of a snapshot as the status file keeps it: a Claude account's last known balance with
+    /// its read time (also when too old for the tile), any other provider's balance as of now.</summary>
+    private ApiCreditReading? StatusCreditOf(ProviderSnapshot snapshot, DateTimeOffset now) =>
+        _providersByKey.TryGetValue(snapshot.ProviderId, out var provider) && provider is ClaudeProvider claude
+            ? StatusCreditOf(claude, now) ?? (snapshot.ApiCredit is { } credit ? new ApiCreditReading(credit, now, false, false) : null)
+            : snapshot.ApiCredit is { } other ? new ApiCreditReading(other, now, false, false) : null;
+
+    private static ApiCreditReading? StatusCreditOf(ClaudeProvider claude, DateTimeOffset now) =>
+        claude.StatusApiCredit ?? (claude.CurrentApiCredit is { } credit ? new ApiCreditReading(credit, now, false, false) : null);
 
     /// <summary>A balance read landed between two usage reads: the tile and the status file take it at once.
     /// Raised on a pool thread, so the work moves to the UI thread like a snapshot does.</summary>
@@ -1826,11 +1837,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (!_tilesById.TryGetValue(accountKey, out var tile) || _providersByKey[accountKey] is not ClaudeProvider claude)
                 return;
 
-            var credit = claude.CurrentApiCredit;
             ApplyApiCredit(tile, accountKey, claude);
             if (_statusReadings.TryGetValue(accountKey, out var reading))
             {
-                _statusReadings[accountKey] = reading with { ApiCredit = credit };
+                _statusReadings[accountKey] = reading with { ApiCredit = StatusCreditOf(claude, DateTimeOffset.Now) };
                 QueueStatusFile(DateTimeOffset.Now);
             }
         }

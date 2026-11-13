@@ -12,7 +12,12 @@ namespace AiUsage.Services;
 /// the API credit balance of the account's Claude Console, null while none was read.</summary>
 public sealed record StatusEntry(
     string Id, string Name, string? Account, ProviderStatus Status, IReadOnlyList<UsageWindow> Windows,
-    ClaudeExtraUsage? Extra = null, ClaudeApiCredit? ApiCredit = null);
+    ClaudeExtraUsage? Extra = null, ClaudeApiCredit? ApiCredit = null, ApiCreditReading? ApiCreditInfo = null);
+
+/// <summary>The last API credit balance read with when it was read. <see cref="Stale"/> says it is older than
+/// the tile keeps it or the Console sign-in it came from expired; <see cref="SignInExpired"/> that the Console
+/// sign-in expired, so no newer balance will come before a new sign-in.</summary>
+public sealed record ApiCreditReading(ClaudeApiCredit Credit, DateTimeOffset ReadAt, bool Stale, bool SignInExpired);
 
 /// <summary>
 /// The small <c>status.json</c> other programs read (a terminal prompt, a status line): one entry per
@@ -160,7 +165,7 @@ public sealed class StatusFileWriter : IDisposable
                 if (entry.Extra is { } extra)
                     WriteExtra(json, extra);
                 if (entry.ApiCredit is { } credit)
-                    WriteApiCredit(json, credit);
+                    WriteApiCredit(json, credit, entry.ApiCreditInfo);
                 json.WriteEndObject();
             }
 
@@ -193,12 +198,20 @@ public sealed class StatusFileWriter : IDisposable
     }
 
     // Added key only, like "extra": the balance in major units; "grant" (the free credit of the plan: granted, remaining,
-    // nextExpiry) only when the console lists one.
-    private static void WriteApiCredit(Utf8JsonWriter json, ClaudeApiCredit credit)
+    // nextExpiry) only when the console lists one. "readAt" is when the balance was read, "stale" true once it is
+    // older than the tile keeps it or the Console sign-in expired, "signInExpired" the Console sign-in's state.
+    private static void WriteApiCredit(Utf8JsonWriter json, ClaudeApiCredit credit, ApiCreditReading? info)
     {
         json.WriteStartObject("apiCredit");
         json.WriteNumber("amount", credit.Amount);
         json.WriteString("currency", credit.Currency);
+        if (info is not null)
+        {
+            json.WriteString("readAt", FormatTime(info.ReadAt));
+            json.WriteBoolean("stale", info.Stale);
+            json.WriteBoolean("signInExpired", info.SignInExpired);
+        }
+
         if (credit.Grant is { } grant)
         {
             json.WriteStartObject("grant");
