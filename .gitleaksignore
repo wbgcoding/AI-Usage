@@ -1,0 +1,2 @@
+# Made-up unsigned test token (alg none, empty payload) in the sanitizer tests
+d827117cc874d65571e55acb32d0d99dc6ccc301:tests/AiUsage.Tests/PathSanitizerTests.cs:jwt:188
