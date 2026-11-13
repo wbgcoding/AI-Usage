@@ -13,6 +13,7 @@ namespace AiUsage.Tests;
 /// a Stale tile must still count, since it keeps showing its last real numbers (dimmed) on the main
 /// page and should not silently vanish from the tray the moment a fetch goes stale.
 /// </summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class MainWindowTrayLinesTests
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
@@ -210,6 +211,60 @@ public class MainWindowTrayLinesTests
         MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, "Auto", "Weekly");
 
         Assert.Equal(55, percent);
+    }
+
+    private static ProviderTileViewModel TileWithWindows(string id, params UsageWindow[] windows)
+    {
+        var tile = new ProviderTileViewModel(id, id, null);
+        tile.Apply(
+            new ProviderSnapshot(id, windows, null, SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null),
+            Now);
+        return tile;
+    }
+
+    [Fact]
+    public void AChosenFiveHourWindowThatThePlanDroppedMovesOnToTheWeeklyWindow()
+    {
+        // A plan without a five-hour window: weekly at 30, a model row at 80. The tray shows the
+        // weekly number, not the highest row.
+        var tiles = new[]
+        {
+            TileWithWindows("claude",
+                new UsageWindow("Window_Weekly", WindowKind.Weekly, 30, Now.AddDays(3), 10080),
+                new UsageWindow("Window_Opus", WindowKind.Other, 80, Now.AddDays(3), 10080)),
+        };
+
+        MainWindow.TryComputeTraySummary(tiles, new TrayTooltipMemo(), out _, out _, out var percent, out _, "claude", "FiveHour");
+
+        Assert.Equal(30, percent);
+    }
+
+    [Fact]
+    public void AChosenWindowHiddenOnTheTileMovesOnToTheNextShownWindow()
+    {
+        var tile = TileWithWindows("claude",
+            new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 90, Now.AddHours(2), 300),
+            new UsageWindow("Window_Weekly", WindowKind.Weekly, 25, Now.AddDays(3), 10080),
+            new UsageWindow("Window_Opus", WindowKind.Other, 60, Now.AddDays(3), 10080));
+        tile.ShowFiveHour = false;
+
+        MainWindow.TryComputeTraySummary([tile], new TrayTooltipMemo(), out _, out _, out var percent, out _, "claude", "FiveHour");
+
+        Assert.Equal(25, percent);
+    }
+
+    [Fact]
+    public void ADroppedFallbackComesBackToTheStoredWindowOnceItIsShownAgain()
+    {
+        var memo = new TrayTooltipMemo();
+        var ultra = new[] { TileWithWindows("claude", new UsageWindow("Window_Weekly", WindowKind.Weekly, 30, Now.AddDays(3), 10080)) };
+        MainWindow.TryComputeTraySummary(ultra, memo, out _, out _, out var fallback, out _, "claude", "FiveHour");
+
+        var pro = new[] { TileWithBothWindows("claude", fiveHour: 12, weekly: 30) };
+        MainWindow.TryComputeTraySummary(pro, memo, out _, out _, out var back, out _, "claude", "FiveHour");
+
+        Assert.Equal(30, fallback);
+        Assert.Equal(12, back);
     }
 
     [Fact]

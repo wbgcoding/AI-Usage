@@ -494,6 +494,9 @@ public partial class MainWindow : Window, IDisposable
         var pinned = shown.FirstOrDefault(t => t.ProviderId == trayProvider);
 
         var visibleRows = (pinned is null ? shown : [pinned]).SelectMany(t => t.Rows.Select(r => (Tile: t, Row: r))).ToList();
+        // A chosen window the tile no longer shows (a plan without it, a hidden row) moves on to the
+        // next one the tile does show, rather than to the highest of all.
+        trayWindow = MainViewModel.ResolveTrayWindow(trayWindow, [.. visibleRows.Select(r => (r.Row.Kind, r.Row.Label))]);
         if (trayWindow is not null && trayWindow.StartsWith(MainViewModel.TrayWindowLabelPrefix, StringComparison.Ordinal))
         {
             var label = trayWindow[MainViewModel.TrayWindowLabelPrefix.Length..];

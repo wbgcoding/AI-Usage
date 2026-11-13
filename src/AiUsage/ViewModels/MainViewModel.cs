@@ -372,9 +372,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Which window the tray icon shows, see <see cref="AppSettings.TrayWindow"/>.</summary>
     public string TrayWindow => _settings.TrayWindow;
 
-    /// <summary>A stored window the chosen provider does not report shows as automatic here, which
-    /// is also what the tray icon falls back to for it; the stored value itself is kept, so it comes
-    /// back once that window is reported again.</summary>
+    /// <summary>A stored window the chosen provider does not report shows the window the tray icon
+    /// moves on to instead (see <see cref="ResolveTrayWindow"/>); the stored value itself is kept, so
+    /// it comes back once that window is reported again.</summary>
     public Choice<string>? SelectedTrayWindowChoice
     {
         get => TrayWindowChoices.FirstOrDefault(c => c.IsSelected);
@@ -406,7 +406,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The picker's rows beyond Auto/FiveHour/Weekly: one per distinct Other-row label the
     /// chosen provider (or, on automatic provider, any tile) has reported, display text = that row's
     /// own resolved name, so two Other rows (Cursor's model breakdown, for instance) can be told apart.
-    /// A stored kind no current tile reports falls back to automatic.</summary>
+    /// A stored kind no current tile reports selects the window <see cref="ResolveTrayWindow"/> moves on to.</summary>
     private void RebuildTrayWindowChoices()
     {
         var pinned = Tiles.FirstOrDefault(t => t.ProviderId == _settings.TrayProvider);
@@ -428,10 +428,55 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         foreach (var toggle in otherToggles)
             TrayWindowChoices.Add(Choice.WithFixedLabel(toggle.DisplayText, TrayWindowLabelPrefix + toggle.Label));
 
+        var available = TrayWindowChoices.Skip(1).Select(c => c.Value.StartsWith(TrayWindowLabelPrefix, StringComparison.Ordinal)
+            ? (WindowKind.Other, c.Value[TrayWindowLabelPrefix.Length..])
+            : (Enum.Parse<WindowKind>(c.Value), "")).ToList();
         var stored = _settings.TrayWindow == "Other" ? TrayProviderAuto
-            : TrayWindowChoices.Any(c => c.Value == _settings.TrayWindow) ? _settings.TrayWindow : TrayProviderAuto;
+            : ResolveTrayWindow(_settings.TrayWindow, available) ?? TrayProviderAuto;
         Choice.Select(TrayWindowChoices, stored);
         OnPropertyChanged(nameof(SelectedTrayWindowChoice));
+    }
+
+    /// <summary>The window the tray follows when <paramref name="stored"/> is gone from <paramref
+    /// name="available"/> (a plan change dropped the five-hour window, the row was hidden): the next
+    /// window after it in the order five-hour, weekly, the other rows, else the nearest one before it;
+    /// null when nothing is left. The stored choice itself is kept, so it comes back with its window.
+    /// Automatic and the legacy "Other" value pass through unchanged.</summary>
+    internal static string? ResolveTrayWindow(string? stored, IReadOnlyList<(WindowKind Kind, string Label)> available)
+    {
+        if (stored is null or TrayProviderAuto or "Other")
+            return stored;
+
+        static int Rank(WindowKind kind) => kind switch { WindowKind.FiveHour => 0, WindowKind.Weekly => 1, _ => 2 };
+        static string Value((WindowKind Kind, string Label) window) =>
+            window.Kind == WindowKind.Other ? TrayWindowLabelPrefix + window.Label : window.Kind.ToString();
+
+        int storedRank;
+        if (stored.StartsWith(TrayWindowLabelPrefix, StringComparison.Ordinal))
+        {
+            var label = stored[TrayWindowLabelPrefix.Length..];
+            if (available.Any(w => w.Kind == WindowKind.Other && w.Label == label))
+                return stored;
+            storedRank = 2;
+        }
+        else if (Enum.TryParse<WindowKind>(stored, out var kind) && kind != WindowKind.Other)
+        {
+            if (available.Any(w => w.Kind == kind))
+                return stored;
+            storedRank = Rank(kind);
+        }
+        else
+        {
+            return stored;
+        }
+
+        // Distinct per tray value, standard kinds first, the other rows in their own order.
+        var ordered = available.GroupBy(Value).Select(g => g.First()).OrderBy(w => Rank(w.Kind)).ToList();
+        var next = ordered.FirstOrDefault(w => Rank(w.Kind) > storedRank || (storedRank == 2 && w.Kind == WindowKind.Other));
+        if (next != default)
+            return Value(next);
+        var before = ordered.LastOrDefault(w => Rank(w.Kind) < storedRank);
+        return before != default ? Value(before) : null;
     }
 
     [ObservableProperty]
