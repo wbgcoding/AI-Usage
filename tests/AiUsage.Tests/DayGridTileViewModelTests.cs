@@ -13,6 +13,7 @@ namespace AiUsage.Tests;
 /// cref="StatsStore"/>. The visual embedding into <see cref="Views.Controls.DayGridTile"/> is covered
 /// by the widget's own VM verification instead - nothing here touches a visual tree.
 /// </summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class DayGridTileViewModelTests
 {
     [Fact]

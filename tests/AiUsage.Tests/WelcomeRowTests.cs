@@ -5,6 +5,7 @@ using AiUsage.Views;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class WelcomeRowTests
 {
     private static ProviderTileViewModel TileWith(string id, ProviderStatus status)

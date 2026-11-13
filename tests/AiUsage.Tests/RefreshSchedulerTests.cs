@@ -3,6 +3,7 @@ using AiUsage.Services;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class RefreshSchedulerTests
 {
     private static readonly TimeSpan BaseInterval = TimeSpan.FromSeconds(60);

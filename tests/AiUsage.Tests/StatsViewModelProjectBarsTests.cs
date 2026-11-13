@@ -4,6 +4,7 @@ using AiUsage.Stats;
 namespace AiUsage.Tests;
 
 /// <summary>How the project grouping names its bars and rows.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class StatsViewModelProjectBarsTests
 {
     private static StatsViewModel Create(params string[] projects) => Create(_ => true, projects);

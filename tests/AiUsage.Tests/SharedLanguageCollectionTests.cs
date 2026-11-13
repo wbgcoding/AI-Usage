@@ -11,8 +11,16 @@ public class SharedLanguageCollectionTests
         @"(?<attributes>(?:^[ \t]*\[[^\]\r\n]*\][ \t]*\r?\n)*)^[ \t]*(?:public|internal)\s+(?:(?:sealed|static|partial|abstract)\s+)*class\s+(?<name>\w+)",
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
-    /// <summary>The classes in <paramref name="source"/> whose body calls <c>SetLanguage(</c> while their
-    /// attributes name no collection.</summary>
+    /// <summary>A switch of the language, or a read of a localized text: a class that reads one and
+    /// compares it with the app's output races a switch in another class just as a switcher does.</summary>
+    private static readonly Regex LanguageUse = new(
+        @"SetLanguage\(|LocalizationService\.Instance(?:\[|\.Format\()|\b[Ll]oc\[",
+        RegexOptions.CultureInvariant);
+
+    private static readonly Regex LineComment = new(@"^[ \t]*//.*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>The classes in <paramref name="source"/> whose body switches the language or reads a
+    /// localized text while their attributes name no collection.</summary>
     internal static List<string> UnguardedLanguageSwitchers(string source)
     {
         var headers = ClassHeader.Matches(source);
@@ -21,8 +29,8 @@ public class SharedLanguageCollectionTests
         {
             var start = headers[i].Index + headers[i].Length;
             var end = i + 1 < headers.Count ? headers[i + 1].Index : source.Length;
-            var body = source[start..end];
-            if (body.Contains("SetLanguage(", StringComparison.Ordinal)
+            var body = LineComment.Replace(source[start..end], "");
+            if (LanguageUse.IsMatch(body)
                 && !headers[i].Groups["attributes"].Value.Contains("Collection(", StringComparison.Ordinal))
                 found.Add(headers[i].Groups["name"].Value);
         }
@@ -58,10 +66,16 @@ public class SharedLanguageCollectionTests
 
             public class Unrelated
             {
+                // reads loc["Key"] only in this comment
                 void C() { }
+            }
+
+            public class Reader
+            {
+                void D() => Assert.Equal(LocalizationService.Instance["Key"], Shown());
             }
             """;
 
-        Assert.Equal(["Unguarded"], UnguardedLanguageSwitchers(source));
+        Assert.Equal(["Unguarded", "Reader"], UnguardedLanguageSwitchers(source));
     }
 }

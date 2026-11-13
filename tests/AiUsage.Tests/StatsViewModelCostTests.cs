@@ -7,6 +7,7 @@ namespace AiUsage.Tests;
 
 /// <summary>The cost estimate as the statistics view model shows it: header, provider rows, bar
 /// tooltips, sessions and the export.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class StatsViewModelCostTests
 {
     private const string PriceJson = """

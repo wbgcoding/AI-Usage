@@ -11,6 +11,7 @@ namespace AiUsage.Tests;
 
 /// <summary>The bar color by token share: which modes a provider offers, how a window's token rows
 /// become colored parts, and how those parts lay out across the filled width.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class BarColorTests
 {
     private const string Main = "Main agent";

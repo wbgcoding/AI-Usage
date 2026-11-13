@@ -6,6 +6,7 @@ namespace AiUsage.Tests;
 
 /// <summary>Importing another PC's token index: filed per machine id, idempotent, removable, and never
 /// touching this PC's own rows.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public sealed class StatsMachineImportTests : IDisposable
 {
     private const string Own = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";

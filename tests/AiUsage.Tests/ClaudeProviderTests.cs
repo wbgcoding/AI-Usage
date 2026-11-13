@@ -6,6 +6,7 @@ using AiUsage.Web;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class ClaudeProviderTests : IDisposable
 {
     private static readonly ClaudeUsageEndpoint ClaudeEndpoint = new();

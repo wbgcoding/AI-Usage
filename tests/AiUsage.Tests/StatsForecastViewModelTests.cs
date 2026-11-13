@@ -8,6 +8,7 @@ namespace AiUsage.Tests;
 
 /// <summary>The plan forecast section of the statistics view model: which provider it shows and how the
 /// buttons pick, the plan line, and the fractions behind the gauge, model and month bars.</summary>
+[Collection(SharedStateTestsCollection.Name)]
 public class StatsForecastViewModelTests
 {
     private static LocalizationService Loc => LocalizationService.Instance;

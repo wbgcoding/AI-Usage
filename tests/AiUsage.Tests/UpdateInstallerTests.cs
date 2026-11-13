@@ -5,6 +5,7 @@ using Xunit;
 
 namespace AiUsage.Tests;
 
+[Collection(SharedStateTestsCollection.Name)]
 public class UpdateInstallerTests
 {
     private const string ExeUrl = "https://github.com/wbgcoding/AI-Usage/releases/download/v9.0.0/AI-Usage.exe";
