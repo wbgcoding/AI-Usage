@@ -1,4 +1,27 @@
 @echo off
+rem Two builds of one checkout at once write the same output files and break each other with errors
+rem that name neither run (a test that cannot build its tool, a locked file). So the run holds
+rem build\build.lock open for its whole length by running itself a second time with the file
+rem redirected; a second build cannot open the file, so its inner run never starts and it stops with
+rem a clear message instead.
+if "%AIUSAGE_BUILD_LOCKED%"=="1" goto :locked_run
+if not exist "%~dp0build" mkdir "%~dp0build"
+set "AIUSAGE_BUILD_RAN="
+set "AIUSAGE_BUILD_LOCKED=1"
+(call "%~f0" %*) 9>"%~dp0build\build.lock"
+set "AIUSAGE_BUILD_RC=%errorlevel%"
+set "AIUSAGE_BUILD_LOCKED="
+if defined AIUSAGE_BUILD_RAN (
+    set "AIUSAGE_BUILD_RAN="
+    exit /b %AIUSAGE_BUILD_RC%
+)
+echo.
+echo ERROR: another build of this folder is still running. Wait until it has finished, then run this again.
+if not "%AIUSAGE_NOPAUSE%"=="1" echo %CMDCMDLINE% | findstr /i /c:"/c" >nul && pause
+exit /b 1
+
+:locked_run
+set "AIUSAGE_BUILD_RAN=1"
 title AI-Usage
 setlocal enabledelayedexpansion
 
