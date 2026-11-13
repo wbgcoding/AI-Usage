@@ -434,6 +434,13 @@
                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ConsoleExpired.Notice]}"
                                Visibility="{Binding ShowConsoleExpiredNotice, Converter={StaticResource BoolToVis}}"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ConsoleExpired.Notice], Mode=OneWay}"/> <Hyperlink Command="{Binding SignInConsoleCommand}" Foreground="{DynamicResource Accent}" AutomationProperties.AutomationId="ConsoleExpiredSignIn"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ConsoleExpired.SignIn], Mode=OneWay}"/></Hyperlink></TextBlock>
 
+                    <!-- The account's plan changed within the last week: one quiet line, hidden for good by its link. -->
+                    <TextBlock FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               Margin="0,4,0,8" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
+                               AutomationProperties.AutomationId="PlanChangeNotice"
+                               AutomationProperties.Name="{Binding PlanChangeText}"
+                               Visibility="{Binding ShowPlanChangeNotice, Converter={StaticResource BoolToVis}}"><Run Text="{Binding PlanChangeText, Mode=OneWay}"/> <Hyperlink Command="{Binding DismissPlanChangeCommand}" Foreground="{DynamicResource Accent}" AutomationProperties.AutomationId="PlanChangeDismiss"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.PlanChanged.Dismiss], Mode=OneWay}"/></Hyperlink></TextBlock>
+
                     <!-- Until the chart has two readings it is one muted line, not an empty box. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.Empty]}"
                                FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Micro}"

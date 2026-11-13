@@ -464,6 +464,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(IsStale))]
     [NotifyPropertyChangedFor(nameof(HasNumbers))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleExpiredNotice))]
@@ -794,6 +795,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(IsMini))]
     [NotifyPropertyChangedFor(nameof(ShowHeader))]
     [NotifyPropertyChangedFor(nameof(ShowRows))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
@@ -1517,6 +1519,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         SyncApiGrantRow();
         OnPropertyChanged(nameof(ShowApiCredit));
         OnPropertyChanged(nameof(ConsoleStatusText));
+        OnPropertyChanged(nameof(PlanChangeText));
         foreach (var choice in BarColorChoices)
             choice.RefreshLabel();
         // The chart's legend and hover caption are otherwise only rebuilt with the next history load.
@@ -1620,6 +1623,8 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         // Same rule as the account name below: a tick whose source cannot know the tier (a local
         // limit hit, a failed read) keeps the last one shown; only a sign-out forgets it.
         PlanText = PlanTier.Normalize(snapshot.PlanType) ?? (snapshot.Status == ProviderStatus.NotSignedIn ? null : PlanText);
+        // A change older than its week drops off the next time a read lands.
+        SetPlanChange(_planChange, now);
         // One tick without a name (a failed read, a source that cannot know it) must not blank the
         // account again; only a sign-out forgets it.
         AccountText = snapshot.AccountLabel ?? (snapshot.Status == ProviderStatus.NotSignedIn ? null : AccountText);

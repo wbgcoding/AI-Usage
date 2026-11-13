@@ -691,6 +691,8 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Autentificarea la Claude Console a expirat, așa că soldul nu mai este citit. Autentifică-te din nou în Setări, la Claude Console (credit API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Conectarea la Console a expirat, soldul API nu este citit.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Conectează-te din nou</value></data>
+  <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan schimbat: {0} → {1}</value></data>
+  <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ascunde</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Credit gratuit</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} din {1} folosiți</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Mai rămân {0}; primul credit expiră la {1}.</value></data>

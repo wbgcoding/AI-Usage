@@ -2034,6 +2034,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 continue;
             // A balance read on this PC stays; one in a foreign file never comes along.
             value.ApiCredit = previous.TryGetValue(key, out var kept) ? kept.ApiCredit : null;
+            // The plan an account is on is read from this PC's own sign-in, never taken from a file.
+            value.LastPlan = kept?.LastPlan ?? "";
+            value.PlanChange = kept?.PlanChange;
             result[key] = value;
         }
 
@@ -2147,6 +2150,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             Main.ApplyLocalOnlyFromSettings(tile, providerSettings.LocalOnly);
             tile.BarColorMode = BarColorModes.Normalize(providerSettings.BarColorMode, tile.RealProviderId);
             tile.RefreshMinutes = providerSettings.RefreshMinutes;
+            tile.SetPlanChange(providerSettings.PlanChange, DateTimeOffset.UtcNow);
             tile.HiddenWindows = [.. providerSettings.HiddenWindows];
             tile.SyncWindowVisibility();
         }

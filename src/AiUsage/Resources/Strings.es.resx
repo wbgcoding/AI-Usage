@@ -691,6 +691,8 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>La sesión de Claude Console ha caducado, por lo que ya no se lee el saldo. Vuelve a iniciar sesión en Ajustes, en Claude Console (crédito de API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>La sesión de Console ha caducado, no se lee el saldo de la API.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Volver a iniciar sesión</value></data>
+  <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan cambiado: {0} → {1}</value></data>
+  <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ocultar</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Crédito gratuito</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} de {1} usados</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Quedan {0}; la primera concesión vence el {1}.</value></data>

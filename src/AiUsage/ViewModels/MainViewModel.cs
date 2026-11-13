@@ -746,8 +746,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         tile.ShowWeeklyChanged += (_, value) => SetShowWeekly(tile.ProviderId, value);
         tile.ChartHiddenChanged += (_, value) => SetChartHidden(tile.ProviderId, value);
         tile.AccountNameChanged += (_, value) => SetAccountName(tile.ProviderId, value);
+        tile.PlanChangeDismissed += (_, _) => SavePlanChangeDismissed();
         tile.RefreshMinutesChanged += (_, value) => SetRefreshMinutes(tile.ProviderId, value);
         tile.AttentionDisabledChanged += (_, value) => SetAttentionDisabled(tile.ProviderId, value);
+        tile.SetPlanChange(providerSettings?.PlanChange, DateTimeOffset.UtcNow);
         RegisterProvider(provider);
         if (provider is ClaudeProvider)
             tile.HasConsoleSession = ConsoleProfileExists(provider.AccountKey);
@@ -1737,6 +1739,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 keepLastValues: !IsAccountDisconnected(snapshot.ProviderId));
             if (OrderedByUsage)
                 ApplyTileOrder();
+            TrackPlan(tile, snapshot, now);
             var displayName = tile.NotificationName;
 
             if (snapshot.Status == ProviderStatus.Ok)
