@@ -32,16 +32,10 @@
         </Setter>
     </Style>
 
-    <!-- Quiet hover background over the whole header (button and header content alike), so the
-         highlight is as wide as the card below it. -->
+    <!-- The header bar stays plain on hover: a lit row across the whole card read as a selection. -->
     <Style x:Key="HeaderBarStyle" TargetType="Border">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}"/>
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Bg.Raised}"/>
-            </Trigger>
-        </Style.Triggers>
     </Style>
 
     <!-- The chevron follows IsExpanded: down while collapsed (there is more to reveal below), up
