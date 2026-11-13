@@ -691,6 +691,8 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>L'accesso a Claude Console è scaduto, quindi il saldo non viene più letto. Accedi di nuovo in Impostazioni, sotto Claude Console (credito API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>L'accesso a Console è scaduto, il saldo API non viene letto.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Accedi di nuovo</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Mostra il valore API accanto ai token di una finestra</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Stima per le finestre da cinque ore e settimanali. Richiede la stima dei costi attiva.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Avvisa 10 minuti prima che una finestra piena si azzeri</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Solo per le finestre al 90 % o più, una volta per azzeramento.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} si azzera tra {2} min</value></data>

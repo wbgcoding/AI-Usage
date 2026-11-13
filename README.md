@@ -97,7 +97,9 @@ a dashboard for any period (7 days, 30 days, a month, a year, everything or a cu
 - **Limits:** how often you hit each limit
 - **API cost estimate:** what your tokens would cost at public API prices, in dollars, euros or your
   region's currency, marked with ~ (a star marks sums with a model of unknown price). Switch it off
-  under **Settings > Display > Show API cost** and nothing is downloaded.
+  under **Settings > Display > Show API cost** and nothing is downloaded. Optionally the tile shows
+  the same estimate beside the tokens of its 5-hour and weekly windows (**Show the API value next to
+  a window's tokens**).
 - **CSV export** of all figures, and a layout you arrange by dragging sections (or Alt+Up/Down)
 
 Cursor and Copilot keep no token counts on your PC, so the window says so instead of guessing.

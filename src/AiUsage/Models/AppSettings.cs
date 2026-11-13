@@ -227,6 +227,10 @@ public sealed class AppSettings
     /// <summary>"Ctrl+Alt+U"-style text, parsed by <see cref="Services.GlobalHotkey.TryParse"/>.</summary>
     public string Hotkey { get; set; } = "Ctrl+Alt+U";
 
+    /// <summary>Whether a five-hour or weekly row on the tile shows the estimated API value of its
+    /// tokens next to the token count. Default off; needs <see cref="ShowCostEstimate"/> too.</summary>
+    public bool ShowTileTokenCost { get; set; }
+
     /// <summary>Whether a window at 90 % or more is announced ten minutes before it resets, once per
     /// reset. Default off; each tile's own notification switch still gates it.</summary>
     public bool NotifyBeforeReset { get; set; }

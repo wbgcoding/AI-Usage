@@ -424,6 +424,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool notifyBeforeReset;
 
     [ObservableProperty]
+    private bool showTileTokenCost;
+
+    [ObservableProperty]
     private bool forecastAlertEnabled;
 
     [ObservableProperty]
@@ -667,6 +670,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         defaultThresholdEnabled = settings.DefaultThresholdEnabled;
         notifyOnReset = settings.NotifyOnReset;
         notifyBeforeReset = settings.NotifyBeforeReset;
+        showTileTokenCost = settings.ShowTileTokenCost;
         forecastAlertEnabled = settings.ForecastAlertEnabled;
         limitReachedAlertEnabled = settings.LimitReachedAlertEnabled;
         showAttentionMark = settings.ShowAttentionMark;
@@ -1128,6 +1132,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.NotifyBeforeReset = value;
         _store.RequestSave(_settings);
+    }
+
+    partial void OnShowTileTokenCostChanged(bool value)
+    {
+        _settings.ShowTileTokenCost = value;
+        _store.RequestSave(_settings);
+        Main.CostSettingsChanged();
     }
 
     partial void OnForecastAlertEnabledChanged(bool value)
@@ -2098,6 +2109,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.DefaultThresholdEnabled = source.DefaultThresholdEnabled;
         _settings.NotifyOnReset = source.NotifyOnReset;
         _settings.NotifyBeforeReset = source.NotifyBeforeReset;
+        _settings.ShowTileTokenCost = source.ShowTileTokenCost;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
         _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(source.ForecastLeadMinutes);
         _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
@@ -2194,6 +2206,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DefaultThresholdEnabled = _settings.DefaultThresholdEnabled;
         NotifyOnReset = _settings.NotifyOnReset;
         NotifyBeforeReset = _settings.NotifyBeforeReset;
+        ShowTileTokenCost = _settings.ShowTileTokenCost;
         ForecastAlertEnabled = _settings.ForecastAlertEnabled;
         Choice.Select(ForecastLeadChoices, _settings.ForecastLeadMinutes);
         OnPropertyChanged(nameof(SelectedForecastLeadChoice));

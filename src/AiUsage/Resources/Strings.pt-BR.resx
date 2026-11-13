@@ -691,6 +691,8 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>A sessão do Claude Console expirou, então o saldo não é mais lido. Entre novamente em Configurações, em Claude Console (crédito de API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>O login no Console expirou, o saldo da API não é lido.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Entrar novamente</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Mostrar o valor da API ao lado dos tokens de uma janela</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimativa para as janelas de cinco horas e semanais. Exige a estimativa de custo ativada.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Avisar 10 minutos antes de uma janela cheia ser redefinida</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Só para janelas com 90 % ou mais, uma vez por redefinição.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} será redefinido em {2} min</value></data>

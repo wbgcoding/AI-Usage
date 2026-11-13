@@ -18,7 +18,7 @@ namespace AiUsage.Stats;
 /// for its own file. Never throws: every operation degrades to "nothing indexed yet" rather than
 /// crashing the window that shows it.
 /// </summary>
-public sealed class StatsStore
+public sealed partial class StatsStore
 {
     // Bumped with every schema change; EnsureSchema migrates v4 and newer in place and rebuilds anything older.
     internal const int SchemaVersion = 9;

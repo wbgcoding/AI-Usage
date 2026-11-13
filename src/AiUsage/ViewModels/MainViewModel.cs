@@ -66,6 +66,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <see cref="WindowTokensQuery"/> while a tile colors its bars by share; null uses the store's own.</summary>
     internal Func<string, DateTime, string?, IReadOnlyList<WindowShareRow>?>? WindowSharesQuery { get; set; }
 
+    /// <summary>Test seam for the priced records of a window slice (provider id, local window start),
+    /// asked while the tile cost switch is on; null uses the store's own.</summary>
+    internal Func<string, DateTime, IReadOnlyList<StatsRecord>?>? WindowRecordsQuery { get; set; }
+
     /// <summary>Per real provider id (not per account - two Claude accounts would otherwise double
     /// the query for numbers <see cref="Stats.StatsStore"/> cannot even tell apart by account) and
     /// index slice, the last time <see cref="RefreshWindowTokens"/> actually queried. Empty at
@@ -77,6 +81,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     // Scratch sets of RefreshWindowTokens, kept so the per-second tick does not allocate them.
     private readonly HashSet<(string ProviderId, WindowTokenKey Slice)> _wantedWindowSlices = [];
     private readonly HashSet<(string ProviderId, WindowTokenKey Slice)> _wantedWindowSlicesWithShares = [];
+    private readonly HashSet<(string ProviderId, WindowTokenKey Slice)> _wantedWindowCosts = [];
 
     // A fetch completing in a handful of milliseconds must still show its "working" indicator long
     // enough to be seen rather than flicker - each started fetch is timestamped here,
@@ -1181,8 +1186,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         // This runs every second: the sets are reused and nothing is allocated while nothing is due.
         var wanted = _wantedWindowSlices;
         var wantedWithShares = _wantedWindowSlicesWithShares;
+        var wantedCosts = _wantedWindowCosts;
         wanted.Clear();
         wantedWithShares.Clear();
+        wantedCosts.Clear();
+        var costService = TileCostService;
+        if (costService is not null)
+            HookTileCostChanged(costService);
         for (var t = 0; t < Tiles.Count; t++)
         {
             var tile = Tiles[t];
@@ -1195,6 +1205,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 if (tile.WantsWindowShares)
                     wantedWithShares.Add((tile.RealProviderId, keys[k]));
             }
+
+            if (costService is null)
+                continue;
+            var costKeys = tile.WindowCostKeys;
+            for (var k = 0; k < costKeys.Count; k++)
+                wantedCosts.Add((tile.RealProviderId, costKeys[k]));
         }
 
         // Windows that are gone (a reset passed) leave the cache, so it never grows week by week.
@@ -1222,6 +1238,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             // One query per slice: the figure itself, or - while a tile colors its bars by share - the
             // rows it is the sum of.
             var withShares = wantedWithShares.Contains(key);
+            var costFor = costService is not null && wantedCosts.Contains(key) ? costService : null;
             Task.Run(() =>
             {
                 IReadOnlyList<WindowShareRow>? shares = null;
@@ -1240,11 +1257,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 if (answer is not { } tokens)
                     return;
 
+                // The priced figure of the same slice; null leaves what the tile shows (index unreadable).
+                string? cost = null;
+                if (costFor is not null && (WindowRecordsQuery ?? store.WindowRecordsSince)(providerId, localStart) is { } records)
+                    cost = costFor.Label(costFor.Sum(records));
+
                 void Apply()
                 {
                     foreach (var tile in Tiles.Where(t => t.RealProviderId == providerId))
                     {
                         tile.SetWindowAnswer(slice, tokens, shares);
+                        if (cost is not null)
+                            tile.SetWindowCost(slice, cost);
                     }
                 }
 
@@ -2074,9 +2098,34 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The cost estimate of the token statistics: one instance per process, created on first
     /// use so nothing is read from disk before the statistics are wanted. Its price cache loads in the
     /// background, open statistics redraw when it is in.</summary>
-    internal CostService Cost => _cost ??= new CostService(
-        () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
-        loadPricesInBackground: true);
+    internal CostService Cost
+    {
+        get => _cost ??= new CostService(
+            () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
+            loadPricesInBackground: true);
+        set => _cost = value;
+    }
+
+    /// <summary>The cost service for the figure beside a window's tokens: null while the tile cost
+    /// switch or the cost estimate is off, so nothing is read or priced then.</summary>
+    private CostService? TileCostService => _settings.ShowTileTokenCost && _settings.ShowCostEstimate ? Cost : null;
+
+    private bool _tileCostChangedHooked;
+
+    /// <summary>Prices that arrive after the first tick (cache load, download) re-ask the windows at
+    /// once instead of after the usual wait.</summary>
+    private void HookTileCostChanged(CostService service)
+    {
+        if (_tileCostChangedHooked)
+            return;
+        _tileCostChangedHooked = true;
+        service.Changed += () =>
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher is not null && !dispatcher.CheckAccess())
+                dispatcher.BeginInvoke(() => _lastWindowTokensQueryAt.Clear());
+        };
+    }
 
     /// <summary>Raised on the UI thread when a pause or the energy saver that held the network back
     /// has ended: the downloads outside the provider reads (price lists, update check) catch up.</summary>
@@ -2090,6 +2139,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         DayGridTile.RefreshCost();
         _cost?.NotifySettingsChanged();
+        // The tile figure appears or goes with its switches: ask the windows again on the next tick.
+        _lastWindowTokensQueryAt.Clear();
+        if (TileCostService is null)
+        {
+            foreach (var tile in Tiles)
+                tile.ClearWindowCosts();
+        }
     }
 
     /// <summary>Settings window's own "change data folder" flow calls this once it has already

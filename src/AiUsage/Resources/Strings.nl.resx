@@ -691,6 +691,8 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>De aanmelding bij Claude Console is verlopen, dus het tegoed wordt niet meer gelezen. Meld je opnieuw aan in Instellingen onder Claude Console (API-tegoed).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console-aanmelding verlopen, het API-tegoed wordt niet gelezen.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Opnieuw aanmelden</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>API-waarde naast de tokens van een venster tonen</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Schatting voor vensters van vijf uur en van een week. Vereist dat de kostenschatting aanstaat.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Melden 10 minuten voordat een vol venster wordt gereset</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Alleen voor vensters vanaf 90 %, één keer per reset.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} wordt over {2} min gereset</value></data>

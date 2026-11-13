@@ -691,6 +691,8 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Console oturumunun süresi doldu, bu yüzden bakiye artık okunmuyor. Ayarlar'da Claude Console (API bakiyesi) altından yeniden oturum aç.</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console oturumunun süresi doldu, API bakiyesi okunmuyor.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Yeniden oturum aç</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Bir pencerenin token sayısının yanında API değerini göster</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Beş saatlik ve haftalık pencereler için tahmin. Maliyet tahmininin açık olmasını gerektirir.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Dolu bir pencere sıfırlanmadan 10 dakika önce bildir</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Yalnızca %90 ve üzerindeki pencereler için, her sıfırlamada bir kez.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} {2} dk içinde sıfırlanacak</value></data>
