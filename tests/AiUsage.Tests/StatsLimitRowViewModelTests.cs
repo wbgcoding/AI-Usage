@@ -79,7 +79,7 @@ public class StatsLimitRowViewModelTests
         {
             Assert.Equal("Weekly: reached twice", Row(label: "Weekly", reachedText: "reached twice", detail: "").AutomationText);
             Assert.Equal("Weekly: peak", Row(label: "Weekly", reachedText: "", detail: "peak").AutomationText);
-            Assert.Equal("Weekly: ", Row(label: "Weekly", reachedText: "", detail: "").AutomationText);
+            Assert.Equal("Weekly", Row(label: "Weekly", reachedText: "", detail: "").AutomationText);
         }
         finally
         {
