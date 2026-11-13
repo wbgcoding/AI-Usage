@@ -13,7 +13,7 @@ namespace AiUsage.Views.Controls;
 /// the same bare <see cref="FrameworkElement"/>/<see cref="OnRender"/> construction <see
 /// cref="StatsBarChart"/> already uses, no chart library. One continuous grid covering the whole
 /// last twelve months: columns are calendar weeks (oldest left, today right), seven rows are
-/// weekdays starting at Monday, and every day in the span draws
+/// weekdays starting at <see cref="FirstDay"/> (Monday by default), and every day in the span draws
 /// its own square - including a day with no usage at all, filled in a neutral surface tone rather
 /// than left out, and a day still ahead of today, drawn the same way at reduced opacity and never
 /// clickable. Cell color is the hue of whichever provider led that day (<see
@@ -129,6 +129,17 @@ public sealed class StatsMonthGrid : FrameworkElement
     {
         get => (DateOnly?)GetValue(HighlightStartProperty);
         set => SetValue(HighlightStartProperty, value);
+    }
+
+    /// <summary>The weekday of the grid's first row (Monday unless Settings says otherwise).</summary>
+    public static readonly DependencyProperty FirstDayProperty = DependencyProperty.Register(
+        nameof(FirstDay), typeof(DayOfWeek), typeof(StatsMonthGrid),
+        new FrameworkPropertyMetadata(DayOfWeek.Monday, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
+
+    public DayOfWeek FirstDay
+    {
+        get => (DayOfWeek)GetValue(FirstDayProperty);
+        set => SetValue(FirstDayProperty, value);
     }
 
     public static readonly DependencyProperty HighlightEndProperty = DependencyProperty.Register(
@@ -659,13 +670,13 @@ public sealed class StatsMonthGrid : FrameworkElement
     private readonly record struct PrepareKey(
         DateOnly RangeStart, DateOnly RangeEnd, DateOnly Today, DateOnly? HighlightStart, DateOnly? HighlightEnd,
         bool SingleRow, bool ShowLegend, bool ShowAxisLabels, double AvailableWidth,
-        IReadOnlyList<DayValue> Days, IReadOnlyList<long>? ColorScaleTotals)
+        IReadOnlyList<DayValue> Days, IReadOnlyList<long>? ColorScaleTotals, DayOfWeek FirstDay)
     {
         public bool Matches(in PrepareKey other) =>
             RangeStart == other.RangeStart && RangeEnd == other.RangeEnd && Today == other.Today
             && HighlightStart == other.HighlightStart && HighlightEnd == other.HighlightEnd
             && SingleRow == other.SingleRow && ShowLegend == other.ShowLegend && ShowAxisLabels == other.ShowAxisLabels
-            && AvailableWidth.Equals(other.AvailableWidth)
+            && AvailableWidth.Equals(other.AvailableWidth) && FirstDay == other.FirstDay
             && ReferenceEquals(Days, other.Days) && ReferenceEquals(ColorScaleTotals, other.ColorScaleTotals);
     }
 
@@ -679,7 +690,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     {
         var key = new PrepareKey(
             RangeStart, RangeEnd, Today, HighlightStart, HighlightEnd, SingleRow, ShowLegend, ShowAxisLabels, availableWidth,
-            Days, ColorScaleTotals);
+            Days, ColorScaleTotals, FirstDay);
         if (_prepareKey is { } cachedKey && cachedKey.Matches(key))
             return _prepared;
 
@@ -705,7 +716,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         }
         else
         {
-            var gridStart = StatsAggregator.WeekStart(rangeStart);
+            var gridStart = StatsAggregator.WeekStart(rangeStart, FirstDay);
             columns = BuildColumns(gridStart, rangeEnd, Today, days, TotalColumns(gridStart, rangeEnd), HighlightStart, HighlightEnd);
         }
         var totalColumns = columns.Count;
@@ -787,7 +798,7 @@ public sealed class StatsMonthGrid : FrameworkElement
     private void DrawWeekdayLabels(DrawingContext dc, GridFit fit, double dpi, Typeface typeface)
     {
         var cellSize = fit.CellSize;
-        const DayOfWeek firstDayOfWeek = DayOfWeek.Monday;
+        var firstDayOfWeek = FirstDay;
         var dayAbbreviations = LocalizationService.Instance.DisplayCulture.DateTimeFormat.AbbreviatedDayNames;
         for (var row = 0; row < 7; row++)
         {

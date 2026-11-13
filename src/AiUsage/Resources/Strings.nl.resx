@@ -576,7 +576,6 @@
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} kost {1} meer per maand</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} kost {1} minder per maand</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prijzen nog niet geladen.</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>Tokenstatistieken</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>API-kosten tonen</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Toont wat de tokens zouden kosten tegen openbare API-prijzen. De prijslijst wordt één keer per dag van GitHub geladen (LiteLLM). Uit: kosten zijn overal verborgen en er wordt niets gedownload.</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>Kostenvaluta</value></data>
@@ -710,6 +709,23 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Nog {0} over.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Inloggen bij platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Elke maandag een csv-bestand van de vorige week opslaan</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Map kiezen…</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Meer mappen (bij elke run ingelezen)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Map toevoegen…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Verwijderen</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Een map eenmalig inlezen…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} sessiebestanden gelezen, {1} nieuw</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>Tokengebruik</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Periode bij openen</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Laatst gebruikt</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>Week begint op</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>Zoals in Windows</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>Maandag</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>Zondag</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Volgorde van de weekdagrijen en maandrasters. Weektotalen blijven van maandag tot zondag.</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>Getoonde secties</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Index: {0} items, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (API-tegoed)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Ingelogd</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Ingelogd via de Claude-login</value></data>

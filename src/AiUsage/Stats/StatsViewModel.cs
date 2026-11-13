@@ -378,7 +378,7 @@ public sealed partial class StatsViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<long> heatmapValues = [];
 
-    /// <summary>The culture's first day of the week, the weekday of the grid's first row.</summary>
+    /// <summary>The chosen first day of the week (<see cref="FirstDayOfWeek"/>), the weekday of the grid's first row.</summary>
     [ObservableProperty]
     private DayOfWeek heatmapFirstDay = DayOfWeek.Monday;
 
@@ -1587,6 +1587,7 @@ public sealed partial class StatsViewModel : ObservableObject
         DateOnly Today,
         LocalizationService.Captured Text,
         DateOnly MonthGridFrom,
+        DayOfWeek FirstDay,
         int Generation);
 
     /// <summary>The filters as they stood when a rebuild started.</summary>
@@ -1695,13 +1696,14 @@ public sealed partial class StatsViewModel : ObservableObject
         var today = DateOnly.FromDateTime(DateTime.Now);
         var grouping = SelectedGrouping;
         var text = LocalizationService.Instance.Capture();
+        var firstDay = FirstDayOfWeek();
         return new RebuildInput(
             source, Merged(source), grouping == StatsGrouping.Session ? Merged(_allSessions) : [],
             CurrentFilter(), SelectedRange, _customFrom, _customTo, grouping,
             IsStackedByProvider, IsHeatmap, CanChooseColor, IsModelStack, IsAgentStack,
             new StatsCostView(_cost), Aliases, today, text,
-            MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), today),
-            generation);
+            MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), today, firstDay),
+            firstDay, generation);
     }
 
     /// <summary>The aggregation of a rebuild: pure over <paramref name="input"/>, so it can run off the
@@ -1993,8 +1995,8 @@ public sealed partial class StatsViewModel : ObservableObject
             inRange, limit: 12, loc["Stats.NoProject"], key => costView.LineFor(projectCosts, key), key => FormerPathsLine(input.Aliases, key),
             key => costView.LabelFor(projectCosts, key));
 
-        // The weekday by hour grid, in the culture's own week order.
-        o.HeatmapFirstDay = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
+        // The weekday by hour grid, in the chosen week order (as in Windows unless Settings says otherwise).
+        o.HeatmapFirstDay = input.FirstDay;
         o.HeatmapValues = StatsAggregator.FlattenWeekdayHour(StatsAggregator.GroupByWeekdayHour(inRange), o.HeatmapFirstDay);
         var firstDay = o.HeatmapFirstDay;
         var cellCosts = costView.ByKey(
@@ -2055,6 +2057,7 @@ public sealed partial class StatsViewModel : ObservableObject
         _barTargets = o.BarTargets;
         Bars = o.Bars;
 
+        MonthGridFirstDay = input.FirstDay;
         _monthGridToday = input.Today;
         _monthGridPeriodStart = o.From;
         _monthGridPeriodEnd = o.To;
@@ -2767,11 +2770,11 @@ public sealed partial class StatsViewModel : ObservableObject
     }
 
     private DateOnly DesiredMonthGridStart() =>
-        MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), _monthGridToday);
+        MonthGridStart(Views.Controls.StatsMonthGrid.ColumnsFitting(_monthGridAvailableWidth), _monthGridToday, MonthGridFirstDay);
 
-    private static DateOnly MonthGridStart(int columns, DateOnly today)
+    private static DateOnly MonthGridStart(int columns, DateOnly today, DayOfWeek firstDay)
     {
-        var weekStart = StatsAggregator.WeekStart(today);
+        var weekStart = StatsAggregator.WeekStart(today, firstDay);
         var widest = Math.Min(columns, Math.Max(1, (weekStart.DayNumber - DateOnly.MinValue.DayNumber) / 7));
         return StatsMonthGridBuilder.FirstDay(today, weekStart.AddDays(-(widest - 1) * 7));
     }

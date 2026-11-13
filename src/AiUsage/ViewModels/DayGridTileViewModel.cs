@@ -84,6 +84,12 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
 
     partial void OnDensityChanged(TileDensity value) => RecomputeVisibleRange();
 
+    /// <summary>The weekday of the grid's first row; Settings chooses it (Monday by default).</summary>
+    [ObservableProperty]
+    private DayOfWeek firstDay = DayOfWeek.Monday;
+
+    partial void OnFirstDayChanged(DayOfWeek value) => RecomputeVisibleRange();
+
     /// <summary>The tile's own rendered width, fed by the view's <c>SizeChanged</c> (a plain
     /// ViewModel property has no other way to learn it) - <see cref="RecomputeVisibleRange"/> reads
     /// this to decide how many of the most recent weeks fit at the current density's cell size,
@@ -351,7 +357,7 @@ public sealed partial class DayGridTileViewModel : ObservableObject, ITileRow
         }
 
         var weeks = ComputeVisibleWeeks(AvailableWidth);
-        var weekStart = StatsAggregator.WeekStart(today);
+        var weekStart = StatsAggregator.WeekStart(today, FirstDay);
         // Never before the first representable week: a bogus width must not underflow the date.
         weeks = Math.Min(weeks, Math.Max(1, (weekStart.DayNumber - DateOnly.MinValue.DayNumber) / 7));
         return weekStart.AddDays(-(weeks - 1) * 7);

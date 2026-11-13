@@ -641,6 +641,28 @@ public sealed partial class StatsStore
         }
     }
 
+    /// <summary>The number of usage rows in the index and the size of its file, for the "Token usage"
+    /// page of Settings; null when the index cannot be read.</summary>
+    internal (long Entries, long Bytes)? IndexInfo()
+    {
+        try
+        {
+            using var connection = Open();
+            if (!IsUsable)
+                return null;
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM usage";
+            var entries = Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+            var file = new FileInfo(DatabasePath);
+            return (entries, file.Exists ? file.Length : 0);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Every machine label other than this PC's own (the empty one) that has rows in the
     /// index, whoever put it there: imported PCs and whatever came along with them.</summary>
     internal IReadOnlyList<string> ListMachines()

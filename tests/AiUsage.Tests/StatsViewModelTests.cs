@@ -375,7 +375,7 @@ public class StatsViewModelTests
 
         viewModel.MonthGridAvailableWidth = 22 + 150 * 14 - 3;
         Assert.True(viewModel.MonthGridRangeStart < twelveMonths);
-        Assert.Equal(StatsAggregator.WeekStart(today).AddDays(-149 * 7), viewModel.MonthGridRangeStart);
+        Assert.Equal(StatsAggregator.WeekStart(today, viewModel.MonthGridFirstDay).AddDays(-149 * 7), viewModel.MonthGridRangeStart);
         Assert.Equal(today, viewModel.MonthGridRangeEnd);
         Assert.Equal(viewModel.MonthGridRangeEnd.DayNumber - viewModel.MonthGridRangeStart.DayNumber + 1, viewModel.MonthGridDays.Count);
         Assert.Contains(viewModel.MonthGridDays, day => day.Day == old && day.Total == 5_000);

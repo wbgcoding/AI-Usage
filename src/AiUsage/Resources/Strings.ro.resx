@@ -576,7 +576,6 @@
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} costă cu {1} mai mult pe lună</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} costă cu {1} mai puțin pe lună</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prețurile nu sunt încă încărcate.</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>Statistici tokeni</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Arată costul API</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Arată cât ar costa tokenii la prețurile publice ale API-ului. Lista de prețuri se încarcă o dată pe zi de pe GitHub (LiteLLM). Dezactivat: costurile sunt ascunse peste tot și nu se descarcă nimic.</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>Moneda costului</value></data>
@@ -710,6 +709,23 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Mai rămân {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Conectare la platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Arată pe card soldul de credite API al Claude Console. Se citește doar soldul.</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salvează în fiecare luni un fișier CSV al săptămânii anterioare</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Alege folderul…</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Mai multe foldere (citite la fiecare rulare)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Adaugă folder…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Elimină</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Citește un folder o singură dată…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fișiere de sesiune citite, {1} noi</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>Consum de tokeni</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Perioada la deschidere</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Ultima folosită</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>Începutul săptămânii</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>Ca în Windows</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>Luni</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>Duminică</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Ordinea rândurilor cu zilele săptămânii și a grilelor lunare. Totalurile săptămânale rămân de luni până duminică.</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>Secțiuni afișate</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Index: {0} intrări, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (credit API)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Conectat</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Conectat prin conectarea la Claude</value></data>

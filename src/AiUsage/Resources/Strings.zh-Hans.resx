@@ -576,7 +576,6 @@
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} 每月贵 {1}</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} 每月便宜 {1}</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>价格尚未加载。</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>令牌统计</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>显示 API 费用</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>显示这些令牌按公开 API 价格需要多少费用。价目表每天从 GitHub(LiteLLM)加载一次。关闭后:所有地方都隐藏费用,也不会下载任何内容。</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>费用币种</value></data>
@@ -710,6 +709,23 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>剩余 {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>在磁贴上显示你的 Claude Console 的 API 额度余额。只读取余额。</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>每周一保存上一周的 CSV 文件</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>选择文件夹…</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>更多文件夹(每次运行时读取)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>添加文件夹…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>移除</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>一次性读取文件夹…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>已读取 {0} 个会话文件,新增 {1} 个</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>令牌用量</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>打开时的时间段</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>上次使用的</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>每周开始于</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>与 Windows 相同</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>星期一</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>星期日</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>星期行和月份网格的排列顺序。每周合计仍按星期一至星期日计算。</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>显示的区块</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>索引：{0} 条记录，{1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console(API 额度)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>已登录</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>已通过 Claude 登录</value></data>

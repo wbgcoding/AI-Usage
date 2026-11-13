@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using AiUsage.Models;
 using AiUsage.Providers;
@@ -649,6 +650,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         DayGridTile = new DayGridTileViewModel(_statsStore, cost: () => _settings.ShowCostEstimate ? Cost : null)
         {
+            FirstDay = StatsDisplayChoices.ResolveFirstDay(_settings.StatsWeekStart, CultureInfo.CurrentCulture),
             IsHidden = !(_settings.Providers.TryGetValue(AppSettings.DayGridTileId, out var gridSettings) && gridSettings.Visible),
         };
         DayGridTile.DaySelected += (_, day) => DayGridDaySelected?.Invoke(this, day);
@@ -2101,11 +2103,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// background, open statistics redraw when it is in.</summary>
     internal CostService Cost
     {
-        get => _cost ??= new CostService(
-            () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
-            loadPricesInBackground: true);
-        set => _cost = value;
+        get
+        {
+            // Also asked from the statistics indexer's thread (the weekly CSV), so created under a lock.
+            lock (_costGate)
+            {
+                return _cost ??= new CostService(
+                    () => _settings.ShowCostEstimate, () => _settings.CostCurrency, networkAllowed: () => !_scheduler.NetworkIsOff(),
+                    loadPricesInBackground: true);
+            }
+        }
+        set
+        {
+            lock (_costGate)
+                _cost = value;
+        }
     }
+
+    private readonly object _costGate = new();
 
     /// <summary>The cost service for the figure beside a window's tokens: null while the tile cost
     /// switch or the cost estimate is off, so nothing is read or priced then.</summary>
@@ -2148,6 +2163,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 tile.ClearWindowCosts();
         }
     }
+
+    /// <summary>Settings window calls this after the week start changed (or settings were replaced), so
+    /// the tile's month grid starts its rows on the chosen weekday.</summary>
+    internal void StatsDisplayChanged() =>
+        DayGridTile.FirstDay = StatsDisplayChoices.ResolveFirstDay(_settings.StatsWeekStart, CultureInfo.CurrentCulture);
 
     /// <summary>Settings window's own "change data folder" flow calls this once it has already
     /// copied every history file across, so the live recording this view model does on every tick

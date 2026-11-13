@@ -46,6 +46,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string, bool> _confirmRiskyFolder;
     private readonly Func<string, bool> _confirmReplaceOldCopy;
     private readonly Stats.StatsStore _statsStore;
+    private readonly Func<string?> _askForExtraFolder;
+    private readonly Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>> _importFolderOnce;
     private readonly bool _readsMachineList;
     private readonly Func<Uri, ResourceDictionary> _loadThemeDictionary;
 
@@ -65,7 +67,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<Choice<AppTheme>> ThemeChoices { get; }
 
-    /// <summary>The sidebar's six rows, fixed order. <see cref="SelectedCategory"/> holds the
+    /// <summary>The sidebar's seven rows, fixed order. <see cref="SelectedCategory"/> holds the
     /// matching <see cref="Choice{TValue}.Value"/> and is session only - never read from or written
     /// to <see cref="AppSettings"/>, so the window always opens back on the first category.</summary>
     public ObservableCollection<Choice<string>> Categories { get; } =
@@ -74,6 +76,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         new("Settings.Section.Updates", "Updates"),
         new("Settings.Section.Notifications", "Notifications"),
         new("Settings.Section.Providers", "Providers"),
+        new("Settings.Section.Stats", "Stats"),
         new("Settings.Section.System", "System"),
         new("Settings.Section.About", "About"),
     ];
@@ -280,6 +283,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>Whether the token index is copied weekly into the data folder.</summary>
     [ObservableProperty]
     private bool statsWeeklyCopy;
+
+    /// <summary>Whether a CSV file of the previous week is saved into <see cref="StatsWeeklyCsvFolder"/> every Monday.</summary>
+    [ObservableProperty]
+    private bool statsWeeklyCsv;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RetentionLabel))]
@@ -622,9 +629,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
         Func<string, string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
         Func<string, bool>? removeMachine = null, Func<string, bool>? confirmRiskyFolder = null,
-        Func<string, bool>? confirmReplaceOldCopy = null)
+        Func<string, bool>? confirmReplaceOldCopy = null, Func<string?>? askForExtraFolder = null,
+        Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>>? importFolderOnce = null)
     {
         Main = main;
+        _askForExtraFolder = askForExtraFolder ?? ShowRealExtraFolderDialog;
+        _importFolderOnce = importFolderOnce ?? ImportFolderOnSharedIndexer;
         _settings = settings;
         _store = store;
         _historyStore = historyStore ?? main.HistoryStore;
@@ -663,6 +673,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         hideOnFullscreen = settings.HideOnFullscreen;
         saveEnergyOnBattery = settings.SaveEnergyOnBattery;
         statsWeeklyCopy = settings.StatsWeeklyCopy;
+        statsWeeklyCsv = settings.StatsWeeklyCsv;
         zoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
         Choice.Select(ZoomChoices, zoomPercent);
         showTooltips = settings.ShowTooltips;
@@ -719,6 +730,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main.Tiles.CollectionChanged += OnTilesChanged;
 
         RebuildChartRangeChoices();
+        InitializeStatsPage();
 
         // This window is short-lived (recreated on every open, MainWindow.xaml.cs) - Dispose below
         // unsubscribes so a closed-and-reopened Settings window never piles up handlers on the one
@@ -907,6 +919,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(LevelExplainerText));
         OnPropertyChanged(nameof(DataFolderKindText));
         RefreshHistorySizeText();
+        RefreshStatsLabels();
     }
 
     [RelayCommand]
@@ -1176,6 +1189,60 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _store.RequestSave(_settings);
         if (Stats.StatsIndexerService.Shared is { } indexer)
             indexer.WeeklyCopyEnabled = value;
+    }
+
+    /// <summary>Switching the weekly CSV on with no folder chosen yet opens the folder picker; cancelling it
+    /// leaves the switch off.</summary>
+    partial void OnStatsWeeklyCsvChanged(bool value)
+    {
+        if (_loadingStatsWeeklyCsv)
+            return;
+
+        if (value && string.IsNullOrWhiteSpace(_settings.StatsWeeklyCsvFolder))
+        {
+            var picked = _askForExtraFolder();
+            if (string.IsNullOrWhiteSpace(picked))
+            {
+                StatsWeeklyCsv = false;
+                return;
+            }
+
+            _settings.StatsWeeklyCsvFolder = picked;
+            OnPropertyChanged(nameof(StatsWeeklyCsvFolder));
+        }
+
+        _settings.StatsWeeklyCsv = value;
+        _store.RequestSave(_settings);
+        PushStatsWeeklyCsv();
+    }
+
+    private bool _loadingStatsWeeklyCsv;
+
+    /// <summary>The folder of the weekly CSV files as the settings hold it ("" = none chosen yet).</summary>
+    public string StatsWeeklyCsvFolder => _settings.StatsWeeklyCsvFolder ?? "";
+
+    public bool HasStatsWeeklyCsvFolder => StatsWeeklyCsvFolder.Length > 0;
+
+    /// <summary>Picks the folder of the weekly CSV files; cancelling changes nothing.</summary>
+    [RelayCommand]
+    private void ChooseStatsWeeklyCsvFolder()
+    {
+        var picked = _askForExtraFolder();
+        if (string.IsNullOrWhiteSpace(picked))
+            return;
+
+        _settings.StatsWeeklyCsvFolder = picked;
+        _store.RequestSave(_settings);
+        OnPropertyChanged(nameof(StatsWeeklyCsvFolder));
+        OnPropertyChanged(nameof(HasStatsWeeklyCsvFolder));
+        PushStatsWeeklyCsv();
+    }
+
+    private void PushStatsWeeklyCsv()
+    {
+        OnPropertyChanged(nameof(HasStatsWeeklyCsvFolder));
+        if (Stats.StatsIndexerService.Shared is { } indexer)
+            indexer.WeeklyCsvFolder = _settings.StatsWeeklyCsv ? _settings.StatsWeeklyCsvFolder : null;
     }
 
     partial void OnCheckForUpdatesChanged(bool value)
@@ -2118,6 +2185,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
+        _settings.StatsWeeklyCsv = source.StatsWeeklyCsv;
+        _settings.StatsOpenRange = source.StatsOpenRange;
+        _settings.StatsWeekStart = source.StatsWeekStart;
+        _settings.StatsHiddenSections = [.. source.StatsHiddenSections ?? []];
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.AllDaysAllowed = source.AllDaysAllowed;
         _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
@@ -2215,6 +2286,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
         StatsWeeklyCopy = _settings.StatsWeeklyCopy;
+        // Taken over without the picker: switching on without a folder would open it during an import.
+        _loadingStatsWeeklyCsv = true;
+        StatsWeeklyCsv = _settings.StatsWeeklyCsv;
+        _loadingStatsWeeklyCsv = false;
+        OnPropertyChanged(nameof(StatsWeeklyCsvFolder));
+        PushStatsWeeklyCsv();
+        RefreshStatsDisplayChoices();
         QuietHoursEnabled = _settings.QuietHoursEnabled;
         AllDaysAllowed = _settings.AllDaysAllowed;
         RebuildQuietDays();

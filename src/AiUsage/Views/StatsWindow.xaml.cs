@@ -50,6 +50,7 @@ public partial class StatsWindow : Window
         _viewModel = viewModel;
         _settings = settings;
         _settingsStore = settingsStore;
+        _viewModel.FirstDayOfWeek = () => StatsDisplayChoices.ResolveFirstDay(_settings?.StatsWeekStart, CultureInfo.CurrentCulture);
         if (settings is not null)
         {
             _viewModel.AccountKeysOf = providerId =>
@@ -62,6 +63,7 @@ public partial class StatsWindow : Window
 
         _layoutPresenter = new StatsLayoutPresenter(SectionHost, Sections.ToDictionary(section => section.SectionKey));
         _layoutPresenter.Apply(_settings?.StatsSectionLayout ?? StatsLayout.Default());
+        ApplySectionVisibility();
         if (_settings is not null)
         {
             _viewModel.RestoreSelection(
@@ -414,6 +416,7 @@ public partial class StatsWindow : Window
             _layoutPresenter.Apply(_settings.StatsSectionLayout ?? StatsLayout.Default());
             UpdateResetButton();
             SetSectionStates();
+            ApplySectionVisibility();
             _viewModel.RestoreSelection(
                 _settings.StatsRange, _settings.StatsGrouping, _settings.StatsColorBy, _settings.StatsCustomFrom, _settings.StatsCustomTo,
                 _settings.StatsProvider);
@@ -422,6 +425,28 @@ public partial class StatsWindow : Window
         {
             _reloadingFromSettings = false;
         }
+    }
+
+    /// <summary>Hides the sections switched off on the "Token usage" page of Settings and shows the
+    /// others. The plan forecast follows its own view model flag (it also needs something to show).</summary>
+    private void ApplySectionVisibility()
+    {
+        var hidden = StatsDisplayChoices.NormalizeHiddenSections(_settings?.StatsHiddenSections);
+        _viewModel.SetHiddenSections(hidden);
+        foreach (var section in Sections)
+        {
+            if (section != PlanForecastSection)
+                section.Visibility = hidden.Contains(section.SectionKey) ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
+    /// <summary>The sections or the week start changed on the "Token usage" page while this window
+    /// exists: the sections are shown or hidden at once and the weekday rows and month grids are made
+    /// again from the records already loaded.</summary>
+    public void ApplyDisplaySettings()
+    {
+        ApplySectionVisibility();
+        _ = _viewModel.ApplyWeekStartAsync();
     }
 
     private void PersistSectionState(Controls.CollapsibleSection section)
@@ -615,6 +640,7 @@ public partial class StatsWindow : Window
         // running, so this never piles up overlapping walks.
         StatsIndexerService.Shared?.StartInBackground();
 
+        _viewModel.ApplyOpenRange(_settings?.StatsOpenRange);
         var dataStart = Stopwatch.GetTimestamp();
         var hadSnapshot = _viewModel.TryShowSnapshot();
         _openDataMs = Stopwatch.GetElapsedTime(dataStart).TotalMilliseconds;
@@ -732,6 +758,7 @@ public partial class StatsWindow : Window
             return;
 
         StatsIndexerService.Shared?.StartInBackground();
+        _viewModel.ApplyOpenRange(_settings?.StatsOpenRange);
         var dataStart = Stopwatch.GetTimestamp();
         var hadSnapshot = _viewModel.TryShowSnapshot();
         _openDataMs = Stopwatch.GetElapsedTime(dataStart).TotalMilliseconds;

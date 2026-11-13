@@ -576,7 +576,6 @@
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} coûte {1} de plus par mois</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} coûte {1} de moins par mois</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prix pas encore chargés.</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>Statistiques des tokens</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Afficher le coût API</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Affiche ce que coûteraient les tokens aux tarifs publics de l'API. La liste de prix est chargée une fois par jour depuis GitHub (LiteLLM). Désactivé : les coûts sont masqués partout et rien n'est téléchargé.</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>Devise des coûts</value></data>
@@ -710,6 +709,23 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Il reste {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Se connecter à platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Affiche sur la tuile le solde de crédits API de ta Claude Console. Seul le solde est lu.</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Enregistrer chaque lundi un CSV de la semaine précédente</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Choisir un dossier…</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Autres dossiers (lus à chaque exécution)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Ajouter un dossier…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Retirer</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Lire un dossier une fois…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fichiers de session lus, {1} nouveaux</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>Consommation de tokens</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Période à l'ouverture</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Dernière utilisée</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>La semaine commence le</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>Comme dans Windows</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>Lundi</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>Dimanche</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Ordre des lignes de jours et des grilles mensuelles. Les totaux hebdomadaires restent du lundi au dimanche.</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>Sections affichées</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Index : {0} entrées, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (crédit API)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Connecté</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Connecté via la connexion Claude</value></data>

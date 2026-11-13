@@ -243,7 +243,7 @@
                                     <ScrollViewer x:Name="MonthGridScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                                         <controls:StatsMonthGrid x:Name="MonthGrid" Days="{Binding MonthGridDays}"
                                                                   RangeStart="{Binding MonthGridRangeStart}" RangeEnd="{Binding MonthGridRangeEnd}"
-                                                                  Today="{Binding MonthGridToday}" ColorScaleTotals="{Binding MonthGridColorScale}"
+                                                                  Today="{Binding MonthGridToday}" FirstDay="{Binding MonthGridFirstDay}" ColorScaleTotals="{Binding MonthGridColorScale}"
                                                                   HighlightStart="{Binding MonthGridHighlightStart}" HighlightEnd="{Binding MonthGridHighlightEnd}"
                                                                   AvailableWidth="{Binding ActualWidth, ElementName=MonthGridScroller}"
                                                                   SelectedDay="{Binding SelectedDay}"
@@ -951,7 +951,7 @@
                             <controls:CollapsibleSection x:Name="PlanForecastSection" SectionKey="planforecast"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Forecast]}"
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Forecast]}"
-                                    Visibility="{Binding HasForecast, Converter={StaticResource BoolToVis}}">
+                                    Visibility="{Binding ShowPlanForecast, Converter={StaticResource BoolToVis}}">
                                 <StackPanel>
                                     <!-- One provider at a time; the row only exists when there is a choice. -->
                                     <ItemsControl ItemsSource="{Binding ForecastButtons}" Margin="0,0,0,4"

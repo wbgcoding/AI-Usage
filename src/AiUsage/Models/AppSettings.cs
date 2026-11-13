@@ -29,6 +29,30 @@ public sealed class AppSettings
     /// three copies are kept and a damaged index is restored from them).</summary>
     public bool StatsWeeklyCopy { get; set; } = true;
 
+    /// <summary>Whether the token index saves a CSV file of the previous week into <see cref="StatsWeeklyCsvFolder"/>
+    /// (once per ISO week, after a walk).</summary>
+    public bool StatsWeeklyCsv { get; set; }
+
+    /// <summary>The folder of the weekly CSV files. A path on this PC, so a settings import or a reset keeps it.</summary>
+    public string StatsWeeklyCsvFolder { get; set; } = "";
+
+    /// <summary>Further folders of Claude session files (a copy of another PC's sessions, an old drive)
+    /// the token index reads on every run next to this PC's own. Machine-local, so a settings import or
+    /// a reset leaves them alone.</summary>
+    public List<string> StatsExtraFolders { get; set; } = [];
+
+    /// <summary>The range the token usage window opens on: Week, Month, ThisMonth, LastMonth, Year or
+    /// All; empty = the one it was left on (<see cref="StatsRange"/>).</summary>
+    public string StatsOpenRange { get; set; } = "";
+
+    /// <summary>The first weekday shown in the token usage window's weekday rows and month grids:
+    /// empty = as in Windows, otherwise Monday or Sunday. Week totals stay Monday to Sunday.</summary>
+    public string StatsWeekStart { get; set; } = "";
+
+    /// <summary>Keys of the token usage window's sections the user switched off (hidden, not just
+    /// collapsed).</summary>
+    public List<string> StatsHiddenSections { get; set; } = [];
+
     public int RefreshSeconds { get; set; } = 60;
 
     /// <summary>How often, in minutes, a provider read over the internet is asked at most, unless the

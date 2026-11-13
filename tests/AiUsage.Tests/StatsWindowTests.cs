@@ -766,6 +766,24 @@ public class StatsWindowTests
     }
 
     [Fact]
+    public void Sections_switched_off_in_settings_are_collapsed_and_come_back_when_switched_on_again()
+    {
+        var settings = new AppSettings { StatsHiddenSections = ["limits", "projects"] };
+        RunInWindow(settings, (window, _) =>
+        {
+            Assert.Equal(Visibility.Collapsed, window.LimitsSection.Visibility);
+            Assert.Equal(Visibility.Collapsed, window.ProjectsSection.Visibility);
+            Assert.Equal(Visibility.Visible, window.ProviderSection.Visibility);
+
+            settings.StatsHiddenSections = [];
+            window.ApplyDisplaySettings();
+
+            Assert.Equal(Visibility.Visible, window.LimitsSection.Visibility);
+            Assert.Equal(Visibility.Visible, window.ProjectsSection.Visibility);
+        });
+    }
+
+    [Fact]
     public void Reloading_from_settings_takes_the_replaced_choices_layout_and_collapsed_sections_without_writing_stale_ones_back()
     {
         var settings = new AppSettings { StatsGrouping = "Day", StatsRange = "Week", StatsColorBy = "Provider" };
