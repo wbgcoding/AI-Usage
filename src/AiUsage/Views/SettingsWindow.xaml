@@ -1074,6 +1074,34 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <!-- Extra Claude session folders: read on every run, or once. -->
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.ExtraFolders]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <ItemsControl ItemsSource="{Binding StatsExtraFolders}"
+                                  Visibility="{Binding HasStatsExtraFolders, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4" LastChildFill="True">
+                                    <Button DockPanel.Dock="Right" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.RemoveFolder]}"
+                                            Style="{StaticResource AiUsageQuietButton}" Padding="8,4" Margin="8,0,0,0"
+                                            Command="{Binding DataContext.RemoveStatsFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"/>
+                                    <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding}"
+                                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <WrapPanel Margin="0,4,0,0">
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.AddFolder]}" Style="{StaticResource SystemAction}"
+                                HorizontalAlignment="Left" Margin="0,0,8,8" Command="{Binding AddStatsFolderCommand}"/>
+                        <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.ImportFolder]}" Style="{StaticResource SystemAction}"
+                                HorizontalAlignment="Left" Margin="0,0,8,8" Command="{Binding ImportStatsFolderCommand}"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding StatsFolderImportResult, Mode=OneWay}" TextWrapping="Wrap"
+                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
+                               Visibility="{Binding HasStatsFolderImportResult, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
             </Border>
         </StackPanel>

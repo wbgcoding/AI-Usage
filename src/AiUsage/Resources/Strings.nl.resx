@@ -696,6 +696,11 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Nog {0} over.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Inloggen bij platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Meer mappen (bij elke run ingelezen)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Map toevoegen…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Verwijderen</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Een map eenmalig inlezen…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} sessiebestanden gelezen, {1} nieuw</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Tokengebruik</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Periode bij openen</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Laatst gebruikt</value></data>

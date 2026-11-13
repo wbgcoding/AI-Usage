@@ -696,6 +696,11 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} left.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Shows the API credit balance of your Claude Console on the tile. Only the balance is read.</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>More folders (read on every run)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Remove</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Read a folder once…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} session files read, {1} new</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Token usage</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Period on open</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Last used</value></data>

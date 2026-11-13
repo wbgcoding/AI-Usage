@@ -43,6 +43,7 @@ public class SettingsCoverageTests
         nameof(AppSettings.WelcomeShown), // one-time hint already seen on this PC
         nameof(AppSettings.ClickThroughHintShown), // one-time hint already seen on this PC
         nameof(AppSettings.WebUsagePaths), // paths on this PC
+        nameof(AppSettings.StatsExtraFolders), // folders on this PC
         nameof(AppSettings.LastUpdateCheckUtc), // update check state of this PC
         nameof(AppSettings.KnownLatestTag), // update check state of this PC
         nameof(AppSettings.KnownLatestUrl), // update check state of this PC

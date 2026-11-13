@@ -696,6 +696,11 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>剩余 {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>在磁贴上显示你的 Claude Console 的 API 额度余额。只读取余额。</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>更多文件夹(每次运行时读取)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>添加文件夹…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>移除</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>一次性读取文件夹…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>已读取 {0} 个会话文件,新增 {1} 个</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>令牌用量</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>打开时的时间段</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>上次使用的</value></data>

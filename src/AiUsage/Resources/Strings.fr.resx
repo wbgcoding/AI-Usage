@@ -696,6 +696,11 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Il reste {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Se connecter à platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Affiche sur la tuile le solde de crédits API de ta Claude Console. Seul le solde est lu.</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Autres dossiers (lus à chaque exécution)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Ajouter un dossier…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Retirer</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Lire un dossier une fois…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fichiers de session lus, {1} nouveaux</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Consommation de tokens</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Période à l'ouverture</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Dernière utilisée</value></data>

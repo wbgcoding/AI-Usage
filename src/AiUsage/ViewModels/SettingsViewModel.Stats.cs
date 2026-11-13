@@ -4,6 +4,7 @@ using System.Windows;
 using AiUsage.Services;
 using AiUsage.Stats;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace AiUsage.ViewModels;
 
@@ -82,8 +83,119 @@ public sealed partial class SettingsViewModel
     // True while the check boxes are set from the settings (open, reset, import): that is not a choice.
     private bool _settingStatsSections;
 
+    /// <summary>The extra Claude session folders read on every run, as the settings hold them.</summary>
+    public ObservableCollection<string> StatsExtraFolders { get; } = [];
+
+    public bool HasStatsExtraFolders => StatsExtraFolders.Count > 0;
+
+    /// <summary>"12 session files read, 3 new" after a folder was read once; empty before.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatsFolderImportResult))]
+    private string statsFolderImportResult = "";
+
+    public bool HasStatsFolderImportResult => StatsFolderImportResult.Length > 0;
+
+    /// <summary>True while a folder is being read once (the button is off meanwhile).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ImportStatsFolderCommand))]
+    private bool isStatsFolderImportRunning;
+
+    private bool CanImportStatsFolder() => !IsStatsFolderImportRunning;
+
+    /// <summary>Adds a folder to the ones read on every run; a folder already listed is not added twice.</summary>
+    [RelayCommand]
+    private void AddStatsFolder()
+    {
+        var picked = _askForExtraFolder();
+        if (string.IsNullOrWhiteSpace(picked))
+            return;
+
+        var folder = Path.TrimEndingDirectorySeparator(picked.Trim());
+        if (StatsExtraFolders.Any(known => string.Equals(known, folder, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        StatsExtraFolders.Add(folder);
+        StatsExtraFoldersChanged();
+    }
+
+    /// <summary>Stops reading a folder on every run. What it already added to the index stays there.</summary>
+    [RelayCommand]
+    private void RemoveStatsFolder(string? folder)
+    {
+        if (folder is null)
+            return;
+
+        var known = StatsExtraFolders.FirstOrDefault(entry => string.Equals(entry, folder, StringComparison.OrdinalIgnoreCase));
+        if (known is null)
+            return;
+
+        StatsExtraFolders.Remove(known);
+        StatsExtraFoldersChanged();
+    }
+
+    private void StatsExtraFoldersChanged()
+    {
+        _settings.StatsExtraFolders = [.. StatsExtraFolders];
+        _store.RequestSave(_settings);
+        OnPropertyChanged(nameof(HasStatsExtraFolders));
+        if (Stats.StatsIndexerService.Shared is { } indexer)
+            indexer.ExtraClaudeRoots = _settings.StatsExtraFolders;
+    }
+
+    /// <summary>Reads one folder of session files once, in the background, without keeping it on the list.</summary>
+    [RelayCommand(CanExecute = nameof(CanImportStatsFolder))]
+    private async Task ImportStatsFolderAsync()
+    {
+        var picked = _askForExtraFolder();
+        if (string.IsNullOrWhiteSpace(picked))
+            return;
+
+        IsStatsFolderImportRunning = true;
+        StatsFolderImportResult = "";
+        try
+        {
+            var (read, added) = await Task.Run(() => _importFolderOnce(picked, CancellationToken.None));
+            StatsFolderImportResult = LocalizationService.Instance.Format("Settings.Stats.ImportFolderDone", read, added);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            StatsFolderImportResult = LocalizationService.Instance.Format("Settings.Stats.ImportFolderDone", 0, 0);
+        }
+        finally
+        {
+            IsStatsFolderImportRunning = false;
+        }
+    }
+
+    private static Task<(int FilesRead, int FilesAdded)> ImportFolderOnSharedIndexer(string folder, CancellationToken cancellationToken) =>
+        Stats.StatsIndexerService.Shared is { } indexer
+            ? indexer.IndexFolderOnceAsync(folder, cancellationToken)
+            : Task.FromResult((0, 0));
+
+    private static string? ShowRealExtraFolderDialog()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        };
+        return dialog.ShowDialog() == true ? dialog.FolderName : null;
+    }
+
+    private void RebuildStatsExtraFolders()
+    {
+        StatsExtraFolders.Clear();
+        foreach (var folder in _settings.StatsExtraFolders ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(folder))
+                StatsExtraFolders.Add(folder);
+        }
+
+        OnPropertyChanged(nameof(HasStatsExtraFolders));
+    }
+
     private void InitializeStatsPage()
     {
+        RebuildStatsExtraFolders();
         RebuildStatsSections();
         Choice.Select(StatsOpenRangeChoices, StatsDisplayChoices.NormalizeOpenRange(_settings.StatsOpenRange));
         Choice.Select(StatsWeekStartChoices, StatsDisplayChoices.NormalizeWeekStart(_settings.StatsWeekStart));

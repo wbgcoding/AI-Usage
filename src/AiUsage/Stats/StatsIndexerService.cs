@@ -20,6 +20,12 @@ public sealed class StatsIndexerService : IDisposable
     private readonly LogService? _logService;
     // Writes the weekly copy of the index; null for a service that keeps none.
     private readonly Action<DateTimeOffset>? _weeklyCopy;
+    // Reads one folder once (see IndexFolderOnceAsync); null for a stand-in service.
+    private readonly Func<string, CancellationToken, (int FilesRead, int FilesAdded)>? _indexFolderOnce;
+    // The added folders as of now; replaced as a whole, so a walk in flight keeps the list it started with.
+    private volatile IReadOnlyList<string> _extraClaudeRoots = [];
+    // The added folders already reported as missing in this run of the app.
+    private readonly HashSet<string> _reportedMissingRoots = [];
     private volatile bool _weeklyCopyEnabled = true;
     private readonly object _gate = new();
     private CancellationTokenSource? _cancellation;
@@ -102,10 +108,132 @@ public sealed class StatsIndexerService : IDisposable
     }
 
     public StatsIndexerService(StatsStore store, LogService? logService = null)
-        : this((token, progress) => new StatsIndexer(store, logService).IndexOnce(progress, token), () => StatsDataSnapshot.Load(store), logService,
-            () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath,
-            now => store.WriteWeeklyCopy(store.DataDirectory, now))
+        : this(store, () => new StatsIndexer(store, logService), logService)
     {
+    }
+
+    /// <summary>Test seam: the walk runs on an indexer the test builds (fake roots), never on this
+    /// machine's own session folders.</summary>
+    internal StatsIndexerService(StatsStore store, Func<StatsIndexer> createIndexer, LogService? logService = null)
+        : this(new IndexerLink(), store, createIndexer, logService)
+    {
+    }
+
+    // The walk delegates need the service they belong to (for the added folders), which a constructor
+    // call cannot hand them directly; the link is attached to the service once it exists.
+
+    private StatsIndexerService(IndexerLink link, StatsStore store, Func<StatsIndexer> createIndexer, LogService? logService)
+        : this((token, progress) => link.Prepare(createIndexer()).IndexOnce(progress, token), () => StatsDataSnapshot.Load(store), logService,
+            () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath,
+            now => store.WriteWeeklyCopy(store.DataDirectory, now),
+            (folder, token) => link.Prepare(createIndexer()).IndexFolderOnce(folder, token))
+    {
+        link.Service = this;
+    }
+
+    /// <summary>Hands a freshly created indexer the added folders as they are when the walk starts.</summary>
+    private sealed class IndexerLink
+    {
+        public StatsIndexerService? Service { get; set; }
+
+        public StatsIndexer Prepare(StatsIndexer indexer)
+        {
+            if (Service is { } service)
+            {
+                indexer.ExtraClaudeRoots = service._extraClaudeRoots;
+                indexer.ReportedMissingRoots = service._reportedMissingRoots;
+            }
+
+            return indexer;
+        }
+    }
+
+    /// <summary>The extra Claude session folders added in Settings, read on every walk from the next
+    /// one on. A walk in flight keeps the list it started with.</summary>
+    public IReadOnlyList<string> ExtraClaudeRoots
+    {
+        get => _extraClaudeRoots;
+        set => _extraClaudeRoots = value is null ? [] : [.. value];
+    }
+
+    /// <summary>Reads one folder of Claude session files once: waits until a running walk is over, then
+    /// reads only that folder through the same per-file path as a walk (a response another file already
+    /// counted adds nothing) and refreshes the prepared data when something was added. Returns how many
+    /// session files were read and how many of them added at least one new message. The files are only
+    /// read, never moved or deleted. Throws <see cref="OperationCanceledException"/> when cancelled or
+    /// when the service shuts down meanwhile.</summary>
+    public async Task<(int FilesRead, int FilesAdded)> IndexFolderOnceAsync(string folder, CancellationToken cancellationToken = default)
+    {
+        if (_indexFolderOnce is null)
+            return (0, 0);
+
+        CancellationToken token;
+        while (!TryBeginRun(out token))
+            await Task.Delay(FolderImportPoll, cancellationToken).ConfigureAwait(false);
+
+        var finished = new TaskCompletionSource<(int, int)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var linked = CancellationTokenSource.CreateLinkedTokenSource(token, cancellationToken);
+        var thread = new Thread(() =>
+        {
+            var outcome = (FilesRead: 0, FilesAdded: 0);
+            Exception? failure = null;
+            try
+            {
+                outcome = _indexFolderOnce(folder, linked.Token);
+                if (outcome.FilesAdded > 0 && !linked.IsCancellationRequested)
+                {
+                    RefreshSnapshot();
+                    RaiseIndexCompleted();
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                failure = ex;
+                if (ex is not OperationCanceledException)
+                    _logService?.LogError($"Statistics folder import failed ({ex.GetType().Name}).");
+            }
+            finally
+            {
+                linked.Dispose();
+                lock (_gate)
+                    _isRunning = false;
+            }
+
+            if (failure is OperationCanceledException)
+                finished.SetCanceled();
+            else
+                finished.SetResult(outcome);
+        })
+        {
+            IsBackground = true,
+            Priority = ThreadPriority.BelowNormal,
+            Name = "StatsFolderImport",
+        };
+        lock (_gate)
+            _thread = thread;
+        thread.Start();
+        return await finished.Task.ConfigureAwait(false);
+    }
+
+    private static readonly TimeSpan FolderImportPoll = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>Takes the one run slot when no walk holds it.</summary>
+    private bool TryBeginRun(out CancellationToken token)
+    {
+        lock (_gate)
+        {
+            if (_isRunning)
+            {
+                token = default;
+                return false;
+            }
+
+            _isRunning = true;
+            _cancellation?.Dispose();
+            _cancellation = new CancellationTokenSource();
+            token = _cancellation.Token;
+            return true;
+        }
     }
 
     /// <summary>Whether a finished walk also writes the weekly copy of the index. On unless the
@@ -148,9 +276,11 @@ public sealed class StatsIndexerService : IDisposable
 
     private StatsIndexerService(
         Func<CancellationToken, Action<int, int>, StatsIndexResult?> runIndexOnce, Func<StatsDataSnapshot>? loadSnapshot, LogService? logService,
-        Func<string>? snapshotPath = null, Action<DateTimeOffset>? weeklyCopy = null)
+        Func<string>? snapshotPath = null, Action<DateTimeOffset>? weeklyCopy = null,
+        Func<string, CancellationToken, (int FilesRead, int FilesAdded)>? indexFolderOnce = null)
     {
         _weeklyCopy = weeklyCopy;
+        _indexFolderOnce = indexFolderOnce;
         _runIndexOnce = runIndexOnce;
         _loadSnapshot = loadSnapshot;
         _logService = logService;
@@ -228,13 +358,9 @@ public sealed class StatsIndexerService : IDisposable
     {
         lock (_gate)
         {
-            if (_isRunning)
+            if (!TryBeginRun(out var token))
                 return;
 
-            _isRunning = true;
-            _cancellation?.Dispose();
-            _cancellation = new CancellationTokenSource();
-            var token = _cancellation.Token;
             _thread = new Thread(() => RunSafely(token))
             {
                 IsBackground = true,

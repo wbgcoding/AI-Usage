@@ -250,7 +250,73 @@ public class StatsDisplayChoicesTests : IDisposable
         Assert.False(targetVm.StatsSections.Single(section => section.Key == "model").IsShown);
     }
 
-    private SettingsViewModel BuildViewModelWithDialogs(AppSettings settings, Func<string, string?>? askExport = null, Func<string?>? askImport = null)
+    [Fact]
+    public void Added_session_folders_are_kept_in_the_settings_listed_once_and_removable()
+    {
+        var settings = new AppSettings();
+        var picks = new Queue<string?>([@"D:\Old PC\projects", @"d:\old pc\projects\", null, @"E:\Backup\projects"]);
+        var vm = BuildViewModelWithDialogs(settings, askFolder: () => picks.Dequeue());
+
+        for (var click = 0; click < 4; click++)
+            vm.AddStatsFolderCommand.Execute(null);
+
+        Assert.Equal([@"D:\Old PC\projects", @"E:\Backup\projects"], vm.StatsExtraFolders);
+        Assert.Equal(vm.StatsExtraFolders, settings.StatsExtraFolders);
+        Assert.True(vm.HasStatsExtraFolders);
+
+        vm.RemoveStatsFolderCommand.Execute(@"D:\Old PC\projects");
+
+        Assert.Equal([@"E:\Backup\projects"], settings.StatsExtraFolders);
+    }
+
+    [Fact]
+    public void The_added_session_folders_of_the_settings_are_listed_when_the_page_opens()
+    {
+        var settings = new AppSettings { StatsExtraFolders = [@"D:\Old PC\projects"] };
+        var vm = BuildViewModelWithDialogs(settings);
+
+        Assert.Equal([@"D:\Old PC\projects"], vm.StatsExtraFolders);
+    }
+
+    [Fact]
+    public async Task Reading_a_folder_once_runs_in_the_background_and_shows_the_result()
+    {
+        var gate = new TaskCompletionSource<(int, int)>();
+        string? readFolder = null;
+        var vm = BuildViewModelWithDialogs(new AppSettings(), askFolder: () => @"D:\Old PC\projects",
+            importFolder: (folder, _) => { readFolder = folder; return gate.Task; });
+
+        var running = vm.ImportStatsFolderCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsStatsFolderImportRunning);
+        Assert.False(vm.ImportStatsFolderCommand.CanExecute(null));
+        Assert.Empty(vm.StatsExtraFolders);
+
+        gate.SetResult((12, 3));
+        await running;
+
+        Assert.Equal(@"D:\Old PC\projects", readFolder);
+        Assert.False(vm.IsStatsFolderImportRunning);
+        Assert.True(vm.ImportStatsFolderCommand.CanExecute(null));
+        Assert.Equal(LocalizationService.Instance.Format("Settings.Stats.ImportFolderDone", 12, 3), vm.StatsFolderImportResult);
+        Assert.Empty(vm.StatsExtraFolders);
+    }
+
+    [Fact]
+    public async Task Cancelling_the_folder_picker_reads_nothing()
+    {
+        var called = false;
+        var vm = BuildViewModelWithDialogs(new AppSettings(), askFolder: () => null,
+            importFolder: (_, _) => { called = true; return Task.FromResult((0, 0)); });
+
+        await vm.ImportStatsFolderCommand.ExecuteAsync(null);
+
+        Assert.False(called);
+        Assert.False(vm.HasStatsFolderImportResult);
+    }
+
+    private SettingsViewModel BuildViewModelWithDialogs(AppSettings settings, Func<string, string?>? askExport = null, Func<string?>? askImport = null,
+        Func<string?>? askFolder = null, Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>>? importFolder = null)
     {
         var providers = new List<FakeProvider> { new("codex"), new("claude"), new("gemini"), new("copilot") };
         var settingsStore = new SettingsStore(TempDirectory());
@@ -270,7 +336,9 @@ public class StatsDisplayChoicesTests : IDisposable
             askForSettingsExportPath: askExport,
             askForSettingsImportPath: askImport,
             showMessage: _ => { },
-            statsStore: new StatsStore(TempDirectory()));
+            statsStore: new StatsStore(TempDirectory()),
+            askForExtraFolder: askFolder ?? (() => null),
+            importFolderOnce: importFolder ?? ((_, _) => Task.FromResult((0, 0))));
         vm.ImportedPcsLoadTask.GetAwaiter().GetResult();
         vm.StatsIndexInfoLoadTask.GetAwaiter().GetResult();
         return vm;

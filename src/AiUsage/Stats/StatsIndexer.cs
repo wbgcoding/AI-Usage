@@ -62,6 +62,18 @@ public sealed class StatsIndexer
     /// constructor points it at this machine's real folders, so a test walk never reads them.</summary>
     internal IReadOnlyList<string> AntigravityRoots { get; init; } = [];
 
+    /// <summary>Further Claude <c>projects</c> folders the user added in Settings (a copy of another PC's
+    /// sessions, an old drive). They are walked on every run like the machine's own roots; a file that
+    /// cannot be read there is left for the next walk and never holds a one-time pass back.</summary>
+    internal IReadOnlyList<string> ExtraClaudeRoots { get; set; } = [];
+
+    /// <summary>The extra folders already reported as missing, so a folder that stays offline is
+    /// reported once per run of the app and not on every walk. The service shares one set across its
+    /// walks; without it each indexer reports on its own.</summary>
+    internal HashSet<string>? ReportedMissingRoots { get; set; }
+
+    private readonly HashSet<string> _ownMissingRoots = [];
+
     public StatsIndexer(StatsStore store, LogService? logService = null)
         : this(store, DefaultClaudeProjectsRoots(), DefaultCodexSessionsRoot, DefaultCodexArchivedRoot, () => DateTime.UtcNow)
     {
@@ -210,6 +222,15 @@ public sealed class StatsIndexer
             claudeFoldersSkipped += foldersSkipped;
         }
 
+        foreach (var extraRoot in ExtraClaudeRoots)
+        {
+            if (!ExtraRootExists(extraRoot))
+                continue;
+
+            claudeFiles.AddRange(EnumerateNewestFirstWithInfo(extraRoot, "*.jsonl", out var foldersSkipped, cancellationToken));
+            claudeFoldersSkipped += foldersSkipped;
+        }
+
         // Two configured roots can overlap; a file new to the index is only ever read once per walk.
         claudeFiles = [.. claudeFiles.DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)];
 
@@ -320,6 +341,91 @@ public sealed class StatsIndexer
             new StatsIndexCounters(claudeFilesSeen, claudeFilesRead, claudeLinesParsed, claudeLinesSkipped, claudeFoldersSkipped),
             new StatsIndexCounters(codexFilesSeen, codexFilesRead, codexLinesParsed, codexLinesSkipped, codexFoldersSkipped),
             new StatsIndexCounters(geminiFilesSeen, geminiFilesRead, geminiRowsParsed, geminiRowsSkipped, geminiFoldersSkipped));
+    }
+
+    /// <summary>False for an extra folder that is not there (a removed drive, a PC that is off); that is
+    /// no error, the folder is simply skipped and named once in the log per run of the app.</summary>
+    private bool ExtraRootExists(string root)
+    {
+        bool exists;
+        try
+        {
+            exists = Directory.Exists(root);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            exists = false;
+        }
+
+        if (exists)
+            return true;
+
+        var reported = ReportedMissingRoots ?? _ownMissingRoots;
+        bool first;
+        lock (reported)
+            first = reported.Add(root);
+        if (first)
+            Log?.LogInfo("Statistics: an added session folder is not available and is skipped.");
+        return false;
+    }
+
+    /// <summary>True when <paramref name="path"/> lies under one of the extra folders.</summary>
+    private bool IsUnderExtraRoot(string path)
+    {
+        foreach (var root in ExtraClaudeRoots)
+        {
+            var prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a file a one-time pass could not read holds that pass back: not when it is gone,
+    /// and not when it lies in an extra folder, which may be offline for good.</summary>
+    private bool HoldsPassBack(Exception ex, string path) => !IsGone(ex) && !IsUnderExtraRoot(path);
+
+    /// <summary>Reads every Claude session file under one folder once, through the same per-file path as
+    /// a walk, and nothing else: no one-time pass, no other root. A file whose responses another file
+    /// already counted adds nothing. Returns how many files were read and how many of them added at
+    /// least one message. The files are only read, never changed.</summary>
+    internal (int FilesRead, int FilesAdded) IndexFolderOnce(string folder, CancellationToken cancellationToken = default)
+    {
+        _failedWrites = 0;
+        _passHeld.Clear();
+        _knownComplete = _store.TryLoadSourceFiles(out var known);
+        _knownCodexFileNames = null;
+        _claimsActive = _store.IsClaudeOwnerPassConfirmedDone();
+
+        var files = EnumerateNewestFirstWithInfo(folder, "*.jsonl", out _, cancellationToken);
+        if (files.Any(file => !known.ContainsKey(file.FullName)))
+        {
+            files.Sort((a, b) =>
+            {
+                var byAge = a.CreationTimeUtc.CompareTo(b.CreationTimeUtc);
+                return byAge != 0 ? byAge : string.CompareOrdinal(a.FullName, b.FullName);
+            });
+        }
+
+        var filesRead = 0;
+        var filesAdded = 0;
+        foreach (var listed in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var (read, linesParsed, _) = IndexClaudeFile(listed, known, cancellationToken);
+            if (!read)
+                continue;
+
+            filesRead++;
+            if (linesParsed > 0)
+                filesAdded++;
+        }
+
+        if (_failedWrites > 0)
+            Log?.LogError($"Statistics: the results of {_failedWrites} session file(s) could not be stored (the index is locked or unwritable).");
+
+        return (filesRead, filesAdded);
     }
 
     /// <summary>Every matching file under <paramref name="root"/>, newest write time first - so a
@@ -829,7 +935,7 @@ public sealed class StatsIndexer
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // A file that vanished has no session data to give; one that is locked is read again later.
-                unreadable |= !IsGone(ex);
+                unreadable |= HoldsPassBack(ex, state.Path);
             }
             finally
             {
@@ -872,7 +978,7 @@ public sealed class StatsIndexer
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // A file that vanished has nothing to give; one that is locked is read again later.
-                unreadable |= !IsGone(ex);
+                unreadable |= HoldsPassBack(ex, state.Path);
             }
         }
 
@@ -951,7 +1057,7 @@ public sealed class StatsIndexer
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // A file that vanished has nothing to give; one that is locked is read again later.
-                unreadable |= !IsGone(ex);
+                unreadable |= HoldsPassBack(ex, state.Path);
             }
         }
 
@@ -1066,7 +1172,7 @@ public sealed class StatsIndexer
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // A file that vanished has nothing to give; one that is locked is read again later.
-                unreadable |= !IsGone(ex);
+                unreadable |= HoldsPassBack(ex, state.Path);
             }
         }
 
@@ -1094,7 +1200,7 @@ public sealed class StatsIndexer
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     // A file that vanished has nothing to give; one that is locked is read again later.
-                    unreadable |= !IsGone(ex);
+                    unreadable |= HoldsPassBack(ex, state.Path);
                 }
                 finally
                 {

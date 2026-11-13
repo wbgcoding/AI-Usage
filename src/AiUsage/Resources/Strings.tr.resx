@@ -696,6 +696,11 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} kaldı.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com'da oturum aç</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude Console'unun API kredi bakiyesini kutucukta gösterir. Yalnızca bakiye okunur.</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Diğer klasörler (her çalıştırmada okunur)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Klasör ekle…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Kaldır</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Bir klasörü bir kez oku…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} oturum dosyası okundu, {1} yeni</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Token kullanımı</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Açılışta dönem</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Son kullanılan</value></data>

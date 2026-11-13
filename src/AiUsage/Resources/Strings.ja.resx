@@ -696,6 +696,11 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>追加のフォルダー(実行のたびに読み込み)</value></data>
+  <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>フォルダーを追加…</value></data>
+  <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>削除</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>フォルダーを一度だけ読み込む…</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>セッションファイル {0} 件を読み込み、新規 {1} 件</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>トークン使用量</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>開いたときの期間</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>前回の期間</value></data>

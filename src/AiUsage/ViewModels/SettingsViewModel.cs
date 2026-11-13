@@ -46,6 +46,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<string, bool> _confirmRiskyFolder;
     private readonly Func<string, bool> _confirmReplaceOldCopy;
     private readonly Stats.StatsStore _statsStore;
+    private readonly Func<string?> _askForExtraFolder;
+    private readonly Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>> _importFolderOnce;
     private readonly bool _readsMachineList;
     private readonly Func<Uri, ResourceDictionary> _loadThemeDictionary;
 
@@ -617,9 +619,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Func<string, string?>? askForBackupSavePath = null, Func<string?>? askForBackupOpenPath = null,
         Func<string, string, bool>? confirmRestore = null, Func<bool>? restartApp = null, Stats.StatsStore? statsStore = null,
         Func<string, bool>? removeMachine = null, Func<string, bool>? confirmRiskyFolder = null,
-        Func<string, bool>? confirmReplaceOldCopy = null)
+        Func<string, bool>? confirmReplaceOldCopy = null, Func<string?>? askForExtraFolder = null,
+        Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>>? importFolderOnce = null)
     {
         Main = main;
+        _askForExtraFolder = askForExtraFolder ?? ShowRealExtraFolderDialog;
+        _importFolderOnce = importFolderOnce ?? ImportFolderOnSharedIndexer;
         _settings = settings;
         _store = store;
         _historyStore = historyStore ?? main.HistoryStore;
