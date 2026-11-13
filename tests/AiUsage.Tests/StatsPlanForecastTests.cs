@@ -296,6 +296,67 @@ public class StatsPlanForecastTests
         Assert.NotNull(forecast.MonthlyApiUsd);
     }
 
+    /// <summary>Hourly weekly readings that rise 0.5 % an hour on hours 0-30 and 0.125 % an hour on hours 31-60, each
+    /// reading carrying the plan of its hour's range (null before <paramref name="firstPlanned"/>).</summary>
+    private static List<HistoryPoint> TwoPlanPoints(int firstPlanned = 0, int maxUntil = 30)
+    {
+        var reset = new DateTimeOffset(Start) + TimeSpan.FromDays(3);
+        return Enumerable.Range(0, 61).Select(hour =>
+        {
+            var percent = hour <= 30 ? hour * 0.5 : 15 + (hour - 30) * 0.125;
+            var plan = hour < firstPlanned ? null : hour <= maxUntil ? "Max" : "Ultra";
+            return new HistoryPoint(1, new DateTimeOffset(Start).AddHours(hour), WindowKind.Weekly, percent, reset, Plan: plan);
+        }).ToList();
+    }
+
+    [Fact]
+    public void Readings_of_two_plans_give_two_forecasts_that_never_mix()
+    {
+        var account = new ForecastAccount("claude", "Ultra", TwoPlanPoints());
+
+        var max = StatsPlanForecast.Build("claude", [account], Records(61), Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Max")!;
+        var ultra = StatsPlanForecast.Build("claude", [account], Records(61), Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Ultra")!;
+
+        // 1000 tokens an hour over 0.5 % an hour and over 0.125 % an hour.
+        Assert.Equal(200_000, max.Weekly!.CapacityTokens);
+        Assert.Equal(800_000, ultra.Weekly!.CapacityTokens);
+        Assert.Equal("Max", max.Plan);
+        Assert.Equal(["Max"], max.Plans);
+        Assert.Equal("claude|Max", max.Key);
+        Assert.Equal("claude|Ultra", ultra.Key);
+        Assert.Equal(100, max.MonthlyPlanUsd);
+        Assert.Equal(200, ultra.MonthlyPlanUsd);
+        Assert.Equal(new DateTimeOffset(Start).AddHours(30), max.LastReading);
+        Assert.Equal(new DateTimeOffset(Start).AddHours(60), ultra.LastReading);
+    }
+
+    [Fact]
+    public void A_reading_without_a_plan_counts_for_the_current_plan()
+    {
+        // Hours 0-20 predate the recorded plans; Max ends at hour 40, Ultra is current.
+        var account = new ForecastAccount("claude", null, TwoPlanPoints(firstPlanned: 21, maxUntil: 40));
+
+        Assert.Equal("Ultra", StatsPlanForecast.CurrentPlanOf(account));
+        Assert.Equal(["Ultra", "Max"], StatsPlanForecast.PlansOf(account));
+        var ultra = Assert.Single(StatsPlanForecast.ForPlan([account], "Ultra"));
+        var max = Assert.Single(StatsPlanForecast.ForPlan([account], "Max"));
+        Assert.Equal(21 + 20, ultra.Points.Count);
+        Assert.Equal(21, ultra.Points.Count(point => point.Plan is null));
+        Assert.Equal(20, max.Points.Count);
+        Assert.Equal("Ultra", ultra.Plan);
+        Assert.Empty(StatsPlanForecast.ForPlan([account], "Pro"));
+    }
+
+    [Fact]
+    public void Without_any_recorded_plan_the_live_plan_is_the_only_one()
+    {
+        var account = new ForecastAccount("claude", "Max", Points(30, 0.5));
+
+        Assert.Equal("Max", StatsPlanForecast.CurrentPlanOf(account));
+        Assert.Equal(["Max"], StatsPlanForecast.PlansOf(account));
+        Assert.Equal(31, Assert.Single(StatsPlanForecast.ForPlan([account], "Max")).Points.Count);
+    }
+
     [Fact]
     public void The_average_is_taken_over_finished_periods_that_saw_use()
     {

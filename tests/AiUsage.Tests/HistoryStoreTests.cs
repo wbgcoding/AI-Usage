@@ -241,6 +241,42 @@ public class HistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Append_records_the_plan_and_a_line_without_one_loads_as_null()
+    {
+        var directory = TempDirectory();
+        File.WriteAllText(Path.Combine(directory, "history-claude.jsonl"), Line(Now.AddHours(-3), "Weekly", 10) + Environment.NewLine);
+        var store = new HistoryStore(directory, () => Now);
+
+        store.Append("claude", WindowKind.Weekly, 20.0, resetsAt: null, plan: "Ultra");
+
+        var loaded = store.Load("claude", TimeSpan.FromDays(1));
+        Assert.Equal([null, "Ultra"], loaded.Select(point => point.Plan));
+        Assert.Contains("\"pl\":\"Ultra\"", File.ReadAllText(Path.Combine(directory, "history-claude.jsonl")));
+    }
+
+    [Fact]
+    public void Compact_keeps_points_of_different_plans_apart()
+    {
+        var directory = TempDirectory();
+        var path = Path.Combine(directory, "history-claude.jsonl");
+        var hourAgo = Now.AddDays(-60);
+        // One hour, two plans: a merged peak would swallow the lower one.
+        var lines = Enumerable.Range(0, 40)
+            .Select(i => System.Text.Json.JsonSerializer.Serialize(new HistoryPoint(
+                1, hourAgo.AddMinutes(i), WindowKind.FiveHour, i == 5 ? 99.0 : i == 30 ? 40.0 : 1.0, null, Plan: i < 20 ? "Max" : "Ultra")))
+            .ToArray();
+        File.WriteAllLines(path, lines);
+        var store = new HistoryStore(directory, () => Now);
+
+        store.Compact("claude");
+
+        var remaining = store.Load("claude", TimeSpan.FromDays(3650));
+        Assert.Equal(["Max", "Ultra"], remaining.Select(point => point.Plan));
+        Assert.Equal([99.0, 40.0], remaining.Select(point => point.Percent));
+        Assert.All(remaining, point => Assert.Equal(1, point.CompactionLevel));
+    }
+
+    [Fact]
     public void Compact_reduces_a_days_points_from_two_years_ago_to_one_daily_point()
     {
         var directory = TempDirectory();

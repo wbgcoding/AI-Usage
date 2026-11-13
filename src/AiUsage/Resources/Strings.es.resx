@@ -569,6 +569,10 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>Coste de API:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Coste aproximado si estos tokens se hubieran facturado a los precios públicos de la API (lista de precios de LiteLLM, a fecha de {0}). Las suscripciones se facturan de otra forma.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Sin precio conocido para: {0}. No se cuenta.</value></data>
+  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · hasta {1}</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} tiene {1} la capacidad</value></data>
+  <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} cuesta {1} más al mes</value></data>
+  <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} cuesta {1} menos al mes</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Los precios aún no se han cargado.</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>Estadísticas de tokens</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Mostrar coste de API</value></data>

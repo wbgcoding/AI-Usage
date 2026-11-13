@@ -569,6 +569,10 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API-kosten:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Geschatte kosten als deze tokens tegen de openbare API-lijstprijzen waren gefactureerd (LiteLLM-prijslijst, stand {0}). Abonnementen worden anders gefactureerd.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Geen prijs bekend voor: {0}. Niet meegeteld.</value></data>
+  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · tot {1}</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} heeft {1} de capaciteit</value></data>
+  <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} kost {1} meer per maand</value></data>
+  <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} kost {1} minder per maand</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prijzen nog niet geladen.</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>Tokenstatistieken</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>API-kosten tonen</value></data>

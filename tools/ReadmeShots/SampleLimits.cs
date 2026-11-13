@@ -5,14 +5,16 @@ using AiUsage.Storage;
 /// <summary>Quota history for the statistics window's limits section: a few weekly and five-hour
 /// periods per provider, some of them ending at the limit, written to a throw-away data folder. With
 /// the usage records, Claude's and Codex's quotas get an hourly reading that follows those tokens instead, so the
-/// plan forecast has enough hours to work from.</summary>
+/// plan forecast has enough hours to work from. With <c>twoPlans</c> Claude's readings older than three weeks
+/// carry the plan "Max" and the newer ones "Ultra" (which fills its quota a quarter as fast), so the forecast
+/// shows an old plan next to the current one.</summary>
 internal static class SampleLimits
 {
     private static readonly double[] ClaudeWeeklyPeaks = [100, 87, 64, 100];
     private static readonly double[] CodexWeeklyPeaks = [58, 71, 36, 49];
     private static readonly double[] FiveHourPeaks = [100, 72, 100, 55, 88, 100];
 
-    private sealed record Reading(DateTimeOffset At, string Provider, WindowKind Window, double Percent, DateTimeOffset Reset);
+    private sealed record Reading(DateTimeOffset At, string Provider, WindowKind Window, double Percent, DateTimeOffset Reset, string? Plan = null);
 
     /// <summary>One reading on every full hour of the last six weeks for each provider's weekly and five-hour
     /// quotas. A reading is the share of a fixed allowance that the provider's tokens since the period began
@@ -59,7 +61,8 @@ internal static class SampleLimits
         }
     }
 
-    internal static void Seed(string dataFolder, DateTimeOffset now, IReadOnlyList<AiUsage.Stats.StatsRecord>? records = null)
+    internal static void Seed(
+        string dataFolder, DateTimeOffset now, IReadOnlyList<AiUsage.Stats.StatsRecord>? records = null, bool twoPlans = false)
     {
         Directory.CreateDirectory(dataFolder);
         var readings = new List<Reading>();
@@ -88,13 +91,28 @@ internal static class SampleLimits
         for (var block = 0; block < FiveHourPeaks.Length && records is null; block++)
             Climb("claude", WindowKind.FiveHour, now.AddHours(-30 * block), TimeSpan.FromHours(5), FiveHourPeaks[block]);
 
+        if (twoPlans)
+        {
+            var switched = now.AddDays(-21);
+            for (var i = 0; i < readings.Count; i++)
+            {
+                var reading = readings[i];
+                if (reading.Provider != "claude")
+                    continue;
+
+                readings[i] = reading.At < switched
+                    ? reading with { Plan = "Max" }
+                    : reading with { Plan = "Ultra", Percent = Math.Round(reading.Percent * 0.25, 1) };
+            }
+        }
+
         // The history file only ever grows at its end, so the readings go in oldest first.
         var clock = now;
         var store = new HistoryStore(dataFolder, () => clock);
         foreach (var reading in readings.Where(reading => reading.At <= now).OrderBy(reading => reading.At))
         {
             clock = reading.At;
-            store.Append(reading.Provider, reading.Window, reading.Percent, reading.Reset);
+            store.Append(reading.Provider, reading.Window, reading.Percent, reading.Reset, plan: reading.Plan);
         }
     }
 }

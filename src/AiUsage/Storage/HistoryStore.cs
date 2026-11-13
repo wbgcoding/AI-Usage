@@ -61,7 +61,7 @@ public class HistoryStore
     // An Append that found its provider's lock taken (a rewrite is running): kept here and written
     // once the lock holder is done, so the UI thread never waits for a rewrite.
     private readonly record struct PendingAppend(
-        WindowKind Window, double Percent, DateTimeOffset? ResetsAt, long? Tokens, string Label, DateTimeOffset Now);
+        WindowKind Window, double Percent, DateTimeOffset? ResetsAt, long? Tokens, string Label, DateTimeOffset Now, string? Plan = null);
 
     private ProviderState StateOf(string providerId) =>
         _providers.GetOrAdd(AppPaths.SanitizeAccountKeyForFileName(providerId), _ => new ProviderState());
@@ -136,10 +136,10 @@ public class HistoryStore
     /// Writes a point only if the value changed since the last stored point for this window, or at
     /// least <see cref="MinAppendInterval"/> has passed - a steady value otherwise writes nothing.
     /// </summary>
-    public void Append(string providerId, WindowKind window, double percent, DateTimeOffset? resetsAt, long? tokens = null, string label = "")
+    public void Append(string providerId, WindowKind window, double percent, DateTimeOffset? resetsAt, long? tokens = null, string label = "", string? plan = null)
     {
         var state = StateOf(providerId);
-        var pending = new PendingAppend(window, percent, resetsAt, tokens, label, _now());
+        var pending = new PendingAppend(window, percent, resetsAt, tokens, label, _now(), plan);
         if (!Monitor.TryEnter(state.Gate))
         {
             lock (state.PendingGate)
@@ -177,7 +177,7 @@ public class HistoryStore
 
         AppendLine(providerId, new HistoryPoint(
             SchemaVersion, request.Now, request.Window, request.Percent, request.ResetsAt, Tokens: request.Tokens,
-            Label: request.Label.Length > 0 ? request.Label : null));
+            Label: request.Label.Length > 0 ? request.Label : null, Plan: request.Plan));
     }
 
     /// <summary>Writes the queued appends, oldest first. The caller holds the provider's lock.</summary>
@@ -644,7 +644,8 @@ public class HistoryStore
             // Label is part of the bucket key too - otherwise compacting a provider with more than
             // one Other series (Cursor's per-model bars, its Grok Bot bar) would pick a single
             // "peak" mixed across series that have nothing to do with each other.
-            .GroupBy(point => (point.Window, Label: point.Label ?? "", Bucket: bucketSelector(point)))
+            // Plan too: points of different plans (a Max to Ultra switch) never merge into one peak.
+            .GroupBy(point => (point.Window, Label: point.Label ?? "", Plan: point.Plan ?? "", Bucket: bucketSelector(point)))
             .Select(group => group.OrderByDescending(point => point.Percent).First() with
             {
                 CompactionLevel = compactionLevel,

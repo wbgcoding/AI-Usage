@@ -212,10 +212,10 @@ internal static class ReviewSurfaces
         Program.RenderStatistics(
             folder, context.Records, context.BusyDay, fullHeight: true,
             context.OutputPath(id), minWidth: context.Size == SizeKind.Min,
-            seed: _ => SampleLimits.Seed(folder, context.Now, context.Records),
+            seed: _ => SampleLimits.Seed(folder, context.Now, context.Records, twoPlans: true),
             configure: viewModel =>
             {
-                viewModel.PlanOf = key => key == "claude" ? "Max" : key == "codex" ? "Plus" : null;
+                viewModel.PlanOf = key => key == "claude" ? "Ultra" : key == "codex" ? "Plus" : null;
                 viewModel.Recompute();
                 viewModel.ForecastButtons.FirstOrDefault(button => button.ProviderId == provider)?.IsChecked = true;
             },

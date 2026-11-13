@@ -569,6 +569,10 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API maliyeti:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Bu tokenlar herkese açık API liste fiyatlarından faturalansaydı yaklaşık maliyet (LiteLLM fiyat listesi, {0} itibarıyla). Abonelikler farklı faturalanır.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Şunlar için bilinen fiyat yok: {0}. Sayılmadı.</value></data>
+  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · {1} tarihine kadar</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} planı {1} kapasiteye sahip</value></data>
+  <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} ayda {1} daha pahalı</value></data>
+  <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} ayda {1} daha ucuz</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Fiyatlar henüz yüklenmedi.</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>Token istatistikleri</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>API maliyetini göster</value></data>

@@ -147,17 +147,34 @@ public class StatsForecastViewModelTests
     }
 
     [Fact]
-    public async Task Several_accounts_are_pooled_into_one_block_with_all_plans_and_the_count()
+    public async Task Several_accounts_on_one_plan_are_pooled_into_one_block_with_the_count()
+    {
+        var (viewModel, directory) = await CreateAsync(
+            100, id => id == "claude" ? ["claude", "claude#2"] : [id], _ => "Max");
+        using (directory)
+        {
+            var provider = Assert.Single(viewModel.ForecastProviders);
+            Assert.Equal("Max", provider.PlanText);
+            Assert.Equal(Loc.Format("Stats.Forecast.Accounts", 2), provider.AccountsText);
+            Assert.Equal("Max · " + provider.AccountsText, provider.Detail);
+        }
+    }
+
+    [Fact]
+    public async Task Accounts_on_different_plans_each_give_a_current_forecast()
     {
         var plans = new Dictionary<string, string?> { ["claude"] = "Max", ["claude#2"] = "Pro" };
         var (viewModel, directory) = await CreateAsync(
             100, id => id == "claude" ? ["claude", "claude#2"] : [id], key => plans.GetValueOrDefault(key));
         using (directory)
         {
-            var provider = Assert.Single(viewModel.ForecastProviders);
-            Assert.Equal("Max + Pro", provider.PlanText);
-            Assert.Equal(Loc.Format("Stats.Forecast.Accounts", 2), provider.AccountsText);
-            Assert.Equal("Max + Pro · " + provider.AccountsText, provider.Detail);
+            Assert.Equal(["claude|Max", "claude|Pro"], viewModel.ForecastProviders.Select(provider => provider.Key).Order());
+            Assert.All(viewModel.ForecastProviders, provider =>
+            {
+                Assert.True(provider.IsCurrent);
+                Assert.Equal("", provider.AccountsText);
+            });
+            Assert.All(viewModel.ForecastButtons, button => Assert.False(button.IsOld));
         }
     }
 
@@ -190,6 +207,72 @@ public class StatsForecastViewModelTests
             Assert.False(viewModel.HasForecast);
             Assert.False(viewModel.HasForecastChoice);
         }
+    }
+
+    [Fact]
+    public async Task An_old_plan_gets_a_muted_button_after_every_current_one_and_compares_with_the_current_plan()
+    {
+        var claudePoints = History(100, "claude").Points.Select((point, index) => point with { Plan = index < 50 ? "Max" : "Ultra" }).ToList();
+        var lastMax = claudePoints[49].Timestamp;
+        var (viewModel, directory) = await CreateAsync(
+            100, plan: key => key.StartsWith("claude", StringComparison.Ordinal) ? "Ultra" : null, withCodex: true,
+            history: (key, _, _) => key.StartsWith("claude", StringComparison.Ordinal) ? claudePoints
+                : key.StartsWith("codex", StringComparison.Ordinal) ? History(100, "codex").Points : []);
+        using (directory)
+        {
+            Assert.Equal(["claude|Ultra", "codex|", "claude|Max"], viewModel.ForecastButtons.Select(button => button.Key));
+            Assert.Equal(["claude", "codex", "claude"], viewModel.ForecastButtons.Select(button => button.ProviderId));
+            Assert.Equal([false, false, true], viewModel.ForecastButtons.Select(button => button.IsOld));
+            Assert.Equal([1.0, 1.0, 0.6], viewModel.ForecastButtons.Select(button => button.Opacity));
+            Assert.Equal("claude|Ultra", viewModel.SelectedForecastKey);
+            Assert.Equal("Ultra", viewModel.ForecastButtons[0].Detail);
+            Assert.Equal("", viewModel.ForecastButtons[2].Detail);
+            Assert.Equal(
+                Loc.Format("Stats.Forecast.OldPlan", "Claude Max", DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(lastMax.LocalDateTime), Loc.DisplayCulture)),
+                viewModel.ForecastButtons[2].Name);
+            Assert.False(Assert.Single(viewModel.ShownForecast).HasVsCurrent);
+
+            viewModel.ForecastButtons[2].IsChecked = true;
+            var shown = Assert.Single(viewModel.ShownForecast);
+            Assert.Equal("claude|Max", viewModel.SelectedForecastKey);
+            Assert.Equal("claude", viewModel.SelectedForecastProvider);
+            Assert.False(shown.IsCurrent);
+            Assert.True(shown.HasVsCurrent);
+            Assert.Contains("Ultra", shown.VsCurrentText);
+            Assert.Contains("×", shown.VsCurrentText);
+            Assert.Equal([false, false, true], viewModel.ForecastButtons.Select(button => button.IsChecked));
+        }
+    }
+
+    [Fact]
+    public async Task Readings_without_plans_make_one_forecast_for_the_live_plan()
+    {
+        var (viewModel, directory) = await CreateAsync(100, plan: _ => "Max");
+        using (directory)
+        {
+            Assert.Equal("claude|Max", Assert.Single(viewModel.ForecastButtons).Key);
+            Assert.True(Assert.Single(viewModel.ForecastProviders).IsCurrent);
+            Assert.False(Assert.Single(viewModel.ForecastButtons).IsOld);
+        }
+    }
+
+    [Fact]
+    public void An_old_plan_with_known_prices_names_the_price_difference_to_the_current_one()
+    {
+        var current = Forecast(Window(Total(172_000)), Window(Total(2_000)), plan: 200, plans: "Ultra") with { Plan = "Ultra" };
+        var old = Forecast(Window(Total(172_000)), Window(Total(500)), plan: 100, plans: "Max")
+            with { Plan = "Max", IsCurrent = false, LastReading = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero) };
+
+        var provider = StatsViewModel.BuildForecastProvider(old, new StatsCostView(Prices()), Loc, current);
+
+        Assert.False(provider.IsCurrent);
+        Assert.Contains("4.0×", provider.VsCurrentText.Replace(',', '.'));
+        Assert.Contains("Ultra", provider.VsCurrentText);
+        Assert.True(provider.Month!.HasPriceDiff);
+        Assert.Contains("Ultra", provider.Month.PriceDiffText);
+        Assert.Contains("100", provider.Month.PriceDiffText);
+        Assert.StartsWith("Claude Max", provider.ButtonName);
+        Assert.False(StatsViewModel.BuildForecastProvider(current, new StatsCostView(Prices()), Loc).HasVsCurrent);
     }
 
     [Fact]

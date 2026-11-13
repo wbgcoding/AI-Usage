@@ -569,6 +569,10 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>Cost API:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Cost aproximativ dacă acești tokeni ar fi fost facturați la prețurile publice de listă ale API-ului (lista de prețuri LiteLLM, la data de {0}). Abonamentele sunt facturate diferit.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Preț necunoscut pentru: {0}. Nu este inclus.</value></data>
+  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · până la {1}</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} are {1} capacitatea</value></data>
+  <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} costă cu {1} mai mult pe lună</value></data>
+  <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} costă cu {1} mai puțin pe lună</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prețurile nu sunt încă încărcate.</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>Statistici tokeni</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Arată costul API</value></data>

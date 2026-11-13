@@ -27,8 +27,11 @@ public sealed record StatsForecastWindowViewModel(
 /// <summary>The month card: the API value of a month, how many times the plan price it is, and the plan
 /// with its list price (the tooltip names where the price comes from and when it was checked).</summary>
 public sealed record StatsForecastMonthViewModel(
-    string ApiText, string PlanText, string PlanToolTip, string RatioText, string RatioCaption, string ToolTip, Brush Brush)
+    string ApiText, string PlanText, string PlanToolTip, string RatioText, string RatioCaption, string ToolTip, Brush Brush,
+    string PriceDiffText = "")
 {
+    public bool HasPriceDiff => PriceDiffText.Length > 0;
+
     public bool HasPlan => PlanText.Length > 0;
 
     public bool HasRatio => RatioText.Length > 0;
@@ -40,8 +43,15 @@ public sealed record StatsForecastMonthViewModel(
 /// <summary>The plan forecast of one provider: its plans and account count, one card per window and the month card.</summary>
 public sealed record StatsForecastProviderViewModel(
     string ProviderId, string Name, Brush Brush, string PlanText, string AccountsText,
-    IReadOnlyList<StatsForecastWindowViewModel> Windows, StatsForecastMonthViewModel? Month)
+    IReadOnlyList<StatsForecastWindowViewModel> Windows, StatsForecastMonthViewModel? Month,
+    string Key = "", string? Plan = null, bool IsCurrent = true, string OldLabel = "", string VsCurrentText = "")
 {
+    /// <summary>What the button above the forecast says: the provider's name, or for an old plan the label with its end date.</summary>
+    public string ButtonName => IsCurrent ? Name : OldLabel;
+
+    /// <summary>The line under the window cards comparing an old plan with the current one; empty for a current plan.</summary>
+    public bool HasVsCurrent => VsCurrentText.Length > 0;
+
     /// <summary>The small text beside the provider name: plan(s), then the account count when there are several.</summary>
     public string Detail => PlanText.Length > 0 && AccountsText.Length > 0 ? TextCompose.Pair(PlanText, AccountsText) : PlanText + AccountsText;
 
@@ -50,11 +60,23 @@ public sealed record StatsForecastProviderViewModel(
 
 /// <summary>One provider button above the forecast: the provider's name, its plan beside it, its colour and whether it is the
 /// shown one. <see cref="IsChecked"/> is what the radio button binds to, so a click or an arrow key both land in the owner.</summary>
-public sealed partial class StatsForecastButtonViewModel(string providerId, string name, Brush brush, Action<string> pick) : ObservableObject
+public sealed partial class StatsForecastButtonViewModel(
+    string providerId, string name, Brush brush, Action<string> pick, string? plan = null, string? key = null, bool isOld = false) : ObservableObject
 {
     private bool _isChecked;
 
     public string ProviderId { get; } = providerId;
+
+    /// <summary>The plan the button stands for; null when the plan is unknown or the button is no forecast button.</summary>
+    public string? Plan { get; } = plan;
+
+    /// <summary>What a pick hands to the owner: provider and plan (<c>claude|Max</c>); the provider alone for a button without a plan.</summary>
+    public string Key { get; } = key ?? providerId;
+
+    /// <summary>True for a plan the provider has left; its button is drawn muted.</summary>
+    public bool IsOld { get; } = isOld;
+
+    public double Opacity => IsOld ? 0.6 : 1;
 
     public string Name { get; } = name;
 
@@ -82,7 +104,7 @@ public sealed partial class StatsForecastButtonViewModel(string providerId, stri
         {
             // The radio group unchecks the previous button by itself; only a new pick is news.
             if (value && !_isChecked)
-                pick(ProviderId);
+                pick(Key);
         }
     }
 

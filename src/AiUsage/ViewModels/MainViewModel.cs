@@ -1765,7 +1765,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 if (recordHistory)
                 {
                     _historyStore.Append(
-                        snapshot.ProviderId, window.Kind, window.UsedPercent, window.ResetsAt, window.Tokens?.TotalTokens, window.Label);
+                        snapshot.ProviderId, window.Kind, window.UsedPercent, window.ResetsAt, window.Tokens?.TotalTokens, window.Label,
+                        plan: PlanTier.Normalize(snapshot.PlanType));
                 }
 
                 var (threshold, enabled) = SettingsRanges.ResolveThreshold(_settings, snapshot.ProviderId, window.Kind);

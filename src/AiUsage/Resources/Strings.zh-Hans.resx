@@ -569,6 +569,10 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API 费用:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>如果这些令牌按公开的 API 标价计费,大致的费用(LiteLLM 价目表,截至 {0})。订阅的计费方式不同。</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* 未知价格:{0}。未计入。</value></data>
+  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · 截至 {1}</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} 的容量为 {1}</value></data>
+  <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} 每月贵 {1}</value></data>
+  <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} 每月便宜 {1}</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>价格尚未加载。</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>令牌统计</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>显示 API 费用</value></data>

@@ -24,11 +24,19 @@ public sealed record ForecastWindow(
 }
 
 /// <summary>The forecast of one provider: both windows (null when the provider has no history for it),
-/// the plans of its accounts and the monthly API value against the monthly plan price.</summary>
+/// the plans of its accounts and the monthly API value against the monthly plan price. With a plan
+/// filter it covers that one plan only (<see cref="Plan"/>): <see cref="IsCurrent"/> tells the plan the
+/// provider is on now from one it left, <see cref="LastReading"/> is its newest reading.</summary>
 public sealed record ProviderForecast(
     string ProviderId, ForecastWindow? FiveHour, ForecastWindow? Weekly, IReadOnlyList<string> Plans, int AccountCount,
-    double? MonthlyApiUsd, double? MonthlyPlanUsd, IReadOnlyList<PlanPrice>? PlanPrices = null)
+    double? MonthlyApiUsd, double? MonthlyPlanUsd, IReadOnlyList<PlanPrice>? PlanPrices = null,
+    string? Plan = null, bool IsCurrent = true, DateTimeOffset? LastReading = null)
 {
+    /// <summary>The forecast's identity: provider and plan (<c>claude|Max</c>); the plan part is empty when unknown.</summary>
+    public string Key => KeyOf(ProviderId, Plan);
+
+    public static string KeyOf(string providerId, string? plan) => providerId + "|" + (plan ?? "");
+
     /// <summary>How many times the plan price the API value of a month is.</summary>
     public double? Ratio => MonthlyApiUsd is { } api && MonthlyPlanUsd is > 0 ? api / MonthlyPlanUsd : null;
 }
@@ -44,10 +52,51 @@ public static class StatsPlanForecast
     private const string FiveHourKey = "Window_FiveHour";
     private const string WeeklyKey = "Window_Weekly";
 
+    /// <summary>The plan an account is on now: the plan of its newest reading that has one, else the live one.</summary>
+    public static string? CurrentPlanOf(ForecastAccount account) =>
+        account.Points.Where(point => !string.IsNullOrWhiteSpace(point.Plan)).MaxBy(point => point.Timestamp)?.Plan ?? account.Plan;
+
+    /// <summary>The plans an account has readings for in its history, its current one included. A reading without a
+    /// plan counts for the account's current plan.</summary>
+    public static IReadOnlyList<string?> PlansOf(ForecastAccount account)
+    {
+        var current = CurrentPlanOf(account);
+        var plans = new List<string?> { current };
+        foreach (var point in account.Points)
+        {
+            var plan = string.IsNullOrWhiteSpace(point.Plan) ? current : point.Plan;
+            if (!plans.Contains(plan))
+                plans.Add(plan);
+        }
+
+        return plans;
+    }
+
+    /// <summary>The accounts reduced to the readings taken on <paramref name="plan"/> (null = no plan known); a reading
+    /// without a plan belongs to the account's current plan. Accounts left without a reading drop out.</summary>
+    public static List<ForecastAccount> ForPlan(IReadOnlyList<ForecastAccount> accounts, string? plan)
+    {
+        var result = new List<ForecastAccount>();
+        foreach (var account in accounts)
+        {
+            var current = CurrentPlanOf(account);
+            var points = account.Points.Where(point => (string.IsNullOrWhiteSpace(point.Plan) ? current : point.Plan) == plan).ToList();
+            if (points.Count > 0)
+                result.Add(new ForecastAccount(account.Key, plan, points));
+        }
+
+        return result;
+    }
+
+    /// <summary>The forecast of a provider. With <paramref name="plan"/> only the readings taken on that plan count
+    /// (see <see cref="ForPlan"/>); without it all readings do.</summary>
     public static ProviderForecast? Build(
         string providerId, IReadOnlyList<ForecastAccount> accounts, IReadOnlyList<StatsRecord> records,
-        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone)
+        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone, string? plan = null)
     {
+        if (plan is not null)
+            accounts = ForPlan(accounts, plan);
+
         var weekly = BuildWindow(WindowKind.Weekly, accounts, records, pricer, now, zone);
         var fiveHour = BuildWindow(WindowKind.FiveHour, accounts, records, pricer, now, zone);
         if (weekly is null && fiveHour is null)
@@ -59,8 +108,9 @@ public static class StatsPlanForecast
         var known = accounts.Count > 0 && prices.All(price => price is not null);
         double? planUsd = known && prices.All(price => !price!.IsEuro) ? prices.Sum(price => price!.Net) : null;
         double? monthlyApi = weekly?.ApiUsdPerWindow * DaysPerMonth / 7 * accounts.Count;
+        var lastReading = accounts.SelectMany(account => account.Points).Select(point => (DateTimeOffset?)point.Timestamp).Max();
         return new ProviderForecast(providerId, fiveHour, weekly, plans, accounts.Count, monthlyApi, planUsd,
-            known ? prices.Select(price => price!).ToList() : null);
+            known ? prices.Select(price => price!).ToList() : null, plan ?? (plans.Count == 1 ? plans[0] : null), true, lastReading);
     }
 
     private static ForecastWindow? BuildWindow(

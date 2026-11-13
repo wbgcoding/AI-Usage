@@ -21,4 +21,8 @@ public sealed record HistoryPoint(
     // than one WindowKind.Other series for the same provider be told apart (Cursor's per-model bars,
     // its Grok Bot bar); null for a line without it, or for a provider that never has more than one
     // window of that kind. A line without it still reads, with no label.
-    [property: JsonPropertyName("l")] string? Label = null);
+    [property: JsonPropertyName("l")] string? Label = null,
+    // The plan this reading was taken on (the exact output of PlanTier.Normalize, e.g. "Max",
+    // "Ultra"); null when unknown or recorded before plans were kept. A null counts for the
+    // provider's current plan.
+    [property: JsonPropertyName("pl")] string? Plan = null);

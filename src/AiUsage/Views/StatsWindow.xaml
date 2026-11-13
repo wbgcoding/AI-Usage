@@ -958,7 +958,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <RadioButton Style="{StaticResource PillRadioButton}" GroupName="PlanForecastProvider"
-                                                             Tag="{Binding Brush}"
+                                                             Tag="{Binding Brush}" Opacity="{Binding Opacity}"
                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                              AutomationProperties.Name="{Binding Name}">
                                                     <StackPanel Orientation="Horizontal">
@@ -977,7 +977,7 @@
                                                   Visibility="{Binding HasSingleForecast, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}">
+                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}" Opacity="{Binding Opacity}">
                                                     <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Brush}"/>
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                                     <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center"
@@ -1069,6 +1069,10 @@
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
+                                                    <!-- An old plan against the one in use now. -->
+                                                    <TextBlock Text="{Binding VsCurrentText}" Margin="0,0,0,8" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Text.Secondary}"
+                                                               Visibility="{Binding HasVsCurrent, Converter={StaticResource BoolToVis}}"/>
                                                     <!-- A month of the plan's API value against its price, on one scale. -->
                                                     <ContentControl Content="{Binding Month}" Focusable="False"
                                                                     Visibility="{Binding HasMonth, Converter={StaticResource BoolToVis}}">
@@ -1138,6 +1142,10 @@
                                                                                        Margin="0,2,0,0" TextWrapping="NoWrap" Background="Transparent"
                                                                                        ToolTip="{Binding PlanToolTip, Converter={StaticResource NullIfEmpty}}"
                                                                                        Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}"/>
+                                                                            <TextBlock Text="{Binding PriceDiffText}" Foreground="{DynamicResource Text.Muted}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}"
+                                                                                       Margin="0,2,0,0" TextWrapping="NoWrap"
+                                                                                       Visibility="{Binding HasPriceDiff, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
                                                                     </Grid>
                                                                 </Border>

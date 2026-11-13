@@ -45,50 +45,58 @@ public sealed partial class StatsViewModel
     /// <summary>With one provider only, a compact name and plan line stands in for the button row.</summary>
     public bool HasSingleForecast => ForecastButtons.Count == 1;
 
-    /// <summary>The provider the user picked in the forecast section; empty until one is picked, and
-    /// again once it has no forecast. Kept only while the window is open.</summary>
+    /// <summary>The forecast key (<c>claude|Max</c>) the user picked in the forecast section; empty until one is
+    /// picked, and again once it has no forecast. Kept only while the window is open.</summary>
     private string _pickedForecastProvider = "";
 
     /// <summary>The provider the forecast section shows: the picked one, else the one provider of the
     /// provider filter, else the first with a forecast. Empty without any forecast.</summary>
     public string SelectedForecastProvider { get; private set; } = "";
 
+    /// <summary>The forecast (provider and plan) the section shows; empty without any forecast.</summary>
+    public string SelectedForecastKey { get; private set; } = "";
+
     /// <summary>The one provider block the forecast section shows; none without a forecast.</summary>
     public IReadOnlyList<StatsForecastProviderViewModel> ShownForecast { get; private set; } = [];
 
     partial void OnForecastProvidersChanged(IReadOnlyList<StatsForecastProviderViewModel> value) => ResolveForecastProvider();
 
-    private void PickForecastProvider(string providerId)
+    private void PickForecastProvider(string key)
     {
-        _pickedForecastProvider = providerId;
+        _pickedForecastProvider = key;
         ResolveForecastProvider();
     }
 
     /// <summary>Settles which provider the forecast section shows and refreshes the buttons and the block.</summary>
     private void ResolveForecastProvider()
     {
-        var ids = ForecastProviders.Select(provider => provider.ProviderId).ToList();
-        if (!ids.Contains(_pickedForecastProvider))
+        var keys = ForecastProviders.Select(provider => provider.Key).ToList();
+        if (!keys.Contains(_pickedForecastProvider))
             _pickedForecastProvider = "";
 
-        SelectedForecastProvider = _pickedForecastProvider.Length > 0 ? _pickedForecastProvider
-            : _selectedProviders.Count == 1 && ids.Contains(_selectedProviders[0]) ? _selectedProviders[0]
-            : ids.FirstOrDefault() ?? "";
-        ShownForecast = [.. ForecastProviders.Where(provider => provider.ProviderId == SelectedForecastProvider)];
+        SelectedForecastKey = _pickedForecastProvider.Length > 0 ? _pickedForecastProvider
+            : _selectedProviders.Count == 1 && ForecastProviders.FirstOrDefault(provider => provider.ProviderId == _selectedProviders[0]) is { } filtered ? filtered.Key
+            : keys.FirstOrDefault() ?? "";
+        SelectedForecastProvider = ForecastProviders.FirstOrDefault(provider => provider.Key == SelectedForecastKey)?.ProviderId ?? "";
+        ShownForecast = [.. ForecastProviders.Where(provider => provider.Key == SelectedForecastKey)];
 
-        if (!ForecastButtons.Select(button => button.ProviderId).SequenceEqual(ids))
+        if (!ForecastButtons.Select(button => (button.Key, button.Name)).SequenceEqual(ForecastProviders.Select(provider => (provider.Key, provider.ButtonName))))
         {
             ForecastButtons.Clear();
             foreach (var provider in ForecastProviders)
-                ForecastButtons.Add(new StatsForecastButtonViewModel(provider.ProviderId, provider.Name, provider.Brush, PickForecastProvider));
+            {
+                ForecastButtons.Add(new StatsForecastButtonViewModel(
+                    provider.ProviderId, provider.ButtonName, provider.Brush, PickForecastProvider, provider.Plan, provider.Key, !provider.IsCurrent));
+            }
         }
 
         foreach (var button in ForecastButtons)
         {
-            button.Mark(button.ProviderId == SelectedForecastProvider);
-            button.SetDetail(ForecastProviders.FirstOrDefault(provider => provider.ProviderId == button.ProviderId)?.Detail ?? "");
+            button.Mark(button.Key == SelectedForecastKey);
+            button.SetDetail(ForecastProviders.FirstOrDefault(provider => provider.Key == button.Key) is { IsCurrent: true } shown ? shown.Detail : "");
         }
 
+        OnPropertyChanged(nameof(SelectedForecastKey));
         OnPropertyChanged(nameof(SelectedForecastProvider));
         OnPropertyChanged(nameof(ShownForecast));
         OnPropertyChanged(nameof(HasForecastChoice));
@@ -192,31 +200,44 @@ public sealed partial class StatsViewModel
             if (providerRecords.Count == 0)
                 continue;
 
-            var forecast = StatsPlanForecast.Build(
-                providerId, [.. accounts.Select(account => new ForecastAccount(account.Key, plans.GetValueOrDefault(account.Key), account.Points))],
-                providerRecords, pricer, DateTimeOffset.Now, TimeZoneInfo.Local);
-            if (forecast is not null)
-                forecasts[providerId] = forecast;
+            var forecastAccounts = accounts.Select(account => new ForecastAccount(account.Key, plans.GetValueOrDefault(account.Key), account.Points)).ToList();
+            var currentPlans = forecastAccounts.Select(StatsPlanForecast.CurrentPlanOf).Distinct().ToList();
+            // One forecast per plan the accounts have readings for: readings taken on an old plan never mix into the current one.
+            foreach (var plan in forecastAccounts.SelectMany(StatsPlanForecast.PlansOf).Distinct())
+            {
+                var forecast = StatsPlanForecast.Build(
+                    providerId, StatsPlanForecast.ForPlan(forecastAccounts, plan), providerRecords, pricer, DateTimeOffset.Now, TimeZoneInfo.Local);
+                if (forecast is not null)
+                    forecasts[forecast.Key] = forecast with { IsCurrent = currentPlans.Contains(plan) };
+            }
         }
 
         return forecasts;
     }
 
+    /// <summary>The forecasts to show, in button order: the plans in use now at their providers' usual places, then the
+    /// plans left behind, newest first within a provider.</summary>
     private List<StatsForecastProviderViewModel> BuildForecastProviders(ForecastState state, LocalizationService loc)
     {
-        var providers = new List<StatsForecastProviderViewModel>();
+        var current = new List<StatsForecastProviderViewModel>();
+        var old = new List<StatsForecastProviderViewModel>();
         foreach (var providerId in ProviderCoverage.IndexedProviderIds)
         {
-            if (!state.Forecasts.TryGetValue(providerId, out var forecast) || (HasProviderFilter && !_selectedProviders.Contains(providerId)))
+            if (HasProviderFilter && !_selectedProviders.Contains(providerId))
                 continue;
 
-            providers.Add(BuildForecastProvider(forecast, state.Cost, loc));
+            var forecasts = state.Forecasts.Values.Where(forecast => forecast.ProviderId == providerId)
+                .OrderByDescending(forecast => forecast.LastReading).ThenBy(forecast => forecast.Plan, StringComparer.Ordinal).ToList();
+            var now = forecasts.Where(forecast => forecast.IsCurrent).ToList();
+            current.AddRange(now.Select(forecast => BuildForecastProvider(forecast, state.Cost, loc)));
+            old.AddRange(forecasts.Where(forecast => !forecast.IsCurrent).Select(forecast => BuildForecastProvider(forecast, state.Cost, loc, now.FirstOrDefault())));
         }
 
-        return providers;
+        return [.. current, .. old];
     }
 
-    internal static StatsForecastProviderViewModel BuildForecastProvider(ProviderForecast forecast, StatsCostView cost, LocalizationService loc)
+    internal static StatsForecastProviderViewModel BuildForecastProvider(
+        ProviderForecast forecast, StatsCostView cost, LocalizationService loc, ProviderForecast? current = null)
     {
         var brush = new SolidColorBrush(ChartPalette.ForProvider(forecast.ProviderId));
         brush.Freeze();
@@ -227,11 +248,41 @@ public sealed partial class StatsViewModel
         if (forecast.Weekly is { } weekly)
             windows.Add(ForecastWindowCard(weekly, loc["Stats.Forecast.Window.Week"], cost, loc, rangeNote, brush));
 
+        var providerName = ProviderDisplayNames.GetValueOrDefault(forecast.ProviderId, forecast.ProviderId);
+        var planText = string.Join(" + ", forecast.Plans);
+        var compare = forecast.IsCurrent ? null : current;
+        var oldLabel = "";
+        if (!forecast.IsCurrent)
+        {
+            var until = forecast.LastReading is { } last ? DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(last.LocalDateTime), loc.DisplayCulture) : "";
+            oldLabel = loc.Format("Stats.Forecast.OldPlan", planText.Length > 0 ? $"{providerName} {planText}" : providerName, until);
+        }
+
         return new StatsForecastProviderViewModel(
-            forecast.ProviderId, ProviderDisplayNames.GetValueOrDefault(forecast.ProviderId, forecast.ProviderId), brush,
-            string.Join(" + ", forecast.Plans),
+            forecast.ProviderId, providerName, brush, planText,
             forecast.AccountCount > 1 ? loc.Format("Stats.Forecast.Accounts", forecast.AccountCount) : "",
-            windows, ForecastMonthCard(forecast, cost, loc, rangeNote, brush));
+            windows, ForecastMonthCard(forecast, cost, loc, rangeNote, brush, compare), forecast.Key, forecast.Plan, forecast.IsCurrent, oldLabel,
+            compare is null ? "" : VsCurrentText(forecast, compare, loc));
+    }
+
+    /// <summary>"Ultra has 4.1x the capacity": how many times the current plan's capacity the old plan's is, from the
+    /// week when both have one, else from the 5-hour window. Empty when no window can be compared.</summary>
+    private static string VsCurrentText(ProviderForecast old, ProviderForecast current, LocalizationService loc)
+    {
+        var name = current.Plan ?? string.Join(" + ", current.Plans);
+        if (name.Length == 0)
+            return "";
+
+        foreach (var (before, now) in new[] { (old.Weekly, current.Weekly), (old.FiveHour, current.FiveHour) })
+        {
+            if (before is { CapacityTokens: > 0 } && now is { CapacityTokens: > 0 })
+            {
+                var ratio = (double)now.CapacityTokens / before.CapacityTokens;
+                return loc.Format("Stats.Forecast.VsCurrent", name, ratio.ToString("0.0", CultureInfo.CurrentCulture) + "×");
+            }
+        }
+
+        return "";
     }
 
     private static StatsForecastWindowViewModel ForecastWindowCard(
@@ -281,7 +332,8 @@ public sealed partial class StatsViewModel
             string.Join('\n', lines), loc["Tip.Stats.Forecast.Average"] + "\n" + rangeNote, brush);
     }
 
-    private static StatsForecastMonthViewModel? ForecastMonthCard(ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote, Brush brush)
+    private static StatsForecastMonthViewModel? ForecastMonthCard(
+        ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote, Brush brush, ProviderForecast? current = null)
     {
         if (forecast.MonthlyApiUsd is not { } monthly || Money(cost, monthly) is not { Length: > 0 } monthlyText)
             return null;
@@ -298,9 +350,7 @@ public sealed partial class StatsViewModel
             && prices.All(price => ShownNet(price, euro, rate) is not null))
         {
             var symbol = euro ? "€" : "$";
-            var shown = prices.Sum(price => euro
-                ? ShownNet(price, euro, rate)!.Value * (1 + PlanPrice.GermanVat)
-                : price.IsEuro ? ShownNet(price, euro, rate)!.Value : price.Amount);
+            var shown = ShownPrice(prices, euro, rate)!.Value;
             planText = $"{string.Join(" + ", prices.Select(price => price.Plan))} {PlanPriceText(shown, symbol)}";
 
             var lines = new List<string>();
@@ -325,10 +375,32 @@ public sealed partial class StatsViewModel
                 ratio = (monthly / planUsd).ToString("0.0", CultureInfo.CurrentCulture) + "×";
         }
 
+        // An old plan against the current one: what the current one costs more or less per month, when both prices are known.
+        var priceDiff = "";
+        if (current is { PlanPrices: { Count: > 0 } currentPrices, Plan.Length: > 0 }
+            && forecast.PlanPrices is { Count: > 0 } oldPrices
+            && ShownPrice(currentPrices, euro, rate) is { } currentShown && ShownPrice(oldPrices, euro, rate) is { } oldShown
+            && Math.Abs(currentShown - oldShown) >= 0.005)
+        {
+            var difference = PlanPriceText(Math.Abs(currentShown - oldShown), euro ? "€" : "$");
+            priceDiff = loc.Format(currentShown > oldShown ? "Stats.Forecast.PriceMore" : "Stats.Forecast.PriceLess", current.Plan, difference);
+        }
+
         return new StatsForecastMonthViewModel(
             loc.Format("Stats.Forecast.MonthApi", monthlyText), planText, planTip,
             ratio, ratio.Length > 0 ? loc["Stats.Forecast.RatioCaption"] : "",
-            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush);
+            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush, priceDiff);
+    }
+
+    /// <summary>The summed monthly price of the plans as the card shows it (with VAT in euros), or null when a rate is missing.</summary>
+    private static double? ShownPrice(IReadOnlyList<PlanPrice> prices, bool euro, double? usdPerEur)
+    {
+        if (prices.Any(price => ShownNet(price, euro, usdPerEur) is null))
+            return null;
+
+        return prices.Sum(price => euro
+            ? ShownNet(price, euro, usdPerEur)!.Value * (1 + PlanPrice.GermanVat)
+            : price.IsEuro ? ShownNet(price, euro, usdPerEur)!.Value : price.Amount);
     }
 
     /// <summary>A plan's price without VAT in the shown currency, or null when it needs a rate and none is known.</summary>

@@ -569,6 +569,10 @@
   <data name="Stats.Cost.Column" xml:space="preserve"><value>APIコスト:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>これらのトークンが公開APIの定価で課金された場合のおおよその費用です(LiteLLM価格表、{0}時点)。サブスクリプションの課金方法は異なります。</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* 価格不明: {0}。集計に含まれません。</value></data>
+  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · {1}まで</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0}の容量は{1}です</value></data>
+  <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0}は月額{1}高くなります</value></data>
+  <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0}は月額{1}安くなります</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>価格はまだ読み込まれていません。</value></data>
   <data name="Settings.Group.Stats" xml:space="preserve"><value>トークン統計</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>APIコストを表示</value></data>
