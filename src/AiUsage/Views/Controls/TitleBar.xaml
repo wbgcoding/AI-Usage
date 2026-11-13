@@ -184,9 +184,8 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <Separator Margin="0,8"/>
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileDensity]}"
-                                   FontWeight="SemiBold" FontSize="{StaticResource Font.Size.Small}" Margin="0,0,0,4"
+                                   FontWeight="SemiBold" FontSize="{StaticResource Font.Size.Small}" Margin="0,12,0,4"
                                    Foreground="{DynamicResource Text.Secondary}" FontFamily="{DynamicResource Font.Ui}"/>
                         <ComboBox ItemsSource="{Binding DensityChoices}"
                                   SelectedItem="{Binding SelectedDensityChoice, Mode=TwoWay}"

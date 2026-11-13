@@ -388,16 +388,6 @@
         </Style.Triggers>
     </Style>
 
-    <Style TargetType="Separator">
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Separator">
-                    <Border Height="1" Background="{DynamicResource Border}"/>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
     <!-- The tile's right-click menu (and any future one): the same surface/border tokens as every
          other floating panel in this app, never the native white Windows menu. -->
     <Style TargetType="ContextMenu">

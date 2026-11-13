@@ -13,7 +13,7 @@ public class ContextMenuOrderTests
     private static string Src(params string[] parts) => Path.Combine([RepoRoot.Find(), "src", "AiUsage", .. parts]);
 
     [Fact]
-    public void Only_the_layout_popup_keeps_a_separator_and_no_context_menu_builds_one()
+    public void No_popup_or_context_menu_draws_a_separator()
     {
         var hits = Directory.EnumerateFiles(Src(), "*.*", SearchOption.AllDirectories)
             .Where(f => (f.EndsWith(".xaml", StringComparison.Ordinal) || f.EndsWith(".cs", StringComparison.Ordinal))
@@ -23,7 +23,7 @@ public class ContextMenuOrderTests
             .Select(x => x.File)
             .ToList();
 
-        Assert.Equal(["TitleBar.xaml"], hits);
+        Assert.Empty(hits);
     }
 
     [Fact]
