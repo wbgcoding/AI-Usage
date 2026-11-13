@@ -285,7 +285,8 @@ public sealed class ModelPriceList
             // Remember the answer only while both tables are still the ones it was found in.
             if (ReferenceEquals(prices, _prices) && ReferenceEquals(fallback, _fallbackFrozen ?? Fallback.Current))
                 _found[model] = price;
-            if (price is null && !KnownUnpriced.Contains(model))
+            // A record without a model name has nothing a price list could name: no change to report.
+            if (price is null && !string.IsNullOrWhiteSpace(model) && !KnownUnpriced.Contains(model))
                 report = _reported.Add(model);
         }
 

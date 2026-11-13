@@ -154,6 +154,18 @@ public class ModelPriceListTests
     }
 
     [Fact]
+    public void Find_of_a_record_without_a_model_name_reports_nothing()
+    {
+        var list = Loaded();
+        using var capture = ReadChangeLog.BeginCapture();
+
+        Assert.Null(list.Find(""));
+        Assert.Null(list.Find("   "));
+
+        Assert.Empty(capture.Lines);
+    }
+
+    [Fact]
     public void Find_on_an_empty_list_reports_nothing_and_remembers_nothing()
     {
         var directory = TempDirectory();
