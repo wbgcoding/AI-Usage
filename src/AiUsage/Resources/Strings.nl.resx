@@ -689,6 +689,8 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>waarvan gekocht: {0}</value></data>
   <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Console-aanmelding verlopen</value></data>
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>De aanmelding bij Claude Console is verlopen, dus het tegoed wordt niet meer gelezen. Meld je opnieuw aan in Instellingen onder Claude Console (API-tegoed).</value></data>
+  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console-aanmelding verlopen, het API-tegoed wordt niet gelezen.</value></data>
+  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Opnieuw aanmelden</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Gratis tegoed</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} van {1} gebruikt</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Nog {0} over; het eerste tegoed verloopt op {1}.</value></data>

@@ -33,6 +33,18 @@ public class ClaudeApiCreditTileTests
     }
 
     [Fact]
+    public void The_tiles_sign_in_link_asks_for_the_console_sign_in()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude") { HasConsoleSession = true };
+        var asked = 0;
+        tile.ConsoleSignInRequested += (_, _) => asked++;
+
+        tile.SignInConsoleCommand.Execute(null);
+
+        Assert.Equal(1, asked);
+    }
+
+    [Fact]
     public void An_expired_console_sign_in_is_named_on_the_tile_and_offered_again_in_the_settings()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { HasConsoleSession = true };
@@ -45,13 +57,15 @@ public class ClaudeApiCreditTileTests
         tile.SetConsoleSignInExpired(true);
 
         Assert.True(tile.ShowApiCredit);
-        Assert.Contains(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+        Assert.True(tile.ShowConsoleExpiredNotice);
+        Assert.Equal("", tile.HeaderCreditText);
         Assert.Equal(loc["Tile.ApiCredit.ExpiredHint"], tile.ApiCreditToolTip);
         Assert.Equal(loc["Settings.ConsoleStatus.Expired"], tile.ConsoleStatusText);
         Assert.True(tile.ShowConsoleSignIn);
         Assert.True(tile.ShowConsoleSignOut);
 
         tile.SetApiCredit(new ClaudeApiCredit(18.40m, "USD"), ClaudeCreditRoute.Console);
+        Assert.False(tile.ShowConsoleExpiredNotice);
         Assert.DoesNotContain(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
 
         tile.SetApiCredit(null);

@@ -1383,7 +1383,7 @@ public partial class MainViewModelTests : IDisposable
         clock.Advance(TimeSpan.FromHours(3));
         await claude.ReadApiCreditNowAsync();
 
-        Assert.Contains(loc["Tile.ApiCredit.Expired"], tile.HeaderCreditText, StringComparison.Ordinal);
+        Assert.True(tile.ShowConsoleExpiredNotice);
         Assert.Equal(loc["Settings.ConsoleStatus.Expired"], tile.ConsoleStatusText);
         Assert.True(tile.ShowConsoleSignIn);
         vm.StatusFile.Flush();

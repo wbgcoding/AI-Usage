@@ -689,6 +689,8 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>うち購入分: {0}</value></data>
   <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Consoleのサインインが期限切れ</value></data>
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Consoleのサインインの期限が切れたため、残高は読み取られません。設定の「Claude Console(APIクレジット)」で再度サインインしてください。</value></data>
+  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Consoleのサインインが期限切れのため、API残高を読み取れません。</value></data>
+  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>再サインイン</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>無料クレジット</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{1} 中 {0} 使用</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>残り {0}。最も早いクレジットは {1} に期限切れになります。</value></data>

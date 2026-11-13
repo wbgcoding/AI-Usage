@@ -689,6 +689,8 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>其中已购买：{0}</value></data>
   <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Console 登录已过期</value></data>
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Console 的登录已过期,因此不再读取余额。请在设置的 Claude Console(API 额度)中重新登录。</value></data>
+  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console 登录已过期，无法读取 API 余额。</value></data>
+  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>重新登录</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>免费额度</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>已用 {0}，共 {1}</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>剩余 {0}；最早的额度于 {1} 到期。</value></data>

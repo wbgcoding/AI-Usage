@@ -689,6 +689,8 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>dont acheté : {0}</value></data>
   <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Session Console expirée</value></data>
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>La session Claude Console a expiré, le solde n'est donc plus lu. Reconnectez-vous dans les Paramètres, sous Claude Console (crédit API).</value></data>
+  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>La connexion à Console a expiré, le solde API n'est pas lu.</value></data>
+  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Se reconnecter</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Crédit offert</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} sur {1} utilisés</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>Il reste {0} ; le premier crédit expire le {1}.</value></data>

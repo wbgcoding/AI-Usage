@@ -689,6 +689,8 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>of which bought: {0}</value></data>
   <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Console sign-in expired</value></data>
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>The Claude Console sign-in has expired, so the balance is no longer read. Sign in again in Settings under Claude Console (API credits).</value></data>
+  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console sign-in expired, the API balance is not read.</value></data>
+  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Sign in again</value></data>
   <data name="Tile.ApiGrant.Label" xml:space="preserve"><value>Free credit</value></data>
   <data name="Tile.ApiGrant.Value" xml:space="preserve"><value>{0} of {1} used</value></data>
   <data name="Tip.Tile.ApiGrant" xml:space="preserve"><value>{0} left; the earliest grant ends on {1}.</value></data>

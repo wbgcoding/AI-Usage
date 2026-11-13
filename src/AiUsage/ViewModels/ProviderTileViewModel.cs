@@ -303,6 +303,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowCodexSignInLink))]
     [NotifyPropertyChangedFor(nameof(HasAction))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleExpiredNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleRow))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleSignIn))]
@@ -465,6 +466,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowRows))]
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleExpiredNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
@@ -576,9 +578,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     /// <summary>"· $18.40" after the plan in the header: the balance needs no row of its own; the
     /// name's tooltip says what the figure is. Shown only when it fits whole beside the name.</summary>
-    public string HeaderCreditText => ShowApiCredit && ShowsExpiredCredit
-        ? "\u2022\u2002" + ApiCreditText
-        : ShowApiCredit && _apiCredit is { } credit
+    public string HeaderCreditText => ShowApiCredit && !ShowsExpiredCredit && _apiCredit is { } credit
         ? "\u2022\u2002" + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)
         : "";
 
@@ -699,6 +699,16 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The Console row offers its sign-in while there is neither a Console session nor a balance.</summary>
     public bool ShowConsoleSignIn => ShowConsoleRow && ((!ConsoleSessionExists && _apiCredit is null) || ShowsExpiredCredit);
 
+    /// <summary>The line under the bars that names the expired Console sign-in, with the sign-in one click
+    /// away, while the tile shows its numbers.</summary>
+    public bool ShowConsoleExpiredNotice => ShowRows && ShowConsoleRow && ShowsExpiredCredit;
+
+    /// <summary>Asks for the Claude Console sign-in window of this account (the tile's own sign-in button).</summary>
+    public event EventHandler? ConsoleSignInRequested;
+
+    [RelayCommand]
+    private void SignInConsole() => ConsoleSignInRequested?.Invoke(this, EventArgs.Empty);
+
     /// <summary>The Console row offers its sign-out while the app holds a Console session.</summary>
     public bool ShowConsoleSignOut => ShowConsoleRow && ConsoleSessionExists;
 
@@ -736,6 +746,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(ShowConsoleSignIn));
         OnPropertyChanged(nameof(ShowConsoleSignOut));
         OnPropertyChanged(nameof(ConsoleStatusText));
+        OnPropertyChanged(nameof(ShowConsoleExpiredNotice));
     }
 
     /// <summary>Takes whether the Console sign-in has expired: the Console row then says so and offers the
@@ -752,6 +763,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         OnPropertyChanged(nameof(HeaderCreditText));
         OnPropertyChanged(nameof(ShowConsoleSignIn));
         OnPropertyChanged(nameof(ConsoleStatusText));
+        OnPropertyChanged(nameof(ShowConsoleExpiredNotice));
     }
 
     /// <summary>The status page link under the failure line that sits above the last values.</summary>
@@ -785,6 +797,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     [NotifyPropertyChangedFor(nameof(ShowReadChangeNotice))]
     [NotifyPropertyChangedFor(nameof(ShowApiCredit))]
     [NotifyPropertyChangedFor(nameof(ShowApiGrant))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleExpiredNotice))]
     [NotifyPropertyChangedFor(nameof(ShowDiagram))]
     [NotifyPropertyChangedFor(nameof(ShowChartBox))]
     [NotifyPropertyChangedFor(nameof(ShowChartHint))]

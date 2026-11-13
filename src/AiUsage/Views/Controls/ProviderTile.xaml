@@ -426,6 +426,14 @@
                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ReadChange.Notice]}"
                                Visibility="{Binding ShowReadChangeNotice, Converter={StaticResource BoolToVis}}"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ReadChange.Notice], Mode=OneWay}"/> <Hyperlink Command="{Binding OpenLogCommand}" Foreground="{DynamicResource Accent}"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ReadChange.OpenLog], Mode=OneWay}"/></Hyperlink></TextBlock>
 
+                    <!-- The Console sign-in for the API balance has expired: named here with its sign-in one click away. -->
+                    <TextBlock FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
+                               Margin="0,4,0,8" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap"
+                               ToolTip="{Binding ApiCreditToolTip}"
+                               AutomationProperties.AutomationId="ConsoleExpiredNotice"
+                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ConsoleExpired.Notice]}"
+                               Visibility="{Binding ShowConsoleExpiredNotice, Converter={StaticResource BoolToVis}}"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ConsoleExpired.Notice], Mode=OneWay}"/> <Hyperlink Command="{Binding SignInConsoleCommand}" Foreground="{DynamicResource Accent}" AutomationProperties.AutomationId="ConsoleExpiredSignIn"><Run Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tile.ConsoleExpired.SignIn], Mode=OneWay}"/></Hyperlink></TextBlock>
+
                     <!-- Until the chart has two readings it is one muted line, not an empty box. -->
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Chart.Empty]}"
                                FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Micro}"

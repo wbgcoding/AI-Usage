@@ -142,7 +142,7 @@ date, always written as a whole file:
 `other`; `resetsAt`, `tokens` and `account` are `null` when unknown. A Claude entry also carries
 `apiCredit` (`amount`, `currency`, `readAt`, `stale`, `signInExpired`) once a Claude Console credit balance was read;
 the last balance stays with its read time, `stale` is true once it is older than two hours or the Console sign-in
-expired (`signInExpired`, sign in again in Settings). The file holds only numbers and
+expired (`signInExpired`, sign in again from the tile or in Settings). The file holds only numbers and
 the names you chose, never an e-mail address.
 
 `AI-Usage.exe --status` prints one line per provider and exits (`--status --json` prints the file;

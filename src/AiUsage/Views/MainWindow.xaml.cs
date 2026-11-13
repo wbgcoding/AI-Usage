@@ -603,6 +603,7 @@ public partial class MainWindow : Window, IDisposable
     /// cref="ProviderTileViewModel.SupportsSignOut"/>).</summary>
     private void WireSignIn(ProviderTileViewModel tile)
     {
+
         // A tile that can skip its web session is wired even while the switch is on, so turning it off
         // again finds the sign-in already connected; the branch is chosen per click.
         if (!tile.SupportsSignOut && !tile.CanSkipWebSession)
@@ -635,6 +636,15 @@ public partial class MainWindow : Window, IDisposable
         };
 
         tile.SignOutRequested += async (_, _) => await ViewModel.SignOutFromUiAsync(accountKey);
+
+        // The tile's own "sign in again" for an expired Claude Console sign-in (the API balance).
+        tile.ConsoleSignInRequested += (_, _) =>
+        {
+            if (!tile.ShowConsoleRow)
+                return;
+            WebSignInFlow.Open(this, ProviderRegistry.ConsoleSessionFor(accountKey),
+                _ => ViewModel.CompleteConsoleSignIn(accountKey));
+        };
     }
 
     /// <summary>1 s keeps the countdowns and the tray tooltip current while the window is on screen;
