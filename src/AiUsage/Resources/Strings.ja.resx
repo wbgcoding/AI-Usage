@@ -570,7 +570,6 @@
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>これらのトークンが公開APIの定価で課金された場合のおおよその費用です(LiteLLM価格表、{0}時点)。サブスクリプションの課金方法は異なります。</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* 価格不明: {0}。集計に含まれません。</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>価格はまだ読み込まれていません。</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>トークン統計</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>APIコストを表示</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>トークンを公開API価格で支払った場合の費用を表示します。価格表は1日1回GitHub(LiteLLM)から読み込みます。オフにすると、費用はどこにも表示されず、何もダウンロードされません。</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>コストの通貨</value></data>
@@ -697,6 +696,16 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>トークン使用量</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>開いたときの期間</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>前回の期間</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>週の開始日</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>Windowsの設定に合わせる</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>月曜日</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>日曜日</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>曜日の行と月ごとのグリッドの並び順です。週の合計は月曜日から日曜日のままです。</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>表示するセクション</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>インデックス: {0} 件、{1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console(APIクレジット)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>サインイン済み</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Claudeのサインイン経由でサインイン済み</value></data>

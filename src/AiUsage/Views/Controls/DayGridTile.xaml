@@ -59,7 +59,7 @@
                  quantile color scale does not shift while the tile is resized. -->
             <controls:StatsMonthGrid x:Name="MonthGrid" Days="{Binding Days}"
                                       RangeStart="{Binding RangeStart}" RangeEnd="{Binding RangeEnd}"
-                                      Today="{Binding Today}" ColorScaleTotals="{Binding ColorScaleTotals}"
+                                      Today="{Binding Today}" FirstDay="{Binding FirstDay}" ColorScaleTotals="{Binding ColorScaleTotals}"
                                       ShowLegend="{Binding ShowLegend}" ShowAxisLabels="{Binding ShowAxisLabels}" SingleRow="{Binding ShowAsStrip}"
                                       DaySelected="MonthGrid_DaySelected"
                                       ProviderDisplayNames="{x:Static stats:StatsViewModel.ProviderDisplayNames}"

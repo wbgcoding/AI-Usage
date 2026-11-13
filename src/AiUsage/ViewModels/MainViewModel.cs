@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using AiUsage.Models;
 using AiUsage.Providers;
@@ -644,6 +645,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         DayGridTile = new DayGridTileViewModel(_statsStore, cost: () => _settings.ShowCostEstimate ? Cost : null)
         {
+            FirstDay = StatsDisplayChoices.ResolveFirstDay(_settings.StatsWeekStart, CultureInfo.CurrentCulture),
             IsHidden = !(_settings.Providers.TryGetValue(AppSettings.DayGridTileId, out var gridSettings) && gridSettings.Visible),
         };
         DayGridTile.DaySelected += (_, day) => DayGridDaySelected?.Invoke(this, day);
@@ -2087,6 +2089,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         DayGridTile.RefreshCost();
         _cost?.NotifySettingsChanged();
     }
+
+    /// <summary>Settings window calls this after the week start changed (or settings were replaced), so
+    /// the tile's month grid starts its rows on the chosen weekday.</summary>
+    internal void StatsDisplayChanged() =>
+        DayGridTile.FirstDay = StatsDisplayChoices.ResolveFirstDay(_settings.StatsWeekStart, CultureInfo.CurrentCulture);
 
     /// <summary>Settings window's own "change data folder" flow calls this once it has already
     /// copied every history file across, so the live recording this view model does on every tick

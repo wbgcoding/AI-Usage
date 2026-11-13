@@ -570,7 +570,6 @@
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Approximate cost had these tokens been billed at the public API list prices (LiteLLM price list, as of {0}). Subscriptions are billed differently.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* No price known for: {0}. Not counted.</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prices not loaded yet.</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>Token statistics</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Show API cost</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Shows what the tokens would cost at public API prices. The price list is loaded once a day from GitHub (LiteLLM). Off: costs are hidden everywhere and nothing is downloaded.</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>Cost currency</value></data>
@@ -697,6 +696,16 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} left.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Shows the API credit balance of your Claude Console on the tile. Only the balance is read.</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>Token usage</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Period on open</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Last used</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>Week starts on</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>As in Windows</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>Monday</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>Sunday</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Order of the weekday rows and month grids. Week totals stay Monday to Sunday.</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>Shown sections</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Index: {0} entries, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (API credit)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Signed in</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Signed in through the Claude sign-in</value></data>

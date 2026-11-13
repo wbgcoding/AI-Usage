@@ -376,9 +376,13 @@ public static class StatsAggregator
     /// whole app uses (week tokens, the day grid, the stats week buckets), whatever the culture's own
     /// calendar says. Walks back, never forward; the first calendar day has no earlier Monday and stays
     /// at <see cref="DateOnly.MinValue"/>.</summary>
-    internal static DateOnly WeekStart(DateOnly day)
+    internal static DateOnly WeekStart(DateOnly day) => WeekStart(day, DayOfWeek.Monday);
+
+    /// <summary>The latest <paramref name="first"/> weekday on or before <paramref name="day"/>: the
+    /// first column of a month grid whose week starts there. Week totals never use it.</summary>
+    internal static DateOnly WeekStart(DateOnly day, DayOfWeek first)
     {
-        var back = ((int)day.DayOfWeek + 6) % 7;
+        var back = ((int)day.DayOfWeek - (int)first + 7) % 7;
         return day.DayNumber < back ? DateOnly.MinValue : day.AddDays(-back);
     }
 

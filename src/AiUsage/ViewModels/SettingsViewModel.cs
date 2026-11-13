@@ -65,7 +65,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<Choice<AppTheme>> ThemeChoices { get; }
 
-    /// <summary>The sidebar's six rows, fixed order. <see cref="SelectedCategory"/> holds the
+    /// <summary>The sidebar's seven rows, fixed order. <see cref="SelectedCategory"/> holds the
     /// matching <see cref="Choice{TValue}.Value"/> and is session only - never read from or written
     /// to <see cref="AppSettings"/>, so the window always opens back on the first category.</summary>
     public ObservableCollection<Choice<string>> Categories { get; } =
@@ -74,6 +74,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         new("Settings.Section.Updates", "Updates"),
         new("Settings.Section.Notifications", "Notifications"),
         new("Settings.Section.Providers", "Providers"),
+        new("Settings.Section.Stats", "Stats"),
         new("Settings.Section.System", "System"),
         new("Settings.Section.About", "About"),
     ];
@@ -711,6 +712,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Main.Tiles.CollectionChanged += OnTilesChanged;
 
         RebuildChartRangeChoices();
+        InitializeStatsPage();
 
         // This window is short-lived (recreated on every open, MainWindow.xaml.cs) - Dispose below
         // unsubscribes so a closed-and-reopened Settings window never piles up handlers on the one
@@ -899,6 +901,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(LevelExplainerText));
         OnPropertyChanged(nameof(DataFolderKindText));
         RefreshHistorySizeText();
+        RefreshStatsLabels();
     }
 
     [RelayCommand]
@@ -2092,6 +2095,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.CheckForUpdates = source.CheckForUpdates;
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
+        _settings.StatsOpenRange = source.StatsOpenRange;
+        _settings.StatsWeekStart = source.StatsWeekStart;
+        _settings.StatsHiddenSections = [.. source.StatsHiddenSections ?? []];
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.AllDaysAllowed = source.AllDaysAllowed;
         _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
@@ -2186,6 +2192,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         CheckForUpdates = _settings.CheckForUpdates;
         SaveEnergyOnBattery = _settings.SaveEnergyOnBattery;
         StatsWeeklyCopy = _settings.StatsWeeklyCopy;
+        RefreshStatsDisplayChoices();
         QuietHoursEnabled = _settings.QuietHoursEnabled;
         AllDaysAllowed = _settings.AllDaysAllowed;
         RebuildQuietDays();

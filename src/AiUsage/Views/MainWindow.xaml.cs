@@ -1744,6 +1744,7 @@ public partial class MainWindow : Window, IDisposable
         {
             var settingsViewModel = new SettingsViewModel(ViewModel, _settings, _settingsStore);
             settingsViewModel.SettingsReplaced += (_, _) => _statsWindow?.ReloadFromSettings();
+            settingsViewModel.StatsDisplayChanged += (_, _) => _statsWindow?.ApplyDisplaySettings();
             settingsViewModel.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(SettingsViewModel.HideOnFullscreen))

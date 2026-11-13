@@ -188,7 +188,7 @@ public class WindowChromeTests
                     now, now, ProviderStatus.Ok, null, [], "Beispiel Person, Beispielfirma GmbH"), now);
 
             var result = new Dictionary<string, double>();
-            foreach (var category in new[] { "Display", "Updates", "Notifications", "Providers", "System", "About" })
+            foreach (var category in new[] { "Display", "Updates", "Notifications", "Providers", "Stats", "System", "About" })
             {
                 context.Settings.SelectedCategory = category;
                 var window = new SettingsWindow(context.Settings);

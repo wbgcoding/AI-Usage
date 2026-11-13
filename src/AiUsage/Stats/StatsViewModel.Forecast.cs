@@ -31,6 +31,7 @@ public sealed partial class StatsViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasForecast))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanForecast))]
     private IReadOnlyList<StatsForecastProviderViewModel> forecastProviders = [];
 
     /// <summary>True when at least one shown provider has a forecast; the section is hidden otherwise.</summary>

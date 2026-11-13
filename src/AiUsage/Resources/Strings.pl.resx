@@ -570,7 +570,6 @@
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Przybliżony koszt, gdyby te tokeny rozliczono według publicznych cen katalogowych API (cennik LiteLLM, stan na {0}). Subskrypcje rozlicza się inaczej.</value></data>
   <data name="Stats.Cost.Unpriced" xml:space="preserve"><value>* Brak znanej ceny dla: {0}. Nie wliczono.</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Ceny nie są jeszcze wczytane.</value></data>
-  <data name="Settings.Group.Stats" xml:space="preserve"><value>Statystyki tokenów</value></data>
   <data name="Settings.ShowCostEstimate" xml:space="preserve"><value>Pokaż koszt API</value></data>
   <data name="Tip.Settings.ShowCostEstimate" xml:space="preserve"><value>Pokazuje, ile kosztowałyby tokeny według publicznych cen API. Cennik jest pobierany raz dziennie z GitHuba (LiteLLM). Wył.: koszty są wszędzie ukryte i nic nie jest pobierane.</value></data>
   <data name="Settings.CostCurrency" xml:space="preserve"><value>Waluta kosztów</value></data>
@@ -697,6 +696,16 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Zostało {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Zaloguj do platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Pokazuje na kafelku saldo środków API Twojego Claude Console. Odczytywane jest tylko saldo.</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>Zużycie tokenów</value></data>
+  <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Okres po otwarciu</value></data>
+  <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Ostatnio używany</value></data>
+  <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>Tydzień zaczyna się w</value></data>
+  <data name="Settings.Stats.WeekStart.System" xml:space="preserve"><value>Jak w Windows</value></data>
+  <data name="Settings.Stats.WeekStart.Monday" xml:space="preserve"><value>Poniedziałek</value></data>
+  <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>Niedziela</value></data>
+  <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Kolejność wierszy dni tygodnia i siatek miesięcy. Sumy tygodniowe nadal liczą się od poniedziałku do niedzieli.</value></data>
+  <data name="Settings.Stats.Sections" xml:space="preserve"><value>Wyświetlane sekcje</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Indeks: {0} wpisów, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (środki API)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Zalogowano</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Zalogowano przez logowanie do Claude</value></data>
