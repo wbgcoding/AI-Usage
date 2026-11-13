@@ -7,9 +7,9 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_replaces_the_user_profile_path()
     {
-        var text = @"failed to write C:\Users\SomePerson\AppData\Roaming\AI-Usage\settings.json";
+        var text = @"failed to write C:\Profiles\SomePerson\AppData\Roaming\AI-Usage\settings.json";
 
-        var result = PathSanitizer.Sanitize(text, userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var result = PathSanitizer.Sanitize(text, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.DoesNotContain("SomePerson", result);
         Assert.Contains("<user>", result);
@@ -18,10 +18,10 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_replaces_the_short_form_of_the_user_profile_path()
     {
-        var text = @"cannot open C:\Users\SOMEPE~1\AppData\Local\Temp\AI-Usage\update and MAXIMI~1 alone";
+        var text = @"cannot open C:\Profiles\SOMEPE~1\AppData\Local\Temp\AI-Usage\update and MAXIMI~1 alone";
 
         var result = PathSanitizer.Sanitize(
-            text, userProfile: @"C:\Users\SomePerson", userName: "SomePerson", shortProfile: @"C:\Users\SOMEPE~1");
+            text, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson", shortProfile: @"C:\Profiles\SOMEPE~1");
 
         Assert.Equal(@"cannot open <user>\AppData\Local\Temp\AI-Usage\update and MAXIMI~1 alone", result);
     }
@@ -31,7 +31,7 @@ public class PathSanitizerTests
     {
         var text = "logged in as SomePerson via token xyz";
 
-        var result = PathSanitizer.Sanitize(text, userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var result = PathSanitizer.Sanitize(text, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.DoesNotContain("SomePerson", result);
     }
@@ -39,7 +39,7 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_keeps_words_that_merely_contain_the_user_name()
     {
-        var result = PathSanitizer.Sanitize(@"Maximum C:\Users\Max\x", userProfile: @"C:\Users\Max", userName: "Max");
+        var result = PathSanitizer.Sanitize(@"Maximum C:\Profiles\Max\x", userProfile: @"C:\Profiles\Max", userName: "Max");
 
         Assert.Equal(@"Maximum <user>\x", result);
     }
@@ -47,7 +47,7 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_replaces_the_user_name_as_a_whole_path_segment()
     {
-        var result = PathSanitizer.Sanitize(@"D:\Backup\Max\notes and /srv/max/data", userProfile: @"C:\Users\Max", userName: "Max");
+        var result = PathSanitizer.Sanitize(@"D:\Backup\Max\notes and /srv/max/data", userProfile: @"C:\Profiles\Max", userName: "Max");
 
         Assert.Equal(@"D:\Backup\<user>\notes and /srv/<user>/data", result);
     }
@@ -57,7 +57,7 @@ public class PathSanitizerTests
     {
         var text = "System.IO.IOException: disk full";
 
-        var result = PathSanitizer.Sanitize(text, userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var result = PathSanitizer.Sanitize(text, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal(text, result);
     }
@@ -65,8 +65,8 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_masks_a_profile_folder_that_differs_from_the_account_name_in_every_spelling()
     {
-        var profile = @"C:\Users\MaxG";
-        var text = @"a C:/Users/MaxG/x b C:\Users\MaxG\y c C:\Users\MaxG\z d MaxG";
+        var profile = @"C:\Profiles\MaxG";
+        var text = @"a C:/Profiles/MaxG/x b C:\Profiles\MaxG\y c C:\Profiles\MaxG\z d MaxG";
 
         var result = PathSanitizer.Sanitize(text, userProfile: profile, userName: "Max");
 
@@ -77,7 +77,7 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_masks_an_email_address()
     {
-        var result = PathSanitizer.Sanitize("sign-in for jane.doe+ai@example.co.uk failed", userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var result = PathSanitizer.Sanitize("sign-in for someone@example.com failed", userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal("sign-in for {email} failed", result);
     }
@@ -85,7 +85,7 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_masks_an_email_address_that_starts_with_the_account_name()
     {
-        var result = PathSanitizer.Sanitize("mail someperson@example.com sent", userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var result = PathSanitizer.Sanitize("mail someperson@example.com sent", userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal("mail {email} sent", result);
     }
@@ -95,13 +95,13 @@ public class PathSanitizerTests
     {
         var text = "user @ host, build 1.2@3 and a@b";
 
-        Assert.Equal(text, PathSanitizer.Sanitize(text, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+        Assert.Equal(text, PathSanitizer.Sanitize(text, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson"));
     }
 
     [Fact]
     public void Sanitize_masks_a_bearer_token()
     {
-        var result = PathSanitizer.Sanitize("Authorization: Bearer abc.DEF-123_xyz~+/== rejected", userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var result = PathSanitizer.Sanitize("Authorization: Bearer abc.DEF-123_xyz~+/== rejected", userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal("Authorization: Bearer {token} rejected", result);
     }
@@ -109,8 +109,8 @@ public class PathSanitizerTests
     [Fact]
     public void Sanitize_masks_an_access_token_field_plain_and_json_escaped()
     {
-        var plain = PathSanitizer.Sanitize(@"{""access_token"":""sk-123abc"",""expires_in"":3600}", userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
-        var escaped = PathSanitizer.Sanitize(@"body {\""access_token\"": \""sk-123abc\"", \""scope\"": \""x\""}", userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+        var plain = PathSanitizer.Sanitize(@"{""access_token"":""sk-123abc"",""expires_in"":3600}", userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
+        var escaped = PathSanitizer.Sanitize(@"body {\""access_token\"": \""sk-123abc\"", \""scope\"": \""x\""}", userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal(@"{""access_token"":""{token}"",""expires_in"":3600}", plain);
         Assert.Equal(@"body {\""access_token\"": \""{token}\"", \""scope\"": \""x\""}", escaped);
@@ -121,10 +121,10 @@ public class PathSanitizerTests
     {
         var text = PathSanitizer.Sanitize(
             @"{""access_token"":""\u0041bc\/def"",""refresh_token"":""r-1"",""id_token"":""i\/2""}",
-            userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+            userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
         var nested = PathSanitizer.Sanitize(
             @"{\""access_token\"":\""ab\\/cd\"",\""x\"":1}",
-            userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+            userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal(@"{""access_token"":""{token}"",""refresh_token"":""{token}"",""id_token"":""{token}""}", text);
         Assert.Equal(@"{\""access_token\"":\""{token}\"",\""x\"":1}", nested);
@@ -139,7 +139,7 @@ public class PathSanitizerTests
     [InlineData("https://example.com/a//b and 1//2", "https://example.com/a//b and 1//2")]
     public void Sanitize_masks_camel_case_token_fields_and_prefixed_tokens(string input, string expected)
     {
-        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson"));
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public class PathSanitizerTests
 
         var result = PathSanitizer.Sanitize(
             $"a {ghp} b {gho} c {pat} d {openAi} e {project} f {jwt} g",
-            userProfile: @"C:\Users\SomePerson", userName: "SomePerson");
+            userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
 
         Assert.Equal("a {token} b {token} c {token} d {token} e {token} f {token} g", result);
     }
@@ -178,7 +178,7 @@ public class PathSanitizerTests
     [InlineData("the token is missing and authorization failed, ask-me-about-risk-assessment-things", "the token is missing and authorization failed, ask-me-about-risk-assessment-things")]
     public void Sanitize_masks_wider_credential_keys_and_leaves_prose(string input, string expected)
     {
-        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson"));
     }
 
     [Theory]
@@ -196,7 +196,7 @@ public class PathSanitizerTests
     [InlineData("GET /v1/usage?api_key=abcd1234efgh&format=json", "GET /v1/usage?api_key={token}&format=json")]
     public void Sanitize_masks_jwe_opaque_bearer_and_form_encoded_credentials(string input, string expected)
     {
-        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+        Assert.Equal(expected, PathSanitizer.Sanitize(input, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson"));
     }
 
     [Theory]
@@ -206,6 +206,6 @@ public class PathSanitizerTests
     [InlineData("see eyJ in the docs and version 1.2.3")]
     public void Sanitize_leaves_a_plain_sentence_and_a_url_path_alone(string input)
     {
-        Assert.Equal(input, PathSanitizer.Sanitize(input, userProfile: @"C:\Users\SomePerson", userName: "SomePerson"));
+        Assert.Equal(input, PathSanitizer.Sanitize(input, userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson"));
     }
 }

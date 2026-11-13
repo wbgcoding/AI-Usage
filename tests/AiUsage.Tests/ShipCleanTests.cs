@@ -17,9 +17,9 @@ public class ShipCleanTests
         @"[A-Za-z]:\\Users\\[^\\""'\s]+|/home/[^/""'\s]+|/Users/[^/""'\s]+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    // The negative lookahead excludes the installer script's own Pascal "external 'Name@dll.ext
-    // stdcall'" declarations (e.g. "FindWindowA@user32.dll") - syntactically identical to an
-    // email address up to the TLD, but a DLL name, not a mailbox.
+    // The negative lookahead excludes the installer script's own Pascal external declarations (a
+    // function name, an at sign and a DLL file name): syntactically identical to an email address
+    // up to the TLD, but a DLL name, not a mailbox.
     private static readonly Regex EmailAddress = new(
         @"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(?!(?:dll|exe|lib|sys|ocx)\b)[A-Za-z]{2,}",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -71,7 +71,7 @@ public class ShipCleanTests
 
     // Two kinds of unavoidable self-reference, excluded by name rather than by loosening a pattern
     // (a genuine leak anywhere else must still fail the scan): PathSanitizerTests feeds a fake
-    // "C:\Users\SomePerson\..." string in as INPUT to prove the sanitizer strips it, and this file
+    // user profile path in as INPUT to prove the sanitizer strips it, and this file
     // necessarily spells out every banned word and pattern it is checking for.
     private static readonly string[] ExemptFiles =
     [
