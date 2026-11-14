@@ -859,12 +859,12 @@
                                                                                     ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Limits.Detail]}">
                                                                             <Grid>
                                                                                 <Grid.ColumnDefinitions>
-                                                                                    <ColumnDefinition Width="*"/>
                                                                                     <ColumnDefinition Width="Auto"/>
+                                                                                    <ColumnDefinition Width="*"/>
                                                                                 </Grid.ColumnDefinitions>
-                                                                                <TextBlock Grid.Column="0" Text="{Binding Label}"
-                                                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                                                <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0">
+                                                                                <TextBlock Grid.Column="0" Text="{Binding Label}" TextWrapping="NoWrap"/>
+                                                                                <TextBlock Grid.Column="1" Text="{Binding ReachedText}" Margin="8,0,0,0"
+                                                                                           TextWrapping="Wrap" TextAlignment="Right">
                                                                                     <TextBlock.Style>
                                                                                         <Style TargetType="TextBlock">
                                                                                             <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
@@ -929,8 +929,8 @@
                                                                                 </Rectangle>
                                                                             </Grid>
                                                                             <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource Text.Secondary}"
-                                                                                       FontSize="{StaticResource Font.Size.Micro}"/>
-                                                                            <TextBlock Text="{Binding LastReachedText}" Foreground="{DynamicResource Text.Muted}"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}" TextWrapping="Wrap"/>
+                                                                            <TextBlock Text="{Binding LastReachedText}" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
                                                                                        FontSize="{StaticResource Font.Size.Micro}"
                                                                                        Visibility="{Binding HasLastReached, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
