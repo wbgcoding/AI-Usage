@@ -1,0 +1,67 @@
+<UserControl x:Class="AiUsage.Views.Controls.TrayPopupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:AiUsage.Services">
+    <!-- The tray popup: the same surface as the ToolTip and ContextMenu styles (popup background,
+         border, control corner radius, small text), but without the shell tooltip's length cap.
+         Bound to a TrayPopupModel through the DataContext. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="PopupText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
+        </Style>
+
+        <Style x:Key="ResetText" TargetType="TextBlock" BasedOn="{StaticResource PopupText}">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Reset}" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <DataTemplate x:Key="RowTemplate" DataType="{x:Type services:TrayPopupRow}">
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="WindowLabel"/>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="WindowPercent"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Style="{StaticResource PopupText}" Foreground="{DynamicResource Text.Secondary}"
+                           Text="{Binding Label}" Margin="0,0,8,0"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource PopupText}" Text="{Binding Percent}"
+                           HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource ResetText}" Text="{Binding Reset, StringFormat='· {0}'}" Margin="8,0,0,0"/>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="BlockTemplate" DataType="{x:Type services:TrayPopupBlock}">
+            <StackPanel Margin="0,0,0,8" AutomationProperties.AutomationId="{Binding AutomationId}"
+                        AutomationProperties.Name="{Binding Name}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource PopupText}" FontWeight="SemiBold" Text="{Binding Name}"/>
+                    <TextBlock Style="{StaticResource PopupText}" Foreground="{DynamicResource Text.Muted}" Margin="8,0,0,0"
+                               Text="{Binding Note}" Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Border x:Name="PopupRoot" AutomationProperties.AutomationId="TrayPopup"
+            Background="{DynamicResource Bg.Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+            CornerRadius="{StaticResource Radius.Control}" Padding="12,8,12,0" MaxWidth="420">
+        <StackPanel Grid.IsSharedSizeScope="True">
+            <TextBlock Style="{StaticResource PopupText}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"
+                       AutomationProperties.AutomationId="TrayPopupPaused"
+                       Text="{Binding PausedLine}" Visibility="{Binding HasPausedLine, Converter={StaticResource BoolToVis}}"/>
+            <TextBlock Style="{StaticResource PopupText}" Margin="0,0,0,8"
+                       Text="{x:Static services:AppInfo.ProductName}"
+                       Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}"/>
+            <ItemsControl ItemsSource="{Binding Blocks}" ItemTemplate="{StaticResource BlockTemplate}" Focusable="False"/>
+        </StackPanel>
+    </Border>
+</UserControl>
