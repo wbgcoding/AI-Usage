@@ -202,7 +202,7 @@ public sealed class SettingsStore : IDisposable
 
         try
         {
-            var text = File.ReadAllText(backupPath);
+            var text = ReadAllTextWithRetry(backupPath);
             var (loaded, refusal) = Validate(text, LogDroppedAccount);
 
             if (refusal == ImportRefusal.NewerVersion)
@@ -223,6 +223,9 @@ public sealed class SettingsStore : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // The backup may be the only good copy left: a session on defaults must not save over it.
+            _readOnly = true;
+            _logService?.LogError($"Settings: the backup could not be read ({ex.GetType().Name}); running on defaults without saving.");
             return CreateDefaultSettings();
         }
     }

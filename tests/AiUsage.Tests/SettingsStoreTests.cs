@@ -118,6 +118,33 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(before, after);
     }
 
+    [Fact]
+    public void A_locked_backup_with_no_main_file_is_never_overwritten_by_defaults()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+        var original = new AppSettings();
+        original.Providers["claude"].Disconnected = true;
+        store.SaveNow(original);
+        store.SaveNow(original);
+        var main = Path.Combine(directory, "settings.json");
+        var backup = main + ".bak";
+        Assert.True(File.Exists(backup));
+        File.Delete(main);
+        var before = File.ReadAllText(backup);
+
+        using (new FileStream(backup, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            using var reloadStore = new SettingsStore(directory);
+            var loaded = reloadStore.Load();
+            reloadStore.SaveNow(loaded);
+            reloadStore.SaveNow(loaded);
+        }
+
+        Assert.False(File.Exists(main));
+        Assert.Equal(before, File.ReadAllText(backup));
+    }
+
     [Theory]
     [InlineData("codex", "Label:Chat", "Label:Chat")]
     [InlineData("claude#2", "Label:Premium", "Label:Premium")]
