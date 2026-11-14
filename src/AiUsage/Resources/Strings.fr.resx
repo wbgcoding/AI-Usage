@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens d'une fenêtre moyenne avec utilisation et pic de quota atteint en moyenne.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Pic : le niveau le plus haut de la période. Pic moy. : la moyenne du niveau le plus haut de chaque fenêtre, repérée par un trait sur la barre.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Pas encore d'historique de quota pour cette période.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} réinitialisation de limite utilisée, la dernière {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} réinitialisations de limite utilisées, la dernière {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Une réinitialisation de limite remet la fenêtre à zéro avant l'heure ; les statistiques y commencent une nouvelle période.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimation à partir de {0} heures de ta propre utilisation. Les lectures de cache sont comptées à part : 1 % ≈ {1} tokens en cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Aucun projet</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Autres projets</value></data>

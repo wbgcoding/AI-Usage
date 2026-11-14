@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Kullanım görülen ortalama bir penceredeki tokenlar ve ortalama ulaşılan kota zirvesi.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Zirve: aralıktaki en yüksek düzey. Ort. zirve: her pencerenin en yüksek düzeyinin ortalaması, çubukta bir çizgiyle işaretlenir.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Bu dönem için henüz kota geçmişi yok.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} sınır sıfırlaması kullanıldı, son {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} sınır sıfırlaması kullanıldı, son {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Sınır sıfırlaması, pencereyi vaktinden önce sıfırlar; istatistikler orada yeni bir dönem başlatır.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Kendi kullanımının {0} saatinden yapılan tahmin. Önbellek okumaları ayrı sayılır: %1 ≈ {1} önbellek tokeni.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Proje yok</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Diğer projeler</value></data>

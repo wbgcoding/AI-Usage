@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens in an average window with any use, and the highest quota it reached on average.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Peak: the highest level in the range. Avg. peak: the mean of each window's highest level, marked as a line on the bar.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>No quota history in this period yet.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} limit reset used, last {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} limit resets used, last {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>A limit reset clears the window before its time; the statistics start a new period there.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimate from {0} hours of your own usage. Cache reads count separately: 1% ≈ {1} cached tokens.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>No project</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Other projects</value></data>

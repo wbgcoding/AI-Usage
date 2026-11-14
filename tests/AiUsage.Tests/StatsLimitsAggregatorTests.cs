@@ -506,6 +506,53 @@ public class StatsLimitTextTests
     private static string Date(DateTimeOffset moment) =>
         DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(moment.LocalDateTime), LocalizationService.Instance.DisplayCulture);
 
+    private static HistoryPoint WeeklyAt(double percent, DateTimeOffset reset, int minutes) =>
+        new(1, DateTimeOffset.Now.AddHours(-3).AddMinutes(minutes), WindowKind.Weekly, percent, reset);
+
+    [Fact]
+    public void A_used_limit_reset_gets_its_own_line_with_the_count_and_the_last_date()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            var reset = DateTimeOffset.Now.AddDays(2);
+            var viewModel = Create([WeeklyAt(100, reset, 0), WeeklyAt(4, reset, 5), WeeklyAt(90, reset, 60), WeeklyAt(3, reset, 65)]);
+
+            var row = Assert.Single(Assert.Single(viewModel.LimitGroups).Rows);
+            Assert.Equal($"2 limit resets used, last {Date(DateTimeOffset.Now.AddHours(-3).AddMinutes(65))}", row.ResetUsedText);
+            Assert.True(row.HasResetUsed);
+            Assert.Contains(row.ResetUsedText, row.AutomationText, StringComparison.Ordinal);
+            Assert.Equal("A limit reset clears the window before its time; the statistics start a new period there.", row.ResetUsedTip);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
+
+    [Fact]
+    public void One_used_limit_reset_uses_the_singular_and_none_leaves_the_line_empty()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            var reset = DateTimeOffset.Now.AddDays(2);
+            var one = Create([WeeklyAt(100, reset, 0), WeeklyAt(4, reset, 5)]);
+            var none = Create([WeeklyAt(40, reset, 0), WeeklyAt(70, reset, 5)]);
+
+            Assert.StartsWith("1 limit reset used, last ", Assert.Single(Assert.Single(one.LimitGroups).Rows).ResetUsedText, StringComparison.Ordinal);
+            var plain = Assert.Single(Assert.Single(none.LimitGroups).Rows);
+            Assert.Equal("", plain.ResetUsedText);
+            Assert.False(plain.HasResetUsed);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
+
     [Fact]
     public void A_row_says_how_many_cycles_hit_the_limit_when_last_and_for_how_long()
     {

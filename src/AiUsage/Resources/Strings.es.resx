@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens de una ventana media con uso y el pico de cuota que alcanza de media.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Pico: el nivel más alto del rango. Pico medio: la media del nivel más alto de cada ventana, marcada como una línea en la barra.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Aún no hay historial de cuota en este período.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} reinicio de límite usado, el último {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} reinicios de límite usados, el último {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Un reinicio de límite borra la ventana antes de tiempo; las estadísticas empiezan un nuevo período ahí.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimación a partir de {0} horas de tu propio uso. Las lecturas de caché se cuentan aparte: 1% ≈ {1} tokens en caché.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Sin proyecto</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Otros proyectos</value></data>

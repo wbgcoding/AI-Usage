@@ -933,6 +933,10 @@
                                                                             <TextBlock Text="{Binding LastReachedText}" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
                                                                                        FontSize="{StaticResource Font.Size.Micro}"
                                                                                        Visibility="{Binding HasLastReached, Converter={StaticResource BoolToVis}}"/>
+                                                                            <TextBlock Text="{Binding ResetUsedText}" Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap"
+                                                                                       FontSize="{StaticResource Font.Size.Micro}"
+                                                                                       ToolTip="{Binding ResetUsedTip}"
+                                                                                       Visibility="{Binding HasResetUsed, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
                                                                     </DataTemplate>
                                                                 </ItemsControl.ItemTemplate>

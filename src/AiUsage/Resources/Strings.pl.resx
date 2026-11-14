@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokeny w przeciętnym oknie z użyciem oraz średnio osiągnięty szczyt limitu.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Szczyt: najwyższy poziom w zakresie. Śr. szczyt: średnia z najwyższych poziomów każdego okna, zaznaczona linią na pasku.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>W tym okresie nie ma jeszcze historii limitów.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>Wykorzystane resety limitu: {0}, ostatni {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>Wykorzystane resety limitu: {0}, ostatni {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Reset limitu czyści okno przed czasem; statystyki rozpoczynają tam nowy okres.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Szacunek z {0} godzin Twojego użycia. Odczyty z cache liczone są osobno: 1% ≈ {1} tokenów z cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Bez projektu</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Inne projekty</value></data>
