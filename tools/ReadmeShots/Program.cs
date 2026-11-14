@@ -10,6 +10,7 @@
 //
 // Run it from the repository root:
 //   dotnet run --project tools/ReadmeShots
+//   dotnet run --project tools/ReadmeShots -- --images <folder>   the same pictures into another folder
 //
 // Everything is drawn offscreen (no window is ever shown), in English, with the dark theme, at twice
 // the logical size, clipped to the app's own window corner radius with transparent corners. The
@@ -79,14 +80,17 @@ internal static class Program
                 return 2;
             }
         }
-        else if (args.Length > 0)
+        string? imagesDirectory = null;
+        if (reviewIndex < 0 && args.Length == 2 && args[0] == "--images")
+            imagesDirectory = Path.GetFullPath(args[1]);
+        else if (reviewIndex < 0 && args.Length > 0)
         {
-            Console.Error.WriteLine($"Unknown argument \"{args[0]}\". Use --review <folder> or no arguments.");
+            Console.Error.WriteLine($"Unknown argument \"{args[0]}\". Use --review <folder>, --images <folder> or no arguments.");
             return 2;
         }
 
         var repoRoot = FindRepoRoot();
-        var outputDirectory = Path.Combine(repoRoot, ".github", "images");
+        var outputDirectory = imagesDirectory ?? Path.Combine(repoRoot, ".github", "images");
         var dataDirectory = Path.Combine(repoRoot, ".tmp", "readme-shots-data");
 
         try
