@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Este arquivo não é um backup do AI-Usage ou vem de uma versão mais nova.</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Não foi possível preparar a restauração. Seus dados atuais não foram alterados.</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>O AI-Usage não conseguiu reiniciar, então nada foi restaurado. Seus dados atuais não foram alterados.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importar histórico…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importar o backup de outro PC…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Lê o histórico de tokens do backup de outro PC e o combina com o histórico daqui. Os dados deste PC não são alterados; importar o mesmo PC de novo substitui a cópia anterior dele.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Este backup vem deste PC.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Uma vez por semana, no horário escolhido, salva o uso de tokens da semana anterior como arquivo CSV na pasta escolhida. Se o app não estiver em execução nesse horário, ele recupera na próxima inicialização.</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Dia</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Horário</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Alterar pasta…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>Nenhuma pasta escolhida ainda</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Lê uma única vez nas estatísticas os arquivos de sessão do Claude Code de uma pasta, por exemplo uma cópia antiga. Sessões já contadas não são contadas duas vezes.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>{0} dias de histórico de tokens importados de {1}.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>1 dia de histórico de tokens importado de {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remover</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Restam {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Entrar em platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Mostra no bloco o saldo de créditos de API do seu Claude Console. Somente o saldo é lido.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salvar toda segunda-feira um CSV da semana anterior</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salvar toda semana um arquivo CSV da semana anterior</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Escolher pasta…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Mais pastas (lidas a cada execução)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Adicionar pasta…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Remover</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Ler uma pasta uma vez…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Ler arquivos de sessão uma vez…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} arquivos de sessão lidos, {1} novos</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Uso de tokens</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Período ao abrir</value></data>

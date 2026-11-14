@@ -217,6 +217,8 @@ public partial class App : Application, IDisposable
             WeeklyCopyEnabled = settings.StatsWeeklyCopy,
             ExtraClaudeRoots = settings.StatsExtraFolders ?? [],
             WeeklyCsvFolder = settings.StatsWeeklyCsv ? settings.StatsWeeklyCsvFolder : null,
+            WeeklyCsvDay = settings.StatsWeeklyCsvDay,
+            WeeklyCsvHour = settings.StatsWeeklyCsvHour,
         };
         StatsIndexerService.Shared = _statsIndexerService;
         // The data the last run left behind, so a statistics window opened before the first walk is

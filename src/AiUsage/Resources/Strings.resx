@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>This file is not an AI-Usage backup or comes from a newer version.</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>The restore could not be prepared. Your current data is unchanged.</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage could not restart, so nothing was restored. Your current data is unchanged.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import history…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Import another PC's backup…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Reads the token history from another PC's backup and merges it with the history here. This PC's own data stays untouched; importing the same PC again replaces its earlier copy.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>This backup comes from this PC.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Once a week at the chosen time, saves the previous week's token use as a CSV file in the chosen folder. If the app is not running then, it catches up on the next start.</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Day</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Time</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Change folder…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>No folder chosen yet</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Reads Claude Code session files from a folder into the statistics once, such as an old copy. Sessions already counted are not counted twice.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Imported {0} days of token history from {1}.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>Imported 1 day of token history from {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Remove</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} left.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Shows the API credit balance of your Claude Console on the tile. Only the balance is read.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Save a CSV of the previous week every Monday</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Save a CSV file of the previous week every week</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Choose folder…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>More folders (read on every run)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Remove</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Read a folder once…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Read session files once…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} session files read, {1} new</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Token usage</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Period on open</value></data>

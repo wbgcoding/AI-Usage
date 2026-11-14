@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Este archivo no es una copia de AI-Usage o proviene de una versión más reciente.</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>No se pudo preparar la restauración. Tus datos actuales no han cambiado.</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage no pudo reiniciarse, por lo que no se restauró nada. Tus datos actuales no han cambiado.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importar historial…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importar la copia de otro PC…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Lee el historial de tokens de la copia de otro PC y lo combina con el historial de aquí. Los datos de este PC no se tocan; importar el mismo PC otra vez reemplaza su copia anterior.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Esta copia proviene de este PC.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Una vez por semana, a la hora elegida, guarda el uso de tokens de la semana anterior como archivo CSV en la carpeta elegida. Si la aplicación no está en marcha en ese momento, lo recupera en el siguiente inicio.</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Día</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Hora</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Cambiar carpeta…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>Aún no hay carpeta elegida</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Lee una vez en las estadísticas los archivos de sesión de Claude Code de una carpeta, por ejemplo una copia antigua. Las sesiones ya contadas no se cuentan dos veces.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Se importaron {0} días de historial de tokens de {1}.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>Se importó 1 día de historial de tokens de {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Quitar</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Quedan {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Iniciar sesión en platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Muestra en el mosaico el saldo de créditos de API de tu Claude Console. Solo se lee el saldo.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Guardar cada lunes un CSV de la semana anterior</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Guardar cada semana un archivo CSV de la semana anterior</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Elegir carpeta…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Más carpetas (se leen en cada ejecución)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Añadir carpeta…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Quitar</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Leer una carpeta una vez…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Leer archivos de sesión una vez…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} archivos de sesión leídos, {1} nuevos</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Consumo de tokens</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Periodo al abrir</value></data>

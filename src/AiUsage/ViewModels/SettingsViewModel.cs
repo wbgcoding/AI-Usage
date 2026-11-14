@@ -1241,8 +1241,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private void PushStatsWeeklyCsv()
     {
         OnPropertyChanged(nameof(HasStatsWeeklyCsvFolder));
+        RefreshStatsWeeklyCsvTexts();
         if (Stats.StatsIndexerService.Shared is { } indexer)
+        {
             indexer.WeeklyCsvFolder = _settings.StatsWeeklyCsv ? _settings.StatsWeeklyCsvFolder : null;
+            indexer.WeeklyCsvDay = _settings.StatsWeeklyCsvDay;
+            indexer.WeeklyCsvHour = _settings.StatsWeeklyCsvHour;
+        }
     }
 
     partial void OnCheckForUpdatesChanged(bool value)
@@ -2194,6 +2199,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
         _settings.StatsWeeklyCsv = source.StatsWeeklyCsv;
+        _settings.StatsWeeklyCsvDay = AppSettings.NormalizeWeeklyCsvDay(source.StatsWeeklyCsvDay);
+        _settings.StatsWeeklyCsvHour = AppSettings.NormalizeWeeklyCsvHour(source.StatsWeeklyCsvHour);
         _settings.StatsOpenRange = source.StatsOpenRange;
         _settings.StatsWeekStart = source.StatsWeekStart;
         _settings.StatsHiddenSections = [.. source.StatsHiddenSections ?? []];
