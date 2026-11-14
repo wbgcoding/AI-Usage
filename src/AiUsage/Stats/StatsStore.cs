@@ -932,10 +932,11 @@ public sealed partial class StatsStore
                 }
                 else
                 {
-                    // First opens in this process take turns: a migration can outlast the busy timeout
+                    // First opens of one file take turns: a migration can outlast the busy timeout
                     // (a large file, a slow disk), and an open that gave up would read an empty index.
-                    // A schema that is already current costs only the version check.
-                    lock (EnsuredDatabases)
+                    // A schema that is already current costs only the version check. Per file, so an
+                    // open that waits on one locked file never holds up the opens of another.
+                    lock (SchemaLocks.GetOrAdd(fullPath, _ => new object()))
                     {
                         if (EnsureSchemaReportsUsable(connection))
                             EnsuredDatabases[fullPath] = true;
@@ -1232,6 +1233,15 @@ public sealed partial class StatsStore
     // opens once per file) skip the schema work. Files a newer build wrote are never listed.
     private static readonly ConcurrentDictionary<string, bool> EnsuredDatabases = new(StringComparer.OrdinalIgnoreCase);
 
+    // One lock per database file for its first opens in this process (see Open).
+    private static readonly ConcurrentDictionary<string, object> SchemaLocks = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool EnsureSchemaReportsUsable(SqliteConnection connection)
+    {
+        EnsureSchema(connection);
+        return IsUsable;
+    }
+
     private void SetBusyTimeout(SqliteConnection connection)
     {
         using var pragma = connection.CreateCommand();
@@ -1244,8 +1254,6 @@ public sealed partial class StatsStore
     /// row: the second waits for the write lock and then finds the first one's work already done.
     /// A database at v4 keeps its Codex rows; older ones are rebuilt from the session files; from v5
     /// on every row stays. A file from a newer build is left entirely alone.</summary>
-    private bool EnsureSchemaReportsUsable(SqliteConnection connection) { EnsureSchema(connection); return IsUsable; }
-
     private void EnsureSchema(SqliteConnection connection)
     {
         SetBusyTimeout(connection);

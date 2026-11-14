@@ -1361,6 +1361,38 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void A_first_open_waiting_on_a_locked_index_does_not_hold_up_another_index()
+    {
+        using var lockedDir = TestPaths.CreateDisposableDirectory("stats-first-open-locked");
+        using var otherDir = TestPaths.CreateDisposableDirectory("stats-first-open-other");
+        new StatsStore(lockedDir).LoadAll();
+        var lockedPath = Path.GetFullPath(Path.Combine(lockedDir, "stats.db"));
+        // As if this process had never opened it: the next open runs the schema check again.
+        StatsStore.ForgetDatabase(lockedPath);
+
+        // Another process writes to the file: reads go on, the schema check waits for the write lock.
+        using var holder = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = lockedPath, Pooling = false }.ToString());
+        holder.Open();
+        using (var begin = holder.CreateCommand())
+        {
+            begin.CommandText = "BEGIN IMMEDIATE";
+            begin.ExecuteNonQuery();
+        }
+
+        var waiting = new StatsStore(lockedDir, busyTimeoutMs: 4000, logError: _ => { });
+        var first = Task.Factory.StartNew(() => waiting.LoadAll(), TaskCreationOptions.LongRunning);
+        // Long enough for the first open to be inside its wait for the write lock.
+        Thread.Sleep(500);
+
+        var other = Task.Factory.StartNew(() => new StatsStore(otherDir).LoadAll(), TaskCreationOptions.LongRunning);
+        var finished = other.Wait(TimeSpan.FromSeconds(3));
+
+        holder.Dispose();
+        Assert.True(first.Wait(TimeSpan.FromSeconds(60)));
+        Assert.True(finished, "the first open of an unrelated index waited for a locked one");
+    }
+
+    [Fact]
     public void Store_migrates_v4_to_v5_keeping_codex_rows_clearing_claude_and_backing_up()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-migrate");
