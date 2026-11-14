@@ -4,14 +4,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.1] - 2026-11-14
+
+Shorter tray texts, a first start that shows only the agents found on this PC, and a set of fixes.
 
 ### Changed
+- The very first start shows only the agents found on this PC. Every other agent stays available through the eye menu.
 - The tray popup and tooltip leave out a window your plan has no limit for, instead of showing a dash.
 - The tray popup shows a reset as the bare time ("14:30", "Fri 14:30"), without a leading word.
 
 ### Fixed
 - The tray popup no longer cuts off reset times on the right.
+- A press inside the eye popup no longer drags the widget.
+- A language switch keeps the current API balance on the tiles.
+- The project list keeps its keyboard focus when its rows refresh.
+- A project renamed more than once is counted under its latest name.
+- A Gemini usage group reported as "none" is no longer logged as an unknown answer.
+- Settings are never written over a settings backup that another program holds open.
+- Closing the app while the sign-in window is open no longer starts a sign-in follow-up.
+- A weekly CSV failure is logged also when it happens before any week is picked.
 
 ## [1.5.0] - 2026-11-14
 
