@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>此文件不是 AI-Usage 备份,或来自更新的版本。</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>无法准备还原。您当前的数据未更改。</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage 无法重新启动，因此未还原任何内容。您当前的数据未更改。</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>导入历史…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>导入另一台电脑的备份…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>从另一台电脑的备份中读取令牌历史,并与这里的历史合并。这台电脑自己的数据不受影响;再次导入同一台电脑会替换其之前的副本。</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>此备份来自这台电脑。</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>每周在所选时间，把上一周的令牌用量保存为 CSV 文件到所选文件夹。如果此时应用未运行，会在下次启动时补上。</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>星期</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>时间</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>更改文件夹…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>尚未选择文件夹</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>一次性把文件夹中的 Claude Code 会话文件读入统计，例如旧的副本。已统计过的会话不会重复计算。</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>已从 {1} 导入 {0} 天的令牌历史。</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>已从 {1} 导入 1 天的令牌历史。</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>移除</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>剩余 {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>登录 platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>在磁贴上显示你的 Claude Console 的 API 额度余额。只读取余额。</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>每周一保存上一周的 CSV 文件</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>每周保存一次上一周的 CSV 文件</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>选择文件夹…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>更多文件夹(每次运行时读取)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>添加文件夹…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>移除</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>一次性读取文件夹…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>一次性读取会话文件…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>已读取 {0} 个会话文件,新增 {1} 个</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>令牌用量</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>打开时的时间段</value></data>

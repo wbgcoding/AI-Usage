@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Bu dosya bir AI-Usage yedeği değil ya da daha yeni bir sürümden.</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Geri yükleme hazırlanamadı. Mevcut verileriniz değişmedi.</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage yeniden başlatılamadı, bu yüzden hiçbir şey geri yüklenmedi. Mevcut verileriniz değişmedi.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Geçmişi içe aktar…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Başka bir bilgisayarın yedeğini içe aktar…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Token geçmişini başka bir bilgisayarın yedeğinden okur ve buradaki geçmişle birleştirir. Bu bilgisayarın kendi verilerine dokunulmaz; aynı bilgisayarı yeniden içe aktarmak onun önceki kopyasını değiştirir.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Bu yedek bu bilgisayardan.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Haftada bir, seçilen saatte, önceki haftanın token kullanımını seçilen klasöre CSV dosyası olarak kaydeder. Uygulama o saatte çalışmıyorsa bir sonraki açılışta telafi eder.</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Gün</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Saat</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Klasörü değiştir…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>Henüz klasör seçilmedi</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Bir klasördeki Claude Code oturum dosyalarını istatistiklere bir kez okur, örneğin eski bir kopya. Daha önce sayılan oturumlar iki kez sayılmaz.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>{1} kaynağından {0} günlük token geçmişi içe aktarıldı.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>{1} kaynağından 1 günlük token geçmişi içe aktarıldı.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Kaldır</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} kaldı.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com'da oturum aç</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude Console'unun API kredi bakiyesini kutucukta gösterir. Yalnızca bakiye okunur.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Her pazartesi önceki haftanın CSV dosyasını kaydet</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Her hafta önceki haftanın CSV dosyasını kaydet</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Klasör seç…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Diğer klasörler (her çalıştırmada okunur)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Klasör ekle…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Kaldır</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Bir klasörü bir kez oku…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Oturum dosyalarını bir kez oku…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} oturum dosyası okundu, {1} yeni</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Token kullanımı</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Açılışta dönem</value></data>

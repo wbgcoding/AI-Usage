@@ -57,6 +57,7 @@ public sealed partial class SettingsViewModel
             Choice.Select(StatsWeekStartChoices, value.Value);
             _store.RequestSave(_settings);
             OnPropertyChanged();
+            RebuildStatsWeeklyCsvChoices();
             Main.StatsDisplayChanged();
             StatsDisplayChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -199,6 +200,7 @@ public sealed partial class SettingsViewModel
         RebuildStatsSections();
         Choice.Select(StatsOpenRangeChoices, StatsDisplayChoices.NormalizeOpenRange(_settings.StatsOpenRange));
         Choice.Select(StatsWeekStartChoices, StatsDisplayChoices.NormalizeWeekStart(_settings.StatsWeekStart));
+        RebuildStatsWeeklyCsvChoices();
         StatsIndexInfoLoadTask = LoadStatsIndexInfoAsync();
     }
 
@@ -239,6 +241,7 @@ public sealed partial class SettingsViewModel
         OnPropertyChanged(nameof(SelectedStatsOpenRangeChoice));
         OnPropertyChanged(nameof(SelectedStatsWeekStartChoice));
         RebuildStatsSections();
+        RebuildStatsWeeklyCsvChoices();
         Main.StatsDisplayChanged();
     }
 
@@ -250,6 +253,8 @@ public sealed partial class SettingsViewModel
             choice.RefreshLabel();
         foreach (var section in StatsSections)
             section.RefreshTitle();
+        RelabelStatsWeeklyCsvChoices();
+        RefreshStatsWeeklyCsvTexts();
         RefreshStatsIndexSizeText();
     }
 

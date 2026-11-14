@@ -367,6 +367,133 @@ public class StatsDisplayChoicesTests : IDisposable
         Assert.Equal(@"E:\Reports", vm.StatsWeeklyCsvFolder);
     }
 
+    [Fact]
+    public void The_weekly_csv_schedule_defaults_to_Monday_at_midnight_and_survives_a_save_and_a_load()
+    {
+        var defaults = new AppSettings();
+        Assert.Equal(DayOfWeek.Monday, defaults.StatsWeeklyCsvDay);
+        Assert.Equal(0, defaults.StatsWeeklyCsvHour);
+
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+        store.SaveNow(new AppSettings { StatsWeeklyCsvDay = DayOfWeek.Friday, StatsWeeklyCsvHour = 18 });
+        using var reloadStore = new SettingsStore(directory);
+        var loaded = reloadStore.Load();
+
+        Assert.Equal(DayOfWeek.Friday, loaded.StatsWeeklyCsvDay);
+        Assert.Equal(18, loaded.StatsWeeklyCsvHour);
+    }
+
+    [Theory]
+    [InlineData(-5, 0)]
+    [InlineData(0, 0)]
+    [InlineData(23, 23)]
+    [InlineData(24, 23)]
+    [InlineData(99, 23)]
+    public void A_stored_weekly_csv_hour_outside_the_day_is_clamped_on_load(int stored, int expected)
+    {
+        var (settings, _) = SettingsStore.Validate($$"""{"statsWeeklyCsvHour": {{stored}}}""");
+
+        Assert.NotNull(settings);
+        Assert.Equal(expected, settings!.StatsWeeklyCsvHour);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(-1)]
+    [InlineData(40)]
+    public void A_stored_weekly_csv_day_that_is_no_weekday_falls_back_to_Monday(int stored)
+    {
+        var (settings, _) = SettingsStore.Validate($$"""{"statsWeeklyCsvDay": {{stored}}}""");
+
+        Assert.NotNull(settings);
+        Assert.Equal(DayOfWeek.Monday, settings!.StatsWeeklyCsvDay);
+    }
+
+    [Fact]
+    public void The_day_list_starts_with_the_week_start_and_the_hour_list_has_every_full_hour()
+    {
+        var monday = BuildViewModelWithDialogs(new AppSettings { StatsWeekStart = "Monday" });
+        var sunday = BuildViewModelWithDialogs(new AppSettings { StatsWeekStart = "Sunday" });
+
+        Assert.Equal(DayOfWeek.Monday, monday.StatsWeeklyCsvDayChoices[0].Value);
+        Assert.Equal(DayOfWeek.Sunday, monday.StatsWeeklyCsvDayChoices[6].Value);
+        Assert.Equal(DayOfWeek.Sunday, sunday.StatsWeeklyCsvDayChoices[0].Value);
+        Assert.Equal(DayOfWeek.Saturday, sunday.StatsWeeklyCsvDayChoices[6].Value);
+        Assert.Equal(7, sunday.StatsWeeklyCsvDayChoices.Select(choice => choice.Value).Distinct().Count());
+        Assert.Equal(Enumerable.Range(0, 24), monday.StatsWeeklyCsvHourChoices.Select(choice => choice.Value));
+    }
+
+    [Fact]
+    public void Picking_a_weekly_csv_day_or_hour_saves_it_and_the_changed_week_start_reorders_the_days()
+    {
+        var settings = new AppSettings { StatsWeekStart = "Monday" };
+        var vm = BuildViewModelWithDialogs(settings);
+        Assert.Equal(DayOfWeek.Monday, vm.SelectedStatsWeeklyCsvDayChoice!.Value);
+        Assert.Equal(0, vm.SelectedStatsWeeklyCsvHourChoice!.Value);
+
+        vm.SelectedStatsWeeklyCsvDayChoice = vm.StatsWeeklyCsvDayChoices.Single(choice => choice.Value == DayOfWeek.Thursday);
+        vm.SelectedStatsWeeklyCsvHourChoice = vm.StatsWeeklyCsvHourChoices.Single(choice => choice.Value == 7);
+
+        Assert.Equal(DayOfWeek.Thursday, settings.StatsWeeklyCsvDay);
+        Assert.Equal(7, settings.StatsWeeklyCsvHour);
+
+        vm.SelectedStatsWeekStartChoice = vm.StatsWeekStartChoices.Single(choice => choice.Value == "Sunday");
+
+        Assert.Equal(DayOfWeek.Sunday, vm.StatsWeeklyCsvDayChoices[0].Value);
+        Assert.Equal(DayOfWeek.Thursday, vm.SelectedStatsWeeklyCsvDayChoice!.Value);
+        Assert.Equal(7, vm.SelectedStatsWeeklyCsvHourChoice!.Value);
+    }
+
+    [Fact]
+    public void Reset_puts_the_weekly_csv_day_and_hour_back_to_Monday_at_midnight()
+    {
+        var settings = new AppSettings { StatsWeeklyCsvDay = DayOfWeek.Saturday, StatsWeeklyCsvHour = 21 };
+        var vm = BuildViewModelWithDialogs(settings);
+        Assert.Equal(DayOfWeek.Saturday, vm.SelectedStatsWeeklyCsvDayChoice!.Value);
+
+        vm.ResetToDefaults();
+
+        Assert.Equal(DayOfWeek.Monday, settings.StatsWeeklyCsvDay);
+        Assert.Equal(0, settings.StatsWeeklyCsvHour);
+        Assert.Equal(DayOfWeek.Monday, vm.SelectedStatsWeeklyCsvDayChoice!.Value);
+        Assert.Equal(0, vm.SelectedStatsWeeklyCsvHourChoice!.Value);
+    }
+
+    [Fact]
+    public async Task The_weekly_csv_day_and_hour_travel_in_an_export_and_come_back_on_import()
+    {
+        var exportPath = Path.Combine(TempDirectory(), "export-settings.json");
+        var source = BuildViewModelWithDialogs(new AppSettings { StatsWeeklyCsvDay = DayOfWeek.Wednesday, StatsWeeklyCsvHour = 13 }, askExport: _ => exportPath);
+        source.ExportSettingsCommand.Execute(null);
+
+        var target = new AppSettings();
+        var targetVm = BuildViewModelWithDialogs(target, askImport: () => exportPath);
+        await targetVm.ImportSettingsCommand.ExecuteAsync(null);
+
+        Assert.Equal(DayOfWeek.Wednesday, target.StatsWeeklyCsvDay);
+        Assert.Equal(13, target.StatsWeeklyCsvHour);
+        Assert.Equal(DayOfWeek.Wednesday, targetVm.SelectedStatsWeeklyCsvDayChoice!.Value);
+        Assert.Equal(13, targetVm.SelectedStatsWeeklyCsvHourChoice!.Value);
+    }
+
+    [Fact]
+    public void The_folder_row_shows_the_hint_and_Choose_folder_until_a_folder_is_set_then_the_path_and_Change_folder()
+    {
+        var settings = new AppSettings();
+        var vm = BuildViewModelWithDialogs(settings, askFolder: () => @"E:\Reports");
+        var loc = LocalizationService.Instance;
+
+        Assert.Equal(loc["Settings.Stats.WeeklyCsvNoFolder"], vm.StatsWeeklyCsvFolderText);
+        Assert.Equal(loc["Settings.Stats.WeeklyCsvFolder"], vm.StatsWeeklyCsvFolderButtonText);
+
+        vm.ChooseStatsWeeklyCsvFolderCommand.Execute(null);
+
+        Assert.Equal(@"E:\Reports", vm.StatsWeeklyCsvFolderText);
+        Assert.Equal(loc["Settings.Stats.WeeklyCsvFolderChange"], vm.StatsWeeklyCsvFolderButtonText);
+        Assert.NotEqual(vm.StatsWeeklyCsvFolderButtonText, loc["Settings.Stats.WeeklyCsvFolder"]);
+    }
+
     private SettingsViewModel BuildViewModelWithDialogs(AppSettings settings, Func<string, string?>? askExport = null, Func<string?>? askImport = null,
         Func<string?>? askFolder = null, Func<string, CancellationToken, Task<(int FilesRead, int FilesAdded)>>? importFolder = null)
     {

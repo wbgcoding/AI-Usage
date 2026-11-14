@@ -1063,18 +1063,52 @@
                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.WeeklyCopy]}">
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.WeeklyCopy]}" TextWrapping="Wrap"/>
                     </CheckBox>
-                    <CheckBox IsChecked="{Binding StatsWeeklyCsv}" Style="{StaticResource CheckBox.GapS}"
-                              AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsv]}">
-                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsv]}" TextWrapping="Wrap"/>
-                    </CheckBox>
-                    <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvFolder]}" Style="{StaticResource SystemAction}"
-                            HorizontalAlignment="Left" Margin="0,0,0,4" Command="{Binding ChooseStatsWeeklyCsvFolderCommand}"/>
-                    <TextBlock Text="{Binding StatsWeeklyCsvFolder, Mode=OneWay}" TextTrimming="CharacterEllipsis"
-                               ToolTip="{Binding StatsWeeklyCsvFolder, Mode=OneWay}" Margin="0,0,0,4"
-                               FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
-                               Visibility="{Binding HasStatsWeeklyCsvFolder, Converter={StaticResource BoolToVis}}"/>
+                    <!-- The weekly CSV: switch, schedule and folder as one unit; the schedule and the folder row
+                         sit under the text of the switch and only work while it is on. -->
+                    <StackPanel Margin="0,8,0,0">
+                        <CheckBox IsChecked="{Binding StatsWeeklyCsv}" Margin="0,4,0,0"
+                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsv]}"
+                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.WeeklyCsv]}">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsv]}" TextWrapping="Wrap"/>
+                        </CheckBox>
+                        <WrapPanel Orientation="Horizontal" Margin="24,8,0,0" IsEnabled="{Binding StatsWeeklyCsv}">
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvDay]}" Foreground="{DynamicResource Text.Secondary}"
+                                       FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox ItemsSource="{Binding StatsWeeklyCsvDayChoices}"
+                                      SelectedItem="{Binding SelectedStatsWeeklyCsvDayChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvDay]}"
+                                      VerticalAlignment="Center" MinWidth="140" Margin="0,0,16,0"/>
+                            <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvTime]}" Foreground="{DynamicResource Text.Secondary}"
+                                       FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox ItemsSource="{Binding StatsWeeklyCsvHourChoices}"
+                                      SelectedItem="{Binding SelectedStatsWeeklyCsvHourChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvTime]}"
+                                      VerticalAlignment="Center" MinWidth="100"/>
+                        </WrapPanel>
+                        <DockPanel Margin="24,8,0,0" LastChildFill="True">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource SystemAction}"
+                                    Content="{Binding StatsWeeklyCsvFolderButtonText, Mode=OneWay}"
+                                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"
+                                    Command="{Binding ChooseStatsWeeklyCsvFolderCommand}"/>
+                            <TextBlock Text="{Binding StatsWeeklyCsvFolderText, Mode=OneWay}" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding StatsWeeklyCsvFolder, Mode=OneWay}" VerticalAlignment="Center"
+                                       FontSize="{StaticResource Font.Size.Small}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                        <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasStatsWeeklyCsvFolder}" Value="False">
+                                                <Setter Property="Foreground" Value="{DynamicResource Text.Muted}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DockPanel>
+                    </StackPanel>
                     <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Backup.ImportPc]}" Style="{StaticResource SystemAction}"
-                            HorizontalAlignment="Left" Margin="0,8,0,8"
+                            HorizontalAlignment="Left" Margin="0,16,0,8"
                             ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Backup.ImportPc]}" Command="{Binding ImportPcCommand}"/>
                     <!-- The PCs whose token history was imported, each removable again. -->
                     <ItemsControl ItemsSource="{Binding ImportedPcs}"
@@ -1115,7 +1149,8 @@
                         <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.AddFolder]}" Style="{StaticResource SystemAction}"
                                 HorizontalAlignment="Left" Margin="0,0,8,8" Command="{Binding AddStatsFolderCommand}"/>
                         <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.ImportFolder]}" Style="{StaticResource SystemAction}"
-                                HorizontalAlignment="Left" Margin="0,0,8,8" Command="{Binding ImportStatsFolderCommand}"/>
+                                HorizontalAlignment="Left" Margin="0,0,8,8" Command="{Binding ImportStatsFolderCommand}"
+                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.ImportFolder]}"/>
                     </WrapPanel>
                     <TextBlock Text="{Binding StatsFolderImportResult, Mode=OneWay}" TextWrapping="Wrap"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"

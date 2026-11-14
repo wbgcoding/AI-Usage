@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>このファイルはAI-Usageのバックアップではないか、新しいバージョンのものです。</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>復元を準備できませんでした。現在のデータは変更されていません。</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage を再起動できなかったため、何も復元されていません。現在のデータは変更されていません。</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>履歴をインポート…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>別のPCのバックアップをインポート…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>別のPCのバックアップからトークン履歴を読み込み、ここの履歴と統合します。このPC自身のデータは変更されません。同じPCをもう一度インポートすると、以前のコピーが置き換わります。</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>このバックアップはこのPCのものです。</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>週に一度、選んだ時刻に、前の週のトークン使用量を CSV ファイルとして選んだフォルダーに保存します。その時刻にアプリが起動していない場合は、次回の起動時に補います。</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>曜日</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>時刻</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>フォルダーを変更…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>フォルダーはまだ選択されていません</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>フォルダー内の Claude Code のセッションファイルを一度だけ統計に読み込みます（例: 古いコピー）。すでに集計済みのセッションが二重に集計されることはありません。</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>{1} から {0} 日分のトークン履歴をインポートしました。</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>{1} から 1 日分のトークン履歴をインポートしました。</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>削除</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>毎週月曜日に前の週の CSV ファイルを保存する</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>毎週、前の週の CSV ファイルを保存する</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>フォルダーを選択…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>追加のフォルダー(実行のたびに読み込み)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>フォルダーを追加…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>削除</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>フォルダーを一度だけ読み込む…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>セッションファイルを一度だけ読み込む…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>セッションファイル {0} 件を読み込み、新規 {1} 件</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>トークン使用量</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>開いたときの期間</value></data>

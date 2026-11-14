@@ -651,9 +651,15 @@
   <data name="Settings.Backup.Refused" xml:space="preserve"><value>Questo file non è un backup di AI-Usage oppure proviene da una versione più recente.</value></data>
   <data name="Settings.RestoreNotScheduled" xml:space="preserve"><value>Non è stato possibile preparare il ripristino. I tuoi dati attuali non sono cambiati.</value></data>
   <data name="Settings.RestoreRestartFailed" xml:space="preserve"><value>AI-Usage non è riuscito a riavviarsi, quindi non è stato ripristinato nulla. I tuoi dati attuali non sono cambiati.</value></data>
-  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importa cronologia…</value></data>
+  <data name="Settings.Backup.ImportPc" xml:space="preserve"><value>Importa il backup di un altro PC…</value></data>
   <data name="Tip.Settings.Backup.ImportPc" xml:space="preserve"><value>Legge la cronologia dei token dal backup di un altro PC e la unisce a quella di qui. I dati di questo PC restano intatti; importare di nuovo lo stesso PC sostituisce la sua copia precedente.</value></data>
   <data name="Settings.Backup.SamePc" xml:space="preserve"><value>Questo backup proviene da questo PC.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Una volta a settimana, all'ora scelta, salva l'uso dei token della settimana precedente come file CSV nella cartella scelta. Se l'app non è in esecuzione in quel momento, lo recupera al prossimo avvio.</value></data>
+  <data name="Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Giorno</value></data>
+  <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Ora</value></data>
+  <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Cambia cartella…</value></data>
+  <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>Nessuna cartella scelta finora</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Legge una sola volta nelle statistiche i file di sessione di Claude Code di una cartella, ad esempio una vecchia copia. Le sessioni già conteggiate non vengono contate due volte.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Importati {0} giorni di cronologia dei token da {1}.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>Importato 1 giorno di cronologia dei token da {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Rimuovi</value></data>
@@ -709,12 +715,12 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Restano {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Accedi a platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Mostra nel riquadro il saldo dei crediti API della tua Claude Console. Viene letto solo il saldo.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salva ogni lunedì un CSV della settimana precedente</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salva ogni settimana un file CSV della settimana precedente</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Scegli cartella…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Altre cartelle (lette a ogni esecuzione)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Aggiungi cartella…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Rimuovi</value></data>
-  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Leggi una cartella una volta…</value></data>
+  <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Leggi i file di sessione una volta…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} file di sessione letti, {1} nuovi</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Consumo di token</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Periodo all'apertura</value></data>
