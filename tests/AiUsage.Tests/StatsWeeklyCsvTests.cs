@@ -335,6 +335,29 @@ public class StatsWeeklyCsvTests
         Assert.Equal("old", File.ReadAllText(Path.Combine(target, "AI-Usage-2026-W43.csv")));
     }
 
+    [Fact]
+    public void A_failure_before_any_week_is_named_is_still_reported_once()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("weekly-csv-early-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("weekly-csv-early-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-early-data");
+        using var logDir = TestPaths.CreateDisposableDirectory("weekly-csv-early-log");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-early-target");
+        WriteSession(claudeRoot, Line("2026-11-11T12:00:00Z", "m1", 100, 50));
+        var log = new LogService(logDir);
+        var store = new StatsStore(dataDir);
+        using var service = new StatsIndexerService(store, () => new StatsIndexer(store, claudeRoot, codexRoot) { Log = log }, log)
+        {
+            WeeklyCsvFolder = target,
+            Clock = () => throw new IOException("listing failed"),
+        };
+
+        RunWalk(service);
+        RunWalk(service);
+
+        Assert.Equal(1, ReportedLines(log));
+    }
+
     private static int ReportedLines(LogService log) =>
         File.Exists(log.CurrentFile)
             ? File.ReadAllLines(log.CurrentFile).Count(line => line.Contains("Statistics weekly CSV", StringComparison.Ordinal))

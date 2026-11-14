@@ -28,7 +28,7 @@ public sealed class StatsIndexerService : IDisposable
     private volatile int _weeklyCsvDay = (int)DayOfWeek.Monday;
     private volatile int _weeklyCsvHour;
     // The week whose failure was logged already, so a folder that stays away is reported once per week.
-    private string _weeklyCsvLoggedWeek = "";
+    private string? _weeklyCsvLoggedWeek;
     // Reads one folder once (see IndexFolderOnceAsync); null for a stand-in service.
     private readonly Func<string, CancellationToken, (int FilesRead, int FilesAdded)>? _indexFolderOnce;
     // The added folders as of now; replaced as a whole, so a walk in flight keeps the list it started with.
