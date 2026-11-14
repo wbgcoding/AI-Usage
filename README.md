@@ -273,6 +273,4 @@ Microsoft Edge WebView2 (Microsoft's own redistributable licence).
 Claude, Codex, Cursor, Gemini, Antigravity and GitHub Copilot are trademarks of their respective
 owners. AI-Usage is an independent project and not affiliated with any of them.
 
-<div align="center"><sub>© 2026 BGCoding</sub></div>
-
 <p align="right">© 2026 BGCoding · Made with Claude</p>
