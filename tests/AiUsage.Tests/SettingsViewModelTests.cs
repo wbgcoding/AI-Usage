@@ -944,6 +944,28 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_export_copy_drops_this_pcs_folders_and_plan_bookkeeping_but_the_live_settings_keep_them()
+    {
+        var settings = new AppSettings { StatsWeeklyCsvFolder = @"D:\private-reports", StatsExtraFolders = [@"E:\old-pc-sessions"] };
+        settings.Providers["claude"].LastPlan = "Max";
+        settings.Providers["claude"].PlanChange = new StoredPlanChange { From = "Pro", To = "Max", AtUtc = DateTimeOffset.UnixEpoch };
+
+        var copy = SettingsViewModel.WithoutMachineLocalState(settings);
+
+        Assert.Equal("", copy.StatsWeeklyCsvFolder);
+        Assert.Empty(copy.StatsExtraFolders);
+        Assert.All(copy.Providers.Values, provider =>
+        {
+            Assert.Equal("", provider.LastPlan);
+            Assert.Null(provider.PlanChange);
+        });
+        Assert.Equal(@"D:\private-reports", settings.StatsWeeklyCsvFolder);
+        Assert.Equal([@"E:\old-pc-sessions"], settings.StatsExtraFolders);
+        Assert.Equal("Max", settings.Providers["claude"].LastPlan);
+        Assert.NotNull(settings.Providers["claude"].PlanChange);
+    }
+
+    [Fact]
     public async Task ExportedSettingsCarryNoMachineLocalState()
     {
         var sourceSettings = new AppSettings { RefreshSeconds = 300, DefaultThreshold = 77 };

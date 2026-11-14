@@ -1472,7 +1472,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>A copy of <paramref name="settings"/> without what only means something on this PC and
     /// what an import never takes over: the window block, the PC's id and the PCs imported from, the
-    /// discovered usage paths and the account bookkeeping.</summary>
+    /// discovered usage paths, this PC's session and report folders, and the account bookkeeping (credit
+    /// balance, last plan and plan change).</summary>
     internal static AppSettings WithoutMachineLocalState(AppSettings settings)
     {
         var copy = JsonSerializer.Deserialize<AppSettings>(
@@ -1481,8 +1482,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         copy.MachineId = "";
         copy.ImportedMachines = [];
         copy.WebUsagePaths = [];
+        copy.StatsExtraFolders = [];
+        copy.StatsWeeklyCsvFolder = "";
         foreach (var providerSettings in copy.Providers.Values)
+        {
             providerSettings.ApiCredit = null;
+            providerSettings.LastPlan = "";
+            providerSettings.PlanChange = null;
+        }
+
         copy.Accounts = AppSettings.CreateDefaultAccounts();
         copy.CopilotAccountLogins = [];
         return copy;
