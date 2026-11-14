@@ -216,6 +216,17 @@ public class GeminiProviderTests : IDisposable
         Assert.Contains("Claude and GPT models", note, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"groups":[]}""")]
+    public void A_summary_without_groups_names_no_unknown_group(string summary)
+    {
+        var note = Assert.Single(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(summary, ""));
+
+        Assert.Contains("(groups: none)", note, StringComparison.Ordinal);
+        Assert.DoesNotContain("unknown group", note, StringComparison.Ordinal);
+    }
+
     // Antigravity lists only the Claude and GPT quota for some plans: both answers are intact, they
     // just hold no Gemini model with a quota.
     private const string ModelQuotaWithoutGemini = """

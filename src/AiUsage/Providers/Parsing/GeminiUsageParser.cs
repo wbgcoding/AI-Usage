@@ -206,7 +206,7 @@ public static class GeminiUsageParser
 
         if (ParseModelQuota(modelQuotaJson).Count == 0 && !HoldsNoGeminiQuota(summaryJson, modelQuotaJson))
         {
-            notes.Add($"neither the quota summary (groups: {string.Join(", ", GroupNames(summaryJson).Select(ReadChangeLog.SafeName))}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
+            notes.Add($"neither the quota summary (groups: {GroupList(summaryJson)}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
             return notes;
         }
 
@@ -300,6 +300,10 @@ public static class GeminiUsageParser
         return notes;
     }
 
+    /// <summary>The group names for a log line; "none" only as wording, never as a group to check.</summary>
+    private static string GroupList(string summaryJson) =>
+        GroupNames(summaryJson) is { Count: > 0 } names ? string.Join(", ", names.Select(ReadChangeLog.SafeName)) : "none";
+
     private static List<string> GroupNames(string summaryJson)
     {
         var names = new List<string>();
@@ -320,7 +324,7 @@ public static class GeminiUsageParser
         catch (JsonException)
         {
         }
-        return names.Count > 0 ? names : ["none"];
+        return names;
     }
 
     private static List<string> UnknownWindowNames(string summaryJson)
