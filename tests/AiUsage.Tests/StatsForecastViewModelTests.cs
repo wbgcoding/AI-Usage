@@ -284,9 +284,19 @@ public class StatsForecastViewModelTests
         var other = StatsViewModel.BuildForecastProvider(OldMax(lastReading: otherYear), new StatsCostView(Prices()), Loc, CurrentUltra());
 
         Assert.Equal("Claude Max", same.ButtonName);
-        Assert.Equal("Bis " + new DateTime(year, 11, 7).ToString("dddd, d. MMMM", german), same.OldUntilText);
-        Assert.Equal("Bis " + new DateTime(year - 1, 11, 7).ToString("dddd, d. MMMM yyyy", german), other.OldUntilText);
+        // The order of day and month follows the machine's region (a build server has en-US), the names
+        // follow the German UI, so the parts are checked instead of one fixed string.
+        AssertUntil(same.OldUntilText, new DateTime(year, 11, 7), withYear: false);
+        AssertUntil(other.OldUntilText, new DateTime(year - 1, 11, 7), withYear: true);
         Assert.Equal("", StatsViewModel.BuildForecastProvider(CurrentUltra(), new StatsCostView(Prices()), Loc, OldMax()).OldUntilText);
+
+        void AssertUntil(string text, DateTime date, bool withYear)
+        {
+            Assert.StartsWith("Bis " + date.ToString("dddd", german), text);
+            Assert.Contains(date.ToString("MMMM", german), text);
+            Assert.Matches(@"\b7\b", text);
+            Assert.Equal(withYear, text.Contains(date.Year.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal));
+        }
     }
 
     [Fact]
