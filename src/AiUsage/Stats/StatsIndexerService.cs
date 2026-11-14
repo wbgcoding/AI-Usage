@@ -562,13 +562,18 @@ public sealed class StatsIndexerService : IDisposable
         try
         {
             var now = Clock().LocalDateTime;
-            if (!StatsWeeklyCsv.IsDue(now, WeeklyCsvDay, _weeklyCsvHour))
-                return;
-
-            var today = DateOnly.FromDateTime(now);
-            week = StatsWeeklyCsv.PreviousWeek(today).FileName;
-            if (_weeklyCsv?.Invoke(folder, today) == StatsWeeklyCsv.Outcome.FolderMissing)
-                failure = "the folder is not available";
+            var existing = Directory.Exists(folder)
+                ? Directory.EnumerateFiles(folder, "AI-Usage-*.csv").Select(path => Path.GetFileName(path))
+                : [];
+            foreach (var weekDay in StatsWeeklyCsv.DueWeeks(now, WeeklyCsvDay, _weeklyCsvHour, existing))
+            {
+                week = StatsWeeklyCsv.PreviousWeek(weekDay).FileName;
+                if (_weeklyCsv?.Invoke(folder, weekDay) == StatsWeeklyCsv.Outcome.FolderMissing)
+                {
+                    failure = "the folder is not available";
+                    break;
+                }
+            }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

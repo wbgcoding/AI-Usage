@@ -245,6 +245,85 @@ public class StatsWeeklyCsvTests
         Assert.Equal(["AI-Usage-2026-W46.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
     }
 
+    private static List<string> WalkNames(DateTime now, DayOfWeek day, int hour, params string[] existing) =>
+        [.. StatsWeeklyCsv.DueWeeks(now, day, hour, existing).Select(d => StatsWeeklyCsv.PreviousWeek(d).FileName)];
+
+    [Fact]
+    public void A_late_week_file_missed_with_the_PC_off_is_written_on_the_next_Monday()
+    {
+        // Due Sunday 23:00. W46 was due Sun 2026-11-22 23:00 and the PC was off; now it is Monday 2026-11-23 08:00.
+        var names = WalkNames(new DateTime(2026, 11, 23, 8, 0, 0), DayOfWeek.Sunday, 23, "AI-Usage-2026-W45.csv");
+
+        Assert.Equal(["AI-Usage-2026-W46.csv"], names);
+    }
+
+    [Fact]
+    public void Every_missing_week_after_the_newest_file_is_written_oldest_first()
+    {
+        // Newest file W43; today Wednesday 2026-11-18 (previous week W46), due Monday 00:00.
+        var names = WalkNames(new DateTime(2026, 11, 18, 9, 0, 0), DayOfWeek.Monday, 0, "AI-Usage-2026-W43.csv", "AI-Usage-2026-W40.csv", "notes.txt");
+
+        Assert.Equal(["AI-Usage-2026-W44.csv", "AI-Usage-2026-W45.csv", "AI-Usage-2026-W46.csv"], names);
+    }
+
+    [Fact]
+    public void An_empty_folder_gets_only_the_previous_week()
+    {
+        Assert.Equal(["AI-Usage-2026-W46.csv"], WalkNames(new DateTime(2026, 11, 18, 9, 0, 0), DayOfWeek.Monday, 0));
+    }
+
+    [Fact]
+    public void The_catch_up_reaches_back_at_most_twelve_weeks()
+    {
+        var names = WalkNames(new DateTime(2026, 11, 18, 9, 0, 0), DayOfWeek.Monday, 0, "AI-Usage-2025-W10.csv");
+
+        Assert.Equal(12, names.Count);
+        Assert.Equal("AI-Usage-2026-W35.csv", names[0]);
+        Assert.Equal("AI-Usage-2026-W46.csv", names[^1]);
+    }
+
+    [Fact]
+    public void The_catch_up_crosses_the_ISO_year_change_through_week_53()
+    {
+        // 2026 has 53 ISO weeks. Newest file 2026-W52; today Wednesday 2027-01-13 (current week is W02, the previous one 2027-W01).
+        var names = WalkNames(new DateTime(2027, 1, 13, 9, 0, 0), DayOfWeek.Monday, 0, "AI-Usage-2026-W52.csv");
+
+        Assert.Equal(["AI-Usage-2026-W53.csv", "AI-Usage-2027-W01.csv"], names);
+    }
+
+    [Fact]
+    public void A_week_not_yet_due_is_skipped_while_older_missing_weeks_are_still_written()
+    {
+        // Due Friday 18:00; Wednesday 2026-11-18: W46 is not due yet, W45 (due Fri 2026-11-13) is.
+        var names = WalkNames(new DateTime(2026, 11, 18, 9, 0, 0), DayOfWeek.Friday, 18, "AI-Usage-2026-W44.csv");
+
+        Assert.Equal(["AI-Usage-2026-W45.csv"], names);
+    }
+
+    [Fact]
+    public void A_walk_writes_all_missed_weeks_into_the_folder()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("weekly-csv-catch-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("weekly-csv-catch-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-catch-data");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-catch-target");
+        WriteSession(claudeRoot, Line("2026-11-11T12:00:00Z", "m1", 100, 50));
+        File.WriteAllText(Path.Combine(target, "AI-Usage-2026-W43.csv"), "old");
+        var store = new StatsStore(dataDir);
+        using var service = new StatsIndexerService(store, () => new StatsIndexer(store, claudeRoot, codexRoot))
+        {
+            WeeklyCsvFolder = target,
+            Clock = () => Local(2026, 11, 18, 9, 0),
+        };
+
+        RunWalk(service);
+
+        Assert.Equal(
+            ["AI-Usage-2026-W43.csv", "AI-Usage-2026-W44.csv", "AI-Usage-2026-W45.csv", "AI-Usage-2026-W46.csv"],
+            Directory.GetFiles(target).Select(Path.GetFileName).Order().ToList());
+        Assert.Equal("old", File.ReadAllText(Path.Combine(target, "AI-Usage-2026-W43.csv")));
+    }
+
     private static int ReportedLines(LogService log) =>
         File.Exists(log.CurrentFile)
             ? File.ReadAllLines(log.CurrentFile).Count(line => line.Contains("Statistics weekly CSV", StringComparison.Ordinal))

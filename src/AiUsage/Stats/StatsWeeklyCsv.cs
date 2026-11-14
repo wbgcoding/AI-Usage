@@ -5,10 +5,11 @@ using AiUsage.Stats.Pricing;
 namespace AiUsage.Stats;
 
 /// <summary>
-/// The CSV of the previous ISO week that the token index saves on its own into a folder the user picked:
-/// the same file the statistics window exports (all providers, the cost estimate as it is set), only for
-/// the week Monday to Sunday that just ended and built without a window. One file per week, named by
-/// <see cref="FileName"/>; a file that is already there is never written again.
+/// The weekly CSV files that the token index saves on its own into a folder the user picked: the same file
+/// the statistics window exports (all providers, the cost estimate as it is set), for a finished week
+/// Monday to Sunday and built without a window. One file per week, named by <see cref="FileName"/>; a file
+/// that is already there is never written again. A week missed because the PC was off is written at the
+/// next walk (see <see cref="DueWeeks"/>).
 /// </summary>
 internal static class StatsWeeklyCsv
 {
@@ -52,6 +53,54 @@ internal static class StatsWeeklyCsv
     /// of the current week have come. A start after that moment catches up, because the due moment stays
     /// passed for the rest of the week.</summary>
     internal static bool IsDue(DateTime now, DayOfWeek day, int hour) => now >= DueMoment(now, day, hour);
+
+    /// <summary>The most weeks back a catch-up reaches, the previous week included.</summary>
+    internal const int CatchUpWeeks = 12;
+
+    private static readonly System.Text.RegularExpressions.Regex NamePattern =
+        new(@"^AI-Usage-(\d{4})-W(\d{2})\.csv$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>The weeks whose file is due and still missing at <paramref name="now"/>, oldest first, each as a day
+    /// of the week after it (pass that day to <see cref="Write"/>). The file of week W is due at the chosen day and
+    /// hour of week W+1. Candidates are the weeks after the newest file in <paramref name="existingNames"/> up to
+    /// the previous week, at most <see cref="CatchUpWeeks"/>; with no such file yet only the previous week counts.</summary>
+    internal static IReadOnlyList<DateOnly> DueWeeks(DateTime now, DayOfWeek day, int hour, IEnumerable<string> existingNames)
+    {
+        var previousMonday = PreviousWeek(DateOnly.FromDateTime(now)).From;
+        var first = previousMonday;
+        DateOnly? newest = null;
+        foreach (var name in existingNames)
+        {
+            var match = NamePattern.Match(name);
+            if (!match.Success)
+                continue;
+
+            var year = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+            var week = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+            if (year < 1 || week < 1 || week > ISOWeek.GetWeeksInYear(year))
+                continue;
+
+            var monday = DateOnly.FromDateTime(ISOWeek.ToDateTime(year, week, DayOfWeek.Monday));
+            if (newest is null || monday > newest)
+                newest = monday;
+        }
+
+        if (newest is { } latest)
+            first = latest.AddDays(7);
+        var oldest = previousMonday.AddDays(-7 * (CatchUpWeeks - 1));
+        if (first < oldest)
+            first = oldest;
+
+        var due = new List<DateOnly>();
+        for (var monday = first; monday <= previousMonday; monday = monday.AddDays(7))
+        {
+            var nextWeek = monday.AddDays(7);
+            if (now >= DueMoment(nextWeek.ToDateTime(TimeOnly.MinValue), day, hour))
+                due.Add(nextWeek);
+        }
+
+        return due;
+    }
 
     /// <summary>Saves the CSV of the previous week into <paramref name="folder"/> unless it is already there.
     /// May block while the price list loads, so call it off the UI thread. IO failures are thrown.</summary>
