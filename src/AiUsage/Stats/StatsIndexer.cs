@@ -191,8 +191,16 @@ public sealed class StatsIndexer
         // first time. The passes it depends on come first so none of them undoes another.
         var passOpen = BackfillSessionsOnce(known, cancellationToken);
         passOpen |= BackfillSubagentUsageOnce(known, cancellationToken);
-        var copiesOpen = BackfillClaudeCopiesOnce(known, cancellationToken);
-        passOpen |= copiesOpen;
+        // The sessions pass rebuilds every session from the first copy of each response, so the copies
+        // pass (which adds the later copies to the sessions) must come after it has finished. A
+        // sessions pass that is still held, for one locked Codex file say, keeps it waiting.
+        // The walk is held back only by a pass that waits for an unreadable file, never by this wait.
+        var sessionsDone = _store.IsSessionBackfillDone();
+        var copiesOpen = sessionsDone ? BackfillClaudeCopiesOnce(known, cancellationToken) : !_store.IsClaudeCopyBackfillDone();
+        if (sessionsDone)
+            passOpen |= copiesOpen;
+        else if (copiesOpen)
+            HoldPass("copies"); // counts as its own blocked run, so it gives up together with the sessions pass
 
         // The passes above count every copy of a response; this one subtracts the copies a second
         // transcript counted, so it waits while the copies pass does (and counts that as its own

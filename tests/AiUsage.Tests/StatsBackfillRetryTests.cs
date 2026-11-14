@@ -60,7 +60,7 @@ public class StatsBackfillRetryTests
     private static readonly DateTime New = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public void A_locked_codex_file_keeps_the_session_pass_open_without_blocking_the_other_passes()
+    public void A_locked_codex_file_keeps_the_session_pass_open_without_blocking_the_subagent_pass()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-codex-claude");
         using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-codex-codex");
@@ -77,12 +77,48 @@ public class StatsBackfillRetryTests
 
         Assert.False(store.IsSessionBackfillDone());
         Assert.True(store.IsSubagentUsageBackfillDone());
-        Assert.True(store.IsClaudeCopyBackfillDone());
 
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
 
         Assert.True(store.IsSessionBackfillDone());
+        Assert.True(store.IsClaudeCopyBackfillDone());
         Assert.Contains(store.LoadSessions(), session => session.Provider == "codex" && session.SessionId == "codex-sess-1");
+    }
+
+    [Fact]
+    public void A_held_session_pass_keeps_the_copies_pass_waiting_so_the_later_copies_reach_the_sessions()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-order-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-order-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-order-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old,
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467));
+        var codex = WriteCodex(codexRoot);
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // What an earlier build stored: the first copy of the response only, no sessions yet.
+        Run(dbPath, "UPDATE usage SET output_tokens = 5 WHERE provider = 'claude';");
+        Run(dbPath, "UPDATE source_file SET counted_input = NULL, counted_output = NULL, counted_cache_creation = NULL, counted_cache_read = NULL;");
+        OfferAllPasses(dbPath);
+
+        // The locked Codex rollout holds the sessions pass; the copies pass must not run ahead of it.
+        using (Lock(codex))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.False(store.IsClaudeCopyBackfillDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsSessionBackfillDone());
+        Assert.True(store.IsClaudeCopyBackfillDone());
+        var claudeUsage = store.LoadAll().Where(row => row.Provider == "claude").Sum(row => row.OutputTokens);
+        var claudeSessions = store.LoadSessions().Where(session => session.Provider == "claude").Sum(session => session.OutputTokens);
+        Assert.Equal(467L, claudeUsage);
+        Assert.Equal(467L, claudeSessions);
     }
 
     [Fact]
