@@ -49,6 +49,15 @@ internal static class ReviewMenus
     internal static void RenderTrayMenu(SurfaceContext context, string id) =>
         RenderMenu(TrayService.BuildMenu(windowLayer: WindowLayers.OnTop, clickThrough: false, hotkeyShortcutText: null), null, context.OutputPath(id));
 
+    /// <summary>The popup that opens when the pointer rests on the tray icon: every provider with its
+    /// five-hour and weekly percentages and reset times, from the same lines the tray text is built from.</summary>
+    internal static void RenderTrayPopup(SurfaceContext context, string id)
+    {
+        using var main = OpenMain(context);
+        var model = TrayPopupModel.Build(MainWindow.BuildTrayLines(main.ViewModel.Tiles), now: context.Now);
+        RenderHosted(new TrayPopupView { DataContext = model }, context.OutputPath(id));
+    }
+
     /// <summary>The right-click menu of a provider tile that is signed in and has detail lines, so
     /// every entry shows.</summary>
     internal static void RenderTileMenu(SurfaceContext context, string id)

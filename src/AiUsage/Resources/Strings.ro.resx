@@ -595,6 +595,8 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Pune preluarea pe pauză 1 oră</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Reia preluarea (pauză până la {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pauză până la {0}</value></data>
+  <data name="Tray.Popup.ResetsToday" xml:space="preserve"><value>disponibil la {0}</value></data>
+  <data name="Tray.Popup.ResetsLater" xml:space="preserve"><value>disponibil {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Găsit</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Citește contul din Antigravity CLI (agy). Conectează-te acolo sau aici prin browser.</value></data>

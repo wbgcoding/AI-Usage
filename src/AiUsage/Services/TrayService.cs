@@ -4,6 +4,8 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using AiUsage.Models;
+using AiUsage.Views;
+using static AiUsage.Services.TrayTooltipBuilder;
 
 namespace AiUsage.Services;
 
@@ -11,8 +13,11 @@ namespace AiUsage.Services;
 /// Tray icon and its context menu, built directly on <c>Shell_NotifyIcon</c> (shell32) instead of
 /// a UI framework's own wrapper - a hidden message window receives the shell callback, and the
 /// right-click menu is a plain WPF <see cref="ContextMenu"/> themed the same way as every other
-/// popup in this app. The live shell icon itself needs a real desktop session, so the tests cover the
-/// menu, the tooltip text and the rendered icons around it.
+/// popup in this app. The callback runs in <c>NOTIFYICON_VERSION_4</c> without <c>NIF_SHOWTIP</c>: the
+/// shell's own tooltip (cut at 127 characters) stays only as the text for screen readers, and hovering the
+/// icon opens an own popup (<see cref="TrayPopupWindow"/>) without that limit. The live shell icon itself
+/// needs a real desktop session, so the tests cover the menu, the popup content, the callback decoding and
+/// the rendered icons around it.
 /// </summary>
 public sealed class TrayService : IDisposable
 {
@@ -22,6 +27,8 @@ public sealed class TrayService : IDisposable
     private const uint NIM_ADD = 0x00000000;
     private const uint NIM_MODIFY = 0x00000001;
     private const uint NIM_DELETE = 0x00000002;
+    private const uint NIM_SETVERSION = 0x00000004;
+    private const uint NotifyIconVersion4 = 4;
 
     private const uint NIF_MESSAGE = 0x00000001;
     private const uint NIF_ICON = 0x00000002;
@@ -29,9 +36,6 @@ public sealed class TrayService : IDisposable
     private const uint NIF_INFO = 0x00000010;
 
     private const uint NIIF_WARNING = 0x00000002;
-
-    private const int WM_LBUTTONDBLCLK = 0x0203;
-    private const int WM_RBUTTONUP = 0x0205;
 
     // Own range, distinct from GlobalHotkey's WM_HOTKEY handling on the main window - this class
     // owns a window of its own.
@@ -124,6 +128,13 @@ public sealed class TrayService : IDisposable
     // for real.
     private bool _readyForContextMenu;
 
+    // True once the shell accepted version 4 of the callback; only then the popup events and the anchor
+    // point exist. Otherwise the callback stays in the old format and the shell's own tip is all there is.
+    private bool _versionFour;
+    private TrayPopupWindow? _popup;
+    private IReadOnlyList<ProviderLine> _popupLines = [];
+    private bool _disposed;
+
     // At sign-in the shell can refuse the icon after its TaskbarCreated broadcast has already gone out,
     // which would leave an autostarted copy with neither a window nor an icon.
     private static readonly TimeSpan AddRetryInterval = TimeSpan.FromSeconds(2);
@@ -205,7 +216,11 @@ public sealed class TrayService : IDisposable
         // re-reads every menu text on every LocalizationService change rather than only at startup.
         // Named so Dispose can unsubscribe it - the singleton outlives this instance otherwise and
         // keeps calling RefreshMenuText on already-disposed menu items.
-        _localizationChanged = (_, _) => RefreshMenuText();
+        _localizationChanged = (_, _) =>
+        {
+            RefreshMenuText();
+            RefreshPopup();
+        };
         loc.PropertyChanged += _localizationChanged;
     }
 
@@ -288,6 +303,7 @@ public sealed class TrayService : IDisposable
     {
         if (_taskbarCreatedMessage != 0 && msg == (int)_taskbarCreatedMessage)
         {
+            HidePopup();
             AddIcon();
             handled = true;
             return IntPtr.Zero;
@@ -296,14 +312,26 @@ public sealed class TrayService : IDisposable
         if (msg != CallbackMessageId)
             return IntPtr.Zero;
 
-        switch (lParam.ToInt32())
+        var callback = TrayCallback.Decode(wParam, lParam, _versionFour);
+        switch (callback.Kind)
         {
-            case WM_RBUTTONUP:
-                ShowContextMenu();
+            case TrayEventKind.ContextMenu:
+                HidePopup();
+                ShowContextMenu(callback);
                 handled = true;
                 break;
-            case WM_LBUTTONDBLCLK:
+            case TrayEventKind.DoubleClick:
+                HidePopup();
                 ShowHideRequested?.Invoke(this, EventArgs.Empty);
+                handled = true;
+                break;
+            case TrayEventKind.PopupOpen:
+                ShowPopup(callback);
+                handled = true;
+                break;
+            case TrayEventKind.PopupClose:
+            case TrayEventKind.Click:
+                HidePopup();
                 handled = true;
                 break;
         }
@@ -311,9 +339,13 @@ public sealed class TrayService : IDisposable
         return IntPtr.Zero;
     }
 
-    private void ShowContextMenu()
+    private void ShowContextMenu(TrayEvent callback)
     {
-        var (x, y) = NativeMonitors.CursorPosition();
+        // A second request while the menu is open must not reopen it.
+        if (_menu.IsOpen)
+            return;
+
+        var (x, y) = callback.HasAnchor ? (callback.X, callback.Y) : NativeMonitors.CursorPosition();
         var toDips = _hwndSource.CompositionTarget.TransformFromDevice;
         var point = toDips.Transform(new Point(x, y));
 
@@ -328,6 +360,37 @@ public sealed class TrayService : IDisposable
             WindowActivation.RecordUserRequest("TrayService.ShowContextMenu", SetForegroundWindow(_hwndSource.Handle));
         _menu.IsOpen = true;
     }
+
+    /// <summary>Hands the popup the lines it shows (the same ones the tooltip text is built from, but
+    /// with every reset time, so the popup is not limited like the shell tip). An open popup
+    /// follows at once.</summary>
+    public void UpdatePopup(IReadOnlyList<ProviderLine> lines)
+    {
+        _popupLines = lines;
+        RefreshPopup();
+    }
+
+    private TrayPopupModel BuildPopupModel() => TrayPopupModel.Build(_popupLines, _pausedUntil);
+
+    private void ShowPopup(TrayEvent callback)
+    {
+        // While the menu is open the popup would only cover it.
+        if (_menu.IsOpen || _disposed)
+            return;
+
+        var (x, y) = callback.HasAnchor ? (callback.X, callback.Y) : NativeMonitors.CursorPosition();
+        _popup ??= new TrayPopupWindow();
+        _popup.ShowAt(BuildPopupModel(), (int)x, (int)y);
+    }
+
+    private void RefreshPopup()
+    {
+        if (_popup is { IsShown: true } popup)
+            popup.Refresh(BuildPopupModel());
+    }
+
+    /// <summary>Hides the popup when it is open.</summary>
+    public void HidePopup() => _popup?.HidePopup();
 
     /// <summary>Keeps the checked window level in sync when it was changed from the Settings window
     /// or the title bar menu instead of the tray menu itself.</summary>
@@ -350,6 +413,7 @@ public sealed class TrayService : IDisposable
     {
         _pausedUntil = pausedUntil;
         RefreshMenuText();
+        RefreshPopup();
     }
 
     /// <summary>Names the active global shortcut (e.g. "Ctrl+Alt+U") in the "Show/Hide"
@@ -484,7 +548,15 @@ public sealed class TrayService : IDisposable
         var data = NewNotifyIconData(NIF_MESSAGE | NIF_ICON | NIF_TIP);
         data.hIcon = (_currentIcon ?? _okIcon).Handle;
         data.szTip = _tooltipText;
-        return Shell_NotifyIcon(NIM_ADD, ref data) || Shell_NotifyIcon(NIM_MODIFY, ref data);
+        if (!Shell_NotifyIcon(NIM_ADD, ref data) && !Shell_NotifyIcon(NIM_MODIFY, ref data))
+            return false;
+
+        // Without NIF_SHOWTIP the version 4 callback keeps the shell from showing its own tip: the
+        // popup takes its place. A shell that refuses the version keeps the old callback and its tip.
+        var version = NewNotifyIconData(0);
+        version.uTimeoutOrVersion = NotifyIconVersion4;
+        _versionFour = Shell_NotifyIcon(NIM_SETVERSION, ref version);
+        return true;
     }
 
     private void StopAddRetries()
@@ -523,8 +595,11 @@ public sealed class TrayService : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         LocalizationService.Instance.PropertyChanged -= _localizationChanged;
         StopAddRetries();
+        _popup?.Close();
+        _popup = null;
 
         var data = NewNotifyIconData(0);
         Shell_NotifyIcon(NIM_DELETE, ref data);

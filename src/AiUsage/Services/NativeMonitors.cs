@@ -70,6 +70,20 @@ internal static class NativeMonitors
         return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info) ? info.WorkArea.Top : null;
     }
 
+    /// <summary>The work area, in physical pixels, and the scale of the monitor nearest the screen
+    /// point (physical pixels as well). A plain full HD area only stands in when Windows reports no
+    /// monitor at all.</summary>
+    public static (System.Windows.Rect WorkArea, double Scale) MonitorAt(int screenX, int screenY)
+    {
+        var monitor = MonitorFromPoint(new Point { X = screenX, Y = screenY }, Win32.MonitorDefaultToNearest);
+        var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
+        if (monitor == IntPtr.Zero || !Win32.GetMonitorInfo(monitor, ref info))
+            return (new System.Windows.Rect(0, 0, 1920, 1080), 1.0);
+
+        var work = info.WorkArea;
+        return (new System.Windows.Rect(work.Left, work.Top, work.Right - work.Left, work.Bottom - work.Top), ScaleOf(monitor));
+    }
+
     private static double ScaleOf(IntPtr monitor) =>
         monitor != IntPtr.Zero && GetDpiForMonitor(monitor, MdtEffectiveDpi, out var dpiX, out _) == 0 && dpiX > 0
             ? dpiX / 96.0

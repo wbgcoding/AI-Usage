@@ -45,7 +45,7 @@ More than one account per agent? Add it, and it gets its own tile, name and hist
   in about 3h" forecast; a tick shows how much of the window's time has passed
 - Bars colored by level (with a warning sign, never colour alone), or split by model or by main
   agent and subagents
-- A tray icon showing the busiest quota, or the agent and window you pick; its tooltip lists every agent with the percentages and, as far as the tooltip has room, the reset times
+- A tray icon showing the busiest quota, or the agent and window you pick; hover it and a small popup lists every agent with the percentages and the reset times, with no length limit
 - A waiting mark on Claude, Codex and Gemini when the agent has finished and waits for your reply
 - Windows notifications at thresholds you set, before a window fills, when a limit is reached and
   when it is free again, optionally ten minutes before a full window resets, or when a sign-in

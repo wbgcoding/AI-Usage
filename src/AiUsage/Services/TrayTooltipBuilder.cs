@@ -26,9 +26,10 @@ public static class TrayTooltipBuilder
     // say so rather than show an invented "0 %".
     // Note: short text after the percentages when the numbers are not current (sign-in needed, as of a time).
     // The reset times follow their window's percentage when known and still ahead: "62 % (14:30)".
+    // ProviderId names the line for the popup's automation ids; the shell tooltip ignores it.
     public readonly record struct ProviderLine(
         string DisplayName, double? FiveHourPercent, double? WeeklyPercent, string? Note = null,
-        DateTimeOffset? FiveHourResetsAt = null, DateTimeOffset? WeeklyResetsAt = null);
+        DateTimeOffset? FiveHourResetsAt = null, DateTimeOffset? WeeklyResetsAt = null, string? ProviderId = null);
 
     /// <summary>A reset moment in few characters: the clock time when it is today, else the short
     /// weekday and the clock time ("Mo 14:30"), both in the regional format.</summary>

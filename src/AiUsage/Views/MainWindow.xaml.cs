@@ -475,6 +475,10 @@ public partial class MainWindow : Window, IDisposable
             else
                 _tray.UpdateIcon(highestLevel, highestPercent, dimmed);
         }
+
+        // The popup lists every reset time, which the cut-off tooltip text (and so its memo) does not
+        // always show, so it is handed the lines on every tick; an open popup follows at once.
+        _tray.UpdatePopup(BuildTrayLines(ViewModel.Tiles));
     }
 
     /// <summary>The real work behind <see cref="UpdateTray"/>, pulled out so it is unit-testable
@@ -539,7 +543,8 @@ public partial class MainWindow : Window, IDisposable
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.UsedPercent,
                 TrayNote(t),
                 t.Rows.FirstOrDefault(r => r.Kind == WindowKind.FiveHour)?.ResetsAt,
-                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.ResetsAt))
+                t.Rows.FirstOrDefault(r => r.Kind == WindowKind.Weekly)?.ResetsAt,
+                t.ProviderId))
             .ToList();
 
     // Numbers from a stale read or kept after a failed one are old: the tray says so instead of
