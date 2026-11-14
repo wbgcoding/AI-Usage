@@ -70,18 +70,20 @@ internal static class NativeMonitors
         return monitor != IntPtr.Zero && Win32.GetMonitorInfo(monitor, ref info) ? info.WorkArea.Top : null;
     }
 
-    /// <summary>The work area, in physical pixels, and the scale of the monitor nearest the screen
-    /// point (physical pixels as well). A plain full HD area only stands in when Windows reports no
-    /// monitor at all.</summary>
-    public static (System.Windows.Rect WorkArea, double Scale) MonitorAt(int screenX, int screenY)
+    /// <summary>The full bounds, the work area and the scale of the monitor nearest the screen point,
+    /// all in physical pixels. Bounds minus work area is where the taskbar is.</summary>
+    public static (System.Windows.Rect Bounds, System.Windows.Rect WorkArea, double Scale) MonitorGeometryAt(int screenX, int screenY)
     {
         var monitor = MonitorFromPoint(new Point { X = screenX, Y = screenY }, Win32.MonitorDefaultToNearest);
         var info = new Win32.MonitorInfoEx { Size = Marshal.SizeOf<Win32.MonitorInfoEx>() };
         if (monitor == IntPtr.Zero || !Win32.GetMonitorInfo(monitor, ref info))
-            return (new System.Windows.Rect(0, 0, 1920, 1080), 1.0);
+        {
+            var fallback = new System.Windows.Rect(0, 0, 1920, 1080);
+            return (fallback, fallback, 1.0);
+        }
 
-        var work = info.WorkArea;
-        return (new System.Windows.Rect(work.Left, work.Top, work.Right - work.Left, work.Bottom - work.Top), ScaleOf(monitor));
+        static System.Windows.Rect ToRect(Win32.NativeRect r) => new(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
+        return (ToRect(info.Monitor), ToRect(info.WorkArea), ScaleOf(monitor));
     }
 
     private static double ScaleOf(IntPtr monitor) =>

@@ -56,6 +56,50 @@ public static class TrayPopupPlacement
         return new PopupPlacement(Whole(x), Whole(y), width, height);
     }
 
+    /// <summary>Places the popup against the icon rectangle when there is one: above it for a bottom
+    /// taskbar, below it for a top one, beside it for a left or right one, the edge decided by the side
+    /// of the work area the icon lies outside of (see <see cref="TrayAnchorResolver.DetectEdge"/>).
+    /// Without a rectangle the anchor point alone decides, as in the point overload.</summary>
+    public static PopupPlacement Place(TrayAnchor anchor, System.Windows.Rect monitorBoundsPx, System.Windows.Rect workAreaPx,
+        System.Windows.Size sizeDips, double scale)
+    {
+        if (anchor.IconRect is not { } icon)
+            return Place(anchor.Point, workAreaPx, sizeDips, scale);
+
+        if (scale <= 0)
+            scale = 1;
+        var width = Math.Min(Math.Ceiling(sizeDips.Width * scale), workAreaPx.Width);
+        var height = Math.Min(Math.Ceiling(sizeDips.Height * scale), workAreaPx.Height);
+        var gap = Whole(Gap * scale);
+        var centre = anchor.Point;
+
+        double x;
+        double y;
+        switch (TrayAnchorResolver.DetectEdge(centre, monitorBoundsPx, workAreaPx))
+        {
+            case TaskbarEdge.Top:
+                x = centre.X - width / 2;
+                y = Math.Max(workAreaPx.Top, icon.Bottom) + gap;
+                break;
+            case TaskbarEdge.Left:
+                x = Math.Max(workAreaPx.Left, icon.Right) + gap;
+                y = centre.Y - height / 2;
+                break;
+            case TaskbarEdge.Right:
+                x = Math.Min(workAreaPx.Right, icon.Left) - width - gap;
+                y = centre.Y - height / 2;
+                break;
+            default:
+                x = centre.X - width / 2;
+                y = Math.Min(workAreaPx.Bottom, icon.Top) - height - gap;
+                break;
+        }
+
+        x = Math.Clamp(x, workAreaPx.Left, workAreaPx.Right - width);
+        y = Math.Clamp(y, workAreaPx.Top, workAreaPx.Bottom - height);
+        return new PopupPlacement(Whole(x), Whole(y), width, height);
+    }
+
     // Whole device pixels; not a usage percentage, so not the shared percentage rounding.
     private static double Whole(double value) => Math.Floor(value + 0.5);
 }

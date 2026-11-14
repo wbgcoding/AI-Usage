@@ -64,8 +64,20 @@ public sealed class TrayService : IDisposable
         public IntPtr hBalloonIcon;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NOTIFYICONIDENTIFIER
+    {
+        public int cbSize;
+        public IntPtr hWnd;
+        public uint uID;
+        public Guid guidItem;
+    }
+
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
+
+    [DllImport("shell32.dll")]
+    private static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out Win32.NativeRect iconLocation);
 
     [DllImport("user32.dll")]
     private static extern bool DestroyIcon(IntPtr handle);
@@ -345,9 +357,9 @@ public sealed class TrayService : IDisposable
         if (_menu.IsOpen)
             return;
 
-        var (x, y) = callback.HasAnchor ? (callback.X, callback.Y) : NativeMonitors.CursorPosition();
+        var anchor = ResolveAnchor(callback);
         var toDips = _hwndSource.CompositionTarget.TransformFromDevice;
-        var point = toDips.Transform(new Point(x, y));
+        var point = toDips.Transform(new Point(anchor.Point.X, anchor.Point.Y));
 
         RefreshMenuText();
         _menu.Placement = PlacementMode.AbsolutePoint;
@@ -378,9 +390,23 @@ public sealed class TrayService : IDisposable
         if (_menu.IsOpen || _disposed)
             return;
 
-        var (x, y) = callback.HasAnchor ? (callback.X, callback.Y) : NativeMonitors.CursorPosition();
         _popup ??= new TrayPopupWindow();
-        _popup.ShowAt(BuildPopupModel(), (int)x, (int)y);
+        _popup.ShowAt(BuildPopupModel(), ResolveAnchor(callback));
+    }
+
+    /// <summary>The icon's own rectangle from the shell first (the callback point has been seen to be a
+    /// small value like (1, 0) on a real desktop), the callback point only when it lies inside that
+    /// rectangle or no rectangle exists, the cursor last.</summary>
+    private TrayAnchor ResolveAnchor(TrayEvent callback)
+    {
+        System.Windows.Rect? icon = null;
+        var id = new NOTIFYICONIDENTIFIER { cbSize = Marshal.SizeOf<NOTIFYICONIDENTIFIER>(), hWnd = _hwndSource.Handle, uID = IconId };
+        if (Shell_NotifyIconGetRect(ref id, out var rect) == 0 && rect.Right > rect.Left && rect.Bottom > rect.Top)
+            icon = new System.Windows.Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+
+        System.Windows.Point? fromCallback = callback.HasAnchor ? new System.Windows.Point(callback.X, callback.Y) : null;
+        var (cursorX, cursorY) = NativeMonitors.CursorPosition();
+        return TrayAnchorResolver.Resolve(icon, fromCallback, new System.Windows.Point(cursorX, cursorY));
     }
 
     private void RefreshPopup()
