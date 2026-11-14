@@ -42,6 +42,9 @@ public sealed class StatsIndexerService : IDisposable
     // unwound, a moment after the delegate itself already returned.
     private bool _isRunning;
 
+    // Set under _gate by Dispose: no run starts afterwards, and an import still waiting for the slot gives up.
+    private bool _disposed;
+
     // Set once a walk has finished normally: that first one always signals, since the day grid and a
     // statistics window have nothing loaded before it.
     private bool _firstWalkDone;
@@ -168,7 +171,8 @@ public sealed class StatsIndexerService : IDisposable
     /// counted adds nothing) and refreshes the prepared data when something was added. Returns how many
     /// session files were read and how many of them added at least one new message. The files are only
     /// read, never moved or deleted. Throws <see cref="OperationCanceledException"/> when cancelled or
-    /// when the service shuts down meanwhile.</summary>
+    /// when the service shuts down during the read; a service shut down while this still waited for the
+    /// slot returns (0, 0) without reading.</summary>
     public async Task<(int FilesRead, int FilesAdded)> IndexFolderOnceAsync(string folder, CancellationToken cancellationToken = default)
     {
         if (_indexFolderOnce is null)
@@ -176,7 +180,13 @@ public sealed class StatsIndexerService : IDisposable
 
         CancellationToken token;
         while (!TryBeginRun(out token))
+        {
+            // A service shut down while the import waited for the slot never starts it.
+            if (IsDisposed)
+                return (0, 0);
+
             await Task.Delay(FolderImportPoll, cancellationToken).ConfigureAwait(false);
+        }
 
         var finished = new TaskCompletionSource<(int, int)>(TaskCreationOptions.RunContinuationsAsynchronously);
         var linked = CancellationTokenSource.CreateLinkedTokenSource(token, cancellationToken);
@@ -224,12 +234,21 @@ public sealed class StatsIndexerService : IDisposable
 
     private static readonly TimeSpan FolderImportPoll = TimeSpan.FromMilliseconds(100);
 
-    /// <summary>Takes the one run slot when no walk holds it.</summary>
+    private bool IsDisposed
+    {
+        get
+        {
+            lock (_gate)
+                return _disposed;
+        }
+    }
+
+    /// <summary>Takes the one run slot when no walk holds it; never once the service is disposed.</summary>
     private bool TryBeginRun(out CancellationToken token)
     {
         lock (_gate)
         {
-            if (_isRunning)
+            if (_isRunning || _disposed)
             {
                 token = default;
                 return false;
@@ -291,6 +310,16 @@ public sealed class StatsIndexerService : IDisposable
             service._today = today;
         return service;
     }
+
+    /// <summary>Test seam with a stand-in for the walk and one for the one-folder read, so the wait of a folder
+    /// import for the run slot can be driven.</summary>
+    internal static StatsIndexerService ForTest(
+        Action<CancellationToken> runIndexOnce, Func<string, CancellationToken, (int FilesRead, int FilesAdded)> indexFolderOnce) =>
+        new((token, _) =>
+        {
+            runIndexOnce(token);
+            return null;
+        }, null, null, indexFolderOnce: indexFolderOnce);
 
     /// <summary>Test seam whose stand-in also receives the progress callback of the real walk.</summary>
     internal static StatsIndexerService ForTest(
@@ -618,6 +647,7 @@ public sealed class StatsIndexerService : IDisposable
         Thread? thread;
         lock (_gate)
         {
+            _disposed = true;
             _cancellation?.Cancel();
             thread = _thread;
         }

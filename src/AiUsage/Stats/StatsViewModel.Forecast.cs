@@ -206,8 +206,8 @@ public sealed partial class StatsViewModel
             // One forecast per plan the accounts have readings for: readings taken on an old plan never mix into the current one.
             foreach (var plan in forecastAccounts.SelectMany(StatsPlanForecast.PlansOf).Distinct())
             {
-                var forecast = StatsPlanForecast.Build(
-                    providerId, StatsPlanForecast.ForPlan(forecastAccounts, plan), providerRecords, pricer, DateTimeOffset.Now, TimeZoneInfo.Local);
+                var forecast = StatsPlanForecast.BuildForPlan(
+                    providerId, forecastAccounts, plan, providerRecords, pricer, DateTimeOffset.Now, TimeZoneInfo.Local);
                 if (forecast is not null)
                     forecasts[forecast.Key] = forecast with { IsCurrent = currentPlans.Contains(plan) };
             }

@@ -331,6 +331,40 @@ public class StatsPlanForecastTests
     }
 
     [Fact]
+    public void Another_accounts_plan_never_adds_its_tokens_to_a_plans_forecast()
+    {
+        // A (Max) is read for 60 hours; B (Pro) joins at hour 25 and the heavy 3000-token hours start with it.
+        var max = new ForecastAccount("claude", "Max", Points(60, 0.5));
+        var pro = new ForecastAccount("claude#2", "Pro", Points(60, 0.5, fromHour: 25));
+        var records = Enumerable.Range(0, 61).Select(hour => Record(hour, hour < 25 ? 1000 : 3000)).ToList();
+
+        var forecastMax = StatsPlanForecast.Build("claude", [max, pro], records, Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Max")!;
+        var forecastPro = StatsPlanForecast.Build("claude", [max, pro], records, Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Pro")!;
+
+        // Only the hours before B joined belong to Max alone; every hour of B is shared with A, so Pro has none of its own.
+        Assert.Equal(200_000, forecastMax.Weekly!.CapacityTokens);
+        Assert.Equal(25, forecastMax.Weekly!.Result.IntervalCount);
+        Assert.Equal(PerPercentStatus.TooFew, forecastPro.Weekly!.Result.Status);
+        Assert.Equal(["Max"], forecastMax.Plans);
+        Assert.Equal(1, forecastMax.AccountCount);
+    }
+
+    [Fact]
+    public void A_plan_switch_of_one_account_does_not_pull_its_new_tokens_into_the_old_plans_pool()
+    {
+        // A switches from Max to Ultra at hour 31 while B stays on Max: from then on the hours mix two plans.
+        var switching = new ForecastAccount("claude", "Ultra", TwoPlanPoints());
+        var steady = new ForecastAccount("claude#2", "Max", Points(60, 0.5));
+        var records = Enumerable.Range(0, 61).Select(hour => Record(hour, hour < 30 ? 1000 : 5000)).ToList();
+
+        var forecast = StatsPlanForecast.Build("claude", [switching, steady], records, Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Max")!;
+
+        // Hours 0-29 have both accounts on Max: the percent is their sum (1.0 an hour) for 1000 tokens.
+        Assert.Equal(100_000, forecast.Weekly!.CapacityTokens);
+        Assert.Equal(30, forecast.Weekly!.Result.IntervalCount);
+    }
+
+    [Fact]
     public void A_reading_without_a_plan_counts_for_the_current_plan()
     {
         // Hours 0-20 predate the recorded plans; Max ends at hour 40, Ultra is current.

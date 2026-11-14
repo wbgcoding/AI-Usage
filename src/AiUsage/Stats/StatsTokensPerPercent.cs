@@ -67,10 +67,12 @@ public static class StatsTokensPerPercent
     /// hour's movement is the SUM of the accounts' movements over it, so tokens per percent then mean
     /// one account's percent. An account takes part in the hours between its own first and last reading;
     /// an hour one of those accounts has no reading pair for is left out. With
-    /// <paramref name="pricer"/>, each interval also carries the API cost of its tokens.</summary>
+    /// <paramref name="pricer"/>, each interval also carries the API cost of its tokens. With
+    /// <paramref name="planAt"/> (one function per account: the plan it was on in a given hour) only the hours
+    /// in which every taking-part account was on <paramref name="plan"/> are kept.</summary>
     internal static IReadOnlyList<PerPercentInterval> BuildPooledIntervals(
         IReadOnlyList<StatsRecord> records, IReadOnlyList<IReadOnlyList<HistoryPoint>> accounts, TimeZoneInfo zone,
-        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer)
+        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, IReadOnlyList<Func<DateTime, string?>>? planAt = null, string? plan = null)
     {
         var models = new Dictionary<DateTime, Dictionary<string, long>>();
         var cacheReads = new Dictionary<DateTime, long>();
@@ -99,7 +101,8 @@ public static class StatsTokensPerPercent
             }
         }
 
-        var perAccount = accounts.Select(points => DeltasOf(points, zone, models)).OfType<AccountDeltas>().ToList();
+        var perAccount = accounts.Select((points, index) => DeltasOf(points, zone, models) is { } deltas
+            ? deltas with { PlanAt = planAt?[index] } : null).OfType<AccountDeltas>().ToList();
         var intervals = new List<PerPercentInterval>();
         foreach (var hour in models.Keys.Order())
         {
@@ -111,18 +114,23 @@ public static class StatsTokensPerPercent
             double delta = 0;
             var covered = 0;
             var complete = true;
+            var onPlan = true;
             foreach (var account in perAccount)
             {
                 if (hour < account.First || hour.AddHours(1) > account.Last)
                     continue;
                 covered++;
+                // With a plan asked for, an hour counts only when every account in it was on that plan: the
+                // tokens of an hour cannot be told apart by account, so a mixed hour belongs to no plan.
+                if (account.PlanAt is { } planOf && planOf(hour) != plan)
+                    onPlan = false;
                 if (account.ByHour.TryGetValue(hour, out var accountDelta))
                     delta += accountDelta;
                 else
                     complete = false;
             }
 
-            if (covered == 0 || !complete)
+            if (covered == 0 || !complete || !onPlan)
                 continue;
 
             if (pricer is null)
@@ -141,7 +149,11 @@ public static class StatsTokensPerPercent
 
     /// <summary>One account's quota movement per whole hour with a reading pair, and the first and last
     /// moment its readings span (wall clock of the zone).</summary>
-    private sealed record AccountDeltas(Dictionary<DateTime, double> ByHour, DateTime First, DateTime Last);
+    private sealed record AccountDeltas(Dictionary<DateTime, double> ByHour, DateTime First, DateTime Last)
+    {
+        /// <summary>The plan the account was on in a whole hour (null function = no plan asked for).</summary>
+        public Func<DateTime, string?>? PlanAt { get; init; }
+    }
 
     private static AccountDeltas? DeltasOf(
         IReadOnlyList<HistoryPoint> points, TimeZoneInfo zone, Dictionary<DateTime, Dictionary<string, long>> hoursWithTokens)

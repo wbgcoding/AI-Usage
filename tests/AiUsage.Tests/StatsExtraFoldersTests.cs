@@ -34,6 +34,22 @@ public class StatsExtraFoldersTests
             ? File.ReadAllLines(log.CurrentFile).Count(line => line.Contains("an added session folder is not available", StringComparison.Ordinal))
             : 0;
 
+    [Theory]
+    [InlineData(@"D:\", @"D:\Sessions\a.jsonl", true)]
+    [InlineData(@"D:\Sessions", @"D:\Sessions\a.jsonl", true)]
+    [InlineData(@"D:\Sessions\", @"D:\sessions\sub\a.jsonl", true)]
+    [InlineData(@"D:\Sessions", @"D:\SessionsOther\a.jsonl", false)]
+    [InlineData(@"D:\", @"E:\Sessions\a.jsonl", false)]
+    public void A_file_is_under_an_extra_folder_also_when_that_is_a_drive_root(string root, string path, bool expected)
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-extra-root-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-extra-root-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-extra-root-data");
+        var indexer = new StatsIndexer(new StatsStore(dataDir), claudeRoot, codexRoot) { ExtraClaudeRoots = [root] };
+
+        Assert.Equal(expected, indexer.IsUnderExtraRoot(path));
+    }
+
     [Fact]
     public void A_folder_holding_a_copy_of_an_indexed_file_adds_no_tokens()
     {
@@ -180,6 +196,38 @@ public class StatsExtraFoldersTests
 
         Assert.Equal((1, 1), (read, added));
         Assert.Equal(270L, Total(store));
+    }
+
+    [Fact]
+    public async Task A_folder_import_still_waiting_when_the_service_shuts_down_returns_without_reading()
+    {
+        using var walkStarted = new ManualResetEventSlim();
+        var folderReads = 0;
+        // The walk only ends when Dispose cancels it; the import then finds the run slot free.
+        var service = StatsIndexerService.ForTest(
+            token =>
+            {
+                walkStarted.Set();
+                token.WaitHandle.WaitOne(TimeSpan.FromSeconds(10));
+            },
+            (_, _) =>
+            {
+                Interlocked.Increment(ref folderReads);
+                return (1, 1);
+            });
+        service.StartInBackground();
+        Assert.True(walkStarted.Wait(TimeSpan.FromSeconds(5)));
+        var import = service.IndexFolderOnceAsync(@"C:\any");
+        Assert.False(import.IsCompleted);
+
+        service.Dispose();
+
+        var result = await import.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal((0, 0), result);
+        Assert.Equal(0, folderReads);
+        Assert.False(service.IsRunning);
+        Assert.Equal((0, 0), await service.IndexFolderOnceAsync(@"C:\any"));
+        Assert.Equal(0, folderReads);
     }
 
     private static void OfferSessionPass(string dbPath)
