@@ -17,3 +17,22 @@ internal static class TestAppPathsIsolation
     internal static void Install() =>
         AppPaths.EstablishOverrideFloorForTests(TestPaths.CreateDirectory("ai-usage-data-root"));
 }
+
+/// <summary>
+/// <c>AIUSAGE_TEST_CULTURE=en-US</c> runs the whole suite with that regional format, as on the build
+/// server, so a test that silently expects this machine's region fails here first.
+/// </summary>
+internal static class TestCultureOverride
+{
+    [ModuleInitializer]
+    internal static void Install()
+    {
+        var name = Environment.GetEnvironmentVariable("AIUSAGE_TEST_CULTURE");
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(name);
+        System.Globalization.CultureInfo.DefaultThreadCurrentCulture = culture;
+        System.Globalization.CultureInfo.CurrentCulture = culture;
+    }
+}
