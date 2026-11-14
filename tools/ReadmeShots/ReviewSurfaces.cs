@@ -182,6 +182,7 @@ internal static class ReviewSurfaces
         list.Add(new Surface("menu.titlebar", GroupMenus, context => ReviewMenus.RenderTitleBarMenu(context, "menu.titlebar")));
         list.Add(new Surface("popup.layout", GroupMenus, context => ReviewMenus.RenderLayoutPopup(context, "popup.layout")));
         list.Add(new Surface("menu.tray", GroupMenus, context => ReviewMenus.RenderTrayMenu(context, "menu.tray")));
+        list.Add(new Surface("tray.popup", GroupMenus, context => ReviewMenus.RenderTrayPopup(context, "tray.popup")));
         list.Add(new Surface("menu.tile", GroupMenus, context => ReviewMenus.RenderTileMenu(context, "menu.tile")));
         list.Add(new Surface("menu.tile-failed", GroupMenus, context => ReviewMenus.RenderFailedTileMenu(context, "menu.tile-failed")));
         list.Add(new Surface("menu.daytile", GroupMenus, context => ReviewMenus.RenderDayTileMenu(context, "menu.daytile")));
