@@ -4,14 +4,14 @@ using AiUsage.Models;
 namespace AiUsage.Services;
 
 /// <summary>One window line of the tray popup: "5 hours 62 % · back at 14:30". <see cref="Reset"/> is
-/// null when the percentage is unknown or the reset moment is unknown or already past.</summary>
+/// null when the reset moment is unknown or already past.</summary>
 public sealed record TrayPopupRow(string Label, string Percent, string? Reset)
 {
     /// <summary>The whole line as one text, the way a screen reader gets it.</summary>
     public string Text => Label + " " + Percent + (Reset is null ? "" : " · " + Reset);
 }
 
-/// <summary>One provider's block: name, optional note, and the two window lines.</summary>
+/// <summary>One provider's block: name, optional note, and a line per window it has a percentage for.</summary>
 public sealed record TrayPopupBlock(string AutomationId, string Name, string? Note, IReadOnlyList<TrayPopupRow> Rows)
 {
     public bool HasNote => !string.IsNullOrEmpty(Note);
@@ -47,20 +47,28 @@ public sealed record TrayPopupModel(string? PausedLine, IReadOnlyList<TrayPopupB
             "TrayPopup.Provider." + (string.IsNullOrEmpty(p.ProviderId) ? i.ToString(CultureInfo.InvariantCulture) : p.ProviderId),
             p.DisplayName,
             string.IsNullOrEmpty(p.Note) ? null : p.Note,
-            [
-                Row(fiveHour, p.FiveHourPercent, p.FiveHourResetsAt, at),
-                Row(week, p.WeeklyPercent, p.WeeklyResetsAt, at),
-            ])).ToList();
+            Rows(p, fiveHour, week, at))).ToList();
 
         return new TrayPopupModel(pausedUntil is { } until ? TrayTooltipBuilder.PausedLine(until) : null, blocks);
     }
 
-    // A window without a percentage has no time, and a reset already past says nothing: the same
-    // rules as the shell tooltip, which shows "–" for the first.
-    private static TrayPopupRow Row(string label, double? percent, DateTimeOffset? resetsAt, DateTimeOffset now)
+    // A window the provider has no percentage for (no such limit on the plan) gets no line at all,
+    // as in the shell tooltip.
+    private static List<TrayPopupRow> Rows(TrayTooltipBuilder.ProviderLine p, string fiveHour, string week, DateTimeOffset now)
     {
-        var text = percent is { } value ? StatusTextMap.FormatUsagePercent(value) : "–";
-        if (percent is null || resetsAt is not { } reset || reset <= now)
+        var rows = new List<TrayPopupRow>(2);
+        if (p.FiveHourPercent is { } five)
+            rows.Add(Row(fiveHour, five, p.FiveHourResetsAt, now));
+        if (p.WeeklyPercent is { } weekly)
+            rows.Add(Row(week, weekly, p.WeeklyResetsAt, now));
+        return rows;
+    }
+
+    // A reset already past says nothing.
+    private static TrayPopupRow Row(string label, double percent, DateTimeOffset? resetsAt, DateTimeOffset now)
+    {
+        var text = StatusTextMap.FormatUsagePercent(percent);
+        if (resetsAt is not { } reset || reset <= now)
             return new TrayPopupRow(label, text, null);
 
         var today = reset.ToLocalTime().Date == now.ToLocalTime().Date;

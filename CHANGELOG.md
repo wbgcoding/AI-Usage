@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The tray popup and tooltip leave out a window your plan has no limit for, instead of showing a dash.
+
+### Fixed
+- The tray popup no longer cuts off reset times on the right.
+
 ## [1.5.0] - 2026-11-14
 
 A weekly CSV of your token use, limit resets that start a new period, a tray popup with every reset time, a heads-up before a full window resets, and a settings page of its own for the token usage window.

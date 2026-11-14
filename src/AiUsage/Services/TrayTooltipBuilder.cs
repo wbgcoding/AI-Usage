@@ -22,8 +22,8 @@ public static class TrayTooltipBuilder
     internal static string PausedLine(DateTimeOffset until) =>
         LocalizationService.Instance.Format("Tray.PausedUntil", ShortTime(until));
 
-    // Null, not 0: a provider that never delivered a given window (e.g. Claude's weekly slot) must
-    // say so rather than show an invented "0 %".
+    // Null, not 0: a window the provider never delivered (no such limit on the plan) is left out of
+    // the tooltip and the popup rather than shown as an invented "0 %".
     // Note: short text after the percentages when the numbers are not current (sign-in needed, as of a time).
     // The reset times follow their window's percentage when known and still ahead: "62 % (14:30)".
     // ProviderId names the line for the popup's automation ids; the shell tooltip ignores it.
@@ -109,19 +109,24 @@ public static class TrayTooltipBuilder
         var fiveHour = loc["Tray.Short.FiveHour"];
         var week = loc["Tray.Short.Week"];
         return providers.Select((p, i) =>
-            $"{names[i]} {fiveHour} {WindowPart(p.FiveHourPercent, p.FiveHourResetsAt, timesNow)} · {week} {WindowPart(p.WeeklyPercent, p.WeeklyResetsAt, timesNow)}"
-            + (i >= notes || string.IsNullOrEmpty(p.Note) ? "" : " " + p.Note)).ToList();
+        {
+            // A window the provider has no percentage for (no such limit on the plan) is left out.
+            var parts = new List<string>(2);
+            if (p.FiveHourPercent is { } five)
+                parts.Add(fiveHour + " " + WindowPart(five, p.FiveHourResetsAt, timesNow));
+            if (p.WeeklyPercent is { } weekly)
+                parts.Add(week + " " + WindowPart(weekly, p.WeeklyResetsAt, timesNow));
+            var line = parts.Count == 0 ? names[i] : names[i] + " " + string.Join(" · ", parts);
+            return line + (i >= notes || string.IsNullOrEmpty(p.Note) ? "" : " " + p.Note);
+        }).ToList();
     }
 
-    // "62 % (14:30)"; a window without a percentage has no time, and a reset already past says nothing.
-    private static string WindowPart(double? percent, DateTimeOffset? resetsAt, DateTimeOffset? now)
+    // "62 % (14:30)"; a reset already past says nothing.
+    private static string WindowPart(double percent, DateTimeOffset? resetsAt, DateTimeOffset? now)
     {
-        var text = FormatPercent(percent);
-        return percent is not null && now is { } at && resetsAt is { } reset && reset > at
+        var text = StatusTextMap.FormatUsagePercent(percent);
+        return now is { } at && resetsAt is { } reset && reset > at
             ? text + " (" + ResetTime(reset, at) + ")"
             : text;
     }
-
-    private static string FormatPercent(double? percent) =>
-        percent is { } value ? StatusTextMap.FormatUsagePercent(value) : "–";
 }

@@ -96,6 +96,6 @@ public class TrayTooltipResetTimeTests
         var text = TrayTooltipBuilder.Build([line], now: Now);
 
         Assert.DoesNotContain("(", text);
-        Assert.Contains("–", text);
+        Assert.DoesNotContain("–", text);
     }
 }

@@ -59,14 +59,23 @@ public class TrayPopupModelTests
     }
 
     [Fact]
-    public void An_unknown_percent_shows_a_dash_and_no_time_even_with_a_future_reset()
+    public void A_window_without_a_percent_gets_no_line_even_with_a_future_reset()
     {
         var line = new TrayTooltipBuilder.ProviderLine("Claude", null, 63, null, Now.AddHours(3), Now.AddHours(5));
         var rows = TrayPopupModel.Build([line], now: Now).Blocks[0].Rows;
 
-        Assert.Equal("–", rows[0].Percent);
-        Assert.Null(rows[0].Reset);
-        Assert.NotNull(rows[1].Reset);
+        var row = Assert.Single(rows);
+        Assert.Equal(Text("Window.Weekly"), row.Label);
+        Assert.NotNull(row.Reset);
+    }
+
+    [Fact]
+    public void A_provider_with_neither_window_keeps_its_name_without_lines()
+    {
+        var block = TrayPopupModel.Build([new TrayTooltipBuilder.ProviderLine("Cursor", null, null)], now: Now).Blocks[0];
+
+        Assert.Equal("Cursor", block.Name);
+        Assert.Empty(block.Rows);
     }
 
     [Fact]

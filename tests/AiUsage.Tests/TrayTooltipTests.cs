@@ -141,11 +141,19 @@ public class TrayTooltipTests
     }
 
     [Fact]
-    public void AMissingWindowShowsADashNotAnInventedZeroPercent()
+    public void AMissingWindowIsLeftOutNotShownAsADashOrAnInventedZeroPercent()
     {
         var text = TrayTooltipBuilder.Build([new TrayTooltipBuilder.ProviderLine("Claude", null, 63)]);
 
-        Assert.Equal("Claude 5 Std. – · 7 T. 63 %", text);
+        Assert.Equal("Claude 7 T. 63 %", text);
+    }
+
+    [Fact]
+    public void AProviderWithNeitherWindowShowsItsNameAndNote()
+    {
+        var text = TrayTooltipBuilder.Build([new TrayTooltipBuilder.ProviderLine("Cursor", null, null, "(Stand 09:15)")]);
+
+        Assert.Equal("Cursor (Stand 09:15)", text);
     }
 
     [Fact]
