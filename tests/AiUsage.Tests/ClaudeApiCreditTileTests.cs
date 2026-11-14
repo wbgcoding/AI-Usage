@@ -156,6 +156,25 @@ public class ClaudeApiCreditTileTests
     }
 
     [Fact]
+    public void A_language_switch_keeps_a_balance_change_made_after_the_last_snapshot()
+    {
+        var tile = new ProviderTileViewModel("claude", "Claude");
+        tile.Apply(Snapshot(new ClaudeApiCredit(18.40m, "USD")), Now);
+        Assert.True(tile.ShowApiCredit);
+
+        tile.SetApiCredit(null);
+        tile.RefreshLocalizedText();
+
+        Assert.False(tile.ShowApiCredit);
+
+        tile.SetApiCredit(new ClaudeApiCredit(7m, "USD"), ClaudeCreditRoute.Console);
+        var text = tile.ApiCreditText;
+        tile.RefreshLocalizedText();
+
+        Assert.Equal(text, tile.ApiCreditText);
+    }
+
+    [Fact]
     public void A_local_only_account_shows_neither_the_balance_nor_the_sign_in()
     {
         var tile = new ProviderTileViewModel("claude", "Claude") { LocalOnly = true };

@@ -1532,8 +1532,12 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     public void RefreshLocalizedText()
     {
         var keptFailure = _keptFailure;
+        // The balance can have changed since that snapshot (a balance read or a Console sign-out in
+        // between): the re-apply must not bring the snapshot's older balance back.
+        var (credit, creditRoute) = (_apiCredit, _apiCreditRoute);
         if (_lastSnapshot is { } snapshot)
             Apply(snapshot, DateTimeOffset.Now, _lastThresholds, _lastShowAttentionMark, advanceSilenceClock: false, refreshInterval: _lastRefreshInterval);
+        SetApiCredit(credit, creditRoute);
         if (keptFailure is not null)
             ShowKeptFailure(keptFailure, DateTimeOffset.Now);
         OnPropertyChanged(nameof(ToggleVisibilityActionText));
