@@ -1343,6 +1343,24 @@ public class StatsIndexTests
     }
 
     [Fact]
+    public void First_opens_wait_for_a_migration_that_outlasts_the_busy_timeout()
+    {
+        // A 1 ms busy timeout stands in for a slow disk: a migration always outlasts it, so an open
+        // that does not wait for the migrating one reads an empty index.
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-slow");
+        WriteV4Database(Path.Combine(dataDir, "stats.db"));
+
+        var store = new StatsStore(dataDir, busyTimeoutMs: 1);
+        using var start = new Barrier(8);
+        var loads = Enumerable.Range(0, 8)
+            .Select(_ => Task.Factory.StartNew(() => { start.SignalAndWait(); return store.LoadAll().Count; }, TaskCreationOptions.LongRunning))
+            .ToArray();
+        Task.WaitAll(loads);
+
+        Assert.All(loads, load => Assert.Equal(1, load.Result));
+    }
+
+    [Fact]
     public void Store_migrates_v4_to_v5_keeping_codex_rows_clearing_claude_and_backing_up()
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-v4-migrate");

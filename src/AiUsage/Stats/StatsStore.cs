@@ -932,9 +932,14 @@ public sealed partial class StatsStore
                 }
                 else
                 {
-                    EnsureSchema(connection);
-                    if (IsUsable)
-                        EnsuredDatabases[fullPath] = true;
+                    // First opens in this process take turns: a migration can outlast the busy timeout
+                    // (a large file, a slow disk), and an open that gave up would read an empty index.
+                    // A schema that is already current costs only the version check.
+                    lock (EnsuredDatabases)
+                    {
+                        if (EnsureSchemaReportsUsable(connection))
+                            EnsuredDatabases[fullPath] = true;
+                    }
                 }
             }
             catch (SqliteException ex) when (ex.SqliteErrorCode is SqliteCorrupt or SqliteNotADatabase)
@@ -1239,6 +1244,8 @@ public sealed partial class StatsStore
     /// row: the second waits for the write lock and then finds the first one's work already done.
     /// A database at v4 keeps its Codex rows; older ones are rebuilt from the session files; from v5
     /// on every row stays. A file from a newer build is left entirely alone.</summary>
+    private bool EnsureSchemaReportsUsable(SqliteConnection connection) { EnsureSchema(connection); return IsUsable; }
+
     private void EnsureSchema(SqliteConnection connection)
     {
         SetBusyTimeout(connection);
