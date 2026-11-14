@@ -6,15 +6,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-14
+
+A weekly CSV of your token use, limit resets that start a new period, a tray popup with every reset time, a heads-up before a full window resets, and a settings page of its own for the token usage window.
+
+### Added
+
+- **Token usage settings page:** Settings > Token usage holds the period the window opens with, the first day of the week, the shown sections, the index size, the weekly CSV and the session folders.
+- **Weekly CSV:** saves the previous week's token use as a CSV file in a folder you choose, on a day and at an hour you pick. Weeks missed while the PC was off follow on the next start.
+- **More session folders:** add folders that are read on every run, or read a folder once, such as an old copy of your Claude Code sessions. Sessions already counted are not counted twice.
+- **Limit resets:** a limit reset you used before its time is recognised. The statistics start a new period there, the blocked time ends there, and the limits card shows "1 limit reset used, last …".
+- **Limits card:** shows the period its readings cover, how many cycles hit the limit and about how long you were blocked.
+- **Tray popup:** hovering the tray icon opens a small popup with every agent's percentages and reset times, without the length limit of a Windows tooltip.
+- **Before a reset:** an optional notification ten minutes before a full window (90 % or more) resets.
+- **Plan change line:** a tile shows "Plan changed: Max → Ultra" for a week after the account's plan changed, until you dismiss it. The plan forecast keeps the old plan apart and compares both plans.
+- An optional API value beside the tokens of a tile's 5 hour and weekly windows.
+- The Claude tile and the settings say when the Claude Console sign-in has expired and offer to sign in again.
+- Import another PC's backup from Settings > Token usage.
+- Claude Mythos models count as Claude and show with short names such as "Mythos 5.1".
+
 ### Changed
 
-- Claude Mythos models count as Claude and show with short names such as "Mythos 5.1".
-- In the token usage window the limits card is only as tall as its content; top projects takes the room left over.
-- The limits card picks its agent with the same buttons as the plan forecast instead of a dropdown.
+- In the token usage window the limits card is only as tall as its content, and it picks its agent with the same buttons as the plan forecast.
+- Every text, date, list and number follows the app language, also in charts, the sign-in window and the welcome page.
+- Chart colours and text sizes follow the theme; the light theme's cache colours have more contrast.
+- Long labels in limit rows and figure cards wrap instead of being cut off.
+- Exports no longer contain this PC's folder list or plan state.
+- Browser caches of the sign-in windows are cleared once a day.
 
 ### Fixed
 
 - The widget no longer turns partly see-through after a Windows prompt or a full-screen app closes.
+- The tray shows the next window when the one you picked is gone.
+- On a narrow token usage window the period and provider buttons wrap instead of slipping under "Save as CSV".
+- The token usage window starts faster and skips work while it is hidden.
+- Usage windows stay in view when the newest session file is locked by the agent.
+- Signing out finishes even when the sign-in session fails to close.
+- An update that is being installed is finished before the app quits.
+- Gemini readings through Antigravity work without a Gemini quota in the answer.
+- Many smaller fixes to sign-in, backup and restore, logging and the token index.
+
+### Security
+
+- The log and the support report mask more kinds of tokens (GitHub, OpenAI, JWT, JWE and form-encoded credentials).
+- The sign-in browser is locked down further.
+- Project lookups refuse network shares, linked parent folders and oversized files.
+- A backup is restored from a local copy, and the uninstaller removes the weekly index copies.
 
 ## [1.4.0] - 2026-11-07
 
