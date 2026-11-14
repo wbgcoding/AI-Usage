@@ -1973,6 +1973,7 @@ public partial class MainWindow : Window, IDisposable
     private void Application_SessionEnding(object? sender, SessionEndingCancelEventArgs e)
     {
         _reallyClosing = true;
+        App.MarkShutdownRequested();
         SaveWindowSettings();
         _settingsStore.SaveNow(_settings);
     }

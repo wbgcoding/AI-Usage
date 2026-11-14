@@ -26,7 +26,7 @@ internal static class WebSignInFlow
         OwnerWindowResolver.ApplyOwner(window, owner);
         // Closed fires synchronously before ShowDialog returns - no guessed settle time needed, the
         // session is already written to disk by the time the just-closed window is gone.
-        window.Closed += (_, _) => onClosed(window.SignedIn);
+        window.Closed += SkipDuringShutdown(() => window.SignedIn, onClosed, () => App.ShutdownRequested);
         if (window.Owner is null)
         {
             // No owner to stack it above - a freshly created top-level window is not guaranteed to
@@ -36,6 +36,16 @@ internal static class WebSignInFlow
         }
         window.ShowDialog();
     }
+
+    /// <summary>The sign-in window also closes when the app exits under it (its owner is torn down
+    /// first); the caller's follow-up would then reconnect a disposed view model and show a closing
+    /// widget, so it runs only while the app keeps going.</summary>
+    internal static EventHandler SkipDuringShutdown(Func<bool> signedIn, Action<bool> onClosed, Func<bool> shuttingDown) =>
+        (_, _) =>
+        {
+            if (!shuttingDown())
+                onClosed(signedIn());
+        };
 
     /// <summary>For a Copilot tile whose GitHub CLI is missing: the same themed offer
     /// <see cref="Open"/> makes for a missing WebView2 runtime, here for the CLI Copilot reads through

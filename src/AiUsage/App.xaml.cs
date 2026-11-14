@@ -374,12 +374,19 @@ public partial class App : Application, IDisposable
     // The quit waits this long for a portable update swap between its two renames to end.
     private static readonly TimeSpan SwapWaitOnQuit = TimeSpan.FromSeconds(10);
 
+    /// <summary>Set once the app is on its way out (exit, logoff), so a window that closes as part of
+    /// the teardown does not start follow-up work such as showing the widget again.</summary>
+    internal static bool ShutdownRequested { get; private set; }
+
+    internal static void MarkShutdownRequested() => ShutdownRequested = true;
+
     /// <summary>The one way to end the running app once the main window may exist: the window is marked
     /// as really closing first, because WPF ignores a cancelled Closing during a shutdown and would
     /// otherwise hide into the tray instead of saving and disposing. Shutdown calls made before the
     /// window exists (headless switches, the single-instance hand-over) use Shutdown directly.</summary>
     internal static void RequestShutdown()
     {
+        MarkShutdownRequested();
         if (Current is App app)
             app._mainWindow?.PrepareForShutdown();
         PortableSwap.WaitForSwapEnd(SwapWaitOnQuit);
