@@ -191,9 +191,11 @@ public static class ProjectAliasResolver
                 var others = members.Where(path => !string.Equals(path, winner, StringComparison.OrdinalIgnoreCase)).ToList();
                 foreach (var other in others)
                     target[other] = winner;
-                former[winner] = others;
+                former[winner] = former.TryGetValue(winner, out var already) ? [.. already, .. others] : others;
             }
         }
+
+        CollapseChains(target, former);
 
         // A bare folder name follows its project when only one project of that name is left.
         var bareNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -220,6 +222,40 @@ public static class ProjectAliasResolver
         }
 
         return target.Count == 0 ? ProjectAliases.None : new ProjectAliases(target, former);
+    }
+
+    /// <summary>The two passes can chain: a checkout merged into its repository's winner, which the name
+    /// pass then maps on to another folder. Every target is pointed at the end of its chain (a cycle
+    /// stops where it closes), and the former paths of a winner that was itself merged away move to the
+    /// final winner, so no row stays listed under an intermediate path.</summary>
+    private static void CollapseChains(Dictionary<string, string> target, Dictionary<string, IReadOnlyList<string>> former)
+    {
+        foreach (var path in target.Keys.ToList())
+        {
+            var final = target[path];
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { path, final };
+            while (target.TryGetValue(final, out var next) && seen.Add(next))
+                final = next;
+
+            if (string.Equals(final, path, StringComparison.OrdinalIgnoreCase))
+                target.Remove(path);
+            else
+                target[path] = final;
+        }
+
+        foreach (var middle in former.Keys.Where(target.ContainsKey).ToList())
+        {
+            var final = target[middle];
+            var merged = former.TryGetValue(final, out var already) ? already.ToList() : [];
+            foreach (var path in former[middle])
+            {
+                if (!string.Equals(path, final, StringComparison.OrdinalIgnoreCase) && !merged.Contains(path, StringComparer.OrdinalIgnoreCase))
+                    merged.Add(path);
+            }
+
+            former[final] = merged;
+            former.Remove(middle);
+        }
     }
 
     /// <summary>Merges the full paths that are checkouts of one repository (same normalized origin) into a

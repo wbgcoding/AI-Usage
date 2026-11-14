@@ -305,6 +305,27 @@ public class ProjectAliasResolverTests
     }
 
     [Fact]
+    public void A_checkout_merged_into_a_repo_winner_follows_that_winner_when_the_name_pass_moves_it_on()
+    {
+        // D and E are checkouts of one repository, E (named like it) wins. Neither folder exists any
+        // more, and the plain folder C with E's name was used last, so the name pass moves E on to C:
+        // D must end at C as well, not stop at the intermediate E.
+        var records = new[]
+        {
+            Record(@"D:\old\sample-copy"), Record(@"E:\y\proj", dayOffset: 1), Record(@"C:\x\proj", dayOffset: 5),
+        };
+
+        var aliases = ProjectAliasResolver.Build(records, [], _ => false, path =>
+            path.StartsWith(@"C:\", StringComparison.OrdinalIgnoreCase) ? null : new GitRepoInfo("github.com/team/proj", "proj"));
+
+        Assert.Equal(@"C:\x\proj", aliases.Resolve(@"E:\y\proj"));
+        Assert.Equal(@"C:\x\proj", aliases.Resolve(@"D:\old\sample-copy"));
+        Assert.Equal(@"C:\x\proj", aliases.Resolve(@"C:\x\proj"));
+        Assert.Equal([@"D:\old\sample-copy", @"E:\y\proj"], aliases.FormerPaths(@"C:\x\proj").Order(StringComparer.OrdinalIgnoreCase));
+        Assert.Empty(aliases.FormerPaths(@"E:\y\proj"));
+    }
+
+    [Fact]
     public void A_share_path_is_never_probed_and_counts_as_gone()
     {
         // Two crafted share paths with one leaf name must not open a connection to a foreign host.
