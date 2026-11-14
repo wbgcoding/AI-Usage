@@ -63,7 +63,9 @@ internal static class StatsWeeklyCsv
     /// <summary>The weeks whose file is due and still missing at <paramref name="now"/>, oldest first, each as a day
     /// of the week after it (pass that day to <see cref="Write"/>). The file of week W is due at the chosen day and
     /// hour of week W+1. Candidates are the weeks after the newest file in <paramref name="existingNames"/> up to
-    /// the previous week, at most <see cref="CatchUpWeeks"/>; with no such file yet only the previous week counts.</summary>
+    /// the previous week, at most <see cref="CatchUpWeeks"/>. With no such file yet only the most recent week whose
+    /// due moment has passed counts: the previous week once this week's moment came, else the week before it, so a
+    /// PC that is always off at the chosen time still gets its first file on the next start.</summary>
     internal static IReadOnlyList<DateOnly> DueWeeks(DateTime now, DayOfWeek day, int hour, IEnumerable<string> existingNames)
     {
         var previousMonday = PreviousWeek(DateOnly.FromDateTime(now)).From;
@@ -87,6 +89,8 @@ internal static class StatsWeeklyCsv
 
         if (newest is { } latest)
             first = latest.AddDays(7);
+        else
+            first = previousMonday.AddDays(-7);
         var oldest = previousMonday.AddDays(-7 * (CatchUpWeeks - 1));
         if (first < oldest)
             first = oldest;
@@ -99,7 +103,7 @@ internal static class StatsWeeklyCsv
                 due.Add(nextWeek);
         }
 
-        return due;
+        return newest is null && due.Count > 1 ? [due[^1]] : due;
     }
 
     /// <summary>Saves the CSV of the previous week into <paramref name="folder"/> unless it is already there.

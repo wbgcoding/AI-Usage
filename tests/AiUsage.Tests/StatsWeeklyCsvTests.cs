@@ -183,13 +183,15 @@ public class StatsWeeklyCsvTests
             Clock = () => clock,
         };
 
+        // The empty folder first gets the week whose moment passed last (W45, due Wed 11.11 10:00).
         RunWalk(service);
-        Assert.Empty(Directory.GetFiles(target));
+        Assert.Equal(["AI-Usage-2026-W45.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
 
         clock = Local(2026, 11, 18, 10, 5);
         RunWalk(service);
-        var file = Assert.Single(Directory.GetFiles(target));
-        Assert.Equal("AI-Usage-2026-W46.csv", Path.GetFileName(file));
+        var file = Path.Combine(target, "AI-Usage-2026-W46.csv");
+        Assert.True(File.Exists(file));
+        Assert.Equal(2, Directory.GetFiles(target).Length);
 
         File.WriteAllText(file, "kept");
         clock = Local(2026, 11, 19, 8, 0);
@@ -237,12 +239,13 @@ public class StatsWeeklyCsvTests
             Clock = () => clock,
         };
 
+        // Saturday: W46 is not due before Sunday; the empty folder gets W45 (due Sun 15.11) first.
         RunWalk(service);
-        Assert.Empty(Directory.GetFiles(target));
+        Assert.Equal(["AI-Usage-2026-W45.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
 
         clock = Local(2026, 11, 22, 0, 30);
         RunWalk(service);
-        Assert.Equal(["AI-Usage-2026-W46.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
+        Assert.Equal(["AI-Usage-2026-W45.csv", "AI-Usage-2026-W46.csv"], Directory.GetFiles(target).Select(Path.GetFileName).Order());
     }
 
     private static List<string> WalkNames(DateTime now, DayOfWeek day, int hour, params string[] existing) =>
@@ -270,6 +273,14 @@ public class StatsWeeklyCsvTests
     public void An_empty_folder_gets_only_the_previous_week()
     {
         Assert.Equal(["AI-Usage-2026-W46.csv"], WalkNames(new DateTime(2026, 11, 18, 9, 0, 0), DayOfWeek.Monday, 0));
+    }
+
+    [Fact]
+    public void An_empty_folder_on_a_PC_always_off_at_the_due_time_still_gets_a_first_file()
+    {
+        // Due Friday 18:00 and the PC is never on then. Monday 2026-11-23: W47's file is due Fri 27.11, not yet;
+        // W46's was due Fri 20.11 18:00 and is written now instead of never.
+        Assert.Equal(["AI-Usage-2026-W46.csv"], WalkNames(new DateTime(2026, 11, 23, 8, 0, 0), DayOfWeek.Friday, 18));
     }
 
     [Fact]
