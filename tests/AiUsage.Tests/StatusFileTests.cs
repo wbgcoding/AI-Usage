@@ -336,11 +336,11 @@ public sealed class StatusFileTests : IDisposable
                 {
                     using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                     using var document = JsonDocument.Parse(stream);
-                    reads++;
+                    Interlocked.Increment(ref reads);
                 }
                 catch (JsonException)
                 {
-                    failures++;
+                    Interlocked.Increment(ref failures);
                 }
                 catch (IOException)
                 {
@@ -349,13 +349,16 @@ public sealed class StatusFileTests : IDisposable
             }
         });
 
-        for (var i = 0; i < 200; i++)
+        // Writes go on until the reader has really raced them: a slow build machine may start the
+        // reader thread only after a fixed number of writes is already over.
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        for (var i = 0; i < 200 || (Volatile.Read(ref reads) < 50 && DateTime.UtcNow < deadline); i++)
             StatusFileWriter.WriteAtomic(path, i % 2 == 0 ? big : small);
         stop.Cancel();
         reader.Wait();
 
         Assert.Equal(0, failures);
-        Assert.True(reads > 0);
+        Assert.True(reads >= 50, $"the reader finished only {reads} reads while the file was being swapped");
         Assert.Empty(Directory.GetFiles(_directory.Path, "*.tmp"));
     }
 
@@ -423,8 +426,22 @@ public sealed class StatusFileTests : IDisposable
 
         writer.Schedule("auto");
 
-        SpinWait.SpinUntil(() => File.Exists(path), TimeSpan.FromSeconds(10));
-        Assert.Equal("auto", File.ReadAllText(path));
+        // A full parallel run can hold the timer thread back for seconds, and a read can meet the swap
+        // itself, so the wait polls for the finished content instead of the bare file.
+        var landed = SpinWait.SpinUntil(() => ReadOrNull(path) == "auto", TimeSpan.FromSeconds(30));
+        Assert.True(landed, $"the debounced write did not land, file holds: {ReadOrNull(path) ?? "nothing"}");
+    }
+
+    private static string? ReadOrNull(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.ReadAllText(path) : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
     }
 
     [Fact]
