@@ -594,6 +594,8 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Abrufe 1 Stunde pausieren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Abrufe fortsetzen (pausiert bis {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Pausiert bis {0}</value></data>
+  <data name="Tray.Popup.ResetsToday" xml:space="preserve"><value>zurück um {0}</value></data>
+  <data name="Tray.Popup.ResetsLater" xml:space="preserve"><value>zurück {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Gefunden</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Liest das Konto der Antigravity-CLI (agy). Melde dich dort an oder hier über den Browser.</value></data>

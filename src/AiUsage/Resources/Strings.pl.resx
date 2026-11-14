@@ -595,6 +595,8 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Wstrzymaj pobieranie na 1 godzinę</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Wznów pobieranie (wstrzymane do {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Wstrzymane do {0}</value></data>
+  <data name="Tray.Popup.ResetsToday" xml:space="preserve"><value>znów dostępne o {0}</value></data>
+  <data name="Tray.Popup.ResetsLater" xml:space="preserve"><value>znów dostępne {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Znaleziono</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Odczytuje konto Antigravity CLI (agy). Zaloguj się tam albo tutaj przez przeglądarkę.</value></data>
