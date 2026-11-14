@@ -89,16 +89,29 @@ public static class StatsPlanForecast
     }
 
     /// <summary>The forecast of a provider. With <paramref name="plan"/> only the readings taken on that plan count
-    /// (see <see cref="ForPlan"/>); without it all readings do.</summary>
+    /// (see <see cref="BuildForPlan"/>); without it all readings do.</summary>
     public static ProviderForecast? Build(
         string providerId, IReadOnlyList<ForecastAccount> accounts, IReadOnlyList<StatsRecord> records,
-        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone, string? plan = null)
-    {
-        if (plan is not null)
-            accounts = ForPlan(accounts, plan);
+        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone, string? plan = null) =>
+        plan is null
+            ? BuildCore(providerId, accounts, accounts, null, false, records, pricer, now, zone)
+            : BuildForPlan(providerId, accounts, plan, records, pricer, now, zone);
 
-        var weekly = BuildWindow(WindowKind.Weekly, accounts, records, pricer, now, zone);
-        var fiveHour = BuildWindow(WindowKind.FiveHour, accounts, records, pricer, now, zone);
+    /// <summary>The forecast of one plan (null = the readings without a known plan) of a provider's accounts. The
+    /// accounts' usage is pooled in the logs, so the hourly intervals are built over ALL accounts and only the hours
+    /// in which every account was on <paramref name="plan"/> count: another account's or an earlier plan's tokens
+    /// never enter this plan's capacity or API value.</summary>
+    public static ProviderForecast? BuildForPlan(
+        string providerId, IReadOnlyList<ForecastAccount> accounts, string? plan, IReadOnlyList<StatsRecord> records,
+        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone) =>
+        BuildCore(providerId, accounts, ForPlan(accounts, plan), plan, true, records, pricer, now, zone);
+
+    private static ProviderForecast? BuildCore(
+        string providerId, IReadOnlyList<ForecastAccount> all, IReadOnlyList<ForecastAccount> accounts, string? plan, bool forPlan,
+        IReadOnlyList<StatsRecord> records, Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone)
+    {
+        var weekly = BuildWindow(WindowKind.Weekly, all, accounts, forPlan, plan, records, pricer, now, zone);
+        var fiveHour = BuildWindow(WindowKind.FiveHour, all, accounts, forPlan, plan, records, pricer, now, zone);
         if (weekly is null && fiveHour is null)
             return null;
 
@@ -113,17 +126,29 @@ public static class StatsPlanForecast
             known ? prices.Select(price => price!).ToList() : null, plan ?? (plans.Count == 1 ? plans[0] : null), true, lastReading);
     }
 
+    /// <summary>The window of <paramref name="kind"/>. <paramref name="accounts"/> are the accounts (readings) of the forecast;
+    /// for a plan forecast the intervals are pooled over <paramref name="all"/> accounts, so hours another account or
+    /// plan used are not counted for this plan.</summary>
     private static ForecastWindow? BuildWindow(
-        WindowKind kind, IReadOnlyList<ForecastAccount> accounts, IReadOnlyList<StatsRecord> records,
-        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone)
+        WindowKind kind, IReadOnlyList<ForecastAccount> all, IReadOnlyList<ForecastAccount> accounts, bool forPlan, string? plan,
+        IReadOnlyList<StatsRecord> records, Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone)
     {
         var lists = accounts.Select(account => PointsOf(account.Points, kind)).Where(points => points.Count > 0).ToList();
         if (lists.Count == 0)
             return null;
 
-        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, lists, zone, pricer);
+        IReadOnlyList<IReadOnlyList<HistoryPoint>> pooled = lists;
+        IReadOnlyList<Func<DateTime, string?>>? planAt = null;
+        if (forPlan)
+        {
+            var pool = all.Select(account => (Account: account, Points: PointsOf(account.Points, kind))).Where(entry => entry.Points.Count > 0).ToList();
+            pooled = pool.Select(entry => (IReadOnlyList<HistoryPoint>)entry.Points).ToList();
+            planAt = pool.Select(entry => PlanAtOf(entry.Account, entry.Points, zone)).ToList();
+        }
+
+        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, pooled, zone, pricer, planAt, plan);
         var result = StatsTokensPerPercent.Estimate(intervals);
-        var average = AveragePeriod(lists, kind, records, now.AddDays(-StatsTokensPerPercent.LookbackDays), now, zone);
+        var average = AveragePeriod(lists, kind, records, now.AddDays(-StatsTokensPerPercent.LookbackDays), now, zone, pooled, planAt, plan);
         if (result.Status == PerPercentStatus.TooFew)
             return new ForecastWindow(result, null, [], average);
 
@@ -134,6 +159,45 @@ public static class StatsPlanForecast
         var unpriced = intervals.Where(interval => interval.UnpricedModels is not null)
             .SelectMany(interval => interval.UnpricedModels!).Distinct().Order(StringComparer.Ordinal).ToList();
         return new ForecastWindow(result, perPercent, unpriced, average);
+    }
+
+    /// <summary>What <see cref="PlanAtOf"/> answers for an hour in which the plan changed: equal to no plan.</summary>
+    private const string MixedPlan = "\u0001mixed";
+
+    /// <summary>The plan an account was on in a whole clock hour of <paramref name="zone"/>: the plan of its newest reading
+    /// at the hour's start (a reading without one counts for the account's current plan), or <see cref="MixedPlan"/>
+    /// when the reading at the hour's end names another.</summary>
+    private static Func<DateTime, string?> PlanAtOf(ForecastAccount account, IReadOnlyList<HistoryPoint> points, TimeZoneInfo zone)
+    {
+        var current = CurrentPlanOf(account);
+        var sorted = points.OrderBy(point => point.Timestamp).ToList();
+
+        string? At(DateTime wall)
+        {
+            var moment = new DateTimeOffset(wall, zone.GetUtcOffset(wall));
+            int low = 0, high = sorted.Count - 1, found = 0;
+            while (low <= high)
+            {
+                var middle = (low + high) / 2;
+                if (sorted[middle].Timestamp <= moment)
+                {
+                    found = middle;
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(sorted[found].Plan) ? current : sorted[found].Plan;
+        }
+
+        return hour =>
+        {
+            var start = At(hour);
+            return start == At(hour.AddHours(1)) ? start : MixedPlan;
+        };
     }
 
     /// <summary>The generic window of a kind: points with their own label (a model-specific window) are not it.</summary>
@@ -152,7 +216,8 @@ public static class StatsPlanForecast
     /// </summary>
     public static ForecastAverage? AveragePeriod(
         IReadOnlyList<IReadOnlyList<HistoryPoint>> accountsPoints, WindowKind kind, IReadOnlyList<StatsRecord> records,
-        DateTimeOffset lookbackStart, DateTimeOffset now, TimeZoneInfo zone)
+        DateTimeOffset lookbackStart, DateTimeOffset now, TimeZoneInfo zone,
+        IReadOnlyList<IReadOnlyList<HistoryPoint>>? pooledPoints = null, IReadOnlyList<Func<DateTime, string?>>? planAt = null, string? plan = null)
     {
         var length = kind == WindowKind.FiveHour ? TimeSpan.FromHours(5) : TimeSpan.FromDays(7);
         var ranges = new List<(DateTimeOffset Start, DateTimeOffset End)>();
@@ -203,7 +268,7 @@ public static class StatsPlanForecast
         // of the periods are estimated from those hours (the same ones the capacity is fitted on) and
         // scaled to the percent the periods really reached. Counting every logged token instead would
         // include hours the limit was never read for, and the average could exceed the capacity.
-        var covered = StatsTokensPerPercent.BuildPooledIntervals(inRanges, accountsPoints, zone, null);
+        var covered = StatsTokensPerPercent.BuildPooledIntervals(inRanges, pooledPoints ?? accountsPoints, zone, null, planAt, plan);
         var coveredPercent = covered.Sum(interval => interval.DeltaPercent);
         var coveredTokens = covered.Sum(interval => interval.TokensByModel.Values.Sum());
         if (!(coveredPercent > 0) || coveredTokens <= 0)
