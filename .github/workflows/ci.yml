@@ -33,7 +33,7 @@ jobs:
         run: dotnet build tests/AiUsage.Tests -c Release
 
       - name: Test
-        run: dotnet test tests/AiUsage.Tests -c Release --no-build --logger "trx;LogFileName=results.trx"
+        run: dotnet test tests/AiUsage.Tests -c Release --no-build --logger "trx;LogFileName=results.trx" --blame-hang-timeout 8m --blame-hang-dump-type none
 
       - name: Build the update signer
         run: dotnet build tools/UpdateSigner -c Release
