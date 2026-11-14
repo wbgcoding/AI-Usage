@@ -151,8 +151,9 @@ public class StatsDisplayChoicesTests : IDisposable
     {
         using var dataDir = TestPaths.CreateDisposableDirectory("stats-display-hidden");
         var viewModel = StatsVm.Create(new StatsStore(dataDir));
-        var raised = new List<string?>();
-        viewModel.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        // The view model also raises from its background load, so the list is filled thread-safe.
+        var raised = new System.Collections.Concurrent.ConcurrentQueue<string?>();
+        viewModel.PropertyChanged += (_, e) => raised.Enqueue(e.PropertyName);
 
         Assert.False(viewModel.IsSectionHidden("limits"));
 
