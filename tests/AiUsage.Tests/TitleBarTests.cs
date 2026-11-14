@@ -20,6 +20,34 @@ public class TitleBarTests
         Assert.Equal(expectedOpen, TitleBar.ShouldOpenEyePopup(isOpen, msSinceClose));
 
     [Fact]
+    public void APressInsideThePopupContentIsRecognisedAndOneOutsideIsNot()
+    {
+        Exception? failure = null;
+        (bool Text, bool Run, bool Outside)? result = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                var run = new System.Windows.Documents.Run("Tile density");
+                var caption = new System.Windows.Controls.TextBlock(run);
+                var root = new System.Windows.Controls.Border { Child = caption };
+                var outside = new System.Windows.Controls.TextBlock();
+                result = (TitleBar.IsInside(root, caption), TitleBar.IsInside(root, run), TitleBar.IsInside(root, outside));
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        Assert.True(worker.Join(TimeSpan.FromSeconds(30)), "STA worker did not finish");
+
+        Assert.Null(failure);
+        Assert.Equal((true, true, false), result);
+    }
+
+    [Fact]
     public void AClickRightAfterTheCloseStaysClosedAndALaterOneOpens()
     {
         Exception? failure = null;

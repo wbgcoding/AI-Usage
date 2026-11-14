@@ -263,6 +263,12 @@ public partial class TitleBar : UserControl
 
     private void TitleArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // A press inside the eye popup bubbles here through the popup's logical parent; it must not
+        // drag the window (and close the popup) just because it missed a button in there.
+        if (EyePopup.IsOpen && EyePopup.Child is { } popupChild
+            && e.OriginalSource is DependencyObject source && IsInside(popupChild, source))
+            return;
+
         if (e.ClickCount == 2)
         {
             if (AllowCollapse)
@@ -279,6 +285,21 @@ public partial class TitleBar : UserControl
             // The mouse button was already released by the time DragMove ran (fast click, or
             // another window stole capture); WPF throws instead of just no-op-ing.
         }
+    }
+
+    /// <summary>True when <paramref name="node"/> is <paramref name="root"/> or below it, walking the
+    /// visual parent and, for text elements that have none, the logical one.</summary>
+    internal static bool IsInside(DependencyObject root, DependencyObject node)
+    {
+        for (DependencyObject? current = node; current is not null;
+             current = current is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
+                 ? System.Windows.Media.VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current)
+                 : LogicalTreeHelper.GetParent(current))
+        {
+            if (ReferenceEquals(current, root))
+                return true;
+        }
+        return false;
     }
 
     private void RefreshMenuItem_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
