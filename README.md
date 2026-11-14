@@ -94,13 +94,18 @@ a dashboard for any period (7 days, 30 days, a month, a year, everything or a cu
 - **Plan forecast:** how many tokens a full 5 hour window and a full week of your plan hold, what
   they would cost at API prices, and how many times its list price your plan is worth in a month,
   from your own usage of the last 12 weeks
-- **Limits:** how often you hit each limit
+- **Limits:** how often you hit each limit, about how long you were blocked, and limit resets you
+  used early (a reset starts a new period in every figure)
 - **API cost estimate:** what your tokens would cost at public API prices, in dollars, euros or your
   region's currency, marked with ~ (a star marks sums with a model of unknown price). Switch it off
   under **Settings > Display > Show API cost** and nothing is downloaded. Optionally the tile shows
   the same estimate beside the tokens of its 5-hour and weekly windows (**Show the API value next to
   a window's tokens**).
-- **CSV export** of all figures, and a layout you arrange by dragging sections (or Alt+Up/Down)
+- **CSV export** of all figures, and optionally a CSV of the previous week saved on its own at a
+  day and hour you choose (missed weeks follow on the next start)
+- **More folders:** session logs from other folders read on every run, or a folder read once, such
+  as an old copy; its own settings page under **Settings > Token usage**
+- A layout you arrange by dragging sections (or Alt+Up/Down)
 
 Cursor and Copilot keep no token counts on your PC, so the window says so instead of guessing.
 
