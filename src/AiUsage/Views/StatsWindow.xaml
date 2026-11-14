@@ -124,7 +124,8 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Wraps on a narrow window, so the provider buttons never slide under the CSV button. -->
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.RangeLabel]}"
                                            VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <ComboBox x:Name="RangeCombo" ItemsSource="{Binding RangeChoices}"
@@ -135,7 +136,7 @@
                                 <ItemsControl ItemsSource="{Binding ProviderChoices}" VerticalAlignment="Center" IsTabStop="False">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal"/>
+                                            <WrapPanel Orientation="Horizontal"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
@@ -172,7 +173,7 @@
                                         </StackPanel>
                                     </Border>
                                 </Popup>
-                            </StackPanel>
+                            </WrapPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button x:Name="ResetLayoutButton" Style="{StaticResource AiUsageQuietButton}"
                                         VerticalAlignment="Center" Visibility="Collapsed" Click="ResetLayoutButton_Click" Margin="0,0,8,0"
