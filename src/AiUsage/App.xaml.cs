@@ -136,6 +136,13 @@ public partial class App : Application, IDisposable
 
         _settingsStore = new SettingsStore(logService: _logService);
         var settings = _settingsStore.Load();
+        // The very first start shows only the agents found on this PC; the rest stay in the eye menu.
+        if (_settingsStore.LastLoadWasFresh)
+        {
+            var detected = InstalledAgents.Detect();
+            InstalledAgents.ApplyFirstStartVisibility(settings, detected);
+            _logService.LogInfo($"First start: agents found on this PC: {(detected.Count > 0 ? string.Join(", ", detected.Order()) : "none, showing Claude")}.");
+        }
         // The id that names this PC in a backup is created once and kept.
         if (_settingsStore.MachineIdWasCreated)
             _settingsStore.RequestSave(settings);
@@ -261,7 +268,7 @@ public partial class App : Application, IDisposable
             // either), so it still appears the next time the window is actually shown.
             if (StartupMode.ShouldShowWelcome(settings))
             {
-                new WelcomeWindow(_mainWindow.ViewModel.Tiles).ShowDialog();
+                new WelcomeWindow(_mainWindow.ViewModel.Tiles.Where(tile => !tile.IsHidden)).ShowDialog();
                 settings.WelcomeShown = true;
                 settingsStore.SaveNow(settings);
             }

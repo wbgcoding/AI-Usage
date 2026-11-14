@@ -99,6 +99,10 @@ public sealed class SettingsStore : IDisposable
     /// <summary>Set by the most recent <see cref="Load"/> when the file was newer than this app understands.</summary>
     public bool LastLoadWasFromNewerVersion { get; private set; }
 
+    /// <summary>Set by the most recent <see cref="Load"/> when neither the settings file nor its backup
+    /// existed: the very first start on this profile, not a damaged or unreadable file.</summary>
+    public bool LastLoadWasFresh { get; private set; }
+
     /// <summary>True when the last <see cref="Load"/> had to create this PC's machine id: the caller
     /// saves once so the id survives the session.</summary>
     public bool MachineIdWasCreated { get; private set; }
@@ -115,10 +119,14 @@ public sealed class SettingsStore : IDisposable
     private AppSettings LoadCore()
     {
         LastLoadWasFromNewerVersion = false;
+        LastLoadWasFresh = false;
         _readOnly = false;
         var path = SettingsFilePath;
         if (!File.Exists(path))
+        {
+            LastLoadWasFresh = !File.Exists(BackupFilePath);
             return LoadBackupOrDefault();
+        }
 
         try
         {
