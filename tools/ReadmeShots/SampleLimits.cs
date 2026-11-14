@@ -61,6 +61,31 @@ internal static class SampleLimits
         }
     }
 
+    /// <summary>One limit reset used in Claude's weekly quota: in the week that ended about 13 days ago the reading
+    /// falls to 4 percent in the middle of the week with the reset time unchanged, and the rest of that week climbs from
+    /// there. The history store flags that reading as a limit reset when it records it.</summary>
+    private static void AddEarlyReset(List<Reading> readings, DateTimeOffset now)
+    {
+        var target = now.AddDays(-13);
+        var week = readings
+            .Where(reading => reading.Provider == "claude" && reading.Window == WindowKind.Weekly)
+            .GroupBy(reading => reading.Reset)
+            .OrderBy(group => (group.Key - target).Duration())
+            .First()
+            .OrderBy(reading => reading.At)
+            .ToList();
+        var cut = week.FindIndex(reading => reading.Percent >= 40);
+        if (cut < 0 || cut + 1 >= week.Count)
+            return;
+
+        var first = week[cut + 1].Percent;
+        for (var i = cut + 1; i < week.Count; i++)
+        {
+            var index = readings.IndexOf(week[i]);
+            readings[index] = week[i] with { Percent = Math.Round(4 + Math.Max(0, week[i].Percent - first), 1) };
+        }
+    }
+
     internal static void Seed(
         string dataFolder, DateTimeOffset now, IReadOnlyList<AiUsage.Stats.StatsRecord>? records = null, bool twoPlans = false)
     {
@@ -105,6 +130,8 @@ internal static class SampleLimits
                     : reading with { Plan = "Ultra", Percent = Math.Round(reading.Percent * 0.25, 1) };
             }
         }
+
+        AddEarlyReset(readings, now);
 
         // The history file only ever grows at its end, so the readings go in oldest first.
         var clock = now;
