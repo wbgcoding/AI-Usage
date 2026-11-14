@@ -370,11 +370,13 @@ public sealed class StatsIndexer
     }
 
     /// <summary>True when <paramref name="path"/> lies under one of the extra folders.</summary>
-    private bool IsUnderExtraRoot(string path)
+    internal bool IsUnderExtraRoot(string path)
     {
         foreach (var root in ExtraClaudeRoots)
         {
-            var prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+            // A drive root keeps its backslash when trimmed, so the separator is only added where it is missing.
+            var trimmed = Path.TrimEndingDirectorySeparator(root);
+            var prefix = Path.EndsInDirectorySeparator(trimmed) ? trimmed : trimmed + Path.DirectorySeparatorChar;
             if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return true;
         }

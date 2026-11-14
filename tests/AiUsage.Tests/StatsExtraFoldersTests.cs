@@ -34,6 +34,22 @@ public class StatsExtraFoldersTests
             ? File.ReadAllLines(log.CurrentFile).Count(line => line.Contains("an added session folder is not available", StringComparison.Ordinal))
             : 0;
 
+    [Theory]
+    [InlineData(@"D:\", @"D:\Sessions\a.jsonl", true)]
+    [InlineData(@"D:\Sessions", @"D:\Sessions\a.jsonl", true)]
+    [InlineData(@"D:\Sessions\", @"D:\sessions\sub\a.jsonl", true)]
+    [InlineData(@"D:\Sessions", @"D:\SessionsOther\a.jsonl", false)]
+    [InlineData(@"D:\", @"E:\Sessions\a.jsonl", false)]
+    public void A_file_is_under_an_extra_folder_also_when_that_is_a_drive_root(string root, string path, bool expected)
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-extra-root-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-extra-root-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-extra-root-data");
+        var indexer = new StatsIndexer(new StatsStore(dataDir), claudeRoot, codexRoot) { ExtraClaudeRoots = [root] };
+
+        Assert.Equal(expected, indexer.IsUnderExtraRoot(path));
+    }
+
     [Fact]
     public void A_folder_holding_a_copy_of_an_indexed_file_adds_no_tokens()
     {
