@@ -686,6 +686,8 @@ public sealed class SettingsStore : IDisposable
 
         settings.QuietDays = QuietHours.NormalizeDays(settings.QuietDays);
         settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(settings.ForecastLeadMinutes);
+        settings.StatsWeeklyCsvDay = AppSettings.NormalizeWeeklyCsvDay(settings.StatsWeeklyCsvDay);
+        settings.StatsWeeklyCsvHour = AppSettings.NormalizeWeeklyCsvHour(settings.StatsWeeklyCsvHour);
 
         settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
             ? "ByUsage"

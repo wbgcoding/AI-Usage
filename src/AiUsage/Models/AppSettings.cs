@@ -33,6 +33,19 @@ public sealed class AppSettings
     /// (once per ISO week, after a walk).</summary>
     public bool StatsWeeklyCsv { get; set; }
 
+    /// <summary>The weekday (of the current Monday to Sunday week) from which the CSV of the previous week is due.</summary>
+    public DayOfWeek StatsWeeklyCsvDay { get; set; } = DayOfWeek.Monday;
+
+    /// <summary>The full hour (0 to 23) of <see cref="StatsWeeklyCsvDay"/> from which the CSV is due.</summary>
+    public int StatsWeeklyCsvHour { get; set; }
+
+    /// <summary>A stored weekday that is no <see cref="DayOfWeek"/> loads as Monday.</summary>
+    public static DayOfWeek NormalizeWeeklyCsvDay(DayOfWeek day) =>
+        Enum.IsDefined(day) ? day : DayOfWeek.Monday;
+
+    /// <summary>A stored hour is clamped to 0 to 23.</summary>
+    public static int NormalizeWeeklyCsvHour(int hour) => Math.Clamp(hour, 0, 23);
+
     /// <summary>The folder of the weekly CSV files. A path on this PC, so a settings import or a reset keeps it.</summary>
     public string StatsWeeklyCsvFolder { get; set; } = "";
 

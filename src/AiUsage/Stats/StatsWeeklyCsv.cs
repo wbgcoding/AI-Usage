@@ -1,4 +1,5 @@
 using System.Globalization;
+using AiUsage.Models;
 using AiUsage.Stats.Pricing;
 
 namespace AiUsage.Stats;
@@ -38,6 +39,19 @@ internal static class StatsWeeklyCsv
         var date = from.ToDateTime(TimeOnly.MinValue);
         return (from, from.AddDays(6), FileName(ISOWeek.GetYear(date), ISOWeek.GetWeekOfYear(date)));
     }
+
+    /// <summary>The moment the CSV of the previous week falls due in the Monday to Sunday week that contains
+    /// <paramref name="now"/>: <paramref name="day"/> of that week at the full <paramref name="hour"/>.</summary>
+    internal static DateTime DueMoment(DateTime now, DayOfWeek day, int hour)
+    {
+        var monday = now.Date.AddDays(-(((int)now.DayOfWeek + 6) % 7));
+        return monday.AddDays(((int)day + 6) % 7).AddHours(AppSettings.NormalizeWeeklyCsvHour(hour));
+    }
+
+    /// <summary>Whether the file of the previous week is due at <paramref name="now"/>: the chosen day and hour
+    /// of the current week have come. A start after that moment catches up, because the due moment stays
+    /// passed for the rest of the week.</summary>
+    internal static bool IsDue(DateTime now, DayOfWeek day, int hour) => now >= DueMoment(now, day, hour);
 
     /// <summary>Saves the CSV of the previous week into <paramref name="folder"/> unless it is already there.
     /// May block while the price list loads, so call it off the UI thread. IO failures are thrown.</summary>

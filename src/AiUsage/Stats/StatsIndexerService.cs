@@ -1,3 +1,4 @@
+using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Storage;
 
@@ -24,6 +25,8 @@ public sealed class StatsIndexerService : IDisposable
     private readonly Func<string, DateOnly, StatsWeeklyCsv.Outcome>? _weeklyCsv;
     // The folder of the weekly CSV; null or empty = off.
     private volatile string? _weeklyCsvFolder;
+    private volatile int _weeklyCsvDay = (int)DayOfWeek.Monday;
+    private volatile int _weeklyCsvHour;
     // The week whose failure was logged already, so a folder that stays away is reported once per week.
     private string _weeklyCsvLoggedWeek = "";
     // Reads one folder once (see IndexFolderOnceAsync); null for a stand-in service.
@@ -276,6 +279,20 @@ public sealed class StatsIndexerService : IDisposable
     {
         get => _weeklyCsvFolder;
         set => _weeklyCsvFolder = string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>The weekday from which the CSV of the previous week is due (see <see cref="StatsWeeklyCsv.IsDue"/>).</summary>
+    public DayOfWeek WeeklyCsvDay
+    {
+        get => (DayOfWeek)_weeklyCsvDay;
+        set => _weeklyCsvDay = (int)AppSettings.NormalizeWeeklyCsvDay(value);
+    }
+
+    /// <summary>The full hour of <see cref="WeeklyCsvDay"/> from which the CSV is due.</summary>
+    public int WeeklyCsvHour
+    {
+        get => _weeklyCsvHour;
+        set => _weeklyCsvHour = AppSettings.NormalizeWeeklyCsvHour(value);
     }
 
     /// <summary>The cost estimate the weekly CSV takes its costs from (null = none), asked on the walk's
@@ -544,7 +561,11 @@ public sealed class StatsIndexerService : IDisposable
         var week = "";
         try
         {
-            var today = DateOnly.FromDateTime(Clock().LocalDateTime);
+            var now = Clock().LocalDateTime;
+            if (!StatsWeeklyCsv.IsDue(now, WeeklyCsvDay, _weeklyCsvHour))
+                return;
+
+            var today = DateOnly.FromDateTime(now);
             week = StatsWeeklyCsv.PreviousWeek(today).FileName;
             if (_weeklyCsv?.Invoke(folder, today) == StatsWeeklyCsv.Outcome.FolderMissing)
                 failure = "the folder is not available";

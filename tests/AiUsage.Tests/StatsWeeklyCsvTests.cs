@@ -142,6 +142,109 @@ public class StatsWeeklyCsvTests
         Assert.Equal(StatsWeeklyCsv.Outcome.FolderMissing, StatsWeeklyCsv.Write(Path.Combine(target, "gone"), today, store, cost: null));
     }
 
+    private static DateTimeOffset Local(int year, int month, int day, int hour, int minute = 0) =>
+        new(new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Local));
+
+    // The current week of 2026-11-18 (a Wednesday) runs Monday 2026-11-16 to Sunday 2026-11-22.
+    [Theory]
+    [InlineData(DayOfWeek.Monday, 0, 2026, 11, 16, 0, 0, true)]
+    [InlineData(DayOfWeek.Monday, 5, 2026, 11, 16, 4, 59, false)]
+    [InlineData(DayOfWeek.Wednesday, 10, 2026, 11, 18, 9, 59, false)]
+    [InlineData(DayOfWeek.Wednesday, 10, 2026, 11, 18, 10, 0, true)]
+    [InlineData(DayOfWeek.Wednesday, 10, 2026, 11, 20, 3, 0, true)]
+    [InlineData(DayOfWeek.Thursday, 0, 2026, 11, 18, 23, 59, false)]
+    [InlineData(DayOfWeek.Sunday, 0, 2026, 11, 16, 8, 0, false)]
+    [InlineData(DayOfWeek.Sunday, 0, 2026, 11, 21, 23, 59, false)]
+    [InlineData(DayOfWeek.Sunday, 0, 2026, 11, 22, 0, 0, true)]
+    [InlineData(DayOfWeek.Sunday, 23, 2026, 11, 22, 22, 0, false)]
+    public void The_file_is_due_from_the_chosen_day_and_hour_of_the_current_week(
+        DayOfWeek day, int hour, int year, int month, int dayOfMonth, int atHour, int atMinute, bool due)
+    {
+        var now = new DateTime(year, month, dayOfMonth, atHour, atMinute, 0, DateTimeKind.Local);
+
+        Assert.Equal(due, StatsWeeklyCsv.IsDue(now, day, hour));
+    }
+
+    [Fact]
+    public void A_walk_before_the_due_time_writes_nothing_and_the_first_walk_after_it_writes_once()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("weekly-csv-due-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("weekly-csv-due-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-due-data");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-due-target");
+        WriteSession(claudeRoot, Line("2026-11-11T12:00:00Z", "m1", 100, 50));
+        var store = new StatsStore(dataDir);
+        var clock = Local(2026, 11, 18, 9, 59);
+        using var service = new StatsIndexerService(store, () => new StatsIndexer(store, claudeRoot, codexRoot))
+        {
+            WeeklyCsvFolder = target,
+            WeeklyCsvDay = DayOfWeek.Wednesday,
+            WeeklyCsvHour = 10,
+            Clock = () => clock,
+        };
+
+        RunWalk(service);
+        Assert.Empty(Directory.GetFiles(target));
+
+        clock = Local(2026, 11, 18, 10, 5);
+        RunWalk(service);
+        var file = Assert.Single(Directory.GetFiles(target));
+        Assert.Equal("AI-Usage-2026-W46.csv", Path.GetFileName(file));
+
+        File.WriteAllText(file, "kept");
+        clock = Local(2026, 11, 19, 8, 0);
+        RunWalk(service);
+        Assert.Equal("kept", File.ReadAllText(file));
+    }
+
+    [Fact]
+    public void An_app_that_was_not_running_at_the_due_time_catches_up_on_its_next_walk()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("weekly-csv-late-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("weekly-csv-late-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-late-data");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-late-target");
+        WriteSession(claudeRoot, Line("2026-11-11T12:00:00Z", "m1", 100, 50));
+        var store = new StatsStore(dataDir);
+        using var service = new StatsIndexerService(store, () => new StatsIndexer(store, claudeRoot, codexRoot))
+        {
+            WeeklyCsvFolder = target,
+            WeeklyCsvDay = DayOfWeek.Tuesday,
+            WeeklyCsvHour = 6,
+            Clock = () => Local(2026, 11, 21, 17, 0),
+        };
+
+        RunWalk(service);
+
+        Assert.Equal(["AI-Usage-2026-W46.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void A_sunday_due_day_waits_for_the_end_of_the_Monday_to_Sunday_week()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("weekly-csv-sun-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("weekly-csv-sun-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-sun-data");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-sun-target");
+        WriteSession(claudeRoot, Line("2026-11-11T12:00:00Z", "m1", 100, 50));
+        var store = new StatsStore(dataDir);
+        var clock = Local(2026, 11, 21, 23, 0);
+        using var service = new StatsIndexerService(store, () => new StatsIndexer(store, claudeRoot, codexRoot))
+        {
+            WeeklyCsvFolder = target,
+            WeeklyCsvDay = DayOfWeek.Sunday,
+            WeeklyCsvHour = 0,
+            Clock = () => clock,
+        };
+
+        RunWalk(service);
+        Assert.Empty(Directory.GetFiles(target));
+
+        clock = Local(2026, 11, 22, 0, 30);
+        RunWalk(service);
+        Assert.Equal(["AI-Usage-2026-W46.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
+    }
+
     private static int ReportedLines(LogService log) =>
         File.Exists(log.CurrentFile)
             ? File.ReadAllLines(log.CurrentFile).Count(line => line.Contains("Statistics weekly CSV", StringComparison.Ordinal))
