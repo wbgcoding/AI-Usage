@@ -598,8 +598,6 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Ophalen 1 uur pauzeren</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Ophalen hervatten (gepauzeerd tot {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Gepauzeerd tot {0}</value></data>
-  <data name="Tray.Popup.ResetsToday" xml:space="preserve"><value>weer beschikbaar om {0}</value></data>
-  <data name="Tray.Popup.ResetsLater" xml:space="preserve"><value>weer beschikbaar {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Gevonden</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Leest het account van de Antigravity CLI (agy). Log daar in, of hier via de browser.</value></data>

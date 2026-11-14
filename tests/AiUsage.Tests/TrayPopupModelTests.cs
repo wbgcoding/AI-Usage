@@ -41,8 +41,8 @@ public class TrayPopupModelTests
 
         var today = TrayTooltipBuilder.ResetTime(Now.AddHours(3), Now);
         var later = TrayTooltipBuilder.ResetTime(Now.AddDays(2).AddHours(4), Now);
-        Assert.Equal(LocalizationService.Instance.Format("Tray.Popup.ResetsToday", today), rows[0].Reset);
-        Assert.Equal(LocalizationService.Instance.Format("Tray.Popup.ResetsLater", later), rows[1].Reset);
+        Assert.Equal(today, rows[0].Reset);
+        Assert.Equal(later, rows[1].Reset);
         Assert.Equal(TrayTooltipBuilder.ShortTime(Now.AddHours(3)), today);
         Assert.NotEqual(TrayTooltipBuilder.ShortTime(Now.AddDays(2).AddHours(4)), later);
         Assert.Equal(rows[0].Label + " " + rows[0].Percent + " · " + rows[0].Reset, rows[0].Text);
@@ -124,19 +124,19 @@ public class TrayPopupModelTests
     }
 
     [Fact]
-    public void The_reset_wording_follows_the_language()
+    public void The_label_follows_the_language_and_the_reset_is_the_bare_time()
     {
         try
         {
             LocalizationService.Instance.SetLanguage("en");
             var en = TrayPopupModel.Build([Line("Claude")], now: Now).Blocks[0].Rows[0];
             Assert.Equal("5 hours", en.Label);
-            Assert.StartsWith("back at ", en.Reset);
+            Assert.Equal(TrayTooltipBuilder.ResetTime(Now.AddHours(3), Now), en.Reset);
 
             LocalizationService.Instance.SetLanguage("de");
             var de = TrayPopupModel.Build([Line("Claude")], now: Now).Blocks[0].Rows[0];
             Assert.Equal("5 Stunden", de.Label);
-            Assert.StartsWith("zurück um ", de.Reset);
+            Assert.Equal(TrayTooltipBuilder.ResetTime(Now.AddHours(3), Now), de.Reset);
         }
         finally
         {

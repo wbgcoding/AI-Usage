@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The tray popup and tooltip leave out a window your plan has no limit for, instead of showing a dash.
+- The tray popup shows a reset as the bare time ("14:30", "Fri 14:30"), without a leading word.
 
 ### Fixed
 - The tray popup no longer cuts off reset times on the right.

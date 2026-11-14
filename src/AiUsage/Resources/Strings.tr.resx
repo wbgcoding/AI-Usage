@@ -598,8 +598,6 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Getirmeyi 1 saat duraklat</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Getirmeyi sürdür ({0} saatine kadar duraklatıldı)</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>{0} saatine kadar duraklatıldı</value></data>
-  <data name="Tray.Popup.ResetsToday" xml:space="preserve"><value>sıfırlanma saati {0}</value></data>
-  <data name="Tray.Popup.ResetsLater" xml:space="preserve"><value>sıfırlanma {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Bulundu</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Antigravity CLI'ın (agy) hesabını okur. Orada ya da burada tarayıcı üzerinden oturum aç.</value></data>

@@ -3,7 +3,7 @@ using AiUsage.Models;
 
 namespace AiUsage.Services;
 
-/// <summary>One window line of the tray popup: "5 hours 62 % · back at 14:30". <see cref="Reset"/> is
+/// <summary>One window line of the tray popup: "5 hours 62 % · 14:30". <see cref="Reset"/> is
 /// null when the reset moment is unknown or already past.</summary>
 public sealed record TrayPopupRow(string Label, string Percent, string? Reset)
 {
@@ -64,15 +64,12 @@ public sealed record TrayPopupModel(string? PausedLine, IReadOnlyList<TrayPopupB
         return rows;
     }
 
-    // A reset already past says nothing.
+    // The reset moment alone ("14:30", "Fri 14:30"); a reset already past says nothing.
     private static TrayPopupRow Row(string label, double percent, DateTimeOffset? resetsAt, DateTimeOffset now)
     {
         var text = StatusTextMap.FormatUsagePercent(percent);
         if (resetsAt is not { } reset || reset <= now)
             return new TrayPopupRow(label, text, null);
-
-        var today = reset.ToLocalTime().Date == now.ToLocalTime().Date;
-        var key = today ? "Tray.Popup.ResetsToday" : "Tray.Popup.ResetsLater";
-        return new TrayPopupRow(label, text, LocalizationService.Instance.Format(key, TrayTooltipBuilder.ResetTime(reset, now)));
+        return new TrayPopupRow(label, text, TrayTooltipBuilder.ResetTime(reset, now));
     }
 }

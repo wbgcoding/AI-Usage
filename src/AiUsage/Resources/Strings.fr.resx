@@ -598,8 +598,6 @@
   <data name="Tray.Pause" xml:space="preserve"><value>Suspendre la lecture pendant 1 heure</value></data>
   <data name="Tray.Resume" xml:space="preserve"><value>Reprendre la lecture (suspendue jusqu'à {0})</value></data>
   <data name="Tray.PausedUntil" xml:space="preserve"><value>Suspendu jusqu'à {0}</value></data>
-  <data name="Tray.Popup.ResetsToday" xml:space="preserve"><value>disponible à {0}</value></data>
-  <data name="Tray.Popup.ResetsLater" xml:space="preserve"><value>disponible {0}</value></data>
   <data name="Settings.Mica" xml:space="preserve"><value>Mica</value></data>
   <data name="Welcome.Found" xml:space="preserve"><value>Trouvé</value></data>
   <data name="Welcome.GeminiHint" xml:space="preserve"><value>Lit le compte de la CLI Antigravity (agy). Connecte-toi là-bas, ou ici via le navigateur.</value></data>
