@@ -175,9 +175,18 @@ public class HistoryStore
                 return;
         }
 
-        AppendLine(providerId, new HistoryPoint(
+        var point = new HistoryPoint(
             SchemaVersion, request.Now, request.Window, request.Percent, request.ResetsAt, Tokens: request.Tokens,
-            Label: request.Label.Length > 0 ? request.Label : null, Plan: request.Plan));
+            Label: request.Label.Length > 0 ? request.Label : null, Plan: request.Plan);
+        // Only a reading that follows an older one in time can be a reset; the flag is stored so later
+        // analysis does not have to judge it again.
+        if (last is not null && last.Timestamp <= point.Timestamp
+            && Stats.CycleBoundaries.Classify(last, point) == Stats.CycleBoundary.EarlyReset)
+        {
+            point = point with { EarlyReset = true };
+        }
+
+        AppendLine(providerId, point);
     }
 
     /// <summary>Writes the queued appends, oldest first. The caller holds the provider's lock.</summary>
