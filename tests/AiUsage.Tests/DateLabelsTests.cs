@@ -65,6 +65,44 @@ public class DateLabelsTests
     }
 
     [Fact]
+    public void WeekdayDayMonthLongHasNoYearInTheSameYearAndTheYearInAnother()
+    {
+        var date = new DateOnly(2026, 11, 7);
+
+        Assert.Equal("Samstag, 7. November", DateLabels.WeekdayDayMonthLong(date, German, new DateOnly(2026, 11, 14)));
+        Assert.Equal("Saturday, November 7", DateLabels.WeekdayDayMonthLong(date, English, new DateOnly(2026, 1, 2)));
+        Assert.Equal("Samstag, 7. November 2026", DateLabels.WeekdayDayMonthLong(date, German, new DateOnly(2027, 1, 2)));
+        Assert.Equal("Saturday, November 7, 2026", DateLabels.WeekdayDayMonthLong(date, English, new DateOnly(2027, 1, 2)));
+    }
+
+    [Theory]
+    [InlineData("es-ES")]
+    [InlineData("fr-FR")]
+    [InlineData("it-IT")]
+    [InlineData("ja-JP")]
+    [InlineData("nl-NL")]
+    [InlineData("pl-PL")]
+    [InlineData("pt-BR")]
+    [InlineData("ro-RO")]
+    [InlineData("tr-TR")]
+    [InlineData("zh-CN")]
+    public void WeekdayDayMonthLongDropsOnlyTheYearInEveryLanguage(string name)
+    {
+        var culture = CultureInfo.GetCultureInfo(name);
+        var date = new DateOnly(2026, 11, 7);
+
+        var same = DateLabels.WeekdayDayMonthLong(date, culture, new DateOnly(2026, 11, 14));
+        var other = DateLabels.WeekdayDayMonthLong(date, culture, new DateOnly(2027, 1, 2));
+
+        Assert.DoesNotContain("2026", same);
+        Assert.Contains("2026", other);
+        Assert.Contains("7", same);
+        Assert.Equal(culture.DateTimeFormat.GetDayName(DayOfWeek.Saturday), culture.DateTimeFormat.GetDayName(date.DayOfWeek));
+        Assert.Contains(culture.DateTimeFormat.GetDayName(DayOfWeek.Saturday), same);
+        Assert.False(same.StartsWith(' ') || same.EndsWith(' ') || same.EndsWith(',') || same.Contains("  "));
+    }
+
+    [Fact]
     public void ShortMonthDayAgreesWithDayMonthShort()
     {
         var date = new DateTime(2026, 9, 25);

@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace AiUsage.Services;
 
@@ -37,6 +38,25 @@ public static class DateLabels
     /// <summary>Weekday, day and month: German "Do, 1. Okt", English "Thu, Oct 1".</summary>
     public static string WeekdayDayMonthShort(DateOnly date, CultureInfo culture) =>
         TextCompose.List([culture.DateTimeFormat.AbbreviatedDayNames[(int)date.DayOfWeek], DayMonthShort(date, culture)]);
+
+    private static readonly Regex YearPart = new(@"(\s*'[^']*')?\s*y+(\s*'[^']*')?", RegexOptions.CultureInvariant);
+
+    private static readonly Regex RepeatedSpace = new(@"\s{2,}", RegexOptions.CultureInvariant);
+
+    /// <summary>The culture's long date with the weekday: German "Samstag, 7. November", English "Saturday, November 7".
+    /// The year stays out when the date is in the same year as <paramref name="today"/> and is added, in the culture's
+    /// own long pattern, when it is not.</summary>
+    public static string WeekdayDayMonthLong(DateOnly date, CultureInfo culture, DateOnly today)
+    {
+        var pattern = culture.DateTimeFormat.LongDatePattern;
+        if (date.Year == today.Year)
+        {
+            pattern = YearPart.Replace(pattern, "");
+            pattern = RepeatedSpace.Replace(pattern, " ").Trim(' ', ',', '.', '/', '-');
+        }
+
+        return date.ToDateTime(TimeOnly.MinValue).ToString(pattern, culture);
+    }
 
     /// <summary>Same label as <see cref="DayMonthShort"/> for a caller that holds a
     /// <see cref="DateTime"/>.</summary>
