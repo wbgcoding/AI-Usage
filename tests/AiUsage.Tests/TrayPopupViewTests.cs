@@ -114,6 +114,37 @@ public class TrayPopupViewTests
         Assert.True(flags.Item7);
     }
 
+    // A row with a reset time measured before a later row widens the shared percent column: the
+    // popup must still be wide enough for every text, as the window then gets exactly this size.
+    [Fact]
+    public void The_measured_size_holds_every_text_when_a_later_row_widens_a_shared_column()
+    {
+        var overflow = StaTestRunner.Run(() =>
+        {
+            var view = new TrayPopupView
+            {
+                DataContext = TrayPopupModel.Build(
+                [
+                    new TrayTooltipBuilder.ProviderLine("Claude", 3, 4, null, Now.AddDays(2), Now.AddDays(3), "claude"),
+                    new TrayTooltipBuilder.ProviderLine("Codex", 100, 100, null, null, null, "codex"),
+                ], now: Now),
+            };
+            var size = view.MeasureContent();
+            view.Measure(size);
+            view.Arrange(new Rect(size));
+            view.UpdateLayout();
+
+            // Border 1 + padding 12 on the right.
+            var inner = size.Width - 13;
+            return Descendants(view).OfType<TextBlock>()
+                .Where(t => t.Visibility == Visibility.Visible && t.Text.Length > 0)
+                .Select(t => t.TranslatePoint(new Point(t.DesiredSize.Width - t.Margin.Left - t.Margin.Right, 0), view).X - inner)
+                .Max();
+        });
+
+        Assert.True(overflow <= 0.5, $"A text runs {overflow:0.#} DIPs past the popup's right edge.");
+    }
+
     [Fact]
     public void A_placement_is_logged_once_until_it_changes()
     {

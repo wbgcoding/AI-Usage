@@ -90,8 +90,7 @@ internal sealed class TrayPopupWindow : Window
     private System.Windows.Rect Present(TrayPopupModel model)
     {
         _view.DataContext = model;
-        _view.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        var size = _view.DesiredSize;
+        var size = _view.MeasureContent();
 
         var handle = new WindowInteropHelper(this).EnsureHandle();
         var style = Win32.GetWindowLongPtr(handle, Win32.GwlExStyle).ToInt64();
