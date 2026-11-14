@@ -198,6 +198,38 @@ public class StatsExtraFoldersTests
         Assert.Equal(270L, Total(store));
     }
 
+    [Fact]
+    public async Task A_folder_import_still_waiting_when_the_service_shuts_down_returns_without_reading()
+    {
+        using var walkStarted = new ManualResetEventSlim();
+        var folderReads = 0;
+        // The walk only ends when Dispose cancels it; the import then finds the run slot free.
+        var service = StatsIndexerService.ForTest(
+            token =>
+            {
+                walkStarted.Set();
+                token.WaitHandle.WaitOne(TimeSpan.FromSeconds(10));
+            },
+            (_, _) =>
+            {
+                Interlocked.Increment(ref folderReads);
+                return (1, 1);
+            });
+        service.StartInBackground();
+        Assert.True(walkStarted.Wait(TimeSpan.FromSeconds(5)));
+        var import = service.IndexFolderOnceAsync(@"C:\any");
+        Assert.False(import.IsCompleted);
+
+        service.Dispose();
+
+        var result = await import.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal((0, 0), result);
+        Assert.Equal(0, folderReads);
+        Assert.False(service.IsRunning);
+        Assert.Equal((0, 0), await service.IndexFolderOnceAsync(@"C:\any"));
+        Assert.Equal(0, folderReads);
+    }
+
     private static void OfferSessionPass(string dbPath)
     {
         using var connection = new Microsoft.Data.Sqlite.SqliteConnection(
