@@ -654,7 +654,8 @@ public class HistoryStore
             // one Other series (Cursor's per-model bars, its Grok Bot bar) would pick a single
             // "peak" mixed across series that have nothing to do with each other.
             // Plan too: points of different plans (a Max to Ultra switch) never merge into one peak.
-            .GroupBy(point => (point.Window, Label: point.Label ?? "", Plan: point.Plan ?? "", Bucket: bucketSelector(point)))
+            // The limit-reset flag too: the reading that started a cycle must survive next to the peak before it.
+            .GroupBy(point => (point.Window, Label: point.Label ?? "", Plan: point.Plan ?? "", Bucket: bucketSelector(point), Reset: point.EarlyReset == true))
             .Select(group => group.OrderByDescending(point => point.Percent).First() with
             {
                 CompactionLevel = compactionLevel,

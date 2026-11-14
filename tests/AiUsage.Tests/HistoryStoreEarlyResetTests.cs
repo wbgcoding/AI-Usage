@@ -67,4 +67,25 @@ public sealed class HistoryStoreEarlyResetTests : IDisposable
         var point = Assert.Single(store.Load("claude", TimeSpan.FromDays(400)));
         Assert.Null(point.EarlyReset);
     }
+
+    [Fact]
+    public void Compaction_keeps_the_point_that_started_a_cycle_after_a_limit_reset()
+    {
+        var store = new HistoryStore(_directory, () => _now);
+        var hour = DateTimeOffset.Parse("2026-08-01T10:00:00Z");
+        var lines = new[]
+        {
+            new HistoryPoint(1, hour.AddMinutes(5), WindowKind.Weekly, 100, Reset, Plan: "Max"),
+            new HistoryPoint(1, hour.AddMinutes(9), WindowKind.Weekly, 4, Reset, Plan: "Max", EarlyReset: true),
+            new HistoryPoint(1, hour.AddMinutes(20), WindowKind.Weekly, 6, Reset, Plan: "Max"),
+        }.Select(point => System.Text.Json.JsonSerializer.Serialize(point)).ToArray();
+        File.WriteAllLines(Path.Combine(_directory, "history-claude.jsonl"), lines);
+        _now = DateTimeOffset.Parse("2026-11-14T12:00:00Z");
+
+        store.Compact("claude");
+
+        var remaining = store.Load("claude", TimeSpan.FromDays(400)).OrderBy(point => point.Timestamp).ToList();
+        Assert.Equal([100.0, 4.0], remaining.Select(point => point.Percent));
+        Assert.Equal([null, true], remaining.Select(point => point.EarlyReset));
+    }
 }
