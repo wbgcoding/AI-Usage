@@ -10,6 +10,15 @@ namespace AiUsage.Tests;
 /// single project is not a large block of empty space.</summary>
 public class StatsHorizontalBarChartTests
 {
+    [Theory]
+    [InlineData(2, 5, 2)]
+    [InlineData(4, 3, 2)]
+    [InlineData(0, 1, 0)]
+    [InlineData(1, 0, -1)]
+    [InlineData(-1, 5, -1)]
+    public void Rebuilt_rows_keep_the_keyboard_focus_on_a_row_that_still_exists(int focused, int rowCount, int expected) =>
+        Assert.Equal(expected, StatsHorizontalBarChart.KeptFocusIndex(focused, rowCount));
+
     [Fact]
     public void An_icon_is_decoded_small_and_frozen_and_a_damaged_file_gives_none()
     {

@@ -45,9 +45,18 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         chart.ForgetStaleIcons((IReadOnlyList<StatsProjectRow>)e.NewValue);
         if (chart.ShowProjectDetails)
             chart.StartIconLoads((IReadOnlyList<StatsProjectRow>)e.NewValue);
-        chart._focusedRowIndex = -1;
-        AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<StatsProjectRow>)e.NewValue));
+        var rows = (IReadOnlyList<StatsProjectRow>)e.NewValue;
+        chart._focusedRowIndex = KeptFocusIndex(chart._focusedRowIndex, rows.Count);
+        if (chart._focusedRowIndex >= 0)
+            chart.UpdateFocusedRowAutomationName();
+        else
+            AutomationProperties.SetName(chart, BuildAccessibleSummary(rows));
     }
+
+    /// <summary>The rows changed under the keyboard focus (Enter on a row re-filters and rebuilds
+    /// them): the focus stays on a row that still exists instead of vanishing.</summary>
+    internal static int KeptFocusIndex(int focusedIndex, int rowCount) =>
+        focusedIndex < 0 || rowCount == 0 ? -1 : Math.Min(focusedIndex, rowCount - 1);
 
     /// <summary>Opts a row-per-project chart into the richer row (icon or color dot, bold name,
     /// muted middle-trimmed path, right-aligned value and share, a thin colored bar under the row)
