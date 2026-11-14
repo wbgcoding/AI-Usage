@@ -175,9 +175,18 @@ public class HistoryStore
                 return;
         }
 
-        AppendLine(providerId, new HistoryPoint(
+        var point = new HistoryPoint(
             SchemaVersion, request.Now, request.Window, request.Percent, request.ResetsAt, Tokens: request.Tokens,
-            Label: request.Label.Length > 0 ? request.Label : null, Plan: request.Plan));
+            Label: request.Label.Length > 0 ? request.Label : null, Plan: request.Plan);
+        // Only a reading that follows an older one in time can be a reset; the flag is stored so later
+        // analysis does not have to judge it again.
+        if (last is not null && last.Timestamp <= point.Timestamp
+            && Stats.CycleBoundaries.Classify(last, point) == Stats.CycleBoundary.EarlyReset)
+        {
+            point = point with { EarlyReset = true };
+        }
+
+        AppendLine(providerId, point);
     }
 
     /// <summary>Writes the queued appends, oldest first. The caller holds the provider's lock.</summary>
@@ -645,7 +654,8 @@ public class HistoryStore
             // one Other series (Cursor's per-model bars, its Grok Bot bar) would pick a single
             // "peak" mixed across series that have nothing to do with each other.
             // Plan too: points of different plans (a Max to Ultra switch) never merge into one peak.
-            .GroupBy(point => (point.Window, Label: point.Label ?? "", Plan: point.Plan ?? "", Bucket: bucketSelector(point)))
+            // The limit-reset flag too: the reading that started a cycle must survive next to the peak before it.
+            .GroupBy(point => (point.Window, Label: point.Label ?? "", Plan: point.Plan ?? "", Bucket: bucketSelector(point), Reset: point.EarlyReset == true))
             .Select(group => group.OrderByDescending(point => point.Percent).First() with
             {
                 CompactionLevel = compactionLevel,

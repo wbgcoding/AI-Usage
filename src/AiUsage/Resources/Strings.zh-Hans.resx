@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>有使用的平均窗口内的令牌数,以及平均达到的额度峰值。</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>峰值:该范围内的最高水平。平均峰值:各窗口最高水平的平均值,在进度条上以线标出。</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>此时间段内还没有额度历史。</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>已使用 {0} 次上限重置，最近一次 {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>已使用 {0} 次上限重置，最近一次 {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>上限重置会在窗口正常重置之前将其清零；统计从这里开始一个新的周期。</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>根据你自己 {0} 小时的用量估算。缓存读取单独计算:1% ≈ {1} 个缓存令牌。</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>无项目</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>其他项目</value></data>

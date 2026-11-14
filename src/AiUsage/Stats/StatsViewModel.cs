@@ -2273,7 +2273,13 @@ public sealed partial class StatsViewModel : ObservableObject
                         row.LastReachedAt is { } reached
                             ? loc.Format("Stats.Limits.LastReached", LimitDate(reached, loc), DurationFormatter.Describe(row.BlockedTime))
                             : "",
-                        row.WindowLabelKey);
+                        row.WindowLabelKey,
+                        row.LastEarlyResetAt is { } lastReset
+                            ? loc.Format(
+                                row.EarlyResetCount == 1 ? "Stats.Limits.ResetUsed.One" : "Stats.Limits.ResetUsed.Many",
+                                row.EarlyResetCount, LimitDate(lastReset, loc))
+                            : "",
+                        row.LastEarlyResetAt is null ? "" : loc["Tip.Stats.Limits.ResetUsed"]);
                 }).ToList();
                 var groupRows = group.ToList();
                 return new StatsLimitGroupViewModel(

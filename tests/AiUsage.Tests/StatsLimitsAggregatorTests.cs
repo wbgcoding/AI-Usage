@@ -159,6 +159,76 @@ public class StatsLimitsAggregatorTests
         Assert.NotNull(row.LastReachedAt);
     }
 
+    private static HistoryPoint At(int minute, double percent, DateTimeOffset reset, string? plan = null, bool? early = null) =>
+        new(1, Start.AddMinutes(minute), WindowKind.Weekly, percent, reset, Plan: plan, EarlyReset: early);
+
+    [Fact]
+    public void An_early_reset_ends_the_cycle_and_blocks_only_until_the_reset()
+    {
+        var reset = Start.AddDays(4);
+        var row = Assert.Single(Build(("claude", new[]
+        {
+            At(0, 60, reset),
+            At(600, 100, reset),
+            At(660, 100, reset),
+            At(664, 4, reset, early: true),
+            At(900, 20, reset),
+        })));
+
+        Assert.Equal(2, row.PeriodCount);
+        Assert.Equal(1, row.ReachedCount);
+        Assert.Equal(1, row.EarlyResetCount);
+        Assert.Equal(Start.AddMinutes(664), row.LastEarlyResetAt);
+        // Hit at minute 600, cleared at minute 664 (not at the reset days later).
+        Assert.Equal(TimeSpan.FromMinutes(64), row.BlockedTime);
+        Assert.Equal(100, row.Highest);
+        Assert.Equal(60, row.AveragePeak);
+    }
+
+    [Fact]
+    public void An_early_reset_without_the_stored_flag_is_found_from_the_values()
+    {
+        var reset = Start.AddDays(4);
+        var row = Assert.Single(Build(("claude", new[]
+        {
+            At(0, 100, reset),
+            At(4, 4, reset),
+            At(100, 8, reset),
+        })));
+
+        Assert.Equal(2, row.PeriodCount);
+        Assert.Equal(1, row.EarlyResetCount);
+    }
+
+    [Fact]
+    public void A_regular_reset_and_a_plan_change_are_no_limit_resets()
+    {
+        var first = Start.AddDays(4);
+        var second = first.AddDays(7);
+        var row = Assert.Single(Build(("claude", new[]
+        {
+            At(0, 83, first, "Max"),
+            At(2, 0, first, "Ultra"),
+            At(5000, 50, second, "Ultra"),
+            At(12000, 3, second.AddDays(7), "Ultra"),
+        })));
+
+        Assert.Equal(0, row.EarlyResetCount);
+        Assert.Null(row.LastEarlyResetAt);
+        Assert.Equal(4, row.PeriodCount);
+    }
+
+    [Fact]
+    public void Splitting_into_periods_never_keeps_a_value_drop_inside_one_period()
+    {
+        var reset = Start.AddDays(4);
+        var periods = StatsLimitsAggregator.SplitIntoPeriods(new[] { At(0, 100, reset), At(4, 4, reset), At(10, 9, reset) });
+
+        Assert.Equal(2, periods.Count);
+        Assert.Equal([100.0], periods[0].Select(point => point.Percent));
+        Assert.Equal([4.0, 9.0], periods[1].Select(point => point.Percent));
+    }
+
     [Fact]
     public void A_provider_without_points_gives_no_row()
     {
@@ -168,8 +238,8 @@ public class StatsLimitsAggregatorTests
 
 public class StatsViewModelLimitsTests
 {
-    private static HistoryPoint Weekly(double percent, DateTimeOffset reset) =>
-        new(1, DateTimeOffset.Now.AddHours(-3), WindowKind.Weekly, percent, reset);
+    private static HistoryPoint Weekly(double percent, DateTimeOffset reset, int minutes = 0) =>
+        new(1, DateTimeOffset.Now.AddHours(-3).AddMinutes(minutes), WindowKind.Weekly, percent, reset);
 
     private static StatsViewModel Create(Func<string, DateTimeOffset, DateTimeOffset, IReadOnlyList<HistoryPoint>> history)
     {
@@ -183,7 +253,7 @@ public class StatsViewModelLimitsTests
     public void Quota_history_shows_one_row_per_window_with_the_formatted_figures()
     {
         var reset = DateTimeOffset.Now.AddDays(2);
-        var viewModel = Create((id, _, _) => id == "claude" ? [Weekly(100, reset), Weekly(40, reset)] : []);
+        var viewModel = Create((id, _, _) => id == "claude" ? [Weekly(40, reset), Weekly(100, reset, 10)] : []);
 
         var group = Assert.Single(viewModel.LimitGroups);
         Assert.Equal("Claude", group.ProviderName);
@@ -435,6 +505,53 @@ public class StatsLimitTextTests
 
     private static string Date(DateTimeOffset moment) =>
         DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(moment.LocalDateTime), LocalizationService.Instance.DisplayCulture);
+
+    private static HistoryPoint WeeklyAt(double percent, DateTimeOffset reset, int minutes) =>
+        new(1, DateTimeOffset.Now.AddHours(-3).AddMinutes(minutes), WindowKind.Weekly, percent, reset);
+
+    [Fact]
+    public void A_used_limit_reset_gets_its_own_line_with_the_count_and_the_last_date()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            var reset = DateTimeOffset.Now.AddDays(2);
+            var viewModel = Create([WeeklyAt(100, reset, 0), WeeklyAt(4, reset, 5), WeeklyAt(90, reset, 60), WeeklyAt(3, reset, 65)]);
+
+            var row = Assert.Single(Assert.Single(viewModel.LimitGroups).Rows);
+            Assert.Equal($"2 limit resets used, last {Date(DateTimeOffset.Now.AddHours(-3).AddMinutes(65))}", row.ResetUsedText);
+            Assert.True(row.HasResetUsed);
+            Assert.Contains(row.ResetUsedText, row.AutomationText, StringComparison.Ordinal);
+            Assert.Equal("A limit reset clears the window before its time; the statistics start a new period there.", row.ResetUsedTip);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
+
+    [Fact]
+    public void One_used_limit_reset_uses_the_singular_and_none_leaves_the_line_empty()
+    {
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("en");
+        try
+        {
+            var reset = DateTimeOffset.Now.AddDays(2);
+            var one = Create([WeeklyAt(100, reset, 0), WeeklyAt(4, reset, 5)]);
+            var none = Create([WeeklyAt(40, reset, 0), WeeklyAt(70, reset, 5)]);
+
+            Assert.StartsWith("1 limit reset used, last ", Assert.Single(Assert.Single(one.LimitGroups).Rows).ResetUsedText, StringComparison.Ordinal);
+            var plain = Assert.Single(Assert.Single(none.LimitGroups).Rows);
+            Assert.Equal("", plain.ResetUsedText);
+            Assert.False(plain.HasResetUsed);
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
 
     [Fact]
     public void A_row_says_how_many_cycles_hit_the_limit_when_last_and_for_how_long()

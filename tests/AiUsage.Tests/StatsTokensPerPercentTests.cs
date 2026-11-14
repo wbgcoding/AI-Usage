@@ -246,6 +246,29 @@ public class StatsTokensPerPercentTests
     }
 
     [Fact]
+    public void An_hour_across_an_early_reset_is_not_paired_but_the_new_cycle_is()
+    {
+        var start = new DateTime(2026, 10, 5, 8, 0, 0, DateTimeKind.Local);
+        var begin = new DateTimeOffset(start);
+        var reset = begin.AddDays(3);
+        // 30 at 08:00, cleared at 08:20 (reset time unchanged) to 2, 40 at 09:00 and 45 at 10:00:
+        // pairing 08:00 with 09:00 would claim 10 points for an hour that really used 38 after the clear.
+        var points = new[]
+        {
+            new HistoryPoint(1, begin, WindowKind.Weekly, 30, reset),
+            new HistoryPoint(1, begin.AddMinutes(20), WindowKind.Weekly, 2, reset),
+            new HistoryPoint(1, begin.AddHours(1), WindowKind.Weekly, 40, reset),
+            new HistoryPoint(1, begin.AddHours(2), WindowKind.Weekly, 45, reset),
+        };
+        var records = new[] { Record(start, ModelA, 100), Record(start.AddHours(1), ModelA, 100) };
+
+        var intervals = StatsTokensPerPercent.BuildIntervals(records, points);
+
+        var only = Assert.Single(intervals);
+        Assert.Equal(5.0, only.DeltaPercent, 6);
+    }
+
+    [Fact]
     public void A_fall_of_the_quota_inside_an_hour_is_not_an_interval()
     {
         var start = new DateTime(2026, 10, 5, 8, 0, 0, DateTimeKind.Local);

@@ -25,4 +25,8 @@ public sealed record HistoryPoint(
     // The plan this reading was taken on (the exact output of PlanTier.Normalize, e.g. "Max",
     // "Ultra"); null when unknown or recorded before plans were kept. A null counts for the
     // provider's current plan.
-    [property: JsonPropertyName("pl")] string? Plan = null);
+    [property: JsonPropertyName("pl")] string? Plan = null,
+    // True only on the first reading after a limit reset that came before the window's regular reset
+    // (the value fell far while the reset time stayed); absent otherwise. A line without it is still
+    // judged from its values (CycleBoundaries). Older builds ignore the key.
+    [property: JsonPropertyName("er"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? EarlyReset = null);

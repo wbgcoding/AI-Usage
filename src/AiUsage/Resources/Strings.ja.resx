@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>使用があった平均的な枠のトークン数と、平均して到達したクォータのピークです。</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>ピーク: 期間内の最高値。平均ピーク: 各ウィンドウの最高値の平均で、バー上に線で表示されます。</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>この期間の使用枠の履歴はまだありません。</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>上限リセットを{0}回使用、最後は{1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>上限リセットを{0}回使用、最後は{1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>上限リセットは、通常のリセットより前に枠をリセットします。統計はここから新しい期間として扱います。</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>ご自身の {0} 時間分の使用量からの推定です。キャッシュ読み取りは別集計で、1% ≈ キャッシュトークン {1} です。</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>プロジェクトなし</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>その他のプロジェクト</value></data>

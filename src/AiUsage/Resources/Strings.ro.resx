@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokeni dintr-o fereastră medie cu consum și vârful mediu atins al cotei.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Vârf: cel mai înalt nivel din interval. Vârf mediu: media celui mai înalt nivel al fiecărei ferestre, marcată ca linie pe bară.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Încă niciun istoric de cotă în această perioadă.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>O resetare de limită golește fereastra înainte de vreme; statisticile încep acolo o nouă perioadă.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din {0} ore de consum propriu. Citirile din cache se numără separat: 1% ≈ {1} tokeni din cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Fără proiect</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Alte proiecte</value></data>

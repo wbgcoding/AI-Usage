@@ -434,6 +434,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Tokens in een gemiddeld venster met verbruik en de gemiddeld bereikte piek van het quotum.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Piek: het hoogste niveau in het bereik. Gem. piek: het gemiddelde van het hoogste niveau van elk venster, als lijn op de balk aangegeven.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Nog geen quotageschiedenis in deze periode.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} limietreset gebruikt, laatst {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} limietresets gebruikt, laatst {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Een limietreset zet het venster vóór de tijd terug; de statistieken beginnen daar een nieuwe periode.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schatting op basis van {0} uur eigen verbruik. Cache-leesacties tellen apart: 1% ≈ {1} gecachete tokens.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Geen project</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Overige projecten</value></data>

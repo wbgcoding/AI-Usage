@@ -433,6 +433,9 @@
   <data name="Tip.Stats.Forecast.Average" xml:space="preserve"><value>Token in einem durchschnittlichen Fenster mit Nutzung und die dort im Schnitt erreichte Spitze der Quote.</value></data>
   <data name="Tip.Stats.Limits.Detail" xml:space="preserve"><value>Spitze: der höchste Stand im Zeitraum. Ø Spitze: der mittlere Höchststand je Zeitfenster, auf dem Balken als Strich markiert.</value></data>
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Für diesen Zeitraum gibt es noch keinen Kontingent-Verlauf.</value></data>
+  <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} Limit-Reset genutzt, zuletzt {1}</value></data>
+  <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} Limit-Resets genutzt, zuletzt {1}</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Ein Limit-Reset setzt das Fenster vor seiner Zeit zurück; die Statistik beginnt dort einen neuen Zeitraum.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schätzung aus {0} Stunden deiner Nutzung. Gelesener Cache zählt getrennt: 1 % ≈ {1} Token aus dem Cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Ohne Projekt</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Weitere Projekte</value></data>
