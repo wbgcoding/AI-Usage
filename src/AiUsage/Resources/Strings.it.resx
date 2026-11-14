@@ -436,7 +436,7 @@
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Ancora nessuna cronologia delle quote per questo periodo.</value></data>
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} reset del limite usato, l'ultimo {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} reset del limite usati, l'ultimo {1}</value></data>
-  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Un reset del limite azzera la finestra prima del tempo; le statistiche iniziano qui un nuovo periodo.</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Un reset del limite azzera la finestra prima del tempo; da quel momento le statistiche iniziano un nuovo periodo.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Stima basata su {0} ore del tuo utilizzo. Le letture dalla cache sono conteggiate a parte: 1% ≈ {1} token in cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Nessun progetto</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Altri progetti</value></data>
@@ -708,7 +708,7 @@
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>L'accesso a Console è scaduto, il saldo API non viene letto.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Accedi di nuovo</value></data>
   <data name="Settings.TileTokenCost" xml:space="preserve"><value>Mostra il valore API accanto ai token di una finestra</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Stima per le finestre da cinque ore e settimanali. Richiede la stima dei costi attiva.</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Stima per le finestre di cinque ore e settimanali. La stima dei costi deve essere attiva.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Avvisa 10 minuti prima che una finestra piena si azzeri</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Solo per le finestre al 90 % o più, una volta per azzeramento.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} si azzera tra {2} min</value></data>

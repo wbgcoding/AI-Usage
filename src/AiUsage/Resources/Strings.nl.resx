@@ -436,7 +436,7 @@
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Nog geen quotageschiedenis in deze periode.</value></data>
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} limietreset gebruikt, laatst {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} limietresets gebruikt, laatst {1}</value></data>
-  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Een limietreset zet het venster vóór de tijd terug; de statistieken beginnen daar een nieuwe periode.</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Een limietreset maakt het venster voortijdig leeg; de statistieken beginnen dan een nieuwe periode.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schatting op basis van {0} uur eigen verbruik. Cache-leesacties tellen apart: 1% ≈ {1} gecachete tokens.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Geen project</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Overige projecten</value></data>
@@ -722,7 +722,7 @@
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
   <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Elke week een csv-bestand van de vorige week opslaan</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Map kiezen…</value></data>
-  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Meer mappen (bij elke run ingelezen)</value></data>
+  <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Meer mappen (bij elke start ingelezen)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Map toevoegen…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Verwijderen</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Sessiebestanden eenmalig inlezen…</value></data>

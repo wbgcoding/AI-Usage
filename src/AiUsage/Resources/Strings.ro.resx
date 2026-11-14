@@ -436,7 +436,7 @@
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Încă niciun istoric de cotă în această perioadă.</value></data>
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
-  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>O resetare de limită golește fereastra înainte de vreme; statisticile încep acolo o nouă perioadă.</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>O resetare a limitei golește fereastra înainte de termen; statisticile încep atunci o nouă perioadă.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din {0} ore de consum propriu. Citirile din cache se numără separat: 1% ≈ {1} tokeni din cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Fără proiect</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Alte proiecte</value></data>
@@ -664,7 +664,7 @@
   <data name="Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Ora</value></data>
   <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Schimbă folderul…</value></data>
   <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>Niciun folder ales încă</value></data>
-  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Citește o singură dată în statistici fișierele de sesiune Claude Code dintr-un folder, de exemplu o copie veche. Sesiunile deja numărate nu sunt numărate de două ori.</value></data>
+  <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Importă o singură dată în statistici fișierele de sesiune Claude Code dintr-un folder, de exemplu o copie veche. Sesiunile deja numărate nu sunt numărate de două ori.</value></data>
   <data name="Settings.Backup.Imported" xml:space="preserve"><value>Au fost importate {0} zile de istoric de tokeni de la {1}.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>A fost importată 1 zi de istoric de tokeni de la {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Elimină</value></data>
@@ -705,8 +705,8 @@
   <data name="Tile.ApiCredit.Bought" xml:space="preserve"><value>din care cumpărat: {0}</value></data>
   <data name="Tile.ApiCredit.Expired" xml:space="preserve"><value>Autentificarea la Console a expirat</value></data>
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Autentificarea la Claude Console a expirat, așa că soldul nu mai este citit. Autentifică-te din nou în Setări, la Claude Console (credit API).</value></data>
-  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Conectarea la Console a expirat, soldul API nu este citit.</value></data>
-  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Conectează-te din nou</value></data>
+  <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Autentificarea la Console a expirat; soldul API nu este citit.</value></data>
+  <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Autentifică-te din nou</value></data>
   <data name="Settings.TileTokenCost" xml:space="preserve"><value>Arată valoarea API lângă tokenii unei ferestre</value></data>
   <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimare pentru ferestrele de cinci ore și cele săptămânale. Necesită estimarea costurilor activată.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Notifică cu 10 minute înainte de resetarea unei ferestre pline</value></data>

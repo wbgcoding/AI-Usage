@@ -436,7 +436,7 @@
   <data name="Stats.Limits.Empty" xml:space="preserve"><value>Aún no hay historial de cuota en este período.</value></data>
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} reinicio de límite usado, el último {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} reinicios de límite usados, el último {1}</value></data>
-  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Un reinicio de límite borra la ventana antes de tiempo; las estadísticas empiezan un nuevo período ahí.</value></data>
+  <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Un reinicio de límite restablece la ventana antes de tiempo; las estadísticas comienzan entonces un nuevo período.</value></data>
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimación a partir de {0} horas de tu propio uso. Las lecturas de caché se cuentan aparte: 1% ≈ {1} tokens en caché.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Sin proyecto</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Otros proyectos</value></data>
@@ -708,7 +708,7 @@
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>La sesión de Console ha caducado, no se lee el saldo de la API.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Volver a iniciar sesión</value></data>
   <data name="Settings.TileTokenCost" xml:space="preserve"><value>Mostrar el valor de API junto a los tokens de una ventana</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimación para las ventanas de cinco horas y semanales. Requiere la estimación de costes activada.</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimación para las ventanas de cinco horas y semanales. La estimación de costes debe estar activada.</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Avisar 10 minutos antes de que se restablezca una ventana llena</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Solo para ventanas al 90 % o más, una vez por restablecimiento.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} se restablece en {2} min</value></data>
