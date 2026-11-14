@@ -571,8 +571,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Avg peak {0} · highest {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>last at the limit {0} · blocked about {1}</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>Readings {0} to {1}</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · until {1}</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} has {1} the capacity</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} has {1} the capacity of {2}</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>Until {0}</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} costs {1} more per month</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} costs {1} less per month</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prices not loaded yet.</value></data>

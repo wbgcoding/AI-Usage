@@ -571,8 +571,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Pico médio {0} · máximo {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>última vez no limite {0} · bloqueado por cerca de {1}</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>Medições de {0} a {1}</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · até {1}</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} tem {1} a capacidade</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} tem {1} a capacidade de {2}</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>Até {0}</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} custa {1} a mais por mês</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} custa {1} a menos por mês</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Os preços ainda não foram carregados.</value></data>

@@ -570,8 +570,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Ø Spitze {0} · höchste {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>zuletzt am Limit {0} · gesperrt ca. {1}</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>Messwerte {0} bis {1}</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · bis {1}</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} hat {1} so viel Kapazität</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} hat {1} so viel Kapazität wie {2}</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>Bis {0}</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} kostet {1} mehr pro Monat</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} kostet {1} weniger pro Monat</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Preise noch nicht geladen.</value></data>

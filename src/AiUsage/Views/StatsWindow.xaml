@@ -967,6 +967,7 @@
                                                 <RadioButton Style="{StaticResource PillRadioButton}" GroupName="PlanForecastProvider"
                                                              Tag="{Binding Brush}" Opacity="{Binding Opacity}"
                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                             ToolTip="{Binding ToolTipText, Converter={StaticResource NullIfEmpty}}"
                                                              AutomationProperties.Name="{Binding Name}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"/>
@@ -984,7 +985,8 @@
                                                   Visibility="{Binding HasSingleForecast, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}" Opacity="{Binding Opacity}">
+                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}" Opacity="{Binding Opacity}"
+                                                            Background="Transparent" ToolTip="{Binding ToolTipText, Converter={StaticResource NullIfEmpty}}">
                                                     <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Brush}"/>
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                                     <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center"
@@ -1076,10 +1078,11 @@
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
-                                                    <!-- An old plan against the one in use now. -->
+                                                    <!-- The capacity comparison normally sits in the month card; alone only when there is no card. -->
                                                     <TextBlock Text="{Binding VsCurrentText}" Margin="0,0,0,8" TextWrapping="Wrap"
+                                                               FontSize="{StaticResource Font.Size.Small}"
                                                                Foreground="{DynamicResource Text.Secondary}"
-                                                               Visibility="{Binding HasVsCurrent, Converter={StaticResource BoolToVis}}"/>
+                                                               Visibility="{Binding ShowVsCurrentAlone, Converter={StaticResource BoolToVis}}"/>
                                                     <!-- A month of the plan's API value against its price, on one scale. -->
                                                     <ContentControl Content="{Binding Month}" Focusable="False"
                                                                     Visibility="{Binding HasMonth, Converter={StaticResource BoolToVis}}">
@@ -1102,6 +1105,15 @@
                                                                             <controls:FractionBar Height="8" Margin="0,4,0,0" Fraction="1" Fill="{Binding Brush}"
                                                                                                   Track="{DynamicResource Track}" Outline="{DynamicResource Border.Control}"
                                                                                                   OutlineThickness="{DynamicResource Track.BorderThickness}"/>
+                                                                            <!-- Under the bar: how the plan's capacity compares with the provider's other plan, then the price difference. -->
+                                                                            <TextBlock Text="{Binding CompareText}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                                                       Foreground="{DynamicResource Text.Secondary}"
+                                                                                       FontSize="{StaticResource Font.Size.Small}"
+                                                                                       Visibility="{Binding HasCompare, Converter={StaticResource BoolToVis}}"/>
+                                                                            <TextBlock Text="{Binding PriceDiffText}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                                                                       Foreground="{DynamicResource Text.Secondary}"
+                                                                                       FontSize="{StaticResource Font.Size.Small}"
+                                                                                       Visibility="{Binding HasPriceDiff, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
                                                                         <!-- Ratio, its caption and the plan price, centred on each other; beside the bar while the
                                                                              section is wide, below it once it is narrow. -->
@@ -1149,10 +1161,6 @@
                                                                                        Margin="0,2,0,0" TextWrapping="NoWrap" Background="Transparent"
                                                                                        ToolTip="{Binding PlanToolTip, Converter={StaticResource NullIfEmpty}}"
                                                                                        Visibility="{Binding HasPlan, Converter={StaticResource BoolToVis}}"/>
-                                                                            <TextBlock Text="{Binding PriceDiffText}" Foreground="{DynamicResource Text.Muted}"
-                                                                                       FontSize="{StaticResource Font.Size.Micro}"
-                                                                                       Margin="0,2,0,0" TextWrapping="NoWrap"
-                                                                                       Visibility="{Binding HasPriceDiff, Converter={StaticResource BoolToVis}}"/>
                                                                         </StackPanel>
                                                                     </Grid>
                                                                 </Border>

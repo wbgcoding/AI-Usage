@@ -571,8 +571,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>平均ピーク {0} · 最高 {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>最後に上限に到達 {0} · 約{1}利用不可</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>測定値 {0} から {1}</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · {1}まで</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0}の容量は{1}です</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0}の容量は{2}の{1}です</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>{0}まで</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0}は月額{1}高くなります</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0}は月額{1}安くなります</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>価格はまだ読み込まれていません。</value></data>

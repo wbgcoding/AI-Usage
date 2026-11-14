@@ -571,8 +571,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Ort. tepe {0} · en yüksek {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>son sınır {0} · yaklaşık {1} engelli</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>{0} ile {1} arası ölçümler</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · {1} tarihine kadar</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} planı {1} kapasiteye sahip</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} planının kapasitesi, {2} planına göre {1}</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>{0} tarihine kadar</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} ayda {1} daha pahalı</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} ayda {1} daha ucuz</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Fiyatlar henüz yüklenmedi.</value></data>

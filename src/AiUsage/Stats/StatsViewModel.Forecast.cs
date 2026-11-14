@@ -81,13 +81,14 @@ public sealed partial class StatsViewModel
         SelectedForecastProvider = ForecastProviders.FirstOrDefault(provider => provider.Key == SelectedForecastKey)?.ProviderId ?? "";
         ShownForecast = [.. ForecastProviders.Where(provider => provider.Key == SelectedForecastKey)];
 
-        if (!ForecastButtons.Select(button => (button.Key, button.Name)).SequenceEqual(ForecastProviders.Select(provider => (provider.Key, provider.ButtonName))))
+        if (!ForecastButtons.Select(button => (button.Key, button.Name, button.ToolTipText)).SequenceEqual(ForecastProviders.Select(provider => (provider.Key, provider.ButtonName, provider.OldUntilText))))
         {
             ForecastButtons.Clear();
             foreach (var provider in ForecastProviders)
             {
                 ForecastButtons.Add(new StatsForecastButtonViewModel(
-                    provider.ProviderId, provider.ButtonName, provider.Brush, PickForecastProvider, provider.Plan, provider.Key, !provider.IsCurrent));
+                    provider.ProviderId, provider.ButtonName, provider.Brush, PickForecastProvider, provider.Plan, provider.Key, !provider.IsCurrent,
+                    provider.OldUntilText));
             }
         }
 
@@ -230,15 +231,17 @@ public sealed partial class StatsViewModel
             var forecasts = state.Forecasts.Values.Where(forecast => forecast.ProviderId == providerId)
                 .OrderByDescending(forecast => forecast.LastReading).ThenBy(forecast => forecast.Plan, StringComparer.Ordinal).ToList();
             var now = forecasts.Where(forecast => forecast.IsCurrent).ToList();
-            current.AddRange(now.Select(forecast => BuildForecastProvider(forecast, state.Cost, loc)));
-            old.AddRange(forecasts.Where(forecast => !forecast.IsCurrent).Select(forecast => BuildForecastProvider(forecast, state.Cost, loc, now.FirstOrDefault())));
+            var left = forecasts.Where(forecast => !forecast.IsCurrent).ToList();
+            // Each plan is compared with the provider's other side: a current plan with the newest old one, an old plan with the current one.
+            current.AddRange(now.Select(forecast => BuildForecastProvider(forecast, state.Cost, loc, left.FirstOrDefault())));
+            old.AddRange(left.Select(forecast => BuildForecastProvider(forecast, state.Cost, loc, now.FirstOrDefault())));
         }
 
         return [.. current, .. old];
     }
 
     internal static StatsForecastProviderViewModel BuildForecastProvider(
-        ProviderForecast forecast, StatsCostView cost, LocalizationService loc, ProviderForecast? current = null)
+        ProviderForecast forecast, StatsCostView cost, LocalizationService loc, ProviderForecast? other = null)
     {
         var brush = new SolidColorBrush(ChartPalette.ForProvider(forecast.ProviderId));
         brush.Freeze();
@@ -251,35 +254,47 @@ public sealed partial class StatsViewModel
 
         var providerName = ProviderDisplayNames.GetValueOrDefault(forecast.ProviderId, forecast.ProviderId);
         var planText = string.Join(" + ", forecast.Plans);
-        var compare = forecast.IsCurrent ? null : current;
+        // The chip names the plan only; the end date of an old plan is the chip's tooltip.
         var oldLabel = "";
+        var oldUntil = "";
         if (!forecast.IsCurrent)
         {
-            var until = forecast.LastReading is { } last ? DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(last.LocalDateTime), loc.DisplayCulture) : "";
-            oldLabel = loc.Format("Stats.Forecast.OldPlan", planText.Length > 0 ? $"{providerName} {planText}" : providerName, until);
+            oldLabel = planText.Length > 0 ? $"{providerName} {planText}" : providerName;
+            if (forecast.LastReading is { } last)
+            {
+                oldUntil = loc.Format("Stats.Forecast.OldPlanUntil",
+                    DateLabels.WeekdayDayMonthLong(DateOnly.FromDateTime(last.LocalDateTime), loc.DisplayCulture, DateOnly.FromDateTime(DateTime.Now)));
+            }
         }
 
+        var vsCurrent = other is null ? "" : CapacityComparison(forecast, other, loc);
         return new StatsForecastProviderViewModel(
             forecast.ProviderId, providerName, brush, planText,
             forecast.AccountCount > 1 ? loc.Format("Stats.Forecast.Accounts", forecast.AccountCount) : "",
-            windows, ForecastMonthCard(forecast, cost, loc, rangeNote, brush, compare), forecast.Key, forecast.Plan, forecast.IsCurrent, oldLabel,
-            compare is null ? "" : VsCurrentText(forecast, compare, loc));
+            windows, ForecastMonthCard(forecast, cost, loc, rangeNote, brush, other, vsCurrent), forecast.Key, forecast.Plan, forecast.IsCurrent, oldLabel,
+            oldUntil, vsCurrent);
     }
 
-    /// <summary>"Ultra has 4.1x the capacity": how many times the current plan's capacity the old plan's is, from the
-    /// week when both have one, else from the 5-hour window. Empty when no window can be compared.</summary>
-    private static string VsCurrentText(ProviderForecast old, ProviderForecast current, LocalizationService loc)
+    /// <summary>The capacity sentence of two plans of one provider ("Ultra has 3.2x the capacity of Max"): the plan with more
+    /// capacity first, from the week when both have one, else from the 5-hour window. Empty when no window can be compared,
+    /// a plan is unnamed or the capacities are within 5 percent.</summary>
+    private static string CapacityComparison(ProviderForecast self, ProviderForecast other, LocalizationService loc)
     {
-        var name = current.Plan ?? string.Join(" + ", current.Plans);
-        if (name.Length == 0)
+        var selfName = self.Plan ?? string.Join(" + ", self.Plans);
+        var otherName = other.Plan ?? string.Join(" + ", other.Plans);
+        if (selfName.Length == 0 || otherName.Length == 0)
             return "";
 
-        foreach (var (before, now) in new[] { (old.Weekly, current.Weekly), (old.FiveHour, current.FiveHour) })
+        foreach (var (mine, theirs) in new[] { (self.Weekly, other.Weekly), (self.FiveHour, other.FiveHour) })
         {
-            if (before is { CapacityTokens: > 0 } && now is { CapacityTokens: > 0 })
+            if (mine is { CapacityTokens: > 0 } && theirs is { CapacityTokens: > 0 })
             {
-                var ratio = (double)now.CapacityTokens / before.CapacityTokens;
-                return loc.Format("Stats.Forecast.VsCurrent", name, ratio.ToString("0.0", CultureInfo.CurrentCulture) + "×");
+                var ratio = (double)theirs.CapacityTokens / mine.CapacityTokens;
+                if (Math.Max(ratio, 1 / ratio) < 1.05)
+                    return "";
+
+                var (bigger, smaller) = ratio >= 1 ? (otherName, selfName) : (selfName, otherName);
+                return loc.Format("Stats.Forecast.VsCurrent", bigger, Math.Max(ratio, 1 / ratio).ToString("0.0", CultureInfo.CurrentCulture) + "×", smaller);
             }
         }
 
@@ -334,7 +349,8 @@ public sealed partial class StatsViewModel
     }
 
     private static StatsForecastMonthViewModel? ForecastMonthCard(
-        ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote, Brush brush, ProviderForecast? current = null)
+        ProviderForecast forecast, StatsCostView cost, LocalizationService loc, string rangeNote, Brush brush, ProviderForecast? other = null,
+        string compareText = "")
     {
         if (forecast.MonthlyApiUsd is not { } monthly || Money(cost, monthly) is not { Length: > 0 } monthlyText)
             return null;
@@ -378,6 +394,7 @@ public sealed partial class StatsViewModel
 
         // An old plan against the current one: what the current one costs more or less per month, when both prices are known.
         var priceDiff = "";
+        var current = forecast.IsCurrent ? null : other;
         if (current is { PlanPrices: { Count: > 0 } currentPrices, Plan.Length: > 0 }
             && forecast.PlanPrices is { Count: > 0 } oldPrices
             && ShownPrice(currentPrices, euro, rate) is { } currentShown && ShownPrice(oldPrices, euro, rate) is { } oldShown
@@ -390,7 +407,7 @@ public sealed partial class StatsViewModel
         return new StatsForecastMonthViewModel(
             loc.Format("Stats.Forecast.MonthApi", monthlyText), planText, planTip,
             ratio, ratio.Length > 0 ? loc["Stats.Forecast.RatioCaption"] : "",
-            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush, priceDiff);
+            loc["Tip.Stats.Forecast.Month"] + "\n" + rangeNote, brush, priceDiff, compareText);
     }
 
     /// <summary>The summed monthly price of the plans as the card shows it (with VAT in euros), or null when a rate is missing.</summary>

@@ -571,8 +571,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>Vârf mediu {0} · maxim {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>ultima dată la limită {0} · blocat circa {1}</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>Măsurători de la {0} până la {1}</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · până la {1}</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} are {1} capacitatea</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} are {1} capacitatea lui {2}</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>Până la {0}</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} costă cu {1} mai mult pe lună</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} costă cu {1} mai puțin pe lună</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>Prețurile nu sunt încă încărcate.</value></data>

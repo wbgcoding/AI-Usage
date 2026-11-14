@@ -28,8 +28,11 @@ public sealed record StatsForecastWindowViewModel(
 /// with its list price (the tooltip names where the price comes from and when it was checked).</summary>
 public sealed record StatsForecastMonthViewModel(
     string ApiText, string PlanText, string PlanToolTip, string RatioText, string RatioCaption, string ToolTip, Brush Brush,
-    string PriceDiffText = "")
+    string PriceDiffText = "", string CompareText = "")
 {
+    /// <summary>The capacity comparison with the provider's other plan, a small line under the bar.</summary>
+    public bool HasCompare => CompareText.Length > 0;
+
     public bool HasPriceDiff => PriceDiffText.Length > 0;
 
     public bool HasPlan => PlanText.Length > 0;
@@ -44,13 +47,16 @@ public sealed record StatsForecastMonthViewModel(
 public sealed record StatsForecastProviderViewModel(
     string ProviderId, string Name, Brush Brush, string PlanText, string AccountsText,
     IReadOnlyList<StatsForecastWindowViewModel> Windows, StatsForecastMonthViewModel? Month,
-    string Key = "", string? Plan = null, bool IsCurrent = true, string OldLabel = "", string VsCurrentText = "")
+    string Key = "", string? Plan = null, bool IsCurrent = true, string OldLabel = "", string OldUntilText = "", string VsCurrentText = "")
 {
-    /// <summary>What the button above the forecast says: the provider's name, or for an old plan the label with its end date.</summary>
+    /// <summary>What the button above the forecast says: the provider's name, or for an old plan the provider and plan.</summary>
     public string ButtonName => IsCurrent ? Name : OldLabel;
 
-    /// <summary>The line under the window cards comparing an old plan with the current one; empty for a current plan.</summary>
+    /// <summary>The sentence comparing this plan's capacity with the provider's other plan; empty with one plan or near-equal capacity.</summary>
     public bool HasVsCurrent => VsCurrentText.Length > 0;
+
+    /// <summary>True when the sentence has no month card to sit in (no API value to show) and stands as its own line.</summary>
+    public bool ShowVsCurrentAlone => HasVsCurrent && Month is null;
 
     /// <summary>The small text beside the provider name: plan(s), then the account count when there are several.</summary>
     public string Detail => PlanText.Length > 0 && AccountsText.Length > 0 ? TextCompose.Pair(PlanText, AccountsText) : PlanText + AccountsText;
@@ -61,7 +67,8 @@ public sealed record StatsForecastProviderViewModel(
 /// <summary>One provider button above the forecast: the provider's name, its plan beside it, its colour and whether it is the
 /// shown one. <see cref="IsChecked"/> is what the radio button binds to, so a click or an arrow key both land in the owner.</summary>
 public sealed partial class StatsForecastButtonViewModel(
-    string providerId, string name, Brush brush, Action<string> pick, string? plan = null, string? key = null, bool isOld = false) : ObservableObject
+    string providerId, string name, Brush brush, Action<string> pick, string? plan = null, string? key = null, bool isOld = false,
+    string toolTipText = "") : ObservableObject
 {
     private bool _isChecked;
 
@@ -75,6 +82,9 @@ public sealed partial class StatsForecastButtonViewModel(
 
     /// <summary>True for a plan the provider has left; its button is drawn muted.</summary>
     public bool IsOld { get; } = isOld;
+
+    /// <summary>The button's tooltip: for an old plan the date it ended; empty otherwise.</summary>
+    public string ToolTipText { get; } = toolTipText;
 
     public double Opacity => IsOld ? 0.6 : 1;
 

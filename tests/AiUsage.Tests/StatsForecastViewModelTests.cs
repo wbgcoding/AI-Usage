@@ -212,7 +212,9 @@ public class StatsForecastViewModelTests
     [Fact]
     public async Task An_old_plan_gets_a_muted_button_after_every_current_one_and_compares_with_the_current_plan()
     {
-        var claudePoints = History(100, "claude").Points.Select((point, index) => point with { Plan = index < 50 ? "Max" : "Ultra" }).ToList();
+        // The old plan fills twice the percent for the same tokens, so the current one has twice its capacity.
+        var claudePoints = History(100, "claude").Points
+            .Select((point, index) => index < 50 ? point with { Plan = "Max", Percent = point.Percent * 2 } : point with { Plan = "Ultra" }).ToList();
         var lastMax = claudePoints[49].Timestamp;
         var (viewModel, directory) = await CreateAsync(
             100, plan: key => key.StartsWith("claude", StringComparison.Ordinal) ? "Ultra" : null, withCodex: true,
@@ -227,10 +229,15 @@ public class StatsForecastViewModelTests
             Assert.Equal("claude|Ultra", viewModel.SelectedForecastKey);
             Assert.Equal("Ultra", viewModel.ForecastButtons[0].Detail);
             Assert.Equal("", viewModel.ForecastButtons[2].Detail);
+            Assert.Equal("Claude Max", viewModel.ForecastButtons[2].Name);
             Assert.Equal(
-                Loc.Format("Stats.Forecast.OldPlan", "Claude Max", DateLabels.WeekdayDayMonthShort(DateOnly.FromDateTime(lastMax.LocalDateTime), Loc.DisplayCulture)),
-                viewModel.ForecastButtons[2].Name);
-            Assert.False(Assert.Single(viewModel.ShownForecast).HasVsCurrent);
+                Loc.Format("Stats.Forecast.OldPlanUntil", DateLabels.WeekdayDayMonthLong(DateOnly.FromDateTime(lastMax.LocalDateTime), Loc.DisplayCulture, DateOnly.FromDateTime(DateTime.Now))),
+                viewModel.ForecastButtons[2].ToolTipText);
+            Assert.Equal("", viewModel.ForecastButtons[0].ToolTipText);
+            var currentShown = Assert.Single(viewModel.ShownForecast);
+            Assert.True(currentShown.HasVsCurrent);
+            Assert.Contains("Ultra", currentShown.VsCurrentText);
+            Assert.Contains("Max", currentShown.VsCurrentText);
 
             viewModel.ForecastButtons[2].IsChecked = true;
             var shown = Assert.Single(viewModel.ShownForecast);
@@ -239,7 +246,7 @@ public class StatsForecastViewModelTests
             Assert.False(shown.IsCurrent);
             Assert.True(shown.HasVsCurrent);
             Assert.Contains("Ultra", shown.VsCurrentText);
-            Assert.Contains("×", shown.VsCurrentText);
+            Assert.Equal(currentShown.VsCurrentText, shown.VsCurrentText);
             Assert.Equal([false, false, true], viewModel.ForecastButtons.Select(button => button.IsChecked));
         }
     }
@@ -256,23 +263,110 @@ public class StatsForecastViewModelTests
         }
     }
 
+    private static ProviderForecast OldMax(long weeklyPerPercent = 500, DateTimeOffset? lastReading = null) =>
+        Forecast(Window(Total(172_000)), Window(Total(weeklyPerPercent)), plan: 100, plans: "Max")
+            with { Plan = "Max", IsCurrent = false, LastReading = lastReading ?? new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero) };
+
+    private static ProviderForecast CurrentUltra(long weeklyPerPercent = 2_000) =>
+        Forecast(Window(Total(172_000)), Window(Total(weeklyPerPercent)), plan: 200, plans: "Ultra") with { Plan = "Ultra" };
+
+    private static string Ratio(double value) => value.ToString("0.0", CultureInfo.CurrentCulture) + "×";
+
     [Fact]
-    public void An_old_plan_with_known_prices_names_the_price_difference_to_the_current_one()
+    public void An_old_plan_chip_names_only_the_plan_and_the_tooltip_the_end_date()
     {
-        var current = Forecast(Window(Total(172_000)), Window(Total(2_000)), plan: 200, plans: "Ultra") with { Plan = "Ultra" };
-        var old = Forecast(Window(Total(172_000)), Window(Total(500)), plan: 100, plans: "Max")
-            with { Plan = "Max", IsCurrent = false, LastReading = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero) };
+        var year = DateTime.Now.Year;
+        var sameYear = new DateTimeOffset(new DateTime(year, 11, 7, 12, 0, 0, DateTimeKind.Local));
+        var otherYear = new DateTimeOffset(new DateTime(year - 1, 11, 7, 12, 0, 0, DateTimeKind.Local));
+        var german = CultureInfo.GetCultureInfo("de-DE");
 
-        var provider = StatsViewModel.BuildForecastProvider(old, new StatsCostView(Prices()), Loc, current);
+        var same = StatsViewModel.BuildForecastProvider(OldMax(lastReading: sameYear), new StatsCostView(Prices()), Loc, CurrentUltra());
+        var other = StatsViewModel.BuildForecastProvider(OldMax(lastReading: otherYear), new StatsCostView(Prices()), Loc, CurrentUltra());
 
-        Assert.False(provider.IsCurrent);
-        Assert.Contains("4.0×", provider.VsCurrentText.Replace(',', '.'));
-        Assert.Contains("Ultra", provider.VsCurrentText);
-        Assert.True(provider.Month!.HasPriceDiff);
-        Assert.Contains("Ultra", provider.Month.PriceDiffText);
-        Assert.Contains("100", provider.Month.PriceDiffText);
-        Assert.StartsWith("Claude Max", provider.ButtonName);
-        Assert.False(StatsViewModel.BuildForecastProvider(current, new StatsCostView(Prices()), Loc).HasVsCurrent);
+        Assert.Equal("Claude Max", same.ButtonName);
+        Assert.Equal("Bis " + new DateTime(year, 11, 7).ToString("dddd, d. MMMM", german), same.OldUntilText);
+        Assert.Equal("Bis " + new DateTime(year - 1, 11, 7).ToString("dddd, d. MMMM yyyy", german), other.OldUntilText);
+        Assert.Equal("", StatsViewModel.BuildForecastProvider(CurrentUltra(), new StatsCostView(Prices()), Loc, OldMax()).OldUntilText);
+    }
+
+    [Fact]
+    public void The_end_date_tooltip_follows_the_language()
+    {
+        var year = DateTime.Now.Year;
+        var old = OldMax(lastReading: new DateTimeOffset(new DateTime(year, 11, 7, 12, 0, 0, DateTimeKind.Local)));
+        Loc.SetLanguage("en");
+        try
+        {
+            var provider = StatsViewModel.BuildForecastProvider(old, new StatsCostView(Prices()), Loc, CurrentUltra());
+
+            Assert.Equal("Claude Max", provider.ButtonName);
+            // The day and month names follow the UI language; their order follows the regional format (here the machine's).
+            Assert.StartsWith("Until ", provider.OldUntilText);
+            Assert.Contains("Saturday", provider.OldUntilText);
+            Assert.Contains("November", provider.OldUntilText);
+            Assert.DoesNotContain(year.ToString(CultureInfo.InvariantCulture), provider.OldUntilText);
+            Assert.Equal(
+                "Until " + DateLabels.WeekdayDayMonthLong(new DateOnly(year, 11, 7), Loc.DisplayCulture, new DateOnly(year, 1, 1)),
+                provider.OldUntilText);
+        }
+        finally
+        {
+            Loc.SetLanguage("de");
+        }
+    }
+
+    [Fact]
+    public void Both_plans_of_a_provider_show_the_same_capacity_sentence_in_the_month_card()
+    {
+        var cost = new StatsCostView(Prices());
+        var expected = Loc.Format("Stats.Forecast.VsCurrent", "Ultra", Ratio(4.0), "Max");
+
+        var old = StatsViewModel.BuildForecastProvider(OldMax(), cost, Loc, CurrentUltra());
+        var current = StatsViewModel.BuildForecastProvider(CurrentUltra(), cost, Loc, OldMax());
+
+        Assert.Equal(expected, old.VsCurrentText);
+        Assert.Equal(expected, current.VsCurrentText);
+        Assert.Equal(expected, old.Month!.CompareText);
+        Assert.Equal(expected, current.Month!.CompareText);
+        Assert.True(old.Month.HasCompare);
+        Assert.StartsWith("Ultra", expected);
+        Assert.EndsWith("Max", expected);
+    }
+
+    [Fact]
+    public void A_bigger_old_plan_is_named_first()
+    {
+        var cost = new StatsCostView(Prices());
+        var expected = Loc.Format("Stats.Forecast.VsCurrent", "Max", Ratio(3.0), "Ultra");
+
+        Assert.Equal(expected, StatsViewModel.BuildForecastProvider(OldMax(6_000), cost, Loc, CurrentUltra()).Month!.CompareText);
+        Assert.Equal(expected, StatsViewModel.BuildForecastProvider(CurrentUltra(), cost, Loc, OldMax(6_000)).Month!.CompareText);
+    }
+
+    [Fact]
+    public void One_plan_or_nearly_equal_capacity_shows_no_capacity_sentence()
+    {
+        var cost = new StatsCostView(Prices());
+
+        Assert.False(StatsViewModel.BuildForecastProvider(CurrentUltra(), cost, Loc).HasVsCurrent);
+        Assert.False(StatsViewModel.BuildForecastProvider(CurrentUltra(), cost, Loc).Month!.HasCompare);
+        Assert.False(StatsViewModel.BuildForecastProvider(OldMax(2_000), cost, Loc, CurrentUltra()).HasVsCurrent);
+        Assert.False(StatsViewModel.BuildForecastProvider(OldMax(1_960), cost, Loc, CurrentUltra()).HasVsCurrent);
+        Assert.True(StatsViewModel.BuildForecastProvider(OldMax(1_900), cost, Loc, CurrentUltra()).HasVsCurrent);
+    }
+
+    [Fact]
+    public void An_old_plan_names_the_price_difference_to_the_current_one_but_the_current_plan_does_not()
+    {
+        var cost = new StatsCostView(Prices());
+
+        var old = StatsViewModel.BuildForecastProvider(OldMax(), cost, Loc, CurrentUltra());
+
+        Assert.False(old.IsCurrent);
+        Assert.True(old.Month!.HasPriceDiff);
+        Assert.Contains("Ultra", old.Month.PriceDiffText);
+        Assert.Contains("100", old.Month.PriceDiffText);
+        Assert.False(StatsViewModel.BuildForecastProvider(CurrentUltra(), cost, Loc, OldMax()).Month!.HasPriceDiff);
     }
 
     [Fact]

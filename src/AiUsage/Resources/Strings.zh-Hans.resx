@@ -571,8 +571,8 @@
   <data name="Stats.Limits.Detail2" xml:space="preserve"><value>平均峰值 {0} · 最高 {1}</value></data>
   <data name="Stats.Limits.LastReached" xml:space="preserve"><value>最近达到上限 {0} · 约受限 {1}</value></data>
   <data name="Stats.Limits.Period" xml:space="preserve"><value>测量值 {0} 至 {1}</value></data>
-  <data name="Stats.Forecast.OldPlan" xml:space="preserve"><value>{0} · 截至 {1}</value></data>
-  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} 的容量为 {1}</value></data>
+  <data name="Stats.Forecast.VsCurrent" xml:space="preserve"><value>{0} 的容量是 {2} 的 {1}</value></data>
+  <data name="Stats.Forecast.OldPlanUntil" xml:space="preserve"><value>截至 {0}</value></data>
   <data name="Stats.Forecast.PriceMore" xml:space="preserve"><value>{0} 每月贵 {1}</value></data>
   <data name="Stats.Forecast.PriceLess" xml:space="preserve"><value>{0} 每月便宜 {1}</value></data>
   <data name="Stats.Cost.NoPrices" xml:space="preserve"><value>价格尚未加载。</value></data>
