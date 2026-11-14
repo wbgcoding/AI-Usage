@@ -50,13 +50,27 @@ internal sealed class TrayPopupWindow : Window
 
     /// <summary>Shows the popup for <paramref name="model"/> next to the icon (<paramref name="anchor"/>,
     /// physical screen pixels), or, when it is already open, replaces its content and puts it where it
-    /// belongs again. Writes one log line with what it did.</summary>
+    /// belongs again. Logs what it did when that differs from the last open, so hovering the icon all
+    /// day does not push the start and error lines out of the size-capped log.</summary>
     internal void ShowAt(TrayPopupModel model, TrayAnchor anchor)
     {
         _anchor = anchor;
         var work = Present(model);
-        LogService.Shared.LogInfo(TrayAnchorResolver.FormatLog(
-            anchor, work, new System.Windows.Size(_target.Width, _target.Height), new System.Windows.Point(_target.X, _target.Y)));
+        var line = TrayAnchorResolver.FormatLog(
+            anchor, work, new System.Windows.Size(_target.Width, _target.Height), new System.Windows.Point(_target.X, _target.Y));
+        if (ShouldLog(line))
+            LogService.Shared.LogInfo(line);
+    }
+
+    private string? _lastLogLine;
+
+    /// <summary>True when <paramref name="line"/> differs from the last placement line written.</summary>
+    internal bool ShouldLog(string line)
+    {
+        if (string.Equals(line, _lastLogLine, StringComparison.Ordinal))
+            return false;
+        _lastLogLine = line;
+        return true;
     }
 
     /// <summary>Replaces the content of an open popup; a closed one stays closed.</summary>

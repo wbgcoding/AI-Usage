@@ -113,4 +113,22 @@ public class TrayPopupViewTests
         Assert.Equal(WindowStyle.None, flags.WindowStyle);
         Assert.True(flags.Item7);
     }
+
+    [Fact]
+    public void A_placement_is_logged_once_until_it_changes()
+    {
+        var answers = StaTestRunner.Run(() =>
+        {
+            var window = new TrayPopupWindow();
+            return new[]
+            {
+                window.ShouldLog("Tray popup: placed 10,20"),
+                window.ShouldLog("Tray popup: placed 10,20"),
+                window.ShouldLog("Tray popup: placed 30,20"),
+                window.ShouldLog("Tray popup: placed 10,20"),
+            };
+        });
+
+        Assert.Equal([true, false, true, true], answers);
+    }
 }
