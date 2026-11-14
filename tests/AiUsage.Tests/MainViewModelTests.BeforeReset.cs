@@ -50,6 +50,23 @@ public partial class MainViewModelTests
     }
 
     [Fact]
+    public void A_reset_time_that_wobbles_by_seconds_between_reads_is_still_announced_once()
+    {
+        var (vm, raised) = BuildBeforeReset(92);
+        vm.EvaluateBeforeReset(EightMinutesBeforeReset);
+
+        // The next read reports the same reset three seconds later (Codex derives it from the read time).
+        var tile = vm.Tiles.Single(t => t.ProviderId == "codex");
+        var wobbled = new ProviderSnapshot("codex",
+            [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 92, Now.AddHours(2).AddSeconds(3), 300)],
+            "Plus", SourceKind.LocalFile, Now, Now, ProviderStatus.Ok, null);
+        tile.Apply(wobbled, Now);
+        vm.EvaluateBeforeReset(EightMinutesBeforeReset.AddMinutes(1));
+
+        Assert.Single(raised);
+    }
+
+    [Fact]
     public void The_next_reset_of_the_same_window_is_announced_again()
     {
         var (vm, raised) = BuildBeforeReset(92);
