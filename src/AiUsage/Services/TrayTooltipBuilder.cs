@@ -32,7 +32,8 @@ public static class TrayTooltipBuilder
         DateTimeOffset? FiveHourResetsAt = null, DateTimeOffset? WeeklyResetsAt = null, string? ProviderId = null);
 
     /// <summary>A reset moment in few characters: the clock time when it is today, else the short
-    /// weekday and the clock time ("Mo 14:30"), both in the regional format.</summary>
+    /// weekday and the clock time ("Mo 14:30"): the clock in the regional format, the weekday in the
+    /// app's language.</summary>
     internal static string ResetTime(DateTimeOffset moment, DateTimeOffset now)
     {
         var local = moment.ToLocalTime();
