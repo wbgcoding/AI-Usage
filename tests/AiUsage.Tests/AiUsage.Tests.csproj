@@ -35,6 +35,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The review tool's layout audit, compiled in here so its checks run against built element
+         trees without referencing the tool's exe. -->
+    <Compile Include="..\..\tools\ReadmeShots\LayoutAudit.cs" Link="Tools\LayoutAudit.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
     <!-- The real theme files, not copies - ThemeTokenTests/ThemeContrastTests read the same
          source src/AiUsage ships, so there is one truth for the token values. -->

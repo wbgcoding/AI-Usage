@@ -191,7 +191,7 @@ internal static class ReviewDialogs
         root.Measure(new Size(width, height));
         root.Arrange(new Rect(0, 0, width, height));
         root.UpdateLayout();
-        ClipReport.Check(root, outputPath);
+        LayoutAudit.Check(root, outputPath);
         root.Clip = new RectangleGeometry(new Rect(0, 0, width, height), WindowCornerRadius, WindowCornerRadius);
 
         var bitmap = new RenderTargetBitmap(

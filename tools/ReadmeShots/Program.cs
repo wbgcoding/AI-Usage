@@ -27,8 +27,11 @@
 //                       min = the window's smallest width, default = its normal width (default: both)
 //   --theme <name>|all  Dark, Light, Nebula, Terminal or HighContrast (default: all)
 // Files are named <surface-id>-<theme>-<language>-<size>.png. Nothing is written outside <folder>.
-// <folder>/clipped.txt lists every single-line text that needs more width than it got, per picture;
-// the file is always written, empty when nothing is cut off.
+// <folder>/audit.txt lists, one line per finding (kind | surface | size | language | theme | element |
+// detail), every single-line text that needs more width than it got (CLIPPED), every two visible
+// siblings whose bounds intersect (OVERLAP) and every background, foreground or border that is not a
+// theme colour (OFF-THEME); see LayoutAudit.cs, and AuditMark in the app for marking an element that
+// is meant that way. The file is always written, empty when nothing is found.
 
 using System.Globalization;
 using System.IO;
@@ -125,8 +128,8 @@ internal static class Program
                     return 2;
                 }
                 Directory.CreateDirectory(reviewDirectory);
-                ClipReport.ReportPath = Path.Combine(reviewDirectory, "clipped.txt");
-                File.WriteAllText(ClipReport.ReportPath, "");
+                LayoutAudit.ReportPath = Path.Combine(reviewDirectory, "audit.txt");
+                File.WriteAllText(LayoutAudit.ReportPath, "");
                 RenderReviewSet(application, dataDirectory, reviewDirectory, reviewOptions, themes, chosen);
             }
             else
@@ -620,7 +623,7 @@ internal static class Program
         root.UpdateLayout();
         PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
         root.UpdateLayout();
-        ClipReport.Check(element, outputPath);
+        LayoutAudit.Check(element, outputPath);
 
         var origin = element.TranslatePoint(new Point(0, 0), root);
         var area = Rect.Intersect(
@@ -651,7 +654,7 @@ internal static class Program
         root.UpdateLayout();
         PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
         root.UpdateLayout();
-        ClipReport.Check(root, outputPath);
+        LayoutAudit.Check(root, outputPath);
         root.Clip = new RectangleGeometry(new Rect(0, 0, width, height), WindowCornerRadius, WindowCornerRadius);
 
         var bitmap = new RenderTargetBitmap(
