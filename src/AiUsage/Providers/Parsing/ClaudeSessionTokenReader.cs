@@ -53,9 +53,16 @@ public sealed class ClaudeSessionTokenReader
     private const int MaxLineBytes = 8 * 1024 * 1024;
 
     /// <summary>The timestamp of the newest usage line summed so far in the file of the last call - null
-    /// before any was read. A session that last spoke hours ago is not the running one, whatever its
-    /// sum.</summary>
-    public DateTimeOffset? LastEventAt => _current?.LastEventAt;
+    /// before any was read. Internal for the test project only; production code takes the value from
+    /// the <c>SumTokens</c> out parameter, which is read under the same lock as the sum.</summary>
+    internal DateTimeOffset? LastEventAt
+    {
+        get
+        {
+            lock (_gate)
+                return _current?.LastEventAt;
+        }
+    }
 
     /// <summary>The file length the last call had summed up to - internal purely so the test project
     /// (<c>InternalsVisibleTo</c> in <c>AiUsage.csproj</c>) can prove a second call against an appended
