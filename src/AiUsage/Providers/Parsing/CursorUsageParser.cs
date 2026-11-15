@@ -64,7 +64,7 @@ public static class CursorUsageParser
             if (root.ValueKind != JsonValueKind.Object)
                 return notes;
 
-            if (root.EnumerateObject().Any(property => property.Value.ValueKind == JsonValueKind.Object && HasNegativeRequestFigure(property.Value)))
+            if (HasNegativeRequestFigure(root) || root.EnumerateObject().Any(property => property.Value.ValueKind == JsonValueKind.Object && HasNegativeRequestFigure(property.Value)))
                 notes.Add("a model block holds a negative request count or limit, so it is not counted.");
 
             if (TryGetObject(root, "individualUsage") is not { } individual || TryGetObject(individual, "plan") is not { } plan)
@@ -286,13 +286,14 @@ public static class CursorUsageParser
     /// the cents-based shape instead.</summary>
     private static JsonElement? FindRequestUsageObject(JsonElement root)
     {
-        if (HasNumber(root, "numRequests") && HasNumber(root, "maxRequestUsage"))
+        if (HasNumber(root, "numRequests") && HasNumber(root, "maxRequestUsage") && !HasNegativeRequestFigure(root))
             return root;
 
         foreach (var property in root.EnumerateObject())
         {
             if (property.Value.ValueKind == JsonValueKind.Object
-                && HasNumber(property.Value, "numRequests") && HasNumber(property.Value, "maxRequestUsage"))
+                && HasNumber(property.Value, "numRequests") && HasNumber(property.Value, "maxRequestUsage")
+                && !HasNegativeRequestFigure(property.Value))
                 return property.Value;
         }
 

@@ -309,6 +309,15 @@ public class CursorUsageParserTests
         Assert.Contains(CursorUsageParser.ChangeNotes(json), note => note.Contains("negative"));
     }
 
+    [Theory]
+    [InlineData("""{"numRequests": -50, "maxRequestUsage": 500}""")]
+    [InlineData("""{"gpt-5": {"numRequests": 50, "maxRequestUsage": -500}}""")]
+    public void A_lone_negative_request_block_yields_no_window_and_a_note(string json)
+    {
+        Assert.Empty(CursorUsageParser.Parse(json));
+        Assert.Contains(CursorUsageParser.ChangeNotes(json), note => note.Contains("negative"));
+    }
+
     [Fact]
     public void Token_sums_drop_negative_counts_and_never_overflow()
     {
