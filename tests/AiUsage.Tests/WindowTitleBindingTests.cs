@@ -27,7 +27,6 @@ public class WindowTitleBindingTests
 
     [Theory]
     [InlineData("SettingsWindow.xaml", "Settings.Title")]
-    [InlineData("SignInWindow.xaml", "SignIn.Title")]
     public void The_window_title_binds_live_to_LocalizationService_instead_of_a_literal(string fileName, string resourceKey)
     {
         var text = File.ReadAllText(Path.Combine(SrcViewsDir, fileName));
@@ -41,7 +40,6 @@ public class WindowTitleBindingTests
 
     [Theory]
     [InlineData("SettingsWindow.xaml", "Settings.Title")]
-    [InlineData("SignInWindow.xaml", "SignIn.Title")]
     public void The_title_bar_control_binds_live_to_LocalizationService_instead_of_a_literal(string fileName, string resourceKey)
     {
         var text = File.ReadAllText(Path.Combine(SrcViewsDir, fileName));
@@ -61,6 +59,19 @@ public class WindowTitleBindingTests
         var text = File.ReadAllText(Path.Combine(SrcViewsDir, fileName));
 
         Assert.DoesNotContain("TitleBarControl.TitleText =", text);
+    }
+
+    // The sign-in title joins the localized name with the provider, so it is bound in code only;
+    // the XAML carries no second, overwritten binding.
+    [Fact]
+    public void The_sign_in_title_is_bound_in_code_only()
+    {
+        var xaml = File.ReadAllText(Path.Combine(SrcViewsDir, "SignInWindow.xaml"));
+        var code = File.ReadAllText(Path.Combine(SrcViewsDir, "SignInWindow.xaml.cs"));
+
+        Assert.DoesNotContain("SignIn.Title", xaml, StringComparison.Ordinal);
+        Assert.Contains("SetBinding(Controls.TitleBar.TitleTextProperty", code, StringComparison.Ordinal);
+        Assert.Contains("SetBinding(TitleProperty", code, StringComparison.Ordinal);
     }
 
     // ConfirmWindow and CrashWindow genuinely receive a caller-supplied title (not a fixed

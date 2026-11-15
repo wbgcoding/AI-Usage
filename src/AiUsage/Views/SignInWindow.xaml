@@ -4,7 +4,6 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         xmlns:controls="clr-namespace:AiUsage.Views.Controls"
         xmlns:services="clr-namespace:AiUsage.Services"
-        Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Title]}"
         Icon="pack://application:,,,/AI-Usage;component/Assets/app.ico"
         RenderOptions.BitmapScalingMode="HighQuality"
         WindowStyle="None"
@@ -28,7 +27,7 @@
     </WindowChrome.WindowChrome>
     <Window.Resources>
         <!-- Same rounded-track geometry as the themed bar in Views/Controls/UsageBar.xaml (Track /
-             Border.Control / 4px corner radius), replicated here rather than referenced: that style
+             Border.Control / Track.BorderThickness / 4px corner radius), replicated here rather than referenced: that style
              is scoped to UsageBar's own UserControl.Resources (not visible from this window) and,
              like TitleBar.xaml/ProviderTile.xaml/UsageBar.xaml, a control used in exactly one place
              keeps its style local rather than being promoted to a shared dictionary. Unlike the usage
@@ -47,7 +46,7 @@
                     <ControlTemplate TargetType="ProgressBar">
                         <Grid>
                             <Border Background="{DynamicResource Track}" CornerRadius="{StaticResource LoadingBarRadius}"
-                                    BorderBrush="{DynamicResource Border.Control}" BorderThickness="1"/>
+                                    BorderBrush="{DynamicResource Border.Control}" BorderThickness="{DynamicResource Track.BorderThickness}"/>
                             <Border CornerRadius="{StaticResource LoadingBarRadius}" ClipToBounds="True">
                                 <Rectangle x:Name="Indicator" Width="70" RadiusX="4" RadiusY="4"
                                            HorizontalAlignment="Left" Fill="{DynamicResource Accent}">
@@ -83,7 +82,6 @@
     <DockPanel LastChildFill="True">
         <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top" ShowEyeMenu="False" ShowRefresh="False"
                            ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
-                           TitleText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Title]}"
                            CloseRequested="TitleBarControl_CloseRequested"/>
         <!-- An explicit arrow for everything the app draws here: the notices stand where the page
              was, and the page's own cursor request must not carry over onto them. -->

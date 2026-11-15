@@ -207,7 +207,7 @@ public partial class SignInWindow : Window
                 return;
 
             LogService.Shared.LogInfo($"Sign-in window could not start the browser ({ex.GetType().Name}).");
-            // The runtime check in SettingsWindow already keeps this path from being reached in the
+            // The runtime check in WebSignInFlow.Open already keeps this path from being reached in the
             // common case; this is the fallback for the runtime disappearing between that check and
             // here, or for anything else EnsureCoreWebView2Async can throw. Either way the window
             // must stay alive and closable, never crash the app.
