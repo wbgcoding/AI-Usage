@@ -124,7 +124,7 @@ internal static class LayoutAudit
         // so the clip, not the text's own width, says how much of it shows.
         var shown = text.ActualWidth;
         if (LayoutInformation.GetLayoutClip(text) is { } clip)
-            shown = Math.Min(shown, clip.Bounds.IsEmpty ? 0 : clip.Bounds.Width);
+            shown = clip.Bounds.IsEmpty || clip.Bounds.Height <= 0 ? 0 : Math.Min(shown, clip.Bounds.Width);
         // No room at all is a panel hiding the text on purpose (it shows only when it fits whole).
         if (shown <= 0 || needed <= shown + Tolerance)
             return null;
@@ -199,11 +199,14 @@ internal static class LayoutAudit
     /// the text that shows it.</summary>
     private static void CheckColours(FrameworkElement element, ThemePalette palette, List<AuditFinding> findings)
     {
+        // Nothing shows of an element without area (a scroll viewer's corner while one bar is hidden).
+        if (element.ActualWidth <= 0 || element.ActualHeight <= 0)
+            return;
         foreach (var (name, property) in PaintedProperties(element))
         {
             if (element.GetValue(property) is not Brush brush || ThemePalette.IsInvisible(brush))
                 continue;
-            var (source, origin) = Origin(element, property);
+            var (source, origin) = Origin(element, property, brush);
             var systemDefault = source is BaseValueSource.Default or BaseValueSource.DefaultStyle or BaseValueSource.DefaultStyleTrigger;
             if (!systemDefault && palette.Accepts(brush))
                 continue;
@@ -214,9 +217,11 @@ internal static class LayoutAudit
         }
     }
 
-    /// <summary>Where an inherited value was set: the nearest ancestor whose value is its own. None at
-    /// all means nobody set it, which leaves the property's system default.</summary>
-    private static (BaseValueSource Source, FrameworkElement Element) Origin(FrameworkElement element, DependencyProperty property)
+    /// <summary>Where an inherited value was set: the nearest ancestor whose value is its own. A value
+    /// nobody set reads as the system default at the element itself. The walk follows the tree only
+    /// while each parent holds the very same brush; where the value came by another path (a content
+    /// host outside this tree), the origin is unknown and only the colour itself is judged.</summary>
+    private static (BaseValueSource Source, FrameworkElement Element) Origin(FrameworkElement element, DependencyProperty property, Brush brush)
     {
         DependencyObject current = element;
         while (true)
@@ -225,8 +230,8 @@ internal static class LayoutAudit
             if (source != BaseValueSource.Inherited)
                 return (source, current as FrameworkElement ?? element);
             var parent = VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current);
-            if (parent is null)
-                return (BaseValueSource.Default, element);
+            if (parent is null || !ReferenceEquals(parent.GetValue(property), brush))
+                return (BaseValueSource.Unknown, element);
             current = parent;
         }
     }
