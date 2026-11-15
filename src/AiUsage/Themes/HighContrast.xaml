@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Used instead of any of the four literal themes while Windows high-contrast mode is on
- - every token maps to the matching SystemColors brush/font so the
+    <!-- Used instead of any of the four literal themes while Windows high-contrast mode is on:
+         every token maps to the matching SystemColors brush/font so the
          app follows the user's chosen high-contrast palette rather than a fixed one. Snapshot at
          the moment ThemeService.Apply runs; the main window applies the theme again whenever the
          high-contrast setting or palette changes. -->

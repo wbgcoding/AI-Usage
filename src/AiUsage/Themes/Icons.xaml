@@ -29,17 +29,14 @@
 
     <Geometry x:Key="Icon.Close">F1 M 5.4,4 L 12,10.6 L 18.6,4 L 20,5.4 L 13.4,12 L 20,18.6 L 18.6,20 L 12,13.4 L 5.4,20 L 4,18.6 L 10.6,12 L 4,5.4 Z</Geometry>
 
-    <!-- A filled triangle with the exclamation mark cut out by the even-odd fill rule (F0), so the
-         background shows through the gap - same technique the gear's hub and the eye's pupil already
-         use in this file. The exclamation's dot is a true circle (the same two-arc construction
-         Icon.Eye's own pupil already uses successfully); its bar is a plain rectangle rather than a
-         hand-tuned rounded-cap shape, a deliberate simplification since nobody building this icon can
-         preview the render - a straight-sided bar next to a round dot still reads unambiguously as an
-         exclamation mark, with zero risk of a wrong arc-sweep flag distorting the shape. -->
     <!-- The milder sibling of Icon.Warning for the Warn level: a ring with the exclamation mark cut out
          (even-odd), so a window nearing its limit differs from one at it by shape as well as colour. -->
     <Geometry x:Key="Icon.Alert">F0 M12,2 A10,10 0 1 0 12,22 A10,10 0 1 0 12,2 Z M11,6 L13,6 L13,14 L11,14 Z M11,16 L13,16 L13,18 L11,18 Z</Geometry>
 
+    <!-- A filled triangle with the exclamation mark cut out by the even-odd fill rule (F0), so the
+         background shows through the gap, the same technique the gear's hub and the eye's pupil use
+         in this file. The dot is a true circle (the same two-arc construction as Icon.Eye's pupil);
+         the bar is a plain rectangle, which next to a round dot still reads as an exclamation mark. -->
     <Geometry x:Key="Icon.Warning">F0 M 12,2.8 L 22,21.2 L 2,21.2 Z M 11,8 L 13,8 L 13,15 L 11,15 Z M 10.7,17.7 A 1.3,1.3 0 1 0 13.3,17.7 A 1.3,1.3 0 1 0 10.7,17.7 Z</Geometry>
 
     <!-- One closed outline: both 45-degree arms (2.4 units thick) share a mitred apex, so there is no
