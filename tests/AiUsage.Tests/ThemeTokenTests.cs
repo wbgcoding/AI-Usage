@@ -26,6 +26,7 @@ public class ThemeTokenTests
         ["Text.Muted"] = typeof(SolidColorBrush),
         ["Accent"] = typeof(SolidColorBrush),
         ["Accent.Hover"] = typeof(SolidColorBrush),
+        ["Accent.Text"] = typeof(SolidColorBrush),
         ["Level.Ok"] = typeof(SolidColorBrush),
         ["Level.Warn"] = typeof(SolidColorBrush),
         ["Level.Crit"] = typeof(SolidColorBrush),

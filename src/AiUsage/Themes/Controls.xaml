@@ -209,7 +209,7 @@
                             <Border x:Name="Box" CornerRadius="{StaticResource Radius.S}" BorderThickness="1"
                                     BorderBrush="{DynamicResource Border.Control}" Background="{DynamicResource Bg.Raised}"/>
                             <Path x:Name="Check" Visibility="Collapsed" Stretch="Uniform" Margin="{StaticResource Space.Xs}"
-                                  Stroke="{DynamicResource Bg.Base}" StrokeThickness="2"
+                                  Stroke="{DynamicResource Accent.Text}" StrokeThickness="2"
                                   StrokeEndLineCap="Round" StrokeStartLineCap="Round"
                                   Data="M 0,5 L 4,9 L 11,1"/>
                         </Grid>
@@ -552,7 +552,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemRoot" Property="Background" Value="{DynamicResource Accent}"/>
-                            <Setter TargetName="ItemRoot" Property="TextElement.Foreground" Value="{DynamicResource Bg.Base}"/>
+                            <Setter TargetName="ItemRoot" Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -877,7 +877,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource Bg.Base}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Accent.Text}"/>
                         </Trigger>
                         <Trigger Property="IsBlackedOut" Value="True">
                             <Setter TargetName="Root" Property="Opacity" Value="0.4"/>
@@ -916,7 +916,7 @@
                         </Trigger>
                         <Trigger Property="HasSelectedDays" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource Bg.Base}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Accent.Text}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

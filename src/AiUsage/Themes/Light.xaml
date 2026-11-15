@@ -16,6 +16,8 @@
     <SolidColorBrush x:Key="Text.Secondary" Color="#4B5060"/>
     <SolidColorBrush x:Key="Text.Muted" Color="#676C7A"/>
     <SolidColorBrush x:Key="Accent" Color="#2563EB"/>
+    <!-- Text and marks drawn on an Accent fill. -->
+    <SolidColorBrush x:Key="Accent.Text" Color="#F1F2F6"/>
     <SolidColorBrush x:Key="Accent.Hover" Color="#1D4ED8"/>
     <SolidColorBrush x:Key="Level.Ok" Color="#059065"/>
     <SolidColorBrush x:Key="Level.Warn" Color="#B45309"/>
