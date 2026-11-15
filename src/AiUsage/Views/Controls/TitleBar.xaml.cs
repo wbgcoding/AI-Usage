@@ -37,7 +37,7 @@ public partial class TitleBar : UserControl
     public static readonly DependencyProperty ShowEyeMenuProperty =
         DependencyProperty.Register(nameof(ShowEyeMenu), typeof(bool), typeof(TitleBar), new PropertyMetadata(true));
 
-    /// <summary>Whether the window menu offers "Refresh" (and the separator after it).</summary>
+    /// <summary>Whether the window menu offers "Refresh".</summary>
     public static readonly DependencyProperty ShowRefreshProperty =
         DependencyProperty.Register(nameof(ShowRefresh), typeof(bool), typeof(TitleBar),
             new PropertyMetadata(true, (d, _) => ((TitleBar)d).ApplyRefreshMenuVisibility()));
@@ -79,10 +79,9 @@ public partial class TitleBar : UserControl
     public static readonly DependencyProperty ShowWindowMenuProperty =
         DependencyProperty.Register(nameof(ShowWindowMenu), typeof(bool), typeof(TitleBar), new PropertyMetadata(false));
 
-    /// <summary>The eye popup's badge count and accessible name read <c>HiddenCount</c> and
-    /// <c>EyeButtonAccessibleName</c> off this property instead of the inherited DataContext:
-    /// <c>SettingsWindow</c> reuses this control with a <c>SettingsViewModel</c> DataContext that has
-    /// neither member. Set from
+    /// <summary>The eye button's accessible name reads <c>EyeButtonAccessibleName</c> off this property
+    /// instead of the inherited DataContext: <c>SettingsWindow</c> reuses this control with a
+    /// <c>SettingsViewModel</c> DataContext that has no such member. Set from
     /// <c>MainWindow.xaml</c> only (<c>EyeSource="{Binding}"</c>); <c>SettingsWindow</c> leaves it
     /// null and the eye button stays hidden there anyway (<see cref="ShowEyeMenu"/>).</summary>
     public static readonly DependencyProperty EyeSourceProperty =
