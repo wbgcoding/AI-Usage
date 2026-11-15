@@ -140,9 +140,12 @@ internal static class StatsWeeklyCsv
         var allSessions = store.LoadSessions();
         var inRange = all.Where(record => record.Day >= from && record.Day <= to).ToList();
         var sessions = StatsAggregator.SessionsInRange(allSessions, from, to);
-        var figures = StatsAggregator.ComputeHeadlineFigures(inRange, [], 7);
+        var previousFrom = from.AddDays(-7);
+        var previousTo = to.AddDays(-7);
+        var previous = all.Where(record => record.Day >= previousFrom && record.Day <= previousTo).ToList();
+        var figures = StatsAggregator.ComputeHeadlineFigures(inRange, previous, 7, 7);
         return new StatsExportData(
-            inRange, [], inRange, sessions, figures, 7, [], ProjectAliasResolver.Build(all, allSessions), new StatsCostView(WaitForPrices(cost)));
+            inRange, previous, inRange, sessions, figures, 7, [], ProjectAliasResolver.Build(all, allSessions), new StatsCostView(WaitForPrices(cost)));
     }
 
     // The price list loads in the background after the start; the first walk can be over before it is.

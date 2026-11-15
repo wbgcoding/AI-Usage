@@ -142,6 +142,26 @@ public class StatsWeeklyCsvTests
         Assert.Equal(StatsWeeklyCsv.Outcome.FolderMissing, StatsWeeklyCsv.Write(Path.Combine(target, "gone"), today, store, cost: null));
     }
 
+    [Fact]
+    public void The_previous_period_row_holds_the_tokens_of_the_week_before()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("weekly-csv-prev-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("weekly-csv-prev-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-prev-data");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-prev-target");
+        WriteSession(claudeRoot,
+            Line("2026-11-04T12:00:00Z", "m1", 300, 20),
+            Line("2026-11-11T12:00:00Z", "m2", 100, 50));
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.Equal(StatsWeeklyCsv.Outcome.Written, StatsWeeklyCsv.Write(target, new DateOnly(2026, 11, 18), store, cost: null));
+
+        var lines = File.ReadAllLines(Path.Combine(target, "AI-Usage-2026-W46.csv"));
+        var previous = Assert.Single(lines, line => line.StartsWith("figures,previous_period,", StringComparison.Ordinal));
+        Assert.Equal("320", previous.Split(',')[13]);
+    }
+
     private static DateTimeOffset Local(int year, int month, int day, int hour, int minute = 0) =>
         new(new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Local));
 
