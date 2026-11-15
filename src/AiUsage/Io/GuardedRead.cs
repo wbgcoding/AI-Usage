@@ -104,11 +104,7 @@ internal static class GuardedRead
         if (string.IsNullOrEmpty(parent) || openedPath is null || !IsLocalDrivePath(openedPath))
             return false;
 
-        using var folder = CreateFileW(parent, FileReadAttributes, FileShareAll, IntPtr.Zero, OpenExisting, FileFlagBackupSemantics, IntPtr.Zero);
-        if (folder.IsInvalid)
-            return false;
-
-        var realParent = FinalPath(folder);
+        var realParent = FinalPath(parent);
         if (realParent is null || !IsLocalDrivePath(realParent))
             return false;
 
@@ -128,9 +124,17 @@ internal static class GuardedRead
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint pathLength, uint flags);
 
+    /// <summary>The path an existing file or folder really is (every link resolved), or null when it
+    /// cannot be opened or told. Same form as <see cref="FinalPath(SafeFileHandle)"/>.</summary>
+    internal static string? FinalPath(string path)
+    {
+        using var handle = CreateFileW(path, FileReadAttributes, FileShareAll, IntPtr.Zero, OpenExisting, FileFlagBackupSemantics, IntPtr.Zero);
+        return handle.IsInvalid ? null : FinalPath(handle);
+    }
+
     /// <summary>The path the handle really points at, without the <c>\\?\</c> prefix (a network path
     /// comes back as <c>\\host\share\...</c>), or null when it cannot be told.</summary>
-    private static string? FinalPath(SafeFileHandle handle)
+    internal static string? FinalPath(SafeFileHandle handle)
     {
         var buffer = new char[512];
         var length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);

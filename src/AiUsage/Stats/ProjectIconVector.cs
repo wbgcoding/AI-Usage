@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Media;
 using System.Xml;
 using System.Xml.Linq;
+using AiUsage.Io;
 
 namespace AiUsage.Stats;
 
@@ -758,7 +759,7 @@ internal static partial class ProjectIconLoader
                 {
                     var folderName = Path.GetFileName(folder);
                     return (folderName.StartsWith("drawable", StringComparison.OrdinalIgnoreCase) || folderName.StartsWith("mipmap", StringComparison.OrdinalIgnoreCase))
-                        && !IsLink(folder);
+                        && !GuardedRead.IsLink(folder);
                 })
                 .OrderBy(folder => DensityOrder(Path.GetFileName(folder)))
                 .ThenBy(folder => folder, StringComparer.OrdinalIgnoreCase)

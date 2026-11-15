@@ -1,5 +1,6 @@
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using AiUsage.Io;
 
 namespace AiUsage.Stats;
 
@@ -138,12 +139,6 @@ internal static partial class ProjectIconLoader
         }
     }
 
-    private static bool IsLink(string path)
-    {
-        try { return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return true; }
-    }
-
     /// <summary>A file that exists, is no link (nor lies in a linked folder) and stays within <see
     /// cref="MaxFileBytes"/>.</summary>
     private static bool IsSafeFile(string path)
@@ -154,7 +149,7 @@ internal static partial class ProjectIconLoader
             if (!info.Exists || info.Attributes.HasFlag(FileAttributes.ReparsePoint) || info.Length > MaxFileBytes)
                 return false;
             var folder = info.DirectoryName;
-            return folder is not null && !IsLink(folder);
+            return folder is not null && !GuardedRead.IsLink(folder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

@@ -1,7 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using System.Security.AccessControl;
+﻿using System.Security.AccessControl;
 using System.Security.Principal;
-using Microsoft.Win32.SafeHandles;
 
 namespace AiUsage.Io;
 
@@ -21,7 +19,7 @@ internal static class FreshRunFolder
         try
         {
             Directory.CreateDirectory(root);
-            if (IsLink(root) || (Path.GetDirectoryName(root) is { Length: > 0 } parent && IsLink(parent)))
+            if (GuardedRead.IsLink(root) || (Path.GetDirectoryName(root) is { Length: > 0 } parent && GuardedRead.IsLink(parent)))
                 return null;
 
             var folder = Path.Combine(root, Guid.NewGuid().ToString("N"));
@@ -29,7 +27,7 @@ internal static class FreshRunFolder
                 return null;
 
             Directory.CreateDirectory(folder);
-            if (IsLink(folder) || Directory.EnumerateFileSystemEntries(folder).Any())
+            if (GuardedRead.IsLink(folder) || Directory.EnumerateFileSystemEntries(folder).Any())
             {
                 TryRemoveEmpty(folder);
                 return null;
@@ -121,59 +119,15 @@ internal static class FreshRunFolder
     {
         try
         {
-            using var named = CreateFileW(path, 0, 7, IntPtr.Zero, 3, FileFlagBackupSemantics, IntPtr.Zero);
-            if (named.IsInvalid)
-                return false;
-
-            var expected = FinalPath(named);
-            var actual = FinalPath(lease.SafeFileHandle);
+            var expected = GuardedRead.FinalPath(path);
+            var actual = GuardedRead.FinalPath(lease.SafeFileHandle);
             return expected is not null && actual is not null
                 && string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)
-                && !IsLink(path);
+                && !GuardedRead.IsLink(path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }
-    }
-
-    internal static bool IsLink(string path)
-    {
-        try
-        {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
-
-    private const uint FileFlagBackupSemantics = 0x02000000;
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFileW(
-        string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition,
-        uint flagsAndAttributes, IntPtr templateFile);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint pathLength, uint flags);
-
-    private static string? FinalPath(SafeFileHandle handle)
-    {
-        var buffer = new char[512];
-        var length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
-        if (length > buffer.Length)
-        {
-            buffer = new char[length + 1];
-            length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
-        }
-        if (length == 0 || length > buffer.Length)
-            return null;
-
-        var path = new string(buffer, 0, (int)length);
-        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
-            return @"\\" + path[8..];
-        return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
     }
 }

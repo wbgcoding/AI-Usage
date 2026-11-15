@@ -179,7 +179,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
                 return UpdateOutcome.DownloadFailed;
             }
 
-            if (FreshRunFolder.IsLink(filePath))
+            if (GuardedRead.IsLink(filePath))
             {
                 log?.Invoke("Update refused: the downloaded file is a link.");
                 CleanUpRun(runFolder, filePath, signaturePath);
