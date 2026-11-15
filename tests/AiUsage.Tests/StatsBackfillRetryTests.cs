@@ -292,4 +292,33 @@ public class StatsBackfillRetryTests
         Assert.True(store.IsClaudeCopyBackfillDone());
         Assert.True(store.IsClaudeOwnerPassDone());
     }
+
+    [Fact]
+    public void An_unreadable_file_snapshot_never_finishes_a_pass_with_nothing()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-snapshot-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-snapshot-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-snapshot-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old, Line("2026-01-01T10:00:00Z", "m1", 100, 5));
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // The file snapshot cannot be read and no usage row answers for it either: an empty
+        // snapshot that looks like "nothing to do".
+        Run(dbPath, "DROP TABLE source_file; CREATE TABLE source_file (path TEXT); DELETE FROM usage;");
+        OfferAllPasses(dbPath);
+        Assert.False(store.TryLoadSourceFiles(out _));
+        Assert.False(store.HasUsageRows());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.False(store.IsSubagentUsageBackfillDone());
+
+        Run(dbPath, $"INSERT OR REPLACE INTO meta (key, value) VALUES ('{SessionsKey}', '1');");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeCopyBackfillDone());
+    }
 }

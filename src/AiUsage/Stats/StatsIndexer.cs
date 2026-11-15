@@ -902,6 +902,18 @@ public sealed class StatsIndexer
         return NoteStored(stored) ? (true, result.Events.Count, result.RowsSkipped) : (false, 0, 0);
     }
 
+    /// <summary>True when an empty snapshot cannot be taken as "no file remembered": it is read once
+    /// more, and a failed read or usage rows without any remembered file mean a pass must neither run
+    /// nor be marked done (it would never be offered again). HasUsageRows answers false on an error,
+    /// so it is only asked after the snapshot itself could be read.</summary>
+    private bool SnapshotUntrustworthy(ref Dictionary<string, StatsSourceFileState> known)
+    {
+        if (known.Count == 0 && !_store.TryLoadSourceFiles(out known))
+            return true;
+
+        return known.Count == 0 && _store.HasUsageRows();
+    }
+
     /// <summary>The one-time pass after a migration that left usage rows without sessions: every
     /// remembered file that still exists is read again, up to the offset the usage rows already
     /// cover, into session totals only. The usage rows and the file markers are not touched, so the
@@ -914,9 +926,7 @@ public sealed class StatsIndexer
         if (_store.IsSessionBackfillDone())
             return false;
 
-        // No remembered file while usage rows exist: the snapshot is not trustworthy, so the pass is
-        // not run and not marked done (it would never be offered again).
-        if (known.Count == 0 && _store.HasUsageRows())
+        if (SnapshotUntrustworthy(ref known))
             return false;
 
         // Once the owner pass has run, a response another transcript owns is not counted here either
@@ -970,7 +980,7 @@ public sealed class StatsIndexer
         if (_store.IsSubagentUsageBackfillDone())
             return false;
 
-        if (known.Count == 0 && _store.HasUsageRows())
+        if (SnapshotUntrustworthy(ref known))
             return false;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort), StatsRecord>();
@@ -1047,7 +1057,7 @@ public sealed class StatsIndexer
         if (_store.IsClaudeCopyBackfillDone())
             return false;
 
-        if (known.Count == 0 && _store.HasUsageRows())
+        if (SnapshotUntrustworthy(ref known))
             return false;
 
         var totals = new Dictionary<(DateOnly Day, int Hour, string Model, string Project, string Effort, bool Subagent), StatsRecord>();
