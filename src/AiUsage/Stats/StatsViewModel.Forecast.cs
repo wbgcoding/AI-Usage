@@ -147,7 +147,7 @@ public sealed partial class StatsViewModel
         var cost = new StatsCostView(_cost);
         var plans = held.Accounts.Values.SelectMany(accounts => accounts).ToDictionary(account => account.Key, account => PlanOf(account.Key));
         var signature = string.Join('|', plans.Select(pair => pair.Key + "=" + pair.Value))
-            + "|" + cost.Active + "|" + cost.Text(new CostSummary(1000, true, [])) + "|" + _cost?.Prices.FetchedAt;
+            + "|" + cost.Active + "|" + cost.Text(new CostSummary(1000, true, [])) + "|" + _cost?.Prices.FetchedAt + "|" + _cost?.Prices.Fallback.FetchedAt;
         var records = _sourceRecords;
         if (_forecastState is { } state && ReferenceEquals(state.Records, records) && ReferenceEquals(state.Inputs, held) && state.Signature == signature)
         {
@@ -434,11 +434,11 @@ public sealed partial class StatsViewModel
     }
 
     /// <summary>A list price as it is published: whole amounts without cents, else with two decimals.</summary>
-    private static string PlanPriceText(double amount, string symbol)
+    internal static string PlanPriceText(double amount, string symbol)
     {
         var numbers = (NumberFormatInfo)CultureInfo.CurrentCulture.NumberFormat.Clone();
         numbers.CurrencySymbol = symbol;
-        return amount.ToString(Math.Abs(amount * 100 % 100) < 0.5 ? "C0" : "C2", numbers).Replace(' ', '\u00a0');
+        return amount.ToString(Math.Abs(amount - Math.Round(amount)) < 0.005 ? "C0" : "C2", numbers).Replace(' ', '\u00a0');
     }
 
     /// <summary>A dollar amount in the cost currency without the estimate tilde (the texts carry their own "≈"); empty when costs are off.</summary>

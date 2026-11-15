@@ -270,6 +270,26 @@ public class StatsForecastViewModelTests
     private static ProviderForecast CurrentUltra(long weeklyPerPercent = 2_000) =>
         Forecast(Window(Total(172_000)), Window(Total(weeklyPerPercent)), plan: 200, plans: "Ultra") with { Plan = "Ultra" };
 
+    [Theory]
+    [InlineData(21.997, "$22")]
+    [InlineData(22.003, "$22")]
+    [InlineData(22.0, "$22")]
+    [InlineData(21.5, "$21.50")]
+    [InlineData(22.01, "$22.01")]
+    public void A_price_within_half_a_cent_of_a_whole_amount_shows_without_cents(double amount, string expected)
+    {
+        var previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+        try
+        {
+            Assert.Equal(expected, StatsViewModel.PlanPriceText(amount, "$"));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     private static string Ratio(double value) => value.ToString("0.0", CultureInfo.CurrentCulture) + "×";
 
     [Fact]
