@@ -307,7 +307,7 @@
   <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>Pictograma aplicației</value></data>
   <data name="Settings.TrayWindow" xml:space="preserve"><value>Fereastra de timp din pictogramă</value></data>
   <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Automat</value></data>
-  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Arată săptămâna trecută ca linie de comparație</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Săptămâna trecută ca linie</value></data>
   <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Arată graficul pentru</value></data>
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Opacitatea ferestrei</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0}%</value></data>
@@ -316,7 +316,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Ultima actualizare reușită</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>niciodată</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Activat</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Notifică când o limită se eliberează din nou după un avertisment</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Liber din nou după avertisment</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Notificări pentru {0}</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>Pe furnizor</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Notificări pentru acest furnizor</value></data>
@@ -324,7 +324,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Valoare implicită</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Valori proprii</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Notifică și când se eliberează din nou</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Caută o versiune mai nouă o dată pe zi</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Caută zilnic actualizări</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Fără notificări între</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>și</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
@@ -335,7 +335,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>Deconectare</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Pornește cu Windows</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows a refuzat modificarea intrării de pornire automată.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Comandă rapidă globală pentru afișarea/ascunderea ferestrei</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Scurtătură afișare/ascundere</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Fă clic, apoi apasă noua combinație de taste</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Această combinație este deja folosită de alt program.</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Ține apăsat și Ctrl, Alt sau Win.</value></data>
@@ -555,7 +555,7 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>ex. Serviciu</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Actualizarea nu a putut fi finalizată. Fișierul programului se află acum la {0}. Redenumește-l înapoi în AI-Usage.exe pentru a porni din nou aplicația.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Programul de instalare nu a pornit. Dacă ai închis solicitarea de administrator, încearcă din nou.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Avertizează înainte ca o limită să fie probabil atinsă</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Avertizare timpurie la limită</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Timp de avertizare în avans</value></data>
@@ -564,7 +564,7 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Dezactivează pentru a alege zilele săptămânii fără notificări: zilele debifate rămân complet liniștite.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Arată marcajul de timp în bare</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>O linie scurtă în fiecare bară arată cât din fereastra de timp a trecut. Dacă umplerea o depășește, consumul merge înaintea timpului.</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Spune când consumul este sub timp</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Indiciu sub ponderea timpului</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Sfatul barei spune când consumul este sub partea din fereastră care a trecut. Dezactivat omite doar această propoziție; înainte și în ritm rămân.</value></data>
   <data name="Stats.Cost.Column" xml:space="preserve"><value>Cost API:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Cost aproximativ dacă acești tokeni ar fi fost facturați la prețurile publice de listă ale API-ului (lista de prețuri LiteLLM, la data de {0}). Abonamentele sunt facturate diferit.</value></data>
@@ -589,7 +589,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, aproape epuizat</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limita este aproape atinsă</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limită atinsă</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notifică la atingerea unei limite (100%)</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Limită atinsă (100%)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limită atinsă pentru {1}, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: limita {1} a fost atinsă</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Arată widgetul</value></data>
@@ -705,10 +705,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Autentificarea la Claude Console a expirat, așa că soldul nu mai este citit. Autentifică-te din nou în Setări, la Claude Console (credit API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Autentificarea la Console a expirat; soldul API nu este citit.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Autentifică-te din nou</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Arată valoarea API lângă tokenii unei ferestre</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimare pentru ferestrele de cinci ore și cele săptămânale. Necesită estimarea costurilor activată.</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Notifică cu 10 minute înainte de resetarea unei ferestre pline</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Doar pentru ferestre de la 90 %, o dată la fiecare resetare.</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Valoarea API lângă tokeni</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Arată lângă numărul de tokeni cât ar costa tokenii unei ferestre la prețurile API. Estimare pentru ferestrele de cinci ore și cele săptămânale; estimarea costurilor trebuie să fie activată.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Chiar înainte de resetare</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Notifică cu 10 minute înainte de resetarea unei ferestre, doar pentru ferestrele la 90% sau mai mult, o dată la fiecare resetare.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} se resetează în {2} min</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan schimbat: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ascunde</value></data>
@@ -718,7 +718,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Mai rămân {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Conectare la platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Arată pe card soldul de credite API al Claude Console. Se citește doar soldul.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Salvează în fiecare săptămână un fișier CSV al săptămânii anterioare</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Export CSV săptămânal</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Alege folderul…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Mai multe foldere (citite la fiecare rulare)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Adaugă folder…</value></data>
@@ -750,4 +750,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Scalează tot widgetul, text și carduri deopotrivă.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Cât de transparentă este fereastra widgetului. La 100% este complet opacă.</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>Așază cardurile unul sub altul sau unul lângă altul.</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Personalizat păstrează ordinea setată de tine. După consum pune sus cardul cel mai apropiat de limită.</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Cât istoric arată graficul din fereastra principală.</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Desenează consumul săptămânii trecute ca o linie subțire în grafic, pentru comparație.</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Arată graficul de consum al acestui furnizor în fereastra principală.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Ține widgetul deasupra tuturor ferestrelor, ca o fereastră obișnuită, sau pe desktop, în spatele tuturor ferestrelor.</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Ascunde widgetul cât timp un joc, un videoclip sau altă aplicație ocupă tot ecranul și îl afișează din nou după aceea.</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Clicurile de mouse trec prin widget către fereastra din spate. Oprește-l din nou din pictograma din zona de notificare.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Cât de des este citit consumul din sursele de pe acest PC. Furnizorii citiți prin internet urmează setarea de mai jos.</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Notifică atunci când consumul unei ferestre atinge această valoare. Fiecare furnizor își poate seta mai jos propria valoare.</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Avertizează când ritmul actual va atinge probabil o limită în intervalul de avans de mai jos.</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Cu cât timp înainte de limita estimată vine avertizarea.</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>Notifică de îndată ce o fereastră atinge 100%.</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>Notifică atunci când o fereastră care a declanșat un avertisment se resetează și este din nou liberă.</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>Între aceste două ore nu apare nicio notificare.</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>Zilele bifate permit notificări; zilele nebifate rămân liniștite.</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Pornește sau oprește toate notificările acestui furnizor.</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Notifică atunci când o fereastră a acestui furnizor este din nou liberă după un avertisment.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Folosește valori proprii de notificare pentru acest furnizor, în loc de valoarea implicită de mai sus.</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Notifică atunci când consumul acestei ferestre atinge valoarea de pe cursor.</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Arată sau ascunde bara acestei ferestre în cardul furnizorului.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Citește acest furnizor doar din fișiere de pe acest PC și sare peste sesiunea lui web. Dezactivarea reia citirea web fără o nouă autentificare.</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>Perioada pe care o arată fereastra de statistici la deschidere.</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Arată sau ascunde această secțiune în fereastra de statistici.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Ziua săptămânii în care se salvează fișierul CSV.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Ora din zi la care se salvează fișierul CSV.</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Pornește AI-Usage când te conectezi la Windows.</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>Caută o versiune mai nouă o dată pe zi și te anunță când există una.</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>O combinație de taste care afișează sau ascunde fereastra din orice aplicație. Fă clic în caseta de mai jos și apasă tastele.</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>Limba aplicației. Sistem urmează limba de afișare din Windows.</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>Cât timp este păstrat istoricul de consum. Intrările mai vechi sunt șterse.</value></data>
 </root>

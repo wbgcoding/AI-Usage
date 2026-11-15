@@ -307,7 +307,7 @@
   <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>Uygulama simgesi</value></data>
   <data name="Settings.TrayWindow" xml:space="preserve"><value>Simgede gösterilen zaman penceresi</value></data>
   <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Otomatik</value></data>
-  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Geçen haftayı karşılaştırma çizgisi olarak göster</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Geçen haftayı çizgi olarak göster</value></data>
   <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Grafiği şunun için göster</value></data>
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Pencere opaklığı</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>%{0}</value></data>
@@ -316,7 +316,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Son başarılı güncelleme</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>hiç</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Açık</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Uyarıdan sonra bir sınır yeniden boşaldığında bildir</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Uyarıdan sonra yeniden boşaldı</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>{0} için bildirimler</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>Sağlayıcı başına</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Bu sağlayıcı için bildirimler</value></data>
@@ -324,7 +324,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Varsayılan değer</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Özel değerler</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Yeniden boşaldığında da bildir</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Yeni sürümü günde bir kez denetle</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Güncellemeleri günlük denetle</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Şu saatler arasında bildirim yok</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>ile</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
@@ -335,7 +335,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>Oturumu kapat</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Windows ile başlat</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows otomatik başlatma kaydının değiştirilmesini reddetti.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Pencereyi göster/gizle için genel kısayol</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Göster/gizle kısayolu</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Tıkla, sonra yeni tuş birleşimine bas</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Bu birleşimi başka bir program zaten kullanıyor.</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Ctrl, Alt veya Win tuşunu da basılı tut.</value></data>
@@ -555,7 +555,7 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>örn. İş</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Güncelleme tamamlanamadı. Program dosyan şimdi {0} konumunda. Uygulamayı yeniden başlatmak için adını AI-Usage.exe olarak geri değiştir.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Yükleyici başlamadı. Yönetici istemini kapattıysan yeniden dene.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Sınıra büyük olasılıkla ulaşılmadan önce uyar</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Sınır öncesi erken uyarı</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} sa</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} dk</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Uyarı süresi</value></data>
@@ -564,7 +564,7 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Bildirimsiz hafta günlerini seçmek için kapat: işaretsiz günler tamamen sessiz kalır.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Çubuklarda zaman işaretini göster</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Her çubuktaki kısa bir çizgi, zaman penceresinin ne kadarının geçtiğini gösterir. Dolgu bunun ötesine geçiyorsa kullanım zamanın önünde gidiyor.</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Kullanım zamanın altındayken söyle</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Kullanım zamanın altındaysa söyle</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Çubuğun ipucu, kullanım pencerenin geçen payının altındayken bunu söyler. Kapalıyken yalnızca bu cümle çıkar; öndeyken ve tempodayken olanlar kalır.</value></data>
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API maliyeti:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Bu tokenlar herkese açık API liste fiyatlarından faturalansaydı yaklaşık maliyet (LiteLLM fiyat listesi, {0} itibarıyla). Abonelikler farklı faturalanır.</value></data>
@@ -589,7 +589,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: %{2}, azalıyor</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: %{2}, sınıra neredeyse ulaşıldı</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: sınıra ulaşıldı</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Sınıra ulaşıldığında bildir (%100)</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Sınıra ulaşıldı (%100)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1} için sınıra ulaşıldı, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} sınırına ulaşıldı</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Pencere öğesini göster</value></data>
@@ -705,10 +705,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Console oturumunun süresi doldu, bu yüzden bakiye artık okunmuyor. Ayarlar'da Claude Console (API bakiyesi) altından yeniden oturum aç.</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console oturumunun süresi doldu, API bakiyesi okunmuyor.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Yeniden oturum aç</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Bir pencerenin token sayısının yanında API değerini göster</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Beş saatlik ve haftalık pencereler için tahmin. Maliyet tahmininin açık olmasını gerektirir.</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Dolu bir pencere sıfırlanmadan 10 dakika önce bildir</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Yalnızca %90 ve üzerindeki pencereler için, her sıfırlamada bir kez.</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Token yanında API değerini göster</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Token sayısının yanında, bir pencerenin tokenlarının API fiyatlarıyla ne kadar tutacağını gösterir. Beş saatlik ve haftalık pencereler için tahmindir; maliyet tahmininin açık olması gerekir.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Sıfırlamadan hemen önce</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Bir pencere sıfırlanmadan 10 dakika önce bildirir, yalnızca %90 veya üzerindeki pencereler için, her sıfırlamada bir kez.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} {2} dk içinde sıfırlanacak</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan değişti: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Gizle</value></data>
@@ -718,7 +718,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} kaldı.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com'da oturum aç</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude Console'unun API kredi bakiyesini kutucukta gösterir. Yalnızca bakiye okunur.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Her hafta önceki haftanın CSV dosyasını kaydet</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Haftalık CSV dışa aktarma</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Klasör seç…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Diğer klasörler (her çalıştırmada okunur)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Klasör ekle…</value></data>
@@ -750,4 +750,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Metin ve kutucuklar dahil tüm widget'ı aynı oranda ölçekler.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Widget penceresinin ne kadar saydam olduğu. %100'de tamamen opaktır.</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>Kutucukları alt alta dizer veya yan yana koyar.</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Özel, belirlediğin sırayı korur. Kullanıma göre, sınırına en yakın kutucuğu en üste koyar.</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Ana penceredeki grafiğin ne kadar geçmiş gösterdiği.</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Geçen haftanın kullanımını, karşılaştırma için grafikte ince bir çizgi olarak çizer.</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Bu sağlayıcının kullanım grafiğini ana pencerede gösterir.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Widget'ı normal bir pencere gibi tüm pencerelerin üstünde veya masaüstünde, tüm pencerelerin arkasında tutar.</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Bir oyun, video veya başka bir uygulama tüm ekranı kaplarken widget'ı gizler, sonra yeniden gösterir.</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Fare tıklamaları widget'ın içinden geçip arkasındaki pencereye ulaşır. Bildirim alanındaki simgeden yeniden kapatabilirsin.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Kullanımın bu bilgisayardaki kaynaklardan ne sıklıkta okunduğu. İnternet üzerinden okunan sağlayıcılar aşağıdaki ayarı izler.</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Bir pencerenin kullanımı bu değere ulaştığında bildirir. Her sağlayıcı aşağıda kendi değerini belirleyebilir.</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Mevcut hızla bir sınıra aşağıdaki önceden bildirim süresi içinde ulaşılacağı tahmin edildiğinde uyarır.</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Uyarının beklenen sınırdan ne kadar önce geleceği.</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>Bir pencere %100'e ulaşır ulaşmaz bildirir.</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>Uyarıya yol açan bir pencere sıfırlanıp yeniden boşaldığında bildirir.</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>Bu iki saat arasında bildirim gösterilmez.</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>İşaretli günlerde bildirimlere izin verilir; işaretsiz günler sessiz kalır.</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Bu sağlayıcının tüm bildirimlerini açar veya kapatır.</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Bu sağlayıcının bir penceresi uyarıdan sonra yeniden boşaldığında bildirir.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Bu sağlayıcı için yukarıdaki varsayılan değer yerine kendi bildirim değerlerini kullanır.</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Bu pencerenin kullanımı kaydırıcıdaki değere ulaştığında bildirir.</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Sağlayıcının kutucuğunda bu pencerenin çubuğunu gösterir veya gizler.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Bu sağlayıcıyı yalnızca bu bilgisayardaki dosyalardan okur ve web oturumunu atlar. Kapatınca web okuması yeni oturum açmadan sürer.</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>İstatistik penceresinin açıldığında gösterdiği dönem.</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Bu bölümü istatistik penceresinde gösterir veya gizler.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>CSV dosyasının kaydedildiği haftanın günü.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>CSV dosyasının kaydedildiği günün saati.</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Windows'ta oturum açtığında AI-Usage'ı başlatır.</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>Günde bir kez daha yeni bir sürüm arar ve varsa sana haber verir.</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>Pencereyi herhangi bir uygulamadan gösteren veya gizleyen bir tuş birleşimi. Aşağıdaki kutuya tıkla ve tuşlara bas.</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>Uygulamanın dili. Sistem, Windows görüntüleme dilini izler.</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>Kullanım geçmişinin ne kadar süre tutulduğu. Daha eski kayıtlar silinir.</value></data>
 </root>

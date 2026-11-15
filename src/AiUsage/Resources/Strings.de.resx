@@ -315,7 +315,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Letzte erfolgreiche Aktualisierung</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>noch nie</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Ein</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Melden, wenn ein Limit nach einer Warnung wieder frei ist</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Wieder frei nach einer Warnung</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Meldungen für {0}</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>Je Anbieter</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Meldungen für diesen Anbieter</value></data>
@@ -323,7 +323,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Standardwert</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Eigene Werte</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Auch melden, wenn wieder frei</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Einmal täglich auf eine neuere Version prüfen</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Täglich nach Updates suchen</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Keine Meldungen zwischen</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>und</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
@@ -334,7 +334,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>Abmelden</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Mit Windows starten</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows hat die Änderung des Autostart-Eintrags abgelehnt.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Globaler Kurzbefehl zum Ein-/Ausblenden des Fensters</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Kurzbefehl zum Ein-/Ausblenden</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Klicken, dann die neue Tastenkombination drücken</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Diese Kombination benutzt bereits ein anderes Programm.</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Bitte zusätzlich Strg, Alt oder Win halten.</value></data>
@@ -545,16 +545,16 @@
   <data name="Tile.CodexSignInWeb" xml:space="preserve"><value>Im Web anmelden</value></data>
   <data name="Settings.TileOrder" xml:space="preserve"><value>Reihenfolge</value></data>
   <data name="Tip.Settings.BarColor" xml:space="preserve"><value>Färbt die Balken dieses Anbieters nach dem Anteil der Token je Modell oder je Haupt- und Unteragent im jeweiligen Zeitfenster.</value></data>
-  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Nach Auslastung</value></data>
+  <data name="Settings.BarColor.Level" xml:space="preserve"><value>Auslastung</value></data>
   <data name="Settings.BarColor" xml:space="preserve"><value>Balkenfarbe</value></data>
   <data name="Window.TokensSinceReset" xml:space="preserve"><value>{0} Token seit dem letzten Reset dieses Zeitfensters</value></data>
   <data name="Settings.TileOrder.Custom" xml:space="preserve"><value>Eigene</value></data>
-  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>Nach Auslastung</value></data>
+  <data name="Settings.TileOrder.ByUsage" xml:space="preserve"><value>Auslastung</value></data>
   <data name="Settings.AccountName" xml:space="preserve"><value>Name</value></data>
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>z. B. Arbeit</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update ließ sich nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuche es noch einmal.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warnen, bevor ein Limit voraussichtlich erreicht ist</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Frühwarnung vor einem Limit</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} Std</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Vorlauf der Warnung</value></data>
@@ -563,7 +563,7 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Ausschalten, um einzelne Wochentage ohne Meldungen festzulegen: an nicht angehakten Tagen bleibt es ganz ruhig.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Zeitmarke in den Balken zeigen</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Ein kurzer Strich im Balken zeigt, wie viel vom Zeitfenster schon vergangen ist. Reicht die Füllung darüber hinaus, verbrauchst du schneller, als die Zeit vergeht.</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Hinweis zeigen, wenn der Verbrauch unter der Zeit liegt</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Hinweis, wenn unter dem Zeitanteil</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Der Tooltip des Balkens sagt, wenn der Verbrauch unter dem schon vergangenen Teil des Zeitfensters liegt. Ausgeschaltet fehlt nur dieser Satz; „darüber“ und „im Plan“ bleiben.</value></data>
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API-Kosten:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Ungefähre Kosten, wenn diese Tokens zu den öffentlichen API-Listenpreisen abgerechnet würden (Preisliste von LiteLLM, Stand {0}). Abos werden anders abgerechnet.</value></data>
@@ -588,7 +588,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2} %, wird knapp</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2} %, Limit fast erreicht</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: Limit erreicht</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Melden, wenn ein Limit erreicht ist (100 %)</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Limit erreicht (100 %)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: Limit für {1} erreicht, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: Limit für {1} erreicht</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Widget zeigen</value></data>
@@ -704,10 +704,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Die Anmeldung bei der Claude Console ist abgelaufen, daher wird das Guthaben nicht mehr gelesen. In den Einstellungen unter „Claude Console (API-Guthaben)“ neu anmelden.</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console-Anmeldung abgelaufen, das API-Guthaben wird nicht gelesen.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Neu anmelden</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>API-Wert neben den Token eines Fensters zeigen</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Schätzung für 5-Stunden- und Wochenfenster. Die Kostenschätzung muss eingeschaltet sein.</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>10 Minuten vor dem Zurücksetzen eines vollen Fensters benachrichtigen</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Nur für Fenster ab 90 %, einmal je Zurücksetzen.</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>API-Wert neben Token zeigen</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Zeigt neben der Tokenzahl, was die Token eines Fensters zu API-Preisen kosten würden. Schätzung für Fünf-Stunden- und Wochenfenster; die Kostenschätzung muss an sein.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Kurz vor dem Zurücksetzen</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Meldet sich 10 Minuten vor dem Zurücksetzen eines Fensters, nur für Fenster ab 90 %, einmal je Zurücksetzen.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} wird in {2} Min. zurückgesetzt</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Tarif gewechselt: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ausblenden</value></data>
@@ -717,7 +717,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} übrig.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Bei platform.claude.com anmelden</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Zeigt das API-Guthaben deiner Claude Console auf der Kachel. Gelesen wird nur das Guthaben.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Wöchentlich eine CSV-Datei der Vorwoche speichern</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Wöchentlicher CSV-Export</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Ordner wählen…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Weitere Ordner (werden bei jedem Lauf mitgelesen)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Ordner hinzufügen…</value></data>
@@ -749,4 +749,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Skaliert das ganze Widget, Text und Kacheln gleichermaßen.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Wie durchsichtig das Widget-Fenster ist. Bei 100 % ist es voll deckend.</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>Stapelt die Kacheln untereinander oder stellt sie nebeneinander.</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Eigene behält deine Reihenfolge. Auslastung setzt die Kachel, die ihrem Limit am nächsten ist, nach oben.</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Wie viel Verlauf das Diagramm im Hauptfenster zeigt.</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Zeichnet den Verbrauch der Vorwoche als dünne Linie ins Diagramm, zum Vergleich.</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Zeigt das Verlaufsdiagramm dieses Anbieters im Hauptfenster.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Hält das Widget über allen Fenstern, wie ein normales Fenster oder auf dem Desktop hinter allen Fenstern.</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Blendet das Widget aus, solange ein Spiel, Video oder eine andere App den ganzen Bildschirm füllt, und danach wieder ein.</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Mausklicks gehen durch das Widget an das Fenster dahinter. Ausschalten lässt es sich über das Symbol im Infobereich.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Wie oft der Verbrauch aus den Quellen auf diesem PC gelesen wird. Anbieter, die über das Internet gelesen werden, folgen der Einstellung darunter.</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Meldet sich, wenn die Auslastung eines Fensters diesen Wert erreicht. Jeder Anbieter kann weiter unten einen eigenen Wert setzen.</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Warnt, wenn das aktuelle Tempo ein Limit voraussichtlich innerhalb der Vorlaufzeit darunter erreicht.</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Wie lange vor dem erwarteten Limit die Warnung kommt.</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>Meldet sich, sobald ein Fenster 100 % erreicht.</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>Meldet sich, wenn ein Fenster nach einer Warnung zurückgesetzt wird und wieder frei ist.</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>Zwischen diesen beiden Uhrzeiten erscheinen keine Meldungen.</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>Angehakte Tage erlauben Meldungen, die anderen bleiben still.</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Schaltet alle Meldungen dieses Anbieters ein oder aus.</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Meldet sich, wenn ein Fenster dieses Anbieters nach einer Warnung wieder frei ist.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Nutzt für diesen Anbieter eigene Meldewerte statt des Standardwerts oben.</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Meldet sich, wenn die Auslastung dieses Fensters den Wert am Regler erreicht.</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Blendet den Balken dieses Fensters in der Kachel des Anbieters ein oder aus.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Liest diesen Anbieter nur aus Dateien auf diesem PC und lässt seine Websitzung aus. Ausschalten nimmt das Lesen im Web ohne neue Anmeldung wieder auf.</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>Der Zeitraum, den das Statistikfenster beim Öffnen zeigt.</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Blendet diesen Abschnitt im Statistikfenster ein oder aus.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Wochentag, an dem die CSV-Datei gespeichert wird.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Uhrzeit, zu der die CSV-Datei gespeichert wird.</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Startet AI-Usage, wenn du dich bei Windows anmeldest.</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>Sucht einmal täglich nach einer neueren Version und sagt dir, wenn es eine gibt.</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>Eine Tastenkombination, die das Fenster aus jeder App heraus ein- oder ausblendet. Klicke in das Feld darunter und drücke die Tasten.</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>Sprache der App. System folgt der Anzeigesprache von Windows.</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>Wie lange der Verlauf aufbewahrt wird. Ältere Einträge werden gelöscht.</value></data>
 </root>

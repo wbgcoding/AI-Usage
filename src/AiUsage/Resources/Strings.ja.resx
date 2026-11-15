@@ -307,7 +307,7 @@
   <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>アプリのアイコン</value></data>
   <data name="Settings.TrayWindow" xml:space="preserve"><value>トレイアイコンに表示する時間枠</value></data>
   <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>自動</value></data>
-  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>先週を比較線として表示</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>先週を線で表示</value></data>
   <data name="Settings.ChartPerProvider" xml:space="preserve"><value>グラフを表示するプロバイダー</value></data>
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>ウィンドウの不透明度</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0}%</value></data>
@@ -316,7 +316,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>最後に成功した更新</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>なし</value></data>
   <data name="Settings.On" xml:space="preserve"><value>オン</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>警告後に上限が解除されたら通知する</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>警告後に再び使えるようになったら</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>{0}の通知</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>プロバイダー別</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>このプロバイダーの通知</value></data>
@@ -324,7 +324,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>既定値</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>個別設定</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>再び使えるようになったときも通知</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>1日1回、新しいバージョンを確認する</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>毎日アップデートを確認</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>通知しない時間帯</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>から</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value>まで</value></data>
@@ -335,7 +335,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>サインアウト</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Windows起動時に開始</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windowsが自動起動エントリの変更を拒否しました。</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>ウィンドウの表示/非表示のグローバルショートカット</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>表示/非表示のショートカット</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>クリックして、新しいキーの組み合わせを押してください</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>この組み合わせは別のプログラムで使用されています。</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Ctrl、Alt、Winのいずれかも押してください。</value></data>
@@ -555,7 +555,7 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>例: 仕事用</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>アップデートを完了できませんでした。プログラムファイルは現在 {0} にあります。アプリを再び起動するには、AI-Usage.exe に名前を戻してください。</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>インストーラーが起動しませんでした。管理者の確認を閉じた場合は、もう一度お試しください。</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>上限に達しそうなときに事前に警告</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>上限前の早期警告</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0}時間</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0}分</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>警告の事前時間</value></data>
@@ -564,7 +564,7 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>オフにすると、通知しない曜日を選べます。チェックを外した曜日は完全に静かになります。</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>バーに時間マーカーを表示</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>各バーの短い線が、時間枠のうちどれだけ経過したかを示します。塗りがその線を超えていれば、使用量が時間より先行しています。</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>使用量が時間を下回ることを表示</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>時間の割合を下回るとき表示</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>使用量が経過した時間の割合を下回っているとき、バーのツールチップでお知らせします。オフにするとその一文だけが省かれ、上回る場合とペースどおりの場合は表示されます。</value></data>
   <data name="Stats.Cost.Column" xml:space="preserve"><value>APIコスト:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>これらのトークンが公開APIの定価で課金された場合のおおよその費用です(LiteLLM価格表、{0}時点)。サブスクリプションの課金方法は異なります。</value></data>
@@ -589,7 +589,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}、{1}: {2}%、残りわずか</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}、{1}: {2}%、上限間近</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}、{1}: 上限に到達</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>上限(100%)に達したら通知</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>上限に到達(100%)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: {1}の上限に到達、{2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1}の上限に到達</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>ウィジェットを表示</value></data>
@@ -705,10 +705,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Claude Consoleのサインインの期限が切れたため、残高は読み取られません。設定の「Claude Console(APIクレジット)」で再度サインインしてください。</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Consoleのサインインが期限切れのため、API残高を読み取れません。</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>再サインイン</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>枠のトークン数の横にAPI換算額を表示する</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>5時間枠と週間枠の概算です。コスト概算がオンの場合のみ使えます。</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>使用枠がいっぱいになった場合、リセットの10分前に通知する</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>使用率90 %以上の枠のみ、リセットごとに1回。</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>トークン横にAPI換算額を表示</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>ウィンドウのトークン数の横に、そのトークンをAPI料金で支払った場合の金額を表示します。5時間枠と週間枠の概算で、コスト概算がオンになっている必要があります。</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>リセット直前</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>ウィンドウがリセットされる10分前に通知します。90%以上のウィンドウのみが対象で、リセットごとに1回です。</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} は{2}分後にリセットされます</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>プランが変わりました: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>非表示</value></data>
@@ -718,7 +718,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>残り {0}。</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>platform.claude.com にサインイン</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Claude ConsoleのAPIクレジット残高をタイルに表示します。読み取るのは残高だけです。</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>毎週、前の週の CSV ファイルを保存する</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>週次CSVエクスポート</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>フォルダーを選択…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>追加のフォルダー(実行のたびに読み込み)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>フォルダーを追加…</value></data>
@@ -750,4 +750,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0}{1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>テキストもタイルも含め、ウィジェット全体の大きさを変えます。</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>ウィジェットウィンドウの透け具合です。100%なら完全に不透明です。</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>タイルを縦に並べるか、横に並べます。</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>カスタムは設定した順序を保ちます。使用量順は上限に最も近いタイルを一番上にします。</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>メインウィンドウのグラフに表示する履歴の期間です。</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>先週の使用量を細い線でグラフに描き、比較できるようにします。</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>このプロバイダーの使用量グラフをメインウィンドウに表示します。</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>ウィジェットを通常のウィンドウのようにすべてのウィンドウの上に置くか、デスクトップ上のすべてのウィンドウの背面に置きます。</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>ゲームや動画などのアプリが画面全体を占めている間はウィジェットを隠し、終わると再び表示します。</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>マウスのクリックがウィジェットを通り抜けて背後のウィンドウに届きます。オフに戻すには通知領域のアイコンを使います。</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>このPC上のソースから使用量を読み取る頻度です。インターネット経由で読み取るプロバイダーは下の設定に従います。</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>ウィンドウの使用量がこの値に達すると通知します。各プロバイダーは下で個別の値を設定できます。</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>現在のペースだと、下の事前通知時間内に上限へ達しそうなときに警告します。</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>予想される上限に達する何分前に警告するかです。</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>ウィンドウが100%に達したらすぐに通知します。</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>警告が出たウィンドウがリセットされ、再び使えるようになったときに通知します。</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>この2つの時刻の間は通知を表示しません。</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>チェックした曜日は通知を許可し、チェックしていない曜日は通知しません。</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>このプロバイダーのすべての通知をオンまたはオフにします。</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>このプロバイダーのウィンドウが警告後に再び使えるようになったときに通知します。</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>上のデフォルト値の代わりに、このプロバイダー専用の通知値を使います。</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>このウィンドウの使用量がスライダーの値に達すると通知します。</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>プロバイダーのタイルにあるこのウィンドウのバーを表示または非表示にします。</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>このプロバイダーをこのPC上のファイルからのみ読み取り、Webセッションは使いません。オフにすると、再サインインなしでWebからの読み取りを再開します。</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>統計ウィンドウを開いたときに表示される期間です。</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>統計ウィンドウでこのセクションを表示または非表示にします。</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>CSVファイルを保存する曜日です。</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>CSVファイルを保存する時刻です。</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Windowsにサインインしたときに AI-Usage を起動します。</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>1日に1回新しいバージョンを確認し、あれば知らせます。</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>どのアプリからでもウィンドウを表示または非表示にするキーの組み合わせです。下のボックスをクリックしてキーを押してください。</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>アプリの言語です。システムはWindowsの表示言語に従います。</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>使用量の履歴を保持する期間です。それより古い項目は削除されます。</value></data>
 </root>

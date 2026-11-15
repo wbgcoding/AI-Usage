@@ -307,7 +307,7 @@
   <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>App-pictogram</value></data>
   <data name="Settings.TrayWindow" xml:space="preserve"><value>Tijdvenster in het systeemvakpictogram</value></data>
   <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Automatisch</value></data>
-  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Vorige week als vergelijkingslijn tonen</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Vorige week als lijn</value></data>
   <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Grafiek tonen voor</value></data>
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Vensterdekking</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0}%</value></data>
@@ -316,7 +316,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Laatste geslaagde update</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>nooit</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Aan</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Melden als een limiet na een waarschuwing weer vrij is</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Weer vrij na een waarschuwing</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Meldingen voor {0}</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>Per aanbieder</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Meldingen voor deze aanbieder</value></data>
@@ -324,7 +324,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Standaardwaarde</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Eigen waarden</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Ook melden als het weer vrij is</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Eén keer per dag op een nieuwere versie controleren</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Dagelijks op updates controleren</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Geen meldingen tussen</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>en</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
@@ -335,7 +335,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>Uitloggen</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Met Windows starten</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows weigerde het opstartitem te wijzigen.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Globale sneltoets om het venster te tonen/verbergen</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Sneltoets tonen/verbergen</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Klik en druk dan op de nieuwe toetscombinatie</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Deze combinatie wordt al door een ander programma gebruikt.</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Houd ook Ctrl, Alt of Win ingedrukt.</value></data>
@@ -555,7 +555,7 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>bijv. Werk</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>De update kon niet worden voltooid. Je programmabestand staat nu op {0}. Hernoem het terug naar AI-Usage.exe om de app weer te starten.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Het installatieprogramma is niet gestart. Als je de beheerdersmelding hebt gesloten, probeer het dan opnieuw.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Waarschuwen voordat een limiet waarschijnlijk wordt bereikt</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Vroege waarschuwing voor limiet</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} u</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Waarschuwingstijd vooraf</value></data>
@@ -564,7 +564,7 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Zet uit om weekdagen zonder meldingen te kiezen: niet aangevinkte dagen blijven helemaal stil.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Tijdmarkering in de balken tonen</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Een korte lijn in elke balk toont hoeveel van het tijdvenster is verstreken. Reikt de vulling daar voorbij, dan loopt het verbruik voor op de tijd.</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Melden wanneer het verbruik onder de tijd ligt</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Melden onder het tijdsaandeel</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>De tooltip van de balk vermeldt wanneer het verbruik onder het verstreken deel van het venster ligt. Uit laat alleen die zin weg; vóór en op schema blijven.</value></data>
   <data name="Stats.Cost.Column" xml:space="preserve"><value>API-kosten:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Geschatte kosten als deze tokens tegen de openbare API-lijstprijzen waren gefactureerd (LiteLLM-prijslijst, stand {0}). Abonnementen worden anders gefactureerd.</value></data>
@@ -589,7 +589,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, bijna op</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limiet bijna bereikt</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limiet bereikt</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Melden wanneer een limiet is bereikt (100%)</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Limiet bereikt (100%)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limiet bereikt voor {1}, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: limiet van {1} bereikt</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Widget tonen</value></data>
@@ -705,10 +705,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>De aanmelding bij Claude Console is verlopen, dus het tegoed wordt niet meer gelezen. Meld je opnieuw aan in Instellingen onder Claude Console (API-tegoed).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console-aanmelding verlopen, het API-tegoed wordt niet gelezen.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Opnieuw aanmelden</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>API-waarde naast de tokens van een venster tonen</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Schatting voor vensters van vijf uur en van een week. Vereist dat de kostenschatting aanstaat.</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Melden 10 minuten voordat een vol venster wordt gereset</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Alleen voor vensters vanaf 90 %, één keer per reset.</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>API-waarde naast tokens tonen</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Toont naast het aantal tokens wat de tokens van een venster zouden kosten tegen API-prijzen. Schatting voor vijfuurs- en weekvensters; de kostenschatting moet aan staan.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Vlak voor een reset</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Meldt 10 minuten voordat een venster wordt gereset, alleen voor vensters op 90% of meer, één keer per reset.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} wordt over {2} min gereset</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Abonnement gewijzigd: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Verbergen</value></data>
@@ -718,7 +718,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Nog {0} over.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Inloggen bij platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Toont het API-tegoed van je Claude Console op de tegel. Alleen het saldo wordt gelezen.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Elke week een csv-bestand van de vorige week opslaan</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Wekelijkse csv-export</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Map kiezen…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Meer mappen (bij elke start ingelezen)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Map toevoegen…</value></data>
@@ -750,4 +750,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Schaalt de hele widget, tekst en tegels in dezelfde mate.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Hoe doorzichtig het widgetvenster is. Bij 100% is het volledig ondoorzichtig.</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>Stapelt de tegels onder elkaar of zet ze naast elkaar.</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Aangepast behoudt de volgorde die je instelt. Op verbruik zet de tegel die het dichtst bij zijn limiet zit bovenaan.</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Hoeveel geschiedenis de grafiek in het hoofdvenster toont.</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Tekent het verbruik van vorige week als dunne lijn in de grafiek, ter vergelijking.</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Toont de verbruiksgrafiek van deze aanbieder in het hoofdvenster.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Houdt de widget boven alle vensters, zoals een normaal venster, of op het bureaublad achter alle vensters.</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Verbergt de widget zolang een spel, video of andere app het hele scherm vult, en toont hem daarna weer.</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Muisklikken gaan dwars door de widget naar het venster erachter. Zet dit weer uit via het pictogram in het systeemvak.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Hoe vaak het verbruik wordt gelezen uit de bronnen op deze pc. Aanbieders die via internet worden gelezen volgen de instelling hieronder.</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Meldt wanneer het verbruik van een venster deze waarde bereikt. Elke aanbieder kan verderop een eigen waarde instellen.</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Waarschuwt wanneer het huidige tempo een limiet waarschijnlijk bereikt binnen de voorsprong hieronder.</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Hoe lang voor de verwachte limiet de waarschuwing komt.</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>Meldt zodra een venster 100% bereikt.</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>Meldt wanneer een venster waarvoor een waarschuwing kwam wordt gereset en weer vrij is.</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>Tussen deze twee tijden verschijnen er geen meldingen.</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>Aangevinkte dagen staan meldingen toe; niet aangevinkte dagen blijven stil.</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Zet alle meldingen van deze aanbieder aan of uit.</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Meldt wanneer een venster van deze aanbieder na een waarschuwing weer vrij is.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Gebruikt eigen meldwaarden voor deze aanbieder in plaats van de standaardwaarde hierboven.</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Meldt wanneer het verbruik van dit venster de waarde op de schuifregelaar bereikt.</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Toont of verbergt de balk van dit venster in de tegel van de aanbieder.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Leest deze aanbieder alleen uit bestanden op deze pc en slaat de websessie over. Uitzetten hervat het lezen via het web zonder nieuwe aanmelding.</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>De periode die het statistiekenvenster toont bij het openen.</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Toont of verbergt deze sectie in het statistiekenvenster.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Weekdag waarop het csv-bestand wordt opgeslagen.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Tijdstip waarop het csv-bestand wordt opgeslagen.</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Start AI-Usage wanneer je je aanmeldt bij Windows.</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>Zoekt één keer per dag naar een nieuwere versie en laat het je weten als er een is.</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>Een toetsencombinatie die het venster vanuit elke app toont of verbergt. Klik op het vak hieronder en druk op de toetsen.</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>Taal van de app. Systeem volgt de weergavetaal van Windows.</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>Hoe lang de verbruiksgeschiedenis wordt bewaard. Oudere items worden verwijderd.</value></data>
 </root>

@@ -316,7 +316,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Last successful update</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>never</value></data>
   <data name="Settings.On" xml:space="preserve"><value>On</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Notify when a limit becomes free again after a warning</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Free again after a warning</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Notifications for {0}</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>Per provider</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Notifications for this provider</value></data>
@@ -324,7 +324,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Default value</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Own values</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Also notify when it is free again</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Check once a day for a newer version</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Check for updates daily</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>No notifications between</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>and</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
@@ -335,7 +335,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>Sign out</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Start with Windows</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows refused to change the autostart entry.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Global shortcut to show/hide the window</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Show/hide shortcut</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Click, then press the new key combination</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>This combination is already used by another program.</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Hold Ctrl, Alt or Win as well.</value></data>
@@ -555,7 +555,7 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>e.g. Work</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>The update could not finish. Your program file is now at {0}. Rename it back to AI-Usage.exe to start the app again.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>The installer did not start. If you closed the administrator prompt, try again.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Warn before a limit will likely be reached</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Early warning before a limit</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Warning lead time</value></data>
@@ -589,7 +589,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, running low</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limit almost reached</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit reached</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Notify when a limit is reached (100%)</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Limit reached (100%)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limit reached for {1}, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: {1} limit reached</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Show widget</value></data>
@@ -705,10 +705,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>The Claude Console sign-in has expired, so the balance is no longer read. Sign in again in Settings under Claude Console (API credits).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console sign-in expired, the API balance is not read.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Sign in again</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Show the API value next to a window's tokens</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Estimate for five-hour and weekly windows. Needs the cost estimate to be on.</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Notify 10 minutes before a full window resets</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Only for windows at 90 % or more, once per reset.</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Show API value beside tokens</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Shows what a window's tokens would cost at API prices, next to the token count. Estimate for five-hour and weekly windows; needs the cost estimate to be on.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Shortly before a reset</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Notifies 10 minutes before a window resets, only for windows at 90 % or more, once per reset.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} resets in {2} min</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan changed: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Dismiss</value></data>
@@ -718,7 +718,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>{0} left.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Sign in to platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Shows the API credit balance of your Claude Console on the tile. Only the balance is read.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Save a CSV file of the previous week every week</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Weekly CSV export</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Choose folder…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>More folders (read on every run)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
@@ -750,4 +750,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Scales the whole widget, text and tiles alike.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>How see-through the widget window is. At 100 % it is fully solid.</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>Stacks the tiles one below the other or places them side by side.</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Custom keeps the order you set. By usage puts the tile closest to its limit on top.</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>How much history the chart in the main window shows.</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Draws last week's usage as a thin line in the chart, for comparison.</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Shows this provider's usage chart in the main window.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Keeps the widget above all windows, like a normal window, or on the desktop behind all windows.</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Hides the widget while a game, video or other app fills the whole screen, and shows it again afterwards.</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Mouse clicks pass through the widget to the window behind it. Switch it off again from the tray icon.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>How often usage is read from the sources on this PC. Providers read over the internet follow the setting below.</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Notifies when a window's usage reaches this value. Each provider can set its own value further down.</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Warns when the current pace will likely reach a limit within the lead time below.</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>How long before the expected limit the warning comes.</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>Notifies as soon as a window reaches 100 %.</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>Notifies when a window that triggered a warning resets and is free again.</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>No notifications show between these two times.</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>Checked days allow notifications; unchecked days stay quiet.</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Turns all notifications for this provider on or off.</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Notifies when this provider's window is free again after a warning.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Uses its own notification values for this provider instead of the default above.</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Notifies when this window's usage reaches the value on the slider.</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Shows or hides this window's bar in the provider's tile.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Reads this provider only from files on this PC and skips its web session. Turning it off resumes the web read without a new sign-in.</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>The period the statistics window shows when it opens.</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Shows or hides this section in the statistics window.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Weekday on which the CSV file is saved.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Time of day at which the CSV file is saved.</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Starts AI-Usage when you sign in to Windows.</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>Looks for a newer version once a day and tells you when one is available.</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>A key combination that shows or hides the window from any app. Click the box below and press the keys.</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>Language of the app. System follows the Windows display language.</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>How long the usage history is kept. Older entries are deleted.</value></data>
 </root>

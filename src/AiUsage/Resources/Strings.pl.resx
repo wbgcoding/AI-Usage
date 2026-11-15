@@ -307,7 +307,7 @@
   <data name="Settings.TrayProvider.AppIcon" xml:space="preserve"><value>Ikonę aplikacji</value></data>
   <data name="Settings.TrayWindow" xml:space="preserve"><value>Okno czasu na ikonie</value></data>
   <data name="Settings.TrayWindow.Auto" xml:space="preserve"><value>Automatycznie</value></data>
-  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Pokaż zeszły tydzień jako linię porównawczą</value></data>
+  <data name="Settings.PreviousWeekLine" xml:space="preserve"><value>Zeszły tydzień jako linia</value></data>
   <data name="Settings.ChartPerProvider" xml:space="preserve"><value>Pokaż wykres dla</value></data>
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Krycie okna</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0}%</value></data>
@@ -316,7 +316,7 @@
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Ostatnia udana aktualizacja</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>nigdy</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Wł.</value></data>
-  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Powiadom, gdy limit znów będzie wolny po ostrzeżeniu</value></data>
+  <data name="Settings.NotifyOnReset" xml:space="preserve"><value>Znów wolne po ostrzeżeniu</value></data>
   <data name="Settings.NotificationsForProvider" xml:space="preserve"><value>Powiadomienia dla {0}</value></data>
   <data name="Settings.PerProvider" xml:space="preserve"><value>Dla każdego dostawcy</value></data>
   <data name="Settings.NotificationsForThisProvider" xml:space="preserve"><value>Powiadomienia dla tego dostawcy</value></data>
@@ -324,7 +324,7 @@
   <data name="Settings.NotifySummary.Default" xml:space="preserve"><value>Wartość domyślna</value></data>
   <data name="Settings.NotifySummary.Custom" xml:space="preserve"><value>Własne wartości</value></data>
   <data name="Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Powiadom też, gdy znów będzie wolny</value></data>
-  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Raz dziennie sprawdzaj, czy jest nowsza wersja</value></data>
+  <data name="Settings.CheckForUpdates" xml:space="preserve"><value>Codziennie sprawdzaj aktualizacje</value></data>
   <data name="Settings.QuietHours" xml:space="preserve"><value>Bez powiadomień między</value></data>
   <data name="Settings.QuietHoursAnd" xml:space="preserve"><value>a</value></data>
   <data name="Settings.QuietHoursEnd" xml:space="preserve"><value></value></data>
@@ -335,7 +335,7 @@
   <data name="Settings.SignOut" xml:space="preserve"><value>Wyloguj</value></data>
   <data name="Settings.Autostart" xml:space="preserve"><value>Uruchamiaj z Windows</value></data>
   <data name="Settings.AutostartRefused" xml:space="preserve"><value>Windows odmówił zmiany wpisu autostartu.</value></data>
-  <data name="Settings.Hotkey" xml:space="preserve"><value>Globalny skrót do pokazywania/ukrywania okna</value></data>
+  <data name="Settings.Hotkey" xml:space="preserve"><value>Skrót pokaż/ukryj</value></data>
   <data name="Settings.HotkeyCapture" xml:space="preserve"><value>Kliknij, a potem naciśnij nową kombinację klawiszy</value></data>
   <data name="Settings.HotkeyTaken" xml:space="preserve"><value>Ta kombinacja jest już używana przez inny program.</value></data>
   <data name="Settings.HotkeyNeedsModifier" xml:space="preserve"><value>Przytrzymaj także Ctrl, Alt lub Win.</value></data>
@@ -555,7 +555,7 @@
   <data name="Settings.AccountName.Hint" xml:space="preserve"><value>np. Praca</value></data>
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Nie udało się zakończyć aktualizacji. Plik programu to teraz {0}. Zmień jego nazwę z powrotem na AI-Usage.exe, aby znów uruchomić aplikację.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Instalator nie wystartował. Jeśli monit administratora został zamknięty, spróbuj ponownie.</value></data>
-  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Ostrzegaj, zanim limit prawdopodobnie zostanie osiągnięty</value></data>
+  <data name="Settings.ForecastAlert" xml:space="preserve"><value>Wczesne ostrzeżenie o limicie</value></data>
   <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} h</value></data>
   <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Wyprzedzenie ostrzeżenia</value></data>
@@ -564,7 +564,7 @@
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Wyłącz, aby wybrać dni tygodnia bez powiadomień: odznaczone dni pozostają całkiem ciche.</value></data>
   <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Pokaż znacznik czasu na paskach</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Krótka linia na każdym pasku pokazuje, ile okna czasu już upłynęło. Jeśli wypełnienie sięga za nią, użycie wyprzedza czas.</value></data>
-  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Informuj, gdy użycie jest poniżej czasu</value></data>
+  <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Wskaż użycie poniżej czasu</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>Podpowiedź paska mówi, gdy użycie jest poniżej udziału upłyniętego okna. Wyłączenie pomija tylko to zdanie; wyprzedzenie i zgodność z tempem zostają.</value></data>
   <data name="Stats.Cost.Column" xml:space="preserve"><value>Koszt API:</value></data>
   <data name="Stats.Cost.Tip" xml:space="preserve"><value>Przybliżony koszt, gdyby te tokeny rozliczono według publicznych cen katalogowych API (cennik LiteLLM, stan na {0}). Subskrypcje rozlicza się inaczej.</value></data>
@@ -589,7 +589,7 @@
   <data name="A11y.Level.Warn" xml:space="preserve"><value>{0}, {1}: {2}%, kończy się</value></data>
   <data name="A11y.Level.Critical" xml:space="preserve"><value>{0}, {1}: {2}%, limit prawie osiągnięty</value></data>
   <data name="A11y.Level.Full" xml:space="preserve"><value>{0}, {1}: limit osiągnięty</value></data>
-  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Powiadom po osiągnięciu limitu (100%)</value></data>
+  <data name="Settings.LimitReachedAlert" xml:space="preserve"><value>Osiągnięty limit (100%)</value></data>
   <data name="Notify.LimitReached" xml:space="preserve"><value>{0}: limit osiągnięty dla {1}, {2}</value></data>
   <data name="Notify.LimitReachedNoReset" xml:space="preserve"><value>{0}: limit {1} osiągnięty</value></data>
   <data name="Toast.ShowWidget" xml:space="preserve"><value>Pokaż widżet</value></data>
@@ -705,10 +705,10 @@
   <data name="Tile.ApiCredit.ExpiredHint" xml:space="preserve"><value>Logowanie do Claude Console wygasło, więc saldo nie jest już odczytywane. Zaloguj się ponownie w Ustawieniach w sekcji Claude Console (środki API).</value></data>
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Logowanie do Console wygasło, saldo API nie jest odczytywane.</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>Zaloguj się ponownie</value></data>
-  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Pokaż wartość API obok tokenów okna</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Szacunek dla okien pięciogodzinnych i tygodniowych. Wymaga włączonego szacowania kosztów.</value></data>
-  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Powiadom 10 minut przed zresetowaniem pełnego okna</value></data>
-  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Tylko dla okien od 90 %, raz na reset.</value></data>
+  <data name="Settings.TileTokenCost" xml:space="preserve"><value>Wartość API obok tokenów</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>Pokazuje obok liczby tokenów, ile kosztowałyby tokeny okna według cen API. Szacunek dla okien pięciogodzinnych i tygodniowych; wymaga włączonego szacowania kosztów.</value></data>
+  <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>Tuż przed zresetowaniem</value></data>
+  <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>Powiadamia na 10 minut przed zresetowaniem okna, tylko dla okien na poziomie 90% lub więcej, raz na reset.</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} zresetuje się za {2} min</value></data>
   <data name="Tile.PlanChanged" xml:space="preserve"><value>Plan zmieniony: {0} → {1}</value></data>
   <data name="Tile.PlanChanged.Dismiss" xml:space="preserve"><value>Ukryj</value></data>
@@ -718,7 +718,7 @@
   <data name="Tip.Tile.ApiGrant.NoExpiry" xml:space="preserve"><value>Zostało {0}.</value></data>
   <data name="Settings.ConsoleSignIn" xml:space="preserve"><value>Zaloguj do platform.claude.com</value></data>
   <data name="Settings.ConsoleSignIn.Note" xml:space="preserve"><value>Pokazuje na kafelku saldo środków API Twojego Claude Console. Odczytywane jest tylko saldo.</value></data>
-  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Co tydzień zapisuj plik CSV z poprzedniego tygodnia</value></data>
+  <data name="Settings.Stats.WeeklyCsv" xml:space="preserve"><value>Cotygodniowy eksport CSV</value></data>
   <data name="Settings.Stats.WeeklyCsvFolder" xml:space="preserve"><value>Wybierz folder…</value></data>
   <data name="Settings.Stats.ExtraFolders" xml:space="preserve"><value>Więcej folderów (odczytywane przy każdym uruchomieniu)</value></data>
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Dodaj folder…</value></data>
@@ -750,4 +750,37 @@
   <data name="Text.NameAndItem" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Skaluje cały widżet, tekst i kafelki jednakowo.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Jak bardzo okno widżetu jest przezroczyste. Przy 100% jest w pełni nieprzezroczyste.</value></data>
+  <data name="Tip.Settings.Layout" xml:space="preserve"><value>Układa kafelki jeden pod drugim albo obok siebie.</value></data>
+  <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Własna zachowuje ustawioną przez ciebie kolejność. Wg użycia stawia na górze kafelek najbliższy swojego limitu.</value></data>
+  <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Ile historii pokazuje wykres w oknie głównym.</value></data>
+  <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Rysuje użycie z zeszłego tygodnia jako cienką linię na wykresie, dla porównania.</value></data>
+  <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Pokazuje wykres użycia tego dostawcy w oknie głównym.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Trzyma widżet nad wszystkimi oknami, jak zwykłe okno, albo na pulpicie, za wszystkimi oknami.</value></data>
+  <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Ukrywa widżet, gdy gra, film lub inna aplikacja wypełnia cały ekran, a potem pokazuje go ponownie.</value></data>
+  <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Kliknięcia myszą przechodzą przez widżet do okna za nim. Wyłączysz to ponownie z ikony w obszarze powiadomień.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Jak często użycie jest odczytywane ze źródeł na tym komputerze. Dostawcy odczytywani przez internet stosują ustawienie poniżej.</value></data>
+  <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Powiadamia, gdy użycie okna osiągnie tę wartość. Każdy dostawca może niżej ustawić własną wartość.</value></data>
+  <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Ostrzega, gdy przy obecnym tempie limit zostanie prawdopodobnie osiągnięty w czasie wyprzedzenia podanym poniżej.</value></data>
+  <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Ile czasu przed spodziewanym limitem przychodzi ostrzeżenie.</value></data>
+  <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>Powiadamia, gdy tylko okno osiągnie 100%.</value></data>
+  <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>Powiadamia, gdy okno, które wywołało ostrzeżenie, się zresetuje i znów będzie wolne.</value></data>
+  <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>Między tymi dwiema godzinami nie pokazują się żadne powiadomienia.</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>Zaznaczone dni dopuszczają powiadomienia; niezaznaczone pozostają ciche.</value></data>
+  <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Włącza lub wyłącza wszystkie powiadomienia tego dostawcy.</value></data>
+  <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Powiadamia, gdy okno tego dostawcy po ostrzeżeniu znów jest wolne.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Używa dla tego dostawcy własnych wartości powiadomień zamiast wartości domyślnej powyżej.</value></data>
+  <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Powiadamia, gdy użycie tego okna osiągnie wartość ustawioną na suwaku.</value></data>
+  <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Pokazuje lub ukrywa pasek tego okna na kafelku dostawcy.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Odczytuje tego dostawcę tylko z plików na tym komputerze i pomija jego sesję w sieci. Po wyłączeniu odczyt przez sieć wraca bez ponownego logowania.</value></data>
+  <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>Okres, który okno statystyk pokazuje po otwarciu.</value></data>
+  <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Pokazuje lub ukrywa tę sekcję w oknie statystyk.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Dzień tygodnia, w którym zapisywany jest plik CSV.</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>Pora dnia, o której zapisywany jest plik CSV.</value></data>
+  <data name="Tip.Settings.Autostart" xml:space="preserve"><value>Uruchamia AI-Usage po zalogowaniu do Windows.</value></data>
+  <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>Raz dziennie sprawdza, czy jest nowsza wersja, i informuje, gdy jest dostępna.</value></data>
+  <data name="Tip.Settings.Hotkey" xml:space="preserve"><value>Kombinacja klawiszy, która pokazuje lub ukrywa okno z dowolnej aplikacji. Kliknij pole poniżej i naciśnij klawisze.</value></data>
+  <data name="Tip.Settings.Language" xml:space="preserve"><value>Język aplikacji. System podąża za językiem wyświetlania Windows.</value></data>
+  <data name="Tip.Settings.Retention" xml:space="preserve"><value>Jak długo przechowywana jest historia użycia. Starsze wpisy są usuwane.</value></data>
 </root>

@@ -42,6 +42,7 @@
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
             <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,8,0,4"/>
         </Style>
         <Style TargetType="TextBlock">
@@ -268,7 +269,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}"
+                            <ComboBox x:Name="ZoomCombo" ItemsSource="{Binding ZoomChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Zoom]}"
                                       SelectedItem="{Binding SelectedZoomChoice, Mode=TwoWay}"
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Zoom]}"
                                       HorizontalAlignment="Left"/>
@@ -294,7 +295,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <Slider Grid.Row="0" Grid.Column="0" Minimum="20" Maximum="100" Value="{Binding WindowOpacityPercent, Mode=TwoWay}"
+                        <Slider Grid.Row="0" Grid.Column="0" Minimum="20" Maximum="100" Value="{Binding WindowOpacityPercent, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowOpacity]}"
                                 AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding WindowOpacityLabel}" FontSize="{StaticResource Font.Size.Small}"
                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -330,7 +331,7 @@
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}" Style="{StaticResource FieldLabel.Tight}"/>
-                            <ComboBox x:Name="LayoutCombo" ItemsSource="{Binding LayoutChoices}"
+                            <ComboBox x:Name="LayoutCombo" ItemsSource="{Binding LayoutChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Layout]}"
                                       SelectedItem="{Binding SelectedLayoutChoice, Mode=TwoWay}"
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Layout]}"
                                       HorizontalAlignment="Stretch"/>
@@ -345,7 +346,7 @@
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="TileOrderCombo" ItemsSource="{Binding TileOrderChoices}"
+                            <ComboBox x:Name="TileOrderCombo" ItemsSource="{Binding TileOrderChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.TileOrder]}"
                                       SelectedItem="{Binding SelectedTileOrderChoice, Mode=TwoWay}"
                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TileOrder]}"
                                       HorizontalAlignment="Stretch"/>
@@ -439,11 +440,11 @@
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Chart]}" Style="{StaticResource GroupHeading}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}" Style="{StaticResource FieldLabel.Top8}"/>
                     <WrapPanel>
-                        <ComboBox ItemsSource="{Binding ChartRangeChoices}"
+                        <ComboBox ItemsSource="{Binding ChartRangeChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ChartRange]}"
                                   SelectedItem="{Binding SelectedChartRangeChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}"
                                   VerticalAlignment="Center" Margin="0,0,16,0"/>
-                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PreviousWeekLine]}" IsChecked="{Binding ShowPreviousWeekLine}"
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PreviousWeekLine]}" IsChecked="{Binding ShowPreviousWeekLine}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.PreviousWeekLine]}"
                                   VerticalAlignment="Center" Margin="0"/>
                     </WrapPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartPerProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
@@ -453,7 +454,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding HeaderDisplayName}" IsChecked="{Binding ChartShown}"
+                                <CheckBox Content="{Binding HeaderDisplayName}" IsChecked="{Binding ChartShown}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ChartPerProvider]}"
                                           Margin="0,4,16,4"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -461,7 +462,7 @@
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Window]}" Style="{StaticResource GroupHeading}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ComboBox ItemsSource="{Binding WindowLayerChoices}"
+                    <ComboBox ItemsSource="{Binding WindowLayerChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowLayer]}"
                               SelectedItem="{Binding SelectedWindowLayerChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}"
                               HorizontalAlignment="Left"/>
@@ -473,11 +474,11 @@
                     <!-- Side by side: the first label stays on one line while the row has room, then
                          wraps so the second keeps a readable width; neither is ever cut off. -->
                     <controls:NaturalFirstRowPanel>
-                        <CheckBox x:Name="HideOnFullscreenCheck" IsChecked="{Binding HideOnFullscreen}" VerticalAlignment="Top" Margin="0,4,12,4"
+                        <CheckBox x:Name="HideOnFullscreenCheck" IsChecked="{Binding HideOnFullscreen}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.HideOnFullscreen]}" VerticalAlignment="Top" Margin="0,4,12,4"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.HideOnFullscreen]}" TextWrapping="Wrap"/>
                         </CheckBox>
-                        <CheckBox x:Name="ClickThroughCheck" IsChecked="{Binding Main.ClickThrough}" VerticalAlignment="Top" Margin="0,4"
+                        <CheckBox x:Name="ClickThroughCheck" IsChecked="{Binding Main.ClickThrough}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ClickThrough]}" VerticalAlignment="Top" Margin="0,4"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}">
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ClickThrough]}" TextWrapping="Wrap"/>
                         </CheckBox>
@@ -529,7 +530,7 @@
                         <TextBlock Text="{Binding RefreshSecondsLabel}" Style="{StaticResource FieldLabel}" Margin="8,8,0,4"
                                    Foreground="{DynamicResource Text.Primary}" AutomationProperties.AutomationId="RefreshSecondsValue"/>
                     </StackPanel>
-                    <Slider Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}"
+                    <Slider Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.RefreshInterval]}"
                             AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}"/>
                     <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel.Top8}"/>
                     <Slider Minimum="1" Maximum="60" Value="{Binding RemoteRefreshMinutes, Mode=TwoWay}"
@@ -608,7 +609,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="{Binding DefaultThresholdLabelText}" VerticalAlignment="Center"/>
                         <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}"
-                                  IsChecked="{Binding DefaultThresholdEnabled}"
+                                  IsChecked="{Binding DefaultThresholdEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.DefaultThreshold]}"
                                   AutomationProperties.Name="{Binding DefaultThresholdEnabledFullLabel}"/>
                     </Grid>
                     <Grid>
@@ -616,7 +617,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding DefaultThreshold, Mode=TwoWay}"
+                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding DefaultThreshold, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.DefaultThreshold]}"
                                 AutomationProperties.Name="{Binding DefaultThresholdLabelText}"/>
                         <TextBlock Grid.Column="1" Text="{Binding DefaultThresholdValueText}" FontSize="{StaticResource Font.Size.Small}"
                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -625,22 +626,22 @@
                                Foreground="{DynamicResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastAlert]}"
-                              IsChecked="{Binding ForecastAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
+                              IsChecked="{Binding ForecastAlertEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ForecastAlert]}" Style="{StaticResource CheckBox.GapS}"/>
                     <!-- Wraps when narrow; only usable while the warning itself is on. -->
                     <WrapPanel Orientation="Horizontal" Margin="16,4,0,0" IsEnabled="{Binding ForecastAlertEnabled}">
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastLead]}"
                                    VerticalAlignment="Center" Margin="0,0,8,4"/>
-                        <ComboBox ItemsSource="{Binding ForecastLeadChoices}"
+                        <ComboBox ItemsSource="{Binding ForecastLeadChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ForecastLead]}"
                                   SelectedItem="{Binding SelectedForecastLeadChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ForecastLead]}"
                                   VerticalAlignment="Center" Margin="0,0,0,4"/>
                     </WrapPanel>
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LimitReachedAlert]}"
-                              IsChecked="{Binding LimitReachedAlertEnabled}" Style="{StaticResource CheckBox.GapS}"/>
+                              IsChecked="{Binding LimitReachedAlertEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.LimitReachedAlert]}" Style="{StaticResource CheckBox.GapS}"/>
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnReset]}"
-                              IsChecked="{Binding NotifyOnReset}" Style="{StaticResource CheckBox.GapS}"/>
+                              IsChecked="{Binding NotifyOnReset}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.NotifyOnReset]}" Style="{StaticResource CheckBox.GapS}"/>
 
                     <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyBeforeReset]}"
                               IsChecked="{Binding NotifyBeforeReset}" Style="{StaticResource CheckBox.GapS}"
@@ -676,10 +677,10 @@
                     <!-- Wraps at a narrow window: the two time boxes move under the label as one group. -->
                     <WrapPanel Orientation="Horizontal" Style="{StaticResource Gap.Top8}">
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours]}"
-                                  IsChecked="{Binding QuietHoursEnabled}" VerticalAlignment="Center"/>
+                                  IsChecked="{Binding QuietHoursEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.QuietHours]}" VerticalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal">
                             <TextBox Width="56" Margin="8,0,0,0" VerticalAlignment="Center"
-                                     Text="{Binding QuietHoursStartText, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding QuietHoursStartText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.QuietHours]}"
                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours.From]}">
                                 <TextBox.Style>
                                     <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
@@ -695,7 +696,7 @@
                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHoursAnd]}"
                                        VerticalAlignment="Center" Margin="8,0,8,0"/>
                             <TextBox Width="56" VerticalAlignment="Center"
-                                     Text="{Binding QuietHoursEndText, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding QuietHoursEndText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.QuietHours]}"
                                      AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.QuietHours.Until]}">
                                 <TextBox.Style>
                                     <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
@@ -761,7 +762,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAllowed}" Margin="0,4,16,4"/>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAllowed}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.QuietDay]}" Margin="0,4,16,4"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -778,14 +779,14 @@
                                                              IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,4">
                                     <StackPanel Margin="16,0,0,8">
                                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotificationsForThisProvider]}"
-                                                  IsChecked="{Binding NotificationsEnabled}"
+                                                  IsChecked="{Binding NotificationsEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.NotificationsForThisProvider]}"
                                                   AutomationProperties.Name="{Binding NotificationsEnabledFullLabel}"/>
                                         <StackPanel IsEnabled="{Binding NotificationsEnabled}">
                                             <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.NotifyOnResetForProvider]}"
-                                                      IsChecked="{Binding NotifyOnResetEnabled}" Style="{StaticResource CheckBox.GapS}"
+                                                      IsChecked="{Binding NotifyOnResetEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.NotifyOnResetForProvider]}" Style="{StaticResource CheckBox.GapS}"
                                                       AutomationProperties.Name="{Binding NotifyOnResetEnabledFullLabel}"/>
                                             <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.OwnThreshold]}"
-                                                      IsChecked="{Binding Threshold.UseCustom}" Style="{StaticResource CheckBox.GapS}"
+                                                      IsChecked="{Binding Threshold.UseCustom}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.OwnThreshold]}" Style="{StaticResource CheckBox.GapS}"
                                                       AutomationProperties.Name="{Binding Threshold.OwnThresholdFullLabel}"/>
                                             <StackPanel Visibility="{Binding Threshold.UseCustom, Converter={StaticResource BoolToVis}}">
                                                 <StackPanel Style="{StaticResource Gap.Top8}" Visibility="{Binding Tile.HasFiveHourWindow, Converter={StaticResource BoolToVis}, FallbackValue=Visible}">
@@ -795,7 +796,7 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.FiveHour]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
-                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.FiveHourEnabled}"
+                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.FiveHourEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowThreshold]}"
                                                                   AutomationProperties.Name="{Binding Threshold.FiveHourEnabledFullLabel}"/>
                                                     </Grid>
                                                     <Grid>
@@ -803,7 +804,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.FiveHour, Mode=TwoWay}"
+                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.FiveHour, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowThreshold]}"
                                                                 AutomationProperties.Name="{Binding Threshold.FiveHourFullLabel}"/>
                                                         <TextBlock Grid.Column="1" Text="{Binding Threshold.FiveHourLabel}" FontSize="{StaticResource Font.Size.Small}"
                                                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -816,7 +817,7 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Window.Weekly]}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
-                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.WeeklyEnabled}"
+                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.WeeklyEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowThreshold]}"
                                                                   AutomationProperties.Name="{Binding Threshold.WeeklyEnabledFullLabel}"/>
                                                     </Grid>
                                                     <Grid>
@@ -824,7 +825,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.Weekly, Mode=TwoWay}"
+                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.Weekly, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowThreshold]}"
                                                                 AutomationProperties.Name="{Binding Threshold.WeeklyFullLabel}"/>
                                                         <TextBlock Grid.Column="1" Text="{Binding Threshold.WeeklyLabel}" FontSize="{StaticResource Font.Size.Small}"
                                                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -837,7 +838,7 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Grid.Column="0" Text="{Binding Threshold.OtherWindowLabel}" FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center"/>
-                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.OtherEnabled}"
+                                                        <CheckBox Grid.Column="1" Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.On]}" IsChecked="{Binding Threshold.OtherEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowThreshold]}"
                                                                   AutomationProperties.Name="{Binding Threshold.OtherEnabledFullLabel}"/>
                                                     </Grid>
                                                     <Grid>
@@ -845,7 +846,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.Other, Mode=TwoWay}"
+                                                        <Slider Grid.Column="0" Minimum="50" Maximum="100" Value="{Binding Threshold.Other, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowThreshold]}"
                                                                 AutomationProperties.Name="{Binding Threshold.OtherFullLabel}"/>
                                                         <TextBlock Grid.Column="1" Text="{Binding Threshold.OtherLabel}" FontSize="{StaticResource Font.Size.Small}"
                                                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -918,7 +919,7 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsVisible}" Margin="0,4,16,4"/>
+                                                <CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsVisible}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowToggle]}" Margin="0,4,16,4"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -963,7 +964,7 @@
                                     <StackPanel Style="{StaticResource Gap.Top4}"
                                                 Visibility="{Binding CanSkipWebSession, Converter={StaticResource BoolToVis}}">
                                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.LocalOnly]}"
-                                                  IsChecked="{Binding LocalOnly}"/>
+                                                  IsChecked="{Binding LocalOnly}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.LocalOnly]}"/>
                                     </StackPanel>
                                     <!-- Claude only: the API balance lives on the Claude Console, a second
                                          site with its own sign-in. The row is always there: its status
@@ -1032,7 +1033,7 @@
                     </WrapPanel>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.OpenRange]}" Style="{StaticResource FieldLabel.Top8}"/>
-                    <ComboBox ItemsSource="{Binding StatsOpenRangeChoices}"
+                    <ComboBox ItemsSource="{Binding StatsOpenRangeChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.OpenRange]}"
                               SelectedItem="{Binding SelectedStatsOpenRangeChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.OpenRange]}"
                               HorizontalAlignment="Left" MinWidth="200"/>
@@ -1051,7 +1052,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding Title}" IsChecked="{Binding IsShown}" Margin="0,4,16,4"/>
+                                <CheckBox Content="{Binding Title}" IsChecked="{Binding IsShown}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.Sections]}" Margin="0,4,16,4"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -1078,7 +1079,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,16,4">
                                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvDay]}" Foreground="{DynamicResource Text.Secondary}"
                                            FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox ItemsSource="{Binding StatsWeeklyCsvDayChoices}"
+                                <ComboBox ItemsSource="{Binding StatsWeeklyCsvDayChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.WeeklyCsvDay]}"
                                           SelectedItem="{Binding SelectedStatsWeeklyCsvDayChoice, Mode=TwoWay}"
                                           AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvDay]}"
                                           VerticalAlignment="Center" MinWidth="140"/>
@@ -1086,7 +1087,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvTime]}" Foreground="{DynamicResource Text.Secondary}"
                                            FontSize="{StaticResource Font.Size.Small}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox ItemsSource="{Binding StatsWeeklyCsvHourChoices}"
+                                <ComboBox ItemsSource="{Binding StatsWeeklyCsvHourChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.WeeklyCsvTime]}"
                                           SelectedItem="{Binding SelectedStatsWeeklyCsvHourChoice, Mode=TwoWay}"
                                           AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeeklyCsvTime]}"
                                           VerticalAlignment="Center" MinWidth="100"/>
@@ -1184,16 +1185,16 @@
                 <StackPanel>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Section.System]}" Style="{StaticResource CardHeading}"/>
                     <StackPanel>
-                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Autostart]}" IsChecked="{Binding Autostart}"/>
+                        <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Autostart]}" IsChecked="{Binding Autostart}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Autostart]}"/>
 
                         <!-- The version check is about this installation, not about a message the app
                              sends out - it belongs with autostart, the data folder and the logs rather
                              than in the notifications card it used to sit in. -->
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.CheckForUpdates]}"
-                                  IsChecked="{Binding CheckForUpdates}" Style="{StaticResource CheckBox.GapS}"/>
+                                  IsChecked="{Binding CheckForUpdates}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.CheckForUpdates]}" Style="{StaticResource CheckBox.GapS}"/>
 
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Hotkey]}"
-                                  IsChecked="{Binding Main.HotkeyEnabled}" Style="{StaticResource CheckBox.GapM}"/>
+                                  IsChecked="{Binding Main.HotkeyEnabled}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Hotkey]}" Style="{StaticResource CheckBox.GapM}"/>
                         <StackPanel Visibility="{Binding Main.HotkeyEnabled, Converter={StaticResource BoolToVis}}">
                         <TextBox x:Name="HotkeyCaptureBox" MinWidth="160" HorizontalAlignment="Left" Style="{StaticResource TextBox.GapS}"
                                  IsReadOnly="True" Focusable="True"
@@ -1218,7 +1219,7 @@
                         </StackPanel>
 
                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}" Style="{StaticResource FieldLabel.Top8}"/>
-                        <ComboBox ItemsSource="{Binding LanguageChoices}"
+                        <ComboBox ItemsSource="{Binding LanguageChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Language]}"
                                   SelectedItem="{Binding SelectedLanguageChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}"
                                   HorizontalAlignment="Left"/>
@@ -1230,7 +1231,7 @@
                          it: the two of them together are longer than the slider itself at this window
                          width, and a column that has to share the row with a slider can only cut them
                          off. -->
-                    <Slider Minimum="7" Maximum="3650" Value="{Binding HistoryRetentionDays, Mode=TwoWay}"
+                    <Slider Minimum="7" Maximum="3650" Value="{Binding HistoryRetentionDays, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Retention]}"
                             AutomationProperties.Name="{Binding RetentionFullLabel}"/>
                     <TextBlock Text="{Binding RetentionSummaryText, Mode=OneWay}" TextWrapping="Wrap"
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
