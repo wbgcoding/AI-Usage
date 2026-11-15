@@ -102,7 +102,7 @@ public class ThemeContrastTests
         from file in ThemeFiles
         from pair in new[]
         {
-            ("Bg.Base", "Accent", 4.5),   // CheckBox: the drawn check on its filled box
+            ("Bg.Base", "Accent", 4.5),   // CheckBox check, selected ComboBoxItem, selected CalendarDayButton, CalendarButton with selected days
             ("Accent", "Bg.Raised", 3.0), // RadioButton: the filled dot inside its ring
             ("Accent", "Track", 3.0),     // Slider: the filled part of the track
         }
@@ -123,6 +123,25 @@ public class ThemeContrastTests
     // step from the tile surface. 1.3:1 is the floor for a quiet shape that is not the sole carrier of
     // the value (the percentage is printed next to it). HighContrast is left out: its track is a
     // system colour and keeps its outline.
+    // The Bg.Base on Accent pair above only holds when the templates really paint that foreground:
+    // each control that fills itself with Accent when selected has to switch its text to Bg.Base too.
+    [Theory]
+    [InlineData("TargetType=\"ComboBoxItem\">", "IsSelected")]
+    [InlineData("x:Key=\"AiUsageCalendarDayButton\"", "IsSelected")]
+    [InlineData("x:Key=\"AiUsageCalendarMonthButton\"", "HasSelectedDays")]
+    public void Accent_filled_selection_switches_its_text_to_Bg_Base(string styleMarker, string property)
+    {
+        var xaml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "ThemeFixtures", "Controls.xaml"));
+        var styleStart = xaml.IndexOf(styleMarker, StringComparison.Ordinal);
+        Assert.True(styleStart >= 0, $"style {styleMarker} not found");
+        var triggerStart = xaml.IndexOf($"<Trigger Property=\"{property}\" Value=\"True\">", styleStart, StringComparison.Ordinal);
+        Assert.True(triggerStart >= 0, $"{styleMarker}: no {property} trigger");
+        var trigger = xaml[triggerStart..xaml.IndexOf("</Trigger>", triggerStart, StringComparison.Ordinal)];
+
+        Assert.Contains("Value=\"{DynamicResource Accent}\"", trigger, StringComparison.Ordinal);
+        Assert.Matches("Property=\"(TextElement\\.)?Foreground\" Value=\"\\{DynamicResource Bg\\.Base\\}\"", trigger);
+    }
+
     [Theory]
     [MemberData(nameof(Themes))]
     public void TrackStandsOutFromTheTileWithoutAnOutline(string fileName)

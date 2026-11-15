@@ -552,6 +552,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemRoot" Property="Background" Value="{DynamicResource Accent}"/>
+                            <Setter TargetName="ItemRoot" Property="TextElement.Foreground" Value="{DynamicResource Bg.Base}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -562,8 +563,7 @@
     <!-- Built from the same tokens as the controls above: the surface brush for the closed box, the
          border brush for its outline, the accent brush for focus and (through the ComboBoxItem style)
          the selected item, the raised background for the item under the pointer, and the caption
-         foreground for the arrow. Same corner radius and padding scale as TextBox above, same popup
-         shadow as the other raised surfaces (ContextMenu, ToolTip). -->
+         foreground for the arrow. Same corner radius and padding scale as TextBox above. -->
     <!-- Every ComboBox in this app is bound to a list of Choice rows, and every one of them shows
          that row's Label. The template is shared rather than repeated per call site, and it is an
          ItemTemplate rather than DisplayMemberPath because only an ItemTemplate also reaches the
@@ -576,7 +576,7 @@
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing.Control}"/>
         <Setter Property="ItemTemplate" Value="{StaticResource ChoiceLabelTemplate}"/>
         <Setter Property="Background" Value="{DynamicResource Bg.Surface}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
         <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
@@ -877,6 +877,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Bg.Base}"/>
                         </Trigger>
                         <Trigger Property="IsBlackedOut" Value="True">
                             <Setter TargetName="Root" Property="Opacity" Value="0.4"/>
@@ -907,14 +908,15 @@
                                           TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="HasSelectedDays" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}"/>
-                        </Trigger>
                         <Trigger Property="IsInactive" Value="True">
                             <Setter Property="Foreground" Value="{DynamicResource Text.Muted}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Bg.Raised}"/>
+                        </Trigger>
+                        <Trigger Property="HasSelectedDays" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Bg.Base}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
