@@ -1079,7 +1079,7 @@
                                                                                            FontSize="{StaticResource Font.Size.Micro}"
                                                                                            Visibility="{Binding HasAverage, Converter={StaticResource BoolToVis}}"/>
                                                                             </StackPanel>
-                                                                            <TextBlock Text="{Binding ModelsCaption}" Margin="0,12,0,0"
+                                                                            <TextBlock Text="{Binding ModelsCaption}" Margin="0,12,0,0" TextWrapping="Wrap"
                                                                                        Foreground="{DynamicResource Text.Muted}"
                                                                                        FontSize="{StaticResource Font.Size.Micro}"/>
                                                                             <ItemsControl ItemsSource="{Binding Models}"
