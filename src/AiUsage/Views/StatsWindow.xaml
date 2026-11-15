@@ -521,9 +521,25 @@
                                      -->
                                 <controls:CollapsibleSection.HeaderContent>
                                     <StackPanel Orientation="Horizontal">
+                                        <!-- In a narrow window the two pickers keep their names (as tooltip and
+                                             screen reader name) but drop the text before them, so the section
+                                             title is not cut short. -->
+                                        <StackPanel.Resources>
+                                            <Style x:Key="PickerLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Margin" Value="0,0,8,0"/>
+                                                <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=controls:CollapsibleSection}, Converter={StaticResource AtLeastWidth}, ConverterParameter=600}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Resources>
                                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"
-                                                   VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
-                                                   Foreground="{DynamicResource Text.Secondary}"/>
+                                                   Style="{StaticResource PickerLabel}"/>
                                         <ComboBox x:Name="GroupingCombo" ItemsSource="{Binding GroupingChoices}"
                                                   SelectedItem="{Binding SelectedGroupingChoice, Mode=TwoWay}" MinWidth="80"
                                                   ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Grouping]}"
@@ -531,10 +547,10 @@
                                         <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
                                                     Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
-                                                       VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{StaticResource Font.Size.Small}"
-                                                       Foreground="{DynamicResource Text.Secondary}"/>
+                                                       Style="{StaticResource PickerLabel}"/>
                                             <ComboBox x:Name="ColorByCombo" ItemsSource="{Binding ColorByChoices}"
                                                       SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
+                                                      ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
                                                       AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
                                         </StackPanel>
                                     </StackPanel>
