@@ -292,6 +292,43 @@ public class CursorUsageParserTests
         Assert.Equal("Unit.Requests", window.Allowance?.UnitKey);
     }
 
+    [Fact]
+    public void A_model_with_a_negative_request_count_or_limit_is_left_out()
+    {
+        const string json = """
+            {"gpt-4": {"numRequests": 50, "maxRequestUsage": 500, "numTokens": 100},
+             "gpt-5": {"numRequests": -50, "maxRequestUsage": 500, "numTokens": 900},
+             "o3": {"numRequests": 5, "maxRequestUsage": -500, "numTokens": 900}}
+            """;
+
+        var window = Assert.Single(CursorUsageParser.Parse(json));
+
+        Assert.Equal(50, window.Allowance?.Used);
+        Assert.Equal(500, window.Allowance?.Total);
+        Assert.Equal(100, window.Tokens?.TotalTokens);
+        Assert.Contains(CursorUsageParser.ChangeNotes(json), note => note.Contains("negative"));
+    }
+
+    [Fact]
+    public void Token_sums_drop_negative_counts_and_never_overflow()
+    {
+        const string json = """
+            {"gpt-4": {"numRequests": 1, "maxRequestUsage": 10, "numTokens": 9223372036854775807},
+             "gpt-5": {"numRequests": 1, "maxRequestUsage": 10, "numTokens": 500},
+             "o3": {"numRequests": 1, "maxRequestUsage": 10, "numTokens": -7}}
+            """;
+
+        var window = Assert.Single(CursorUsageParser.Parse(json));
+
+        Assert.Equal(long.MaxValue, window.Tokens?.TotalTokens);
+
+        const string pair = """{"individualUsage":null,"inputTokens":9223372036854775807,"outputTokens":9223372036854775807,"numRequests":1,"maxRequestUsage":10}""";
+        Assert.Equal(long.MaxValue, Assert.Single(CursorUsageParser.Parse(pair)).Tokens?.TotalTokens);
+
+        const string negative = """{"inputTokens":-5,"outputTokens":3,"numRequests":1,"maxRequestUsage":10}""";
+        Assert.Null(Assert.Single(CursorUsageParser.Parse(negative)).Tokens);
+    }
+
     // The older usage shape lists unlimited models with a null limit next to the limited one; their
     // requests used to land on the limited model's share and push it toward 100 %.
     [Fact]

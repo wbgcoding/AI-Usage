@@ -61,9 +61,14 @@ public static class CursorUsageParser
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object
-                || TryGetObject(root, "individualUsage") is not { } individual || TryGetObject(individual, "plan") is not { } plan)
+            if (root.ValueKind != JsonValueKind.Object)
                 return notes;
+
+            if (root.EnumerateObject().Any(property => property.Value.ValueKind == JsonValueKind.Object && HasNegativeRequestFigure(property.Value)))
+                notes.Add("a model block holds a negative request count or limit, so it is not counted.");
+
+            if (TryGetObject(root, "individualUsage") is not { } individual || TryGetObject(individual, "plan") is not { } plan)
+                return notes.Distinct().ToList();
 
             if (!KnownPlanFields.Any(field => plan.TryGetProperty(field, out _))
                 && !(root.TryGetProperty("isUnlimited", out var unlimited) && unlimited.ValueKind == JsonValueKind.True))
@@ -239,6 +244,10 @@ public static class CursorUsageParser
 
         foreach (var model in modelObjects)
         {
+            // A negative count or limit is no real figure: the whole model is left out.
+            if (HasNegativeRequestFigure(model))
+                continue;
+
             // Only a model with its own limit counts toward the percentage: requests to a model
             // without one (maxRequestUsage null, unlimited) have no share of that limit to use up.
             if (TryGetDouble(model, "maxRequestUsage") is { } modelLimit)
@@ -247,8 +256,8 @@ public static class CursorUsageParser
                 limit += modelLimit;
                 hasLimit = true;
             }
-            if (TryGetInt64(model, "numTokens") is { } modelTokens)
-                tokens = (tokens ?? 0) + modelTokens;
+            if (TryGetInt64(model, "numTokens") is { } modelTokens && modelTokens >= 0)
+                tokens = SaturatingAdd(tokens ?? 0, modelTokens);
         }
 
         // No guessed percentage without a real denominator: a limit summed from zero, or from no
@@ -259,8 +268,17 @@ public static class CursorUsageParser
         return new ModelSum(
             Percent: 100 * requests / limit,
             Tokens: tokens is { } total ? new TokenUsage(total) : null,
-            Allowance: new UsageAllowance((long)requests, (long)limit, "Unit.Requests"));
+            Allowance: new UsageAllowance(ClampToLong(requests), ClampToLong(limit), "Unit.Requests"));
     }
+
+    private static bool HasNegativeRequestFigure(JsonElement model) =>
+        TryGetDouble(model, "numRequests") is < 0 || TryGetDouble(model, "maxRequestUsage") is < 0;
+
+    private static long SaturatingAdd(long left, long right) =>
+        left > long.MaxValue - right ? long.MaxValue : left + right;
+
+    private static long ClampToLong(double value) =>
+        value >= long.MaxValue ? long.MaxValue : value <= 0 ? 0 : (long)value;
 
     /// <summary>The first object, in document order, carrying both request-usage numbers - either
     /// the root itself or one level down under a model key (e.g. "gpt-4-1": {...}). Null when
@@ -298,11 +316,11 @@ public static class CursorUsageParser
     /// line simply omitted rather than guessed.</summary>
     private static TokenUsage? ReadTokens(JsonElement node)
     {
-        if (TryGetInt64(node, "totalTokens") is { } total)
+        if (TryGetInt64(node, "totalTokens") is >= 0 and var total)
             return new TokenUsage(total);
 
-        if (TryGetInt64(node, "inputTokens") is { } input && TryGetInt64(node, "outputTokens") is { } output)
-            return new TokenUsage(input + output);
+        if (TryGetInt64(node, "inputTokens") is >= 0 and var input && TryGetInt64(node, "outputTokens") is >= 0 and var output)
+            return new TokenUsage(SaturatingAdd(input, output));
 
         return null;
     }
