@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using AiUsage.Providers.Parsing;
 
 namespace AiUsage.Stats;
 
@@ -48,9 +49,7 @@ public static class ClaudeUsageLogParser
                     timestampProperty.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var timestamp))
                 return false;
 
-            var model = message.TryGetProperty("model", out var modelProperty) && modelProperty.ValueKind == JsonValueKind.String
-                ? modelProperty.GetString() ?? ""
-                : "";
+            var model = JsonReading.TryGetString(message, "model") ?? "";
 
             var input = GetLong(usage, "input_tokens");
             var output = GetLong(usage, "output_tokens");
@@ -68,19 +67,13 @@ public static class ClaudeUsageLogParser
             // Claude Code writes one response several times (same message id and request id, same
             // numbers); the pair is the key the indexer uses to count it once. Empty when either
             // half is missing, and an empty key is never deduplicated.
-            var messageId = message.TryGetProperty("id", out var idProperty) && idProperty.ValueKind == JsonValueKind.String
-                ? idProperty.GetString() ?? ""
-                : "";
-            var requestId = root.TryGetProperty("requestId", out var requestProperty) && requestProperty.ValueKind == JsonValueKind.String
-                ? requestProperty.GetString() ?? ""
-                : "";
+            var messageId = JsonReading.TryGetString(message, "id") ?? "";
+            var requestId = JsonReading.TryGetString(root, "requestId") ?? "";
             var messageKey = messageId.Length > 0 && requestId.Length > 0 ? messageId + "|" + requestId : "";
 
             // The session the line belongs to (a subagent line names its parent's) and whether a
             // subagent wrote it.
-            var sessionId = root.TryGetProperty("sessionId", out var sessionProperty) && sessionProperty.ValueKind == JsonValueKind.String
-                ? sessionProperty.GetString() ?? ""
-                : "";
+            var sessionId = JsonReading.TryGetString(root, "sessionId") ?? "";
             var isSidechain = root.TryGetProperty("isSidechain", out var sidechainProperty) && sidechainProperty.ValueKind == JsonValueKind.True;
 
             result = new UsageEvent(timestamp, model, input, output, cacheCreation, cacheRead, effort, messageKey, sessionId, isSidechain);
@@ -158,15 +151,9 @@ public static class ClaudeUsageLogParser
     /// shifted across Claude Code releases; null when this particular property is missing or not a
     /// string, never an empty string (an explicit empty value is treated the same as absent).</summary>
     private static string? GetEffort(JsonElement element, string propertyName) =>
-        element.ValueKind == JsonValueKind.Object
-        && element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
-        && property.GetString() is { Length: > 0 } value
-            ? value
-            : null;
+        JsonReading.TryGetString(element, propertyName) is { Length: > 0 } value ? value : null;
 
+    /// <summary>A token count; a missing, non-numeric or negative value reads as zero.</summary>
     private static long GetLong(JsonElement parent, string propertyName) =>
-        parent.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.Number
-        && value.TryGetInt64(out var number) && number >= 0
-            ? number
-            : 0;
+        JsonReading.TryGetInt64(parent, propertyName) is { } value and >= 0 ? value : 0;
 }
