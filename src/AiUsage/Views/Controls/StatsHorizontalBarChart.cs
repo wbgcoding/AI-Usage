@@ -420,16 +420,16 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
     private readonly Dictionary<string, CachedIcon> _iconCache = [];
 
-    /// <summary>Drops cached icons whose file changed since they were decoded, and (past a bound)
-    /// those no row asks for any more. The rest stays across <see cref="Rows"/> changes: decoding a
-    /// project's icon again on every range or grouping click would undo the whole point of <see
-    /// cref="ProjectColorResolver"/>'s own on-disk cache.</summary>
+    /// <summary>Drops, past a bound, the cached icons no row asks for any more. The rest stays
+    /// across <see cref="Rows"/> changes: decoding a project's icon again on every range or grouping
+    /// click would undo the whole point of <see cref="ProjectColorResolver"/>'s own on-disk cache.
+    /// Whether a kept icon's file changed is checked off the UI thread, in <see cref="StartIconLoads"/>.</summary>
     private void ForgetStaleIcons(IReadOnlyList<StatsProjectRow> rows)
     {
         var wanted = rows.Select(row => row.IconPath).Where(path => !string.IsNullOrEmpty(path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var (path, cached) in _iconCache.ToList())
+        foreach (var path in _iconCache.Keys.ToList())
         {
-            if (!wanted.Contains(path) ? _iconCache.Count > MaxCachedIcons : SafeWriteUtc(path) != cached.WriteUtc)
+            if (!wanted.Contains(path) && _iconCache.Count > MaxCachedIcons)
                 _iconCache.Remove(path);
         }
     }
@@ -465,23 +465,33 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     /// <summary>True once the icon of <paramref name="iconPath"/> is decoded and stored (test seam).</summary>
     internal bool HasCachedIcon(string iconPath) => _iconCache.ContainsKey(iconPath);
 
+    /// <summary>The decoded image stored for <paramref name="iconPath"/>, null when none (test seam).</summary>
+    internal ImageSource? CachedIconImage(string iconPath) => _iconCache.TryGetValue(iconPath, out var cached) ? cached.Image : null;
+
     private int IconPixelWidth() => (int)Math.Ceiling(RichIconSize * VisualTreeHelper.GetDpi(this).DpiScaleX);
 
     /// <summary>Starts decoding the icon of every row that has none cached yet, so the first render
-    /// after the rows arrive already finds most of them.</summary>
+    /// after the rows arrive already finds most of them. An icon already cached at the right size is
+    /// checked against its file's write time on the thread pool and decoded again only if it changed.</summary>
     private void StartIconLoads(IReadOnlyList<StatsProjectRow> rows)
     {
         var pixelWidth = IconPixelWidth();
         foreach (var row in rows)
         {
-            if (!string.IsNullOrEmpty(row.IconPath) && !(_iconCache.TryGetValue(row.IconPath, out var cached) && cached.PixelWidth == pixelWidth))
+            if (string.IsNullOrEmpty(row.IconPath))
+                continue;
+
+            if (_iconCache.TryGetValue(row.IconPath, out var cached) && cached.PixelWidth == pixelWidth)
+                QueueIconLoad(row.IconPath, pixelWidth, cached.WriteUtc);
+            else
                 QueueIconLoad(row.IconPath, pixelWidth);
         }
     }
 
     /// <summary>Decodes on the thread pool (the loader only builds frozen objects), stores the result
-    /// and redraws on the UI thread. One load per path at a time.</summary>
-    private void QueueIconLoad(string iconPath, int pixelWidth)
+    /// and redraws on the UI thread. One load per path at a time. With <paramref name="cachedWriteUtc"/>
+    /// the file is only decoded when its write time no longer matches.</summary>
+    private void QueueIconLoad(string iconPath, int pixelWidth, DateTime? cachedWriteUtc = null)
     {
         if (!_iconsLoading.Add(iconPath))
             return;
@@ -494,6 +504,15 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             try
             {
                 writeUtc = SafeWriteUtc(iconPath);
+                if (cachedWriteUtc == writeUtc)
+                {
+                    dispatcher.BeginInvoke(() =>
+                    {
+                        _iconsLoading.Remove(iconPath);
+                    });
+                    return;
+                }
+
                 decoded = ProjectIconLoader.Load(iconPath, pixelWidth);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)

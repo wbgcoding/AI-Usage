@@ -183,6 +183,74 @@ public class StatsHorizontalBarChartTests
         Assert.DoesNotContain("?", name);
     }
 
+    private static string WriteIcon(string path, int size)
+    {
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
+            size, size, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[size * size * 4], size * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+        return path;
+    }
+
+    private static void PumpUntil(StatsHorizontalBarChart chart, Func<bool> done)
+    {
+        var until = DateTime.UtcNow.AddSeconds(8);
+        while (!done() && DateTime.UtcNow < until)
+        {
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            chart.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => frame.Continue = false);
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            Thread.Sleep(10);
+        }
+    }
+
+    [Fact]
+    public void A_changed_icon_file_is_decoded_again_when_the_rows_change_and_an_unchanged_one_is_not()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("chart-icon-stale");
+        var png = WriteIcon(Path.Combine(dir.Path, "icon.png"), 32);
+
+        var (unchangedKept, changedReplaced) = RunOnSta(() =>
+        {
+            var day = new DateOnly(2026, 9, 1);
+            StatsProjectRow[] Rows() => [new StatsProjectRow("p", "p", 10, 10, day, day, IconPath: png)];
+            var chart = new StatsHorizontalBarChart { ShowProjectDetails = true, Rows = Rows() };
+            PumpUntil(chart, () => chart.HasCachedIcon(png));
+            var first = chart.CachedIconImage(png);
+            Assert.NotNull(first);
+
+            chart.Rows = Rows();
+            PumpUntil(chart, () => false);
+            var kept = ReferenceEquals(first, chart.CachedIconImage(png));
+
+            WriteIcon(png, 48);
+            File.SetLastWriteTimeUtc(png, DateTime.UtcNow.AddHours(1));
+            chart.Rows = Rows();
+            PumpUntil(chart, () => !ReferenceEquals(first, chart.CachedIconImage(png)));
+            return (kept, !ReferenceEquals(first, chart.CachedIconImage(png)));
+        });
+
+        Assert.True(unchangedKept);
+        Assert.True(changedReplaced);
+    }
+
+    [Fact]
+    public void A_rows_change_does_not_read_icon_file_times_on_the_calling_thread()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, ".git")) && !File.Exists(Path.Combine(dir.FullName, ".git")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+        var source = File.ReadAllText(Path.Combine(dir!.FullName, "src", "AiUsage", "Views", "Controls", "StatsHorizontalBarChart.cs"));
+        var start = source.IndexOf("private void ForgetStaleIcons", StringComparison.Ordinal);
+        var end = source.IndexOf("private static DateTime SafeWriteUtc", StringComparison.Ordinal);
+
+        Assert.True(start > 0 && end > start);
+        Assert.DoesNotContain("SafeWriteUtc", source[start..end], StringComparison.Ordinal);
+    }
+
     private static T RunOnSta<T>(Func<T> action)
     {
         T? result = default;
