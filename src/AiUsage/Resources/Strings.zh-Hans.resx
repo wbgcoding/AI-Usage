@@ -343,6 +343,7 @@
   <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>打开日志文件夹</value></data>
   <data name="Settings.ExportHistory" xml:space="preserve"><value>将历史另存为 CSV…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>无法写入文件。请选择其他文件夹。</value></data>
+  <data name="Settings.Machine.RemoveFailed" xml:space="preserve"><value>无法从统计中移除此电脑的记录。</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>重置设置</value></data>
   <data name="Settings.ResetShort" xml:space="preserve"><value>重置…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>同时删除已记录的历史</value></data>

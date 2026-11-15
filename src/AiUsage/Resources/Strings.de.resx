@@ -342,6 +342,7 @@
   <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Protokollordner öffnen</value></data>
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Verlauf als CSV speichern…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>Die Datei konnte nicht geschrieben werden. Wähle einen anderen Ordner.</value></data>
+  <data name="Settings.Machine.RemoveFailed" xml:space="preserve"><value>Die Einträge dieses PCs konnten nicht aus der Statistik entfernt werden.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Einstellungen zurücksetzen</value></data>
   <data name="Settings.ResetShort" xml:space="preserve"><value>Zurücksetzen…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Aufgezeichneten Verlauf ebenfalls löschen</value></data>

@@ -343,6 +343,7 @@
   <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Apri cartella dei log</value></data>
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Salva cronologia come CSV…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>Non è stato possibile scrivere il file. Scegli un'altra cartella.</value></data>
+  <data name="Settings.Machine.RemoveFailed" xml:space="preserve"><value>Non è stato possibile rimuovere dalle statistiche le voci di questo PC.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Ripristina impostazioni</value></data>
   <data name="Settings.ResetShort" xml:space="preserve"><value>Ripristina…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Elimina anche la cronologia registrata</value></data>

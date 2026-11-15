@@ -343,6 +343,7 @@
   <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Deschide folderul de jurnale</value></data>
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Salvează istoricul ca CSV…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>Fișierul nu a putut fi scris. Alege alt folder.</value></data>
+  <data name="Settings.Machine.RemoveFailed" xml:space="preserve"><value>Intrările acestui PC nu au putut fi eliminate din statistici.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Resetează setările</value></data>
   <data name="Settings.ResetShort" xml:space="preserve"><value>Resetează…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Șterge și istoricul înregistrat</value></data>

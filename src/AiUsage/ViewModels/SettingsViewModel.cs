@@ -2073,7 +2073,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (!removed)
         {
-            _showMessage(LocalizationService.Instance["Settings.ExportFailed"]);
+            _showMessage(LocalizationService.Instance["Settings.Machine.RemoveFailed"]);
             return;
         }
 

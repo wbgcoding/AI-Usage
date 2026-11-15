@@ -343,6 +343,7 @@
   <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Ouvrir le dossier des journaux</value></data>
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Enregistrer l'historique en CSV…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>Le fichier n'a pas pu être écrit. Choisis un autre dossier.</value></data>
+  <data name="Settings.Machine.RemoveFailed" xml:space="preserve"><value>Les entrées de ce PC n'ont pas pu être retirées des statistiques.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Réinitialiser les paramètres</value></data>
   <data name="Settings.ResetShort" xml:space="preserve"><value>Réinitialiser…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Supprimer aussi l'historique enregistré</value></data>

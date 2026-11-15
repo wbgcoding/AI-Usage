@@ -343,6 +343,7 @@
   <data name="Settings.OpenLogsFolder" xml:space="preserve"><value>Logmap openen</value></data>
   <data name="Settings.ExportHistory" xml:space="preserve"><value>Geschiedenis opslaan als CSV…</value></data>
   <data name="Settings.ExportFailed" xml:space="preserve"><value>Het bestand kon niet worden geschreven. Kies een andere map.</value></data>
+  <data name="Settings.Machine.RemoveFailed" xml:space="preserve"><value>De items van deze pc konden niet uit de statistieken worden verwijderd.</value></data>
   <data name="Settings.ResetButton" xml:space="preserve"><value>Instellingen resetten</value></data>
   <data name="Settings.ResetShort" xml:space="preserve"><value>Resetten…</value></data>
   <data name="Settings.ResetAlsoHistory" xml:space="preserve"><value>Ook de vastgelegde geschiedenis wissen</value></data>
