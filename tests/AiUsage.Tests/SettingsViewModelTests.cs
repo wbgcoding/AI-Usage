@@ -2743,7 +2743,7 @@ public class SettingsViewModelTests : IDisposable
         await vm.ImportedPcsLoadTask;
         await vm.RemoveImportedPcCommand.ExecuteAsync(OtherPc);
 
-        Assert.Equal([Loc("Settings.ExportFailed")], messages);
+        Assert.Equal([Loc("Settings.Machine.RemoveFailed")], messages);
         Assert.Single(vm.ImportedPcs);
         Assert.True(vm.RemoveImportedPcCommand.CanExecute(OtherPc));
         IndexPools.Release(data);
