@@ -209,27 +209,10 @@ public sealed class StatsFigureMiniChart : FrameworkElement
         drawingContext.DrawGeometry(null, linePen, geometry);
     }
 
-    // The faded fill and the line pen only change with the accent, so they are built once per accent
-    // instead of on every render.
-    private (Brush Accent, Color? Color, Brush Fill, Pen Line)? _sparklineResources;
-
     private (Brush Fill, Pen Line) SparklineResources()
     {
         var accent = AccentBrush;
-        var color = (accent as SolidColorBrush)?.Color;
-        if (_sparklineResources is { } cached && ReferenceEquals(cached.Accent, accent) && cached.Color == color)
-            return (cached.Fill, cached.Line);
-
-        var fill = accent.Clone();
-        fill.Opacity = 0.25;
-        if (fill.CanFreeze)
-            fill.Freeze();
-        var line = new Pen(accent, 1.5);
-        if (line.CanFreeze)
-            line.Freeze();
-
-        _sparklineResources = (accent, color, fill, line);
-        return (fill, line);
+        return (ChartDrawCache.WithOpacity(accent, 0.25), ChartDrawCache.PenFor(accent, 1.5));
     }
 
     /// <summary>The height of each of the two bars with the 2 px gap between them, never negative so

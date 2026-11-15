@@ -9,7 +9,7 @@ using AiUsage.Stats;
 namespace AiUsage.Views.Controls;
 
 /// <summary>
-/// Self-drawn contribution-graph heatmap for the statistics window's "Verbrauch je Tag" section,
+/// Self-drawn contribution-graph heatmap for the statistics window's <c>Stats.MonthGrid.Head</c> section,
 /// the same bare <see cref="FrameworkElement"/>/<see cref="OnRender"/> construction <see
 /// cref="StatsBarChart"/> already uses, no chart library. One continuous grid covering the whole
 /// last twelve months: columns are calendar weeks (oldest left, today right), seven rows are
@@ -630,21 +630,6 @@ public sealed class StatsMonthGrid : FrameworkElement
         return new GridFit(Math.Clamp(cell, CompactMinCellSize, MinCellSize), totalColumns, CompactGap);
     }
 
-    private static Color WithIntensity(Color color, int step) =>
-        Color.FromArgb((byte)Math.Clamp(step * 255 / 4, 0, 255), color.R, color.G, color.B);
-
-    // A few provider colors times four steps: every render reuses these instead of allocating a
-    // brush per cell. Frozen, so they are shareable and WPF skips change tracking for them.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Color Color, int Step), SolidColorBrush> IntensityBrushes = new();
-
-    internal static SolidColorBrush IntensityBrush(Color color, int step) =>
-        IntensityBrushes.GetOrAdd((color, step), key =>
-        {
-            var brush = new SolidColorBrush(WithIntensity(key.Color, key.Step));
-            brush.Freeze();
-            return brush;
-        });
-
     private static Color BrushColor(Brush brush) => brush is SolidColorBrush solid ? solid.Color : ChartTheme.MutedColor;
 
     /// <summary>Where the cells start on the left: after the weekday column, or - while <see
@@ -851,7 +836,7 @@ public sealed class StatsMonthGrid : FrameworkElement
                 }
 
                 var step = QuantileStep(cell.Total, sortedNonZeroTotals);
-                var fill = step == 0 ? EmptyCellBrush : IntensityBrush(ChartPalette.ForProvider(cell.LeaderProviderId), step);
+                var fill = step == 0 ? EmptyCellBrush : ChartDrawCache.IntensityBrush(ChartPalette.ForProvider(cell.LeaderProviderId), step);
                 if (cell.IsOutsideHighlight)
                     dc.PushOpacity(OutsideHighlightOpacity);
                 dc.DrawRoundedRectangle(fill, null, rect, CellCorner, CellCorner);
@@ -904,7 +889,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         var scaleColor = IntensityScaleColor(providerLegend, BrushColor(TextBrush));
         for (var step = 0; step < ScaleSteps; step++)
         {
-            var fill = step == 0 ? EmptyCellBrush : IntensityBrush(scaleColor, step);
+            var fill = step == 0 ? EmptyCellBrush : ChartDrawCache.IntensityBrush(scaleColor, step);
             dc.DrawRoundedRectangle(fill, null, new Rect(x, y, ScaleSquare, ScaleSquare), 2, 2);
             x += ScaleSquare;
             if (step < ScaleSteps - 1)
@@ -1009,7 +994,7 @@ public sealed class StatsMonthGrid : FrameworkElement
             var (x, row) = placement.Entries[i];
             var rowY = y + row * LegendRowHeight;
             var color = ChartPalette.ForProvider(legend[i].ProviderId);
-            dc.DrawRoundedRectangle(IntensityBrush(color, 4), null, new Rect(x, rowY, LegendSwatch, LegendSwatch), 2, 2);
+            dc.DrawRoundedRectangle(ChartDrawCache.IntensityBrush(color, 4), null, new Rect(x, rowY, LegendSwatch, LegendSwatch), 2, 2);
 
             var name = providerNames.GetValueOrDefault(legend[i].ProviderId, legend[i].ProviderId);
             var nameText = new FormattedText(name, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);

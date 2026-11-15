@@ -326,7 +326,7 @@ public sealed class StatsHeatmap : FrameworkElement
                 var step = Step(value, sorted);
                 var index = row * Columns + column;
                 var color = index < CellColors.Count && CellColors[index].A != 0 ? CellColors[index] : accent;
-                var fill = step == 0 ? EmptyCellBrush : StatsMonthGrid.IntensityBrush(color, step);
+                var fill = step == 0 ? EmptyCellBrush : ChartDrawCache.IntensityBrush(color, step);
                 drawingContext.DrawRoundedRectangle(fill, null, rect, CellCorner, CellCorner);
 
                 if (IsKeyboardFocused && _focusedCell == (row, column))

@@ -32,6 +32,11 @@ internal static class ChartDrawCache
             return brush;
         });
 
+    /// <summary>A frozen brush of <paramref name="color"/> with its alpha set to <paramref name="step"/>
+    /// quarters of full (0 to 4): the cell shades of the heatmaps, shared by every chart.</summary>
+    internal static SolidColorBrush IntensityBrush(Color color, int step) =>
+        BrushFor(Color.FromArgb((byte)Math.Clamp(step * 255 / 4, 0, 255), color.R, color.G, color.B));
+
     /// <summary><paramref name="brush"/> at <paramref name="opacity"/> as a shared frozen brush; a brush
     /// that is not a plain solid color is returned unchanged.</summary>
     internal static Brush WithOpacity(Brush brush, double opacity) =>

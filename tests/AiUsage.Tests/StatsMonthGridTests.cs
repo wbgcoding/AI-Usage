@@ -611,9 +611,9 @@ public class StatsMonthGridTests
     {
         var color = Color.FromRgb(10, 120, 200);
 
-        var first = StatsMonthGrid.IntensityBrush(color, 3);
-        var again = StatsMonthGrid.IntensityBrush(color, 3);
-        var other = StatsMonthGrid.IntensityBrush(color, 4);
+        var first = ChartDrawCache.IntensityBrush(color, 3);
+        var again = ChartDrawCache.IntensityBrush(color, 3);
+        var other = ChartDrawCache.IntensityBrush(color, 4);
 
         Assert.Same(first, again);
         Assert.NotSame(first, other);

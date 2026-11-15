@@ -130,9 +130,8 @@ public sealed class HistoryChart : FrameworkElement
         set => SetValue(ShowAxesProperty, value);
     }
 
-    /// <summary>The already-localized window names, used only in the hover caption - kept as plain
-    /// dependency properties rather than a lookup, so this control stays free of literal text and of
-    /// any dependency on <c>LocalizationService</c> itself.</summary>
+    /// <summary>The already-localized window names, used only in the hover caption; the page sets
+    /// them as plain dependency properties.</summary>
     public static readonly DependencyProperty FiveHourLabelProperty = DependencyProperty.Register(
         nameof(FiveHourLabel), typeof(string), typeof(HistoryChart),
         new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
@@ -471,7 +470,7 @@ public sealed class HistoryChart : FrameworkElement
     }
 
     /// <summary>Whether a mouse move actually changed which data point each series would show -
-    /// the pure decision <see cref="OnMouseMove"/> gates its <see cref="InvalidateVisual"/> call on,
+    /// the pure decision <see cref="OnMouseMove"/> gates its <see cref="RedrawHover"/> call on,
     /// pulled out so it is unit-testable without a visual tree or a live mouse.</summary>
     internal static bool HoverPointChanged(int previousFiveHourIndex, int previousWeeklyIndex, int newFiveHourIndex, int newWeeklyIndex) =>
         newFiveHourIndex != previousFiveHourIndex || newWeeklyIndex != previousWeeklyIndex;
@@ -528,7 +527,7 @@ public sealed class HistoryChart : FrameworkElement
 
     private void DrawCaptionBox(DrawingContext dc, string text, double anchorX, double width, double height)
     {
-        var textBrush = (Brush)(TryFindResource("Text.Primary") ?? System.Windows.SystemColors.WindowTextBrush);
+        var textBrush = ChartTheme.Primary(this, null);
         var typeface = ChartFonts.UiTypeface(this);
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var formatted = new FormattedText(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), textBrush, dpi);
@@ -544,8 +543,7 @@ public sealed class HistoryChart : FrameworkElement
         boxX = Math.Clamp(boxX, 0, Math.Max(0, width - boxWidth));
         var boxY = Math.Clamp(4, 0, Math.Max(0, height - boxHeight));
 
-        var bgBrush = (Brush)(TryFindResource("Bg.Raised") ?? System.Windows.SystemColors.WindowBrush);
-        dc.DrawRoundedRectangle(bgBrush, GridSolidPen(), new Rect(boxX, boxY, boxWidth, boxHeight), 4, 4);
+        dc.DrawRoundedRectangle(ChartTheme.TooltipBackground(this, null), GridSolidPen(),new Rect(boxX, boxY, boxWidth, boxHeight), 4, 4);
         dc.DrawText(formatted, new Point(boxX + padding, boxY + padding));
     }
 
@@ -828,7 +826,7 @@ public sealed class HistoryChart : FrameworkElement
             LocalizationService.Instance.DisplayCulture,
             System.Windows.FlowDirection.LeftToRight,
             ChartFonts.UiTypeface(this),
-            11,
+            ChartTheme.FontSize(this, "Font.Size.Small", 11),
             textBrush,
             VisualTreeHelper.GetDpi(this).PixelsPerDip)
         {
