@@ -75,6 +75,32 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_takes_an_unknown_stored_credit_route_as_none_and_keeps_the_other_settings()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory);
+        var original = new AppSettings();
+        original.Providers["claude"].Disconnected = true;
+        original.Providers["claude"].ApiCredit = new StoredApiCredit
+        {
+            Amount = 12.5m, Currency = "USD", ReadAt = DateTimeOffset.UtcNow, Route = ClaudeCreditRoute.Console,
+        };
+        store.SaveNow(original);
+        var path = Path.Combine(directory, "settings.json");
+        var text = File.ReadAllText(path);
+        Assert.Contains("\"Console\"", text);
+        File.WriteAllText(path, text.Replace("\"Console\"", "\"SatelliteLink\""));
+
+        using var reloadStore = new SettingsStore(directory);
+        var loaded = reloadStore.Load();
+
+        Assert.True(loaded.Providers["claude"].Disconnected);
+        var credit = Assert.IsType<StoredApiCredit>(loaded.Providers["claude"].ApiCredit);
+        Assert.Equal(ClaudeCreditRoute.None, credit.Route);
+        Assert.Equal(12.5m, credit.Amount);
+    }
+
+    [Fact]
     public void Load_waits_for_a_file_another_program_holds_for_a_few_seconds()
     {
         var directory = TempDirectory();
