@@ -97,7 +97,11 @@ public sealed class ModelPriceList
     }
 
     /// <summary>True when there are no prices yet or they are a day old.</summary>
-    public bool IsStale(DateTimeOffset now) => IsEmpty || FetchedAt is not { } at || now - at >= MaxAge;
+    public bool IsStale(DateTimeOffset now)
+    {
+        lock (_gate)
+            return _prices.Count == 0 || FetchedAt is not { } at || now - at >= MaxAge;
+    }
 
     /// <summary>Reads the downloaded table. Never throws: text that is not the expected JSON gives an
     /// empty result. Kept are chat and responses models and entries without a mode; an entry needs a
