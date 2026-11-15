@@ -45,7 +45,11 @@ internal sealed class FallbackPriceList
         }
     }
 
-    internal bool IsStale(DateTimeOffset now) => IsEmpty || FetchedAt is not { } at || now - at >= ModelPriceList.MaxAge;
+    internal bool IsStale(DateTimeOffset now)
+    {
+        lock (_gate)
+            return _count == 0 || FetchedAt is not { } at || now - at >= ModelPriceList.MaxAge;
+    }
 
     /// <summary>True once the main list has met a model it has no price for in this run.</summary>
     internal bool Wanted => Volatile.Read(ref _wanted) == 1;
