@@ -919,8 +919,9 @@ public sealed partial class StatsViewModel : ObservableObject
                 return ProjectColorResolve(folders, cacheFilePath);
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            LogService.Shared.Log("WARN", $"Project colors could not be resolved ({ex.GetType().Name}).");
             // Nothing arrived for the day's projects: they are asked for again the next time that day is shown.
             _requestedDayProjectKeys.ExceptWith(dayKeys);
             return;

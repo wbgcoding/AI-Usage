@@ -44,18 +44,19 @@ public static class StatsMonthGridBuilder
     {
         var firstDay = FirstDay(today, from);
         var lastDay = today;
-        var byDayByProvider = all
+        var recordsByDay = all
             .Where(record => record.Day >= firstDay && record.Day <= lastDay)
             .GroupBy(record => record.Day)
-            .ToDictionary(group => group.Key, group => group
+            .ToDictionary(group => group.Key, group => group.ToList());
+        var byDayByProvider = recordsByDay.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value
                 .GroupBy(record => record.Provider)
                 .ToDictionary(providerGroup => providerGroup.Key, providerGroup => providerGroup.Sum(record => record.TotalTokens)));
 
         var costByDay = costLine is null
             ? null
-            : all.Where(record => record.Day >= firstDay && record.Day <= lastDay)
-                .GroupBy(record => record.Day)
-                .ToDictionary(group => group.Key, group => costLine(group));
+            : recordsByDay.ToDictionary(entry => entry.Key, entry => costLine(entry.Value));
         var days = new List<Views.Controls.StatsMonthGrid.DayValue>();
         for (var day = firstDay; day <= lastDay; day = day.AddDays(1))
         {
