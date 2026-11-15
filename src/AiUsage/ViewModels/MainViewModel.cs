@@ -2109,7 +2109,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _tileCostChangedHooked = true;
         service.Changed += () =>
         {
-            UiThread.Run(() => _lastWindowTokensQueryAt.Clear());
+            // The tick reads this map on the UI thread; without one (tests, shutdown) nothing reads it.
+            if (Application.Current?.Dispatcher is { } dispatcher)
+                UiThread.Run(dispatcher, () => _lastWindowTokensQueryAt.Clear());
         };
     }
 
