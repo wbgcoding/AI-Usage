@@ -25,8 +25,9 @@ step needs Inno Setup 6.
   credentials. `TokenSafetyTests` guards the endpoint list.
 - **Tests with every change.** New behaviour comes with a test; a bug fix comes with a test that
   failed before the fix.
-- **Both languages.** Every user-facing text goes into `src/AiUsage/Resources/Strings.resx` (English)
-  and `Strings.de.resx` (German). The German UI addresses the user informally ("du").
+- **Every language.** Every user-facing text goes into `src/AiUsage/Resources/Strings.resx` (English)
+  and into every other `Strings.<culture>.resx` next to it; `LocalizationParityTests` fails when a
+  file misses a key. The German UI addresses the user informally ("du").
 - **Match the code around you.** Formatting follows `.editorconfig`; the build treats warnings as
   errors. Keep comments short and explain why, not what.
 - **One topic per pull request,** with a short description of what changed and how you tested it.

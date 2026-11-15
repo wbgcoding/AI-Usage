@@ -18,8 +18,7 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ASSETS = REPO_ROOT / "src" / "AiUsage" / "Assets"
 
-# Preserve the tray's existing warning colours.
-STATUS_OK = (139, 92, 246, 255)      # Level.Ok #8B5CF6
+# Tray warning colours; tray-ok keeps the app mark as is.
 STATUS_WARN = (245, 158, 11, 255)    # Level.Warn #F59E0B
 STATUS_CRIT = (244, 63, 94, 255)     # Level.Crit #F43F5E
 
@@ -53,7 +52,7 @@ def main() -> None:
     app_master.resize((MARK_PNG_SIZE, MARK_PNG_SIZE), Image.Resampling.LANCZOS).save(ASSETS / "app-mark.png")
     print(f"wrote {ASSETS / 'app-mark.png'} ({MARK_PNG_SIZE}x{MARK_PNG_SIZE})")
 
-    for name, color in (("tray-ok", STATUS_OK), ("tray-warn", STATUS_WARN), ("tray-crit", STATUS_CRIT)):
+    for name, color in (("tray-ok", None), ("tray-warn", STATUS_WARN), ("tray-crit", STATUS_CRIT)):
         tray_master = app_master.copy()
         if name != "tray-ok":
             tray_master = Image.new("RGBA", app_master.size, color)

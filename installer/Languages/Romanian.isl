@@ -212,14 +212,12 @@ ReadyMemoGroup=Dosarul Meniului de Start:
 ReadyMemoTasks=Sarcini Suplimentare:
 
 ; *** TDownloadWizardPage wizard page and DownloadTemporaryFile
-DownloadingLabel=Descarc file suplimentare...
+DownloadingLabel2=Descarc filele...
 ButtonStopDownload=O&preºte descãrcarea
 StopDownload=Sigur vrei sã opreºti descãrcarea?
 ErrorDownloadAborted=Descãrcare abandonatã
 ErrorDownloadFailed=Descãrcare eºuatã: %1 %2
 ErrorDownloadSizeFailed=Obþinerea mãrimii a eºuat: %1 %2
-ErrorFileHash1=Haºul filei a eºuat: %1
-ErrorFileHash2=Haºul filei e nevalid: aºteptat %1, gãsit %2
 ErrorProgress=Progres nevalid: %1 of %2
 ErrorFileSize=Mãrime a filei nevalidã: aºteptatã %1, gãsitã %2
 
@@ -368,6 +366,28 @@ ShutdownBlockReasonUninstallingApp=Dezinstalez %1.
 
 ; The custom messages below aren't used by Setup itself, but if you make
 ; use of them in your scripts, you'll want to translate them.
+ExtractingLabel=Extrag filele...
+ButtonStopExtraction=O&preºte extragerea
+StopExtraction=Sigur vrei sã opreºti extragerea?
+ErrorExtractionAborted=Extragere abandonatã
+ErrorExtractionFailed=Extragere eºuatã: %1
+ArchiveIncorrectPassword=Parola este incorectã
+ArchiveIsCorrupted=Arhiva este coruptã
+ArchiveUnsupportedFormat=Formatul arhivei nu este acceptat
+RetryCancelSelectAction=Alege acþiunea
+RetryCancelRetry=&Încearcã din nou
+RetryCancelCancel=Renunþã
+StatusDownloadFiles=Descarc filele...
+SourceVerificationFailed=Verificarea filei sursã a eºuat: %1
+VerificationSignatureDoesntExist=Fila de semnãturã "%1" nu existã
+VerificationSignatureInvalid=Fila de semnãturã "%1" este nevalidã
+VerificationKeyNotFound=Fila de semnãturã "%1" foloseºte o cheie necunoscutã
+VerificationFileNameIncorrect=Numele filei este incorect
+VerificationFileTagIncorrect=Eticheta filei este incorectã
+VerificationFileSizeIncorrect=Mãrimea filei este incorectã
+VerificationFileHashIncorrect=Haºul filei este incorect
+ErrorDownloading=A apãrut o eroare în timpul descãrcãrii unei file:
+ErrorExtracting=A apãrut o eroare în timpul extragerii unei arhive:
 
 [CustomMessages]
 
