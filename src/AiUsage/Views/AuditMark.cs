@@ -18,6 +18,22 @@ public static class AuditMark
     public static readonly DependencyProperty ClipProperty = DependencyProperty.RegisterAttached(
         "Clip", typeof(string), typeof(AuditMark), new PropertyMetadata(null));
 
+    /// <summary>The setting control may go without a tooltip.</summary>
+    public static readonly DependencyProperty TooltipProperty = DependencyProperty.RegisterAttached(
+        "Tooltip", typeof(string), typeof(AuditMark), new PropertyMetadata(null));
+
+    /// <summary>The setting label may be longer than a short label.</summary>
+    public static readonly DependencyProperty LabelProperty = DependencyProperty.RegisterAttached(
+        "Label", typeof(string), typeof(AuditMark), new PropertyMetadata(null));
+
+    public static string? GetTooltip(DependencyObject element) => (string?)element.GetValue(TooltipProperty);
+
+    public static void SetTooltip(DependencyObject element, string? value) => element.SetValue(TooltipProperty, value);
+
+    public static string? GetLabel(DependencyObject element) => (string?)element.GetValue(LabelProperty);
+
+    public static void SetLabel(DependencyObject element, string? value) => element.SetValue(LabelProperty, value);
+
     public static string? GetOverlap(DependencyObject element) => (string?)element.GetValue(OverlapProperty);
 
     public static void SetOverlap(DependencyObject element, string? value) => element.SetValue(OverlapProperty, value);

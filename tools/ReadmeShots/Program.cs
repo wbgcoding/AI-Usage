@@ -129,6 +129,7 @@ internal static class Program
                 }
                 Directory.CreateDirectory(reviewDirectory);
                 LayoutAudit.ReportPath = Path.Combine(reviewDirectory, "audit.txt");
+                LayoutAudit.ThemeNames = ReviewSurfaces.Themes.Select(theme => theme.Name).ToArray();
                 File.WriteAllText(LayoutAudit.ReportPath, "");
                 RenderReviewSet(application, dataDirectory, reviewDirectory, reviewOptions, themes, chosen);
             }

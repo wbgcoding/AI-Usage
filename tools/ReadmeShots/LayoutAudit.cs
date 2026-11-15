@@ -11,7 +11,7 @@ using AiUsage.Views;
 
 namespace ReadmeShots;
 
-internal enum AuditKind { Clipped, Overlap, OffTheme }
+internal enum AuditKind { Clipped, Overlap, OffTheme, NoTooltip, LongLabel }
 
 /// <summary>One thing the audit found: what kind, which element, and the measured detail.</summary>
 internal sealed record AuditFinding(AuditKind Kind, string Element, string Detail);
@@ -26,7 +26,8 @@ internal sealed record AuditFinding(AuditKind Kind, string Element, string Detai
 /// their own tree and adorner layers are skipped;</item>
 /// <item>OFF-THEME: a painted background, text colour, border, fill or stroke that comes from a
 /// control's system default look, or whose colour is none of the colours the app's resource
-/// dictionaries define.</item>
+/// dictionaries define;</item>
+/// <item>on settings surfaces only, NO-TOOLTIP and LONG-LABEL (see <see cref="SettingsAudit"/>).</item>
 /// </list>
 /// An element meant to look that way carries an <see cref="AuditMark"/> with the reason.</summary>
 internal static class LayoutAudit
@@ -41,19 +42,22 @@ internal static class LayoutAudit
         if (ReportPath is null)
             return;
 
-        var findings = Run(root);
+        var picture = Picture.FromFile(outputPath, ThemeNames);
+        var findings = Run(root, picture.IsSettings);
         if (findings.Count == 0)
             return;
-        var picture = Picture.FromFile(outputPath);
         File.AppendAllLines(ReportPath, findings.Select(finding => Format(picture, finding)));
     }
 
-    /// <summary>Audits a laid out element tree against the current application's resources.</summary>
-    internal static IReadOnlyList<AuditFinding> Run(FrameworkElement root)
+    /// <summary>Audits a laid out element tree against the current application's resources; a settings
+    /// surface also gets the checks for its settings' tooltips and labels.</summary>
+    internal static IReadOnlyList<AuditFinding> Run(FrameworkElement root, bool settings = false)
     {
         var palette = ThemePalette.FromApplication();
         var findings = new List<AuditFinding>();
         Walk(root, palette, findings, clipMarked: false, offThemeMarked: false);
+        if (settings)
+            SettingsAudit.Check(root, findings);
         return findings;
     }
 
@@ -63,21 +67,30 @@ internal static class LayoutAudit
         {
             AuditKind.Clipped => "CLIPPED",
             AuditKind.Overlap => "OVERLAP",
-            _ => "OFF-THEME",
+            AuditKind.OffTheme => "OFF-THEME",
+            AuditKind.NoTooltip => "NO-TOOLTIP",
+            _ => "LONG-LABEL",
         };
         return $"{kind} | {picture.Surface} | {picture.Size} | {picture.Locale} | {picture.Theme} | {finding.Element} | {finding.Detail}";
     }
 
-    /// <summary>The parts of a review picture's file name, <c>surface-theme-language-size.png</c>; the
-    /// language itself may hold a dash (pt-BR, zh-Hans), the surface id never does.</summary>
+    /// <summary>The theme names a picture's file name can hold; set by the review run from its own list.</summary>
+    internal static IReadOnlyCollection<string> ThemeNames { get; set; } = [];
+
+    /// <summary>The parts of a review picture's file name, <c>surface-theme-language-size.png</c>. Both
+    /// the surface id (settings.system-moving) and the language (pt-BR, zh-Hans) may hold a dash, so
+    /// the first part that names a theme splits them.</summary>
     internal sealed record Picture(string Surface, string Size, string Locale, string Theme)
     {
-        internal static Picture FromFile(string path)
+        internal bool IsSettings => Surface.StartsWith("settings.", StringComparison.Ordinal);
+
+        internal static Picture FromFile(string path, IReadOnlyCollection<string> themeNames)
         {
             var parts = Path.GetFileNameWithoutExtension(path).Split('-');
-            if (parts.Length < 4)
+            var theme = Array.FindIndex(parts, 1, part => themeNames.Contains(part));
+            if (theme < 1 || theme > parts.Length - 3)
                 return new Picture(Path.GetFileName(path), "-", "-", "-");
-            return new Picture(parts[0], parts[^1], string.Join('-', parts[2..^1]), parts[1]);
+            return new Picture(string.Join('-', parts[..theme]), parts[^1], string.Join('-', parts[(theme + 1)..^1]), parts[theme]);
         }
     }
 
@@ -106,31 +119,61 @@ internal static class LayoutAudit
 
     // CLIPPED ----------------------------------------------------------------------------------------
 
+    /// <summary>What a text block shows. A caption with an access key (a check box's, a radio button's)
+    /// is an <see cref="AccessText"/> whose inner block holds only runs, so its text comes from there,
+    /// without the underscore that marks the key.</summary>
+    internal static string TextOf(TextBlock text) =>
+        text.Text.Length == 0 && VisualTreeHelper.GetParent(text) is AccessText access
+            ? access.Text.Replace("__", "\0").Replace("_", "").Replace("\0", "_")
+            : text.Text;
+
     private static string? ClipDetail(TextBlock text)
     {
-        if (text.TextWrapping != TextWrapping.NoWrap || text.ActualWidth <= 0 || string.IsNullOrWhiteSpace(text.Text))
+        var shownText = TextOf(text);
+        if (text.TextWrapping != TextWrapping.NoWrap || text.ActualWidth <= 0 || string.IsNullOrWhiteSpace(shownText))
             return null;
         // Runs in their own weight or size cannot be measured as one string; such a text is skipped
-        // rather than reported wrong.
-        if (text.Inlines.Count > 1)
+        // rather than reported wrong. An access key caption splits into runs of one style only.
+        if (text.Inlines.Count > 1 && VisualTreeHelper.GetParent(text) is not AccessText)
             return null;
 
         var formatted = new FormattedText(
-            text.Text, text.Language.GetSpecificCulture(), text.FlowDirection,
+            shownText, text.Language.GetSpecificCulture(), text.FlowDirection,
             new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch),
             text.FontSize, Brushes.Black, 1.0);
         var needed = formatted.WidthIncludingTrailingWhitespace + text.Padding.Left + text.Padding.Right;
-        // A text given less room than it asked for keeps its full width and is cut by its layout clip,
-        // so the clip, not the text's own width, says how much of it shows.
-        var shown = text.ActualWidth;
-        if (LayoutInformation.GetLayoutClip(text) is { } clip)
-            shown = clip.Bounds.IsEmpty || clip.Bounds.Height <= 0 ? 0 : Math.Min(shown, clip.Bounds.Width);
+        var shown = ShownWidth(text);
         // No room at all is a panel hiding the text on purpose (it shows only when it fits whole).
         if (shown <= 0 || needed <= shown + Tolerance)
             return null;
 
         var trimmed = text.TextTrimming == TextTrimming.None ? "" : ", trimmed";
         return string.Create(CultureInfo.InvariantCulture, $"needs {needed:0} px, has {shown:0} px{trimmed}");
+    }
+
+    /// <summary>How wide a text actually shows. An element given less room than it asked for keeps its
+    /// full width and is cut by a layout clip, its own or one of its ancestors' (a check box cuts its
+    /// caption), so the text's box is cut by every clip up the tree. A scroll viewer's content can be
+    /// scrolled into view, so the walk ends there. Zero means nothing of the text shows.</summary>
+    private static double ShownWidth(TextBlock text)
+    {
+        // The box stays in the text's own coordinates; each clip is brought into them.
+        var box = new Rect(text.RenderSize);
+        for (var element = text as FrameworkElement; element is not null and not ScrollContentPresenter;
+             element = VisualTreeHelper.GetParent(element) as FrameworkElement)
+        {
+            var clip = LayoutInformation.GetLayoutClip(element)?.Bounds;
+            if (element.ClipToBounds)
+                clip = clip is { } layout ? Rect.Intersect(layout, new Rect(element.RenderSize)) : new Rect(element.RenderSize);
+            if (clip is not { } bounds)
+                continue;
+            if (!ReferenceEquals(element, text) && element.TransformToDescendant(text) is { } toText)
+                bounds = toText.TransformBounds(bounds);
+            box.Intersect(bounds);
+            if (box.IsEmpty || box.Width <= 0 || box.Height <= 0)
+                return 0;
+        }
+        return box.Width;
     }
 
     // OVERLAP ----------------------------------------------------------------------------------------
@@ -273,7 +316,7 @@ internal static class LayoutAudit
         var label = Label(element);
         var text = element switch
         {
-            TextBlock block => block.Text,
+            TextBlock block => TextOf(block),
             ContentControl { Content: string content } => content,
             _ => null,
         };

@@ -64,6 +64,23 @@ public class LayoutAuditTests
     }
 
     [Fact]
+    public void A_caption_with_an_access_key_cut_by_its_container_is_clipped()
+    {
+        // The row gives its caption all the width it asks for and is itself cut to 60 px, the way a
+        // control cuts the caption inside it.
+        var findings = Audit(() => Surface(new Border
+        {
+            Width = 60,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { new AccessText { Text = "_Start with Windows" } } },
+        }));
+
+        var finding = Assert.Single(findings);
+        Assert.Equal(AuditKind.Clipped, finding.Kind);
+        Assert.StartsWith("TextBlock \"Start with Windows\"", finding.Element);
+    }
+
+    [Fact]
     public void A_clip_mark_silences_the_text_and_everything_inside()
     {
         var findings = Audit(() =>
@@ -201,11 +218,96 @@ public class LayoutAuditTests
     [InlineData("widget.full-Dark-de-min.png", "widget.full", "min", "de", "Dark")]
     [InlineData("stats.window-HighContrast-pt-BR-default.png", "stats.window", "default", "pt-BR", "HighContrast")]
     [InlineData("settings.general-Light-zh-Hans-default.png", "settings.general", "default", "zh-Hans", "Light")]
+    [InlineData("settings.system-moving-Nebula-pt-BR-min.png", "settings.system-moving", "min", "pt-BR", "Nebula")]
     public void A_line_names_surface_size_locale_and_theme_from_the_picture(string file, string surface, string size, string locale, string theme)
     {
-        var line = LayoutAudit.Format(LayoutAudit.Picture.FromFile(@"C:\out\" + file), new AuditFinding(AuditKind.Overlap, "Border", "overlaps Border"));
+        var picture = LayoutAudit.Picture.FromFile(@"C:\out\" + file, ["Dark", "Light", "Nebula", "Terminal", "HighContrast"]);
+        var line = LayoutAudit.Format(picture, new AuditFinding(AuditKind.Overlap, "Border", "overlaps Border"));
 
         Assert.Equal($"OVERLAP | {surface} | {size} | {locale} | {theme} | Border | overlaps Border", line);
+        Assert.Equal(surface.StartsWith("settings."), picture.IsSettings);
+    }
+
+    [Fact]
+    public void A_setting_without_any_tooltip_is_reported_on_settings_surfaces_only()
+    {
+        StackPanel Build() => new()
+        {
+            Children = { new TextBlock { Text = "Refresh" }, new ComboBox() },
+        };
+
+        var onSettings = Audit(() => Surface(Build()), settings: true);
+        var elsewhere = Audit(() => Surface(Build()));
+
+        var finding = Assert.Single(onSettings);
+        Assert.Equal(AuditKind.NoTooltip, finding.Kind);
+        Assert.Equal("ComboBox for \"Refresh\"", finding.Element);
+        Assert.Empty(elsewhere);
+    }
+
+    [Fact]
+    public void A_tooltip_on_the_setting_its_label_or_its_row_counts()
+    {
+        var findings = Audit(() =>
+        {
+            var panel = new StackPanel();
+            panel.Children.Add(new CheckBox { Content = "Start with Windows", ToolTip = "Opens the widget at sign-in." });
+            panel.Children.Add(new StackPanel
+            {
+                Children = { new TextBlock { Text = "Layout", ToolTip = "How the tiles are arranged." }, new ComboBox() },
+            });
+            panel.Children.Add(new StackPanel
+            {
+                ToolTip = "How often the numbers are read.",
+                Children = { new TextBlock { Text = "Refresh" }, new ComboBox() },
+            });
+            var marked = new CheckBox { Content = "Beta" };
+            AuditMark.SetTooltip(marked, "test: explained by the page heading");
+            panel.Children.Add(marked);
+            return Surface(panel);
+        }, settings: true);
+
+        Assert.Empty(findings);
+    }
+
+    [Fact]
+    public void An_empty_or_disabled_tooltip_does_not_count()
+    {
+        var findings = Audit(() =>
+        {
+            var panel = new StackPanel();
+            panel.Children.Add(new CheckBox { Content = "Sounds", ToolTip = "" });
+            var disabled = new CheckBox { Content = "Badges", ToolTip = "Shows a badge." };
+            ToolTipService.SetIsEnabled(disabled, false);
+            panel.Children.Add(disabled);
+            return Surface(panel);
+        }, settings: true);
+
+        Assert.Equal(2, findings.Count);
+        Assert.All(findings, finding => Assert.Equal(AuditKind.NoTooltip, finding.Kind));
+    }
+
+    [Fact]
+    public void A_label_longer_than_forty_characters_is_reported_and_a_short_one_is_not()
+    {
+        const string sentence = "Show a notification when a limit is almost used up";
+        var findings = Audit(() =>
+        {
+            var panel = new StackPanel { Width = 600 };
+            panel.Children.Add(new CheckBox { Content = sentence, ToolTip = "Warns before the limit." });
+            panel.Children.Add(new CheckBox { Content = "Warn near a limit", ToolTip = "Warns before the limit." });
+            var marked = new CheckBox { Content = sentence + " (marked)", ToolTip = "Warns before the limit." };
+            AuditMark.SetLabel(marked, "test: a legal notice that must be read whole");
+            panel.Children.Add(marked);
+            var root = Surface(panel);
+            root.Width = 600;
+            return root;
+        }, settings: true);
+
+        var finding = Assert.Single(findings);
+        Assert.Equal(AuditKind.LongLabel, finding.Kind);
+        Assert.StartsWith("TextBlock \"" + sentence[..40], finding.Element);
+        Assert.Equal($"{sentence.Length} characters, at most 40", finding.Detail);
     }
 
     /// <summary>A root that draws the theme surface and hands the theme text colour down, the way
@@ -223,13 +325,13 @@ public class LayoutAuditTests
         return border;
     }
 
-    private static IReadOnlyList<AuditFinding> Audit(Func<FrameworkElement> build) =>
+    private static IReadOnlyList<AuditFinding> Audit(Func<FrameworkElement> build, bool settings = false) =>
         StaTestRunner.Run(() =>
         {
             var root = build();
             root.Measure(new Size(root.Width, double.PositiveInfinity));
             root.Arrange(new Rect(root.DesiredSize));
             root.UpdateLayout();
-            return LayoutAudit.Run(root);
+            return LayoutAudit.Run(root, settings);
         });
 }

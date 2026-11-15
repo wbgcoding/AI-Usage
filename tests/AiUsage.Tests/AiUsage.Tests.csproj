@@ -38,6 +38,7 @@
     <!-- The review tool's layout audit, compiled in here so its checks run against built element
          trees without referencing the tool's exe. -->
     <Compile Include="..\..\tools\ReadmeShots\LayoutAudit.cs" Link="Tools\LayoutAudit.cs" />
+    <Compile Include="..\..\tools\ReadmeShots\SettingsAudit.cs" Link="Tools\SettingsAudit.cs" />
   </ItemGroup>
 
   <ItemGroup>
