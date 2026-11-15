@@ -67,7 +67,6 @@
                                       TextBrush="{DynamicResource Text.Muted}"
                                       EmptyTextBrush="{DynamicResource Text.Muted}"
                                       AccentBrush="{DynamicResource Accent}"
-                                      TooltipBackground="{DynamicResource Bg.Raised}"
                                       EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.Empty]}"
                                       TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"
                                       TotalLabel="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total]}"

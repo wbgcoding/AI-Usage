@@ -19,6 +19,10 @@ internal static class ChartTheme
     public static Brush Text(FrameworkElement owner, Brush? set) =>
         Resolve(owner, set, "Text.Secondary", SystemColors.ControlTextBrush);
 
+    /// <summary>Full-strength text: the hover caption drawn inside a chart.</summary>
+    public static Brush Primary(FrameworkElement owner, Brush? set) =>
+        Resolve(owner, set, "Text.Primary", SystemColors.WindowTextBrush);
+
     /// <summary>Quieter text: empty-state lines, axes, a figure beside a label.</summary>
     public static Brush Muted(FrameworkElement owner, Brush? set) =>
         Resolve(owner, set, "Text.Muted", SystemColors.GrayTextBrush);

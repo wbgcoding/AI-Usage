@@ -26,7 +26,7 @@ public sealed class StatsRingChart : FrameworkElement
     }
 
     /// <summary>One slice: a label already resolved to what the legend should print (a provider or
-    /// model display name, or the pooled "Other"/"Andere" entry), its percentage of the whole and its
+    /// model display name, or the pooled <c>Stats.Other</c> entry), its percentage of the whole and its
     /// own raw token total - the ring center draws whichever slice has the largest <see cref="Total"/>
     /// by name and value, so unlike <see cref="Percent"/> (rounded for display) this needs the exact
     /// figure. <see cref="ProviderId"/> carries through only for a model slice (empty for a provider
@@ -131,7 +131,7 @@ public sealed class StatsRingChart : FrameworkElement
         return index < 0 ? "" : slices[index].CostText ?? "";
     }
 
-    /// <summary>"Largest share: {0}, {1}" (DE "Größter Anteil: {0}, {1}") filled in from <see
+    /// <summary>The <c>Stats.Ring.Largest</c> text filled in from <see
     /// cref="CenterHeadline"/> - empty when there is nothing to announce (an empty ring, or the format
     /// itself not bound to anything yet) rather than a half-filled sentence.</summary>
     internal static string BuildLargestShareAccessibleText(
@@ -188,9 +188,8 @@ public sealed class StatsRingChart : FrameworkElement
         set => SetValue(EmptyTextProperty, value);
     }
 
-    /// <summary>The already-localized magnitude words the ring center's own compact value needs -
-    /// the same reasoning <see cref="StatsBarChart.MillionSuffix"/> already documents for why these
-    /// are plain dependency properties rather than a <c>LocalizationService</c> dependency.</summary>
+    /// <summary>The already-localized magnitude words the ring center's own compact value needs;
+    /// the page sets them as plain dependency properties.</summary>
     public static readonly DependencyProperty ThousandSuffixProperty = DependencyProperty.Register(
         nameof(ThousandSuffix), typeof(string), typeof(StatsRingChart),
         new FrameworkPropertyMetadata("K", FrameworkPropertyMetadataOptions.AffectsRender, OnAccessibleNameInputChanged));
@@ -221,7 +220,7 @@ public sealed class StatsRingChart : FrameworkElement
         set => SetValue(BillionSuffixProperty, value);
     }
 
-    /// <summary>"Largest share: {0}, {1}"/"Größter Anteil: {0}, {1}" - the composite format <see
+    /// <summary>The <c>Stats.Ring.Largest</c> composite format <see
     /// cref="BuildLargestShareAccessibleText"/> fills the largest slice's own name and value into, for
     /// the ring's own accessible name.</summary>
     public static readonly DependencyProperty AccessibleLargestFormatProperty = DependencyProperty.Register(
@@ -525,7 +524,7 @@ public sealed class StatsRingChart : FrameworkElement
 
         _tooltipPopup ??= new ChartTooltipPopup();
         var anchor = SliceAnchor(_focusedIndex, ActualWidth, ActualHeight, Slices);
-        _tooltipPopup.Show(this, new Rect(anchor, new Size(1, 1)), tooltip.Split('\n'), TooltipBackground, TextBrush, TextBrush);
+        _tooltipPopup.Show(this, new Rect(anchor, new Size(1, 1)), tooltip.Split('\n'), TooltipBackground, TextBrush, null);
     }
 
     /// <summary>What a screen reader announces for the focused slice: its label and share, or the lines
@@ -572,7 +571,7 @@ public sealed class StatsRingChart : FrameworkElement
         }
 
         _tooltipPopup ??= new ChartTooltipPopup();
-        _tooltipPopup.Show(this, new Rect(point, new Size(1, 1)), tooltip.Split('\n'), TooltipBackground, TextBrush, TextBrush);
+        _tooltipPopup.Show(this, new Rect(point, new Size(1, 1)), tooltip.Split('\n'), TooltipBackground, TextBrush, null);
     }
 
     protected override void OnMouseLeave(System.Windows.Input.MouseEventArgs e)

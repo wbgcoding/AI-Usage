@@ -45,6 +45,8 @@ public sealed class ChartThemeTests
             bars.Resources["Border"] = Marker;
             Assert.Same(Marker, bars.MutedBrush);
             Assert.Same(Marker, bars.TooltipBorderBrush);
+            bars.Resources["Bg.Popup"] = Marker;
+            Assert.Same(Marker, bars.TooltipBackground);
 
             var month = new StatsMonthGrid();
             month.Resources["Text.Muted"] = Marker;

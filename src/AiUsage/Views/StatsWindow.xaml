@@ -262,7 +262,6 @@
                                                                   TextBrush="{DynamicResource Text.Muted}"
                                                                   EmptyTextBrush="{DynamicResource Text.Muted}"
                                                                   AccentBrush="{DynamicResource Accent}"
-                                                                  TooltipBackground="{DynamicResource Bg.Raised}"
                                                                   EmptyText="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.MonthGrid.Empty]}"
                                                                   TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"
                                                                   TotalLabel="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Total]}"
@@ -352,7 +351,6 @@
                                                                      AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
                                                                      EmptyTextBrush="{DynamicResource Text.Muted}"
                                                                      TextBrush="{DynamicResource Text.Muted}"
-                                                                     TooltipBackground="{DynamicResource Bg.Raised}"
                                                                      MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                                      BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
                                                                      TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"
@@ -611,7 +609,6 @@
                                                              AxisBrush="{DynamicResource Border}" FocusBrush="{DynamicResource Accent}"
                                                              EmptyTextBrush="{DynamicResource Text.Muted}"
                                                              TextBrush="{DynamicResource Text.Muted}"
-                                                             TooltipBackground="{DynamicResource Bg.Raised}"
                                                              MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"
                                                              BillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Billion]}"
                                                              TokenWord="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.TokenUnit]}"/>
@@ -730,7 +727,6 @@
                                                             AccentBrush="{DynamicResource Accent}"
                                                             EmptyCellBrush="{DynamicResource Border}"
                                                             TextBrush="{DynamicResource Text.Muted}"
-                                                            TooltipBackground="{DynamicResource Bg.Raised}"
                                                             LeaderTexts="{Binding HeatmapLeaderTexts}"
                                                             CostLines="{Binding HeatmapCostLines}"
                                                             TooltipFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Heatmap.Tooltip]}"
@@ -781,7 +777,7 @@
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByProvider]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ProviderRing" Margin="{StaticResource Space.S}" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ProviderShareSlices}"
+                                    <controls:StatsRingChart x:Name="ProviderRing" Margin="{StaticResource Space.S}" Slices="{Binding ProviderShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
@@ -796,7 +792,7 @@
                                     HeaderToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Chart.ByModel]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="ModelRing" Margin="{StaticResource Space.S}" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
+                                    <controls:StatsRingChart x:Name="ModelRing" Margin="{StaticResource Space.S}" Slices="{Binding ModelShareSlices}" IsActivatable="True"
                                                               SliceActivated="ModelRing_SliceActivated" FocusBrush="{DynamicResource Accent}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
@@ -811,7 +807,7 @@
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Chart.ByEffort]}">
                                 <Border MinHeight="150" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="{StaticResource Radius.Card}">
-                                    <controls:StatsRingChart x:Name="EffortRing" Margin="{StaticResource Space.S}" TooltipBackground="{DynamicResource Bg.Raised}" Slices="{Binding EffortShareSlices}"
+                                    <controls:StatsRingChart x:Name="EffortRing" Margin="{StaticResource Space.S}" Slices="{Binding EffortShareSlices}"
                                                               TextBrush="{DynamicResource Text.Muted}"
                                                               CenterTextBrush="{DynamicResource Text.Primary}"
                                                               EmptyText="{Binding EmptyChartText}"
@@ -1224,8 +1220,6 @@
                                                                        ShowProjectDetails="True"
                                                                        TextBrush="{DynamicResource Text.Secondary}"
                                                                        MutedBrush="{DynamicResource Text.Muted}"
-                                                                       TooltipBackground="{DynamicResource Bg.Raised}"
-                                                                       TooltipBorderBrush="{DynamicResource Border}"
                                                                        EmptyText="{Binding EmptyChartText}"
                                                                        ThousandSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Thousand]}"
                                                                        MillionSuffix="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Number.Million]}"

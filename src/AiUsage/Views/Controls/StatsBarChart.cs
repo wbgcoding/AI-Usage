@@ -12,7 +12,7 @@ namespace AiUsage.Views.Controls;
 /// own <see cref="OnRender"/>, the same construction <see cref="HistoryChart"/> already uses for the
 /// main tiles' line chart, no chart library either. Each bar can carry more than one stacked
 /// segment (one per provider), drawn bottom to top in the order <see cref="SeriesBrushes"/> lists
-/// them. The chart adds a labelled X axis, three Y gridlines with shortened figures, and a hover tooltip
+/// them. The chart adds a labelled X axis, up to <see cref="MaxGridLines"/> Y gridlines with shortened figures, and a hover tooltip
 /// naming the date and every segment's own figure.
 /// </summary>
 public sealed class StatsBarChart : FrameworkElement
@@ -194,9 +194,8 @@ public sealed class StatsBarChart : FrameworkElement
     }
 
     /// <summary>The already-localized "M"/"B" magnitude words <see
-    /// cref="StatsAggregator.ShortenTokenCount"/> needs for the Y axis' shortened figures - kept as
-    /// plain dependency properties rather than a <c>LocalizationService</c> dependency, the same
-    /// reasoning <see cref="HistoryChart.FiveHourLabel"/> already documents.</summary>
+    /// cref="StatsAggregator.ShortenTokenCount"/> needs for the Y axis' shortened figures; the page
+    /// sets them as plain dependency properties.</summary>
     public static readonly DependencyProperty MillionSuffixProperty = DependencyProperty.Register(
         nameof(MillionSuffix), typeof(string), typeof(StatsBarChart),
         new FrameworkPropertyMetadata("M", FrameworkPropertyMetadataOptions.AffectsRender));
@@ -510,7 +509,7 @@ public sealed class StatsBarChart : FrameworkElement
 
         var lines = BuildTooltipLines(bars[index], SeriesLabels, TokenWord);
         _tooltipPopup ??= new ChartTooltipPopup();
-        _tooltipPopup.Show(this, anchorRect, lines, TooltipBackground, TextBrush, AxisBrush, mouse);
+        _tooltipPopup.Show(this, anchorRect, lines, TooltipBackground, TextBrush, null, mouse);
     }
 
     private int _focusedIndex = -1;
@@ -715,7 +714,7 @@ public sealed class StatsBarChart : FrameworkElement
 
         // The left and bottom margins are sized to what THIS data actually needs to print, not a
         // fixed guess wide enough for the worst case: the Y axis band is exactly the widest of the
-        // three gridline figures plus AxisLabelGap, the X axis band exactly one line of axis text
+        // gridline figures plus AxisLabelGap, the X axis band exactly one line of axis text
         // (every label shares the same font/size, so height never varies by content) plus
         // BottomLabelGap. Measured once here, both bands stay cached in <see cref="_leftMargin"/>/
         // <see cref="_bottomMargin"/> for <see cref="OnMouseMove"/> and <see cref="UpdateTooltip"/>,
@@ -740,7 +739,7 @@ public sealed class StatsBarChart : FrameworkElement
         // the strip the topmost figure needs for its own upper half.
         var plotHeight = Math.Max(0, chartHeight - TopMargin);
 
-        // Y axis: three gridlines plus their shortened figures (already measured above), drawn
+        // Y axis: up to MaxGridLines gridlines plus their shortened figures (already measured above), drawn
         // behind the bars.
         for (var i = 0; i < yTicks.Count; i++)
         {

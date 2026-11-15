@@ -21,7 +21,7 @@ internal sealed class ChartCellHover<THit> where THit : struct
     internal void Show(FrameworkElement owner, Rect anchor, IReadOnlyList<string> lines, Brush background, Brush text)
     {
         _popup ??= new ChartTooltipPopup();
-        _popup.Show(owner, anchor, lines, background, text, text);
+        _popup.Show(owner, anchor, lines, background, text, null);
     }
 
     internal void Hide() => _popup?.Hide();

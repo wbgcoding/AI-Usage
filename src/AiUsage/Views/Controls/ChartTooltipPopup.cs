@@ -80,10 +80,10 @@ public sealed class ChartTooltipPopup
     /// tooltip sits at the pointer instead and follows it through <see cref="MoveTo"/>.</summary>
     public void Show(
         FrameworkElement owner, Rect anchorRect, IReadOnlyList<string> lines,
-        Brush background, Brush textBrush, Brush borderBrush, Point? mousePoint = null)
+        Brush background, Brush textBrush, Brush? borderBrush, Point? mousePoint = null)
     {
         _border.Background = background;
-        _border.BorderBrush = borderBrush;
+        _border.BorderBrush = ChartTheme.TooltipBorder(owner, borderBrush);
         _textBlock.Foreground = textBrush;
         _textBlock.Text = string.Join("\n", lines);
         _mousePoint = mousePoint;

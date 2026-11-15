@@ -98,11 +98,11 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     }
 
     public static readonly DependencyProperty TooltipBackgroundProperty = DependencyProperty.Register(
-        nameof(TooltipBackground), typeof(Brush), typeof(StatsHorizontalBarChart), new PropertyMetadata(Brushes.White));
+        nameof(TooltipBackground), typeof(Brush), typeof(StatsHorizontalBarChart), new PropertyMetadata((Brush?)null));
 
     public Brush TooltipBackground
     {
-        get => (Brush)GetValue(TooltipBackgroundProperty);
+        get => ChartTheme.TooltipBackground(this, (Brush?)GetValue(TooltipBackgroundProperty));
         set => SetValue(TooltipBackgroundProperty, value);
     }
 
