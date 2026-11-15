@@ -277,11 +277,7 @@ public sealed partial class SettingsViewModel
             // best effort: the line stays empty
         }
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-            _ = dispatcher.BeginInvoke(() => StatsIndexSizeText = text);
-        else
-            StatsIndexSizeText = text;
+        UiThread.Run(() => StatsIndexSizeText = text);
     }
 
     private void RefreshStatsIndexSizeText()

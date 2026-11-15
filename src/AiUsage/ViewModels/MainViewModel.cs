@@ -1044,11 +1044,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         indexer.IndexCompleted += (_, _) =>
         {
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher is not null && !dispatcher.CheckAccess())
-                dispatcher.BeginInvoke(OnStatsIndexCompleted);
-            else
-                OnStatsIndexCompleted();
+            UiThread.Run(OnStatsIndexCompleted);
         };
         indexer.StartInBackground();
     }
@@ -1820,11 +1816,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             SnapshotApplied?.Invoke();
         }
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-            dispatcher.BeginInvoke(Tail);
-        else
-            Tail();
+        UiThread.Run(Tail);
     }
 
     /// <summary>The history file of a Claude account's free credit, apart from its usage windows so the
@@ -1872,11 +1864,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             RefreshStatusCredit(accountKey, claude);
         }
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-            dispatcher.BeginInvoke(Apply);
-        else
-            Apply();
+        UiThread.Run(Apply);
     }
 
     // Raised for whichever provider RunOneAsync just started - Tick, RefreshNow() and
@@ -1902,11 +1890,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-            dispatcher.BeginInvoke(Mark);
-        else
-            Mark();
+        UiThread.Run(Mark);
     }
 
     // An attempt the owner cancelled raises no snapshot, so this is the only thing that ends its spinner
@@ -1915,11 +1899,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         void End() => TryClearFetching(providerId);
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-            dispatcher.BeginInvoke(End);
-        else
-            End();
+        UiThread.Run(End);
     }
 
     /// <summary>Clears IsFetching once at least <see cref="MinFetchingDuration"/> has passed since the
@@ -2071,11 +2051,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 EvaluateForecasts(providerId, points, now);
             }
 
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher is not null && !dispatcher.CheckAccess())
-                dispatcher.BeginInvoke(Apply);
-            else
-                Apply();
+            UiThread.Run(Apply);
         });
         lock (_pendingHistoryReads)
             _pendingHistoryReads.Add(read);
@@ -2133,9 +2109,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _tileCostChangedHooked = true;
         service.Changed += () =>
         {
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher is not null && !dispatcher.CheckAccess())
-                dispatcher.BeginInvoke(() => _lastWindowTokensQueryAt.Clear());
+            UiThread.Run(() => _lastWindowTokensQueryAt.Clear());
         };
     }
 
