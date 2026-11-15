@@ -36,6 +36,10 @@ internal static class ClaudeConsoleCreditParser
     private static readonly Regex OrganizationIdPattern = new(@"\A[0-9a-fA-F-]{36}\z", RegexOptions.Compiled);
     private static readonly Regex CurrencyPattern = new(@"\A[A-Za-z]{3}\z", RegexOptions.Compiled);
 
+    /// <summary>The upper-cased three-letter currency code, or USD when the value is absent or not a code.</summary>
+    internal static string NormalizeCurrency(string? value) =>
+        value is not null && CurrencyPattern.IsMatch(value) ? value.ToUpperInvariant() : DefaultCurrency;
+
     internal static bool IsOrganizationId(string? value) => value is not null && OrganizationIdPattern.IsMatch(value);
 
     /// <summary>The API organisation to ask: the one the console itself has open (<paramref name="lastActiveOrg"/>,
@@ -107,10 +111,8 @@ internal static class ClaudeConsoleCreditParser
                 || !amount.TryGetDecimal(out var cents))
                 return unreadable;
 
-            var currency = root.TryGetProperty("currency", out var code) && code.ValueKind == JsonValueKind.String
-                && code.GetString() is { } text && CurrencyPattern.IsMatch(text)
-                ? text.ToUpperInvariant()
-                : DefaultCurrency;
+            var currency = NormalizeCurrency(
+                root.TryGetProperty("currency", out var code) && code.ValueKind == JsonValueKind.String ? code.GetString() : null);
             var balance = cents / 100m;
             var grant = AlignWithBalance(ReadGrant(root, now ?? DateTimeOffset.UtcNow, out _), balance);
             return new ClaudeConsoleCreditReading(ClaudeConsoleCreditOutcome.Ok, new ClaudeApiCredit(balance, currency, grant));

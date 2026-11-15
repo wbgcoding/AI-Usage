@@ -355,4 +355,43 @@ public class ClaudeUsageParserTests
         Assert.Equal(0m, extra.Used);
         Assert.Equal(50m, extra.Limit);
     }
+
+    private const string HugeExtraUsage =
+        """{"five_hour":{"utilization":10,"resets_at":"2026-11-15T20:00:00Z"},"seven_day":{"utilization":20},"extra_usage":{"is_enabled":true,"monthly_limit":1e30,"used_credits":1e30,"utilization":5.5,"currency":"USD"}}""";
+
+    [Fact]
+    public void An_absurd_extra_usage_figure_reads_as_absent_and_keeps_the_windows()
+    {
+        var result = ClaudeUsageParser.Parse(HugeExtraUsage);
+
+        Assert.Equal(ClaudeUsageOutcome.Ok, result.Outcome);
+        Assert.Equal(2, result.Windows.Count);
+        var extra = Assert.IsType<ClaudeExtraUsage>(result.Extra);
+        Assert.Null(extra.Used);
+        Assert.Null(extra.Limit);
+        Assert.Equal(5.5, extra.UsedPercent);
+    }
+
+    [Fact]
+    public void An_absurd_extra_usage_figure_is_named_in_the_change_notes()
+    {
+        Assert.Contains(ClaudeUsageParser.ChangeNotes(HugeExtraUsage), note => note.Contains("extra_usage"));
+        Assert.DoesNotContain(
+            ClaudeUsageParser.ChangeNotes(
+                """{"five_hour":{"utilization":10},"extra_usage":{"is_enabled":true,"monthly_limit":5000,"used_credits":1234}}"""),
+            note => note.Contains("extra_usage"));
+    }
+
+    [Theory]
+    [InlineData("eur", "EUR")]
+    [InlineData("\"; drop table\"", "USD")]
+    [InlineData("EURO", "USD")]
+    [InlineData("", "USD")]
+    public void The_extra_usage_currency_must_be_a_three_letter_code(string sent, string expected)
+    {
+        var json = "{\"five_hour\":{\"utilization\":10},\"extra_usage\":{\"is_enabled\":true,\"monthly_limit\":5000,\"used_credits\":0,\"currency\":"
+            + (sent.StartsWith('"') ? sent : "\"" + sent + "\"") + "}}";
+
+        Assert.Equal(expected, ClaudeUsageParser.Parse(json).Extra!.Currency);
+    }
 }

@@ -81,8 +81,8 @@ public static class ClaudeUsageParser
             return null;
 
         var enabled = node.TryGetProperty("is_enabled", out var enabledEl) && enabledEl.ValueKind == JsonValueKind.True;
-        var currency = node.TryGetProperty("currency", out var currencyEl) && currencyEl.ValueKind == JsonValueKind.String
-            && currencyEl.GetString() is { Length: > 0 } code ? code.ToUpperInvariant() : "USD";
+        var currency = ClaudeConsoleCreditParser.NormalizeCurrency(
+            node.TryGetProperty("currency", out var currencyEl) && currencyEl.ValueKind == JsonValueKind.String ? currencyEl.GetString() : null);
         return new ClaudeExtraUsage(
             enabled, ReadNumber(node, "utilization"), MinorToMajor(ReadNumber(node, "used_credits")),
             MinorToMajor(ReadNumber(node, "monthly_limit")), currency);
@@ -93,7 +93,13 @@ public static class ClaudeUsageParser
             ? number
             : null;
 
-    private static decimal? MinorToMajor(double? minor) => minor is { } cents ? (decimal)cents / 100m : null;
+    // Largest minor-unit figure that still converts to a decimal; anything beyond it, or not finite, reads as absent.
+    private const double MaxMinorUnits = 7.9e28;
+
+    private static bool IsPlausibleMinor(double minor) => double.IsFinite(minor) && Math.Abs(minor) <= MaxMinorUnits;
+
+    private static decimal? MinorToMajor(double? minor) =>
+        minor is { } cents && IsPlausibleMinor(cents) ? (decimal)cents / 100m : null;
 
     // The window names and limit kinds this read was written for. Anything else the answer carries
     // is named in ChangeNotes instead of being skipped without a trace.
@@ -148,6 +154,11 @@ public static class ClaudeUsageParser
                     notes.Add($"the answer holds an unknown window '{name}', which is not shown.");
                 }
             }
+
+            if (root.TryGetProperty("extra_usage", out var extra) && extra.ValueKind == JsonValueKind.Object
+                && (ReadNumber(extra, "used_credits") is { } used && !IsPlausibleMinor(used)
+                    || ReadNumber(extra, "monthly_limit") is { } limit && !IsPlausibleMinor(limit)))
+                notes.Add("the extra_usage block holds an implausible credit figure, so it is not shown.");
 
             if (root.TryGetProperty("limits", out var limits) && limits.ValueKind == JsonValueKind.Array)
             {
