@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using AiUsage.Views;
+using AiUsage.Views.Controls;
 using ReadmeShots;
 
 namespace AiUsage.Tests;
@@ -42,6 +43,24 @@ public class LayoutAuditTests
         Assert.Equal(AuditKind.Clipped, finding.Kind);
         Assert.Contains("\"A label that cannot fit\"", finding.Element);
         Assert.Contains("has 30 px", finding.Detail);
+    }
+
+    [Fact]
+    public void A_text_a_panel_gives_no_room_at_all_is_hidden_not_clipped()
+    {
+        var findings = Audit(() => Surface(new FitOrHidePanel
+        {
+            Children =
+            {
+                new TextBlock { Text = "A label that fills the whole row and more", TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = "1.82 M tokens" },
+            },
+        }));
+
+        // Only the first, trimming label: the panel leaves no room for the figure, so it does not show.
+        var finding = Assert.Single(findings);
+        Assert.StartsWith("TextBlock \"A label that fills", finding.Element);
+        Assert.EndsWith(", trimmed", finding.Detail);
     }
 
     [Fact]
@@ -142,7 +161,9 @@ public class LayoutAuditTests
 
         Assert.NotEmpty(findings);
         Assert.All(findings, finding => Assert.Equal(AuditKind.OffTheme, finding.Kind));
-        Assert.Contains(findings, finding => finding.Element.StartsWith("Button \"OK\"") && finding.Detail.StartsWith("Background"));
+        // The stock template paints the stock grey, and the caption keeps the stock black text.
+        Assert.Contains(findings, finding => finding.Element.StartsWith("Border#border in Button") && finding.Detail == "Background #FFDDDDDD (not a theme colour)");
+        Assert.Contains(findings, finding => finding.Element.StartsWith("TextBlock \"OK\"") && finding.Detail == "Foreground #FF000000 (system default from Button)");
     }
 
     [Fact]

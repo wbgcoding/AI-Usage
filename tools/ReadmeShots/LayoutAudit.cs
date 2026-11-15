@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Media;
+using Shape = System.Windows.Shapes.Shape;
 using AiUsage.Views;
 
 namespace ReadmeShots;
@@ -23,8 +24,9 @@ internal sealed record AuditFinding(AuditKind Kind, string Element, string Detai
 /// <item>OVERLAP: two visible siblings in a layout panel whose bounds intersect. Children sharing a
 /// grid cell and children of a canvas are layered on purpose and are not compared; popups live in
 /// their own tree and adorner layers are skipped;</item>
-/// <item>OFF-THEME: a background, foreground or border that comes from the control's system default
-/// look, or whose colour is none of the colours the app's resource dictionaries define.</item>
+/// <item>OFF-THEME: a painted background, text colour, border, fill or stroke that comes from a
+/// control's system default look, or whose colour is none of the colours the app's resource
+/// dictionaries define.</item>
 /// </list>
 /// An element meant to look that way carries an <see cref="AuditMark"/> with the reason.</summary>
 internal static class LayoutAudit
@@ -122,8 +124,9 @@ internal static class LayoutAudit
         // so the clip, not the text's own width, says how much of it shows.
         var shown = text.ActualWidth;
         if (LayoutInformation.GetLayoutClip(text) is { } clip)
-            shown = Math.Min(shown, clip.Bounds.Width);
-        if (needed <= shown + Tolerance)
+            shown = Math.Min(shown, clip.Bounds.IsEmpty ? 0 : clip.Bounds.Width);
+        // No room at all is a panel hiding the text on purpose (it shows only when it fits whole).
+        if (shown <= 0 || needed <= shown + Tolerance)
             return null;
 
         var trimmed = text.TextTrimming == TextTrimming.None ? "" : ", trimmed";
@@ -190,37 +193,52 @@ internal static class LayoutAudit
 
     // OFF-THEME --------------------------------------------------------------------------------------
 
+    /// <summary>Checks only what paints: a control's own brush properties are not looked at, because
+    /// its template decides whether they show. A brush handed down (an inherited text colour) is traced
+    /// to the element that set it, so a colour left at a control's system default is still caught at
+    /// the text that shows it.</summary>
     private static void CheckColours(FrameworkElement element, ThemePalette palette, List<AuditFinding> findings)
     {
-        foreach (var (name, property) in ColourProperties(element))
+        foreach (var (name, property) in PaintedProperties(element))
         {
             if (element.GetValue(property) is not Brush brush || ThemePalette.IsInvisible(brush))
                 continue;
-            var source = DependencyPropertyHelper.GetValueSource(element, property).BaseValueSource;
-            // An inherited value is checked where it was set.
-            if (source == BaseValueSource.Inherited)
-                continue;
-
+            var (source, origin) = Origin(element, property);
             var systemDefault = source is BaseValueSource.Default or BaseValueSource.DefaultStyle or BaseValueSource.DefaultStyleTrigger;
             if (!systemDefault && palette.Accepts(brush))
                 continue;
-            var origin = systemDefault ? "system default" : "not a theme colour";
-            findings.Add(new AuditFinding(AuditKind.OffTheme, Describe(element), $"{name} {ThemePalette.Name(brush)} ({origin})"));
+            var why = systemDefault ? "system default" : "not a theme colour";
+            if (!ReferenceEquals(origin, element))
+                why += " from " + Label(origin);
+            findings.Add(new AuditFinding(AuditKind.OffTheme, Describe(element), $"{name} {ThemePalette.Name(brush)} ({why})"));
         }
     }
 
-    private static IEnumerable<(string Name, DependencyProperty Property)> ColourProperties(FrameworkElement element)
+    /// <summary>Where an inherited value was set: the nearest ancestor whose value is its own. None at
+    /// all means nobody set it, which leaves the property's system default.</summary>
+    private static (BaseValueSource Source, FrameworkElement Element) Origin(FrameworkElement element, DependencyProperty property)
+    {
+        DependencyObject current = element;
+        while (true)
+        {
+            var source = DependencyPropertyHelper.GetValueSource(current, property).BaseValueSource;
+            if (source != BaseValueSource.Inherited)
+                return (source, current as FrameworkElement ?? element);
+            var parent = VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current);
+            if (parent is null)
+                return (BaseValueSource.Default, element);
+            current = parent;
+        }
+    }
+
+    private static IEnumerable<(string Name, DependencyProperty Property)> PaintedProperties(FrameworkElement element)
     {
         switch (element)
         {
-            case Control:
-                yield return ("Background", Control.BackgroundProperty);
-                yield return ("Foreground", Control.ForegroundProperty);
-                yield return ("BorderBrush", Control.BorderBrushProperty);
-                break;
-            case Border:
+            case Border border:
                 yield return ("Background", Border.BackgroundProperty);
-                yield return ("BorderBrush", Border.BorderBrushProperty);
+                if (border.BorderThickness != default)
+                    yield return ("BorderBrush", Border.BorderBrushProperty);
                 break;
             case Panel:
                 yield return ("Background", Panel.BackgroundProperty);
@@ -228,6 +246,15 @@ internal static class LayoutAudit
             case TextBlock:
                 yield return ("Background", TextBlock.BackgroundProperty);
                 yield return ("Foreground", TextBlock.ForegroundProperty);
+                break;
+            case Shape shape:
+                yield return ("Fill", Shape.FillProperty);
+                if (shape.StrokeThickness > 0)
+                    yield return ("Stroke", Shape.StrokeProperty);
+                break;
+            // A text box draws its text itself, with its own foreground.
+            case TextBoxBase or PasswordBox:
+                yield return ("Foreground", Control.ForegroundProperty);
                 break;
         }
     }
@@ -248,12 +275,20 @@ internal static class LayoutAudit
         if (!string.IsNullOrWhiteSpace(text))
             label += " \"" + (text.Length > 40 ? text[..40] + "..." : text) + "\"";
 
+        // A part of a control's template is named after that control.
+        if (element.TemplatedParent is FrameworkElement owner && owner is not ContentPresenter)
+            return label + " in " + Label(owner) + Where(owner);
+        return label + Where(element);
+    }
+
+    private static string Where(FrameworkElement element)
+    {
         for (var parent = VisualTreeHelper.GetParent(element); parent is not null; parent = VisualTreeHelper.GetParent(parent))
         {
             if (parent is UserControl or Window || parent is FrameworkElement { Name.Length: > 0 })
-                return label + " in " + Label((FrameworkElement)parent);
+                return " in " + Label((FrameworkElement)parent);
         }
-        return label;
+        return "";
     }
 
     private static string Label(FrameworkElement element) =>
