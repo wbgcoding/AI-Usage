@@ -1201,6 +1201,24 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void CleanUpLeftoverTempFiles_keeps_a_tmp_file_that_only_shares_the_notifications_name_prefix()
+    {
+        var directory = TempDirectory();
+        var lookalike = Path.Combine(directory, "notifications.jsonx.tmp");
+        var own = Path.Combine(directory, "notifications.json.42.tmp");
+        foreach (var path in new[] { lookalike, own })
+        {
+            File.WriteAllText(path, "old");
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow - TimeSpan.FromHours(2));
+        }
+
+        AppPaths.CleanUpLeftoverTempFiles(directory);
+
+        Assert.True(File.Exists(lookalike));
+        Assert.False(File.Exists(own));
+    }
+
+    [Fact]
     public void RequestSave_with_a_non_finite_number_does_not_throw_and_leaves_valid_json_on_disk()
     {
         var directory = TempDirectory();

@@ -597,8 +597,8 @@ public sealed class SettingsStore : IDisposable
     /// before <see cref="ProviderSettings.Order"/> existed) its position from this key's own index in
     /// the combined list below - an explicit order already on disk is never touched. The key set is
     /// <see cref="AppSettings.KnownProviderIds"/> (every provider's own first account) plus whatever
-    /// <see cref="AppSettings.Accounts"/> adds beyond that (a further Claude account) - for a settings
-    /// file with no extra accounts the two lists are the same four keys, so this changes nothing for
+    /// <see cref="AppSettings.Accounts"/> adds beyond that (a further account of any provider) - for a settings
+    /// file with no extra accounts the two lists hold the same keys, so this changes nothing for
     /// the common case.</summary>
     private static void FillMissingProviders(AppSettings settings, Action<string>? onDroppedAccount = null)
     {

@@ -210,7 +210,8 @@ public static class AppPaths
     {
         var candidate = Path.Combine(
             _pointerRootOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppFolderName);
-        return TryReadPointer(Path.Combine(candidate, PointerFileName), out var pointed) ? pointed : candidate;
+        return ResolvePointer(Path.Combine(candidate, PointerFileName), tempRoot: null, probeWritable: false, out var pointed)
+            == PointerUse.Usable ? pointed : candidate;
     }
 
     /// <summary>Exposed so a test can name a fake temp root: the real one holds every test folder.</summary>
@@ -221,14 +222,10 @@ public static class AppPaths
     internal static string? ReadPointedDirectory(string tempRoot, out string? unreachableTarget)
     {
         unreachableTarget = null;
-        if (!TryReadPointer(LocationPointerFile, out var directory) || IsUnderRoot(directory, tempRoot))
-            return null;
-        if (!TryEnsureWritableDirectory(directory))
-        {
+        var use = ResolvePointer(LocationPointerFile, tempRoot, probeWritable: true, out var directory);
+        if (use == PointerUse.Unwritable)
             unreachableTarget = directory;
-            return null;
-        }
-        return directory;
+        return use == PointerUse.Usable ? directory : null;
     }
 
     /// <summary>The start-time choice of a process that does not use the lazily resolved folder (the
@@ -338,19 +335,19 @@ public static class AppPaths
     {
         unreachablePointerTarget = null;
         var appDataCandidate = Path.Combine(appDataRoot, AppFolderName);
-        if (TryReadPointer(Path.Combine(appDataCandidate, PointerFileName), out var pointedDirectory))
+        switch (ResolvePointer(Path.Combine(appDataCandidate, PointerFileName), tempRoot, probeWritable: true, out var pointedDirectory))
         {
-            if (IsUnderRoot(pointedDirectory, tempRoot))
+            case PointerUse.Usable:
+                return pointedDirectory;
+            case PointerUse.InTempRoot:
                 LogService.AppendTo(Path.Combine(appDataCandidate, "logs"),
                     "Ignored a data-folder pointer into the temp directory.");
-            else if (TryEnsureWritableDirectory(pointedDirectory))
-                return pointedDirectory;
-            else
-            {
+                break;
+            case PointerUse.Unwritable:
                 unreachablePointerTarget = pointedDirectory;
                 LogService.AppendTo(Path.Combine(appDataCandidate, "logs"),
                     $"The data folder {pointedDirectory} is not available; this session uses the default folder.");
-            }
+                break;
         }
 
         TryCreatePrivateDirectory(appDataCandidate);
@@ -360,6 +357,22 @@ public static class AppPaths
         var tempCandidate = Path.Combine(tempRoot, AppFolderName);
         TryEnsureWritableDirectory(tempCandidate); // best effort - this is already the last resort
         return tempCandidate;
+    }
+
+    // What a pointer file amounts to: none (absent or unreadable), a target under the temp root (never
+    // followed), a target no folder can be made at or written in, or a folder to use.
+    private enum PointerUse { None, InTempRoot, Unwritable, Usable }
+
+    /// <summary>The one reading of a pointer file every caller goes through. <paramref name="tempRoot"/>
+    /// null skips the temp rule; <paramref name="probeWritable"/> false skips the writability check,
+    /// which creates the folder when it is missing.</summary>
+    private static PointerUse ResolvePointer(string pointerPath, string? tempRoot, bool probeWritable, out string directory)
+    {
+        if (!TryReadPointer(pointerPath, out directory))
+            return PointerUse.None;
+        if (tempRoot is not null && IsUnderRoot(directory, tempRoot))
+            return PointerUse.InTempRoot;
+        return probeWritable && !TryEnsureWritableDirectory(directory) ? PointerUse.Unwritable : PointerUse.Usable;
     }
 
     private static bool TryReadPointer(string pointerPath, out string directory)
@@ -440,7 +453,7 @@ public static class AppPaths
     private static bool IsOwnTempFileName(string name) =>
         name.StartsWith(SettingsFileName + ".", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith("status.json.", StringComparison.OrdinalIgnoreCase)
-        || name.StartsWith(NotificationsFileName, StringComparison.OrdinalIgnoreCase)
+        || name.StartsWith(NotificationsFileName + ".", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith(BackupService.PendingFileName + ".", StringComparison.OrdinalIgnoreCase)
         || name.StartsWith(BackupService.JournalFileName + ".", StringComparison.OrdinalIgnoreCase)
         || (name.StartsWith(HistoryFilePrefix, StringComparison.OrdinalIgnoreCase)
