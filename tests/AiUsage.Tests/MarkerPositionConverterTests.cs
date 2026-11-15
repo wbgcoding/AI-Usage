@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Windows;
-using AiUsage.ViewModels;
+using AiUsage.Views.Controls;
 using Xunit;
 
 namespace AiUsage.Tests;

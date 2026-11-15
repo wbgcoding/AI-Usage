@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace AiUsage.ViewModels;
+namespace AiUsage.Views.Controls;
 
 /// <summary>Positions a marker inside <c>UsageBar.xaml</c>'s track (the threshold line, the pace
 /// tick): a left <see cref="Thickness"/> proportional to the percent, clamped so the marker's own
