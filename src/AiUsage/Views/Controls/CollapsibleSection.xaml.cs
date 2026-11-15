@@ -43,6 +43,36 @@ public class CollapsibleSection : ContentControl
         set => SetValue(HeaderContentProperty, value);
     }
 
+    /// <summary>The narrowest width at which <see cref="HeaderContent"/> stays on the header row; below
+    /// it the header shows only the title and <see cref="IsNarrow"/> turns true, so the page can show
+    /// the same controls in the body instead. 0 keeps the header content at every width.</summary>
+    public static readonly DependencyProperty HeaderContentMinWidthProperty =
+        DependencyProperty.Register(nameof(HeaderContentMinWidth), typeof(double), typeof(CollapsibleSection),
+            new PropertyMetadata(0.0, (d, _) => ((CollapsibleSection)d).UpdateIsNarrow()));
+
+    public double HeaderContentMinWidth
+    {
+        get => (double)GetValue(HeaderContentMinWidthProperty);
+        set => SetValue(HeaderContentMinWidthProperty, value);
+    }
+
+    private static readonly DependencyPropertyKey IsNarrowPropertyKey =
+        DependencyProperty.RegisterReadOnly(nameof(IsNarrow), typeof(bool), typeof(CollapsibleSection), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty IsNarrowProperty = IsNarrowPropertyKey.DependencyProperty;
+
+    /// <summary>True while the section is narrower than <see cref="HeaderContentMinWidth"/>.</summary>
+    public bool IsNarrow => (bool)GetValue(IsNarrowProperty);
+
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        UpdateIsNarrow();
+    }
+
+    private void UpdateIsNarrow() =>
+        SetValue(IsNarrowPropertyKey, HeaderContentMinWidth > 0 && ActualWidth > 0 && ActualWidth < HeaderContentMinWidth);
+
     public static readonly DependencyProperty SectionKeyProperty =
         DependencyProperty.Register(nameof(SectionKey), typeof(string), typeof(CollapsibleSection), new PropertyMetadata(""));
 

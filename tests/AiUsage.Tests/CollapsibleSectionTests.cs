@@ -28,7 +28,8 @@ public class CollapsibleSectionTests
 {
     private sealed record State(
         bool ContentVisible, bool SummaryVisible, bool ChevronPointsUp, string AutomationName,
-        object? RootToolTip, object? HeadingToolTip, PlacementMode HeadingToolTipPlacement, string HelpText);
+        object? RootToolTip, object? HeadingToolTip, PlacementMode HeadingToolTipPlacement, string HelpText,
+        bool IsNarrow = false, bool HeaderContentVisible = false);
 
     [Fact]
     public void Expanded_shows_the_content_and_hides_the_summary_with_the_chevron_pointing_up()
@@ -81,6 +82,33 @@ public class CollapsibleSectionTests
         var state = Build(isExpanded: true, headerToolTip: "");
 
         Assert.Null(state.HeadingToolTip);
+    }
+
+    [Fact]
+    public void Below_its_header_content_min_width_the_section_is_narrow_and_hides_the_header_content()
+    {
+        var state = Build(isExpanded: true, headerContentMinWidth: 600, width: 400);
+
+        Assert.True(state.IsNarrow);
+        Assert.False(state.HeaderContentVisible);
+    }
+
+    [Fact]
+    public void At_or_above_its_header_content_min_width_the_header_content_stays()
+    {
+        var state = Build(isExpanded: true, headerContentMinWidth: 600, width: 700);
+
+        Assert.False(state.IsNarrow);
+        Assert.True(state.HeaderContentVisible);
+    }
+
+    [Fact]
+    public void Without_a_header_content_min_width_the_header_content_stays_at_any_width()
+    {
+        var state = Build(isExpanded: true, width: 200);
+
+        Assert.False(state.IsNarrow);
+        Assert.True(state.HeaderContentVisible);
     }
 
     // The summary is the part that gives way when the header is narrow: the title keeps its width and
@@ -156,7 +184,7 @@ public class CollapsibleSectionTests
 
     // Builds a fresh Application and CollapsibleSection per call, off the calling thread - the same
     // STA-worker-thread shape StatsWindowTests already documents.
-    private static State Build(bool isExpanded, string headerToolTip = "")
+    private static State Build(bool isExpanded, string headerToolTip = "", double headerContentMinWidth = 0, double width = 400)
     {
         Exception? failure = null;
         State? result = null;
@@ -165,7 +193,7 @@ public class CollapsibleSectionTests
         {
             try
             {
-                result = BuildAndRead(isExpanded, headerToolTip);
+                result = BuildAndRead(isExpanded, headerToolTip, headerContentMinWidth, width);
             }
             catch (Exception ex)
             {
@@ -186,7 +214,7 @@ public class CollapsibleSectionTests
         return result!;
     }
 
-    private static State BuildAndRead(bool isExpanded, string headerToolTip)
+    private static State BuildAndRead(bool isExpanded, string headerToolTip, double headerContentMinWidth, double width)
     {
         typeof(Application).GetField("_appCreatedInThisAppDomain", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
 
@@ -208,11 +236,13 @@ public class CollapsibleSectionTests
                 IsExpanded = isExpanded,
                 HeaderToolTip = headerToolTip,
                 Content = new TextBlock { Text = "section body" },
+                HeaderContent = new TextBlock { Text = "picker" },
+                HeaderContentMinWidth = headerContentMinWidth,
             };
 
             section.ApplyTemplate();
-            section.Measure(new Size(400, 400));
-            section.Arrange(new Rect(0, 0, 400, 400));
+            section.Measure(new Size(width, 400));
+            section.Arrange(new Rect(0, 0, width, 400));
             section.UpdateLayout();
 
             // Located by template part name, not by walking the visual tree for the first match of a
@@ -237,7 +267,9 @@ public class CollapsibleSectionTests
                 section.ToolTip,
                 headingText.ToolTip,
                 ToolTipService.GetPlacement(headingText),
-                AutomationProperties.GetHelpText(section));
+                AutomationProperties.GetHelpText(section),
+                section.IsNarrow,
+                ((ContentPresenter)section.Template.FindName("PART_HeaderContent", section)!).Visibility == Visibility.Visible);
         }
         finally
         {

@@ -98,7 +98,7 @@
                                            VerticalAlignment="Center" Margin="8,0,0,0" TextTrimming="CharacterEllipsis"/>
                             </Grid>
                         </Button>
-                        <ContentPresenter Grid.Column="1" Content="{TemplateBinding HeaderContent}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <ContentPresenter x:Name="PART_HeaderContent" Grid.Column="1" Content="{TemplateBinding HeaderContent}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         </Grid>
                         </Border>
                         <ContentPresenter x:Name="PART_ContentHost" Margin="0,4,0,0"
@@ -107,6 +107,9 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsBodyDeferred" Value="True">
                             <Setter TargetName="PART_ContentHost" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="IsNarrow" Value="True">
+                            <Setter TargetName="PART_HeaderContent" Property="Visibility" Value="Collapsed"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

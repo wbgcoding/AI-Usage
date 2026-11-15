@@ -46,6 +46,13 @@
                  than being cut off in the middle of a word. -->
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+        <!-- The name before each of the breakdown section's two pickers. -->
+        <Style x:Key="PickerLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+        </Style>
         <!-- The figures bar's own card - same surface/border/radius/padding tokens
              SettingsWindow.xaml's own "Card" style uses, just without its bottom margin: each card
              here sits beside its siblings in a row instead of stacking above the next section. -->
@@ -512,7 +519,7 @@
                             </UniformGrid>
                             </controls:CollapsibleSection>
 
-                            <controls:CollapsibleSection x:Name="BreakdownSection" SectionKey="breakdown"
+                            <controls:CollapsibleSection x:Name="BreakdownSection" SectionKey="breakdown" HeaderContentMinWidth="600"
                                     Title="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Section.Breakdown]}"
                                     Summary="{Binding TotalFigureText}"
                                     HeaderToolTip="{Binding ChartTooltip}">
@@ -520,24 +527,10 @@
                                      picker sits on this section's own header rather than the window's.
                                      -->
                                 <controls:CollapsibleSection.HeaderContent>
+                                    <!-- In a narrow window the two pickers leave the header for their own row
+                                         at the top of the section (HeaderContentMinWidth), so the section
+                                         title is never cut short. -->
                                     <StackPanel Orientation="Horizontal">
-                                        <!-- In a narrow window the two pickers keep their names (as tooltip and
-                                             screen reader name) but drop the text before them, so the section
-                                             title is not cut short. -->
-                                        <StackPanel.Resources>
-                                            <Style x:Key="PickerLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Margin" Value="0,0,8,0"/>
-                                                <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=controls:CollapsibleSection}, Converter={StaticResource AtLeastWidth}, ConverterParameter=600}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </StackPanel.Resources>
                                         <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"
                                                    Style="{StaticResource PickerLabel}"/>
                                         <ComboBox x:Name="GroupingCombo" ItemsSource="{Binding GroupingChoices}"
@@ -556,6 +549,25 @@
                                     </StackPanel>
                                 </controls:CollapsibleSection.HeaderContent>
                             <StackPanel>
+                                <WrapPanel Orientation="Horizontal" Margin="0,4,0,0" Visibility="{Binding IsNarrow, ElementName=BreakdownSection, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,12,4">
+                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"
+                                                   Style="{StaticResource PickerLabel}"/>
+                                        <ComboBox ItemsSource="{Binding GroupingChoices}"
+                                                  SelectedItem="{Binding SelectedGroupingChoice, Mode=TwoWay}" MinWidth="80"
+                                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Stats.Grouping]}"
+                                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[StatsWindow.GroupingLabel]}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4"
+                                                Visibility="{Binding CanChooseColor, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
+                                                   Style="{StaticResource PickerLabel}"/>
+                                        <ComboBox ItemsSource="{Binding ColorByChoices}"
+                                                  SelectedItem="{Binding SelectedColorByChoice, Mode=TwoWay}" MinWidth="80"
+                                                  ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"
+                                                  AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.ColorBy]}"/>
+                                    </StackPanel>
+                                </WrapPanel>
                                 <!-- Token counts per provider; the color picker sits on the section header. -->
                                 <ItemsControl ItemsSource="{Binding ProviderRows}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel>
