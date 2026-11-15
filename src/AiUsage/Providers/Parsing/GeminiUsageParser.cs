@@ -15,65 +15,107 @@ namespace AiUsage.Providers.Parsing;
 /// </summary>
 public static class GeminiUsageParser
 {
-    public static IReadOnlyList<UsageWindow> Parse(string responseText)
+    // How a bucket carried its remainingFraction: not at all, as a number, or as something else.
+    private enum FractionKind { Missing, Number, Invalid }
+
+    // One bucket of the summary's Gemini group. Window is null when the bucket names no window as text.
+    private sealed record SummaryBucket(string? Window, FractionKind Kind, double Fraction, DateTimeOffset? ResetsAt);
+
+    // One summary answer, parsed once: every group name, and the buckets of the Gemini group
+    // (null when the answer has no recognisable Gemini group with a bucket list).
+    private sealed record SummaryRead(List<string> GroupNames, List<SummaryBucket>? GeminiBuckets);
+
+    // One bucket of the per-model answer.
+    private sealed record ModelBucket(string Model, FractionKind Kind, double Fraction, bool HasResetTime, DateTimeOffset? ResetsAt);
+
+    public static IReadOnlyList<UsageWindow> Parse(string responseText) => SummaryWindows(ReadSummary(responseText));
+
+    private static List<UsageWindow> SummaryWindows(SummaryRead summary)
     {
-        if (string.IsNullOrWhiteSpace(responseText))
+        if (summary.GeminiBuckets is not { } buckets)
             return [];
 
-        JsonDocument document;
+        var windows = new List<UsageWindow>(capacity: 2);
+        foreach (var bucket in buckets)
+        {
+            if (bucket.Window is null || bucket.Kind == FractionKind.Invalid)
+                continue;
+            // Proto3 JSON leaves out a field that holds its default value, so an exhausted bucket
+            // arrives with no remainingFraction at all - that is 0 left, not an unknown bucket.
+            var remaining = bucket.Kind == FractionKind.Number ? bucket.Fraction : 0;
+            // A fraction outside 0..1 cannot describe "part of a quota left" - the bucket is
+            // dropped rather than clamped into a false 0% or 100%.
+            if (remaining is < 0 or > 1)
+                continue;
+
+            var (label, kind) = bucket.Window switch
+            {
+                "5h" => ("Window_FiveHour", WindowKind.FiveHour),
+                "weekly" => ("Window_Weekly", WindowKind.Weekly),
+                _ => (null, WindowKind.Other),
+            };
+            if (label is null)
+                continue;
+
+            var usedPercent = (1 - remaining) * 100;
+            windows.Add(new UsageWindow(label, kind, usedPercent, bucket.ResetsAt, windowMinutes: null));
+        }
+
+        return windows;
+    }
+
+    private static SummaryRead ReadSummary(string? summaryJson)
+    {
+        var names = new List<string>();
+        if (string.IsNullOrWhiteSpace(summaryJson))
+            return new SummaryRead(names, null);
+
         try
         {
-            document = JsonDocument.Parse(responseText);
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
-
-        using (document)
-        {
+            using var document = JsonDocument.Parse(summaryJson);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("groups", out var groups) || groups.ValueKind != JsonValueKind.Array)
-                return [];
+                return new SummaryRead(names, null);
 
-            var group = PickGeminiGroup(groups);
-            if (group is not { } geminiGroup || !geminiGroup.TryGetProperty("buckets", out var buckets)
-                || buckets.ValueKind != JsonValueKind.Array)
-                return [];
+            foreach (var named in groups.EnumerateArray())
+            {
+                if (named.ValueKind == JsonValueKind.Object
+                    && named.TryGetProperty("displayName", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
+                    names.Add(nameEl.GetString() ?? "");
+            }
 
-            var windows = new List<UsageWindow>(capacity: 2);
+            if (PickGeminiGroup(groups) is not { } group
+                || !group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
+                return new SummaryRead(names, null);
+
+            var read = new List<SummaryBucket>();
             foreach (var bucket in buckets.EnumerateArray())
             {
                 if (bucket.ValueKind != JsonValueKind.Object)
                     continue;
-                if (!bucket.TryGetProperty("window", out var windowEl) || windowEl.ValueKind != JsonValueKind.String)
-                    continue;
-                // Proto3 JSON leaves out a field that holds its default value, so an exhausted bucket
-                // arrives with no remainingFraction at all - that is 0 left, not an unknown bucket.
-                double remaining = 0;
-                if (bucket.TryGetProperty("remainingFraction", out var fractionEl)
-                    && (fractionEl.ValueKind != JsonValueKind.Number || !fractionEl.TryGetDouble(out remaining)))
-                    continue;
-                // A fraction outside 0..1 cannot describe "part of a quota left" - the bucket is
-                // dropped rather than clamped into a false 0% or 100%.
-                if (remaining is < 0 or > 1)
-                    continue;
 
-                var (label, kind) = windowEl.GetString() switch
-                {
-                    "5h" => ("Window_FiveHour", WindowKind.FiveHour),
-                    "weekly" => ("Window_Weekly", WindowKind.Weekly),
-                    _ => (null, WindowKind.Other),
-                };
-                if (label is null)
-                    continue;
-
-                var usedPercent = (1 - remaining) * 100;
-                windows.Add(new UsageWindow(label, kind, usedPercent, ReadResetTime(bucket), windowMinutes: null));
+                var window = bucket.TryGetProperty("window", out var windowEl) && windowEl.ValueKind == JsonValueKind.String
+                    ? windowEl.GetString()
+                    : null;
+                var (kind, fraction) = ReadFraction(bucket);
+                read.Add(new SummaryBucket(window, kind, fraction, ReadResetTime(bucket)));
             }
 
-            return windows;
+            return new SummaryRead(names, read);
         }
+        catch (JsonException)
+        {
+            return new SummaryRead(names, null);
+        }
+    }
+
+    private static (FractionKind Kind, double Fraction) ReadFraction(JsonElement bucket)
+    {
+        if (!bucket.TryGetProperty("remainingFraction", out var fractionEl))
+            return (FractionKind.Missing, 0);
+        return fractionEl.ValueKind == JsonValueKind.Number && fractionEl.TryGetDouble(out var value)
+            ? (FractionKind.Number, value)
+            : (FractionKind.Invalid, 0);
     }
 
     /// <summary>The group whose name mentions Gemini, or the first group when no group is named at
@@ -105,61 +147,66 @@ public static class GeminiUsageParser
     /// figure. Models of other makers and the editor's own completion models (no reset) are left out.
     /// An answer without a Gemini model yields no window.
     /// </summary>
-    public static IReadOnlyList<UsageWindow> ParseModelQuota(string responseText)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-            return [];
+    public static IReadOnlyList<UsageWindow> ParseModelQuota(string responseText) => ModelQuotaWindows(ReadModelBuckets(responseText));
 
-        JsonDocument document;
+    private static List<UsageWindow> ModelQuotaWindows(List<ModelBucket> models)
+    {
+        double? lowest = null;
+        DateTimeOffset? resetsAt = null;
+        foreach (var bucket in models)
+        {
+            if (!bucket.Model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
+                continue;
+            // Same proto3 rule as the summary: a missing fraction is an exhausted quota, which always
+            // names its reset. A bucket with neither says nothing; an unused quota may come without a
+            // reset and still counts.
+            double remaining = 0;
+            if (bucket.Kind == FractionKind.Invalid)
+                continue;
+            if (bucket.Kind == FractionKind.Number)
+                remaining = bucket.Fraction;
+            else if (!bucket.HasResetTime)
+                continue;
+            if (remaining is < 0 or > 1)
+                continue;
+            if (lowest is { } known && remaining >= known)
+                continue;
+
+            lowest = remaining;
+            resetsAt = bucket.ResetsAt;
+        }
+
+        return lowest is { } fraction
+            ? [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, (1 - fraction) * 100, resetsAt, windowMinutes: null)]
+            : [];
+    }
+
+    private static List<ModelBucket> ReadModelBuckets(string? modelQuotaJson)
+    {
+        var models = new List<ModelBucket>();
+        if (string.IsNullOrWhiteSpace(modelQuotaJson))
+            return models;
+
         try
         {
-            document = JsonDocument.Parse(responseText);
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
-
-        using (document)
-        {
+            using var document = JsonDocument.Parse(modelQuotaJson);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
-                return [];
-
-            double? lowest = null;
-            DateTimeOffset? resetsAt = null;
+                return models;
             foreach (var bucket in buckets.EnumerateArray())
             {
                 if (bucket.ValueKind != JsonValueKind.Object
-                    || !bucket.TryGetProperty("modelId", out var modelEl) || modelEl.ValueKind != JsonValueKind.String
-                    || !(modelEl.GetString() ?? "").StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
+                    || !bucket.TryGetProperty("modelId", out var modelEl) || modelEl.ValueKind != JsonValueKind.String)
                     continue;
-                // Same proto3 rule as the summary: a missing fraction is an exhausted quota, which always
-                // names its reset. A bucket with neither says nothing; an unused quota may come without a
-                // reset and still counts.
-                double remaining = 0;
-                if (bucket.TryGetProperty("remainingFraction", out var fractionEl))
-                {
-                    if (fractionEl.ValueKind != JsonValueKind.Number || !fractionEl.TryGetDouble(out remaining))
-                        continue;
-                }
-                else if (!bucket.TryGetProperty("resetTime", out _))
-                {
-                    continue;
-                }
-                if (remaining is < 0 or > 1)
-                    continue;
-                if (lowest is { } known && remaining >= known)
-                    continue;
-
-                lowest = remaining;
-                resetsAt = ReadResetTime(bucket);
+                var (kind, fraction) = ReadFraction(bucket);
+                models.Add(new ModelBucket(
+                    modelEl.GetString() ?? "", kind, fraction, bucket.TryGetProperty("resetTime", out _), ReadResetTime(bucket)));
             }
-
-            return lowest is { } fraction
-                ? [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, (1 - fraction) * 100, resetsAt, windowMinutes: null)]
-                : [];
         }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+        }
+        return models;
     }
 
     // The model ids the per-model answer listed when this read was last adapted. A Gemini id outside
@@ -192,10 +239,12 @@ public static class GeminiUsageParser
     public static IReadOnlyList<string> ChangeNotes(string summaryJson, string modelQuotaJson)
     {
         var notes = new List<string>();
-        var summaryWindows = Parse(summaryJson);
+        var summary = ReadSummary(summaryJson);
+        var models = ReadModelBuckets(modelQuotaJson);
+        var summaryWindows = SummaryWindows(summary);
 
-        notes.AddRange(WebChangeNotes(summaryJson));
-        foreach (var name in GroupNames(summaryJson))
+        notes.AddRange(SummaryNotes(summary));
+        foreach (var name in summary.GroupNames)
         {
             if (!name.Contains("Gemini", StringComparison.OrdinalIgnoreCase) && !KnownOtherGroups.Contains(name))
                 notes.Add($"the quota summary names an unknown group '{ReadChangeLog.SafeName(name)}'; it is not shown on the Gemini tile, check whether it holds the Gemini quota.");
@@ -204,20 +253,21 @@ public static class GeminiUsageParser
         if (summaryWindows.Count > 0)
             return notes;
 
-        if (ParseModelQuota(modelQuotaJson).Count == 0 && !HoldsNoGeminiQuota(summaryJson, modelQuotaJson))
+        if (ModelQuotaWindows(models).Count == 0 && !HoldsNoGeminiQuota(summary, summaryWindows, models))
         {
-            notes.Add($"neither the quota summary (groups: {GroupList(summaryJson)}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
+            notes.Add($"neither the quota summary (groups: {GroupList(summary)}) nor the per-model answer holds a Gemini quota; the tile shows no figures until the read is adapted.");
             return notes;
         }
 
         double? lowestFraction = null, highestFraction = null;
-        foreach (var (model, fraction) in ModelBuckets(modelQuotaJson))
+        foreach (var bucket in models)
         {
+            var model = bucket.Model;
             if (model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
             {
                 if (!KnownGeminiModels.Contains(model))
                     notes.Add($"new Gemini model '{ReadChangeLog.SafeName(model)}' found; it is counted in the shared Gemini quota, check that this still holds.");
-                if (fraction is { } value)
+                if (ModelFraction(bucket) is { } value)
                 {
                     lowestFraction = Math.Min(lowestFraction ?? value, value);
                     highestFraction = Math.Max(highestFraction ?? value, value);
@@ -234,6 +284,11 @@ public static class GeminiUsageParser
         return notes;
     }
 
+    // The fraction the change check compares: the number itself, 0 for an exhausted bucket that names
+    // its reset, otherwise nothing.
+    private static double? ModelFraction(ModelBucket bucket) =>
+        bucket.Kind == FractionKind.Number ? bucket.Fraction : bucket.HasResetTime ? 0 : null;
+
     /// <summary>
     /// True when both answers are intact but Antigravity simply has no Gemini quota for this account:
     /// the summary lists only groups known to hold other models, and the per-model answer lists models
@@ -242,12 +297,16 @@ public static class GeminiUsageParser
     /// </summary>
     public static bool HoldsNoGeminiQuota(string summaryJson, string modelQuotaJson)
     {
-        if (Parse(summaryJson).Count > 0)
+        var summary = ReadSummary(summaryJson);
+        return HoldsNoGeminiQuota(summary, SummaryWindows(summary), ReadModelBuckets(modelQuotaJson));
+    }
+
+    private static bool HoldsNoGeminiQuota(SummaryRead summary, List<UsageWindow> summaryWindows, List<ModelBucket> models)
+    {
+        if (summaryWindows.Count > 0)
             return false;
-        var groups = GroupNames(summaryJson);
-        if (groups.Count == 0 || !groups.All(KnownOtherGroups.Contains))
+        if (summary.GroupNames.Count == 0 || !summary.GroupNames.All(KnownOtherGroups.Contains))
             return false;
-        var models = ModelBuckets(modelQuotaJson);
         return models.Count > 0 && !models.Any(bucket => bucket.Model.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -258,125 +317,37 @@ public static class GeminiUsageParser
     /// so the other usage addresses of the web read, which hold other shapes, say nothing here.
     /// Empty for a summary that looks as expected. Names only, never a figure.
     /// </summary>
-    public static IReadOnlyList<string> WebChangeNotes(string summaryJson)
+    public static IReadOnlyList<string> WebChangeNotes(string summaryJson) => SummaryNotes(ReadSummary(summaryJson));
+
+    private static List<string> SummaryNotes(SummaryRead summary)
     {
         var notes = new List<string>();
-        foreach (var window in UnknownWindowNames(summaryJson))
-            notes.Add($"the quota summary names an unknown window '{ReadChangeLog.SafeName(window)}', which is not shown.");
-        notes.AddRange(UnusableBucketNotes(summaryJson));
+        if (summary.GeminiBuckets is not { } buckets)
+            return notes;
+
+        foreach (var bucket in buckets)
+        {
+            if (bucket.Window is { } window && window is not ("5h" or "weekly"))
+                notes.Add($"the quota summary names an unknown window '{ReadChangeLog.SafeName(window)}', which is not shown.");
+        }
+
+        foreach (var bucket in buckets)
+        {
+            if (bucket.Window is null)
+            {
+                notes.Add("a bucket of the Gemini group names no window, so it is not shown.");
+                continue;
+            }
+
+            if (bucket.Kind == FractionKind.Invalid || bucket.Kind == FractionKind.Number && bucket.Fraction is < 0 or > 1)
+                notes.Add($"the '{ReadChangeLog.SafeName(bucket.Window)}' bucket has a remainingFraction that is no number between 0 and 1, so it is not shown.");
+        }
         return notes.Distinct().ToList();
     }
 
-    private static List<string> UnusableBucketNotes(string summaryJson)
-    {
-        var notes = new List<string>();
-        try
-        {
-            using var document = JsonDocument.Parse(summaryJson);
-            if (document.RootElement.ValueKind != JsonValueKind.Object
-                || !document.RootElement.TryGetProperty("groups", out var groups) || groups.ValueKind != JsonValueKind.Array
-                || PickGeminiGroup(groups) is not { } group
-                || !group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
-                return notes;
-
-            foreach (var bucket in buckets.EnumerateArray())
-            {
-                if (bucket.ValueKind != JsonValueKind.Object)
-                    continue;
-                if (!bucket.TryGetProperty("window", out var windowEl) || windowEl.ValueKind != JsonValueKind.String)
-                {
-                    notes.Add("a bucket of the Gemini group names no window, so it is not shown.");
-                    continue;
-                }
-
-                if (bucket.TryGetProperty("remainingFraction", out var fractionEl)
-                    && (fractionEl.ValueKind != JsonValueKind.Number || !fractionEl.TryGetDouble(out var fraction) || fraction is < 0 or > 1))
-                    notes.Add($"the '{ReadChangeLog.SafeName(windowEl.GetString())}' bucket has a remainingFraction that is no number between 0 and 1, so it is not shown.");
-            }
-        }
-        catch (JsonException)
-        {
-        }
-        return notes;
-    }
-
     /// <summary>The group names for a log line; "none" only as wording, never as a group to check.</summary>
-    private static string GroupList(string summaryJson) =>
-        GroupNames(summaryJson) is { Count: > 0 } names ? string.Join(", ", names.Select(ReadChangeLog.SafeName)) : "none";
-
-    private static List<string> GroupNames(string summaryJson)
-    {
-        var names = new List<string>();
-        try
-        {
-            using var document = JsonDocument.Parse(summaryJson);
-            if (document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("groups", out var groups) && groups.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var group in groups.EnumerateArray())
-                {
-                    if (group.ValueKind == JsonValueKind.Object
-                        && group.TryGetProperty("displayName", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
-                        names.Add(nameEl.GetString() ?? "");
-                }
-            }
-        }
-        catch (JsonException)
-        {
-        }
-        return names;
-    }
-
-    private static List<string> UnknownWindowNames(string summaryJson)
-    {
-        var names = new List<string>();
-        try
-        {
-            using var document = JsonDocument.Parse(summaryJson);
-            if (document.RootElement.ValueKind != JsonValueKind.Object
-                || !document.RootElement.TryGetProperty("groups", out var groups) || groups.ValueKind != JsonValueKind.Array
-                || PickGeminiGroup(groups) is not { } group
-                || !group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
-                return names;
-            foreach (var bucket in buckets.EnumerateArray())
-            {
-                if (bucket.ValueKind == JsonValueKind.Object
-                    && bucket.TryGetProperty("window", out var windowEl) && windowEl.ValueKind == JsonValueKind.String
-                    && windowEl.GetString() is { } window && window is not ("5h" or "weekly"))
-                    names.Add(window);
-            }
-        }
-        catch (JsonException)
-        {
-        }
-        return names;
-    }
-
-    private static List<(string Model, double? Fraction)> ModelBuckets(string modelQuotaJson)
-    {
-        var models = new List<(string, double?)>();
-        try
-        {
-            using var document = JsonDocument.Parse(modelQuotaJson);
-            if (document.RootElement.ValueKind != JsonValueKind.Object
-                || !document.RootElement.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
-                return models;
-            foreach (var bucket in buckets.EnumerateArray())
-            {
-                if (bucket.ValueKind != JsonValueKind.Object
-                    || !bucket.TryGetProperty("modelId", out var modelEl) || modelEl.ValueKind != JsonValueKind.String)
-                    continue;
-                double? fraction = bucket.TryGetProperty("remainingFraction", out var fractionEl) && fractionEl.ValueKind == JsonValueKind.Number && fractionEl.TryGetDouble(out var value)
-                    ? value
-                    : bucket.TryGetProperty("resetTime", out _) ? 0 : null;
-                models.Add((modelEl.GetString() ?? "", fraction));
-            }
-        }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
-        {
-        }
-        return models;
-    }
+    private static string GroupList(SummaryRead summary) =>
+        summary.GroupNames is { Count: > 0 } names ? string.Join(", ", names.Select(ReadChangeLog.SafeName)) : "none";
 
     private static DateTimeOffset? ReadResetTime(JsonElement bucket)
     {
