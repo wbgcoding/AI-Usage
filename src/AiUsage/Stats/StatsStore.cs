@@ -1848,23 +1848,29 @@ public sealed partial class StatsStore
     }
 
     /// <summary>True once the sessions of the usage rows an older version left behind were filled in.</summary>
-    public bool IsSessionBackfillDone()
+    public bool IsSessionBackfillDone() =>
+        // Unreadable: do not start a pass that could not be written either.
+        ReadMetaFlag(SessionsBackfilledKey, onError: true);
+
+    /// <summary>True when the meta flag <paramref name="key"/> is set to "1". An index that is not
+    /// usable or cannot be read answers <paramref name="onError"/>, which each caller chooses so that
+    /// a failed read errs on its safe side.</summary>
+    private bool ReadMetaFlag(string key, bool onError)
     {
         try
         {
             using var connection = Open();
             if (!IsUsable)
-                return true;
+                return onError;
 
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT value FROM meta WHERE key = $key";
-            command.Parameters.AddWithValue("$key", SessionsBackfilledKey);
+            command.Parameters.AddWithValue("$key", key);
             return command.ExecuteScalar() as string == "1";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
-            // Unreadable: do not start a pass that could not be written either.
-            return true;
+            return onError;
         }
     }
 
@@ -1896,24 +1902,7 @@ public sealed partial class StatsStore
     }
 
     /// <summary>True once the usage rows written before the subagent flag existed were corrected.</summary>
-    public bool IsSubagentUsageBackfillDone()
-    {
-        try
-        {
-            using var connection = Open();
-            if (!IsUsable)
-                return true;
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT value FROM meta WHERE key = $key";
-            command.Parameters.AddWithValue("$key", SubagentUsageBackfilledKey);
-            return command.ExecuteScalar() as string == "1";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
-        {
-            return true;
-        }
-    }
+    public bool IsSubagentUsageBackfillDone() => ReadMetaFlag(SubagentUsageBackfilledKey, onError: true);
 
     /// <summary>Moves tokens from the main agent rows to the matching subagent rows of this machine,
     /// so each key ends up with at least the subagent totals in <paramref name="subagentTotals"/>
@@ -1975,24 +1964,7 @@ public sealed partial class StatsStore
 
     /// <summary>True once the Claude tokens that earlier builds missed (a response's later, fuller
     /// copies) were added.</summary>
-    public bool IsClaudeCopyBackfillDone()
-    {
-        try
-        {
-            using var connection = Open();
-            if (!IsUsable)
-                return true;
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT value FROM meta WHERE key = $key";
-            command.Parameters.AddWithValue("$key", ClaudeCopyBackfilledKey);
-            return command.ExecuteScalar() as string == "1";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
-        {
-            return true;
-        }
-    }
+    public bool IsClaudeCopyBackfillDone() => ReadMetaFlag(ClaudeCopyBackfilledKey, onError: true);
 
     /// <summary>Adds the tokens the one-time Claude pass found to the usage rows and the session
     /// totals (additive, like <see cref="ApplyIndexResult"/>), records the counted tokens of each
@@ -2049,46 +2021,12 @@ public sealed partial class StatsStore
     }
 
     /// <summary>True once the Claude responses that two transcripts both counted were corrected.</summary>
-    public bool IsClaudeOwnerPassDone()
-    {
-        try
-        {
-            using var connection = Open();
-            if (!IsUsable)
-                return true;
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT value FROM meta WHERE key = $key";
-            command.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
-            return command.ExecuteScalar() as string == "1";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
-        {
-            return true;
-        }
-    }
+    public bool IsClaudeOwnerPassDone() => ReadMetaFlag(ClaudeOwnerPassKey, onError: true);
 
     /// <summary>True only when the index was read successfully and the owner pass is marked done. Any
     /// error answers false: switching claims on before the pass ran loses tokens for good, while
     /// leaving them off merely counts the old way for one more walk.</summary>
-    public bool IsClaudeOwnerPassConfirmedDone()
-    {
-        try
-        {
-            using var connection = Open();
-            if (!IsUsable)
-                return false;
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT value FROM meta WHERE key = $key";
-            command.Parameters.AddWithValue("$key", ClaudeOwnerPassKey);
-            return command.ExecuteScalar() as string == "1";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
-        {
-            return false;
-        }
-    }
+    public bool IsClaudeOwnerPassConfirmedDone() => ReadMetaFlag(ClaudeOwnerPassKey, onError: false);
 
     /// <summary>Remembers that <paramref name="path"/> was counted only from <paramref name="countedFrom"/>
     /// on: its offset was moved to the end of a replaced file without reading it, so the owner pass
