@@ -288,6 +288,17 @@ public class LayoutAuditTests
     }
 
     [Fact]
+    public void A_read_only_text_box_is_no_setting()
+    {
+        var findings = Audit(() => Surface(new StackPanel
+        {
+            Children = { new TextBox { Text = "https://example.org/archive", IsReadOnly = true } },
+        }), settings: true);
+
+        Assert.Empty(findings);
+    }
+
+    [Fact]
     public void A_label_longer_than_forty_characters_is_reported_and_a_short_one_is_not()
     {
         const string sentence = "Show a notification when a limit is almost used up";

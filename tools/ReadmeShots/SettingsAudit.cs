@@ -62,9 +62,10 @@ internal static class SettingsAudit
         }
     }
 
+    /// <summary>A read-only text box only shows a value to copy, so it is no setting.</summary>
     private static bool IsSetting(Control control) =>
         control.TemplatedParent is null
-        && control is ToggleButton or ComboBox or Slider or TextBox or PasswordBox or DatePicker;
+        && control is ToggleButton or ComboBox or Slider or TextBox { IsReadOnly: false } or PasswordBox or DatePicker;
 
     /// <summary>The setting's own caption (a check box's text), else the last text before it in the
     /// panel it sits in: the label above a picker, or left of it in the same grid row.</summary>
