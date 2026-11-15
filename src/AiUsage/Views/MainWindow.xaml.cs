@@ -1175,7 +1175,8 @@ public partial class MainWindow : Window, IDisposable
         void OnRendered(object? sender, EventArgs e)
         {
             ContentRendered -= OnRendered;
-            var sinceStart = DateTime.Now - Process.GetCurrentProcess().StartTime;
+            using var self = Process.GetCurrentProcess();
+            var sinceStart = DateTime.Now - self.StartTime;
             logService.LogInfo($"Widget: first frame {Stopwatch.GetElapsedTime(shown).TotalMilliseconds:0} ms after show, {sinceStart.TotalMilliseconds:0} ms after start.");
         }
         IsVisibleChanged += OnVisible;
@@ -1379,7 +1380,7 @@ public partial class MainWindow : Window, IDisposable
 
         // The one-shot warning: nobody has to have read the Settings text to learn how to get the
         // mouse back, same "shown once, ever" contract as HideToTrayFlow's own tray balloon.
-        if (clickThrough && TrayHintPolicy.ShouldShowHint(_settings.ClickThroughHintShown))
+        if (clickThrough && !_settings.ClickThroughHintShown)
         {
             _settings.ClickThroughHintShown = true;
             _settingsStore.SaveNow(_settings);
@@ -1438,10 +1439,9 @@ public partial class MainWindow : Window, IDisposable
         return IntPtr.Zero;
     }
 
-    // AllowsTransparency=True (needed for the real rounded corners + soft shadow) disables Win32's
-    // native non-client resize-border loop entirely for a layered window: dragging inside
-    // WindowChrome's ResizeBorderThickness never starts a resize. These eight Thumb grips (WPF's own
-    // drag-delta control) replace it.
+    // The window is borderless and fixed-size to the system (WindowStyle=None, ResizeMode=NoResize,
+    // layered through WS_EX_LAYERED in WindowOpacity), so Win32's native non-client resize loop never
+    // starts. These eight Thumb grips (WPF's own drag-delta control) replace it.
     // A resize drag measures the tallest content once per width instead of on every mouse move, and
     // coalesces the density passes its size changes ask for; the drag's end settles the final one.
     private bool _resizeDragActive;
@@ -1742,7 +1742,7 @@ public partial class MainWindow : Window, IDisposable
     internal static bool IsEyeMenuShortcut(Key key, ModifierKeys modifiers) => key == Key.L && modifiers == ModifierKeys.Control;
 
     /// <summary>Alt+Space is the standard Windows accelerator for a window's system menu - never
-    /// reached this window on its own since AllowsTransparency drops the native non-client handling
+    /// reached this window on its own because the borderless window has no native non-client area
     /// that would normally open it.</summary>
     internal static bool IsWindowMenuShortcut(Key key, ModifierKeys modifiers) => key == Key.Space && modifiers == ModifierKeys.Alt;
 
@@ -1784,10 +1784,10 @@ public partial class MainWindow : Window, IDisposable
     /// <summary>Reachable from two places: the main window's own title bar and the tray menu,
     /// both routed here so there is exactly one place that decides whether to build a new window or
     /// just bring the existing one forward - the same single-instance shape as
-    /// <see cref="TitleBarControl_SettingsRequested"/>. Built fresh from a
-    /// new <see cref="StatsStore"/>/<see cref="StatsViewModel"/> each time the window itself is
-    /// rebuilt, never kept around once closed - the window "remembers nothing", so there is
-    /// nothing worth keeping alive past its own Closed event either.</summary>
+    /// <see cref="TitleBarControl_SettingsRequested"/>. The window is prepared ahead of the first
+    /// click (<see cref="TakePreparedStatsWindow"/>) and hidden instead of closed, so reopening it
+    /// reuses the same window with its size, layout and selection; a closed one is rebuilt on the
+    /// next click.</summary>
     private void TitleBarControl_StatsRequested(object? sender, EventArgs e)
     {
         var clicked = Stopwatch.GetTimestamp();
@@ -2075,6 +2075,8 @@ public partial class MainWindow : Window, IDisposable
         _addressChangeTimer.Stop();
         _addressChangeTimer.Tick -= AddressChangeTimer_Tick;
         ThemeService.Applied -= ThemeService_Applied;
+        if (Application.Current is { } application)
+            application.SessionEnding -= Application_SessionEnding;
         ViewModel.Tiles.CollectionChanged -= ViewModel_Tiles_CollectionChanged;
         _updateTimer?.Stop();
         _globalHotkey?.Dispose();

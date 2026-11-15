@@ -19,15 +19,14 @@ namespace AiUsage.Views;
 
 /// <summary>
 /// The statistics window. Resizable from every edge and corner through the native sizing frame
-/// (see the WindowChrome in its XAML). The selected period never survives a close, but the size does,
-/// persisted through <see cref="WindowPlacementService.Shared"/> - it falls back to the fixed
-/// 720x520 default only once a remembered size no longer fits the monitor the window is about to
-/// open on. <see cref="StatsViewModel"/> itself still carries no <see cref="Models.AppSettings"/> -
-/// the opacity mode still comes from <see cref="WindowOpacity.CurrentPercent"/> for
-/// that reason - but this window now takes an optional settings/store pair of its own, just to
-/// persist which <see cref="Controls.CollapsibleSection"/>s are collapsed
-/// (<see cref="AppSettings.StatsSectionsCollapsed"/>); either or both left null (as every test but
-/// <see cref="MainWindow"/>'s own real construction does) simply skips that persistence.
+/// (see the WindowChrome in its XAML). Its size is persisted through
+/// <see cref="WindowPlacementService.Shared"/> and falls back to the fixed 720x520 default only once
+/// a remembered size no longer fits the monitor the window is about to open on. With an optional
+/// settings/store pair it also persists which <see cref="Controls.CollapsibleSection"/>s are
+/// collapsed (<see cref="AppSettings.StatsSectionsCollapsed"/>), the section layout and the selected
+/// range and grouping; either left null (as in every test but <see cref="MainWindow"/>'s own real
+/// construction) skips that persistence. A window with <see cref="HideOnClose"/> set is hidden
+/// instead of closed, so the next open reuses it as it was.
 /// </summary>
 public partial class StatsWindow : Window
 {
@@ -824,16 +823,10 @@ public partial class StatsWindow : Window
                 _viewModel.IndexProgress = indexer.Progress;
         });
 
-    /// <summary>One brush per stacked segment: two (one per provider) for day/week grouping, one for
-    /// model/project grouping. The provider pair always names Claude and Codex through <see
-    /// cref="ChartPalette.ForProvider"/> - the same fixed colors that name them everywhere else on
-    /// this window - the single, ungrouped series names no provider or model in particular, so it
-    /// stays on the plain theme accent - weekday and hour grouping name no single provider
-    /// either, so they use it too. Model,
-    /// effort and project grouping color each bar on its own instead, through <see cref="BarColorBrushes"/> -
-    /// <see cref="Controls.StatsBarChart.BarBrushes"/> then wins over <see
-    /// cref="Controls.StatsBarChart.SeriesBrushes"/> for those bars, so the accent assignment above
-    /// still applies, just unused while it does.</summary>
+    /// <summary>One brush per chart series (<see cref="SeriesBrush"/>), the theme accent when there is
+    /// no series. Model, effort and project grouping color each bar on its own instead, through
+    /// <see cref="BarColorBrushes"/>: <see cref="Controls.StatsBarChart.BarBrushes"/> then wins over
+    /// <see cref="Controls.StatsBarChart.SeriesBrushes"/> for those bars.</summary>
     private void RefreshSeriesBrushes()
     {
         var accent = (System.Windows.Media.Brush)FindResource("Accent");

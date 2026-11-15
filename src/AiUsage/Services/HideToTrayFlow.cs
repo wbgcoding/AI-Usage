@@ -14,7 +14,7 @@ internal static class HideToTrayFlow
     {
         hide();
 
-        if (!TrayHintPolicy.ShouldShowHint(hintAlreadyShown))
+        if (hintAlreadyShown)
             return false;
 
         markHintShown();
