@@ -1050,7 +1050,7 @@ public sealed class StatsMonthGrid : FrameworkElement
         string WithUnit(long value)
         {
             var number = value.ToString("N0", culture);
-            return string.IsNullOrEmpty(tokenWord) ? number : $"{number} {tokenWord}";
+            return string.IsNullOrEmpty(tokenWord) ? number : TextCompose.NumberUnit(number, tokenWord);
         }
 
         foreach (var entry in hover.ByProvider)

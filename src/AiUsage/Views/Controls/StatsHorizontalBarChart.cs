@@ -166,7 +166,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var projectName = displayName ?? ProjectName(row);
 
         var totalText = row.Total.ToString("N0", culture);
-        var totalWithUnit = string.IsNullOrEmpty(tokenWord) ? totalText : $"{totalText} {tokenWord}";
+        var totalWithUnit = string.IsNullOrEmpty(tokenWord) ? totalText : TextCompose.NumberUnit(totalText, tokenWord);
         var percentText = row.Percent.ToString("0.#", culture);
         var inputText = row.InputTokens.ToString("N0", culture);
         var outputText = row.OutputTokens.ToString("N0", culture);
@@ -280,7 +280,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     internal static IReadOnlyList<string> BuildTooltipLines(StatsProjectRow row, string tokenWord, string totalLabel, string activeLabel, CultureInfo culture)
     {
         var totalText = row.Total.ToString("N0", culture);
-        var totalWithUnit = string.IsNullOrEmpty(tokenWord) ? totalText : $"{totalText} {tokenWord}";
+        var totalWithUnit = string.IsNullOrEmpty(tokenWord) ? totalText : TextCompose.NumberUnit(totalText, tokenWord);
         var activeText = StatsTooltipDateFormatter.FormatRange(row.FirstActivity, row.LastActivity, culture);
 
         var lines = new List<string>

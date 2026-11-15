@@ -138,4 +138,30 @@ public class StatsChartTests
         Assert.Equal("42,5 %", lines[2]); // German decimal separator and percent spacing
         Assert.Equal("Active: 01.-05.01.2026", lines[3]);
     }
+
+    [Fact]
+    public void Tooltip_totals_follow_the_language_pattern_for_number_and_unit()
+    {
+        var loc = AiUsage.Services.LocalizationService.Instance;
+        loc.SetLanguage("ja");
+        try
+        {
+            var culture = CultureInfo.InvariantCulture;
+            var row = new StatsProjectRow("ai-usage", @"C:\code\ai-usage", 1234, 42.5, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+            Assert.Equal("1,234tokens", StatsHorizontalBarChart.BuildTooltipLines(row, "tokens", "", "Active", culture)[1]);
+
+            var detail = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
+                row, new Dictionary<string, string>(), "", "T: {0} ({1})", "", "", "", "", "", "tokens", culture);
+            Assert.Contains("T: 1,234tokens (42.5)", detail);
+
+            var hover = new StatsMonthGrid.CellHit(
+                default, new DateOnly(2026, 9, 26), 1000, [new StatsMonthGrid.ProviderTotal("codex", 900)]);
+            var lines = StatsMonthGrid.BuildTooltipLines(hover, new Dictionary<string, string> { ["codex"] = "Codex" }, "tokens", "", "", culture);
+            Assert.Contains(lines, line => line.EndsWith("900tokens", StringComparison.Ordinal));
+        }
+        finally
+        {
+            loc.SetLanguage("de");
+        }
+    }
 }
