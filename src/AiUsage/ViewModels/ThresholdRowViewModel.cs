@@ -66,8 +66,7 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
     public string WeeklyLabel => PercentLabel(Weekly);
     public string OtherLabel => PercentLabel(Other);
 
-    private static string PercentLabel(double percent) =>
-        StatusTextMap.FormatPercent(percent.ToString("0", CultureInfo.CurrentCulture));
+    private static string PercentLabel(double percent) => StatusTextMap.FormatUsagePercent(percent);
 
     public string FiveHourFullLabel => Loc.Format("Format.LabelValue", Loc["Window.FiveHour"], FiveHourLabel);
     public string WeeklyFullLabel => Loc.Format("Format.LabelValue", Loc["Window.Weekly"], WeeklyLabel);

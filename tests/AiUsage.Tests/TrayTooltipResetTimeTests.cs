@@ -25,6 +25,26 @@ public class TrayTooltipResetTimeTests
     }
 
     [Fact]
+    public void A_later_day_is_named_in_the_UI_language_on_an_English_region()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+        LocalizationService.Instance.SetLanguage("de");
+        try
+        {
+            var later = Now.AddDays(2).AddHours(4);
+            var day = later.ToLocalTime().ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+
+            Assert.StartsWith(day + " ", TrayTooltipBuilder.ResetTime(later, Now));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+            LocalizationService.Instance.SetLanguage("de");
+        }
+    }
+
+    [Fact]
     public void Two_providers_fit_with_their_reset_times()
     {
         var text = TrayTooltipBuilder.Build([Line("Claude"), Line("Codex")], now: Now);

@@ -107,16 +107,26 @@ public sealed partial class MainViewModel
             alreadyAdded.Add(primary.Login);
         // Only github.com users: the read asks github.com for the token and the usage, so a user from
         // another host would stay "not signed in" for good.
-        return signedIn
-            .Where(a => string.Equals(a.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+        return Providers.LocalLogin.GitHubCliUsage.OnlyGitHubDotCom(signedIn)
             .Select(a => a.Login)
             .Where(login => !alreadyAdded.Contains(login))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
+    /// <summary>The status file's balance for <paramref name="accountKey"/> follows the provider's current one.</summary>
+    private void RefreshStatusCredit(string accountKey, ClaudeProvider claude)
+    {
+        if (!_statusReadings.TryGetValue(accountKey, out var reading))
+            return;
+
+        var now = DateTimeOffset.Now;
+        _statusReadings[accountKey] = reading with { ApiCredit = StatusCreditOf(claude, now) };
+        QueueStatusFile(now);
+    }
+
     private static bool IsPrimaryCopilotLogin(Providers.LocalLogin.GitHubAccount account) =>
-        account.Active && string.Equals(account.Host, "github.com", StringComparison.OrdinalIgnoreCase);
+        account.Active && string.Equals(account.Host, Providers.LocalLogin.GitHubCliUsage.GitHubHost, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Test seam for <see cref="ListAvailableCopilotLoginsAsync"/> - production asks the real
     /// GitHub CLI, a test injects a canned list instead.</summary>
@@ -413,11 +423,7 @@ public sealed partial class MainViewModel
             {
                 ApplyApiCredit(tile, accountKey, claude);
                 tile.HasConsoleSession = ConsoleProfileExists(accountKey);
-                if (_statusReadings.TryGetValue(accountKey, out var reading))
-                {
-                    _statusReadings[accountKey] = reading with { ApiCredit = StatusCreditOf(claude, DateTimeOffset.Now) };
-                    QueueStatusFile(DateTimeOffset.Now);
-                }
+                RefreshStatusCredit(accountKey, claude);
             }
 
             (_logService ?? LogService.Shared).LogInfo(result == SignOutResult.Removed

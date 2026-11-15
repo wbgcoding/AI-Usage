@@ -577,7 +577,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// <summary>The balance line under the bars: only while numbers are on show and a balance exists.</summary>
     public bool ShowApiCredit => ShowRows && !LocalOnly && ApiCreditText.Length > 0;
 
-    /// <summary>"· $18.40" after the plan in the header: the balance needs no row of its own; the
+    /// <summary>"• $18.40" after the plan in the header: the balance needs no row of its own; the
     /// name's tooltip says what the figure is. Shown only when it fits whole beside the name.</summary>
     public string HeaderCreditText => ShowApiCredit && !ShowsExpiredCredit && _apiCredit is { } credit
         ? "\u2022\u2002" + credit.FormatAmount(LocalizationService.Instance.DisplayCulture)

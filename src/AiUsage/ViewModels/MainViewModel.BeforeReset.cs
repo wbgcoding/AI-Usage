@@ -13,10 +13,6 @@ public sealed partial class MainViewModel
     // the ten minutes may repeat one notice, which is accepted.
     private readonly List<(string ProviderId, string Label, DateTimeOffset ResetsAt)> _beforeResetSent = [];
 
-    // Reset times this close are the same period: Codex derives its reset from the read time and Claude's
-    // jitters, so the exact instant differs from read to read (same tolerance as NotificationService).
-    private static readonly TimeSpan BeforeResetPeriodTolerance = TimeSpan.FromMinutes(10);
-
     private void ForwardBeforeResetNotification(BeforeResetNotification notification)
     {
         if (IsAlertAllowed(notification.ProviderId))
@@ -33,7 +29,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        _beforeResetSent.RemoveAll(sent => sent.ResetsAt + BeforeResetPeriodTolerance <= now);
+        _beforeResetSent.RemoveAll(sent => sent.ResetsAt + NotificationService.PeriodTolerance <= now);
         foreach (var tile in Tiles)
         {
             if (tile.IsHidden || !GetOrCreateProviderSettings(tile.ProviderId).NotificationsEnabled)
@@ -49,7 +45,7 @@ public sealed partial class MainViewModel
                     continue;
 
                 if (_beforeResetSent.Any(sent => sent.ProviderId == tile.ProviderId && sent.Label == row.Label
-                        && (sent.ResetsAt - resetsAt).Duration() <= BeforeResetPeriodTolerance))
+                        && (sent.ResetsAt - resetsAt).Duration() <= NotificationService.PeriodTolerance))
                     continue;
 
                 _beforeResetSent.Add((tile.ProviderId, row.Label, resetsAt));

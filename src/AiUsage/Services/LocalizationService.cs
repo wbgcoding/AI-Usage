@@ -22,7 +22,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
     // would leave the table still null at that point, throwing a NullReferenceException on the very
     // first lookup.
     //
-    // The one place a language is registered - adding a fourth entry is one line here plus one resx
+    // The one place a language is registered - adding a language is one line here plus one resx
     // file. "System" carries no ResourceManager of its own: it is never a real language, only a
     // request to resolve one of the concrete entries below from the OS UI culture (see
     // ResourceManagerFor). Order matters: System first, English second, the rest alphabetical by

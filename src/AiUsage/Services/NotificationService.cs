@@ -114,7 +114,7 @@ public sealed class NotificationService
 
     // Two reset times this close together are the same window period: a provider's own reset
     // instant can wobble by a few minutes between fetches, which must not count as a new period.
-    private static readonly TimeSpan PeriodTolerance = TimeSpan.FromMinutes(10);
+    internal static readonly TimeSpan PeriodTolerance = TimeSpan.FromMinutes(10);
 
     private static bool SamePeriod(DateTimeOffset? a, DateTimeOffset? b) =>
         a is { } x && b is { } y && (x - y).Duration() <= PeriodTolerance;

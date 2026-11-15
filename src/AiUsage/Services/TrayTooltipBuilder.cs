@@ -39,7 +39,7 @@ public static class TrayTooltipBuilder
         var clock = ShortTime(moment);
         return local.Date == now.ToLocalTime().Date
             ? clock
-            : local.ToString("ddd", CultureInfo.CurrentCulture) + " " + clock;
+            : TextCompose.DayAndTime(local.ToString("ddd", LocalizationService.Instance.DisplayCulture), clock);
     }
 
     /// <summary>The provider lines, with <paramref name="firstLine"/> (a notice such as the pause)

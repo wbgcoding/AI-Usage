@@ -1869,11 +1869,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 return;
 
             ApplyApiCredit(tile, accountKey, claude);
-            if (_statusReadings.TryGetValue(accountKey, out var reading))
-            {
-                _statusReadings[accountKey] = reading with { ApiCredit = StatusCreditOf(claude, DateTimeOffset.Now) };
-                QueueStatusFile(DateTimeOffset.Now);
-            }
+            RefreshStatusCredit(accountKey, claude);
         }
 
         var dispatcher = Application.Current?.Dispatcher;

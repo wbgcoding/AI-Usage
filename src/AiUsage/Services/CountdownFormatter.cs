@@ -43,8 +43,8 @@ public static class CountdownFormatter
 
     /// <summary>The local wall-clock instant a window resets at: a bare time ("21:15") under 24h
     /// away, with the weekday ("Mi 21:15") from 24h on, and the short date ("22. Okt. 21:15") from six
-    /// days on, all through <see cref="CultureInfo.CurrentCulture"/> so the OS regional format decides
-    /// the exact rendering. Empty when no reset time is known.</summary>
+    /// days on, all through <see cref="LocalizationService.DisplayCulture"/>: the OS regional format decides
+    /// the clock, the UI language names the days and months. Empty when no reset time is known.</summary>
     internal static string FormatClock(DateTimeOffset? resetsAt, DateTimeOffset now) =>
         FormatClock(resetsAt, now, TimeZoneInfo.Local);
 
