@@ -183,19 +183,21 @@ public static class ProviderRegistry
     /// <see cref="ViewModels.MainViewModel.AddAccountCommand"/> calls again for an account added after
     /// startup - never duplicated between the two.</summary>
     internal static (IUsageProvider Provider, WebSessionScriptRunner Runner) CreateClaudeAccount(
-        string accountKey, AppSettings settings, SettingsStore store)
+        string accountKey, AppSettings settings, SettingsStore store, LogService? logService = null)
     {
         var descriptor = WebSessionFor(accountKey);
         var runner = new WebSessionScriptRunner(descriptor);
-        return (BuildClaudeProvider(accountKey, settings, store.RequestSave, runner), runner);
+        return (BuildClaudeProvider(accountKey, settings, store.RequestSave, runner, logService), runner);
     }
 
     /// <summary>The primary account ("claude") reads Claude Code's own sign-in first and the app's
     /// web session when that sign-in has no token; a further account is the web session only.</summary>
     private static ClaudeProvider BuildClaudeProvider(
-        string accountKey, AppSettings settings, Action<AppSettings> saveSettings, WebSessionScriptRunner runner)
+        string accountKey, AppSettings settings, Action<AppSettings> saveSettings, WebSessionScriptRunner runner,
+        LogService? logService = null)
     {
-        var webSource = new WebUsageSource(WebSessionFor(accountKey), new ClaudeUsageEndpoint(), runner.ExecuteScriptAsync);
+        var webSource = new WebUsageSource(
+            WebSessionFor(accountKey), new ClaudeUsageEndpoint(), runner.ExecuteScriptAsync, logService == null ? null : logService.LogInfo);
         Func<TimeSpan> attentionMaxAge = () => TimeSpan.FromMinutes(settings.AttentionMaxAgeMinutes);
 
         // The balance of the account's Claude Console: asked through the claude.ai session first, the
@@ -322,7 +324,7 @@ public static class ProviderRegistry
 
             // The primary account reads Claude Code's sign-in first and the app's web session when
             // that has no token; a further account reads the web session only. Both own a runner.
-            var (provider, runner) = CreateClaudeAccount(accountKey, settings, store);
+            var (provider, runner) = CreateClaudeAccount(accountKey, settings, store, logService);
             providers.Add(provider);
             runners[accountKey] = runner;
         }

@@ -177,6 +177,28 @@ public class ProviderRegistryTests : IDisposable
         Assert.NotNull(runner);
     }
 
+    /// <summary>The Claude web source must get the log like the other providers' web sources do,
+    /// so its discovery and read lines reach the app log.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CreateClaudeAccount_hands_the_log_to_the_web_source(bool withLog)
+    {
+        var directory = Track(TestPaths.GetPath("ai-usage-registry"));
+        var store = new SettingsStore(directory);
+
+        var (provider, _) = ProviderRegistry.CreateClaudeAccount(
+            "claude", new AppSettings(), store, withLog ? new LogService(Track(TestPaths.GetPath("ai-usage-registry-log"))) : null);
+
+        var webSource = typeof(Providers.ClaudeProvider)
+            .GetField("_webSource", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(provider);
+        var log = typeof(Providers.WebUsageSource)
+            .GetField("_log", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(webSource);
+        Assert.Equal(withLog, log is not null);
+    }
+
     /// <summary>Cursor's own session must be its own profile on its own site, the same proof as
     /// Codex's above - and <see cref="ProviderRegistry.CreateAll"/>'s runner dictionary must actually
     /// carry a "cursor" entry, not just a provider with that id.</summary>

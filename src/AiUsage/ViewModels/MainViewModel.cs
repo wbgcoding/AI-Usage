@@ -618,7 +618,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             "codex" => ProviderRegistry.CreateCodexAccount(accountKey, _settings, _settingsStore, _logService),
             "cursor" => ProviderRegistry.CreateCursorAccount(accountKey, _settings, _settingsStore, _logService),
             "gemini" => ProviderRegistry.CreateGeminiAccount(accountKey, _settings, _settingsStore, _logService),
-            _ => ProviderRegistry.CreateClaudeAccount(accountKey, _settings, _settingsStore),
+            _ => ProviderRegistry.CreateClaudeAccount(accountKey, _settings, _settingsStore, _logService),
         };
         _historyStore = historyStore;
         _timeProvider = timeProvider ?? TimeProvider.System;
