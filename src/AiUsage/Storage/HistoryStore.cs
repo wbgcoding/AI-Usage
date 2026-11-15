@@ -282,7 +282,8 @@ public class HistoryStore
             var state = StateOf(providerId);
             try
             {
-                var all = LoadPoints(state, providerId, path, from);
+                // Resolved again under the lock, see Rewrite.
+                var all = LoadPoints(state, providerId, FilePath(providerId), from);
                 // A new list every time: callers get to keep and change theirs.
                 return InTimeOrder(all.Where(point => point.Timestamp >= from && point.Timestamp <= until).ToList());
             }
@@ -561,12 +562,14 @@ public class HistoryStore
 
     private void Rewrite(string providerId, bool compact, int? retentionDays)
     {
-        var path = FilePath(providerId);
-        if (!File.Exists(path))
+        if (!File.Exists(FilePath(providerId)))
             return;
 
         Locked(providerId, () =>
         {
+            // Resolved under the lock: a data folder move swaps the folder under every provider lock,
+            // and a path taken before waiting here could point at the folder left behind.
+            var path = FilePath(providerId);
             var state = StateOf(providerId);
             state.Rewriting = true;
             try

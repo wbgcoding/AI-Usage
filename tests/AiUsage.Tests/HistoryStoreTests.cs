@@ -697,6 +697,44 @@ public class HistoryStoreTests : IDisposable
         Assert.Equal([3.0], store.Load("codex", TimeSpan.FromDays(1)).Select(p => p.Percent));
     }
 
+    // A rewrite that already waited for the provider's lock when the data folder moved must
+    // work on the new folder, not on the path it resolved before waiting.
+    [Fact]
+    public void A_rewrite_waiting_for_the_lock_follows_a_data_folder_move()
+    {
+        var first = TempDirectory();
+        var second = TempDirectory();
+        File.WriteAllLines(Path.Combine(first, "history-claude.jsonl"), [Line(Now.AddHours(-3), "FiveHour", 10)]);
+        File.WriteAllLines(Path.Combine(second, "history-claude.jsonl"),
+            [Line(Now.AddHours(-3), "FiveHour", 10), Line(Now.AddHours(-1), "FiveHour", 99)]);
+        var store = new HistoryStore(first, () => Now);
+        var inside = new ManualResetEventSlim(false);
+        var release = new ManualResetEventSlim(false);
+        var calls = 0;
+        store.InsideRewriteLockForTest = _ =>
+        {
+            if (Interlocked.Increment(ref calls) != 1)
+                return;
+            inside.Set();
+            release.Wait(TimeSpan.FromSeconds(30));
+        };
+
+        var holder = Task.Run(() => store.Compact("claude"));
+        Assert.True(inside.Wait(TimeSpan.FromSeconds(10)));
+        // The move queues for the lock first, then the rewrite, which resolved the
+        // old folder before it started waiting.
+        var move = Task.Run(() => store.Redirect(second));
+        Thread.Sleep(300);
+        var rewrite = Task.Run(() => store.Compact("claude"));
+        Thread.Sleep(300);
+        release.Set();
+
+        Assert.True(Task.WhenAll(holder, move, rewrite).Wait(TimeSpan.FromSeconds(20)));
+        Assert.Equal([10.0, 99.0], File.ReadAllLines(Path.Combine(second, "history-claude.jsonl"))
+            .Select(line => System.Text.Json.JsonDocument.Parse(line).RootElement.GetProperty("p").GetDouble()));
+        Assert.Equal([10.0, 99.0], store.Load("claude", TimeSpan.FromDays(1)).Select(p => p.Percent));
+    }
+
     [Fact]
     public void Load_reads_a_file_that_was_replaced_by_a_shorter_one()
     {
