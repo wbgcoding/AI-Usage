@@ -102,7 +102,7 @@ public sealed class CostService
         Prices = new ModelPriceList(() => _cacheDirectory);
         Rate = new EurRate(() => _cacheDirectory);
         Rate.Load();
-        Prices.Fallback.WantedRaised += () => FallbackTask = RefreshFallbackAsync();
+        Prices.Fallback.WantedRaised += () => FallbackTask = Task.Run(() => RefreshFallbackAsync());
         // The cache is a megabyte of JSON: the app loads it off the UI thread, and a figure asked for
         // before it is in simply has no prices yet, as with an empty cache.
         if (loadPricesInBackground)

@@ -317,6 +317,34 @@ public class FallbackPriceTests
         Assert.Empty(Directory.GetFiles(directory, "download-*"));
     }
 
+    private sealed class MarkerContext : SynchronizationContext;
+
+    [Fact]
+    public async Task The_second_download_never_starts_on_the_thread_that_met_the_miss()
+    {
+        SynchronizationContext? seen = null;
+        var handler = new FakeHandler(uri =>
+        {
+            if (uri.Host == "models.dev")
+                seen = SynchronizationContext.Current;
+            return ForUrl(uri);
+        });
+        var service = Service(handler, TempDirectory());
+        await service.RefreshAsync();
+
+        var caller = new Thread(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new MarkerContext());
+            service.Sum([Row("big-pickle")]);
+        });
+        caller.Start();
+        caller.Join();
+        await service.FallbackTask;
+
+        Assert.True(AskedModelsDev(handler));
+        Assert.Null(seen);
+    }
+
     [Fact]
     public async Task Models_the_main_list_knows_never_cause_the_second_download()
     {
