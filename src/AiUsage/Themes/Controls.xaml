@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:services="clr-namespace:AiUsage.Services"
+                    xmlns:views="clr-namespace:AiUsage.Views"
                     xmlns:system="clr-namespace:System;assembly=mscorlib">
     <!-- Control templates that read theme tokens exclusively via DynamicResource, so a theme swap
          (Services/ThemeService.cs) restyles every control without recreating a window. Controls that
@@ -155,10 +156,12 @@
                 <ControlTemplate TargetType="ToggleButton">
                     <Grid>
                         <Border x:Name="Pill" CornerRadius="{StaticResource Radius.Control}" BorderThickness="1" Background="{DynamicResource Bg.Raised}"
-                                BorderBrush="{DynamicResource Border}"/>
-                        <Border x:Name="Tint" CornerRadius="{StaticResource Radius.Control}" Background="{TemplateBinding Tag}" Opacity="0.22" Visibility="Collapsed"/>
+                                BorderBrush="{DynamicResource Border}" views:AuditMark.OffTheme="checked: outlined in the provider's chart colour"/>
+                        <Border x:Name="Tint" CornerRadius="{StaticResource Radius.Control}" Background="{TemplateBinding Tag}" Opacity="0.22" Visibility="Collapsed"
+                                views:AuditMark.OffTheme="tinted with the provider's chart colour"/>
                         <StackPanel Orientation="Horizontal" Margin="12,4,12,4">
-                            <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{TemplateBinding Tag}"/>
+                            <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{TemplateBinding Tag}"
+                                     views:AuditMark.OffTheme="dot in the provider's chart colour"/>
                             <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False"/>
                         </StackPanel>
                     </Grid>
