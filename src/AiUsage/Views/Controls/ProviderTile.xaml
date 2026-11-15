@@ -195,8 +195,7 @@
     <!-- MinWidth is the narrowest width that still fits the narrowest main window: a row of tiles
          squeezed below it scrolls sideways instead of shredding every headline into two characters,
          while a stacked tile (no sideways scrolling) can never be wider than the window. -->
-    <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}"
+    <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}"
             MinWidth="{StaticResource Tile.MinWidth}"
             TextElement.Foreground="{DynamicResource Text.Primary}"
             Focusable="True">
@@ -245,6 +244,8 @@
         </Border.ContextMenu>
         <Border.Style>
             <Style TargetType="Border">
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="BorderThickness" Value="1"/>
                 <Style.Triggers>
                     <!-- Same dimming IsStale already uses on OkContent - one shared visual vocabulary
                          for "this is old", whether the tile still has bars or only a placeholder. -->

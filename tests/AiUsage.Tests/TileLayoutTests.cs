@@ -105,6 +105,49 @@ public class TileLayoutTests
         Assert.True(height <= HeightBeforeTighterSpacing - 12, $"tile is {height} px tall, was {HeightBeforeTighterSpacing} px");
     }
 
+    private static ProviderTileViewModel Limit(double usedPercent)
+    {
+        var viewModel = new ProviderTileViewModel("probe", "Probe");
+        viewModel.Apply(new ProviderSnapshot(
+            ProviderId: "probe",
+            Windows: [new UsageWindow("Window_FiveHour", WindowKind.FiveHour, usedPercent, Now.AddHours(2), 300)],
+            PlanType: null,
+            SourceKind: SourceKind.LocalFile,
+            FetchedAt: Now,
+            DataTimestamp: Now,
+            Status: ProviderStatus.Ok,
+            Error: null,
+            Diagnostics: []), Now);
+        viewModel.Density = TileDensity.Full;
+        return viewModel;
+    }
+
+    [Fact]
+    public void ATileAtItsLimitShowsTheCriticalFrame()
+    {
+        var (brush, thickness, expected) = RunOnSta(() => WithTile(() => Limit(100), (host, tile) =>
+        {
+            var root = (Border)tile.FindName("TileRoot");
+            return (root.BorderBrush, root.BorderThickness, (Brush)Application.Current!.Resources["Level.Crit"]);
+        }));
+
+        Assert.Equal(2, thickness.Left);
+        Assert.Equal(((SolidColorBrush)expected).Color, ((SolidColorBrush)brush).Color);
+    }
+
+    [Fact]
+    public void ATileBelowItsLimitKeepsTheQuietFrame()
+    {
+        var (brush, thickness, quiet) = RunOnSta(() => WithTile(() => Limit(60), (host, tile) =>
+        {
+            var root = (Border)tile.FindName("TileRoot");
+            return (root.BorderBrush, root.BorderThickness, (Brush)Application.Current!.Resources["Border"]);
+        }));
+
+        Assert.Equal(1, thickness.Left);
+        Assert.Equal(((SolidColorBrush)quiet).Color, ((SolidColorBrush)brush).Color);
+    }
+
     private static ProviderTileViewModel Full()
     {
         var viewModel = new ProviderTileViewModel("probe", "Probe");
