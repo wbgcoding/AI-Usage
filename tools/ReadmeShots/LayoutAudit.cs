@@ -359,13 +359,6 @@ internal sealed class ThemePalette
         return palette;
     }
 
-    internal static ThemePalette From(ResourceDictionary dictionary)
-    {
-        var palette = new ThemePalette();
-        palette.Add(dictionary);
-        return palette;
-    }
-
     private void Add(ResourceDictionary dictionary)
     {
         foreach (var merged in dictionary.MergedDictionaries)

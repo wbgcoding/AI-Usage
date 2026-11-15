@@ -190,7 +190,6 @@ internal static class ReviewSurfaces
         return list;
     }
 
-    /// <summary>Every fourth Claude record counted as subagent work, so the share card has something to show.</summary>
     /// <summary>The statistics window with quota history, so the limits section shows rows.</summary>
     private static void StatsWindowWithLimits(SurfaceContext context)
     {
@@ -234,6 +233,7 @@ internal static class ReviewSurfaces
                 viewModel.SetColorByCommand.Execute(colorBy);
             }), HasMinSize: true);
 
+    /// <summary>Every fourth Claude record counted as subagent work, so the share card has something to show.</summary>
     internal static IReadOnlyList<StatsRecord> WithSubagents(IReadOnlyList<StatsRecord> records) =>
         records.Select((record, index) => record.Provider == "claude" && index % 4 == 0 ? record with { Subagent = true } : record).ToList();
 

@@ -20,8 +20,6 @@ namespace ReadmeShots;
 /// and language the review loop has set when it calls a render method.</summary>
 internal static class ReviewDialogs
 {
-    private const double WindowCornerRadius = 8;
-    private const int ImageScale = 2;
 
     private const string TileChromeXaml = """
         <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -81,11 +79,11 @@ internal static class ReviewDialogs
         var chrome = (Border)XamlReader.Parse(TileChromeXaml);
         chrome.DataContext = tile;
 
-        Pump(TimeSpan.FromMilliseconds(300));
+        Program.PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
         chrome.Measure(new Size(width, double.PositiveInfinity));
-        Pump(TimeSpan.FromMilliseconds(300));
+        Program.PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
         chrome.Measure(new Size(width, double.PositiveInfinity));
-        RenderToPng(chrome, width, Math.Ceiling(chrome.DesiredSize.Height), outputPath);
+        Program.RenderToPng(chrome, width, Math.Ceiling(chrome.DesiredSize.Height), outputPath);
     }
 
     internal static void RenderBlockedSignIn(string outputPath)
@@ -138,7 +136,10 @@ internal static class ReviewDialogs
     internal static void RenderRestoreConfirm(string outputPath)
     {
         var loc = LocalizationService.Instance;
-        var preview = loc.Format("Settings.Backup.Preview", "10/10/2026 12:00", "3/2/2026", "9/20/2026", 3);
+        var preview = loc.Format("Settings.Backup.Preview",
+            new DateTime(2026, 10, 10, 12, 0, 0).ToString("g", System.Globalization.CultureInfo.CurrentCulture),
+            new DateTime(2026, 3, 2).ToString("d", System.Globalization.CultureInfo.CurrentCulture),
+            new DateTime(2026, 9, 20).ToString("d", System.Globalization.CultureInfo.CurrentCulture), 3);
         var window = new ConfirmWindow(AppInfo.ProductName, preview + "\n\n" + loc.Format("Settings.Backup.RestoreConfirm", SampleSetAsideFolder),
             loc["Settings.Backup.RestoreButton"], loc["Action.Cancel"]);
         RenderWindowContent(window, window.Width, double.NaN, outputPath);
@@ -159,11 +160,11 @@ internal static class ReviewDialogs
     private static void RenderWindowContent(Window window, double width, double height, string outputPath)
     {
         var root = WithWindowBackground(window, (FrameworkElement)window.Content);
-        Pump(TimeSpan.FromMilliseconds(300));
+        Program.PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
         root.Measure(new Size(width, double.IsNaN(height) ? double.PositiveInfinity : height));
-        Pump(TimeSpan.FromMilliseconds(300));
+        Program.PumpUntil(() => false, TimeSpan.FromMilliseconds(300), settle: TimeSpan.Zero);
         root.Measure(new Size(width, double.IsNaN(height) ? double.PositiveInfinity : height));
-        RenderToPng(root, width, double.IsNaN(height) ? Math.Ceiling(root.DesiredSize.Height) : height, outputPath);
+        Program.RenderToPng(root, width, double.IsNaN(height) ? Math.Ceiling(root.DesiredSize.Height) : height, outputPath);
     }
 
     /// <summary>A window paints its own background behind its content; a content root that has none of
@@ -184,37 +185,5 @@ internal static class ReviewDialogs
 
         window.Content = null;
         return new Border { Background = window.Background, Child = root };
-    }
-
-    private static void RenderToPng(FrameworkElement root, double width, double height, string outputPath)
-    {
-        root.Measure(new Size(width, height));
-        root.Arrange(new Rect(0, 0, width, height));
-        root.UpdateLayout();
-        LayoutAudit.Check(root, outputPath);
-        root.Clip = new RectangleGeometry(new Rect(0, 0, width, height), WindowCornerRadius, WindowCornerRadius);
-
-        var bitmap = new RenderTargetBitmap(
-            (int)Math.Ceiling(width * ImageScale), (int)Math.Ceiling(height * ImageScale),
-            96 * ImageScale, 96 * ImageScale, PixelFormats.Pbgra32);
-        bitmap.Render(root);
-
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var stream = File.Create(outputPath);
-        encoder.Save(stream);
-        Console.WriteLine($"{Path.GetFileName(outputPath)}: {bitmap.PixelWidth} x {bitmap.PixelHeight}");
-    }
-
-    private static void Pump(TimeSpan duration)
-    {
-        var until = DateTime.UtcNow + duration;
-        while (DateTime.UtcNow < until)
-        {
-            var frame = new DispatcherFrame();
-            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, () => frame.Continue = false);
-            Dispatcher.PushFrame(frame);
-            Thread.Sleep(10);
-        }
     }
 }

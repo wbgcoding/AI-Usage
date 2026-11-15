@@ -37,6 +37,10 @@ public class FatalHandlerDispatcherTests
         });
         thread.Start();
         SpinWait.SpinUntil(() => running is not null, TimeSpan.FromSeconds(5));
+        // Wait until the loop is actually pumping, so the 100 ms start timeout cannot expire on a slow start.
+        using var ready = new ManualResetEventSlim();
+        running!.BeginInvoke(ready.Set);
+        Assert.True(ready.Wait(TimeSpan.FromSeconds(5)));
         var finished = false;
 
         var result = FatalHandler.InvokeWhenResponsive(running!, () =>

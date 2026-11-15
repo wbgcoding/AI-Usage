@@ -1207,8 +1207,11 @@ public class ProviderTileViewModelTests
         tile.TickCountdowns(Now);
 
         Assert.Contains(nameof(ProviderTileViewModel.LastSuccessAgeText), raised);
-        Assert.Equal(AgeText.Describe(tile.LastSuccessAt), tile.LastSuccessAgeText);
-        Assert.NotEqual(LocalizationService.Instance["Settings.NeverUpdated"], tile.LastSuccessAgeText);
+        var before = AgeText.Describe(tile.LastSuccessAt);
+        var shown = tile.LastSuccessAgeText;
+        var after = AgeText.Describe(tile.LastSuccessAt);
+        Assert.True(shown == before || shown == after); // tolerates a second rollover between the reads
+        Assert.NotEqual(LocalizationService.Instance["Settings.NeverUpdated"], shown);
     }
 
     [Fact]

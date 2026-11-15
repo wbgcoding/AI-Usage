@@ -67,9 +67,6 @@ internal static class ReviewSettings
 
         internal Bundle(string dataDirectory)
         {
-            ResourceDictionary Load(Uri relative) =>
-                new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
-
             var now = DateTimeOffset.Now;
             var samples = SampleProviders.BuildReview(now);
             var settings = new AppSettings();
@@ -84,7 +81,7 @@ internal static class ReviewSettings
                 enableAutostart: _ => true,
                 disableAutostart: () => true,
                 applyLanguage: _ => { },
-                loadThemeDictionary: Load,
+                loadThemeDictionary: Program.LoadPack,
                 historyStore: historyStore);
         }
 

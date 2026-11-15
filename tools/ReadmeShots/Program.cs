@@ -185,14 +185,11 @@ internal static class Program
     // by their assembly qualified address instead, in the same order.
     private static void LoadResources(Application application)
     {
-        ResourceDictionary Load(Uri relative) =>
-            new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
-
         var merged = application.Resources.MergedDictionaries;
-        merged.Add(Load(new Uri("Themes/Tokens.xaml", UriKind.Relative)));
-        merged.Add(Load(new Uri("Themes/Controls.xaml", UriKind.Relative)));
-        merged.Add(Load(new Uri("Themes/Icons.xaml", UriKind.Relative)));
-        ThemeService.Apply(AppTheme.Dark, merged, Load, () => false);
+        merged.Add(LoadPack(new Uri("Themes/Tokens.xaml", UriKind.Relative)));
+        merged.Add(LoadPack(new Uri("Themes/Controls.xaml", UriKind.Relative)));
+        merged.Add(LoadPack(new Uri("Themes/Icons.xaml", UriKind.Relative)));
+        ThemeService.Apply(AppTheme.Dark, merged, LoadPack, () => false);
     }
 
     // The review set -----------------------------------------------------------------------------
@@ -201,9 +198,6 @@ internal static class Program
         Application application, string dataDirectory, string reviewDirectory, ReviewOptions options,
         IReadOnlyList<(string Name, AppTheme Theme, bool HighContrast)> themes, IReadOnlyList<Surface> surfaces)
     {
-        ResourceDictionary Load(Uri relative) =>
-            new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
-
         var now = DateTimeOffset.Now;
         var samples = SampleProviders.BuildReview(now);
         var today = DateOnly.FromDateTime(DateTime.Now);
@@ -213,7 +207,7 @@ internal static class Program
 
         foreach (var (name, theme, highContrast) in themes)
         {
-            ThemeService.Apply(theme, application.Resources.MergedDictionaries, Load, () => highContrast);
+            ThemeService.Apply(theme, application.Resources.MergedDictionaries, LoadPack, () => highContrast);
             foreach (var language in options.Languages)
             {
                 SetLanguage(language);
@@ -276,8 +270,7 @@ internal static class Program
         var tileViewModel = new DayGridTileViewModel(store) { Density = density };
         // Pump instead of blocking: the refresh resumes on this dispatcher after its background load.
         var refresh = tileViewModel.RefreshAsync();
-        PumpUntil(() => refresh.IsCompleted, TimeSpan.FromSeconds(30), settle: TimeSpan.Zero);
-        refresh.GetAwaiter().GetResult();
+        WaitForRefresh(refresh);
 
         var host = (Border)XamlReader.Parse("""
             <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -336,9 +329,7 @@ internal static class Program
 
     private static void ApplyTheme(AppTheme theme)
     {
-        ResourceDictionary Load(Uri relative) =>
-            new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
-        ThemeService.Apply(theme, Application.Current.Resources.MergedDictionaries, Load, () => false);
+        ThemeService.Apply(theme, Application.Current.Resources.MergedDictionaries, LoadPack, () => false);
     }
 
     /// <summary>Places columns of finished pictures side by side on a transparent background, each
@@ -462,8 +453,7 @@ internal static class Program
                 viewModel.DayGridTile.Density = density;
                 // Pump instead of blocking: the refresh resumes on this dispatcher after its background load.
                 var refresh = viewModel.DayGridTile.RefreshAsync();
-                PumpUntil(() => refresh.IsCompleted, TimeSpan.FromSeconds(30), settle: TimeSpan.Zero);
-                refresh.GetAwaiter().GetResult();
+                WaitForRefresh(refresh);
             }
 
             var chrome = (Border)XamlReader.Parse(WidgetChromeXaml);
@@ -565,7 +555,8 @@ internal static class Program
         var viewModel = new StatsViewModel(store, cost: BuildFixedCostService(dataDirectory));
         viewModel.Recompute();
         viewModel.SelectedRangeChoice = viewModel.RangeChoices.Single(choice => choice.Value == "Month");
-        PumpUntil(() => !viewModel.IsLoading, TimeSpan.FromSeconds(10), settle: TimeSpan.FromSeconds(1));
+        if (!PumpUntil(() => !viewModel.IsLoading, TimeSpan.FromSeconds(10), settle: TimeSpan.FromSeconds(1)))
+            Console.Error.WriteLine("Warning: the stats view model was still loading after 10 seconds; the picture may be incomplete.");
         configure?.Invoke(viewModel);
 
         var window = new StatsWindow(viewModel);
@@ -670,16 +661,32 @@ internal static class Program
         Console.WriteLine($"{Path.GetFileName(outputPath)}: {bitmap.PixelWidth} x {bitmap.PixelHeight}");
     }
 
-    internal static void PumpUntil(Func<bool> done, TimeSpan timeout, TimeSpan settle)
+    /// <summary>Pumps the dispatcher until <paramref name="done"/> holds or the timeout passes, then for
+    /// <paramref name="settle"/> more. Returns whether the condition was met in time.</summary>
+    internal static bool PumpUntil(Func<bool> done, TimeSpan timeout, TimeSpan settle)
     {
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline && !done())
             PumpOnce();
+        var met = done();
 
         var settleUntil = DateTime.UtcNow + settle;
         while (DateTime.UtcNow < settleUntil)
             PumpOnce();
+        return met;
     }
+
+    /// <summary>Waits for a refresh task on the dispatcher and fails clearly when it never finishes.</summary>
+    internal static void WaitForRefresh(Task refresh)
+    {
+        if (!PumpUntil(() => refresh.IsCompleted, TimeSpan.FromSeconds(30), settle: TimeSpan.Zero))
+            throw new TimeoutException("The refresh did not finish within 30 seconds.");
+        refresh.GetAwaiter().GetResult();
+    }
+
+    /// <summary>One resource file of the app, loaded by its assembly qualified address.</summary>
+    internal static ResourceDictionary LoadPack(Uri relative) =>
+        new() { Source = new Uri("pack://application:,,,/AI-Usage;component/" + relative.OriginalString, UriKind.Absolute) };
 
     private static void PumpOnce()
     {
