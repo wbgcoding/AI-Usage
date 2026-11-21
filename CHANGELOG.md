@@ -571,6 +571,7 @@ The first release of AI-Usage: everything below is new.
   fails the check is deleted and never run.
 - The release link of the update check must be an https page on github.com.
 
+[1.6.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.2...HEAD
 [1.5.2]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.4.0...v1.5.0
