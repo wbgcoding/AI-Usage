@@ -4,7 +4,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0] - unreleased
+## [1.5.2] - 2026-11-21
+
+Clearer settings and statistics in narrow windows, better contrast and a set of fixes.
+
+### Changed
+- Every setting has a tooltip, and long setting labels are shorter or wrap instead of being cut off.
+- In a narrow statistics window the breakdown pickers move to a row of their own below the section title; their labels show only in a wide window.
+- The forecast's model caption, the monthly API value and the empty CSV folder note wrap in narrow layouts.
+- Selected entries in lists, drop-downs and the calendar have stronger contrast.
+- Removing a PC from the statistics names the failure in a message of its own.
+- The setup speaks complete Romanian.
+
+### Fixed
+- A tile whose limit is reached shows its red frame again.
+- The app no longer freezes while it loads the second API price list.
+- The plan forecast compares whole-amount plan prices correctly and also works with the second price list.
+- The weekly CSV fills the previous_period column.
+- Negative or broken request and cost figures in a provider's answer are skipped instead of shown.
+- A new Gemini model listed since mid-November no longer writes a warning to the log.
+- The statistics keep catching up on older sessions when a session folder cannot be read for a moment.
 
 ## [1.5.1] - 2026-11-14
 
@@ -493,7 +512,7 @@ A calmer, tighter widget, a token usage window you can arrange yourself and a da
 - `--new-instance` works only in development builds.
 - An update is installed only when the signed file itself carries a newer version than the running app.
 
-## [1.0.0] - 2026-10-03
+## 1.0.0 - 2026-10-03
 
 The first release of AI-Usage: everything below is new.
 
@@ -548,3 +567,11 @@ The first release of AI-Usage: everything below is new.
 - Downloaded updates are checked against a signature made with the maintainer's key; a file that
   fails the check is deleted and never run.
 - The release link of the update check must be an https page on github.com.
+
+[1.5.2]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.1...v1.5.2
+[1.5.1]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/wbgcoding/AI-Usage/releases/tag/v1.1.0
