@@ -10,7 +10,7 @@ Clearer settings and statistics in narrow windows, better contrast and a set of 
 
 ### Changed
 - Every setting has a tooltip, and long setting labels are shorter or wrap instead of being cut off.
-- In a narrow statistics window the breakdown pickers move to a row of their own below the section title; their labels show only in a wide window.
+- In a narrow statistics window the breakdown pickers move to a row of their own below the section title.
 - The forecast's model caption, the monthly API value and the empty CSV folder note wrap in narrow layouts.
 - Selected entries in lists, drop-downs and the calendar have stronger contrast.
 - Removing a PC from the statistics names the failure in a message of its own.
