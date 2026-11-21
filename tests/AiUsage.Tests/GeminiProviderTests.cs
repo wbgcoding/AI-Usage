@@ -168,6 +168,17 @@ public class GeminiProviderTests : IDisposable
     public void The_answers_seen_when_the_read_was_adapted_need_no_change_note() =>
         Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, ModelQuota));
 
+    // Listed by the per-model answer since 2026-11-17, sharing the other Gemini models' quota.
+    [Fact]
+    public void The_Gemini_4_model_seen_since_November_needs_no_change_note()
+    {
+        var quota = ModelQuota.Replace(
+            """{"tokenType":"WTUS","modelId":"chat_20706","remainingFraction":1},""",
+            """{"resetTime":"2026-10-17T11:40:31Z","modelId":"gemini-4-hydrogen-sonar","remainingFraction":0.97771573},""");
+
+        Assert.Empty(AiUsage.Providers.Parsing.GeminiUsageParser.ChangeNotes(SummaryWithoutGemini, quota));
+    }
+
     [Fact]
     public async Task A_new_Gemini_model_is_reported_through_the_shared_change_log()
     {

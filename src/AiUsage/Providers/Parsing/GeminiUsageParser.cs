@@ -216,6 +216,7 @@ public static class GeminiUsageParser
         "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-flash-thinking", "gemini-2.5-pro",
         "gemini-3-flash", "gemini-3-flash-agent", "gemini-3.1-flash-image", "gemini-3.1-flash-lite",
         "gemini-3.5-flash-extra-low", "gemini-3.5-flash-lite", "gemini-3.5-flash-low", "gemini-3.8-flash-tiered",
+        "gemini-4-hydrogen-sonar",
     };
 
     // Model families the per-model answer is known to hold besides Gemini: other makers' models and
