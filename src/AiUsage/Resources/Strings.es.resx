@@ -752,16 +752,16 @@
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Escala todo el widget, texto y mosaicos por igual.</value></data>
-  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Cuánto se transparenta la ventana del widget. Al 100% es totalmente opaca.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Opacidad de la ventana del widget. Al 100 % es totalmente opaca.</value></data>
   <data name="Tip.Settings.Layout" xml:space="preserve"><value>Apila los mosaicos uno debajo de otro o los coloca uno al lado de otro.</value></data>
   <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Personalizado mantiene el orden que definas. Por uso pone arriba el mosaico más cercano a su límite.</value></data>
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Cuánto historial muestra el gráfico de la ventana principal.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Dibuja el uso de la semana pasada como una línea fina en el gráfico, para comparar.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Muestra el gráfico de uso de este proveedor en la ventana principal.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Mantiene el widget por encima de todas las ventanas, como una ventana normal, o en el escritorio, detrás de todas las ventanas.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Coloca el widget siempre encima, en modo de ventana normal o en el escritorio detrás de todas las ventanas.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Oculta el widget mientras un juego, un vídeo u otra app ocupa toda la pantalla y lo vuelve a mostrar después.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Los clics del ratón atraviesan el widget y llegan a la ventana de detrás. Desactívalo de nuevo desde el icono del área de notificación.</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Con qué frecuencia se lee el uso de las fuentes de este PC. Los proveedores que se leen por internet siguen el ajuste de abajo.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Frecuencia con la que se consultan los datos de uso en este PC. Para las consultas por internet se aplica el ajuste de abajo.</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Avisa cuando el uso de una ventana alcanza este valor. Cada proveedor puede definir su propio valor más abajo.</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Avisa cuando, al ritmo actual, probablemente se alcance un límite dentro de la antelación indicada abajo.</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Con cuánta antelación al límite previsto llega el aviso.</value></data>

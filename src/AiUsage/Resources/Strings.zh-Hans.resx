@@ -707,7 +707,7 @@
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Console 登录已过期，无法读取 API 余额。</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>重新登录</value></data>
   <data name="Settings.TileTokenCost" xml:space="preserve"><value>令牌数旁显示 API 价值</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>在令牌数量旁显示窗口的令牌按 API 价格计算的费用。这是五小时窗口和每周窗口的估算值,需要先开启费用估算。</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>在令牌数量旁显示按 API 价格估算的费用。适用于 5 小时和每周用量周期，需开启费用估算。</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>重置前不久</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>在窗口重置前 10 分钟通知,仅限用量达到 90% 或以上的窗口,每次重置只通知一次。</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}:{1} 将在 {2} 分钟后重置</value></data>
@@ -758,26 +758,26 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>主窗口中的图表显示多长的历史。</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>在图表中用一条细线画出上周的用量,方便对比。</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>在主窗口中显示此服务商的用量图表。</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>让小组件像普通窗口一样位于所有窗口之上,或放在桌面上、位于所有窗口之后。</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>设置小组件的显示层级：始终置顶、普通窗口或在桌面上置于所有窗口之后。</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>当游戏、视频或其他应用占满整个屏幕时隐藏小组件,结束后再显示。</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>鼠标点击会穿过小组件,落到后面的窗口上。可通过通知区域的图标再次关闭。</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>从此电脑上的来源读取用量的频率。通过互联网读取的服务商遵循下方的设置。</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>设置从本机读取用量数据的频率。通过互联网获取的数据使用下方的设置。</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>窗口用量达到此值时通知。每个服务商可以在下方设置自己的值。</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>按当前速度可能在下方的提前时间内达到上限时发出警告。</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>在预计达到上限之前多久发出警告。</value></data>
   <data name="Tip.Settings.LimitReachedAlert" xml:space="preserve"><value>窗口一达到 100% 就通知。</value></data>
   <data name="Tip.Settings.NotifyOnReset" xml:space="preserve"><value>曾触发警告的窗口重置并恢复可用时通知。</value></data>
   <data name="Tip.Settings.QuietHours" xml:space="preserve"><value>在这两个时间之间不显示任何通知。</value></data>
-  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>勾选的日子允许通知,未勾选的日子保持安静。</value></data>
+  <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>仅在勾选的日期发送通知。</value></data>
   <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>开启或关闭此服务商的所有通知。</value></data>
   <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>此服务商的窗口在警告后恢复可用时通知。</value></data>
-  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>为此服务商使用自己的通知值,而不是上方的默认值。</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>为此服务商使用单独的通知阈值，替代上方的默认值。</value></data>
   <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>此窗口的用量达到滑块上的值时通知。</value></data>
   <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>在服务商的磁贴中显示或隐藏此窗口的进度条。</value></data>
-  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>只从此电脑上的文件读取此服务商,跳过它的网页会话。关闭后会恢复网页读取,无需重新登录。</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>仅从本机文件读取该服务商的数据，跳过网页会话。关闭此选项后，无需重新登录即可恢复从网页读取。</value></data>
   <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>统计窗口打开时显示的时间段。</value></data>
   <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>在统计窗口中显示或隐藏此部分。</value></data>
-  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>保存 CSV 文件的星期几。</value></data>
+  <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>每周哪一天保存 CSV 文件。</value></data>
   <data name="Tip.Settings.Stats.WeeklyCsvTime" xml:space="preserve"><value>保存 CSV 文件的时间。</value></data>
   <data name="Tip.Settings.Autostart" xml:space="preserve"><value>你登录 Windows 时启动 AI-Usage。</value></data>
   <data name="Tip.Settings.CheckForUpdates" xml:space="preserve"><value>每天检查一次是否有新版本,有的话会告诉你。</value></data>

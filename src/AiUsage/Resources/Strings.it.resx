@@ -758,10 +758,10 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Quanta cronologia mostra il grafico nella finestra principale.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Disegna l'utilizzo della settimana scorsa come linea sottile nel grafico, per confronto.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Mostra il grafico di utilizzo di questo provider nella finestra principale.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Tiene il widget sopra tutte le finestre, come una finestra normale, oppure sul desktop, dietro tutte le finestre.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Posiziona il widget sempre in primo piano, in modalità finestra normale o sul desktop dietro tutte le finestre.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Nasconde il widget finché un gioco, un video o un'altra app occupa tutto lo schermo, e lo mostra di nuovo dopo.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>I clic del mouse attraversano il widget e arrivano alla finestra dietro. Disattivalo di nuovo dall'icona nell'area di notifica.</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Ogni quanto l'utilizzo viene letto dalle fonti su questo PC. I provider letti via internet seguono l'impostazione qui sotto.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Frequenza di lettura dei dati di utilizzo su questo PC. Per i dati recuperati via Internet si applica l’impostazione qui sotto.</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Avvisa quando l'utilizzo di una finestra raggiunge questo valore. Ogni provider può impostare un proprio valore più in basso.</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Avvisa quando, al ritmo attuale, un limite verrà probabilmente raggiunto entro l'anticipo indicato qui sotto.</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Quanto tempo prima del limite previsto arriva l'avviso.</value></data>

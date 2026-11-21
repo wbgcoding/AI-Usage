@@ -752,16 +752,16 @@
   <data name="Text.Sentences" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Text.DateTime" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Tip.Settings.Zoom" xml:space="preserve"><value>Dimensiona o widget inteiro, texto e blocos por igual.</value></data>
-  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Quão transparente é a janela do widget. Com 100%, ela fica totalmente sólida.</value></data>
+  <data name="Tip.Settings.WindowOpacity" xml:space="preserve"><value>Opacidade da janela do widget. A 100%, ela fica totalmente opaca.</value></data>
   <data name="Tip.Settings.Layout" xml:space="preserve"><value>Empilha os blocos um abaixo do outro ou os coloca lado a lado.</value></data>
   <data name="Tip.Settings.TileOrder" xml:space="preserve"><value>Personalizada mantém a ordem que você definiu. Por uso coloca no topo o bloco mais próximo do limite.</value></data>
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Quanto histórico o gráfico da janela principal mostra.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Desenha o uso da semana passada como uma linha fina no gráfico, para comparar.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Mostra o gráfico de uso deste provedor na janela principal.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Mantém o widget acima de todas as janelas, como uma janela normal, ou na área de trabalho, atrás de todas as janelas.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Posiciona o widget sempre no topo, no modo de janela normal ou na área de trabalho atrás de todas as janelas.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Oculta o widget enquanto um jogo, vídeo ou outro app ocupa a tela inteira e o mostra de novo depois.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Os cliques do mouse atravessam o widget e chegam à janela de trás. Desative de novo pelo ícone na área de notificação.</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Com que frequência o uso é lido das fontes neste PC. Provedores lidos pela internet seguem a configuração abaixo.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Frequência de leitura dos dados de uso neste PC. Para dados consultados pela internet, vale a configuração abaixo.</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Avisa quando o uso de uma janela atinge este valor. Cada provedor pode definir o próprio valor mais abaixo.</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Avisa quando o ritmo atual provavelmente atingirá um limite dentro da antecedência indicada abaixo.</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Com quanta antecedência do limite previsto o aviso chega.</value></data>
@@ -774,7 +774,7 @@
   <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Usa valores de aviso próprios para este provedor em vez do valor padrão acima.</value></data>
   <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Avisa quando o uso desta janela atinge o valor do controle deslizante.</value></data>
   <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Mostra ou oculta a barra desta janela no bloco do provedor.</value></data>
-  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Lê este provedor só de arquivos neste PC e pula a sessão web dele. Ao desativar, a leitura web volta sem novo login.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Lê os dados deste provedor somente dos arquivos neste PC e ignora a sessão web. Ao desativar a opção, a leitura pela web é retomada sem novo login.</value></data>
   <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>O período que a janela de estatísticas mostra ao abrir.</value></data>
   <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Mostra ou oculta esta seção na janela de estatísticas.</value></data>
   <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Dia da semana em que o arquivo CSV é salvo.</value></data>

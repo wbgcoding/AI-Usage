@@ -757,7 +757,7 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Wie viel Verlauf das Diagramm im Hauptfenster zeigt.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Zeichnet den Verbrauch der Vorwoche als dünne Linie ins Diagramm, zum Vergleich.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Zeigt das Verlaufsdiagramm dieses Anbieters im Hauptfenster.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Hält das Widget über allen Fenstern, wie ein normales Fenster oder auf dem Desktop hinter allen Fenstern.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Zeigt das Widget immer im Vordergrund, als normales Fenster oder auf dem Desktop hinter allen Fenstern an.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Blendet das Widget aus, solange ein Spiel, Video oder eine andere App den ganzen Bildschirm füllt, und danach wieder ein.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Mausklicks gehen durch das Widget an das Fenster dahinter. Ausschalten lässt es sich über das Symbol im Infobereich.</value></data>
   <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Wie oft der Verbrauch aus den Quellen auf diesem PC gelesen wird. Anbieter, die über das Internet gelesen werden, folgen der Einstellung darunter.</value></data>

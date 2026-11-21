@@ -758,7 +758,7 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>How much history the chart in the main window shows.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Draws last week's usage as a thin line in the chart, for comparison.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Shows this provider's usage chart in the main window.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Keeps the widget above all windows, like a normal window, or on the desktop behind all windows.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Shows the widget always on top, as a normal window, or on the desktop behind all windows.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Hides the widget while a game, video or other app fills the whole screen, and shows it again afterwards.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Mouse clicks pass through the widget to the window behind it. Switch it off again from the tray icon.</value></data>
   <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>How often usage is read from the sources on this PC. Providers read over the internet follow the setting below.</value></data>

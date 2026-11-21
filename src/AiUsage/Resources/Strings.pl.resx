@@ -758,10 +758,10 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Ile historii pokazuje wykres w oknie głównym.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Rysuje użycie z zeszłego tygodnia jako cienką linię na wykresie, dla porównania.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Pokazuje wykres użycia tego dostawcy w oknie głównym.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Trzyma widżet nad wszystkimi oknami, jak zwykłe okno, albo na pulpicie, za wszystkimi oknami.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Ustawia widżet zawsze na wierzchu, w trybie zwykłego okna lub na pulpicie za wszystkimi oknami.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Ukrywa widżet, gdy gra, film lub inna aplikacja wypełnia cały ekran, a potem pokazuje go ponownie.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Kliknięcia myszą przechodzą przez widżet do okna za nim. Wyłączysz to ponownie z ikony w obszarze powiadomień.</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Jak często użycie jest odczytywane ze źródeł na tym komputerze. Dostawcy odczytywani przez internet stosują ustawienie poniżej.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Określa, jak często odczytywane są dane o użyciu z tego komputera. Do danych pobieranych przez internet stosuje się ustawienie poniżej.</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Powiadamia, gdy użycie okna osiągnie tę wartość. Każdy dostawca może niżej ustawić własną wartość.</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Ostrzega, gdy przy obecnym tempie limit zostanie prawdopodobnie osiągnięty w czasie wyprzedzenia podanym poniżej.</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Ile czasu przed spodziewanym limitem przychodzi ostrzeżenie.</value></data>
@@ -771,10 +771,10 @@
   <data name="Tip.Settings.QuietDay" xml:space="preserve"><value>Zaznaczone dni dopuszczają powiadomienia; niezaznaczone pozostają ciche.</value></data>
   <data name="Tip.Settings.NotificationsForThisProvider" xml:space="preserve"><value>Włącza lub wyłącza wszystkie powiadomienia tego dostawcy.</value></data>
   <data name="Tip.Settings.NotifyOnResetForProvider" xml:space="preserve"><value>Powiadamia, gdy okno tego dostawcy po ostrzeżeniu znów jest wolne.</value></data>
-  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Używa dla tego dostawcy własnych wartości powiadomień zamiast wartości domyślnej powyżej.</value></data>
+  <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Używa progów powiadomień ustawionych dla tego dostawcy zamiast wartości domyślnej powyżej.</value></data>
   <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Powiadamia, gdy użycie tego okna osiągnie wartość ustawioną na suwaku.</value></data>
   <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Pokazuje lub ukrywa pasek tego okna na kafelku dostawcy.</value></data>
-  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Odczytuje tego dostawcę tylko z plików na tym komputerze i pomija jego sesję w sieci. Po wyłączeniu odczyt przez sieć wraca bez ponownego logowania.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Odczytuje dane tego dostawcy tylko z plików na tym komputerze i pomija sesję internetową. Po wyłączeniu opcji odczyt przez internet wznawia się bez ponownego logowania.</value></data>
   <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>Okres, który okno statystyk pokazuje po otwarciu.</value></data>
   <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Pokazuje lub ukrywa tę sekcję w oknie statystyk.</value></data>
   <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Dzień tygodnia, w którym zapisywany jest plik CSV.</value></data>

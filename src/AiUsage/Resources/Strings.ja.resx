@@ -707,7 +707,7 @@
   <data name="Tile.ConsoleExpired.Notice" xml:space="preserve"><value>Consoleのサインインが期限切れのため、API残高を読み取れません。</value></data>
   <data name="Tile.ConsoleExpired.SignIn" xml:space="preserve"><value>再サインイン</value></data>
   <data name="Settings.TileTokenCost" xml:space="preserve"><value>トークン横にAPI換算額を表示</value></data>
-  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>ウィンドウのトークン数の横に、そのトークンをAPI料金で支払った場合の金額を表示します。5時間枠と週間枠の概算で、コスト概算がオンになっている必要があります。</value></data>
+  <data name="Tip.Settings.TileTokenCost" xml:space="preserve"><value>トークン数の横に、API料金で換算した推定額を表示します。5時間枠と週間枠が対象です。コスト概算をオンにしてください。</value></data>
   <data name="Settings.NotifyBeforeReset" xml:space="preserve"><value>リセット直前</value></data>
   <data name="Tip.Settings.NotifyBeforeReset" xml:space="preserve"><value>ウィンドウがリセットされる10分前に通知します。90%以上のウィンドウのみが対象で、リセットごとに1回です。</value></data>
   <data name="Notify.BeforeReset" xml:space="preserve"><value>{0}: {1} は{2}分後にリセットされます</value></data>
@@ -758,7 +758,7 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>メインウィンドウのグラフに表示する履歴の期間です。</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>先週の使用量を細い線でグラフに描き、比較できるようにします。</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>このプロバイダーの使用量グラフをメインウィンドウに表示します。</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>ウィジェットを通常のウィンドウのようにすべてのウィンドウの上に置くか、デスクトップ上のすべてのウィンドウの背面に置きます。</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>ウィジェットの位置を、常に最前面、通常のウィンドウ、またはデスクトップ上の最背面から選べます。</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>ゲームや動画などのアプリが画面全体を占めている間はウィジェットを隠し、終わると再び表示します。</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>マウスのクリックがウィジェットを通り抜けて背後のウィンドウに届きます。オフに戻すには通知領域のアイコンを使います。</value></data>
   <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>このPC上のソースから使用量を読み取る頻度です。インターネット経由で読み取るプロバイダーは下の設定に従います。</value></data>
@@ -774,7 +774,7 @@
   <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>上のデフォルト値の代わりに、このプロバイダー専用の通知値を使います。</value></data>
   <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>このウィンドウの使用量がスライダーの値に達すると通知します。</value></data>
   <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>プロバイダーのタイルにあるこのウィンドウのバーを表示または非表示にします。</value></data>
-  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>このプロバイダーをこのPC上のファイルからのみ読み取り、Webセッションは使いません。オフにすると、再サインインなしでWebからの読み取りを再開します。</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>このプロバイダーのデータをこのPC上のファイルからのみ読み取り、Webセッションは使いません。オフにすると、再サインインなしでWebからの読み取りを再開します。</value></data>
   <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>統計ウィンドウを開いたときに表示される期間です。</value></data>
   <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>統計ウィンドウでこのセクションを表示または非表示にします。</value></data>
   <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>CSVファイルを保存する曜日です。</value></data>

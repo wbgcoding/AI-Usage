@@ -758,10 +758,10 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Hoeveel geschiedenis de grafiek in het hoofdvenster toont.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Tekent het verbruik van vorige week als dunne lijn in de grafiek, ter vergelijking.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Toont de verbruiksgrafiek van deze aanbieder in het hoofdvenster.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Houdt de widget boven alle vensters, zoals een normaal venster, of op het bureaublad achter alle vensters.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Plaatst de widget altijd bovenaan, als normaal venster of op het bureaublad achter alle vensters.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Verbergt de widget zolang een spel, video of andere app het hele scherm vult, en toont hem daarna weer.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Muisklikken gaan dwars door de widget naar het venster erachter. Zet dit weer uit via het pictogram in het systeemvak.</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Hoe vaak het verbruik wordt gelezen uit de bronnen op deze pc. Aanbieders die via internet worden gelezen volgen de instelling hieronder.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Hoe vaak verbruiksgegevens op deze pc worden opgehaald. Voor gegevens die via internet worden opgehaald, geldt de instelling hieronder.</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Meldt wanneer het verbruik van een venster deze waarde bereikt. Elke aanbieder kan verderop een eigen waarde instellen.</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Waarschuwt wanneer het huidige tempo een limiet waarschijnlijk bereikt binnen de voorsprong hieronder.</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Hoe lang voor de verwachte limiet de waarschuwing komt.</value></data>

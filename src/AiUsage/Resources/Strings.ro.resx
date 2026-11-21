@@ -758,10 +758,10 @@
   <data name="Tip.Settings.ChartRange" xml:space="preserve"><value>Cât istoric arată graficul din fereastra principală.</value></data>
   <data name="Tip.Settings.PreviousWeekLine" xml:space="preserve"><value>Desenează consumul săptămânii trecute ca o linie subțire în grafic, pentru comparație.</value></data>
   <data name="Tip.Settings.ChartPerProvider" xml:space="preserve"><value>Arată graficul de consum al acestui furnizor în fereastra principală.</value></data>
-  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Ține widgetul deasupra tuturor ferestrelor, ca o fereastră obișnuită, sau pe desktop, în spatele tuturor ferestrelor.</value></data>
+  <data name="Tip.Settings.WindowLayer" xml:space="preserve"><value>Afișează widgetul permanent în prim-plan, în modul fereastră obișnuită sau pe desktop, în spatele tuturor ferestrelor.</value></data>
   <data name="Tip.Settings.HideOnFullscreen" xml:space="preserve"><value>Ascunde widgetul cât timp un joc, un videoclip sau altă aplicație ocupă tot ecranul și îl afișează din nou după aceea.</value></data>
   <data name="Tip.Settings.ClickThrough" xml:space="preserve"><value>Clicurile de mouse trec prin widget către fereastra din spate. Oprește-l din nou din pictograma din zona de notificare.</value></data>
-  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Cât de des este citit consumul din sursele de pe acest PC. Furnizorii citiți prin internet urmează setarea de mai jos.</value></data>
+  <data name="Tip.Settings.RefreshInterval" xml:space="preserve"><value>Frecvența citirii datelor de consum din sursele de pe acest PC. Pentru datele preluate prin internet se aplică setarea de mai jos.</value></data>
   <data name="Tip.Settings.DefaultThreshold" xml:space="preserve"><value>Notifică atunci când consumul unei ferestre atinge această valoare. Fiecare furnizor își poate seta mai jos propria valoare.</value></data>
   <data name="Tip.Settings.ForecastAlert" xml:space="preserve"><value>Avertizează când ritmul actual va atinge probabil o limită în intervalul de avans de mai jos.</value></data>
   <data name="Tip.Settings.ForecastLead" xml:space="preserve"><value>Cu cât timp înainte de limita estimată vine avertizarea.</value></data>
@@ -774,7 +774,7 @@
   <data name="Tip.Settings.OwnThreshold" xml:space="preserve"><value>Folosește valori proprii de notificare pentru acest furnizor, în loc de valoarea implicită de mai sus.</value></data>
   <data name="Tip.Settings.WindowThreshold" xml:space="preserve"><value>Notifică atunci când consumul acestei ferestre atinge valoarea de pe cursor.</value></data>
   <data name="Tip.Settings.WindowToggle" xml:space="preserve"><value>Arată sau ascunde bara acestei ferestre în cardul furnizorului.</value></data>
-  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Citește acest furnizor doar din fișiere de pe acest PC și sare peste sesiunea lui web. Dezactivarea reia citirea web fără o nouă autentificare.</value></data>
+  <data name="Tip.Settings.LocalOnly" xml:space="preserve"><value>Citește datele acestui furnizor doar din fișierele de pe acest PC și omite sesiunea web. Dezactivează opțiunea pentru a relua citirea online fără o nouă autentificare.</value></data>
   <data name="Tip.Settings.Stats.OpenRange" xml:space="preserve"><value>Perioada pe care o arată fereastra de statistici la deschidere.</value></data>
   <data name="Tip.Settings.Stats.Sections" xml:space="preserve"><value>Arată sau ascunde această secțiune în fereastra de statistici.</value></data>
   <data name="Tip.Settings.Stats.WeeklyCsvDay" xml:space="preserve"><value>Ziua săptămânii în care se salvează fișierul CSV.</value></data>
