@@ -29,7 +29,7 @@ public static class PlanPriceList
     internal const string ChatGptPlusSource = "https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus";
     internal const string ChatGptBusinessSource = "https://help.openai.com/en/articles/8792828-what-is-chatgpt-business";
     internal const string GeminiSource = "https://gemini.google/subscriptions/";
-    private static readonly DateOnly Checked = new(2026, 11, 7);
+    private static readonly DateOnly Checked = new(2026, 11, 21);
 
     private static readonly Dictionary<(string Provider, string Plan), PlanPrice> Prices = new()
     {
