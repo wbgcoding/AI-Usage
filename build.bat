@@ -285,28 +285,9 @@ echo.
 echo Artifacts in %DIST%
 type "%DIST%\SHA256SUMS.txt"
 
-rem The run ends by starting the fresh copy, which doubles as a smoke test: it has to come up and still
-rem be running a few seconds later, the one thing a green test suite cannot prove about the published
-rem single-file executable. --second-instance skips the single-instance handover and gives this copy
-rem its own data folder and its own browser sign-ins, so the everyday copy's settings, history and
-rem sessions are never written from here. A copy an earlier build left running out of dist\ is
-rem closed first, so only the newest one stays. Start-Process hands the new copy none of this
-rem console's handles; the end of the build closes it again after a short countdown.
-rem AIUSAGE_NOSTART=1 skips the start for an automated run. A run with nothing to rebuild lands here
-rem too: the person who started it still wants to see the current build.
-:start_copy
-if not "%AIUSAGE_NOSTART%"=="1" (
-    echo.
-    echo === start ===
-    powershell -NoProfile -Command ^
-        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%\', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } };" ^
-        "$p = Start-Process -FilePath '%DIST%\AI-Usage.exe' -ArgumentList '--second-instance' -PassThru;" ^
-        "Start-Sleep -Seconds 8;" ^
-        "if ($p.HasExited) { Write-Host ('ERROR: the fresh copy exited on its own, code ' + $p.ExitCode + '.'); exit 1 };" ^
-        "exit 0"
-    if !errorlevel! neq 0 goto :error
-    echo The fresh copy is running ^(second instance, own data folder^).
-)
+rem The build never starts the app: a build run by a script or an agent must not open a window.
+rem build+install.bat starts the installed copy and checks that it stays up.
+:after_artifacts
 if "%UPTODATE%"=="1" goto :finish
 
 echo.
@@ -316,13 +297,7 @@ for %%f in ("%DIST%\*.exe" "%DIST%\*.sig" "%DIST%\SHA256SUMS.txt") do if /i not 
 if exist "%BS%" powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Save -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%" -Artifact "!BSART!" >nul 2>&1
 echo BUILD OK - artifacts are in dist\.
 :finish
-rem The started copy is a test run: after the countdown it closes again together with this window
-rem (a keypress ends the countdown early), so a finished build leaves nothing open.
 if "%DOUBLECLICK%"=="1" timeout /t 10
-if not "%AIUSAGE_NOSTART%"=="1" (
-    powershell -NoProfile -Command ^
-        "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith('%DIST%\', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $null = $_.CloseMainWindow(); if (-not $_.WaitForExit(5000)) { $_.Kill() } }"
-)
 endlocal
 exit /b 0
 
@@ -337,4 +312,4 @@ exit /b 1
 :bs_uptodate
 for %%F in ("%BSFRESH%") do echo Build is up to date (last build %%~tF), nothing to rebuild: %%~fF
 set UPTODATE=1
-goto :start_copy
+goto :after_artifacts

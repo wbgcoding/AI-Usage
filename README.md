@@ -231,11 +231,10 @@ and writes everything plus `SHA256SUMS.txt` to `dist\`. With a signing key
 (`.signing\ai-usage-update.pem` or `AIUSAGE_SIGNING_KEY`) it signs each exe; the in-app update
 refuses unsigned builds.
 
-- At the end it starts the fresh copy as a second instance with its own data folder, so your
-  everyday copy keeps running; ten seconds after a success the test copy and the build window close.
-  On a failure the window stays open.
+- The build never starts the app. Ten seconds after a success the build window closes; on a
+  failure it stays open.
 - A second run with nothing changed reports "up to date"; `build.bat --force` or `FORCE=1` rebuilds.
-- For scripts and CI: `AIUSAGE_NOSTART=1` skips the start, `AIUSAGE_NOPAUSE=1` never waits.
+- For scripts and CI: `AIUSAGE_NOPAUSE=1` never waits.
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
 
