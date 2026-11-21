@@ -17,6 +17,7 @@ Clearer settings and statistics in narrow windows, better contrast and a set of 
 - The setup speaks complete Romanian.
 
 ### Fixed
+- The tray tooltip names the weekday of a later reset in the app's language, like the tiles.
 - A tile whose limit is reached shows its red frame again.
 - The app no longer freezes while it loads the second API price list.
 - The plan forecast compares whole-amount plan prices correctly and also works with the second price list.

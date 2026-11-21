@@ -285,8 +285,7 @@ echo.
 echo Artifacts in %DIST%
 type "%DIST%\SHA256SUMS.txt"
 
-rem The build never starts the app: a build run by a script or an agent must not open a window.
-rem build+install.bat starts the installed copy and checks that it stays up.
+rem The build never starts the app.
 :after_artifacts
 if "%UPTODATE%"=="1" goto :finish
 
