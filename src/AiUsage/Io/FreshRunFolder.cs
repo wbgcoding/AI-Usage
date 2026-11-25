@@ -19,7 +19,7 @@ internal static class FreshRunFolder
         try
         {
             Directory.CreateDirectory(root);
-            if (GuardedRead.IsLink(root) || (Path.GetDirectoryName(root) is { Length: > 0 } parent && GuardedRead.IsLink(parent)))
+            if (GuardedRead.IsLink(root) || (Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root)) is { Length: > 0 } parent && GuardedRead.IsLink(parent)))
                 return null;
 
             var folder = Path.Combine(root, Guid.NewGuid().ToString("N"));
@@ -112,9 +112,10 @@ internal static class FreshRunFolder
     }
 
     /// <summary>True when the held <paramref name="lease"/> really is the file at <paramref name="path"/>:
-    /// the handle's final path (every link resolved) equals the path's own final path, and the path is
-    /// not a link. Opening a file follows a link, so one swapped in after an earlier check would be
-    /// read and locked at its target while the path still names the link.</summary>
+    /// the handle's final path (every link resolved) equals the path's own final path, and neither the
+    /// path nor its folder is a link. Opening a file follows a link, so one swapped in after an earlier
+    /// check would be read and locked at its target while the path still names the link; a folder
+    /// swapped for a link makes both final paths the target's, so the equality alone cannot tell.</summary>
     internal static bool LeaseIsAt(FileStream lease, string path)
     {
         try
@@ -123,7 +124,8 @@ internal static class FreshRunFolder
             var actual = GuardedRead.FinalPath(lease.SafeFileHandle);
             return expected is not null && actual is not null
                 && string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)
-                && !GuardedRead.IsLink(path);
+                && !GuardedRead.IsLink(path)
+                && (Path.GetDirectoryName(path) is not { Length: > 0 } folder || !GuardedRead.IsLink(folder));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
