@@ -2615,7 +2615,10 @@ public class SettingsViewModelTests : IDisposable
         IndexPools.Release(data);
         File.Delete(zip);
         var log = new List<string>();
-        Assert.True(RestoreOutcome.Restored == BackupService.ApplyPendingRestore(data, DateTime.Now, log.Add), string.Join(" | ", log));
+        RestoreOutcome outcome;
+        lock (BackupSwapGate.Lock)
+            outcome = BackupService.ApplyPendingRestore(data, DateTime.Now, log.Add);
+        Assert.True(RestoreOutcome.Restored == outcome, string.Join(" | ", log));
         Assert.False(File.Exists(copy));
         Assert.False(File.Exists(Path.Combine(data, "restore-pending.txt")));
         IndexPools.Release(data);

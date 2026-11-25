@@ -11,7 +11,6 @@ namespace AiUsage.Tests;
 /// <summary>The backup zip: what goes in, what a restore accepts, and what it never does. Every path
 /// lives under the shared test root; nothing here touches the real data folder.</summary>
 [Trait("Layer", "Integration")]
-[Collection(SharedStateTestsCollection.Name)]
 public sealed class BackupServiceTests : IDisposable
 {
     private const string IdA = "11111111-1111-1111-1111-111111111111";
@@ -890,6 +889,8 @@ public sealed class BackupServiceTests : IDisposable
         BackupService.SchedulePendingRestore(target, zip, BackupService.PlanSetAside(target, LocalNow));
 
         var reached = false;
+        // The hook is one process-wide static: nothing else may run a restore while it is set.
+        Monitor.Enter(BackupSwapGate.Lock);
         BackupService.BeforeSwapMove = step =>
         {
             if (step != failAt)
@@ -927,6 +928,7 @@ public sealed class BackupServiceTests : IDisposable
         finally
         {
             BackupService.BeforeSwapMove = null;
+            Monitor.Exit(BackupSwapGate.Lock);
         }
 
         if (!reached)
