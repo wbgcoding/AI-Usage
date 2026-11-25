@@ -97,7 +97,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     internal static ushort? ReadPeMachine(Stream stream)
     {
         Span<byte> dos = stackalloc byte[0x40];
-        if (stream.Read(dos) < dos.Length || dos[0] != (byte)'M' || dos[1] != (byte)'Z')
+        if (stream.ReadAtLeast(dos, dos.Length, throwOnEndOfStream: false) < dos.Length || dos[0] != (byte)'M' || dos[1] != (byte)'Z')
             return null;
 
         var peOffset = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(dos[0x3C..]);
@@ -106,7 +106,7 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
         stream.Position = peOffset;
         Span<byte> pe = stackalloc byte[6];
-        if (stream.Read(pe) < pe.Length || pe[0] != (byte)'P' || pe[1] != (byte)'E' || pe[2] != 0 || pe[3] != 0)
+        if (stream.ReadAtLeast(pe, pe.Length, throwOnEndOfStream: false) < pe.Length || pe[0] != (byte)'P' || pe[1] != (byte)'E' || pe[2] != 0 || pe[3] != 0)
             return null;
 
         return System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(pe[4..]);
@@ -143,7 +143,8 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
     {
         // The caller holds its lock on the file until this returns, so the process is created from the
         // verified file; a declined administrator prompt throws before anything is ended.
-        Process.Start(BuildSetupStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)))?.Dispose();
+        using var setup = Process.Start(BuildSetupStartInfo(setupPath, BuildSetupArguments(Environment.ProcessPath)))
+            ?? throw new InvalidOperationException("The setup program did not start.");
 
         Exit();
     }
