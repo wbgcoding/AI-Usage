@@ -42,7 +42,7 @@ internal static class WindowsCredential
                 return null;
 
             var credential = Marshal.PtrToStructure<CREDENTIALW>(handle);
-            if (credential.CredentialBlobSize == 0 || credential.CredentialBlob == IntPtr.Zero)
+            if (credential.CredentialBlobSize <= 0 || credential.CredentialBlob == IntPtr.Zero)
                 return null;
 
             var bytes = new byte[credential.CredentialBlobSize];
