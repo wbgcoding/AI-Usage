@@ -263,6 +263,18 @@ public class CostEstimateTests
             now ?? (() => DateTimeOffset.UtcNow), () => networkAllowed, handler);
 
     [Fact]
+    public async Task Refresh_swallows_a_failing_listener_and_can_run_again()
+    {
+        var service = Service(new FakeHandler(ForUrl), TempDirectory());
+        service.Changed += () => throw new InvalidOperationException("listener");
+
+        await service.RefreshAsync();
+
+        Assert.False(service.Prices.IsEmpty);
+        await service.RefreshAsync();
+    }
+
+    [Fact]
     public async Task Refresh_loads_the_price_list_from_the_one_host_and_caches_it()
     {
         var directory = TempDirectory();

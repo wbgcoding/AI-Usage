@@ -226,6 +226,11 @@ public sealed class CostService
             // asked: the caller is usually the UI thread, which must not carry any of it.
             await Task.Run(() => RefreshCoreAsync(ct), CancellationToken.None);
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Callers start this without awaiting it; the old prices stay and the next call tries again.
+            LogService.Shared.Log("WARN", $"Price refresh failed: {ex.GetType().Name}");
+        }
         finally
         {
             Interlocked.Exchange(ref _refreshing, 0);
