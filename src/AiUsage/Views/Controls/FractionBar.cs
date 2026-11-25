@@ -9,8 +9,6 @@ namespace AiUsage.Views.Controls;
 /// </summary>
 public sealed class FractionBar : FrameworkElement
 {
-    /// <summary>Same floor the usage bars keep, so a barely used window still shows a mark.</summary>
-    private const double MinFilledWidth = 3;
 
     public static readonly DependencyProperty FractionProperty = DependencyProperty.Register(
         nameof(Fraction), typeof(double), typeof(FractionBar),
@@ -63,13 +61,6 @@ public sealed class FractionBar : FrameworkElement
         set => SetValue(OutlineThicknessProperty, value);
     }
 
-    /// <summary>The width of the filled part on a track <paramref name="trackWidth"/> wide.</summary>
-    internal static double FilledWidth(double fraction, double trackWidth)
-    {
-        if (!(fraction > 0) || trackWidth <= 0)
-            return 0;
-        return Math.Min(trackWidth, Math.Max(MinFilledWidth, trackWidth * Math.Min(fraction, 1)));
-    }
 
     protected override Size MeasureOverride(Size availableSize) =>
         new(double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width, Height is > 0 and < double.PositiveInfinity ? Height : 8);
@@ -85,7 +76,7 @@ public sealed class FractionBar : FrameworkElement
         var outline = Outline is { } brush && OutlineThickness.Left > 0 ? ChartDrawCache.PenFor(brush, OutlineThickness.Left) : null;
         drawingContext.DrawRoundedRectangle(Track, outline, new Rect(0, 0, width, height), radius, radius);
 
-        var filled = FilledWidth(Fraction, width);
+        var filled = BarGeometry.FilledWidth(Fraction, width);
         if (filled <= 0 || Fill is null)
             return;
 

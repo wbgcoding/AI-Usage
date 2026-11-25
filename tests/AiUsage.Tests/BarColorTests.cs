@@ -205,7 +205,7 @@ public class BarColorTests
     [InlineData(0.2, 300, 3)] // the floor the plain fill keeps
     [InlineData(100, 300, 300)]
     public void The_filled_width_is_the_used_percent_of_the_track_with_a_floor(double used, double track, double expected) =>
-        Assert.Equal(expected, AiUsage.Views.Controls.SegmentedBarFill.FilledWidth(used, track), 6);
+        Assert.Equal(expected, AiUsage.Views.Controls.BarGeometry.FilledWidth(used / 100.0, track), 6);
 
     [Fact]
     public void The_store_returns_the_window_slice_by_model_and_agent_and_their_sum_equals_the_plain_sum()
