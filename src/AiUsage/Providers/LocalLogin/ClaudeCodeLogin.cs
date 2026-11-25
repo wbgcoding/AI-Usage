@@ -69,13 +69,14 @@ internal static class ClaudeCodeLogin
     internal static async Task<ClaudeCodeUsage> FetchAsync(string credentialsPath, string? profilePath, CancellationToken ct)
     {
         var (token, tokenReason, credentialsPlan) = ReadAccessToken(credentialsPath);
-        var plan = CurrentPlan(credentialsPlan, profilePath);
         if (token is null)
         {
             return tokenReason == ClaudeCodeLoginReason.Unreadable
                 ? new ClaudeCodeUsage(LocalLoginOutcome.Failed, [], tokenReason)
                 : new ClaudeCodeUsage(LocalLoginOutcome.NotSignedIn, [], tokenReason);
         }
+
+        var plan = CurrentPlan(credentialsPlan, profilePath);
 
         var response = await LocalLoginHttp.SendAsync(
             HttpMethod.Get, UsageUrl, token, jsonBody: null, UserAgent, ct,
