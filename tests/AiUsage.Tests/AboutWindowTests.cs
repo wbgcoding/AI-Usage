@@ -184,7 +184,7 @@ public class AboutWindowTests
     {
         var group = (StackPanel)window.AboutReadLocationsPanel.Children[0];
         var header = (Button)group.Children[0];
-        var content = (StackPanel)header.Content;
+        var content = (Panel)header.Content;
         var texts = (StackPanel)content.Children[1];
         return ((TextBlock)texts.Children[1]).Text;
     }

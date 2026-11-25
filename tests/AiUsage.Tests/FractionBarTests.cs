@@ -15,7 +15,7 @@ public class FractionBarTests
     [InlineData(0.001, 200.0, 3.0)]
     [InlineData(0.5, 0.0, 0.0)]
     public void The_fill_is_the_fraction_of_the_track_with_a_floor_so_a_small_value_stays_visible(double fraction, double track, double expected) =>
-        Assert.Equal(expected, FractionBar.FilledWidth(fraction, track), 6);
+        Assert.Equal(expected, BarGeometry.FilledWidth(fraction, track), 6);
 
     [Theory]
     [InlineData(2, 800.0, null, 2)]

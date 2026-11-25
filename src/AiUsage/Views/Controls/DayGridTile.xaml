@@ -17,13 +17,8 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <!-- Same shape as ProviderTile's own root: same background/border/radius/padding/min width, so
-         the day-grid tile reads as one more tile among the provider ones, never a special case. -->
-    <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" BorderBrush="{DynamicResource Border}"
-            BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}"
-            MinWidth="{StaticResource Tile.MinWidth}"
-            TextElement.Foreground="{DynamicResource Text.Primary}"
-            Focusable="True"
+    <!-- The same frame as a provider tile, so the day-grid tile reads as one more tile among them. -->
+    <Border x:Name="TileRoot" Style="{StaticResource TileFrame}"
             AutomationProperties.Name="{Binding HeaderDisplayName}"
             SizeChanged="TileRoot_SizeChanged" Loaded="TileRoot_Loaded">
         <!-- The one entry this tile needs: no usage page, no sign-out, no diagnostics - it is not a

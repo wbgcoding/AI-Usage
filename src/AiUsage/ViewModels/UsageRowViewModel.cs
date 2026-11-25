@@ -476,7 +476,7 @@ public partial class UsageRowViewModel : ObservableObject
 
     /// <summary>Non-empty at every density once a reset instant is known - whether it actually fits
     /// next to the percent value is a layout question now, answered by the tile's own width
-    /// (<see cref="Views.Controls.TileWidthToVisibilityConverter"/> on the Mini row), not by the
+    /// (<see cref="Views.Controls.AtLeastWidthConverter"/> on the Mini row), not by the
     /// density this row was handed. Shows through the limit too: the clock is the one segment that
     /// answers "when exactly" regardless of whether the row also names the limit.</summary>
     private string ComputeClockText(DateTimeOffset now) => CountdownFormatter.FormatClock(_resetsAt, now);

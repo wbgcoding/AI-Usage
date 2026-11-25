@@ -55,6 +55,9 @@
     <!-- An L-shaped axis with a rising zigzag line: two parallel climbs around one short dip, the second one long and ending in an arrowhead at the top right. -->
     <Geometry x:Key="Icon.Stats">F1 M3,3 L5,3 L5,19 L21,19 L21,21 L3,21 Z M6.22,16.37 L11.06,10.38 L13.67,12.58 L17.83,7.43 L19.39,8.68 L13.93,15.42 L11.34,13.22 L7.78,17.63 Z M16.06,6.76 L21,5.1 L20.41,10.28 Z</Geometry>
 
+    <!-- A check mark on its own 12x10 grid, drawn as a stroked line (not a filled shape) by the welcome list's "found" row. -->
+    <Geometry x:Key="Icon.Check">M1,5 L4.5,8.5 L11,1.5</Geometry>
+
     <!-- The product mark: the real logo at 256 px (tools/make-icon.py writes it next to app.ico).
          Drawn at 48 px or less, so high-quality downsampling keeps it crisp at every DPI, where the
          .ico would hand WPF its nearest smaller frame to upscale. -->

@@ -215,8 +215,8 @@ public class StatsMinimumWidthTests
         var (label, figure, shortLabel) = RunOnSta(() =>
         {
             var typeface = new Typeface("Segoe UI");
-            var (l, f) = StatsRingChart.LegendEntryTexts("Claude Sonnet 4.5 with an unreasonably long name", "45 %", 110, 1.0, typeface, Brushes.Black);
-            var (s, _) = StatsRingChart.LegendEntryTexts("Codex", "45 %", 110, 1.0, typeface, Brushes.Black);
+            var (l, f) = StatsRingChart.LegendEntryTexts("Claude Sonnet 4.5 with an unreasonably long name", "45 %", 110, 1.0, typeface, Brushes.Black, 10);
+            var (s, _) = StatsRingChart.LegendEntryTexts("Codex", "45 %", 110, 1.0, typeface, Brushes.Black, 10);
             return (l, f, s);
         });
 

@@ -283,7 +283,6 @@ public sealed class StatsRingChart : FrameworkElement
     private const double LegendGap = 12;
     private const double MinLegendWidth = 100;
     private const double LegendRowHeight = 18;
-    private const double LegendBaseFontSize = 10;
 
     /// <summary>The ring's diameter and where the legend starts: the legend sits right after the ring
     /// and gets all the rest of the width; a narrow control shrinks the ring before the legend loses
@@ -661,7 +660,7 @@ public sealed class StatsRingChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.BodySize(this), TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
@@ -717,8 +716,8 @@ public sealed class StatsRingChart : FrameworkElement
         DrawingContext dc, IReadOnlyList<Slice> slices,
         Point center, double radius, double strokeThickness, double textScale, double dpi, Typeface typeface)
     {
-        var nameBaseSize = ChartTheme.FontSize(this, "Font.Size.Micro", 10) * textScale;
-        var valueBaseSize = ChartTheme.FontSize(this, "Font.Size.Strong", 13) * textScale;
+        var nameBaseSize = ChartTheme.MicroSize(this) * textScale;
+        var valueBaseSize = ChartTheme.StrongSize(this) * textScale;
         var innerDiameter = Math.Max(0, 2 * (radius - strokeThickness / 2) - CenterTextPadding * 2);
         if (innerDiameter <= 0)
             return;
@@ -887,7 +886,7 @@ public sealed class StatsRingChart : FrameworkElement
 
             var percentText = slices[i].LegendText ?? StatusTextMap.FormatShare(slices[i].Percent, LocalizationService.Instance.DisplayCulture);
             var legendWidth = Math.Max(1, width - x - swatch - 8);
-            var fontSize = ChartTheme.FontSize(this, "Font.Size.Micro", 10) * textScale;
+            var fontSize = ChartTheme.MicroSize(this) * textScale;
             var figure = LegendFigure(slices[i].Label, percentText, slices[i].CostText, legendWidth, dpi, typeface, fontSize);
             var (label, percent) = LegendEntryTexts(slices[i].Label, figure, legendWidth, dpi, typeface, TextBrush, fontSize);
             var textX = x + swatch + 4 * textScale;
@@ -917,7 +916,7 @@ public sealed class StatsRingChart : FrameworkElement
     /// <paramref name="maxWidth"/>, and " · figure" right after it. The figure is the number the ring
     /// exists to show, so it is laid out first and never cut; only the label gives way.</summary>
     internal static (FormattedText Label, FormattedText Figure) LegendEntryTexts(
-        string label, string figure, double maxWidth, double dpi, Typeface typeface, Brush brush, double fontSize = LegendBaseFontSize)
+        string label, string figure, double maxWidth, double dpi, Typeface typeface, Brush brush, double fontSize)
     {
         FormattedText Make(string text, double limit) =>
             new(text, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, fontSize, brush, dpi)

@@ -17,7 +17,7 @@ namespace AiUsage.Views;
 /// <summary>
 /// The Settings window. Everything testable lives in
 /// <see cref="SettingsViewModel"/>; this code-behind only owns what genuinely needs a live window or
-/// an OS-level side effect (the reset confirmation dialog, the About window, and Claude's
+/// an OS-level side effect (the reset confirmation dialog, the About section, and Claude's
 /// sign-in/out - the same split MainWindow.xaml.cs already uses for tray/window glue).
 /// </summary>
 public partial class SettingsWindow : Window
@@ -55,13 +55,13 @@ public partial class SettingsWindow : Window
 
         // The About page is filled from code with resolved strings and brushes, so a language or theme
         // switch while this window is open has to rebuild it.
-        LocalizationService.Instance.PropertyChanged += OnAboutInputsChanged;
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Applied += OnAboutInputsChanged;
         // A background check can find an update while this window is open.
         _viewModel.Main.Update.PropertyChanged += OnUpdateNoticeChanged;
         Closed += (_, _) =>
         {
-            LocalizationService.Instance.PropertyChanged -= OnAboutInputsChanged;
+            LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
             ThemeService.Applied -= OnAboutInputsChanged;
             _viewModel.Main.Update.PropertyChanged -= OnUpdateNoticeChanged;
         };
@@ -79,6 +79,15 @@ public partial class SettingsWindow : Window
         }
 
         ApplyAboutUpdateStatus();
+    }
+
+    // Only the indexer change a language switch raises (or a whole-object change) rebuilds the page.
+    private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName) && e.PropertyName != "Item[]")
+            return;
+
+        OnAboutInputsChanged(sender, e);
     }
 
     private void OnAboutInputsChanged(object? sender, EventArgs e)
@@ -383,8 +392,8 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>
-    /// Fills the About category panel once, the same facts the old standalone About window showed
-    /// (see AppInfo) - nothing here duplicates a literal AppInfo already carries.
+    /// Fills the About category panel once: product name, version, links, read locations and update
+    /// status (see AppInfo) - nothing here duplicates a literal AppInfo already carries.
     /// </summary>
     private void InitializeAboutSection()
     {
@@ -522,15 +531,18 @@ public partial class SettingsWindow : Window
         {
             Text = provider.DisplayName,
             FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
         });
         headerText.Children.Add(new System.Windows.Controls.TextBlock
         {
             Text = caption,
             FontSize = (double)FindResource("Font.Size.Small"),
             Foreground = (Brush)FindResource("Text.Secondary"),
+            TextWrapping = TextWrapping.Wrap,
         });
 
-        var headerContent = new System.Windows.Controls.StackPanel { Orientation = Orientation.Horizontal };
+        var headerContent = new System.Windows.Controls.DockPanel();
+        System.Windows.Controls.DockPanel.SetDock(chevron, System.Windows.Controls.Dock.Left);
         headerContent.Children.Add(chevron);
         headerContent.Children.Add(headerText);
 

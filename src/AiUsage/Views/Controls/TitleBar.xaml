@@ -12,7 +12,7 @@
              below: the indexer binding re-evaluates every such binding at once the instant
              LocalizationService raises its "Item[]" change, no window recreation needed. -->
         <!-- The icon takes the button's own Foreground, so the hover trigger below brightens the
-             drawing exactly the way it used to brighten the glyph. -->
+             drawing. -->
         <Style x:Key="TitleBarIcon" TargetType="Path">
             <Setter Property="Width" Value="16"/>
             <Setter Property="Height" Value="16"/>
@@ -56,10 +56,10 @@
     <Border Background="{DynamicResource Bg.TitleBar}" CornerRadius="{StaticResource Radius.Window.Top}"
             MouseLeftButtonDown="TitleArea_MouseLeftButtonDown"
             ContextMenuOpening="TitleGrid_ContextMenuOpening">
-        <!-- The window menu AllowsTransparency=True cost the app: right-click or Alt+Space (see
-             MainWindow's PreviewKeyDown) opens it, ContextMenuOpening below refuses it entirely for
-             every window that leaves ShowWindowMenu at its default of False. Only entries the app
-             actually supports - no "Move" or "Size", meaningless without the native resize loop. -->
+        <!-- This window menu replaces the system menu that AllowsTransparency=True removes. Right-click
+             or Alt+Space (see MainWindow's PreviewKeyDown) opens it; ContextMenuOpening below refuses it
+             for every window that leaves ShowWindowMenu at its default of False. It lists only the
+             entries the app supports - no "Move" or "Size", meaningless without the native resize loop. -->
         <Border.ContextMenu>
             <ContextMenu x:Name="WindowMenu">
                 <MenuItem x:Name="RefreshMenuItem" InputGestureText="F5"
@@ -159,8 +159,6 @@
                                                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"/>
                                             </StackPanel>
                                         </Button>
-                                        <!-- Reorder arrows: drag-and-drop was considered and dropped - dragging inside this
-                                             frameless window would fight the window's own drag-move gesture (see TitleArea_MouseLeftButtonDown). -->
                                         <Button Grid.Column="1" Style="{StaticResource AiUsageQuietButton}"
                                                 Padding="4,4" MinHeight="32" MinWidth="28" Margin="4,0,0,0" HorizontalContentAlignment="Center" Cursor="Hand"
                                                 Command="{Binding DataContext.MoveProviderUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"

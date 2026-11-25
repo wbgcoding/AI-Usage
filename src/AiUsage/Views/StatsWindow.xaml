@@ -37,7 +37,7 @@
             <controls:TooltipLinesConverter x:Key="TooltipLines"/>
             <controls:FigureCardColumnsConverter x:Key="FigureCardColumns"/>
             <controls:AtLeastWidthConverter x:Key="AtLeastWidth"/>
-            <controls:PercentOffsetConverter x:Key="LimitTickOffset"/>
+            <controls:MarkerPositionConverter x:Key="LimitTickOffset"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
             <Setter Property="FontFamily" Value="{DynamicResource Font.Ui}"/>
@@ -46,6 +46,34 @@
                  than being cut off in the middle of a word. -->
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+        <!-- A filter a click on a model or a project set: the chip, its text and the button that lifts it. -->
+        <Style x:Key="FilterChip" TargetType="Border">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource Bg.Raised}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}"/>
+        </Style>
+        <Style x:Key="FilterChipText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="MaxWidth" Value="320"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="controls:TrimmedToolTip.Enabled" Value="True"/>
+            <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}"/>
+        </Style>
+        <Style x:Key="FilterChipRemove" TargetType="Button" BasedOn="{StaticResource AiUsageQuietButton}">
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="ToolTip" Value="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"/>
+        </Style>
+        <!-- The session table's fixed columns: the header row and every row use the same widths. -->
+        <GridLength x:Key="SessionDurationWidth">96</GridLength>
+        <GridLength x:Key="SessionTokensWidth">88</GridLength>
         <!-- The name before each of the breakdown section's two pickers. -->
         <Style x:Key="PickerLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -204,35 +232,19 @@
 
                         <!-- The filters a click on a model or a project set; one chip each, with a button to lift it. -->
                         <WrapPanel Margin="0,0,0,12" Visibility="{Binding HasAnyFilter, Converter={StaticResource BoolToVis}}">
-                                <Border Margin="0,0,8,0" Padding="8,4" VerticalAlignment="Center"
-                                        Visibility="{Binding HasModelFilter, Converter={StaticResource BoolToVis}}"
-                                        Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
+                                <Border Style="{StaticResource FilterChip}" Visibility="{Binding HasModelFilter, Converter={StaticResource BoolToVis}}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding ModelFilterText}" VerticalAlignment="Center" MaxWidth="320"
-                                                   TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
-                                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
-                                        <Button Command="{Binding ClearModelFilterCommand}" Margin="8,0,0,0" Padding="4,0"
-                                                Style="{StaticResource AiUsageQuietButton}" VerticalAlignment="Center"
-                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"
-                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}">
+                                        <TextBlock Text="{Binding ModelFilterText}" Style="{StaticResource FilterChipText}"/>
+                                        <Button Command="{Binding ClearModelFilterCommand}" Style="{StaticResource FilterChipRemove}">
                                             <Path Width="10" Height="10" Stretch="Uniform" Data="{StaticResource Icon.Close}"
                                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                         </Button>
                                     </StackPanel>
                                 </Border>
-                                <Border Margin="0,0,8,0" Padding="8,4" VerticalAlignment="Center"
-                                        Visibility="{Binding HasProjectFilter, Converter={StaticResource BoolToVis}}"
-                                        Background="{DynamicResource Bg.Raised}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="{StaticResource Radius.Control}">
+                                <Border Style="{StaticResource FilterChip}" Visibility="{Binding HasProjectFilter, Converter={StaticResource BoolToVis}}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding ProjectFilterText}" VerticalAlignment="Center" MaxWidth="320"
-                                                   TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
-                                                   FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"/>
-                                        <Button Command="{Binding ClearProjectFilterCommand}" Margin="8,0,0,0" Padding="4,0"
-                                                Style="{StaticResource AiUsageQuietButton}" VerticalAlignment="Center"
-                                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"
-                                                AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}">
+                                        <TextBlock Text="{Binding ProjectFilterText}" Style="{StaticResource FilterChipText}"/>
+                                        <Button Command="{Binding ClearProjectFilterCommand}" Style="{StaticResource FilterChipRemove}">
                                             <Path Width="10" Height="10" Stretch="Uniform" Data="{StaticResource Icon.Close}"
                                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                         </Button>
@@ -640,8 +652,8 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
-                                            <ColumnDefinition Width="96"/>
-                                            <ColumnDefinition Width="88"/>
+                                            <ColumnDefinition Width="{StaticResource SessionDurationWidth}"/>
+                                            <ColumnDefinition Width="{StaticResource SessionTokensWidth}"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
@@ -682,8 +694,8 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
-                                                        <ColumnDefinition Width="96"/>
-                                                        <ColumnDefinition Width="88"/>
+                                                        <ColumnDefinition Width="{StaticResource SessionDurationWidth}"/>
+                                                        <ColumnDefinition Width="{StaticResource SessionTokensWidth}"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Grid.Column="0">
                                                         <TextBlock Text="{Binding Project}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
@@ -944,16 +956,12 @@
                                                                                 </ProgressBar>
                                                                                 <Rectangle Width="2" HorizontalAlignment="Left" IsHitTestVisible="False"
                                                                                            Fill="{DynamicResource Text.Primary}">
-                                                                                    <Rectangle.RenderTransform>
-                                                                                        <TranslateTransform>
-                                                                                            <TranslateTransform.X>
-                                                                                                <MultiBinding Converter="{StaticResource LimitTickOffset}">
-                                                                                                    <Binding Path="AveragePeakPercent"/>
-                                                                                                    <Binding ElementName="LimitTrack" Path="ActualWidth"/>
-                                                                                                </MultiBinding>
-                                                                                            </TranslateTransform.X>
-                                                                                        </TranslateTransform>
-                                                                                    </Rectangle.RenderTransform>
+                                                                                    <Rectangle.Margin>
+                                                                                        <MultiBinding Converter="{StaticResource LimitTickOffset}" ConverterParameter="2">
+                                                                                            <Binding Path="AveragePeakPercent"/>
+                                                                                            <Binding ElementName="LimitTrack" Path="ActualWidth"/>
+                                                                                        </MultiBinding>
+                                                                                    </Rectangle.Margin>
                                                                                 </Rectangle>
                                                                             </Grid>
                                                                             <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource Text.Secondary}"
@@ -1001,13 +1009,14 @@
                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                              ToolTip="{Binding ToolTipText, Converter={StaticResource NullIfEmpty}}"
                                                              AutomationProperties.Name="{Binding Name}">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"/>
-                                                        <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center"
+                                                    <DockPanel>
+                                                        <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" TextWrapping="NoWrap"/>
+                                                        <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                                    controls:TrimmedToolTip.Enabled="True"
                                                                    FontWeight="Normal" FontSize="{StaticResource Font.Size.Small}"
                                                                    Foreground="{DynamicResource Text.Secondary}"
                                                                    Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
-                                                    </StackPanel>
+                                                    </DockPanel>
                                                 </RadioButton>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -1017,15 +1026,16 @@
                                                   Visibility="{Binding HasSingleForecast, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding Name}" Opacity="{Binding Opacity}"
+                                                <DockPanel AutomationProperties.Name="{Binding Name}" Opacity="{Binding Opacity}"
                                                             Background="Transparent" ToolTip="{Binding ToolTipText, Converter={StaticResource NullIfEmpty}}">
-                                                    <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Brush}"
+                                                    <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Brush}"
                                                              views:AuditMark.OffTheme="dot in the provider's chart colour"/>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
-                                                    <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center"
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                                controls:TrimmedToolTip.Enabled="True"
                                                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                                                Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
-                                                </StackPanel>
+                                                </DockPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

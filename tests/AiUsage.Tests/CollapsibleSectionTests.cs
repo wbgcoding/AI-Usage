@@ -3,6 +3,8 @@ using System.Reflection;
 using System.Threading;
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -29,7 +31,7 @@ public class CollapsibleSectionTests
     private sealed record State(
         bool ContentVisible, bool SummaryVisible, bool ChevronPointsUp, string AutomationName,
         object? RootToolTip, object? HeadingToolTip, PlacementMode HeadingToolTipPlacement, string HelpText,
-        bool IsNarrow = false, bool HeaderContentVisible = false);
+        bool IsNarrow = false, bool HeaderContentVisible = false, ExpandCollapseState? HeaderExpandState = null);
 
     [Fact]
     public void Expanded_shows_the_content_and_hides_the_summary_with_the_chevron_pointing_up()
@@ -57,6 +59,16 @@ public class CollapsibleSectionTests
         var state = Build(isExpanded: true);
 
         Assert.Equal("Per day", state.AutomationName);
+    }
+
+    [Theory]
+    [InlineData(true, ExpandCollapseState.Expanded)]
+    [InlineData(false, ExpandCollapseState.Collapsed)]
+    public void The_focusable_header_exposes_the_expanded_state_to_screen_readers(bool isExpanded, ExpandCollapseState expected)
+    {
+        var state = Build(isExpanded);
+
+        Assert.Equal(expected, state.HeaderExpandState);
     }
 
     /// <summary>The bug this covers: a ToolTip set on the whole <see cref="CollapsibleSection"/>
@@ -269,7 +281,8 @@ public class CollapsibleSectionTests
                 ToolTipService.GetPlacement(headingText),
                 AutomationProperties.GetHelpText(section),
                 section.IsNarrow,
-                ((ContentPresenter)section.Template.FindName("PART_HeaderContent", section)!).Visibility == Visibility.Visible);
+                ((ContentPresenter)section.Template.FindName("PART_HeaderContent", section)!).Visibility == Visibility.Visible,
+                ((IExpandCollapseProvider)UIElementAutomationPeer.CreatePeerForElement(headerButton).GetPattern(PatternInterface.ExpandCollapse)!).ExpandCollapseState);
         }
         finally
         {

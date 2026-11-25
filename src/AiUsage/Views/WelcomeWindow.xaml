@@ -72,7 +72,7 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                                                     Visibility="{Binding IsFound, Converter={StaticResource BoolToVis}}">
-                                            <Path Data="M1,5 L4.5,8.5 L11,1.5" Stroke="{DynamicResource Level.Ok}" StrokeThickness="2"
+                                            <Path Data="{StaticResource Icon.Check}" Stroke="{DynamicResource Level.Ok}" StrokeThickness="2"
                                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                                   Width="12" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                             <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Found]}"
@@ -91,7 +91,7 @@
                     </StackPanel>
                 </ScrollViewer>
                 <Button x:Name="StartButton" Grid.Row="1" Style="{StaticResource AiUsageButton}" Padding="16,4"
-                        HorizontalAlignment="Right" Margin="24" IsDefault="True"
+                        HorizontalAlignment="Right" Margin="{StaticResource Space.Xl}" IsDefault="True"
                         Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Welcome.Start]}"
                         Click="StartButton_Click"/>
             </Grid>

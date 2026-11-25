@@ -1598,6 +1598,16 @@ public class StatsBarChartGeometryTests
         Assert.Equal("2026-01-01: 150; 2026-01-02: 40", summary);
     }
 
+    [Fact]
+    public void BuildAccessibleSummaryWritesATotalLikeTheTooltipDoes()
+    {
+        StatsBarChart.Bar[] bars = [new("2026-01-01", [1_000_000, 234_567])];
+        var grouped = 1_234_567L.ToString("N0", LocalizationService.Instance.DisplayCulture);
+
+        Assert.Equal("2026-01-01: " + grouped, StatsBarChart.BuildAccessibleSummary(bars));
+        Assert.Equal("2026-01-01: " + TextCompose.NumberUnit(grouped, "tokens"), StatsBarChart.BuildAccessibleSummary(bars, "tokens"));
+    }
+
     // The left/bottom axis bands are now sized to what the data actually needs (the widest Y axis
     // figure, the X axis label's own line height) instead of a fixed guess wide enough for the worst
     // case - these two pin the exact arithmetic that band is built from.

@@ -72,7 +72,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="PART_HeaderButton" Grid.Column="0" Style="{StaticResource SectionHeaderButtonStyle}"
+                        <controls:SectionHeaderButton x:Name="PART_HeaderButton" Grid.Column="0" Style="{StaticResource SectionHeaderButtonStyle}"
                                 AutomationProperties.Name="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -96,7 +96,7 @@
                                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                                            VerticalAlignment="Center" Margin="8,0,0,0" TextTrimming="CharacterEllipsis"/>
                             </Grid>
-                        </Button>
+                        </controls:SectionHeaderButton>
                         <ContentPresenter x:Name="PART_HeaderContent" Grid.Column="1" Content="{TemplateBinding HeaderContent}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         </Grid>
                         </Border>

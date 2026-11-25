@@ -15,8 +15,7 @@ public partial class ConfirmWindow : Window
     public string CancelText { get; }
 
     /// <summary>Whether the optional extra checkbox (e.g. "also delete the recorded history")
-    /// shows at all - every caller except the Settings reset confirmation leaves this false, keeping
-    /// today's plain two-button shape.</summary>
+    /// shows at all - every caller except the Settings reset confirmation leaves this false.</summary>
     public bool ShowExtraOption { get; }
 
     public string ExtraOptionText { get; }

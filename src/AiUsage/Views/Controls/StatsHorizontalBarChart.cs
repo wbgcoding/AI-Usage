@@ -751,7 +751,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             if (!string.IsNullOrEmpty(EmptyText))
             {
                 var formatted = new FormattedText(
-                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi);
+                    EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.BodySize(this), TextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (height - formatted.Height) / 2));
             }
             return;
@@ -774,7 +774,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
             return;
         }
 
-        var regularNameSize = ChartTheme.FontSize(this, "Font.Size.Small", 11);
+        var regularNameSize = ChartTheme.SmallSize(this);
         var widestName = rows
             .Select(row => new FormattedText(
                 row.ShortLabel, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, regularNameSize, TextBrush, dpi).Width)
@@ -810,7 +810,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
             var figureText = new FormattedText(
                 StatsAggregator.ShortenTokenCount(rows[i].Total, ThousandSuffix, MillionSuffix, BillionSuffix), LocalizationService.Instance.DisplayCulture,
-                FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Small", 11), TextBrush, dpi);
+                FlowDirection.LeftToRight, typeface, ChartTheme.SmallSize(this), TextBrush, dpi);
             drawingContext.DrawText(figureText, new Point(width - figureText.Width, y + (RowHeight - figureText.Height) / 2));
         }
     }
@@ -867,13 +867,13 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var figureText = new FormattedText(
             $"{StatsAggregator.ShortenTokenCount(row.Total, ThousandSuffix, MillionSuffix, BillionSuffix)} · {StatusTextMap.FormatShare(row.Percent, LocalizationService.Instance.DisplayCulture)}",
-            culture, FlowDirection.LeftToRight, regular, ChartTheme.FontSize(this, "Font.Size.Small", 11), TextBrush, dpi);
+            culture, FlowDirection.LeftToRight, regular, ChartTheme.SmallSize(this), TextBrush, dpi);
         var costText = string.IsNullOrEmpty(row.CostText)
             ? null
-            : new FormattedText(row.CostText, culture, FlowDirection.LeftToRight, regular, ChartTheme.FontSize(this, "Font.Size.Small", 11), MutedBrush, dpi);
+            : new FormattedText(row.CostText, culture, FlowDirection.LeftToRight, regular, ChartTheme.SmallSize(this), MutedBrush, dpi);
         if (costText is not null)
         {
-            var nameNatural = RichNameNaturalWidth(projectName, culture, semiBold, TextBrush, dpi, ChartTheme.FontSize(this, "Font.Size.Body", 12));
+            var nameNatural = RichNameNaturalWidth(projectName, culture, semiBold, TextBrush, dpi, ChartTheme.BodySize(this));
             if (!CostFits(width, textX, figureText.Width, costText.Width, nameNatural))
                 costText = null;
         }
@@ -886,7 +886,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var nameAreaWidth = Math.Max(1, figureX - textX - RichFigureGap);
 
-        var nameText = CreateRichNameText(projectName, nameAreaWidth, culture, semiBold, TextBrush, dpi, ChartTheme.FontSize(this, "Font.Size.Body", 12));
+        var nameText = CreateRichNameText(projectName, nameAreaWidth, culture, semiBold, TextBrush, dpi, ChartTheme.BodySize(this));
         drawingContext.DrawText(nameText, new Point(textX, y + (textAreaHeight - nameText.Height) / 2));
 
         var barWidth = BarWidth(row.Total, maxValue, width);

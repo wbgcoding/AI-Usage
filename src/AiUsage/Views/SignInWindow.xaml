@@ -9,7 +9,7 @@
         WindowStyle="None"
         Background="{DynamicResource Bg.Base}"
         FontFamily="{DynamicResource Font.Ui}"
-        Width="480" Height="640"
+        Width="480" Height="640" MinWidth="360" MinHeight="400"
         WindowStartupLocation="CenterScreen"
         Foreground="{DynamicResource Text.Primary}">
     <!-- A plain opaque background, unlike the other windows' Bg.Window: the browser control is a
@@ -25,60 +25,6 @@
         <WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="6"
                       UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
-    <Window.Resources>
-        <!-- Same rounded-track geometry as the themed bar in Views/Controls/UsageBar.xaml (Track /
-             Border.Control / Track.BorderThickness / 4px corner radius), replicated here rather than referenced: that style
-             is scoped to UsageBar's own UserControl.Resources (not visible from this window) and,
-             like TitleBar.xaml/ProviderTile.xaml/UsageBar.xaml, a control used in exactly one place
-             keeps its style local rather than being promoted to a shared dictionary. Unlike the usage
-             bar's value-bound fill, this one actually needs an indeterminate animation, since there is
-             no percent to show while the page is still loading. -->
-        <!-- Not in Tokens.xaml, same as the equivalent radius in UsageBar.xaml: half of this bar's
-             own 8px height, geometry rather than a design token. Kept as a named resource (instead of
-             a bare literal) purely so the value is not typed twice below. -->
-        <CornerRadius x:Key="LoadingBarRadius">4</CornerRadius>
-        <Style x:Key="LoadingProgressBarStyle" TargetType="ProgressBar">
-            <Setter Property="Height" Value="8"/>
-            <Setter Property="Width" Value="200"/>
-            <Setter Property="IsIndeterminate" Value="True"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ProgressBar">
-                        <Grid>
-                            <Border Background="{DynamicResource Track}" CornerRadius="{StaticResource LoadingBarRadius}"
-                                    BorderBrush="{DynamicResource Border.Control}" BorderThickness="{DynamicResource Track.BorderThickness}"/>
-                            <Border CornerRadius="{StaticResource LoadingBarRadius}" ClipToBounds="True">
-                                <Rectangle x:Name="Indicator" Width="70" RadiusX="4" RadiusY="4"
-                                           HorizontalAlignment="Left" Fill="{DynamicResource Accent}">
-                                    <Rectangle.RenderTransform>
-                                        <TranslateTransform x:Name="IndicatorTransform" X="-70"/>
-                                    </Rectangle.RenderTransform>
-                                </Rectangle>
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsIndeterminate" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard x:Name="LoadingAnimation">
-                                        <Storyboard Timeline.DesiredFrameRate="60">
-                                            <DoubleAnimation Storyboard.TargetName="IndicatorTransform" Storyboard.TargetProperty="X"
-                                                             From="-70" To="200" Duration="0:0:1.2" RepeatBehavior="Forever"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                            </Trigger>
-                            <!-- A collapsed element's clock keeps ticking: stop it once the panel is hidden. -->
-                            <Trigger Property="IsVisible" Value="False">
-                                <Trigger.EnterActions>
-                                    <StopStoryboard BeginStoryboardName="LoadingAnimation"/>
-                                </Trigger.EnterActions>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <DockPanel LastChildFill="True">
         <controls:TitleBar x:Name="TitleBarControl" DockPanel.Dock="Top" ShowEyeMenu="False" ShowRefresh="False"
                            ShowSettings="False" ShowMinimize="False" AllowCollapse="False"
@@ -91,7 +37,7 @@
                  the opener stays alive and receives the answer when the popup closes itself. -->
             <Grid x:Name="PopupHost" Visibility="Collapsed"/>
             <StackPanel x:Name="LoadingPanel" Margin="{StaticResource Space.Xl}" VerticalAlignment="Center">
-                <ProgressBar Style="{StaticResource LoadingProgressBarStyle}" HorizontalAlignment="Center"/>
+                <ProgressBar Style="{StaticResource AiUsageProgressBar}" Width="200" IsIndeterminate="True" HorizontalAlignment="Center"/>
                 <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[SignIn.Loading]}"
                            FontSize="{StaticResource Font.Size.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
                            TextAlignment="Center" Foreground="{DynamicResource Text.Secondary}"/>

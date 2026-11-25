@@ -140,11 +140,6 @@
         <Style x:Key="FieldLabel.Tight" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
             <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
-        <!-- The one top gap every field label above a control uses now, replacing the 8 px and
-             12 px variants that used to disagree with each other for no reason. -->
-        <Style x:Key="FieldLabel.Top8" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
-            <Setter Property="Margin" Value="0,8,0,4"/>
-        </Style>
         <Style x:Key="TextBlock.GapS" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Margin" Value="0,4,0,0"/>
         </Style>
@@ -285,7 +280,7 @@
                                       Visibility="{Binding MicaOptionVisible, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowOpacity]}" Style="{StaticResource FieldLabel}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -438,7 +433,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Chart]}" Style="{StaticResource GroupHeading}"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartRange]}" Style="{StaticResource FieldLabel}"/>
                     <WrapPanel>
                         <ComboBox ItemsSource="{Binding ChartRangeChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.ChartRange]}"
                                   SelectedItem="{Binding SelectedChartRangeChoice, Mode=TwoWay}"
@@ -447,7 +442,7 @@
                         <CheckBox Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.PreviousWeekLine]}" IsChecked="{Binding ShowPreviousWeekLine}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.PreviousWeekLine]}"
                                   VerticalAlignment="Center" Margin="0"/>
                     </WrapPanel>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartPerProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ChartPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -461,7 +456,7 @@
                     </ItemsControl>
 
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Window]}" Style="{StaticResource GroupHeading}"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}" Style="{StaticResource FieldLabel}"/>
                     <ComboBox ItemsSource="{Binding WindowLayerChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.WindowLayer]}"
                               SelectedItem="{Binding SelectedWindowLayerChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.WindowLayer]}"
@@ -489,7 +484,7 @@
                                TextWrapping="Wrap"
                                Visibility="{Binding Main.ClickThrough, Converter={StaticResource BoolToVis}}"/>
                     <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Group.Tray]}" Style="{StaticResource GroupHeading}"/>
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TrayProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.TrayProvider]}" Style="{StaticResource FieldLabel}"/>
                     <!-- Whose usage, then which of its windows: the second list only offers the
                          windows the first one's pick actually reports. -->
                     <WrapPanel>
@@ -532,14 +527,14 @@
                     </StackPanel>
                     <Slider Minimum="15" Maximum="900" TickFrequency="15" IsSnapToTickEnabled="True" Value="{Binding RefreshSeconds, Mode=TwoWay}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.RefreshInterval]}"
                             AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.RefreshInterval]}"/>
-                    <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding RemoteIntervalLabelText}" Style="{StaticResource FieldLabel}"/>
                     <Slider Minimum="1" Maximum="60" Value="{Binding RemoteRefreshMinutes, Mode=TwoWay}"
                             ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.RemoteInterval]}"
                             AutomationProperties.Name="{Binding RemoteIntervalLabelText}"/>
 
                     <!-- Per account: how often at most it is read. One row of provider name + picker,
                          the pickers lined up on the widest name. -->
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.ProviderRefresh]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl x:Name="ProviderRefreshList" ItemsSource="{Binding Main.Tiles}" Grid.IsSharedSizeScope="True">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -659,7 +654,7 @@
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionMaxAge]}"/>
                     </Grid>
 
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionPerProvider]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.AttentionPerProvider]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding Main.Tiles}" IsEnabled="{Binding ShowAttentionMark}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -1032,20 +1027,20 @@
                                   VerticalAlignment="Center" MinWidth="200"/>
                     </WrapPanel>
 
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.OpenRange]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.OpenRange]}" Style="{StaticResource FieldLabel}"/>
                     <ComboBox ItemsSource="{Binding StatsOpenRangeChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.OpenRange]}"
                               SelectedItem="{Binding SelectedStatsOpenRangeChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.OpenRange]}"
                               HorizontalAlignment="Left" MinWidth="200"/>
 
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeekStart]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeekStart]}" Style="{StaticResource FieldLabel}"/>
                     <ComboBox ItemsSource="{Binding StatsWeekStartChoices}"
                               SelectedItem="{Binding SelectedStatsWeekStartChoice, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.WeekStart]}"
                               ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Stats.WeekStart]}"
                               HorizontalAlignment="Left" MinWidth="200"/>
 
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.Sections]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.Sections]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding StatsSections}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -1138,7 +1133,7 @@
                     </ItemsControl>
 
                     <!-- Extra Claude session folders: read on every run, or once. -->
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.ExtraFolders]}" Style="{StaticResource FieldLabel.Top8}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Stats.ExtraFolders]}" Style="{StaticResource FieldLabel}"/>
                     <ItemsControl ItemsSource="{Binding StatsExtraFolders}"
                                   Visibility="{Binding HasStatsExtraFolders, Converter={StaticResource BoolToVis}}">
                         <ItemsControl.ItemTemplate>
@@ -1218,7 +1213,7 @@
                                    Visibility="{Binding Main.HotkeyNeedsModifier, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>
 
-                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}" Style="{StaticResource FieldLabel.Top8}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}" Style="{StaticResource FieldLabel}"/>
                         <ComboBox ItemsSource="{Binding LanguageChoices}" ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.Language]}"
                                   SelectedItem="{Binding SelectedLanguageChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.Language]}"
@@ -1237,7 +1232,7 @@
                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                Margin="0,4,0,0"/>
 
-                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.DataFolder]}" Style="{StaticResource FieldLabel.Top8}"
+                    <TextBlock Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Settings.DataFolder]}" Style="{StaticResource FieldLabel}"
                                ToolTip="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Tip.Settings.DataFolder]}"/>
                     <!-- Read-only TextBox, not a TextBlock, for the same reason the old About window's own
                          DataFolderBox is one: the path is the one fact here a user might actually need
@@ -1361,14 +1356,14 @@
 
                     <StackPanel x:Name="AboutUpdatePanel" Visibility="Collapsed" Margin="0,16,0,0">
                         <TextBlock x:Name="AboutUpdateStatusText" FontSize="{StaticResource Font.Size.Small}"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <Button x:Name="AboutInstallUpdateButton" Style="{StaticResource AiUsageButton}" Margin="0,0,8,0" Click="AboutInstallUpdate_Click"
+                        <WrapPanel Margin="0,4,0,-4">
+                            <Button x:Name="AboutInstallUpdateButton" Style="{StaticResource AiUsageButton}" Margin="0,0,8,4" Click="AboutInstallUpdate_Click"
                                     AutomationProperties.AutomationId="AboutInstallUpdateButton"
                                     IsEnabled="{Binding Main.Update.CanInstall}"
                                     Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.InstallNow]}"/>
-                            <Button x:Name="AboutOpenReleasePageButton" Style="{StaticResource AiUsageButton}" Click="AboutOpenReleasePage_Click"
+                            <Button x:Name="AboutOpenReleasePageButton" Style="{StaticResource AiUsageButton}" Margin="0,0,0,4" Click="AboutOpenReleasePage_Click"
                                     Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[About.OpenReleasePage]}"/>
-                        </StackPanel>
+                        </WrapPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>

@@ -606,13 +606,10 @@ public class UsageRowViewModelTests
         var percentStart = bar.IndexOf("<TextBlock Text=\"{Binding PercentText}\"", StringComparison.Ordinal);
         var percentEnd = bar.IndexOf("<TextBlock Text=\"{Binding Tag", percentStart, StringComparison.Ordinal);
         var percent = bar[percentStart..percentEnd];
-        Assert.Contains("ToolTip=\"{Binding ForecastText}\"", percent);
-        Assert.Contains("<DataTrigger Binding=\"{Binding ForecastText}\" Value=\"\">", percent);
-        Assert.Contains("ToolTipService.IsEnabled", percent);
+        Assert.Contains("ToolTip=\"{Binding ForecastText, Converter={StaticResource NullIfEmpty}}\"", percent);
 
         var mini = tile[tile.IndexOf("x:Key=\"MiniRowTemplate\"", StringComparison.Ordinal)..];
         mini = mini[..mini.IndexOf("</DataTemplate>", StringComparison.Ordinal)];
-        Assert.Contains("ToolTip=\"{Binding MiniTooltipText}\"", mini);
-        Assert.Contains("<DataTrigger Binding=\"{Binding MiniTooltipText}\" Value=\"\">", mini);
+        Assert.Contains("ToolTip=\"{Binding MiniTooltipText, Converter={StaticResource NullIfEmpty}}\"", mini);
     }
 }

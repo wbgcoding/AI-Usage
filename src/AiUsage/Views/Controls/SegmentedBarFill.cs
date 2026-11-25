@@ -11,12 +11,6 @@ namespace AiUsage.Views.Controls;
 /// </summary>
 public sealed class SegmentedBarFill : FrameworkElement
 {
-    /// <summary>Same floor the plain fill keeps (LevelFillStyle in UsageBar.xaml), so a barely used window
-    /// still shows a mark.</summary>
-    private const double MinFilledWidth = 3;
-
-    /// <summary>Half the 8 px bar height, the corner radius of the track and the plain fill.</summary>
-    private const double CornerRadius = 4;
 
     public static readonly DependencyProperty UsedPercentProperty = DependencyProperty.Register(
         nameof(UsedPercent), typeof(double), typeof(SegmentedBarFill),
@@ -38,13 +32,6 @@ public sealed class SegmentedBarFill : FrameworkElement
         set => SetValue(SegmentsProperty, value);
     }
 
-    /// <summary>The width of the filled part on a track <paramref name="trackWidth"/> wide.</summary>
-    internal static double FilledWidth(double usedPercent, double trackWidth)
-    {
-        if (usedPercent <= 0 || trackWidth <= 0)
-            return 0;
-        return Math.Min(trackWidth, Math.Max(MinFilledWidth, trackWidth * Math.Clamp(usedPercent, 0, 100) / 100.0));
-    }
 
     // A bar renders often: the clip is kept while the size stays the same.
     private RectangleGeometry? _clip;
@@ -55,7 +42,8 @@ public sealed class SegmentedBarFill : FrameworkElement
     {
         if (_clip is null || _clipWidth != width || _clipHeight != height)
         {
-            _clip = new RectangleGeometry(new Rect(0, 0, width, height), CornerRadius, CornerRadius);
+            // Fully rounded ends: the radius is half the bar's own height, like the track's.
+            _clip = new RectangleGeometry(new Rect(0, 0, width, height), height / 2, height / 2);
             _clip.Freeze();
             _clipWidth = width;
             _clipHeight = height;
@@ -66,7 +54,7 @@ public sealed class SegmentedBarFill : FrameworkElement
 
     protected override void OnRender(DrawingContext drawingContext)
     {
-        var filled = FilledWidth(UsedPercent, ActualWidth);
+        var filled = BarGeometry.FilledWidth(UsedPercent / 100.0, ActualWidth);
         if (filled <= 0 || ActualHeight <= 0)
             return;
 

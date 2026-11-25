@@ -110,12 +110,15 @@ public class SignInWindowTests
         Assert.Equal(expected, SignInWindow.IsOnProviderLoginPage(new Uri(url), providerHost));
 
     /// <summary>The loading bar's animation must stop when its panel collapses (a collapsed element's
-    /// clock keeps ticking); read from the source since the window cannot be built in a unit test.</summary>
+    /// clock keeps ticking); read from the shared bar style since the window cannot be built in a unit test.</summary>
     [Fact]
     public void TheLoadingBarStopsItsAnimationWhenHidden()
     {
-        var xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Views", "SignInWindow.xaml"));
-        Assert.Contains("<StopStoryboard BeginStoryboardName=\"LoadingAnimation\"/>", xaml, StringComparison.Ordinal);
+        var root = FindRepoRoot();
+        var window = File.ReadAllText(Path.Combine(root, "src", "AiUsage", "Views", "SignInWindow.xaml"));
+        Assert.Contains("AiUsageProgressBar", window, StringComparison.Ordinal);
+        var xaml = File.ReadAllText(Path.Combine(root, "src", "AiUsage", "Themes", "Controls.xaml"));
+        Assert.Contains("<StopStoryboard BeginStoryboardName=\"MovingAnimation\"/>", xaml, StringComparison.Ordinal);
         Assert.Contains("Property=\"IsVisible\" Value=\"False\"", xaml, StringComparison.Ordinal);
     }
 

@@ -159,8 +159,10 @@ public class KeyboardFocusTests
     [Fact]
     public void The_indeterminate_work_bar_keeps_its_track_and_sweeps_by_fractions_of_its_width()
     {
-        var xaml = File.ReadAllText(Src("Views", "ConfirmWindow.xaml"));
+        var window = File.ReadAllText(Src("Views", "ConfirmWindow.xaml"));
+        var xaml = File.ReadAllText(Src("Themes", "Controls.xaml"));
 
+        Assert.Contains("AiUsageProgressBar", window);
         Assert.Contains("TargetName=\"PART_Indicator\" Property=\"Visibility\" Value=\"Hidden\"", xaml);
         Assert.DoesNotContain("TargetName=\"PART_Track\" Property=\"Visibility\"", xaml);
         Assert.DoesNotContain("To=\"320\"", xaml);
