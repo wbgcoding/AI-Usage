@@ -1035,8 +1035,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Starts the background walk over the local session logs (a no-op while one is already
     /// running) and reloads the day-grid tile every time it finishes, so the tile shows real numbers
-    /// without the statistics window ever having to be opened first - the only other place that starts
-    /// this walk today (<see cref="Views.StatsWindow"/>) only runs while that window is open.</summary>
+    /// without the statistics window ever having to be opened first.</summary>
     private void WireStatsIndexerForDayGrid()
     {
         if (StatsIndexerService.Shared is not { } indexer)
@@ -1239,6 +1238,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             var costFor = costService is not null && wantedCosts.Contains(key) ? costService : null;
             Task.Run(() =>
             {
+                try
+                {
+                    AnswerSlice();
+                }
+                catch (Exception ex)
+                {
+                    // The figure already shown stays; the next refresh asks again.
+                    (_logService ?? LogService.Shared).LogError($"Reading the window tokens of {providerId} failed ({ex.GetType().Name}).");
+                }
+            });
+
+            void AnswerSlice()
+            {
                 IReadOnlyList<WindowShareRow>? shares = null;
                 long? answer;
                 if (withShares)
@@ -1282,7 +1294,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     lock (_windowTokensApplyLock)
                         Apply();
                 }
-            });
+            }
         }
     }
 
@@ -1933,7 +1945,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     // Keyed by provider id, so a completed read can tell whether it is still the one the view model
-    // last asked for. Written only from ShouldStartHistoryRead and read only from
+    // last asked for. Written only from NextHistoryReadToken and read only from
     // HistoryReadCompleted, both on the UI thread - the thread pool side never touches this.
     private readonly Dictionary<string, int> _historyReadTokens = new();
 
@@ -1962,18 +1974,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Issues the token for a new history read of <paramref name="providerId"/>, silently
     /// superseding whichever token that provider last issued - a read that later reports the older
     /// token is then recognised as stale by <see cref="HistoryReadCompleted"/> instead of racing it
-    /// to apply its (now outdated) result. Always true: there is no case today where starting a read
-    /// is refused, this only names the decision point so the token bookkeeping is unit testable
-    /// without a live read.</summary>
-    internal bool ShouldStartHistoryRead(string providerId, out int token)
+    /// to apply its (now outdated) result.</summary>
+    internal int NextHistoryReadToken(string providerId)
     {
-        token = _historyReadTokens.TryGetValue(providerId, out var previous) ? unchecked(previous + 1) : 0;
+        var token = _historyReadTokens.TryGetValue(providerId, out var previous) ? unchecked(previous + 1) : 0;
         _historyReadTokens[providerId] = token;
-        return true;
+        return token;
     }
 
     /// <summary>True when <paramref name="token"/> is still the current one for
-    /// <paramref name="providerId"/> - false when a later <see cref="ShouldStartHistoryRead"/> call
+    /// <paramref name="providerId"/> - false when a later <see cref="NextHistoryReadToken"/> call
     /// for the same provider already superseded it, meaning this read's result belongs to a request
     /// that is no longer wanted and must be discarded rather than applied to the tile.</summary>
     internal bool HistoryReadCompleted(string providerId, int token) =>
@@ -2011,8 +2021,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (!_tilesById.TryGetValue(providerId, out _))
             return;
-        if (!ShouldStartHistoryRead(providerId, out var token))
-            return;
+        var token = NextHistoryReadToken(providerId);
 
         var range = SettingsRanges.ChartRangeToTimeSpan(_settings.ChartRange);
         var showPreviousWeek = _settings.ShowPreviousWeekLine;
@@ -2058,6 +2067,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _ = read.ContinueWith(
             finished =>
             {
+                if (finished.Exception?.GetBaseException() is { } failure)
+                    (_logService ?? LogService.Shared).LogError($"Reading the history of {providerId} failed ({failure.GetType().Name}).");
                 lock (_pendingHistoryReads)
                     _pendingHistoryReads.Remove(finished);
             },

@@ -3615,8 +3615,8 @@ public partial class MainViewModelTests : IDisposable
     {
         var (vm, _, _) = Build(new AppSettings());
 
-        Assert.True(vm.ShouldStartHistoryRead("codex", out var first));
-        Assert.True(vm.ShouldStartHistoryRead("codex", out var second));
+        var first = vm.NextHistoryReadToken("codex");
+        var second = vm.NextHistoryReadToken("codex");
 
         Assert.NotEqual(first, second);
         Assert.False(vm.HistoryReadCompleted("codex", first));
@@ -3627,8 +3627,8 @@ public partial class MainViewModelTests : IDisposable
     {
         var (vm, _, _) = Build(new AppSettings());
 
-        vm.ShouldStartHistoryRead("codex", out var stale);
-        vm.ShouldStartHistoryRead("codex", out var current);
+        var stale = vm.NextHistoryReadToken("codex");
+        var current = vm.NextHistoryReadToken("codex");
 
         Assert.False(vm.HistoryReadCompleted("codex", stale));
         Assert.True(vm.HistoryReadCompleted("codex", current));
@@ -3639,8 +3639,8 @@ public partial class MainViewModelTests : IDisposable
     {
         var (vm, _, _) = Build(new AppSettings());
 
-        vm.ShouldStartHistoryRead("codex", out var codexToken);
-        vm.ShouldStartHistoryRead("claude", out var claudeToken);
+        var codexToken = vm.NextHistoryReadToken("codex");
+        var claudeToken = vm.NextHistoryReadToken("claude");
 
         Assert.True(vm.HistoryReadCompleted("codex", codexToken));
         Assert.True(vm.HistoryReadCompleted("claude", claudeToken));
