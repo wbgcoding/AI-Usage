@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.Json;
 using AiUsage.Models;
 using AiUsage.Services;
+using static AiUsage.Providers.Parsing.JsonReading;
 
 namespace AiUsage.Providers.Parsing;
 
@@ -84,14 +85,10 @@ public static class ClaudeUsageParser
         var currency = ClaudeConsoleCreditParser.NormalizeCurrency(
             node.TryGetProperty("currency", out var currencyEl) && currencyEl.ValueKind == JsonValueKind.String ? currencyEl.GetString() : null);
         return new ClaudeExtraUsage(
-            enabled, ReadNumber(node, "utilization"), MinorToMajor(ReadNumber(node, "used_credits")),
-            MinorToMajor(ReadNumber(node, "monthly_limit")), currency);
+            enabled, TryGetDouble(node, "utilization"), MinorToMajor(TryGetDouble(node, "used_credits")),
+            MinorToMajor(TryGetDouble(node, "monthly_limit")), currency);
     }
 
-    private static double? ReadNumber(JsonElement node, string key) =>
-        node.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number)
-            ? number
-            : null;
 
     // Largest minor-unit figure that still converts to a decimal; anything beyond it, or not finite, reads as absent.
     private const double MaxMinorUnits = 7.9e28;
@@ -156,8 +153,8 @@ public static class ClaudeUsageParser
             }
 
             if (root.TryGetProperty("extra_usage", out var extra) && extra.ValueKind == JsonValueKind.Object
-                && (ReadNumber(extra, "used_credits") is { } used && !IsPlausibleMinor(used)
-                    || ReadNumber(extra, "monthly_limit") is { } limit && !IsPlausibleMinor(limit)))
+                && (TryGetDouble(extra, "used_credits") is { } used && !IsPlausibleMinor(used)
+                    || TryGetDouble(extra, "monthly_limit") is { } limit && !IsPlausibleMinor(limit)))
                 notes.Add("the extra_usage block holds an implausible credit figure, so it is not shown.");
 
             if (root.TryGetProperty("limits", out var limits) && limits.ValueKind == JsonValueKind.Array)
@@ -219,16 +216,7 @@ public static class ClaudeUsageParser
         if (!root.TryGetProperty(key, out var node) || node.ValueKind != JsonValueKind.Object)
             return false;
 
-        double? percent = null;
-        foreach (var percentKey in PercentKeys)
-        {
-            if (node.TryGetProperty(percentKey, out var value) && value.ValueKind == JsonValueKind.Number
-                && value.TryGetDouble(out var parsedPercent))
-            {
-                percent = parsedPercent;
-                break;
-            }
-        }
+        var percent = PercentKeys.Select(key => TryGetDouble(node, key)).FirstOrDefault(value => value is not null);
         if (percent is null)
             return false;
 
@@ -245,8 +233,7 @@ public static class ClaudeUsageParser
     {
         foreach (var tokenKey in TokenKeys)
         {
-            if (node.TryGetProperty(tokenKey, out var value) && value.ValueKind == JsonValueKind.Number
-                && value.TryGetInt64(out var total))
+            if (TryGetInt64(node, tokenKey) is { } total)
                 return new TokenUsage(total);
         }
         return null;

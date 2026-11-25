@@ -40,6 +40,15 @@ internal static class CodexWindowKinds
     internal static int? PlausibleMinutesOrNull(long? minutes) =>
         minutes is > 0 and <= MaxWindowMinutes ? (int)minutes.Value : null;
 
+    /// <summary>A window's length from <c>window_minutes</c>, else from <c>limit_window_seconds</c>;
+    /// null when neither is a plausible length.</summary>
+    internal static int? WindowMinutes(JsonElement window)
+    {
+        long? minutes = TryGetInt32(window, "window_minutes");
+        minutes ??= TryGetInt64(window, "limit_window_seconds") is { } seconds ? seconds / 60 : null;
+        return PlausibleMinutesOrNull(minutes);
+    }
+
     // The two window lengths a Codex plan reports; any other length is mapped onto one of the two bars.
     private static readonly int[] KnownWindowMinutes = [300, 10080];
 
@@ -75,10 +84,8 @@ internal static class CodexWindowKinds
                 continue;
             }
 
-            long? minutes = TryGetInt32(property.Value, "window_minutes");
-            minutes ??= TryGetInt64(property.Value, "limit_window_seconds") is { } seconds ? seconds / 60 : null;
-            if (PlausibleMinutesOrNull(minutes) is { } length && !KnownWindowMinutes.Contains(length))
-                notes.Add($"the window '{name}' runs {length} minutes, neither 5 hours nor 7 days; it is shown as the bar its length is closer to.");
+            if (WindowMinutes(property.Value) is { } length && !KnownWindowMinutes.Contains(length))
+                notes.Add($"the window '{name}' runs {length} minutes, neither 5 hours nor 7 days; from one day up it is shown on the weekly bar, else on the five-hour bar.");
         }
     }
 

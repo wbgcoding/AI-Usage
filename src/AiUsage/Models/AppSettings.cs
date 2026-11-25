@@ -581,27 +581,6 @@ public sealed class StoredApiCredit
     public ClaudeCreditRoute Route { get; set; }
 }
 
-/// <summary>Reads a route name case-insensitively and takes anything unknown as <see
-/// cref="ClaudeCreditRoute.None"/>, so a hand-edited or newer settings file never rejects the whole
-/// file.</summary>
-internal sealed class ClaudeCreditRouteConverter : System.Text.Json.Serialization.JsonConverter<ClaudeCreditRoute>
-{
-    public override ClaudeCreditRoute Read(
-        ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-    {
-        if (reader.TokenType == System.Text.Json.JsonTokenType.String
-            && Enum.TryParse<ClaudeCreditRoute>(reader.GetString(), ignoreCase: true, out var value) && Enum.IsDefined(value))
-            return value;
-
-        reader.Skip();
-        return ClaudeCreditRoute.None;
-    }
-
-    public override void Write(
-        System.Text.Json.Utf8JsonWriter writer, ClaudeCreditRoute value, System.Text.Json.JsonSerializerOptions options) =>
-        writer.WriteStringValue(value.ToString());
-}
-
 /// <summary>The ways a bar's filled part can be colored: by usage level (green, yellow, red), or split
 /// by each model's or the main and subagents' share of the tokens in that window.</summary>
 public static class BarColorModes
