@@ -93,6 +93,23 @@ public class ThemeContrastTests
         Assert.True(ratio >= 3.0, $"{fileName}: {levelToken} on Track is only {ratio:F2}:1");
     }
 
+    public static IEnumerable<object[]> WarningTextOnSurfacePairs() =>
+        from file in ThemeFiles
+        from level in new[] { "Level.Warn", "Level.Crit" }
+        from surface in SurfaceTokens
+        select new object[] { file, level, surface };
+
+    // Warnings, errors and the tile percentage near a limit are written in these two colours.
+    [Theory]
+    [MemberData(nameof(WarningTextOnSurfacePairs))]
+    public void Warn_and_crit_text_reach_AA_contrast_on_every_surface(string fileName, string levelToken, string surfaceToken)
+    {
+        var dictionary = Load(fileName);
+        var ratio = ContrastRatio(ColorOf(dictionary, levelToken), ColorOf(dictionary, surfaceToken));
+
+        Assert.True(ratio >= 4.5, $"{fileName}: {levelToken} on {surfaceToken} is only {ratio:F2}:1");
+    }
+
     // The standard controls are drawn by this app now (Themes/Controls.xaml), so the token pairs
     // those templates put on top of each other need the same check the app's own surfaces get. The
     // check mark is text-sized and gets the 4.5:1 bar; the filled radio dot and the slider's filled

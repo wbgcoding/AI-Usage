@@ -147,11 +147,9 @@
                            Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"
                            AutomationProperties.Name="{Binding MiniAccessibleName}">
                     <TextBlock.Style>
-                        <!-- Ok stays Text.Primary rather than Level.Ok: that particular green fails
-                             WCAG 4.5:1 text contrast against the Light and Nebula tile background
-                             (measured ~3.8-4.0:1), even though it is a safe fill colour for the much
-                             larger area a bar covers. Warn/Crit both clear 4.5:1 in every theme, so
-                             only those two get an explicit colour on top of the shared Crit icon. -->
+                        <!-- Ok stays Text.Primary: Level.Ok is tuned as a bar fill and falls short of
+                             4.5:1 text contrast on some tile backgrounds. Level.Warn and Level.Crit
+                             reach 4.5:1 in every theme, so only those two colour the text. -->
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="{DynamicResource Text.Primary}"/>
                             <Style.Triggers>

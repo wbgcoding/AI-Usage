@@ -16,13 +16,13 @@
     <SolidColorBrush x:Key="Text.Primary" Color="#F2EDFA"/>
     <SolidColorBrush x:Key="Text.Secondary" Color="#B7ABCB"/>
     <SolidColorBrush x:Key="Text.Muted" Color="#9A90AB"/>
-    <SolidColorBrush x:Key="Accent" Color="#AA58F7"/>
+    <SolidColorBrush x:Key="Accent" Color="#B983F9"/>
     <!-- Text and marks drawn on an Accent fill. -->
     <SolidColorBrush x:Key="Accent.Text" Color="#1D1233"/>
     <SolidColorBrush x:Key="Accent.Hover" Color="#C084FC"/>
     <SolidColorBrush x:Key="Level.Ok" Color="#9063F6"/>
     <SolidColorBrush x:Key="Level.Warn" Color="#F59E0B"/>
-    <SolidColorBrush x:Key="Level.Crit" Color="#F43F5E"/>
+    <SolidColorBrush x:Key="Level.Crit" Color="#FB6178"/>
     <!-- Notification threshold marker on the usage bar: the primary text colour at about 55% opacity. -->
     <SolidColorBrush x:Key="Bar.Marker" Color="#8CF2EDFA"/>
     <!-- Cache share bar segments (cache read uses Accent). -->
@@ -39,8 +39,8 @@
         <GradientStop Color="#F7AD30" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Level.Crit.Fill" StartPoint="0,0.5" EndPoint="1,0.5">
-        <GradientStop Color="#F43F5E" Offset="0"/>
-        <GradientStop Color="#F65C76" Offset="1"/>
+        <GradientStop Color="#FB6178" Offset="0"/>
+        <GradientStop Color="#FC798C" Offset="1"/>
     </LinearGradientBrush>
     <Color x:Key="Shadow">#73000000</Color>
     <!-- WPF's text stack mismeasures the OS's newer, variable-weight Segoe build and clips
