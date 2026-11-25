@@ -130,8 +130,7 @@ public sealed class WebViewHost : IAsyncDisposable
         try
         {
             // Only a real flat profile (its browser data folder sits directly in the root) is
-            // migrated. Without this check, resolving a folder that does not exist yet swept every
-            // other account's own profile folder into it and signed those accounts out.
+            // migrated, so the other accounts' profile folders beside it stay where they are.
             if (!Directory.Exists(Path.Combine(root, "EBWebView")))
                 return;
 

@@ -18,9 +18,8 @@
     <Description>Shows the remaining usage limits of your AI coding assistants at a glance.</Description>
     <!-- Without this the SDK appends the git commit, so the file properties read "1.0.0+50e12e2b2f...". -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <!-- The SDK's own SourceControlManager target still shells out to git to read the commit even
-         though the line above keeps it out of the version string - a build agent isolated to its
-         own worktree cannot allow that, so this switches the query off outright. -->
+    <!-- The SDK still runs git to read the commit even though the line above keeps it out of the
+         version string; this switches that query off so a build needs no git. -->
     <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
     <NeutralLanguage>en</NeutralLanguage>
     <!-- Keep only the app's own languages. Without this the publish bundles the resource

@@ -18,8 +18,7 @@ internal enum SignInSessionState
 /// Asks the provider's own site, from inside the sign-in window, whether the session there is really
 /// signed in: the same discovery script the hidden reader runs, evaluated on the landing page. The
 /// address alone cannot tell a finished sign-in from a login page that bounced to the start page on a
-/// stale session, and that left the tile asking for a sign-in again right after the window had
-/// closed as "signed in". Only a clear "not signed in" counts against the session; any other answer
+/// stale session. Only a clear "not signed in" counts against the session; any other answer
 /// keeps the address-based verdict.
 /// </summary>
 internal static class SignInSessionCheck
