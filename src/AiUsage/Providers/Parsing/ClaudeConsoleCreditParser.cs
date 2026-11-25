@@ -38,7 +38,10 @@ internal static class ClaudeConsoleCreditParser
 
     /// <summary>The upper-cased three-letter currency code, or USD when the value is absent or not a code.</summary>
     internal static string NormalizeCurrency(string? value) =>
-        value is not null && CurrencyPattern.IsMatch(value) ? value.ToUpperInvariant() : DefaultCurrency;
+        IsCurrencyCode(value) ? value!.ToUpperInvariant() : DefaultCurrency;
+
+    /// <summary>True for a three-letter currency code in any case.</summary>
+    internal static bool IsCurrencyCode(string? value) => value is not null && CurrencyPattern.IsMatch(value);
 
     internal static bool IsOrganizationId(string? value) => value is not null && OrganizationIdPattern.IsMatch(value);
 

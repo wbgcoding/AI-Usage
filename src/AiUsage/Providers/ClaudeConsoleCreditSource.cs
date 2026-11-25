@@ -92,7 +92,7 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         }
 
         if (stored is null || stored.Route is not (ClaudeCreditRoute.ClaudeSignIn or ClaudeCreditRoute.Console)
-            || !StoredCurrency.IsMatch(stored.Currency ?? "") || Math.Abs(stored.Amount) > MaxStoredAmount)
+            || !ClaudeConsoleCreditParser.IsCurrencyCode(stored.Currency) || Math.Abs(stored.Amount) > MaxStoredAmount)
             return;
 
         var now = _time.GetUtcNow();
@@ -113,7 +113,6 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         _creditReadAt = stored.ReadAt;
     }
 
-    private static readonly Regex StoredCurrency = new(@"\A[A-Za-z]{3}\z", RegexOptions.Compiled);
     private const decimal MaxStoredAmount = 1_000_000_000m;
 
     private static StoredApiCredit ToStored(ClaudeApiCredit credit, ClaudeCreditRoute route, DateTimeOffset readAt) => new()
@@ -267,9 +266,20 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
             var ct = _lifetime.Token;
             foreach (var route in RouteOrder())
             {
-                var step = route == ClaudeCreditRoute.Console
-                    ? await ReadViaConsoleAsync(outcome, ct)
-                    : await ReadViaSiteAsync(outcome, ct);
+                Step step;
+                try
+                {
+                    step = route == ClaudeCreditRoute.Console
+                        ? await ReadViaConsoleAsync(outcome, ct)
+                        : await ReadViaSiteAsync(outcome, ct);
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    // A slow or challenged session on one site leaves the other route its turn.
+                    outcome.Add(route + " failed (" + ex.GetType().Name + ")");
+                    continue;
+                }
+
                 if (step is Step.Ok or Step.Blocked)
                     return;
             }

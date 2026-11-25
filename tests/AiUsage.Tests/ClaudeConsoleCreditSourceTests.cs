@@ -393,6 +393,18 @@ public class ClaudeConsoleCreditSourceTests
     }
 
     [Fact]
+    public async Task A_claude_session_that_times_out_still_lets_the_console_answer()
+    {
+        var console = new FakeRunner { Credits = CreditsOk(500) };
+        var source = new ClaudeConsoleCreditSource((_, _) => throw new TimeoutException(), console.AsConsole, new ManualTime());
+
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(5.00m, source.Current!.Amount);
+        Assert.Equal(ClaudeCreditRoute.Console, source.CurrentRoute);
+    }
+
+    [Fact]
     public async Task Disposing_closes_the_console_runner_it_built()
     {
         var site = new FakeRunner { Organizations = NotSignedIn };
