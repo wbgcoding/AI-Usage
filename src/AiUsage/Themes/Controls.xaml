@@ -1054,4 +1054,100 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- The frame every widget tile shares (provider tiles and the day grid tile): surface fill,
+         hairline border, card corners, inner padding and the narrowest width a tile may take. -->
+    <Style x:Key="TileFrame" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Bg.Surface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}"/>
+        <Setter Property="Padding" Value="{StaticResource Space.S}"/>
+        <Setter Property="MinWidth" Value="{StaticResource Tile.MinWidth}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Primary}"/>
+        <Setter Property="Focusable" Value="True"/>
+    </Style>
+
+    <!-- The small level icons beside a usage percentage. The alert icon is shown through a local
+         Visibility binding; the warning icon appears by itself while the row's Level is Crit. The
+         size is set where the icon is used. -->
+    <Style x:Key="LevelIcon.Alert" TargetType="Path">
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Opacity" Value="0.8"/>
+        <Setter Property="Data" Value="{DynamicResource Icon.Alert}"/>
+        <Setter Property="Fill" Value="{DynamicResource Level.Warn}"/>
+    </Style>
+
+    <Style x:Key="LevelIcon.Warning" TargetType="Path" BasedOn="{StaticResource LevelIcon.Alert}">
+        <Setter Property="Data" Value="{DynamicResource Icon.Warning}"/>
+        <Setter Property="Fill" Value="{DynamicResource Level.Crit}"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Level}" Value="Crit">
+                <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The progress bar of the work and sign-in loading dialogs: a filled bar for a known share
+         (Maximum 1), a moving block while the share is not known. The corner radius is half of the
+         8 px height. The moving block is the middle quarter of an opacity mask that slides by
+         fractions of the bar's own width, so it crosses a widened bar end to end. -->
+    <Style x:Key="AiUsageProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="8"/>
+        <Setter Property="Maximum" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border x:Name="PART_Track" Background="{DynamicResource Track}" CornerRadius="{StaticResource Radius.S}"
+                                BorderBrush="{DynamicResource Border.Control}" BorderThickness="{DynamicResource Track.BorderThickness}"
+                                ClipToBounds="True">
+                            <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{DynamicResource Accent}"
+                                    CornerRadius="{StaticResource Radius.S}"/>
+                        </Border>
+                        <Border x:Name="MovingBlock" Visibility="Collapsed" ClipToBounds="True" CornerRadius="{StaticResource Radius.S}">
+                            <Rectangle RadiusX="4" RadiusY="4" Fill="{DynamicResource Accent}">
+                                <Rectangle.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <LinearGradientBrush.RelativeTransform>
+                                            <TranslateTransform x:Name="MovingTransform" X="-0.5"/>
+                                        </LinearGradientBrush.RelativeTransform>
+                                        <GradientStop Color="Transparent" Offset="0"/>
+                                        <GradientStop Color="Transparent" Offset="0.25"/>
+                                        <GradientStop Color="Black" Offset="0.25"/>
+                                        <GradientStop Color="Black" Offset="0.5"/>
+                                        <GradientStop Color="Transparent" Offset="0.5"/>
+                                        <GradientStop Color="Transparent" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Rectangle.OpacityMask>
+                            </Rectangle>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="PART_Indicator" Property="Visibility" Value="Hidden"/>
+                            <Setter TargetName="MovingBlock" Property="Visibility" Value="Visible"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard x:Name="MovingAnimation">
+                                    <Storyboard Timeline.DesiredFrameRate="60">
+                                        <DoubleAnimation Storyboard.TargetName="MovingTransform" Storyboard.TargetProperty="X"
+                                                         From="-0.5" To="0.75" Duration="0:0:1.2" RepeatBehavior="Forever"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                        </Trigger>
+                        <!-- A collapsed element's clock keeps ticking: stop it once the bar is hidden. -->
+                        <Trigger Property="IsVisible" Value="False">
+                            <Trigger.EnterActions>
+                                <StopStoryboard BeginStoryboardName="MovingAnimation"/>
+                            </Trigger.EnterActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>

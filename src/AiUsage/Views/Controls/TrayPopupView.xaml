@@ -1,7 +1,8 @@
 <UserControl x:Class="AiUsage.Views.Controls.TrayPopupView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:services="clr-namespace:AiUsage.Services">
+             xmlns:services="clr-namespace:AiUsage.Services"
+             xmlns:controls="clr-namespace:AiUsage.Views.Controls">
     <!-- The tray popup: the same surface as the ToolTip and ContextMenu styles (popup background,
          border, control corner radius, small text), but without the shell tooltip's length cap.
          Bound to a TrayPopupModel through the DataContext. -->
@@ -28,24 +29,27 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="WindowLabel"/>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="WindowPercent"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Style="{StaticResource PopupText}" Foreground="{DynamicResource Text.Secondary}"
                            Text="{Binding Label}" Margin="0,0,8,0"/>
                 <TextBlock Grid.Column="1" Style="{StaticResource PopupText}" Text="{Binding Percent}"
                            HorizontalAlignment="Right"/>
-                <TextBlock Grid.Column="2" Style="{StaticResource ResetText}" Text="{Binding Reset, StringFormat='· {0}'}" Margin="8,0,0,0"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource ResetText}" Text="{Binding Reset, StringFormat='· {0}'}" Margin="8,0,0,0"
+                           TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"/>
             </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="BlockTemplate" DataType="{x:Type services:TrayPopupBlock}">
             <StackPanel Margin="0,0,0,8" AutomationProperties.AutomationId="{Binding AutomationId}"
                         AutomationProperties.Name="{Binding Name}">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Style="{StaticResource PopupText}" FontWeight="SemiBold" Text="{Binding Name}"/>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource PopupText}" FontWeight="SemiBold" Text="{Binding Name}"
+                               TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"/>
                     <TextBlock Style="{StaticResource PopupText}" Foreground="{DynamicResource Text.Muted}" Margin="8,0,0,0"
-                               Text="{Binding Note}" Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}"/>
-                </StackPanel>
+                               Text="{Binding Note}" TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
+                               Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}"/>
+                </DockPanel>
                 <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False"/>
             </StackPanel>
         </DataTemplate>
