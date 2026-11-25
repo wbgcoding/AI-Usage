@@ -43,6 +43,12 @@ public static class WindowOpacity
             MicaBackdrop.Attach(source);
             source.Disposed += (_, _) => Followers.Remove(hwnd);
         }
+        else
+        {
+            // Nothing to hook and nothing that will ever report the window gone: do not keep the
+            // handle, so a later real window with the same handle value is followed.
+            Followers.Remove(hwnd);
+        }
         Apply(hwnd, CurrentPercent);
     }
 
