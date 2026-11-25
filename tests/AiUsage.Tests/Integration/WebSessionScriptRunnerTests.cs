@@ -1,0 +1,1593 @@
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
+using AiUsage.Services;
+using AiUsage.Web;
+using Xunit;
+
+namespace AiUsage.Tests;
+
+[Trait("Layer", "Integration")]
+public class WebSessionScriptRunnerTests
+{
+    private static readonly TimeSpan ShortTimeout = TimeSpan.FromMilliseconds(50);
+
+    // The hidden browser is never disposed anywhere but DisposeBrowser (see the crash this guards
+    // against, reported after a resume from hibernate: an undisposed WebView2 collected by the GC
+    // has its HwndHost finalizer throw on the finalizer thread). This scans the source as text -
+    // the same technique MainWindowCloseGuardTests uses - because WebView2HiddenBrowserHost cannot
+    // be unit-instantiated (a live WPF Window/WebView2).
+    [Fact]
+    public void The_hidden_browser_is_only_ever_cleared_inside_DisposeBrowser()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+
+        var assignments = Regex.Matches(source, @"_webView\s*=\s*null");
+        Assert.Single(assignments);
+
+        var methodStart = source.IndexOf("private void DisposeBrowser()", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0, "DisposeBrowser() not found");
+        Assert.True(assignments[0].Index > methodStart, "_webView = null must be inside DisposeBrowser");
+
+        var disposeAsyncStart = source.IndexOf("public ValueTask DisposeAsync()", StringComparison.Ordinal);
+        Assert.True(disposeAsyncStart >= 0, "DisposeAsync() not found");
+        var disposeAsyncBody = source.Substring(disposeAsyncStart, methodStart - disposeAsyncStart);
+        Assert.Contains("DisposeBrowser()", disposeAsyncBody, StringComparison.Ordinal);
+
+        var navigateStart = source.IndexOf("public async Task<bool> NavigateAsync(CancellationToken ct)", StringComparison.Ordinal);
+        Assert.True(navigateStart >= 0, "NavigateAsync() not found");
+        var navigateGuardEnd = source.IndexOf("var environment = await _host.EnsureEnvironmentAsync()", StringComparison.Ordinal);
+        Assert.True(navigateGuardEnd > navigateStart, "NavigateAsync guard not found");
+        var navigateGuardBody = source.Substring(navigateStart, navigateGuardEnd - navigateStart);
+        Assert.Contains("DisposeBrowser()", navigateGuardBody, StringComparison.Ordinal);
+    }
+
+    // A worktree's own root has a ".git" FILE (pointing at the real repo's .git/worktrees/<name>),
+    // not a ".git" directory - checking only Directory.Exists (as elsewhere in this test project)
+    // walks straight past a worktree root and finds the main checkout's .git directory instead,
+    // silently scanning the wrong copy of the source. Checking either keeps this correct in both.
+    private static string FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            var gitPath = Path.Combine(dir.FullName, ".git");
+            if (Directory.Exists(gitPath) || File.Exists(gitPath))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        throw new InvalidOperationException("Could not find the repository root (.git) above " + AppContext.BaseDirectory);
+    }
+
+    [Fact]
+    public void A_runtime_evaluate_answer_is_unwrapped_to_the_scripts_own_value()
+    {
+        Assert.Equal("""{"status":"ok"}""", WebView2HiddenBrowserHost.UnwrapEvaluateResult("""{"result":{"type":"object","value":{"status":"ok"}}}"""));
+        Assert.Equal("", WebView2HiddenBrowserHost.UnwrapEvaluateResult("""{"result":{"type":"object"},"exceptionDetails":{"text":"x"}}"""));
+        Assert.Equal("", WebView2HiddenBrowserHost.UnwrapEvaluateResult("not json"));
+    }
+
+    [Fact]
+    public async Task A_navigation_that_never_completes_times_out_instead_of_hanging()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() => fake, navigationTimeout: ShortTimeout);
+
+        await Assert.ThrowsAsync<TimeoutException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.True(fake.Disposed);
+    }
+
+    // The navigation finishes, but the runner is disposed before the start continues (a dispatcher
+    // queues the continuation behind the disposal): the half-built host must not be kept.
+    [Fact]
+    public async Task A_runner_disposed_between_navigation_end_and_start_end_does_not_keep_the_host()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() => fake);
+        var queue = new QueueingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        Task<string> call;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(queue);
+            call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            // Completed from another thread, so the continuation is queued instead of running inline.
+            var completer = new Thread(() => fake.CompleteNavigate(true));
+            completer.Start();
+            completer.Join();
+            // The disposal waits for the start, whose continuation sits in the queue: run the queue
+            // before awaiting it.
+            var disposing = runner.DisposeAsync().AsTask();
+            queue.RunAll();
+            await disposing;
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        Assert.True(fake.Disposed);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    // The start is still waiting on the browser when the runner is disposed: the disposal must not
+    // return before that start has torn its host down, or the caller goes on to delete the profile
+    // folder while the half-built session is still closing on it.
+    [Fact]
+    public async Task Disposing_waits_for_a_start_that_is_still_in_flight_to_release_its_host()
+    {
+        var fake = new FakeHiddenBrowserHost { DisposeDelay = TimeSpan.FromMilliseconds(150) };
+        var runner = new WebSessionScriptRunner(() => fake);
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+
+        await runner.DisposeAsync();
+
+        Assert.True(fake.Disposed);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public void Shutdown_does_not_wait_for_a_start_that_is_still_in_flight()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() => fake);
+        var queue = new QueueingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        bool finished;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(queue);
+            _ = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            var completer = new Thread(() => fake.CompleteNavigate(true));
+            completer.Start();
+            completer.Join();
+            // The start's continuation sits in the queue, like one waiting for the UI thread that
+            // shutdown blocks; the queue is never run, so a disposal that waits for it never ends.
+            finished = runner.DisposeForShutdownAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        Assert.True(finished);
+    }
+
+    // The Console's credit source is the runner's companion and owns a second runner of its own: its
+    // start in flight must not hold the shutdown either.
+    [Fact]
+    public void Shutdown_does_not_wait_for_a_start_in_flight_of_the_console_companion()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var consoleRunner = new WebSessionScriptRunner(() => fake);
+        var credit = new AiUsage.Providers.ClaudeConsoleCreditSource(
+            (_, _) => Task.FromResult("{\"status\":\"not_signed_in\"}"),
+            () => new AiUsage.Providers.ClaudeConsoleCreditSource.ConsoleRunner(consoleRunner.ExecuteScriptAsync, consoleRunner));
+        var runner = new WebSessionScriptRunner(() => new FakeHiddenBrowserHost());
+        runner.AttachCompanion(credit);
+        var queue = new QueueingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        bool finished;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(queue);
+            // The refresh reaches the console runner, whose browser start is now in flight.
+            _ = credit.RefreshIfDueAsync();
+            var completer = new Thread(() => fake.CompleteNavigate(true));
+            completer.Start();
+            completer.Join();
+            // The start's continuation sits in the queue and is never run, like a UI thread that is blocked.
+            finished = runner.DisposeForShutdownAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        Assert.True(finished);
+    }
+
+    private sealed class QueueingSynchronizationContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> _queue = new();
+
+        public override void Post(SendOrPostCallback d, object? state) => _queue.Enqueue((d, state));
+
+        public void RunAll()
+        {
+            while (_queue.Count > 0)
+            {
+                var (callback, state) = _queue.Dequeue();
+                callback(state);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task A_script_that_never_returns_times_out_instead_of_hanging()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() => fake, scriptTimeout: ShortTimeout);
+
+        await Assert.ThrowsAsync<TimeoutException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task After_a_failed_start_the_next_call_attempts_a_fresh_start()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            return current;
+        }, navigationTimeout: ShortTimeout);
+
+        // First attempt: navigation never completes, so it times out and tears the host down.
+        await Assert.ThrowsAsync<TimeoutException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.Equal(1, starts);
+
+        // Second attempt: a fresh host that actually answers.
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteNavigate(true);
+        current.CompleteScript("result");
+        var result = await secondCall;
+
+        Assert.Equal(2, starts);
+        Assert.Equal("result", result);
+    }
+
+    [Fact]
+    public async Task A_cancelled_token_stops_the_wait_instead_of_hanging()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() => fake);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runner.ExecuteScriptAsync("script", cts.Token));
+    }
+
+    // Both callers share one start; the first one giving up must not take it away from the second.
+    [Fact]
+    public async Task A_cancelled_first_caller_does_not_fail_a_second_caller_waiting_on_the_same_start()
+    {
+        var starts = 0;
+        var fake = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            return fake;
+        });
+        using var firstCancel = new CancellationTokenSource();
+
+        var first = runner.ExecuteScriptAsync("script", firstCancel.Token);
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        firstCancel.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+
+        fake.CompleteNavigate(true);
+        fake.CompleteScript("answer");
+
+        Assert.Equal("answer", await second);
+        Assert.Equal(1, starts);
+        Assert.False(fake.Disposed);
+    }
+
+    [Fact]
+    public async Task A_navigation_that_fails_cleanly_surfaces_as_a_failure_not_a_hang()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        fake.CompleteNavigate(false);
+        var runner = new WebSessionScriptRunner(() => fake);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+    }
+
+    // Google's traffic check needs a person, so the read reports "signed out" (the tile then offers the
+    // sign-in window, where the check can be passed) instead of a failure that pauses the reads.
+    [Fact]
+    public async Task A_traffic_check_on_the_start_page_reads_as_signed_out_and_the_next_call_starts_fresh()
+    {
+        var starts = 0;
+        var first = new FakeHiddenBrowserHost();
+        first.FailNavigate(new WebSessionCheckRequiredException());
+        var second = new FakeHiddenBrowserHost();
+        var runner = new WebSessionScriptRunner(() => ++starts == 1 ? first : second);
+
+        Assert.Equal("""{"status":"not_signed_in"}""", await runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.True(first.Disposed);
+
+        second.FailNavigate(new WebSessionCheckRequiredException());
+        await runner.ExecuteScriptAsync("script", CancellationToken.None);
+        Assert.Equal(2, starts);
+    }
+
+    // The check can arrive on a navigation the page makes after the start: the answer of that script
+    // comes from a page the site did not let through, so the read says "signed out" and the session is
+    // replaced instead of reporting a generic failure.
+    [Fact]
+    public async Task A_traffic_check_seen_after_a_later_script_reads_as_signed_out_and_drops_the_host()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() => fake);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => fake.ExecuteCalls == 1);
+        fake.TrafficCheckSeen = true;
+        fake.CompleteScript("""{"status":"ok"}""");
+
+        Assert.Equal("""{"status":"not_signed_in"}""", await call.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(fake.Disposed);
+    }
+
+    // A caller that stops waiting (its own cancel, not the script timeout) says nothing about the
+    // browser: the warm host serves the next read instead of being rebuilt.
+    [Fact]
+    public async Task A_caller_cancel_during_a_script_keeps_the_warm_host()
+    {
+        var starts = 0;
+        var fake = new FakeHiddenBrowserHost();
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            return fake;
+        });
+        using var cancel = new CancellationTokenSource();
+
+        var first = runner.ExecuteScriptAsync("script", cancel.Token);
+        await WaitUntilAsync(() => fake.ExecuteCalls == 1);
+        cancel.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(fake.Disposed);
+
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => fake.ExecuteCalls == 2);
+        fake.CompleteScript("answer");
+
+        Assert.Equal("answer", await second.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, starts);
+        Assert.False(fake.Disposed);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!condition())
+        {
+            Assert.True(DateTime.UtcNow < deadline, "The condition never became true.");
+            await Task.Delay(5);
+        }
+    }
+
+    // The host cannot be instantiated without a live WebView2, so its wiring is read as text.
+    [Fact]
+    public void The_hidden_session_spots_the_traffic_check_before_the_allow_list_cancels_it()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+        var start = source.IndexOf("public async Task<bool> NavigateAsync(CancellationToken ct)", StringComparison.Ordinal);
+        var end = source.IndexOf("public async Task SuspendAsync()", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var navigate = source[start..end];
+
+        var check = navigate.IndexOf("SignInNavigationPolicy.IsGoogleTrafficCheck(e.Uri)", StringComparison.Ordinal);
+        var allowList = navigate.IndexOf("SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts)", StringComparison.Ordinal);
+        Assert.True(check >= 0 && allowList > check);
+        Assert.Contains("throw new WebSessionCheckRequiredException()", navigate, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_host_that_fails_to_close_after_a_failed_start_keeps_the_start_failure_and_the_next_call_starts_fresh()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost { DisposeFails = starts == 1 };
+            current.CompleteNavigate(starts > 1);
+            return current;
+        });
+
+        // The failure of the start reaches the caller, not the failure of closing the half-built host.
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.DoesNotContain("close failed", failure.Message, StringComparison.Ordinal);
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("answer");
+
+        Assert.Equal("answer", await secondCall);
+        Assert.Equal(2, starts);
+    }
+
+    [Fact]
+    public async Task Disposing_the_runner_does_not_throw_when_the_host_fails_to_close()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost { DisposeFails = true };
+            current.CompleteNavigate(true);
+            return current;
+        });
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("answer");
+        await call;
+
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task A_script_that_times_out_disposes_the_host_and_starts_a_fresh_one_for_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        }, scriptTimeout: ShortTimeout);
+
+        await Assert.ThrowsAsync<TimeoutException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        var timedOutHost = current!;
+        Assert.Equal(1, starts);
+        Assert.True(timedOutHost.Disposed);
+
+        // The next call must not reuse the timed-out host - a fresh one is requested instead.
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("result");
+        var result = await secondCall;
+
+        Assert.Equal(2, starts);
+        Assert.NotSame(timedOutHost, current);
+        Assert.Equal("result", result);
+    }
+
+    [Fact]
+    public async Task Without_a_profile_folder_no_browser_is_started_and_the_answer_is_signed_out()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var profileExists = false;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        }, profileExists: () => profileExists);
+
+        var answer = await runner.ExecuteScriptAsync("script", CancellationToken.None);
+
+        Assert.Equal(0, starts);
+        Assert.Contains("not_signed_in", answer);
+
+        // The sign-in has created the folder: the next read starts the session.
+        profileExists = true;
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        while (current is null || current.ExecuteCalls == 0)
+            await Task.Delay(5);
+        current.CompleteScript("{}");
+        Assert.Equal("{}", await call);
+        Assert.Equal(1, starts);
+    }
+
+    [Fact]
+    public async Task After_disposal_a_further_call_answers_not_signed_in_without_starting_a_new_host()
+    {
+        var starts = 0;
+        var runner = new WebSessionScriptRunner(() => { starts++; return new FakeHiddenBrowserHost(); });
+
+        await runner.DisposeAsync();
+        var result = await runner.ExecuteScriptAsync("script", CancellationToken.None);
+
+        Assert.Equal("""{"status":"not_signed_in"}""", result);
+        Assert.Equal(0, starts);
+    }
+
+    [Fact]
+    public async Task A_host_idle_past_fifteen_minutes_is_disposed_on_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        }, timeProvider: clock);
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        var firstHost = current!;
+        Assert.Equal(1, starts);
+
+        clock.Advance(TimeSpan.FromMinutes(15));
+
+        // The idle timer may close the old host on another thread first, so the new host (and its
+        // script call) can appear after this call returned: wait for it instead of answering the old one.
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => starts == 2 && current!.ExecuteCalls == 1);
+        current!.CompleteScript("second");
+        var result = await secondCall;
+
+        Assert.Equal(2, starts);
+        Assert.True(firstHost.Disposed);
+        Assert.Equal("second", result);
+    }
+
+    [Fact]
+    public async Task A_host_that_fails_to_close_after_the_idle_span_does_not_fail_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost { DisposeFails = starts == 1 };
+            current.CompleteNavigate(true);
+            return current;
+        }, timeProvider: clock);
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+
+        clock.Advance(TimeSpan.FromMinutes(15));
+
+        // The idle timer may close the old host on another thread first, so the new host (and its
+        // script call) can appear after this call returned: wait for it instead of answering the old one.
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => starts == 2 && current!.ExecuteCalls == 1);
+        current!.CompleteScript("second");
+        var result = await secondCall;
+
+        Assert.Equal(2, starts);
+        Assert.Equal("second", result);
+    }
+
+    [Fact]
+    public async Task A_fetch_within_the_idle_span_keeps_the_same_host()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        }, timeProvider: clock);
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        var firstHost = current!;
+
+        clock.Advance(TimeSpan.FromMinutes(14));
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("second");
+        var result = await secondCall;
+
+        Assert.Equal(1, starts);
+        Assert.False(firstHost.Disposed);
+        Assert.Same(firstHost, current);
+        Assert.Equal("second", result);
+    }
+
+    // A call that faults is the sign of a dead browser (a crashed process throws instead of timing
+    // out): the host is replaced, not kept for the next tick.
+    [Fact]
+    public async Task A_script_call_that_faults_replaces_the_host_for_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        var firstHost = current!;
+
+        var failingCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        firstHost.FailScript(new InvalidOperationException("browser gone"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => failingCall);
+        Assert.True(firstHost.Disposed);
+
+        var thirdCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("third");
+        var result = await thirdCall;
+
+        Assert.Equal(2, starts);
+        Assert.NotSame(firstHost, current);
+        Assert.Equal("third", result);
+    }
+
+    [Fact]
+    public async Task A_host_that_throws_while_starting_the_call_is_replaced()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost { ThrowOnExecute = new InvalidOperationException("no core") };
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        var broken = current;
+        Assert.True(broken!.Disposed);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => runner.ExecuteScriptAsync("script", CancellationToken.None));
+        Assert.Equal(2, starts);
+        Assert.NotSame(broken, current);
+    }
+
+    [Fact]
+    public async Task A_browser_process_failure_drops_the_host_before_the_next_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            starts++;
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        var firstHost = current!;
+
+        firstHost.RaiseProcessFailed();
+        await Task.Delay(20);
+        Assert.True(firstHost.Disposed);
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("second");
+        Assert.Equal("second", await secondCall);
+        Assert.Equal(2, starts);
+        Assert.NotSame(firstHost, current);
+    }
+
+    [Fact]
+    public async Task The_fetch_after_an_idle_disposal_still_answers()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        }, timeProvider: clock);
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        var firstHost = current!;
+
+        clock.Advance(TimeSpan.FromMinutes(20));
+
+        // The idle timer may close the old host on another thread first, so the new host (and its
+        // script call) can appear after this call returned: wait for it instead of answering the old one.
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await WaitUntilAsync(() => !ReferenceEquals(current, firstHost) && current!.ExecuteCalls == 1);
+        current!.CompleteScript("second");
+        var result = await secondCall;
+
+        Assert.Equal("second", result);
+    }
+
+    [Fact]
+    public async Task The_page_is_suspended_after_a_call_and_resumed_before_the_next_one()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        var firstCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await firstCall;
+        Assert.Equal(1, current.SuspendCalls);
+        Assert.Equal(0, current.ResumeCalls);
+
+        var secondCall = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        Assert.Equal(1, current.ResumeCalls);
+        current.CompleteScript("second");
+        await secondCall;
+        Assert.Equal(2, current.SuspendCalls);
+    }
+
+    [Fact]
+    public async Task The_page_stays_awake_while_another_call_still_has_a_script_running()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost();
+            current.CompleteNavigate(true);
+            return current;
+        });
+
+        var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        Assert.Equal(2, current!.Scripts.Count);
+
+        current.Scripts[0].SetResult("first");
+        await first;
+        Assert.Equal(0, current.SuspendCalls);
+
+        current.Scripts[1].SetResult("second");
+        await second;
+        Assert.Equal(1, current.SuspendCalls);
+    }
+
+    [Fact]
+    public async Task A_failing_suspend_never_fails_the_fetch()
+    {
+        var fake = new FakeHiddenBrowserHost { SuspendFails = true };
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() => fake);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        fake.CompleteScript("ok");
+
+        Assert.Equal("ok", await call);
+    }
+
+    [Fact]
+    public async Task An_idle_host_is_disposed_when_the_idle_span_passes_without_a_call()
+    {
+        var starts = 0;
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var context = new InlineSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            var runner = new WebSessionScriptRunner(() =>
+            {
+                starts++;
+                current = new FakeHiddenBrowserHost();
+                current.CompleteNavigate(true);
+                return current;
+            }, timeProvider: clock);
+
+            var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            current!.CompleteScript("first");
+            await call;
+            var first = current;
+
+            clock.Advance(TimeSpan.FromMinutes(14));
+            Assert.False(first.Disposed);
+
+            clock.Advance(TimeSpan.FromMinutes(1));
+            Assert.True(first.Disposed);
+
+            var next = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            current!.CompleteScript("second");
+            Assert.Equal("second", await next);
+            Assert.Equal(2, starts);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    [Fact]
+    public async Task The_idle_timer_never_disposes_the_host_during_a_call()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineSynchronizationContext());
+        try
+        {
+            var runner = new WebSessionScriptRunner(() =>
+            {
+                current = new FakeHiddenBrowserHost();
+                current.CompleteNavigate(true);
+                return current;
+            }, timeProvider: clock);
+
+            var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            current!.CompleteScript("first");
+            await first;
+            var host = current;
+
+            clock.Advance(TimeSpan.FromMinutes(14));
+            var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            clock.Advance(TimeSpan.FromMinutes(30)); // the call is still running
+            Assert.False(host.Disposed);
+
+            host.CompleteScript("second");
+            Assert.Equal("second", await second);
+            Assert.False(host.Disposed);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    [Fact]
+    public async Task Without_a_captured_context_the_idle_timer_leaves_the_host_to_the_next_call()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            var runner = new WebSessionScriptRunner(() =>
+            {
+                current = new FakeHiddenBrowserHost();
+                current.CompleteNavigate(true);
+                return current;
+            }, timeProvider: clock);
+
+            var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            current!.CompleteScript("first");
+            await call;
+
+            clock.Advance(TimeSpan.FromMinutes(20));
+
+            Assert.False(current.Disposed);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    [Fact]
+    public async Task A_resume_is_still_issued_when_the_previous_suspend_never_finished()
+    {
+        var fake = new FakeHiddenBrowserHost { SuspendNeverFinishes = true };
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() => fake, suspendWait: TimeSpan.FromMilliseconds(50));
+
+        var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        fake.CompleteScript("first");
+        await first;
+
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        // Wait for the second script to reach the host (past the 50 ms suspend wait) instead of a fixed
+        // delay: completing it earlier would answer the first call's spent completion source.
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (fake.ExecuteCalls < 2 && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
+        fake.CompleteScript("second");
+
+        Assert.Equal("second", await second);
+        Assert.Equal(1, fake.ResumeCalls);
+    }
+
+    [Fact]
+    public async Task An_idle_timer_that_fires_early_is_re_armed_for_the_remaining_time()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineSynchronizationContext());
+        try
+        {
+            var runner = new WebSessionScriptRunner(() =>
+            {
+                current = new FakeHiddenBrowserHost();
+                current.CompleteNavigate(true);
+                return current;
+            }, timeProvider: clock);
+
+            var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+            current!.CompleteScript("first");
+            await call;
+            var host = current;
+
+            clock.Advance(TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(59));
+            clock.FireAllTimers(); // a real timer can come a few milliseconds before the span is up
+            Assert.False(host.Disposed);
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.True(host.Disposed);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    /// <summary>A hidden session that the provider itself sent to its own login page reads as "not
+    /// signed in", so the tile offers a sign-in button instead of a bare failure. Only a session that
+    /// ended up somewhere outside the provider's own sign-in flow still reads as blocked.</summary>
+    [Theory]
+    [InlineData("https://authenticate.cursor.sh/user_management/authorize", true)]
+    [InlineData("https://api.workos.com/sso/authorize", true)]
+    [InlineData("https://cursor.com.attacker.test/login", false)]
+    [InlineData("http://cursor.com/dashboard", false)]
+    [InlineData("not a url at all", false)]
+    public void ASessionSentToTheProvidersOwnLoginPageReadsAsNotSignedInRatherThanBlocked(string source, bool notSignedIn)
+    {
+        var envelope = WebView2HiddenBrowserHost.OffOriginEnvelope(
+            source, ProviderRegistry.WebSessionFor("cursor").AllowedHosts);
+
+        Assert.Equal(notSignedIn ? """{"status":"not_signed_in","reason":"sign_in_page"}""" : """{"status":"blocked","reason":"foreign_page"}""", envelope);
+    }
+
+    [Fact]
+    public async Task A_runner_disposed_while_waiting_for_the_page_to_wake_cancels_instead_of_running_on_a_dead_host()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var runner = new WebSessionScriptRunner(() =>
+        {
+            current = new FakeHiddenBrowserHost { SuspendNeverFinishes = true };
+            current.CompleteNavigate(true);
+            return current;
+        }, suspendWait: TimeSpan.FromSeconds(30));
+
+        var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        current!.CompleteScript("first");
+        await first;
+        var host = current;
+        Assert.Equal(1, host.ExecuteCalls);
+
+        // The second call waits for the suspend that never finishes; the runner goes away meanwhile.
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await runner.DisposeAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+        Assert.Equal(1, host.ExecuteCalls);
+        Assert.True(host.Disposed);
+    }
+
+    [Fact]
+    public async Task The_timeout_timer_is_cancelled_as_soon_as_the_work_wins()
+    {
+        CancellationToken timerToken = default;
+        var work = Task.CompletedTask;
+
+        var won = await WebSessionScriptRunner.WinsAgainstTimeoutAsync(
+            work, TimeSpan.FromMinutes(5), CancellationToken.None,
+            delay: (_, token) =>
+            {
+                timerToken = token;
+                return Task.Delay(Timeout.Infinite, token);
+            });
+
+        Assert.True(won);
+        Assert.True(timerToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task The_timeout_wins_against_work_that_never_finishes_and_so_does_the_callers_cancellation()
+    {
+        var never = new TaskCompletionSource().Task;
+        Assert.False(await WebSessionScriptRunner.WinsAgainstTimeoutAsync(never, TimeSpan.FromMilliseconds(20), CancellationToken.None));
+
+        using var cts = new CancellationTokenSource();
+        var cancelled = WebSessionScriptRunner.WinsAgainstTimeoutAsync(never, TimeSpan.FromMinutes(5), cts.Token);
+        await cts.CancelAsync();
+        Assert.False(await cancelled);
+    }
+
+    [Fact]
+    public void Every_script_runs_behind_a_host_check_evaluated_in_the_same_step()
+    {
+        const string script = "(async () => ({status: 'ok'}))()";
+
+        var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard(script, "claude.ai");
+
+        Assert.Contains("location.hostname", wrapped, StringComparison.Ordinal);
+        Assert.Contains("location.protocol", wrapped, StringComparison.Ordinal);
+        Assert.Contains("\"claude.ai\"", wrapped, StringComparison.Ordinal);
+        Assert.Contains(WebView2HiddenBrowserHost.OffOriginStatus, wrapped, StringComparison.Ordinal);
+        Assert.True(
+            wrapped.IndexOf("location.hostname", StringComparison.Ordinal) < wrapped.IndexOf(script, StringComparison.Ordinal),
+            "the host check has to stand in front of the script");
+    }
+
+    [Fact]
+    public void The_host_check_uses_no_method_of_a_built_in_prototype()
+    {
+        var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard("1", "claude.ai");
+        var check = wrapped[..wrapped.IndexOf("else {", StringComparison.Ordinal)];
+
+        foreach (var method in new[] { "endsWith", "startsWith", "indexOf", "includes", "slice", "substring", "charAt", "split", "match", "test(" })
+            Assert.DoesNotContain(method, check, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("https:", "claude.ai", false)]
+    [InlineData("https:", "api.claude.ai", false)]
+    [InlineData("https:", "sites.google.com", true)]
+    [InlineData("https:", "claude.ai.evil.test", true)]
+    [InlineData("https:", "evilclaude.ai", true)]
+    [InlineData("http:", "claude.ai", true)]
+    public void A_page_that_replaces_endsWith_cannot_get_past_the_host_check(string protocol, string hostname, bool refused)
+    {
+        var node = TryRunNode(WebView2HiddenBrowserHost.WrapWithOriginGuard("({status: 'ran'})", "claude.ai"), protocol, hostname);
+        if (node is null)
+            return; // no node on this machine: the check above still pins the shape of the guard
+
+        Assert.True(refused == node.Contains(WebView2HiddenBrowserHost.OffOriginStatus, StringComparison.Ordinal), node);
+        Assert.True(!refused == node.Contains("\"ran\"", StringComparison.Ordinal), node);
+    }
+
+    /// <summary>Evaluates the guarded script in a fresh JavaScript context whose <c>String.prototype.endsWith</c>
+    /// always answers true, as a hostile page would leave it; null when node is not installed.</summary>
+    private static string? TryRunNode(string wrapped, string protocol, string hostname)
+    {
+        const string driver =
+            "const vm = require('vm'); const i = JSON.parse(require('fs').readFileSync(0, 'utf8'));" +
+            "const c = vm.createContext({ location: { protocol: i.protocol, hostname: i.hostname, href: i.protocol + '//' + i.hostname + '/' } });" +
+            "vm.runInContext('String.prototype.endsWith = () => true;', c);" +
+            "console.log(JSON.stringify(vm.runInContext(i.wrapped, c)));";
+        var start = new System.Diagnostics.ProcessStartInfo("node")
+        {
+            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            UseShellExecute = false, CreateNoWindow = true,
+        };
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(driver);
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+            process.StandardInput.Write(JsonSerializer.Serialize(new { wrapped, protocol, hostname }));
+            process.StandardInput.Close();
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(20000))
+            {
+                process.Kill();
+                return null;
+            }
+
+            Assert.True(process.ExitCode == 0, error);
+            return output;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    [Fact]
+    public void A_navigation_turned_away_is_logged_once_per_host_without_path_or_query()
+    {
+        IReadOnlyList<string> allowed = ["gemini.google.com", "accounts.google.com"];
+        var gate = new FirstPerHostGate();
+
+        var first = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/ml?continue=secret&code=1", allowed, gate);
+        var again = WebView2HiddenBrowserHost.BlockedNavigationLine("https://consent.google.com/other", allowed, gate);
+        var other = WebView2HiddenBrowserHost.BlockedNavigationLine("https://www.google.com/x", allowed, gate);
+
+        Assert.NotNull(first);
+        Assert.Contains("consent.google.com", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("/ml", first, StringComparison.Ordinal);
+        Assert.Null(again);
+        Assert.Contains("www.google.com", other, StringComparison.Ordinal);
+        Assert.Null(WebView2HiddenBrowserHost.BlockedNavigationLine("https://gemini.google.com/usage", allowed, gate));
+    }
+
+    [Fact]
+    public void A_host_name_cannot_break_out_of_the_guards_string_literal()
+    {
+        var wrapped = WebView2HiddenBrowserHost.WrapWithOriginGuard("1", "a\";alert(1);//");
+
+        Assert.DoesNotContain("\";alert(1)", wrapped, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("""{"status":"__off_origin","href":"https://accounts.google.com/signin"}""", "https://accounts.google.com/signin")]
+    [InlineData("""{"status":"ok","body":"{}"}""", null)]
+    [InlineData("""{"status":"__off_origin"}""", null)]
+    [InlineData("not json", null)]
+    [InlineData("", null)]
+    public void The_guards_answer_is_told_apart_from_a_scripts_own(string answer, string? expectedAddress)
+    {
+        Assert.Equal(expectedAddress, WebView2HiddenBrowserHost.ReadOffOriginAddress(answer));
+    }
+
+    [Fact]
+    public void A_guarded_script_off_the_provider_answers_exactly_what_the_host_side_check_answers()
+    {
+        // The guard hands the address back; the classification is the one the pre-check already uses.
+        IReadOnlyList<string> allowed = ["claude.ai", "accounts.google.com"];
+
+        Assert.Equal("""{"status":"not_signed_in","reason":"sign_in_page"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://accounts.google.com/x", allowed));
+        Assert.Equal("""{"status":"blocked","reason":"foreign_page"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("https://elsewhere.example/", allowed));
+        Assert.Equal("""{"status":"blocked","reason":"foreign_page"}""", WebView2HiddenBrowserHost.OffOriginEnvelope("http://claude.ai/", allowed));
+    }
+
+    [Theory]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Alert, false)]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Confirm, false)]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Prompt, false)]
+    [InlineData(Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind.Beforeunload, true)]
+    public void Only_the_leave_page_prompt_is_answered_yes_in_the_hidden_session(
+        Microsoft.Web.WebView2.Core.CoreWebView2ScriptDialogKind kind, bool accepted)
+    {
+        Assert.Equal(accepted, WebView2HiddenBrowserHost.ShouldAcceptScriptDialog(kind));
+    }
+
+    [Fact]
+    public void The_page_cannot_open_the_print_dialog_in_the_hidden_session()
+    {
+        Assert.Contains("'print'", WebView2HiddenBrowserHost.DocumentCreatedScript, StringComparison.Ordinal);
+        Assert.Contains("configurable:false", WebView2HiddenBrowserHost.DocumentCreatedScript, StringComparison.Ordinal);
+    }
+
+    // The host cannot be instantiated without a live WebView2, so its wiring is read as text (as above).
+    [Fact]
+    public void The_hidden_session_silences_dialogs_prompts_popups_and_foreign_navigation()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+        var start = source.IndexOf("public async Task<bool> NavigateAsync(CancellationToken ct)", StringComparison.Ordinal);
+        var end = source.IndexOf("public async Task SuspendAsync()", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var navigate = source[start..end];
+
+        Assert.Contains("AreDefaultScriptDialogsEnabled = false;", navigate, StringComparison.Ordinal);
+        Assert.Contains("ScriptDialogOpening +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("BasicAuthenticationRequested +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("ClientCertificateRequested +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("AddScriptToExecuteOnDocumentCreatedAsync(DocumentCreatedScript)", navigate, StringComparison.Ordinal);
+        Assert.Contains("NewWindowRequested +=", navigate, StringComparison.Ordinal);
+        Assert.Contains("e.Handled = true;", navigate, StringComparison.Ordinal);
+        Assert.Contains("DownloadStarting += (_, e) => e.Cancel = true;", navigate, StringComparison.Ordinal);
+        Assert.Contains("PermissionRequested += (_, e) => e.State", navigate, StringComparison.Ordinal);
+        Assert.Contains("SignInNavigationPolicy.IsAllowedUri(e.Uri, _allowedHosts)", navigate, StringComparison.Ordinal);
+
+        // The dialogs are switched off before the first page can load.
+        Assert.True(
+            navigate.IndexOf("AreDefaultScriptDialogsEnabled = false;", StringComparison.Ordinal)
+            < navigate.IndexOf("CoreWebView2.Navigate(_baseUrl)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_hidden_host_never_dereferences_the_web_view_with_a_bang_after_disposal()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+
+        Assert.DoesNotContain("_webView!", source, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> RunOnce(WebSessionScriptRunner runner, List<FakeHiddenBrowserHost> hosts, string answer)
+    {
+        var before = TotalExecuteCalls(hosts);
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+
+        // After a clock jump the idle timer may close the old host on another thread first, so the
+        // host this call runs on can appear after the call returned: answer only once it asked for it.
+        await WaitUntilAsync(() => TotalExecuteCalls(hosts) == before + 1);
+        hosts[^1].CompleteScript(answer);
+        return await call;
+    }
+
+    private static int TotalExecuteCalls(List<FakeHiddenBrowserHost> hosts)
+    {
+        try
+        {
+            return hosts.Sum(h => h.ExecuteCalls);
+        }
+        catch (InvalidOperationException)
+        {
+            return -1; // the list grew while it was read: the next poll sees the settled state
+        }
+    }
+
+    private static WebSessionScriptRunner CacheClearRunner(
+        List<FakeHiddenBrowserHost> hosts, TimeProvider clock, string? profileFolder = null, bool clearFails = false, bool clearHangs = false) =>
+        new(() =>
+        {
+            var host = new FakeHiddenBrowserHost { ClearFails = clearFails, ClearHangs = clearHangs };
+            host.CompleteNavigate(true);
+            hosts.Add(host);
+            return host;
+        }, timeProvider: clock, profileFolder: profileFolder);
+
+    [Fact]
+    public async Task The_disk_cache_is_cleared_once_a_day_after_a_successful_script()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var runner = CacheClearRunner(hosts, clock);
+
+        await RunOnce(runner, hosts, "a");
+        await RunOnce(runner, hosts, "b");
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+
+        clock.Advance(TimeSpan.FromHours(2));
+        await RunOnce(runner, hosts, "c");
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+
+        clock.Advance(TimeSpan.FromDays(1));
+        await RunOnce(runner, hosts, "d");
+        Assert.Equal(2, hosts.Sum(h => h.ClearCalls));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_clear_day_is_kept_in_the_profile_folder_and_found_by_a_second_runner()
+    {
+        using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache");
+        string folder = disposable;
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var hostsA = new List<FakeHiddenBrowserHost>();
+        var runnerA = CacheClearRunner(hostsA, clock, folder);
+        await RunOnce(runnerA, hostsA, "a");
+
+        Assert.Equal(1, hostsA.Sum(h => h.ClearCalls));
+        Assert.Equal("2026-11-07", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+
+        // A new runner (an app restart) finds today's date.
+        var hostsB = new List<FakeHiddenBrowserHost>();
+        var runnerB = CacheClearRunner(hostsB, clock, folder);
+        await RunOnce(runnerB, hostsB, "b");
+        Assert.Equal(0, hostsB.Sum(h => h.ClearCalls));
+
+        clock.Advance(TimeSpan.FromDays(1));
+        await RunOnce(runnerB, hostsB, "c");
+        Assert.Equal(1, hostsB.Sum(h => h.ClearCalls));
+        Assert.Equal("2026-11-08", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+        await runnerA.DisposeAsync();
+        await runnerB.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_disk_cache_is_not_cleared_while_the_profile_folder_is_missing()
+    {
+        var missing = TestPaths.GetPath("ai-usage-cache-missing");
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow), missing);
+
+        await RunOnce(runner, hosts, "a");
+
+        Assert.Equal(0, hosts.Sum(h => h.ClearCalls));
+        Assert.False(Directory.Exists(missing));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_disk_cache_is_not_cleared_while_another_script_is_queued()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+        var first = runner.ExecuteScriptAsync("one", CancellationToken.None);
+        await Task.Delay(50);
+        var second = runner.ExecuteScriptAsync("two", CancellationToken.None);
+        await Task.Delay(50);
+        Assert.Equal(2, hosts[0].Scripts.Count);
+
+        hosts[0].Scripts[0].SetResult("one");
+        await first;
+        Assert.Equal(0, hosts[0].ClearCalls);
+
+        hosts[0].Scripts[1].SetResult("two");
+        await second;
+        Assert.Equal(1, hosts[0].ClearCalls);
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task A_failing_cache_clear_does_not_fail_the_read_and_is_not_retried_the_same_day()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow), clearFails: true);
+
+        Assert.Equal("a", await RunOnce(runner, hosts, "a"));
+        Assert.Equal("b", await RunOnce(runner, hosts, "b"));
+
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task A_hanging_cache_clear_does_not_delay_the_answer_and_ends_with_disposal()
+    {
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, new FakeTimeProvider(DateTimeOffset.UtcNow), clearHangs: true);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        hosts[^1].CompleteScript("a");
+
+        // The 20 s clear timeout is far away: the answer must be back long before it.
+        Assert.Equal("a", await call.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, hosts.Sum(h => h.ClearCalls));
+
+        var dispose = runner.DisposeAsync().AsTask();
+        await dispose.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task A_failing_cache_clear_writes_the_day_so_a_restart_does_not_try_again()
+    {
+        using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache-fail");
+        string folder = disposable;
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var hostsA = new List<FakeHiddenBrowserHost>();
+        var runnerA = CacheClearRunner(hostsA, clock, folder, clearFails: true);
+        Assert.Equal("a", await RunOnce(runnerA, hostsA, "a"));
+        Assert.Equal(1, hostsA.Sum(h => h.ClearCalls));
+        Assert.Equal("2026-11-07", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+
+        var hostsB = new List<FakeHiddenBrowserHost>();
+        var runnerB = CacheClearRunner(hostsB, clock, folder);
+        await RunOnce(runnerB, hostsB, "b");
+        Assert.Equal(0, hostsB.Sum(h => h.ClearCalls));
+        await runnerA.DisposeAsync();
+        await runnerB.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task The_cache_clear_day_is_the_local_day()
+    {
+        // 10:00 UTC is already the next day at UTC+14.
+        var zone = TimeZoneInfo.CreateCustomTimeZone("plus14", TimeSpan.FromHours(14), "plus14", "plus14");
+        using var disposable = TestPaths.CreateDisposableDirectory("ai-usage-cache-local");
+        string folder = disposable;
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero), zone);
+        var hosts = new List<FakeHiddenBrowserHost>();
+        var runner = CacheClearRunner(hosts, clock, folder);
+
+        await RunOnce(runner, hosts, "a");
+
+        Assert.Equal("2026-11-08", File.ReadAllText(Path.Combine(folder, WebSessionScriptRunner.CacheClearedFileName)));
+        await runner.DisposeAsync();
+    }
+
+    [Fact]
+    public void The_cache_clear_names_only_the_two_cache_kinds_and_deletes_no_file()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Web", "WebSessionScriptRunner.cs"));
+        var start = source.IndexOf("public async Task ClearDiskCacheAsync()", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var body = source[start..source.IndexOf("public void Resume()", start, StringComparison.Ordinal)];
+
+        Assert.Contains("CoreWebView2BrowsingDataKinds.DiskCache", body);
+        Assert.Contains("CoreWebView2BrowsingDataKinds.CacheStorage", body);
+        Assert.DoesNotContain("Cookies", body);
+        Assert.DoesNotContain("LocalStorage", body);
+        Assert.DoesNotContain("IndexedDb", body);
+        Assert.DoesNotContain("AllProfile", body);
+        Assert.DoesNotContain("Delete", body);
+        // The one call into the browser's clear lives in this method only.
+        Assert.Single(Regex.Matches(source, @"ClearBrowsingDataAsync"));
+    }
+
+    private sealed class FakeTimeProvider(DateTimeOffset start, TimeZoneInfo? zone = null) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+        private readonly List<FakeTimer> _timers = [];
+
+        public override TimeZoneInfo LocalTimeZone { get; } = zone ?? TimeZoneInfo.Utc;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new FakeTimer(callback, state, _now + dueTime);
+            _timers.Add(timer);
+            return timer;
+        }
+
+        public void FireAllTimers()
+        {
+            foreach (var timer in _timers.ToArray())
+            {
+                if (timer.Disposed || timer.Fired)
+                    continue;
+                timer.Fired = true;
+                timer.Callback(timer.State);
+            }
+        }
+
+        public void Advance(TimeSpan by)
+        {
+            _now += by;
+            foreach (var timer in _timers.ToArray())
+            {
+                if (timer.Disposed || timer.Fired || timer.DueAt > _now)
+                    continue;
+                timer.Fired = true;
+                timer.Callback(timer.State);
+            }
+        }
+    }
+
+    private sealed class FakeTimer(TimerCallback callback, object? state, DateTimeOffset dueAt) : ITimer
+    {
+        public TimerCallback Callback { get; } = callback;
+        public object? State { get; } = state;
+        public DateTimeOffset DueAt { get; } = dueAt;
+        public bool Fired { get; set; }
+        public bool Disposed { get; private set; }
+
+        public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+        public void Dispose() => Disposed = true;
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>Stands in for the UI thread's context: counts the posts and runs them inline.</summary>
+    private sealed class InlineSynchronizationContext : SynchronizationContext
+    {
+        public int Posts { get; private set; }
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            Posts++;
+            d(state);
+        }
+    }
+
+    [Fact]
+    public async Task A_finished_read_logs_its_time_and_the_browser_size()
+    {
+        var fake = new FakeHiddenBrowserHost { ProcessId = Environment.ProcessId };
+        var lines = new List<string>();
+        var runner = new WebSessionScriptRunner(() => fake, providerId: "claude", timingLog: new WebReadTimingLog(), writeTimingLine: lines.Add);
+        fake.CompleteNavigate(true);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        while (fake.ExecuteCalls == 0)
+            await Task.Delay(5);
+        fake.CompleteScript("{}");
+        await call;
+
+        var line = Assert.Single(lines);
+        Assert.Matches("^web read claude: [0-9]+ ms, browser [0-9]+ MB$", line);
+    }
+
+    [Fact]
+    public async Task A_read_without_a_browser_process_logs_the_time_only()
+    {
+        var fake = new FakeHiddenBrowserHost();
+        var lines = new List<string>();
+        var runner = new WebSessionScriptRunner(() => fake, providerId: "codex", timingLog: new WebReadTimingLog(), writeTimingLine: lines.Add);
+        fake.CompleteNavigate(true);
+
+        var call = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        while (fake.ExecuteCalls == 0)
+            await Task.Delay(5);
+        fake.CompleteScript("{}");
+        await call;
+
+        Assert.Matches("^web read codex: [0-9]+ ms$", Assert.Single(lines));
+    }
+
+    private sealed class FakeHiddenBrowserHost : IHiddenBrowserHost
+    {
+        private readonly TaskCompletionSource<bool> _navigate = new();
+
+        // Replaced on every call so a host reused across several ExecuteScriptAsync calls (the idle
+        // disposal tests keep the same fake host alive across two calls) answers each one on its own
+        // completion source instead of replaying the first call's already-set result.
+        private TaskCompletionSource<string> _script = new();
+
+        public bool Disposed { get; private set; }
+
+        public bool TrafficCheckSeen { get; set; }
+
+        /// <summary>Closing the host throws, like a browser control whose process already died.</summary>
+        public bool DisposeFails { get; init; }
+
+        public Exception? ThrowOnExecute { get; init; }
+
+        public event Action? ProcessFailed;
+
+        public void RaiseProcessFailed() => ProcessFailed?.Invoke();
+
+        public int? ProcessId { get; init; }
+
+        public int? BrowserProcessId => ProcessId;
+
+        public int SuspendCalls { get; private set; }
+
+        public int ResumeCalls { get; private set; }
+
+        public bool SuspendFails { get; init; }
+
+        public bool SuspendNeverFinishes { get; init; }
+
+        public Task SuspendAsync()
+        {
+            SuspendCalls++;
+            if (SuspendNeverFinishes)
+                return new TaskCompletionSource().Task;
+            return SuspendFails ? Task.FromException(new InvalidOperationException("suspend failed")) : Task.CompletedTask;
+        }
+
+        public void Resume() => ResumeCalls++;
+
+        public int ClearCalls { get; private set; }
+
+        public bool ClearFails { get; init; }
+
+        /// <summary>The clear never finishes, like a browser stuck on its disk.</summary>
+        public bool ClearHangs { get; init; }
+
+        public Task ClearDiskCacheAsync()
+        {
+            ClearCalls++;
+            if (ClearHangs)
+                return new TaskCompletionSource().Task;
+            return ClearFails ? Task.FromException(new InvalidOperationException("clear failed")) : Task.CompletedTask;
+        }
+
+        /// <summary>How long closing the host takes, to model a browser that shuts down slowly.</summary>
+        public TimeSpan DisposeDelay { get; init; }
+
+        public void CompleteNavigate(bool success) => _navigate.TrySetResult(success);
+
+        public void FailNavigate(Exception error) => _navigate.TrySetException(error);
+
+        public void CompleteScript(string result) => _script.TrySetResult(result);
+
+        public void FailScript(Exception error) => _script.TrySetException(error);
+
+        public Task<bool> NavigateAsync(CancellationToken ct) => _navigate.Task;
+
+        public int ExecuteCalls { get; private set; }
+
+        /// <summary>Every call's own completion source, for tests that keep several calls open at once.</summary>
+        public List<TaskCompletionSource<string>> Scripts { get; } = [];
+
+        public Task<string> ExecuteScriptAsync(string script, CancellationToken ct)
+        {
+            ExecuteCalls++;
+            if (ThrowOnExecute is not null)
+                throw ThrowOnExecute;
+            // The real host reads a field that disposal has already cleared.
+            if (Disposed)
+                throw new NullReferenceException();
+            _script = new TaskCompletionSource<string>();
+            Scripts.Add(_script);
+            return _script.Task;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeDelay > TimeSpan.Zero)
+                await Task.Delay(DisposeDelay);
+            Disposed = true;
+            if (DisposeFails)
+                throw new InvalidOperationException("close failed");
+        }
+    }
+}

@@ -1,0 +1,325 @@
+using AiUsage.Stats;
+using Microsoft.Data.Sqlite;
+
+namespace AiUsage.Tests;
+
+/// <summary>
+/// The one-time passes over the remembered session files: each finishes by its own flag only, and
+/// never while a remembered file that still exists could not be read (it is retried next walk).
+/// </summary>
+[Trait("Layer", "Integration")]
+public class StatsBackfillRetryTests
+{
+    private const string SessionsKey = "sessions_backfilled";
+    private const string SubagentKey = "subagent_usage_backfilled";
+    private const string CopyKey = "claude_copy_backfilled";
+    private const string OwnerKey = "claude_owner_pass";
+
+    private static string Line(string timestamp, string messageId, long input, long output, string sessionId = "sess-1") =>
+        "{\"type\":\"assistant\",\"sessionId\":\"" + sessionId + "\",\"requestId\":\"r-" + messageId + "\",\"cwd\":\"C:\\\\Projects\\\\Sample\",\"timestamp\":\"" +
+        timestamp + "\",\"message\":{\"id\":\"" + messageId + "\",\"model\":\"modelA\",\"usage\":{\"input_tokens\":" + input +
+        ",\"output_tokens\":" + output + ",\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0}}}";
+
+    private const string CodexFile =
+        "{\"type\":\"session_meta\",\"payload\":{\"id\":\"codex-sess-1\",\"cwd\":\"C:\\\\Projects\\\\Other\"}}\n" +
+        "{\"type\":\"turn_context\",\"payload\":{\"model\":\"modelC\",\"effort\":\"high\"}}\n" +
+        "{\"type\":\"event_msg\",\"timestamp\":\"2026-01-03T10:00:00Z\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":10,\"cache_write_input_tokens\":0,\"output_tokens\":20}}}}\n";
+
+    private static void Run(string dbPath, string sql)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = dbPath, Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
+    }
+
+    private static string WriteTranscript(string claudeRoot, string name, DateTime created, params string[] lines)
+    {
+        var dir = Directory.CreateDirectory(Path.Combine(claudeRoot, "C--Projects-Sample")).FullName;
+        var path = Path.Combine(dir, name);
+        File.WriteAllText(path, string.Concat(lines.Select(line => line + "\n")));
+        File.SetCreationTimeUtc(path, created);
+        File.SetLastWriteTimeUtc(path, created);
+        return path;
+    }
+
+    private static string WriteCodex(string codexRoot)
+    {
+        var dir = Directory.CreateDirectory(Path.Combine(codexRoot, "2026", "01", "03")).FullName;
+        var path = Path.Combine(dir, "rollout-2026-01-03T10-00-00-abc.jsonl");
+        File.WriteAllText(path, CodexFile);
+        return path;
+    }
+
+    private static FileStream Lock(string path) => new(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+    private static void OfferAllPasses(string dbPath) =>
+        Run(dbPath, $"DELETE FROM session; DELETE FROM session_model; DELETE FROM meta WHERE key IN ('{SessionsKey}', '{SubagentKey}', '{CopyKey}');");
+
+    private static readonly DateTime Old = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime New = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void A_locked_codex_file_keeps_the_session_pass_open_without_blocking_the_subagent_pass()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-codex-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-codex-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-codex-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old, Line("2026-01-01T10:00:00Z", "m1", 100, 5));
+        var codex = WriteCodex(codexRoot);
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        OfferAllPasses(dbPath);
+
+        using (Lock(codex))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.True(store.IsSubagentUsageBackfillDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsSessionBackfillDone());
+        Assert.True(store.IsClaudeCopyBackfillDone());
+        Assert.Contains(store.LoadSessions(), session => session.Provider == "codex" && session.SessionId == "codex-sess-1");
+    }
+
+    [Fact]
+    public void A_held_session_pass_keeps_the_copies_pass_waiting_so_the_later_copies_reach_the_sessions()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-order-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-order-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-order-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old,
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467));
+        var codex = WriteCodex(codexRoot);
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // What an earlier build stored: the first copy of the response only, no sessions yet.
+        Run(dbPath, "UPDATE usage SET output_tokens = 5 WHERE provider = 'claude';");
+        Run(dbPath, "UPDATE source_file SET counted_input = NULL, counted_output = NULL, counted_cache_creation = NULL, counted_cache_read = NULL;");
+        OfferAllPasses(dbPath);
+
+        // The locked Codex rollout holds the sessions pass; the copies pass must not run ahead of it.
+        using (Lock(codex))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.False(store.IsClaudeCopyBackfillDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsSessionBackfillDone());
+        Assert.True(store.IsClaudeCopyBackfillDone());
+        var claudeUsage = store.LoadAll().Where(row => row.Provider == "claude").Sum(row => row.OutputTokens);
+        var claudeSessions = store.LoadSessions().Where(session => session.Provider == "claude").Sum(session => session.OutputTokens);
+        Assert.Equal(467L, claudeUsage);
+        Assert.Equal(467L, claudeSessions);
+    }
+
+    [Fact]
+    public void A_locked_claude_file_keeps_every_claude_pass_open_until_it_can_be_read()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-claude-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-claude-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-claude-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var transcript = WriteTranscript(claudeRoot, "sess-1.jsonl", Old, Line("2026-01-01T10:00:00Z", "m1", 100, 5));
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        OfferAllPasses(dbPath);
+
+        using (Lock(transcript))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.False(store.IsSubagentUsageBackfillDone());
+        Assert.False(store.IsClaudeCopyBackfillDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsSessionBackfillDone());
+        Assert.True(store.IsSubagentUsageBackfillDone());
+        Assert.True(store.IsClaudeCopyBackfillDone());
+        Assert.Single(store.LoadSessions());
+    }
+
+    [Fact]
+    public void A_locked_transcript_keeps_the_owner_pass_open_and_the_copies_are_taken_out_on_the_retry()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-owner-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-owner-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-owner-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        string[] history =
+        [
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467),
+            Line("2026-01-01T10:00:02Z", "m2", 50, 20),
+        ];
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old, history);
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        var resumed = WriteTranscript(claudeRoot, "sess-2.jsonl", New, [.. history, Line("2026-01-01T12:00:00Z", "m3", 7, 3, "sess-2")]);
+        Run(dbPath, "DELETE FROM claude_message");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerKey}';");
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        using (Lock(resumed))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeOwnerPassDone());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+        var rows = store.LoadAll();
+        Assert.Equal((157L, 490L), (rows.Sum(row => row.InputTokens), rows.Sum(row => row.OutputTokens)));
+    }
+
+    private static long Scalar(string dbPath, string sql)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = dbPath, Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return Convert.ToInt64(command.ExecuteScalar());
+    }
+
+    private static long OutputTotal(StatsStore store) => store.LoadAll().Sum(row => row.OutputTokens);
+
+    [Fact]
+    public void A_locked_oldest_transcript_leaves_no_partial_claims_and_the_retry_keeps_the_original_as_owner()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-oldest-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-oldest-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-oldest-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        string[] history =
+        [
+            Line("2026-01-01T10:00:00Z", "m1", 100, 5),
+            Line("2026-01-01T10:00:01Z", "m1", 100, 467),
+            Line("2026-01-01T10:00:02Z", "m2", 50, 20),
+        ];
+        var original = WriteTranscript(claudeRoot, "sess-1.jsonl", Old, history);
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        WriteTranscript(claudeRoot, "sess-2.jsonl", New, [.. history, Line("2026-01-01T12:00:00Z", "m3", 7, 3, "sess-2")]);
+        Run(dbPath, "DELETE FROM claude_message");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerKey}';");
+
+        using (Lock(original))
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeOwnerPassDone());
+        Assert.Equal(0L, Scalar(dbPath, "SELECT COUNT(*) FROM claude_message"));
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeOwnerPassDone());
+        var rows = store.LoadAll();
+        Assert.Equal((157L, 490L), (rows.Sum(row => row.InputTokens), rows.Sum(row => row.OutputTokens)));
+        var sessions = store.LoadSessions().ToDictionary(session => session.SessionId);
+        Assert.Equal(487L, sessions["sess-1"].OutputTokens);
+        Assert.Equal(3L, sessions["sess-2"].OutputTokens);
+    }
+
+    [Fact]
+    public void An_open_pass_holds_the_walk_back_so_content_appended_meanwhile_is_not_counted_twice()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-walk-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-walk-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-walk-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var fileA = WriteTranscript(claudeRoot, "sess-a.jsonl", Old, Line("2026-01-01T10:00:00Z", "m1", 100, 5, "sess-a"));
+        var fileB = WriteTranscript(claudeRoot, "sess-b.jsonl", New, Line("2026-01-01T10:00:02Z", "m2", 50, 20, "sess-b"));
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        OfferAllPasses(dbPath);
+        Assert.Equal(25L, OutputTotal(store));
+
+        // B grows while A is locked: two copies of one response in the same append.
+        File.AppendAllText(fileB, Line("2026-01-01T11:00:00Z", "m9", 7, 5, "sess-b") + "\n" + Line("2026-01-01T11:00:01Z", "m9", 7, 50, "sess-b") + "\n");
+        using (Lock(fileA))
+        {
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        }
+
+        Assert.Equal(25L, OutputTotal(store));
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.True(store.IsClaudeCopyBackfillDone());
+        Assert.Equal(75L, OutputTotal(store));
+    }
+
+    [Fact]
+    public void A_file_that_stays_locked_for_five_runs_is_given_up_and_the_passes_complete()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-giveup-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-giveup-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-giveup-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        var locked = WriteTranscript(claudeRoot, "sess-a.jsonl", Old, Line("2026-01-01T10:00:00Z", "m1", 100, 5, "sess-a"));
+        WriteTranscript(claudeRoot, "sess-b.jsonl", New, Line("2026-01-01T10:00:02Z", "m2", 50, 20, "sess-b"));
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        OfferAllPasses(dbPath);
+        Run(dbPath, $"DELETE FROM claude_message; DELETE FROM meta WHERE key = '{OwnerKey}';");
+
+        using (Lock(locked))
+        {
+            for (var run = 1; run <= 4; run++)
+            {
+                new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+                Assert.False(store.IsSessionBackfillDone());
+                Assert.False(store.IsClaudeOwnerPassDone());
+            }
+
+            new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+        }
+
+        Assert.True(store.IsSessionBackfillDone());
+        Assert.True(store.IsSubagentUsageBackfillDone());
+        Assert.True(store.IsClaudeCopyBackfillDone());
+        Assert.True(store.IsClaudeOwnerPassDone());
+    }
+
+    [Fact]
+    public void An_unreadable_file_snapshot_never_finishes_a_pass_with_nothing()
+    {
+        using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-retry-snapshot-claude");
+        using var codexRoot = TestPaths.CreateDisposableDirectory("stats-retry-snapshot-codex");
+        using var dataDir = TestPaths.CreateDisposableDirectory("stats-retry-snapshot-data");
+        var dbPath = Path.Combine(dataDir, "stats.db");
+        WriteTranscript(claudeRoot, "sess-1.jsonl", Old, Line("2026-01-01T10:00:00Z", "m1", 100, 5));
+        var store = new StatsStore(dataDir);
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        // The file snapshot cannot be read and no usage row answers for it either: an empty
+        // snapshot that looks like "nothing to do".
+        Run(dbPath, "DROP TABLE source_file; CREATE TABLE source_file (path TEXT); DELETE FROM usage;");
+        OfferAllPasses(dbPath);
+        Assert.False(store.TryLoadSourceFiles(out _));
+        Assert.False(store.HasUsageRows());
+
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsSessionBackfillDone());
+        Assert.False(store.IsSubagentUsageBackfillDone());
+
+        Run(dbPath, $"INSERT OR REPLACE INTO meta (key, value) VALUES ('{SessionsKey}', '1');");
+        new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
+
+        Assert.False(store.IsClaudeCopyBackfillDone());
+    }
+}
