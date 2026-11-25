@@ -179,10 +179,7 @@ internal sealed class FallbackPriceList
                 writer.WriteEndObject();
             }
 
-            var path = Path.Combine(directory, CacheFileName);
-            var temporary = path + ".tmp";
-            File.WriteAllBytes(temporary, stream.ToArray());
-            File.Move(temporary, path, overwrite: true);
+            PriceListKeys.WriteCache(directory, CacheFileName, stream.ToArray());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -216,9 +213,9 @@ internal sealed class FallbackPriceList
                     break;
                 if (item.ValueKind != JsonValueKind.Object
                     || !Text(item, "provider", out var provider) || !Text(item, "id", out var id)
-                    || Number(item, "input") is not { } input || Number(item, "output") is not { } output)
+                    || PriceListKeys.PriceField(item, "input") is not { } input || PriceListKeys.PriceField(item, "output") is not { } output)
                     continue;
-                loaded.Add(new Entry(provider, id, new ModelPrice(input, output, Number(item, "cacheRead"), Number(item, "cacheCreation"))));
+                loaded.Add(new Entry(provider, id, new ModelPrice(input, output, PriceListKeys.PriceField(item, "cacheRead"), PriceListKeys.PriceField(item, "cacheCreation"))));
             }
 
             if (loaded.Count > 0)
@@ -236,12 +233,6 @@ internal sealed class FallbackPriceList
         return text.Length is > 0 and <= MaxIdLength;
     }
 
-    private static double? Number(JsonElement item, string name)
-    {
-        if (!item.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number))
-            return null;
-        return double.IsFinite(number) && number >= 0 && number < PriceListKeys.MaxTokenPrice ? number : null;
-    }
 
     /// <summary>The price of <paramref name="model"/>, or null when no entry carries its name. The full
     /// name and its last segment after "/" are compared with each entry's id and the id's last segment,

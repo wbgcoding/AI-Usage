@@ -89,13 +89,14 @@ public static class WindowShares
     /// <summary>A part laid out on the bar: where it starts and how wide it is, in pixels.</summary>
     public readonly record struct Placed(double Left, double Width, Color Color);
 
-    /// <summary>Smallest width a part keeps on its own; narrower ones merge into the last part.</summary>
+    /// <summary>Smallest width a part keeps on its own; narrower ones merge into the next part wide enough
+    /// to stand alone (the last part at the latest).</summary>
     public const double MinSegmentWidth = 2;
 
     /// <summary>Lays <paramref name="segments"/> (in order, left to right) across <paramref
     /// name="filledWidth"/> pixels in proportion to their shares. A part narrower than <see
-    /// cref="MinSegmentWidth"/> merges, with every narrower part before it, into the last part, which
-    /// keeps its color. The widths add up to <paramref name="filledWidth"/>.</summary>
+    /// cref="MinSegmentWidth"/> is added to the next part wide enough to stand alone (the last part at
+    /// the latest), which keeps its color. The widths add up to <paramref name="filledWidth"/>.</summary>
     public static IReadOnlyList<Placed> Layout(IReadOnlyList<BarSegment> segments, double filledWidth)
     {
         var shareSum = segments.Sum(segment => segment.SharePercent);

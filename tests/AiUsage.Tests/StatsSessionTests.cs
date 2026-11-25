@@ -434,14 +434,26 @@ public class StatsSessionTests
     }
 
     [Fact]
+    public void CodexUsageLogParser_reads_project_and_session_id_from_one_parse_of_the_session_meta_line()
+    {
+        var both = CodexUsageLogParser.TryReadSessionMeta("""{"type":"session_meta","payload":{"id":"019a-1","cwd":"C:\\P\\"}}""");
+        Assert.Equal("C:\\P", both.Project);
+        Assert.Equal("019a-1", both.SessionId);
+
+        var onlyId = CodexUsageLogParser.TryReadSessionMeta("""{"type":"session_meta","payload":{"id":"x"}}""");
+        Assert.Null(onlyId.Project);
+        Assert.Equal("x", onlyId.SessionId);
+    }
+
+    [Fact]
     public void CodexUsageLogParser_reads_the_session_id_from_the_session_meta_line()
     {
-        Assert.Equal("019a-1", CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(
-            """{"type":"session_meta","payload":{"id":"019a-1","cwd":"C:\\P"}}"""));
-        Assert.Equal("old-1", CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(
-            """{"type":"session_meta","payload":{"session_id":"old-1"}}"""));
-        Assert.Null(CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine("""{"type":"turn_context","payload":{"id":"x"}}"""));
-        Assert.Null(CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine("not json"));
+        Assert.Equal("019a-1", CodexUsageLogParser.TryReadSessionMeta(
+            """{"type":"session_meta","payload":{"id":"019a-1","cwd":"C:\\P"}}""").SessionId);
+        Assert.Equal("old-1", CodexUsageLogParser.TryReadSessionMeta(
+            """{"type":"session_meta","payload":{"session_id":"old-1"}}""").SessionId);
+        Assert.Null(CodexUsageLogParser.TryReadSessionMeta("""{"type":"turn_context","payload":{"id":"x"}}""").SessionId);
+        Assert.Null(CodexUsageLogParser.TryReadSessionMeta("not json").SessionId);
     }
 
     private static string SessionLine(string timestamp, string sessionId, bool sidechain, string model, long input, long output, string messageId) =>

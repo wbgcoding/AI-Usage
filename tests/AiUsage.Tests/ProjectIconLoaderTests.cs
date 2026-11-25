@@ -237,6 +237,63 @@ public class ProjectIconLoaderTests
     }
 
     [Fact]
+    public void ABitmapOverTheSizeCapIsNullAndASmallOneLoads()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("icon-big-bitmap");
+        var pixels = new byte[4 * 4 * 4];
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            pixels[i + 2] = 0xe0;
+            pixels[i + 3] = 0xff;
+        }
+
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(
+            System.Windows.Media.Imaging.BitmapSource.Create(4, 4, 96, 96, PixelFormats.Bgra32, null, pixels, 16)));
+        using var encoded = new MemoryStream();
+        encoder.Save(encoded);
+
+        var small = Path.Combine(dir.Path, "small.png");
+        File.WriteAllBytes(small, encoded.ToArray());
+        var big = Path.Combine(dir.Path, "big.png");
+        File.WriteAllBytes(big, [.. encoded.ToArray(), .. new byte[ProjectIconLoader.MaxFileBytes + 1]]);
+
+        Assert.NotNull(ProjectIconLoader.Load(small, 8));
+        Assert.NotNull(ProjectIconLoader.DominantColor(small));
+        Assert.Null(ProjectIconLoader.Load(big, 8));
+        Assert.Null(ProjectIconLoader.DominantColor(big));
+    }
+
+    [Fact]
+    public void AThinBitmapThatScalesPastThePixelBudgetIsNull()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("icon-thin-bitmap");
+        var thin = WritePng(dir.Path, "thin.png", width: 1, height: 20000);
+        var square = WritePng(dir.Path, "square.png", width: 8, height: 8);
+
+        Assert.Null(ProjectIconLoader.Load(thin, 32));
+        Assert.NotNull(ProjectIconLoader.Load(square, 32));
+    }
+
+    private static string WritePng(string root, string name, int width, int height)
+    {
+        var pixels = new byte[width * height * 4];
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            pixels[i + 2] = 0xe0;
+            pixels[i + 3] = 0xff;
+        }
+
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(
+            System.Windows.Media.Imaging.BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, pixels, width * 4)));
+        var path = Path.Combine(root, name);
+        using (var stream = File.Create(path))
+            encoder.Save(stream);
+        return path;
+    }
+
+    [Fact]
     public void ALoadedIconIsUsableOnAThreadPoolThread()
     {
         using var dir = TestPaths.CreateDisposableDirectory("icon-thread");

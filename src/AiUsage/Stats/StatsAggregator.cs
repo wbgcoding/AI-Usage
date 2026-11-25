@@ -79,11 +79,6 @@ public readonly record struct StatsSubagentShare(long SubagentTokens, long Claud
     public double Percent => ClaudeTokens > 0 ? SubagentTokens * 100.0 / ClaudeTokens : 0;
 }
 
-/// <summary>The token totals for one period, split into the input/output/cache breakdown line and
-/// the headline total, plus the same total for the immediately preceding period of equal length -
-/// what the change-vs-previous-period figure is computed from.</summary>
-public readonly record struct StatsPeriodSummary(long Total, long PreviousTotal, long InputTokens, long OutputTokens, long CacheTokens);
-
 /// <summary>The figures bar's own five cards: the period total, its average per calendar
 /// day, the single busiest day with its own date and total, the signed percentage change
 /// against the immediately preceding period of equal length, and <see cref="ActiveDayCount"/> - the
@@ -177,7 +172,7 @@ public static class StatsAggregator
     /// axis. Left null (the default), Day grouping has one row per day
     /// that actually has records, nothing filled in. <paramref name="noProjectLabel"/> names the
     /// Project grouping's row for records with no project at all, the same pooling <see
-    /// cref="TopProjects"/> does.</summary>
+    /// cref="TopProjectsDetailed"/> does.</summary>
     public static IReadOnlyList<StatsGroupedRow> Group(
         IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly? rangeStart = null, DateOnly? rangeEnd = null,
         string noProjectLabel = "") => grouping switch
@@ -203,28 +198,33 @@ public static class StatsAggregator
     public static StatsModelSplit GroupStackedByModel(
         IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd, int topCount, string otherLabel)
     {
-        var periods = Group(records, grouping, rangeStart, rangeEnd);
         var ranking = RankModels(records, topCount, otherLabel);
-        var series = ranking.Series;
-        var hasOther = ranking.HasOther;
+        return StackByPeriod(
+            records, grouping, rangeStart, rangeEnd, Math.Max(1, ranking.Series.Count), ranking.SlotOf, ranking.Series, ranking.HasOther);
+    }
 
-        string KeyOf(StatsRecord record) => grouping == StatsGrouping.Week
-            ? IsoWeekLabel(record.Day)
-            : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
+    /// <summary>The rows of <see cref="Group"/> with each record's tokens added to the segment
+    /// <paramref name="slotOf"/> names, <paramref name="width"/> segments per row.</summary>
+    private static StatsModelSplit StackByPeriod(
+        IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd,
+        int width, Func<StatsRecord, int> slotOf, IReadOnlyList<string> series, bool hasOther)
+    {
+        var periods = Group(records, grouping, rangeStart, rangeEnd);
         var stacks = new Dictionary<string, long[]>();
         foreach (var record in records)
         {
-            var key = KeyOf(record);
+            var key = grouping == StatsGrouping.Week
+                ? IsoWeekLabel(record.Day)
+                : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             if (!stacks.TryGetValue(key, out var stack))
-                stacks[key] = stack = new long[Math.Max(1, series.Count)];
-            stack[ranking.SlotOf(record)] += record.TotalTokens;
+                stacks[key] = stack = new long[width];
+            stack[slotOf(record)] += record.TotalTokens;
         }
 
         var rows = periods
             .Select(period =>
             {
-                var stacked = stacks.TryGetValue(period.Label, out var values) ? values : new long[Math.Max(1, series.Count)];
+                var stacked = stacks.TryGetValue(period.Label, out var values) ? values : new long[width];
                 return new StatsGroupedRow(period.Label, stacked, stacked.Sum());
             })
             .ToList();
@@ -295,28 +295,8 @@ public static class StatsAggregator
         IReadOnlyList<StatsRecord> records, StatsGrouping grouping, DateOnly rangeStart, DateOnly rangeEnd,
         string mainLabel, string subagentLabel)
     {
-        var periods = Group(records, grouping, rangeStart, rangeEnd);
-        string KeyOf(StatsRecord record) => grouping == StatsGrouping.Week
-            ? IsoWeekLabel(record.Day)
-            : record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-        var stacks = new Dictionary<string, long[]>();
-        foreach (var record in records)
-        {
-            var key = KeyOf(record);
-            if (!stacks.TryGetValue(key, out var stack))
-                stacks[key] = stack = new long[2];
-            stack[record.Subagent ? 1 : 0] += record.TotalTokens;
-        }
-
-        var rows = periods
-            .Select(period =>
-            {
-                var stacked = stacks.TryGetValue(period.Label, out var values) ? values : new long[2];
-                return new StatsGroupedRow(period.Label, stacked, stacked.Sum());
-            })
-            .ToList();
-        return new StatsModelSplit([mainLabel, subagentLabel], false, rows);
+        return StackByPeriod(
+            records, grouping, rangeStart, rangeEnd, 2, record => record.Subagent ? 1 : 0, [mainLabel, subagentLabel], false);
     }
 
     /// <summary>The mean of each value and the <c>window - 1</c> values before it; the first
@@ -416,16 +396,6 @@ public static class StatsAggregator
             .OrderByDescending(row => row.Total)
             .ToList();
 
-    /// <summary>Never throws or divides by zero on an empty period - a period with no records at
-    /// all summarises to every field at zero, and <see cref="Group"/> above already answers an
-    /// empty list the same way for an empty input.</summary>
-    public static StatsPeriodSummary Summarize(IReadOnlyList<StatsRecord> currentPeriod, IReadOnlyList<StatsRecord> previousPeriod) => new(
-        Total: currentPeriod.Sum(record => record.TotalTokens),
-        PreviousTotal: previousPeriod.Sum(record => record.TotalTokens),
-        InputTokens: currentPeriod.Sum(record => record.InputTokens),
-        OutputTokens: currentPeriod.Sum(record => record.OutputTokens),
-        CacheTokens: currentPeriod.Sum(record => record.CacheCreationTokens + record.CacheReadTokens));
-
     /// <summary>The figures bar's five cards. <paramref name="periodDayCount"/> is the
     /// caller's own calendar-day length of <paramref name="currentPeriod"/>'s range (7 for a week,
     /// 30 for a month, and so on - "All" has no fixed length, so <see cref="StatsViewModel"/> derives
@@ -440,15 +410,14 @@ public static class StatsAggregator
         IReadOnlyList<StatsRecord> currentPeriod, IReadOnlyList<StatsRecord> previousPeriod, int periodDayCount,
         int previousPeriodDays = 0)
     {
-        var total = currentPeriod.Sum(record => record.TotalTokens);
-        var perDayAverage = (double)total / Math.Max(1, periodDayCount);
-
+        var total = 0L;
         DateOnly? busiestDay = null;
         var busiestDayTotal = 0L;
         var activeDayCount = 0;
         foreach (var group in currentPeriod.GroupBy(record => record.Day))
         {
             var dayTotal = group.Sum(record => record.TotalTokens);
+            total += dayTotal;
             if (dayTotal > 0)
                 activeDayCount++;
             if (busiestDay is null || dayTotal > busiestDayTotal)
@@ -458,9 +427,19 @@ public static class StatsAggregator
             }
         }
 
-        var previousActiveDays = previousPeriod.GroupBy(record => record.Day).Count(group => group.Sum(record => record.TotalTokens) > 0);
+        var perDayAverage = (double)total / Math.Max(1, periodDayCount);
+
+        var previousTotal = 0L;
+        var previousActiveDays = 0;
+        foreach (var group in previousPeriod.GroupBy(record => record.Day))
+        {
+            var dayTotal = group.Sum(record => record.TotalTokens);
+            previousTotal += dayTotal;
+            if (dayTotal > 0)
+                previousActiveDays++;
+        }
+
         var hasPreviousPeriod = previousPeriod.Count > 0 && previousActiveDays >= (int)Math.Ceiling(previousPeriodDays / 4.0);
-        var previousTotal = previousPeriod.Sum(record => record.TotalTokens);
         var changePercent = hasPreviousPeriod && previousTotal > 0 ? (total - previousTotal) * 100.0 / previousTotal : 0;
 
         return new StatsHeadlineFigures(total, perDayAverage, busiestDay, busiestDayTotal, hasPreviousPeriod, changePercent, activeDayCount);
@@ -652,34 +631,13 @@ public static class StatsAggregator
         return slices;
     }
 
-    /// <summary>The cache-share bar: the same four token kinds <see cref="Summarize"/> already
-    /// sums, just kept apart instead of merging cache write and cache read into one "cached"
-    /// figure.</summary>
+    /// <summary>The cache-share bar: the four token kinds kept apart (cache write and cache read are
+    /// not merged into one "cached" figure).</summary>
     public static StatsCacheShareRow CacheShare(IReadOnlyList<StatsRecord> records) => new(
         NewInput: records.Sum(record => record.InputTokens),
         CacheWrite: records.Sum(record => record.CacheCreationTokens),
         CacheRead: records.Sum(record => record.CacheReadTokens),
         Output: records.Sum(record => record.OutputTokens));
-
-    /// <summary>The "top projects" panel: every project summed and sorted by total, descending,
-    /// capped at <paramref name="limit"/> rows (the longest bar first, matching the panel's own draw
-    /// order). A Codex rollout with no project name (an empty string) is pooled under
-    /// <paramref name="noProjectLabel"/> rather than counted as its own, blank-labelled row - pooled
-    /// the same way <see cref="ShareByModel"/> pools its own long tail, just keyed on emptiness
-    /// instead of rank.</summary>
-    public static IReadOnlyList<StatsShareSlice> TopProjects(IReadOnlyList<StatsRecord> records, int limit, string noProjectLabel)
-    {
-        var grandTotal = records.Sum(record => record.TotalTokens);
-        return records
-            .GroupBy(record => ProjectGroupKey(record.Project), StringComparer.OrdinalIgnoreCase)
-            .Select(group => (Key: group.Key, Total: group.Sum(record => record.TotalTokens)))
-            .OrderByDescending(entry => entry.Total)
-            .Take(limit)
-            .Select(entry => new StatsShareSlice(
-                entry.Key == NoProjectKey ? noProjectLabel : entry.Key, entry.Total, grandTotal > 0 ? entry.Total * 100.0 / grandTotal : 0,
-                IsPooled: entry.Key == NoProjectKey))
-            .ToList();
-    }
 
     /// <summary>How many characters a shortened project label is allowed before <see
     /// cref="MiddleEllipsis"/> trims it further - the control that draws the label still fits it to
@@ -687,7 +645,10 @@ public static class StatsAggregator
     /// the tooltip build below rather than promising an exact fit.</summary>
     internal const int ProjectLabelMaxChars = 28;
 
-    /// <summary>The same "top projects" panel as <see cref="TopProjects"/>, carrying the row's own
+    /// <summary>The "top projects" panel: every project summed and sorted by total, descending, capped
+    /// at <paramref name="limit"/> rows (the longest bar first, matching the panel's own draw order).
+    /// A record with no project name (a Codex rollout, an empty string) is pooled under <paramref
+    /// name="noProjectLabel"/> rather than counted as its own, blank-labelled row. Each row carries the
     /// full project path, share percentage and first/last activity day alongside its already-shortened
     /// display label - what the panel's tooltip needs beyond the bar chart's bare label and total.
     /// <paramref name="costLineOf"/> turns a project's group key into its cost tooltip lines.</summary>
@@ -770,7 +731,7 @@ public static class StatsAggregator
         var byName = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var record in records)
         {
-            if (!IsFullPath(record.Project))
+            if (!ProjectLabels.IsFullPath(record.Project))
                 continue;
             var key = ProjectKey(record.Project);
             var name = ShortenProjectLabel(key);
@@ -783,7 +744,7 @@ public static class StatsAggregator
         var changed = false;
         foreach (var record in records)
         {
-            if (record.Project.Length > 0 && !IsFullPath(record.Project)
+            if (record.Project.Length > 0 && !ProjectLabels.IsFullPath(record.Project)
                 && byName.TryGetValue(record.Project, out var paths) && paths.Count == 1)
             {
                 result.Add(record with { Project = paths.First() });
@@ -797,8 +758,6 @@ public static class StatsAggregator
 
         return changed ? result : records;
     }
-
-    private static bool IsFullPath(string project) => project.AsSpan().IndexOfAny('\\', '/') >= 0;
 
     /// <summary>A project's own display name, wherever this window shows one: the last folder segment
     /// of its full path (the part a person actually recognizes a project by), never the whole path -

@@ -81,7 +81,8 @@ public sealed partial class StatsViewModel
         SelectedForecastProvider = ForecastProviders.FirstOrDefault(provider => provider.Key == SelectedForecastKey)?.ProviderId ?? "";
         ShownForecast = [.. ForecastProviders.Where(provider => provider.Key == SelectedForecastKey)];
 
-        if (!ForecastButtons.Select(button => (button.Key, button.Name, button.ToolTipText)).SequenceEqual(ForecastProviders.Select(provider => (provider.Key, provider.ButtonName, provider.OldUntilText))))
+        if (!ForecastButtons.Select(button => (button.Key, button.Name, button.ToolTipText, BrushColor(button.Brush)))
+                .SequenceEqual(ForecastProviders.Select(provider => (provider.Key, provider.ButtonName, provider.OldUntilText, BrushColor(provider.Brush)))))
         {
             ForecastButtons.Clear();
             foreach (var provider in ForecastProviders)
@@ -103,6 +104,16 @@ public sealed partial class StatsViewModel
         OnPropertyChanged(nameof(ShownForecast));
         OnPropertyChanged(nameof(HasForecastChoice));
         OnPropertyChanged(nameof(HasSingleForecast));
+    }
+
+    private static Color? BrushColor(Brush brush) => (brush as SolidColorBrush)?.Color;
+
+    /// <summary>Draws the forecast section again with the colors of the theme that is active now; its
+    /// cards and buttons hold their brushes from the moment they were built.</summary>
+    internal void RefreshForecastBrushes()
+    {
+        if (_forecastState is { } state)
+            ForecastProviders = BuildForecastProviders(state, LocalizationService.Instance);
     }
 
     private ForecastState? _forecastState;
@@ -157,12 +168,12 @@ public sealed partial class StatsViewModel
 
         var generation = ++_forecastGeneration;
         var previous = _forecastState;
-        _forecastRefresh = ComputeForecastAsync(records, held, plans, signature, cost, previous, generation);
+        _forecastRefresh = ComputeForecastAsync(records, held, plans, signature, cost, previous, generation, loc);
     }
 
     private async Task ComputeForecastAsync(
         IReadOnlyList<StatsRecord> records, LimitInputs held, IReadOnlyDictionary<string, string?> plans, string signature,
-        StatsCostView cost, ForecastState? previous, int generation)
+        StatsCostView cost, ForecastState? previous, int generation, LocalizationService loc)
     {
         try
         {
@@ -180,7 +191,7 @@ public sealed partial class StatsViewModel
                 return;
 
             _forecastState = state;
-            ForecastProviders = BuildForecastProviders(state, LocalizationService.Instance);
+            ForecastProviders = BuildForecastProviders(state, loc);
         }
         catch (Exception ex)
         {

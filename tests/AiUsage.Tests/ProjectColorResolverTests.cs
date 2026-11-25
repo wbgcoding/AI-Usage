@@ -675,6 +675,23 @@ public class ProjectColorResolverTests
     }
 
     [Fact]
+    public void ACacheFileOverTheSizeCapIsIgnored()
+    {
+        using var a = TestPaths.CreateDisposableDirectory("cap-a-project");
+        using var b = TestPaths.CreateDisposableDirectory("cap-b-project");
+        var cachePath = TestPaths.GetPath("project-colors-cap", ".json");
+        ProjectColorResolver.ResolveAll([a.Path], cachePath);
+        var stored = a.Path.Replace("\\", "\\\\");
+        Assert.Contains(stored, File.ReadAllText(cachePath));
+
+        // Still valid JSON that holds a's entry, only too big.
+        File.AppendAllText(cachePath, new string(' ', (int)ProjectColorResolver.MaxCacheBytes));
+        ProjectColorResolver.ResolveAll([b.Path], cachePath);
+
+        Assert.DoesNotContain(stored, File.ReadAllText(cachePath));
+    }
+
+    [Fact]
     public void ACacheEntryOfAFolderThatIsGoneIsDropped()
     {
         using var kept = TestPaths.CreateDisposableDirectory("drop-kept-project");

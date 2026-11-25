@@ -11,7 +11,12 @@ public sealed record StatsDataSnapshot(
 {
     /// <summary>Reads the store the same way the view model's own load does.</summary>
     public static StatsDataSnapshot Load(StatsStore store) =>
-        Prepared(StatsAggregator.ResolveBareProjectNames(store.LoadAll()), store.LoadSessions());
+        Prepared(LoadRecords(store), store.LoadSessions());
+
+    /// <summary>Every usage row of the store with bare project names resolved: the one way the rows are
+    /// read for display and export.</summary>
+    internal static IReadOnlyList<StatsRecord> LoadRecords(StatsStore store) =>
+        StatsAggregator.ResolveBareProjectNames(store.LoadAll());
 
     /// <summary>The snapshot with its project aliases worked out (touches the file system: call off the UI thread).</summary>
     public static StatsDataSnapshot Prepared(IReadOnlyList<StatsRecord> records, IReadOnlyList<StatsSessionRecord> sessions) =>

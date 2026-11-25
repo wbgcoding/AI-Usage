@@ -27,8 +27,7 @@ public enum StatsDropPosition
 public static class StatsLayout
 {
     /// <summary>The section keys in their default order.</summary>
-    public static IReadOnlyList<string> SectionKeys { get; } =
-        ["monthgrid", "figures", "breakdown", "provider", "model", "effort", "planforecast", "limits", "projects"];
+    public static IReadOnlyList<string> SectionKeys { get; } = [.. StatsDisplayChoices.Sections.Select(section => section.Key)];
 
     /// <summary>The arrangement a fresh install shows.</summary>
     public static List<StatsLayoutRow> Default() =>

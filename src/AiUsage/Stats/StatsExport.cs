@@ -8,7 +8,9 @@ namespace AiUsage.Stats;
 /// One line of the statistics export. Every line belongs to a <see cref="Section"/>; a column that does
 /// not apply to the section stays empty. <see cref="CostUsd"/> is always dollars, <see cref="Cost"/> is
 /// the same amount in the currency the window shows (<see cref="Currency"/>); all three are empty when
-/// the cost estimate is off or the line has no price.
+/// the cost estimate is off or the line has no price. A "sessions" line prices all of the session's
+/// tokens at its main model, so its cost can differ from the sum of the per-model lines of the same
+/// session.
 /// </summary>
 public sealed record StatsExportRow(string Section)
 {

@@ -14,6 +14,17 @@ namespace AiUsage.Stats;
 internal static partial class ProjectIconLoader
 {
     internal const long MaxFileBytes = 2 * 1024 * 1024;
+
+    /// <summary>Android resource density suffixes, densest first.</summary>
+    internal static readonly string[] AndroidDensities = ["xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi"];
+
+    /// <summary>Position of the density a resource folder name ends in (0 = densest); a folder with
+    /// none counts as less dense than all of them.</summary>
+    internal static int DensityRank(string folderName)
+    {
+        var index = Array.FindIndex(AndroidDensities, density => folderName.EndsWith("-" + density, StringComparison.OrdinalIgnoreCase));
+        return index >= 0 ? index : AndroidDensities.Length;
+    }
     private const long MaxPixels = 4096L * 4096L;
 
     internal static bool IsBitmapFile(string path) =>
@@ -60,13 +71,25 @@ internal static partial class ProjectIconLoader
     /// be read as an image, whatever way the decoder fails on it.</summary>
     internal static BitmapSource? LoadBitmap(string path, int pixelWidth)
     {
+        if (!IsSafeFile(path))
+            return null;
+
         try
         {
+            var width = Math.Max(1, pixelWidth);
             using var stream = File.OpenRead(path);
+
+            // The size is read from the header first: a tiny file can declare an image that is
+            // enormous, or so tall and thin that scaling it to the width needs enormous memory.
+            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+            if (decoder.Frames.Count == 0 || !FitsDecodeBudget(decoder.Frames[0], width))
+                return null;
+            stream.Position = 0;
+
             var image = new BitmapImage();
             image.BeginInit();
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = Math.Max(1, pixelWidth);
+            image.DecodePixelWidth = width;
             image.StreamSource = stream;
             image.EndInit();
             image.Freeze();
@@ -97,8 +120,18 @@ internal static partial class ProjectIconLoader
         }
     }
 
+    /// <summary>True when the frame has at most <see cref="MaxPixels"/> pixels and so does the image
+    /// scaled to <paramref name="decodeWidth"/>.</summary>
+    private static bool FitsDecodeBudget(BitmapSource frame, int decodeWidth) =>
+        frame.PixelWidth > 0 && frame.PixelHeight > 0
+        && (long)frame.PixelWidth * frame.PixelHeight <= MaxPixels
+        && (double)decodeWidth * decodeWidth * frame.PixelHeight / frame.PixelWidth <= MaxPixels;
+
     private static Color? DominantBitmapColor(string path)
     {
+        if (!IsSafeFile(path))
+            return null;
+
         BitmapSource frame;
         try
         {
@@ -108,7 +141,7 @@ internal static partial class ProjectIconLoader
                 return null;
             frame = decoder.Frames[0];
             // A tiny file can declare an enormous image; converting it would eat memory and time.
-            if ((long)frame.PixelWidth * frame.PixelHeight > MaxPixels)
+            if (!FitsDecodeBudget(frame, frame.PixelWidth))
                 return null;
         }
         catch (Exception ex) when (ex is IOException or NotSupportedException or UnauthorizedAccessException or FileFormatException)

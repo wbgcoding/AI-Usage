@@ -72,8 +72,10 @@ public class StatsDisplayChoicesTests : IDisposable
     }
 
     [Fact]
-    public void The_switchable_sections_are_exactly_the_windows_sections_in_their_default_order() =>
-        Assert.Equal(StatsLayout.SectionKeys, StatsDisplayChoices.Sections.Select(section => section.Key).ToArray());
+    public void The_windows_sections_come_in_their_default_order() =>
+        Assert.Equal(
+            ["monthgrid", "figures", "breakdown", "provider", "model", "effort", "planforecast", "limits", "projects"],
+            StatsLayout.SectionKeys);
 
     [Theory]
     [InlineData(2026, 11, 15, DayOfWeek.Monday, 2026, 11, 9)]

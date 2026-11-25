@@ -8,6 +8,9 @@ internal static class ProjectLabels
 {
     private static readonly char[] Separators = ['\\', '/'];
 
+    /// <summary>True when a project value is a path (it has a separator) rather than a bare name.</summary>
+    public static bool IsFullPath(string project) => project.AsSpan().IndexOfAny('\\', '/') >= 0;
+
     /// <summary>The last folder of <paramref name="path"/>, or the whole text when it has none (a drive
     /// root, a bare separator).</summary>
     public static string Name(string path)

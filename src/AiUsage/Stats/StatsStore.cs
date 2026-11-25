@@ -797,8 +797,9 @@ public sealed partial class StatsStore
     private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message", "claude_file"];
 
     /// <summary>Drops everything in the file's schema that this app did not create: triggers and views,
-    /// tables other than its own, and every explicit index (the app declares none; the indexes that
-    /// belong to its primary keys are internal and stay).</summary>
+    /// tables other than its own, and every explicit index (including the app's own lookup index, which
+    /// the next open creates again from a known definition; the indexes that belong to its primary keys
+    /// are internal and stay).</summary>
     private static void DropForeignSchemaObjects(SqliteConnection connection)
     {
         var objects = new List<(string Type, string Name)>();
@@ -1789,42 +1790,99 @@ public sealed partial class StatsStore
             WHERE provider = $provider AND machine = $machine AND session_id = $session
             """;
 
+        var clearKey = AddSessionKey(clear);
+        var upsertKey = AddSessionKey(upsert);
+        var project = AddParameter(upsert, "$project", SqliteType.Text);
+        var first = AddParameter(upsert, "$first", SqliteType.Text);
+        var last = AddParameter(upsert, "$last", SqliteType.Text);
+        var input = AddParameter(upsert, "$input", SqliteType.Integer);
+        var output = AddParameter(upsert, "$output", SqliteType.Integer);
+        var cacheCreation = AddParameter(upsert, "$cacheCreation", SqliteType.Integer);
+        var cacheRead = AddParameter(upsert, "$cacheRead", SqliteType.Integer);
+        var subagent = AddParameter(upsert, "$subagent", SqliteType.Integer);
+        var main = AddParameter(upsert, "$main", SqliteType.Integer);
+        var modelKey = AddSessionKey(model);
+        var modelName = AddParameter(model, "$model", SqliteType.Text);
+        var modelTokens = AddParameter(model, "$tokens", SqliteType.Integer);
+        var mainModelKey = AddSessionKey(mainModel);
+        foreach (var statement in new[] { clear, upsert, model, mainModel })
+            statement.Prepare();
+
         foreach (var delta in deltas)
         {
-            foreach (var command in new[] { clear, upsert, model, mainModel })
-            {
-                command.Parameters.Clear();
-                command.Parameters.AddWithValue("$provider", delta.Provider);
-                command.Parameters.AddWithValue("$machine", delta.Machine);
-                command.Parameters.AddWithValue("$session", delta.SessionId);
-            }
+            clearKey.Set(delta);
+            upsertKey.Set(delta);
+            modelKey.Set(delta);
+            mainModelKey.Set(delta);
 
             if (replace)
                 clear.ExecuteNonQuery();
 
-            upsert.Parameters.AddWithValue("$project", delta.Project);
-            upsert.Parameters.AddWithValue("$first", FormatUtc(delta.FirstUtc));
-            upsert.Parameters.AddWithValue("$last", FormatUtc(delta.LastUtc));
-            upsert.Parameters.AddWithValue("$input", delta.InputTokens);
-            upsert.Parameters.AddWithValue("$output", delta.OutputTokens);
-            upsert.Parameters.AddWithValue("$cacheCreation", delta.CacheCreationTokens);
-            upsert.Parameters.AddWithValue("$cacheRead", delta.CacheReadTokens);
-            upsert.Parameters.AddWithValue("$subagent", delta.SubagentTokens);
-            upsert.Parameters.AddWithValue("$main", delta.HasMainThreadTokens ? 1 : 0);
+            project.Value = delta.Project;
+            first.Value = FormatUtc(delta.FirstUtc);
+            last.Value = FormatUtc(delta.LastUtc);
+            input.Value = delta.InputTokens;
+            output.Value = delta.OutputTokens;
+            cacheCreation.Value = delta.CacheCreationTokens;
+            cacheRead.Value = delta.CacheReadTokens;
+            subagent.Value = delta.SubagentTokens;
+            main.Value = delta.HasMainThreadTokens ? 1 : 0;
             upsert.ExecuteNonQuery();
 
             foreach (var (name, tokens) in delta.ModelTokens)
             {
-                model.Parameters.Clear();
-                model.Parameters.AddWithValue("$provider", delta.Provider);
-                model.Parameters.AddWithValue("$machine", delta.Machine);
-                model.Parameters.AddWithValue("$session", delta.SessionId);
-                model.Parameters.AddWithValue("$model", name);
-                model.Parameters.AddWithValue("$tokens", tokens);
+                modelName.Value = name;
+                modelTokens.Value = tokens;
                 model.ExecuteNonQuery();
             }
 
             mainModel.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>The three parameters that name one session (provider, machine, session id), added to
+    /// <paramref name="command"/> once so each delta only sets their values.</summary>
+    private static SessionKeyParameters AddSessionKey(SqliteCommand command) => new(
+        AddParameter(command, "$provider", SqliteType.Text),
+        AddParameter(command, "$machine", SqliteType.Text),
+        AddParameter(command, "$session", SqliteType.Text));
+
+    /// <summary>The eight parameters that name one usage row, added to <paramref name="command"/> once
+    /// so each record only sets their values.</summary>
+    private static UsageKeyParameters AddUsageKey(SqliteCommand command) => new(
+        AddParameter(command, "$provider", SqliteType.Text),
+        AddParameter(command, "$day", SqliteType.Text),
+        AddParameter(command, "$hour", SqliteType.Integer),
+        AddParameter(command, "$model", SqliteType.Text),
+        AddParameter(command, "$project", SqliteType.Text),
+        AddParameter(command, "$effort", SqliteType.Text),
+        AddParameter(command, "$machine", SqliteType.Text),
+        AddParameter(command, "$subagent", SqliteType.Integer));
+
+    private readonly record struct UsageKeyParameters(
+        SqliteParameter Provider, SqliteParameter Day, SqliteParameter Hour, SqliteParameter Model,
+        SqliteParameter Project, SqliteParameter Effort, SqliteParameter Machine, SqliteParameter Subagent)
+    {
+        public void Set(StatsRecord record)
+        {
+            Provider.Value = record.Provider;
+            Day.Value = record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            Hour.Value = record.Hour;
+            Model.Value = record.Model;
+            Project.Value = record.Project;
+            Effort.Value = record.Effort;
+            Machine.Value = record.Machine;
+            Subagent.Value = record.Subagent ? 1 : 0;
+        }
+    }
+
+    private readonly record struct SessionKeyParameters(SqliteParameter Provider, SqliteParameter Machine, SqliteParameter Session)
+    {
+        public void Set(StatsSessionDelta delta)
+        {
+            Provider.Value = delta.Provider;
+            Machine.Value = delta.Machine;
+            Session.Value = delta.SessionId;
         }
     }
 
@@ -2423,27 +2481,25 @@ public sealed partial class StatsStore
               AND effort = $effort AND machine = $machine AND subagent = $subagent
               AND input_tokens = 0 AND output_tokens = 0 AND cache_creation_tokens = 0 AND cache_read_tokens = 0
             """;
+        var commandKey = AddUsageKey(command);
+        var input = AddParameter(command, "$input", SqliteType.Integer);
+        var output = AddParameter(command, "$output", SqliteType.Integer);
+        var cacheCreation = AddParameter(command, "$cacheCreation", SqliteType.Integer);
+        var cacheRead = AddParameter(command, "$cacheRead", SqliteType.Integer);
+        var removeKey = AddUsageKey(remove);
+        command.Prepare();
+        remove.Prepare();
+
         long removed = 0;
         var skipped = 0;
         foreach (var record in records)
         {
-            foreach (var each in new[] { command, remove })
-            {
-                each.Parameters.Clear();
-                each.Parameters.AddWithValue("$provider", record.Provider);
-                each.Parameters.AddWithValue("$day", record.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                each.Parameters.AddWithValue("$hour", record.Hour);
-                each.Parameters.AddWithValue("$model", record.Model);
-                each.Parameters.AddWithValue("$project", record.Project);
-                each.Parameters.AddWithValue("$effort", record.Effort);
-                each.Parameters.AddWithValue("$machine", record.Machine);
-                each.Parameters.AddWithValue("$subagent", record.Subagent ? 1 : 0);
-            }
-
-            command.Parameters.AddWithValue("$input", record.InputTokens);
-            command.Parameters.AddWithValue("$output", record.OutputTokens);
-            command.Parameters.AddWithValue("$cacheCreation", record.CacheCreationTokens);
-            command.Parameters.AddWithValue("$cacheRead", record.CacheReadTokens);
+            commandKey.Set(record);
+            removeKey.Set(record);
+            input.Value = record.InputTokens;
+            output.Value = record.OutputTokens;
+            cacheCreation.Value = record.CacheCreationTokens;
+            cacheRead.Value = record.CacheReadTokens;
             if (command.ExecuteNonQuery() == 0)
             {
                 skipped++;
@@ -2511,37 +2567,45 @@ public sealed partial class StatsStore
               AND NOT EXISTS (SELECT 1 FROM session
                               WHERE provider = $provider AND machine = $machine AND session_id = $session)
             """;
+        var sessionKey = AddSessionKey(session);
+        var input = AddParameter(session, "$input", SqliteType.Integer);
+        var output = AddParameter(session, "$output", SqliteType.Integer);
+        var cacheCreation = AddParameter(session, "$cacheCreation", SqliteType.Integer);
+        var cacheRead = AddParameter(session, "$cacheRead", SqliteType.Integer);
+        var subagent = AddParameter(session, "$subagent", SqliteType.Integer);
+        var modelKey = AddSessionKey(model);
+        var modelName = AddParameter(model, "$model", SqliteType.Text);
+        var modelTokens = AddParameter(model, "$tokens", SqliteType.Integer);
+        var dropModelKey = AddSessionKey(dropModel);
+        var dropModelName = AddParameter(dropModel, "$model", SqliteType.Text);
+        var mainModelKey = AddSessionKey(mainModel);
+        var dropSessionKey = AddSessionKey(dropSession);
+        var dropSessionModelsKey = AddSessionKey(dropSessionModels);
+        foreach (var statement in new[] { session, model, dropModel, mainModel, dropSession, dropSessionModels })
+            statement.Prepare();
+
         foreach (var delta in deltas)
         {
-            foreach (var each in new[] { session, mainModel, dropSession, dropSessionModels })
-            {
-                each.Parameters.Clear();
-                each.Parameters.AddWithValue("$provider", delta.Provider);
-                each.Parameters.AddWithValue("$machine", delta.Machine);
-                each.Parameters.AddWithValue("$session", delta.SessionId);
-            }
+            sessionKey.Set(delta);
+            modelKey.Set(delta);
+            dropModelKey.Set(delta);
+            mainModelKey.Set(delta);
+            dropSessionKey.Set(delta);
+            dropSessionModelsKey.Set(delta);
 
-            session.Parameters.AddWithValue("$input", delta.InputTokens);
-            session.Parameters.AddWithValue("$output", delta.OutputTokens);
-            session.Parameters.AddWithValue("$cacheCreation", delta.CacheCreationTokens);
-            session.Parameters.AddWithValue("$cacheRead", delta.CacheReadTokens);
-            session.Parameters.AddWithValue("$subagent", delta.SubagentTokens);
+            input.Value = delta.InputTokens;
+            output.Value = delta.OutputTokens;
+            cacheCreation.Value = delta.CacheCreationTokens;
+            cacheRead.Value = delta.CacheReadTokens;
+            subagent.Value = delta.SubagentTokens;
             session.ExecuteNonQuery();
 
             foreach (var (name, tokens) in delta.ModelTokens)
             {
-                model.Parameters.Clear();
-                model.Parameters.AddWithValue("$provider", delta.Provider);
-                model.Parameters.AddWithValue("$machine", delta.Machine);
-                model.Parameters.AddWithValue("$session", delta.SessionId);
-                model.Parameters.AddWithValue("$model", name);
-                model.Parameters.AddWithValue("$tokens", tokens);
+                modelName.Value = name;
+                modelTokens.Value = tokens;
                 model.ExecuteNonQuery();
-                dropModel.Parameters.Clear();
-                dropModel.Parameters.AddWithValue("$provider", delta.Provider);
-                dropModel.Parameters.AddWithValue("$machine", delta.Machine);
-                dropModel.Parameters.AddWithValue("$session", delta.SessionId);
-                dropModel.Parameters.AddWithValue("$model", name);
+                dropModelName.Value = name;
                 dropModel.ExecuteNonQuery();
             }
 
@@ -2918,12 +2982,23 @@ public sealed partial class StatsStore
             if (oldPath is null)
                 return null;
 
-            var old = GetSourceFile(oldPath);
+            // The row is read inside the transaction that re-keys it, so nothing can change it in between.
+            using var transaction = connection.BeginTransaction();
+            StatsSourceFileState? old = null;
+            using (var lookup = connection.CreateCommand())
+            {
+                lookup.Transaction = transaction;
+                lookup.CommandText = SourceFileLookupSql;
+                lookup.Parameters.AddWithValue("$path", oldPath);
+                using var row = lookup.ExecuteReader();
+                if (row.Read())
+                    old = ReadSourceFileState(row, row.GetString(0), firstColumn: 1);
+            }
+
             if (old is null)
                 return null;
 
             var moved = old with { Path = newPath };
-            using var transaction = connection.BeginTransaction();
             using (var delete = connection.CreateCommand())
             {
                 delete.Transaction = transaction;

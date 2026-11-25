@@ -139,7 +139,8 @@ public sealed class StatsIndexerService : IDisposable
             () => store.FixedDirectory is { } fixedDirectory ? StatsSnapshotFile.PathIn(fixedDirectory) : StatsSnapshotFile.DefaultPath,
             now => store.WriteWeeklyCopy(store.DataDirectory, now),
             (folder, token) => link.Prepare(createIndexer()).IndexFolderOnce(folder, token),
-            (folder, today) => StatsWeeklyCsv.Write(folder, today, store, link.Service?.CostProvider?.Invoke()))
+            (folder, today) => StatsWeeklyCsv.Write(
+                folder, today, () => link.Service?.WeeklyCsvData(store) ?? StatsDataSnapshot.Load(store), link.Service?.CostProvider?.Invoke()))
     {
         link.Service = this;
     }
@@ -230,8 +231,19 @@ public sealed class StatsIndexerService : IDisposable
             Name = "StatsFolderImport",
         };
         lock (_gate)
+        {
+            // A Dispose between taking the slot and here would not know this thread and not wait for it.
+            if (_disposed)
+            {
+                _isRunning = false;
+                linked.Dispose();
+                return (0, 0);
+            }
+
             _thread = thread;
-        thread.Start();
+            thread.Start();
+        }
+
         return await finished.Task.ConfigureAwait(false);
     }
 
@@ -554,6 +566,12 @@ public sealed class StatsIndexerService : IDisposable
         }
     }
 
+    // The data every week of one catch-up is written from: loaded by the first file that is really
+    // written and dropped when the walk's CSV pass is over (only the walk's own thread touches it).
+    private StatsDataSnapshot? _weeklyCsvData;
+
+    private StatsDataSnapshot WeeklyCsvData(StatsStore store) => _weeklyCsvData ??= StatsDataSnapshot.Load(store);
+
     // The failure of a week is logged once, whatever the number of walks that meet it.
     private void WriteWeeklyCsv(string folder)
     {
@@ -578,6 +596,10 @@ public sealed class StatsIndexerService : IDisposable
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             failure = $"it failed ({ex.GetType().Name})";
+        }
+        finally
+        {
+            _weeklyCsvData = null;
         }
 
         if (failure is null || week == _weeklyCsvLoggedWeek)
@@ -680,7 +702,17 @@ public sealed class StatsIndexerService : IDisposable
 
         // Bounded: the thread is a background thread, so the process can exit without it.
         if (thread is not null && !thread.Join(ShutdownWait))
+        {
+            // The thread still holds the token: the source stays undisposed, the process is going down anyway.
             _logService?.LogError("Statistics indexing did not stop in time at shutdown.");
+            return;
+        }
+
+        lock (_gate)
+        {
+            _cancellation?.Dispose();
+            _cancellation = null;
+        }
     }
 
     private static readonly TimeSpan ShutdownWait = TimeSpan.FromSeconds(5);

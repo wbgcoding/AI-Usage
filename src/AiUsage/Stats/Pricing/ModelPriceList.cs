@@ -65,6 +65,10 @@ public sealed class ModelPriceList
         {
             _prices = source._prices;
             FetchedAt = source.FetchedAt;
+            // The answers found so far belong to these same tables, so a rebuild does not search the
+            // whole table again for every model it already asked about.
+            foreach (var (model, price) in source._found)
+                _found[model] = price;
         }
     }
 
@@ -126,15 +130,15 @@ public sealed class ModelPriceList
                     && !(mode.ValueKind == JsonValueKind.String && mode.GetString() is "chat" or "responses"))
                     continue;
 
-                var input = Price(entry.Value, "input_cost_per_token");
-                var output = Price(entry.Value, "output_cost_per_token");
+                var input = PriceListKeys.PriceField(entry.Value, "input_cost_per_token");
+                var output = PriceListKeys.PriceField(entry.Value, "output_cost_per_token");
                 if (input is null || output is null)
                     continue;
 
                 result[entry.Name] = new ModelPrice(
                     input.Value, output.Value,
-                    Price(entry.Value, "cache_read_input_token_cost"),
-                    Price(entry.Value, "cache_creation_input_token_cost"));
+                    PriceListKeys.PriceField(entry.Value, "cache_read_input_token_cost"),
+                    PriceListKeys.PriceField(entry.Value, "cache_creation_input_token_cost"));
             }
         }
         catch (JsonException)
@@ -143,14 +147,6 @@ public sealed class ModelPriceList
         }
 
         return result;
-    }
-
-    private static double? Price(JsonElement entry, string name)
-    {
-        if (!entry.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number
-            || !value.TryGetDouble(out var number))
-            return null;
-        return double.IsFinite(number) && number >= 0 && number < PriceListKeys.MaxTokenPrice ? number : null;
     }
 
     /// <summary>Swaps in a new table and, when asked, writes the trimmed cache file.</summary>
@@ -172,8 +168,6 @@ public sealed class ModelPriceList
     {
         try
         {
-            var directory = _cacheDirectory();
-            Directory.CreateDirectory(directory);
             using var stream = new MemoryStream();
             using (var writer = new Utf8JsonWriter(stream))
             {
@@ -195,10 +189,7 @@ public sealed class ModelPriceList
                 writer.WriteEndObject();
             }
 
-            var path = Path.Combine(directory, CacheFileName);
-            var temporary = path + ".tmp";
-            File.WriteAllBytes(temporary, stream.ToArray());
-            File.Move(temporary, path, overwrite: true);
+            PriceListKeys.WriteCache(_cacheDirectory(), CacheFileName, stream.ToArray());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -236,11 +227,11 @@ public sealed class ModelPriceList
             {
                 if (entry.Value.ValueKind != JsonValueKind.Object)
                     continue;
-                var input = Price(entry.Value, "input");
-                var output = Price(entry.Value, "output");
+                var input = PriceListKeys.PriceField(entry.Value, "input");
+                var output = PriceListKeys.PriceField(entry.Value, "output");
                 if (input is null || output is null)
                     continue;
-                loaded[entry.Name] = new ModelPrice(input.Value, output.Value, Price(entry.Value, "cacheRead"), Price(entry.Value, "cacheCreation"));
+                loaded[entry.Name] = new ModelPrice(input.Value, output.Value, PriceListKeys.PriceField(entry.Value, "cacheRead"), PriceListKeys.PriceField(entry.Value, "cacheCreation"));
             }
 
             if (loaded.Count > 0)

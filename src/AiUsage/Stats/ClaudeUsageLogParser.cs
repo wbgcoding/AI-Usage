@@ -118,7 +118,7 @@ public static class ClaudeUsageLogParser
     }
 
     /// <summary>Reads the real project path from one transcript line's own <c>cwd</c> field, verbatim
-    /// (never trimmed to a folder name; the Codex parser's <see cref="CodexUsageLogParser.TryExtractProjectFromSessionMetaLine"/>
+    /// (never trimmed to a folder name; the Codex parser's <see cref="CodexUsageLogParser.TryReadSessionMeta"/>
     /// returns the full path as well).
     /// Returns null when the line is not valid JSON, not an object, or carries no string
     /// <c>cwd</c> field - never an error, the same "just not a match" contract as <see cref="TryParse"/>.</summary>

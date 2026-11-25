@@ -297,7 +297,7 @@ public class AntigravityHardeningTests
         var reset = new DateTimeOffset(2026, 10, 12, 0, 0, 0, TimeSpan.Zero);
         var points = new[] { new HistoryPoint(1, new DateTimeOffset(2026, 10, 5, 0, 0, 0, TimeSpan.Zero), WindowKind.Weekly, 10, reset) };
 
-        Assert.Empty(StatsTokensPerPercent.BuildIntervals(records, points));
+        Assert.Empty(StatsTokensPerPercent.BuildPooledIntervals(records, [points], TimeZoneInfo.Local, null));
     }
 
     [Fact]

@@ -29,16 +29,13 @@ public sealed record ForecastWindow(
 /// provider is on now from one it left, <see cref="LastReading"/> is its newest reading.</summary>
 public sealed record ProviderForecast(
     string ProviderId, ForecastWindow? FiveHour, ForecastWindow? Weekly, IReadOnlyList<string> Plans, int AccountCount,
-    double? MonthlyApiUsd, double? MonthlyPlanUsd, IReadOnlyList<PlanPrice>? PlanPrices = null,
+    double? MonthlyApiUsd, IReadOnlyList<PlanPrice>? PlanPrices = null,
     string? Plan = null, bool IsCurrent = true, DateTimeOffset? LastReading = null)
 {
     /// <summary>The forecast's identity: provider and plan (<c>claude|Max</c>); the plan part is empty when unknown.</summary>
     public string Key => KeyOf(ProviderId, Plan);
 
     public static string KeyOf(string providerId, string? plan) => providerId + "|" + (plan ?? "");
-
-    /// <summary>How many times the plan price the API value of a month is.</summary>
-    public double? Ratio => MonthlyApiUsd is { } api && MonthlyPlanUsd is > 0 ? api / MonthlyPlanUsd : null;
 }
 
 /// <summary>
@@ -49,8 +46,6 @@ public sealed record ProviderForecast(
 public static class StatsPlanForecast
 {
     private const double DaysPerMonth = 30.44;
-    private const string FiveHourKey = "Window_FiveHour";
-    private const string WeeklyKey = "Window_Weekly";
 
     /// <summary>The plan an account is on now: the plan of its newest reading that has one, else the live one.</summary>
     public static string? CurrentPlanOf(ForecastAccount account) =>
@@ -88,14 +83,12 @@ public static class StatsPlanForecast
         return result;
     }
 
-    /// <summary>The forecast of a provider. With <paramref name="plan"/> only the readings taken on that plan count
-    /// (see <see cref="BuildForPlan"/>); without it all readings do.</summary>
-    public static ProviderForecast? Build(
+    /// <summary>The forecast of a provider over all its readings, whatever plan they were taken on. The
+    /// statistics window draws <see cref="BuildForPlan"/> instead; this one serves tests of the window math.</summary>
+    internal static ProviderForecast? Build(
         string providerId, IReadOnlyList<ForecastAccount> accounts, IReadOnlyList<StatsRecord> records,
-        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone, string? plan = null) =>
-        plan is null
-            ? BuildCore(providerId, accounts, accounts, null, false, records, pricer, now, zone)
-            : BuildForPlan(providerId, accounts, plan, records, pricer, now, zone);
+        Func<IReadOnlyList<StatsRecord>, CostSummary>? pricer, DateTimeOffset now, TimeZoneInfo zone) =>
+        BuildCore(providerId, accounts, accounts, null, false, records, pricer, now, zone);
 
     /// <summary>The forecast of one plan (null = the readings without a known plan) of a provider's accounts. The
     /// accounts' usage is pooled in the logs, so the hourly intervals are built over ALL accounts and only the hours
@@ -119,10 +112,9 @@ public static class StatsPlanForecast
             .Select(plan => plan!).Distinct().ToList();
         var prices = accounts.Select(account => PlanPriceList.Find(providerId, account.Plan)).ToList();
         var known = accounts.Count > 0 && prices.All(price => price is not null);
-        double? planUsd = known && prices.All(price => !price!.IsEuro) ? prices.Sum(price => price!.Net) : null;
         double? monthlyApi = weekly?.ApiUsdPerWindow * DaysPerMonth / 7 * accounts.Count;
         var lastReading = accounts.SelectMany(account => account.Points).Select(point => (DateTimeOffset?)point.Timestamp).Max();
-        return new ProviderForecast(providerId, fiveHour, weekly, plans, accounts.Count, monthlyApi, planUsd,
+        return new ProviderForecast(providerId, fiveHour, weekly, plans, accounts.Count, monthlyApi,
             known ? prices.Select(price => price!).ToList() : null, plan ?? (plans.Count == 1 ? plans[0] : null), true, lastReading);
     }
 
@@ -203,7 +195,7 @@ public static class StatsPlanForecast
     /// <summary>The generic window of a kind: points with their own label (a model-specific window) are not it.</summary>
     private static List<HistoryPoint> PointsOf(IEnumerable<HistoryPoint> points, WindowKind kind)
     {
-        var key = kind == WindowKind.FiveHour ? FiveHourKey : WeeklyKey;
+        var key = kind == WindowKind.FiveHour ? StatsLimitsAggregator.FiveHourKey : StatsLimitsAggregator.WeeklyKey;
         return points.Where(point => point.Window == kind && StatsLimitsAggregator.LabelKeyOf(point) == key).ToList();
     }
 

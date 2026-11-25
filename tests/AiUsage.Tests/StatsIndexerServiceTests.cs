@@ -369,6 +369,28 @@ public class StatsIndexerServiceTests
     }
 
     [Fact]
+    public void Dispose_releases_the_cancellation_source_of_a_walk_that_has_stopped()
+    {
+        var started = new ManualResetEventSlim(initialState: false);
+        CancellationToken seen = default;
+        var service = new StatsIndexerService(token =>
+        {
+            seen = token;
+            started.Set();
+            while (!token.IsCancellationRequested)
+                Thread.Sleep(5);
+        });
+
+        service.StartInBackground();
+        Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+
+        service.Dispose();
+
+        // A token whose source is disposed refuses to hand out its wait handle.
+        Assert.Throws<ObjectDisposedException>(() => seen.WaitHandle);
+    }
+
+    [Fact]
     public async Task Dispose_returns_within_the_bound_when_the_walk_ignores_cancellation()
     {
         var started = new ManualResetEventSlim(initialState: false);

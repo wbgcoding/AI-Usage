@@ -46,9 +46,8 @@ public static class CostCalculator
         + Math.Max(0, record.CacheReadTokens) * (price.CacheRead ?? price.Input)
         + Math.Max(0, record.CacheCreationTokens) * (price.CacheCreation ?? price.Input);
 
-    /// <summary>The cost of the rows split by token kind: new input at the input price, cache write at the
-    /// cache creation price, cache read at the cache read price, output at the output price.</summary>
-    public static CostSplit Split(IEnumerable<StatsRecord> records, ModelPriceList prices)
+    /// <summary>The token counts of the rows with tokens, summed per model (a negative count is zero).</summary>
+    private static Dictionary<string, (long Input, long Output, long Read, long Creation)> TokensByModel(IEnumerable<StatsRecord> records)
     {
         var byModel = new Dictionary<string, (long Input, long Output, long Read, long Creation)>(StringComparer.Ordinal);
         foreach (var record in records)
@@ -60,6 +59,14 @@ public static class CostCalculator
                 sum.Input + Math.Max(0, record.InputTokens), sum.Output + Math.Max(0, record.OutputTokens),
                 sum.Read + Math.Max(0, record.CacheReadTokens), sum.Creation + Math.Max(0, record.CacheCreationTokens));
         }
+        return byModel;
+    }
+
+    /// <summary>The cost of the rows split by token kind: new input at the input price, cache write at the
+    /// cache creation price, cache read at the cache read price, output at the output price.</summary>
+    public static CostSplit Split(IEnumerable<StatsRecord> records, ModelPriceList prices)
+    {
+        var byModel = TokensByModel(records);
 
         double input = 0, output = 0, read = 0, creation = 0;
         var anyPriced = false;
@@ -86,16 +93,7 @@ public static class CostCalculator
     /// <summary>Sums the rows. Rows are grouped by model first so each model is looked up once.</summary>
     public static CostSummary Sum(IEnumerable<StatsRecord> records, ModelPriceList prices)
     {
-        var byModel = new Dictionary<string, (long Input, long Output, long Read, long Creation)>(StringComparer.Ordinal);
-        foreach (var record in records)
-        {
-            if (record.TotalTokens <= 0)
-                continue;
-            byModel.TryGetValue(record.Model, out var sum);
-            byModel[record.Model] = (
-                sum.Input + Math.Max(0, record.InputTokens), sum.Output + Math.Max(0, record.OutputTokens),
-                sum.Read + Math.Max(0, record.CacheReadTokens), sum.Creation + Math.Max(0, record.CacheCreationTokens));
-        }
+        var byModel = TokensByModel(records);
 
         var usd = 0.0;
         var anyPriced = false;

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace AiUsage.Stats.Pricing;
@@ -16,6 +17,27 @@ internal static class PriceListKeys
     internal static readonly ModelPrice FreePrice = new(0, 0, null, null);
 
     internal static readonly Regex DateSuffix = new(@"-(\d{8}|\d{4}-\d{2}-\d{2})$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>A per-token price field of a price table entry: a finite number from zero up to
+    /// <see cref="MaxTokenPrice"/>, else null.</summary>
+    internal static double? PriceField(JsonElement entry, string name)
+    {
+        if (!entry.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number
+            || !value.TryGetDouble(out var number))
+            return null;
+        return double.IsFinite(number) && number >= 0 && number < MaxTokenPrice ? number : null;
+    }
+
+    /// <summary>Writes a cache file whole or not at all: the bytes go to a temporary file that then
+    /// replaces the cache file.</summary>
+    internal static void WriteCache(string directory, string fileName, byte[] bytes)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, fileName);
+        var temporary = path + ".tmp";
+        File.WriteAllBytes(temporary, bytes);
+        File.Move(temporary, path, overwrite: true);
+    }
 
     /// <summary>The path part just before the model name in a list key ("minimax" in
     /// "minimax/minimax-m3"); empty when the key has no path.</summary>

@@ -68,13 +68,8 @@ public sealed class EurRate
 
         try
         {
-            var directory = _cacheDirectory();
-            Directory.CreateDirectory(directory);
             var json = JsonSerializer.Serialize(new { usdPerEur, fetchedAt = fetchedAt.ToString("O", CultureInfo.InvariantCulture) });
-            var path = Path.Combine(directory, CacheFileName);
-            var temporary = path + ".tmp";
-            File.WriteAllText(temporary, json, new UTF8Encoding(false));
-            File.Move(temporary, path, overwrite: true);
+            PriceListKeys.WriteCache(_cacheDirectory(), CacheFileName, Encoding.UTF8.GetBytes(json));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {

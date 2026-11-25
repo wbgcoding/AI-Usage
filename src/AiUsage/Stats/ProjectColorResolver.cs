@@ -340,7 +340,6 @@ public static class ProjectColorResolver
 
     private static bool IsSkippedDirectory(string name) => name.StartsWith('.') || SkippedDirectoryNames.Contains(name);
 
-    private static readonly string[] AndroidDensities = ["xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi"];
 
     /// <summary>The icon a project file names outright, or null when none does (or the named file is
     /// missing, too big or not an icon file).</summary>
@@ -433,7 +432,7 @@ public static class ProjectColorResolver
             {
                 if (icon.ValueKind != JsonValueKind.String || icon.GetString() is not { } relative)
                     continue;
-                if (!HasIconExtension(relative))
+                if (!IsIconCandidateName(relative))
                     continue;
                 var full = CombineRelative(projectRoot, baseDirectory, relative);
                 if (IsUsableIconFile(projectRoot, full))
@@ -481,7 +480,7 @@ public static class ProjectColorResolver
         var kind = match.Groups[1].Value;
         var iconName = match.Groups[2].Value;
         var resFolder = Path.Combine(mainFolder, "res");
-        foreach (var density in AndroidDensities)
+        foreach (var density in ProjectIconLoader.AndroidDensities)
         {
             var candidate = Path.Combine(resFolder, kind + "-" + density, iconName + ".png");
             if (IsUsableIconFile(projectRoot, candidate))
@@ -505,7 +504,7 @@ public static class ProjectColorResolver
     }
 
     // An .xml only counts inside an Android res folder: anywhere else it is a build file or a config.
-    private static bool HasIconExtension(string path) =>
+    private static bool IsIconCandidateName(string path) =>
         ProjectIconLoader.HasIconExtension(path)
         && (!string.Equals(Path.GetExtension(path), ".xml", StringComparison.OrdinalIgnoreCase) || ProjectIconLoader.IsAndroidResourceFile(path));
 
@@ -536,7 +535,7 @@ public static class ProjectColorResolver
     /// within <see cref="MaxIconFileBytes"/>.</summary>
     internal static bool IsUsableIconFile(string projectRoot, string? path)
     {
-        if (path is null || !HasIconExtension(path))
+        if (path is null || !IsIconCandidateName(path))
             return false;
 
         try
@@ -612,9 +611,7 @@ public static class ProjectColorResolver
         if (sized.Success)
             return 100_000 - int.Parse(sized.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
 
-        var folder = Path.GetFileName(Path.GetDirectoryName(filePath) ?? "");
-        var index = Array.FindIndex(AndroidDensities, density => folder.EndsWith("-" + density, StringComparison.OrdinalIgnoreCase));
-        return index >= 0 ? index : AndroidDensities.Length;
+        return ProjectIconLoader.DensityRank(Path.GetFileName(Path.GetDirectoryName(filePath) ?? ""));
     }
 
     private static string? PickIconByPriority(string projectFolder, IEnumerable<string> candidates)
@@ -626,7 +623,7 @@ public static class ProjectColorResolver
 
         foreach (var candidate in candidates)
         {
-            if (!HasIconExtension(candidate))
+            if (!IsIconCandidateName(candidate))
                 continue;
 
             var rank = NameRank(Path.GetFileName(candidate), projectName);
@@ -676,11 +673,15 @@ public static class ProjectColorResolver
 
     private static readonly JsonSerializerOptions CacheJsonOptions = new() { WriteIndented = true };
 
+    /// <summary>The cache holds a few hundred short entries; a bigger file is not ours and is ignored.</summary>
+    internal const long MaxCacheBytes = 4L * 1024 * 1024;
+
     private static Dictionary<string, CacheEntry> LoadCache(string cacheFilePath)
     {
         try
         {
-            if (!File.Exists(cacheFilePath))
+            var info = new FileInfo(cacheFilePath);
+            if (!info.Exists || info.Length > MaxCacheBytes)
                 return [];
 
             var file = JsonSerializer.Deserialize<CacheFile>(File.ReadAllText(cacheFilePath), CacheJsonOptions);

@@ -107,8 +107,10 @@ internal static class StatsWeeklyCsv
     }
 
     /// <summary>Saves the CSV of the previous week into <paramref name="folder"/> unless it is already there.
-    /// May block while the price list loads, so call it off the UI thread. IO failures are thrown.</summary>
-    internal static Outcome Write(string folder, DateOnly today, StatsStore store, CostService? cost)
+    /// May block while the price list loads, so call it off the UI thread. IO failures are thrown.
+    /// <paramref name="data"/> is only called when a file is really written, so a caller that writes
+    /// several weeks in a row can hand every call the same loaded data.</summary>
+    internal static Outcome Write(string folder, DateOnly today, Func<StatsDataSnapshot> data, CostService? cost)
     {
         if (!Directory.Exists(folder))
             return Outcome.FolderMissing;
@@ -118,7 +120,7 @@ internal static class StatsWeeklyCsv
         if (File.Exists(path))
             return Outcome.AlreadyThere;
 
-        var rows = StatsExportBuilder.Build(Collect(store, from, to, cost));
+        var rows = StatsExportBuilder.Build(Collect(data(), from, to, cost));
         var temporary = path + ".tmp";
         try
         {
@@ -134,10 +136,10 @@ internal static class StatsWeeklyCsv
         return Outcome.Written;
     }
 
-    private static StatsExportData Collect(StatsStore store, DateOnly from, DateOnly to, CostService? cost)
+    private static StatsExportData Collect(StatsDataSnapshot data, DateOnly from, DateOnly to, CostService? cost)
     {
-        var all = StatsAggregator.ResolveBareProjectNames(store.LoadAll());
-        var allSessions = store.LoadSessions();
+        var all = data.Records;
+        var allSessions = data.Sessions;
         var inRange = all.Where(record => record.Day >= from && record.Day <= to).ToList();
         var sessions = StatsAggregator.SessionsInRange(allSessions, from, to);
         var previousFrom = from.AddDays(-7);
@@ -145,7 +147,7 @@ internal static class StatsWeeklyCsv
         var previous = all.Where(record => record.Day >= previousFrom && record.Day <= previousTo).ToList();
         var figures = StatsAggregator.ComputeHeadlineFigures(inRange, previous, 7, 7);
         return new StatsExportData(
-            inRange, previous, inRange, sessions, figures, 7, [], ProjectAliasResolver.Build(all, allSessions), new StatsCostView(WaitForPrices(cost)));
+            inRange, previous, inRange, sessions, figures, 7, [], data.Aliases ?? ProjectAliasResolver.Build(all, allSessions), new StatsCostView(WaitForPrices(cost)));
     }
 
     // The price list loads in the background after the start; the first walk can be over before it is.

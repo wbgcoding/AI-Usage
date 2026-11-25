@@ -1023,19 +1023,20 @@ public sealed partial class StatsViewModel : ObservableObject
         {
             // The service raises its change on a background thread; the rebuild belongs to the window's own.
             var context = SynchronizationContext.Current;
-            cost.Changed += () =>
+            _costChanged = () =>
             {
                 if (context is null)
                     RefreshCost();
                 else
                     context.Post(_ => _ = RefreshCostAsync(), null);
             };
+            cost.Changed += _costChanged;
         }
 
         _history = history ?? (store.FixedDirectory is { } directory ? new HistoryStore(directory, now: null) : new HistoryStore());
         _projectColorsDirectory = ProjectColorsDirectoryFor(store.FixedDirectory);
         LoadHistory = (providerId, from, to) => _history.Load(providerId, from, to);
-        LoadRecords = () => StatsAggregator.ResolveBareProjectNames(_store.LoadAll());
+        LoadRecords = () => StatsDataSnapshot.LoadRecords(_store);
         LoadSessions = _store.LoadSessions;
         BuildAliases = ProjectAliasResolver.Build;
         _askForSavePath = askForSavePath ?? CsvSaveDialog.Show;
@@ -1478,6 +1479,16 @@ public sealed partial class StatsViewModel : ObservableObject
         RecomputeFrom(records, LoadLimitInputs(from, to));
         RecordsLoaded = true;
         IsLoading = false;
+    }
+
+    private readonly Action? _costChanged;
+
+    /// <summary>Stops following the cost service, which outlives this view model: called when the
+    /// window that owns it closes for good.</summary>
+    internal void Detach()
+    {
+        if (_costChanged is not null && _cost is not null)
+            _cost.Changed -= _costChanged;
     }
 
     /// <summary>The prices, the exchange rate or the cost settings changed: every figure is rebuilt

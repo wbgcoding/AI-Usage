@@ -9,7 +9,9 @@ namespace AiUsage.Stats;
 /// usage rows, or nothing when the estimate is off, no prices are loaded yet or no service is attached.
 /// One instance is made per rebuild and takes a fixed copy of the switch, the price list, the currency
 /// and the rate when it is made, so every figure of a rebuild agrees and it is safe to use off the UI
-/// thread. Make it on the UI thread.
+/// thread. It can also be made off the UI thread (the weekly CSV does, on the indexer thread): the
+/// settings it reads are single plain values (the switch and the currency), and the culture only
+/// shapes tooltip text, never the export.
 /// </summary>
 internal sealed class StatsCostView(CostService? service)
 {

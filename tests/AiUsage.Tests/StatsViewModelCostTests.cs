@@ -54,6 +54,22 @@ public class StatsViewModelCostTests
     }
 
     [Fact]
+    public void A_detached_view_model_no_longer_follows_the_cost_service()
+    {
+        var service = Service(withPrices: false);
+        // A pool thread has no synchronization context, so the change is handled on the raising thread.
+        var following = Task.Run(() => Create(service)).Result;
+        var detached = Task.Run(() => Create(service)).Result;
+        detached.Detach();
+        service.Prices.Replace(ModelPriceList.Parse(PriceJson), DateTimeOffset.UtcNow, persist: false);
+
+        service.NotifySettingsChanged();
+
+        Assert.True(following.HasTotalCost);
+        Assert.False(detached.HasTotalCost);
+    }
+
+    [Fact]
     public void Off_means_no_cost_anywhere()
     {
         var viewModel = Create(Service(enabled: false), vm => vm.SelectedGrouping = StatsGrouping.Model);
