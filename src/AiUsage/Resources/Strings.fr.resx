@@ -726,6 +726,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Retirer</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Lire les fichiers de session une fois…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fichiers de session lus, {1} nouveaux</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Le dossier n'a pas pu être lu. Vérifie qu'il existe toujours et que tu peux l'ouvrir.</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Consommation de tokens</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Période à l'ouverture</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Dernière utilisée</value></data>

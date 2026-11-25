@@ -160,7 +160,7 @@ public sealed partial class SettingsViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            StatsFolderImportResult = LocalizationService.Instance.Format("Settings.Stats.ImportFolderDone", 0, 0);
+            StatsFolderImportResult = LocalizationService.Instance["Settings.Stats.ImportFolderFailed"];
         }
         finally
         {
@@ -185,7 +185,7 @@ public sealed partial class SettingsViewModel
     private void RebuildStatsExtraFolders()
     {
         StatsExtraFolders.Clear();
-        foreach (var folder in _settings.StatsExtraFolders ?? [])
+        foreach (var folder in _settings.StatsExtraFolders)
         {
             if (!string.IsNullOrWhiteSpace(folder))
                 StatsExtraFolders.Add(folder);

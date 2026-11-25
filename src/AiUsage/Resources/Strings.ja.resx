@@ -726,6 +726,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>削除</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>セッションファイルを一度だけ読み込む…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>セッションファイル {0} 件を読み込み、新規 {1} 件</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>フォルダーを読み取れませんでした。フォルダーがまだ存在し、開く権限があるか確認してください。</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>トークン使用量</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>開いたときの期間</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>前回の期間</value></data>

@@ -726,6 +726,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Verwijderen</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Sessiebestanden eenmalig inlezen…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} sessiebestanden gelezen, {1} nieuw</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>De map kon niet worden gelezen. Controleer of hij nog bestaat en of je hem mag openen.</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Tokengebruik</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Periode bij openen</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Laatst gebruikt</value></data>

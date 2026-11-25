@@ -726,6 +726,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>移除</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>一次性读取会话文件…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>已读取 {0} 个会话文件,新增 {1} 个</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>无法读取该文件夹。请检查它是否仍然存在，以及你是否有权限打开它。</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>令牌用量</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>打开时的时间段</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>上次使用的</value></data>

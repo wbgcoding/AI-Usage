@@ -304,6 +304,18 @@ public class StatsDisplayChoicesTests : IDisposable
     }
 
     [Fact]
+    public async Task An_unreadable_import_folder_says_so_instead_of_reading_zero_files()
+    {
+        var vm = BuildViewModelWithDialogs(new AppSettings(), askFolder: () => @"D:\Gone",
+            importFolder: (_, _) => Task.FromException<(int, int)>(new UnauthorizedAccessException()));
+
+        await vm.ImportStatsFolderCommand.ExecuteAsync(null);
+
+        Assert.Equal(LocalizationService.Instance["Settings.Stats.ImportFolderFailed"], vm.StatsFolderImportResult);
+        Assert.False(vm.IsStatsFolderImportRunning);
+    }
+
+    [Fact]
     public async Task Cancelling_the_folder_picker_reads_nothing()
     {
         var called = false;

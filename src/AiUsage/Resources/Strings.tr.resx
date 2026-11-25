@@ -726,6 +726,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Kaldır</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Oturum dosyalarını bir kez oku…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} oturum dosyası okundu, {1} yeni</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Klasör okunamadı. Hâlâ var olduğunu ve açma iznin olduğunu kontrol et.</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Token kullanımı</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Açılışta dönem</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Son kullanılan</value></data>

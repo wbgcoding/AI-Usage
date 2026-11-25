@@ -726,6 +726,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Elimină</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Citește fișierele de sesiune o singură dată…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fișiere de sesiune citite, {1} noi</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Folderul nu a putut fi citit. Verifică dacă mai există și dacă îl poți deschide.</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Consum de tokeni</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Perioada la deschidere</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Ultima folosită</value></data>
