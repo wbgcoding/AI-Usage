@@ -62,6 +62,14 @@ internal sealed class ThrottledWebReader
     /// the throttle or a discovery pause.</summary>
     public void SignInCompleted() => Interlocked.Exchange(ref _signInCompleted, 1);
 
+    /// <summary>The last good numbers while they are still fresh enough, marked as held over; null
+    /// once they are older than the freshness window or when there never were any.</summary>
+    private ProviderSnapshot? HeldSnapshot(DateTimeOffset fetchedAt) =>
+        _lastSnapshot is { } held
+        && !ProviderFreshness.IsStale(held.DataTimestamp ?? held.FetchedAt, [], fetchedAt)
+            ? ProviderSnapshots.ExpirePastWindows(held, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
+            : null;
+
     public async Task<ProviderSnapshot?> ReadAsync(DateTimeOffset fetchedAt, CancellationToken ct)
     {
         // Nothing was ever signed in here: the session runner answers "signed out" without starting a
@@ -73,7 +81,7 @@ internal sealed class ThrottledWebReader
         if (signInJustCompleted)
             _discoveryPausedUntil = null;
         if (_discoveryPausedUntil is { } pausedUntil && fetchedAt < pausedUntil)
-            return null;
+            return HeldSnapshot(fetchedAt);
         if (!signInJustCompleted && _lastReadAt is { } lastReadAt && fetchedAt - lastReadAt < ProviderRegistry.ReadInterval(_settings, _accountKey))
             // A window that reset since that read is over, the same as for a session file.
             return _lastSnapshot is { } cached
@@ -122,10 +130,7 @@ internal sealed class ThrottledWebReader
             // The last good numbers stay: a network blip must not send the tile back to older local
             // numbers for a while. Only a signed-out answer drops them, and so does a failure that
             // outlasts the freshness window: from then on the provider's own failure path shows.
-            return _lastSnapshot is { } held
-                && !ProviderFreshness.IsStale(held.DataTimestamp ?? held.FetchedAt, [], fetchedAt)
-                ? ProviderSnapshots.ExpirePastWindows(held, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
-                : null;
+            return HeldSnapshot(fetchedAt);
         }
 
         _lastSnapshot = result.Outcome == WebUsageOutcome.Ok && result.Windows.Count > 0
