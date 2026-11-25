@@ -35,7 +35,12 @@ public static class WebViewInstallFlow
         switch (result.Outcome)
         {
             case WebViewInstallOutcome.Installed:
-                return isInstalled();
+                if (isInstalled())
+                    return true;
+                // The installer said it finished, yet the runtime is not there: say so rather than
+                // leaving the sign-in silently closed.
+                ui.ShowFailure(null);
+                return false;
             case WebViewInstallOutcome.Cancelled:
                 return false;
             default:

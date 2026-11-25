@@ -94,6 +94,8 @@ public class WebViewInstallFlowTests
         var ui = new FakeUi(true, new WebViewInstallResult(WebViewInstallOutcome.Installed));
 
         Assert.False(WebViewInstallFlow.EnsureRuntime(() => false, Installer(), ui));
+
+        Assert.Single(ui.Failures);
     }
 
     [Fact]
