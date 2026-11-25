@@ -110,24 +110,36 @@ internal static class AntigravityFixtures
         command.ExecuteNonQuery();
     }
 
-    public static void AddCall(string path, long index, byte[] generation, long? stepIndex = null, long? stepSeconds = null)
+    public static void AddCall(string path, long index, byte[] generation, long? stepIndex = null, long? stepSeconds = null) =>
+        AddCalls(path, [(index, generation, stepIndex, stepSeconds)]);
+
+    /// <summary>Adds many calls through one connection and one transaction (one commit instead of one
+    /// per row); the rows are the same as the same number of <see cref="AddCall"/> calls.</summary>
+    public static void AddCalls(string path, IEnumerable<(long Index, byte[] Generation, long? StepIndex, long? StepSeconds)> calls)
     {
         using var connection = Open(path);
-        using var command = connection.CreateCommand();
-        command.CommandText = "INSERT INTO gen_metadata (idx, data, size) VALUES ($idx, $data, $size)";
-        command.Parameters.AddWithValue("$idx", index);
-        command.Parameters.AddWithValue("$data", generation);
-        command.Parameters.AddWithValue("$size", generation.Length);
-        command.ExecuteNonQuery();
-        if (stepIndex is not null && stepSeconds is not null)
+        using var transaction = connection.BeginTransaction();
+        foreach (var (index, generation, stepIndex, stepSeconds) in calls)
         {
-            using var step = connection.CreateCommand();
-            step.CommandText = "INSERT OR REPLACE INTO steps (idx, metadata) VALUES ($idx, $data)";
-            step.Parameters.AddWithValue("$idx", stepIndex.Value);
-            step.Parameters.AddWithValue("$data", StepMetadata(stepSeconds.Value));
-            step.ExecuteNonQuery();
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "INSERT INTO gen_metadata (idx, data, size) VALUES ($idx, $data, $size)";
+            command.Parameters.AddWithValue("$idx", index);
+            command.Parameters.AddWithValue("$data", generation);
+            command.Parameters.AddWithValue("$size", generation.Length);
+            command.ExecuteNonQuery();
+            if (stepIndex is not null && stepSeconds is not null)
+            {
+                using var step = connection.CreateCommand();
+                step.Transaction = transaction;
+                step.CommandText = "INSERT OR REPLACE INTO steps (idx, metadata) VALUES ($idx, $data)";
+                step.Parameters.AddWithValue("$idx", stepIndex.Value);
+                step.Parameters.AddWithValue("$data", StepMetadata(stepSeconds.Value));
+                step.ExecuteNonQuery();
+            }
         }
 
+        transaction.Commit();
     }
 
     private static SqliteConnection Open(string path)
@@ -274,12 +286,15 @@ public class AntigravityUsageLogParserTests
         var path = Path.Combine(directory, "conversation.db");
         AntigravityFixtures.CreateDatabase(path, Start);
         const int calls = 620;
+        // Every call names a step far apart from the next; the steps in between hold junk.
+        var rows = new List<(long Index, byte[] Generation, long? StepIndex, long? StepSeconds)>();
         for (var i = 0; i < calls; i++)
         {
-            // Every call names a step far apart from the next; the steps in between hold junk.
-            AntigravityFixtures.AddCall(path, i, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: i * 7), i * 7, Start + i);
-            AntigravityFixtures.AddCall(path, 10_000 + i, AntigravityFixtures.Generation(null, 0, 0, 0, 0, step: null), i * 7 + 3, Start + 99_999);
+            rows.Add((i, AntigravityFixtures.Generation("m", 10, 0, 1, 1, step: i * 7), i * 7, Start + i));
+            rows.Add((10_000 + i, AntigravityFixtures.Generation(null, 0, 0, 0, 0, step: null), i * 7 + 3, Start + 99_999));
         }
+
+        AntigravityFixtures.AddCalls(path, rows);
 
         var result = AntigravityUsageLogParser.ReadConversation(path, 0, DateTime.UtcNow.AddHours(-1));
 

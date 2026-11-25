@@ -7,7 +7,7 @@ namespace AiUsage.Tests;
 /// <summary>Runs the real release-signing tool against a key it makes for the test itself (never the
 /// real signing key) and checks its output with the program's own verifier, so the two ends of the
 /// signature format cannot drift apart.</summary>
-// Both signer test classes start the tool with "dotnet run"; two builds of the same project at
+// Both signer test classes build and start the tool; two builds of the same project at
 // once collide on its output files, so they share one collection and run one after the other.
 [Collection("UpdateSigner tool")]
 [Trait("Layer", "Integration")]
@@ -21,9 +21,29 @@ public class UpdateSignerToolTests
         return Path.Combine(dir?.FullName ?? throw new InvalidOperationException("tools/UpdateSigner not found"), "tools", "UpdateSigner");
     }
 
+    // The tool is built once per test run, then every case starts the built dll directly: one
+    // "dotnet run" per case would re-check the build (and start the build servers) every time.
+    private static readonly Lazy<string> ToolDll = new(BuildTool);
+
+    private static string BuildTool()
+    {
+        var project = ToolProject();
+        var build = new ProcessStartInfo("dotnet", $"build \"{project}\" -c Release -v q --nologo")
+        {
+            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
+        };
+        using var process = Process.Start(build)!;
+        var error = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"Building the signing tool failed with exit code {process.ExitCode}.\n{Tail(output)}\n{Tail(error.Result)}");
+        return Path.Combine(project, "bin", "Release", "net10.0", "UpdateSigner.dll");
+    }
+
     internal static (int ExitCode, string Output, string Error) Run(string arguments, string? keyFromEnvironment = null)
     {
-        var start = new ProcessStartInfo("dotnet", $"run --project \"{ToolProject()}\" -c Release -- {arguments}")
+        var start = new ProcessStartInfo("dotnet", $"\"{ToolDll.Value}\" {arguments}")
         {
             UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
         };

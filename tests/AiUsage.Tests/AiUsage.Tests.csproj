@@ -43,6 +43,8 @@
 
   <ItemGroup>
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Caps the parallel test threads at half the cores, so a run leaves room for everything else. -->
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The real theme files, not copies - ThemeTokenTests/ThemeContrastTests read the same
          source src/AiUsage ships, so there is one truth for the token values. -->
     <None Include="..\..\src\AiUsage\Themes\*.xaml" LinkBase="ThemeFixtures" CopyToOutputDirectory="PreserveNewest" />
