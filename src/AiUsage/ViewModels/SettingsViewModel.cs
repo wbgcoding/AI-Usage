@@ -851,11 +851,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             // empty size text rather than a crash.
         }
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-            _ = dispatcher.BeginInvoke(() => HistorySizeText = text);
-        else
-            HistorySizeText = text;
+        UiThread.Run(() => HistorySizeText = text);
     }
 
     /// <summary>Re-formats <see cref="HistorySizeText"/> in the new language on a live switch - its
@@ -1419,7 +1415,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanRunDataWork))]
     private async Task ExportHistoryAsync()
     {
-        var path = _askForSavePath($"ai-usage-history-{DateTime.Now:yyyy-MM-dd}.csv");
+        var path = _askForSavePath($"ai-usage-history-{DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.csv");
         if (path is null)
             return;
 
@@ -1477,8 +1473,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>A copy of <paramref name="settings"/> without what only means something on this PC and
     /// what an import never takes over: the window block, the PC's id and the PCs imported from, the
-    /// discovered usage paths, this PC's session and report folders, and the account bookkeeping (credit
-    /// balance, last plan and plan change).</summary>
+    /// discovered usage paths, this PC's session and report folders, the hints and update state seen
+    /// here, the extra accounts of this PC, and the account bookkeeping (credit balance, last plan, plan
+    /// change, sign-out).</summary>
     internal static AppSettings WithoutMachineLocalState(AppSettings settings)
     {
         var copy = JsonSerializer.Deserialize<AppSettings>(
@@ -1489,11 +1486,20 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         copy.WebUsagePaths = [];
         copy.StatsExtraFolders = [];
         copy.StatsWeeklyCsvFolder = "";
+        copy.TrayHintShown = false;
+        copy.WelcomeShown = false;
+        copy.ClickThroughHintShown = false;
+        copy.LastUpdateCheckUtc = null;
+        copy.KnownLatestTag = null;
+        copy.KnownLatestUrl = null;
+        foreach (var extraAccount in copy.Providers.Keys.Where(key => key.Contains('#')).ToList())
+            copy.Providers.Remove(extraAccount);
         foreach (var providerSettings in copy.Providers.Values)
         {
             providerSettings.ApiCredit = null;
             providerSettings.LastPlan = "";
             providerSettings.PlanChange = null;
+            providerSettings.Disconnected = false;
         }
 
         copy.Accounts = AppSettings.CreateDefaultAccounts();
@@ -1807,7 +1813,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanRunBackupAction))]
     private async Task CreateBackupAsync()
     {
-        var path = _askForBackupSavePath($"ai-usage-backup-{DateTime.Now:yyyy-MM-dd}.zip");
+        var path = _askForBackupSavePath($"ai-usage-backup-{DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.zip");
         if (path is null)
             return;
 
@@ -2203,7 +2209,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.StatsWeeklyCsvHour = AppSettings.NormalizeWeeklyCsvHour(source.StatsWeeklyCsvHour);
         _settings.StatsOpenRange = source.StatsOpenRange;
         _settings.StatsWeekStart = source.StatsWeekStart;
-        _settings.StatsHiddenSections = [.. source.StatsHiddenSections ?? []];
+        _settings.StatsHiddenSections = [.. source.StatsHiddenSections];
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.AllDaysAllowed = source.AllDaysAllowed;
         _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
