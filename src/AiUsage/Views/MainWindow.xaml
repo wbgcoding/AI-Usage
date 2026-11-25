@@ -62,17 +62,17 @@
                                 <TextBlock Text="{Binding Update.NoticeText}" TextWrapping="Wrap"
                                            Foreground="{DynamicResource Text.Primary}"
                                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                    <Button x:Name="UpdateInstallButton" Style="{StaticResource AiUsageButton}" Margin="0,0,8,0"
+                                <WrapPanel Margin="0,8,0,-4">
+                                    <Button x:Name="UpdateInstallButton" Style="{StaticResource AiUsageButton}" Margin="0,0,8,4"
                                             AutomationProperties.AutomationId="UpdateInstallButton"
                                             IsEnabled="{Binding Update.CanInstall}"
                                             Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.InstallNow]}"
                                             Click="UpdateInstall_Click"/>
-                                    <Button x:Name="UpdateLaterButton" Style="{StaticResource AiUsageButton}"
+                                    <Button x:Name="UpdateLaterButton" Style="{StaticResource AiUsageButton}" Margin="0,0,0,4"
                                             AutomationProperties.AutomationId="UpdateLaterButton"
                                             Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.Later]}"
                                             Click="UpdateLater_Click"/>
-                                </StackPanel>
+                                </WrapPanel>
                                 <TextBlock x:Name="UpdateDownloadingText" Margin="0,8,0,0" TextWrapping="Wrap"
                                            AutomationProperties.AutomationId="UpdateDownloadingText"
                                            Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Update.Downloading]}"
@@ -94,44 +94,23 @@
                         <ItemsControl x:Name="ProviderList" ItemsSource="{Binding DisplayRows}">
                             <ItemsControl.Resources>
                                 <DataTemplate DataType="{x:Type vm:ProviderTileViewModel}">
-                                    <controls:ProviderTile>
-                                        <!-- IsHorizontal lives on MainViewModel (the window's own
-                                             DataContext), not on this template's tile DataContext, so
-                                             a plain {Binding IsHorizontal} would bind to nothing here -
-                                             reach the window explicitly instead, the same flag the
-                                             panel swap above already switches on. The stacked layout's
-                                             bottom gap does not carry over to the row layout, where the
-                                             tiles instead need a trailing right-hand gap. -->
-                                        <controls:ProviderTile.Style>
-                                            <Style TargetType="controls:ProviderTile">
-                                                <Setter Property="Margin" Value="0,0,0,4"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding DataContext.IsHorizontal, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
-                                                        <Setter Property="Margin" Value="0,0,4,0"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </controls:ProviderTile.Style>
-                                    </controls:ProviderTile>
+                                    <controls:ProviderTile/>
                                 </DataTemplate>
                                 <DataTemplate DataType="{x:Type vm:DayGridTileViewModel}">
-                                    <controls:DayGridTile>
-                                        <controls:DayGridTile.Style>
-                                            <Style TargetType="controls:DayGridTile">
-                                                <Setter Property="Margin" Value="0,0,0,4"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding DataContext.IsHorizontal, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
-                                                        <Setter Property="Margin" Value="0,0,4,0"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </controls:DayGridTile.Style>
-                                    </controls:DayGridTile>
+                                    <controls:DayGridTile/>
                                 </DataTemplate>
                             </ItemsControl.Resources>
                             <ItemsControl.ItemContainerStyle>
+                                <!-- IsHorizontal lives on MainViewModel (the window's own DataContext), not on a
+                                     tile's, so the trigger reaches the window explicitly, the same flag the panel
+                                     swap below switches on. The stacked layout's bottom gap does not carry over
+                                     to the row layout, where the tiles need a trailing right-hand gap instead. -->
                                 <Style TargetType="ContentPresenter">
+                                    <Setter Property="Margin" Value="0,0,0,4"/>
                                     <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DataContext.IsHorizontal, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
+                                            <Setter Property="Margin" Value="0,0,4,0"/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsHidden}" Value="True">
                                             <Setter Property="Visibility" Value="Collapsed"/>
                                         </DataTrigger>
@@ -140,11 +119,8 @@
                             </ItemsControl.ItemContainerStyle>
                             <ItemsControl.Style>
                                 <Style TargetType="ItemsControl">
-                                    <!-- The list's own gap on the side the tiles already carry one on
-                                         is left to the tiles: every tile keeps a trailing gap of its
-                                         own (below when stacked, to its right in a row), and the last
-                                         one's used to land on top of the list's own, so the window
-                                         closed twice as far below the last tile as above the first. -->
+                                    <!-- Every tile keeps a trailing gap of its own (below when stacked, to its
+                                         right in a row), so the list omits its own gap on that side. -->
                                     <Setter Property="Margin" Value="8,8,8,0"/>
                                     <Setter Property="ItemsPanel">
                                         <Setter.Value>
@@ -190,16 +166,16 @@
              can actually see. The grips come after the chrome
              Border: a later sibling in the same cell wins hit testing, and the chrome's own opaque
              background would otherwise swallow every drag. The top grip is only 4 px so the title
-             bar buttons right under it keep almost all of their clickable area. The right and bottom
-             grips are 3 px for the same reason: the 8 px scroll bars sit flush against those edges. -->
+             bar buttons right under it keep almost all of their clickable area. The right grip is 3 px
+             because the 8 px vertical scroll bar sits flush against that edge; the left grip is 6 px and
+             the bottom one 4 px. -->
         <!-- PreviewMouseLeftButtonDown, not MouseLeftButtonDown: Thumb's own OnMouseLeftButtonDown
              starts its drag capture and marks the bubbling event Handled before a plain sibling
              handler on the same element ever sees it. The tunnelling Preview version reaches this
              handler first, ahead of Thumb's own processing, so the click count is never lost. -->
         <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeTop_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeHeightGrip_MouseLeftButtonDown"/>
-        <!-- The same 4 pixels as the top grip above: both carry the double click that sets the
-             height back to "fits the content", and a 3 pixel target made the bottom one noticeably
-             harder to hit than the top one for no reason. -->
+        <!-- Same 4 px as the top grip: both carry the double click that sets the height back to
+             "fits the content". -->
         <Thumb Style="{StaticResource ResizeGrip}" Height="4" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNS" DragDelta="ResizeBottom_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeHeightGrip_MouseLeftButtonDown"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeLeft_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeWidthGrip_MouseLeftButtonDown"/>
         <Thumb Style="{StaticResource ResizeGrip}" Width="3" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWE" DragDelta="ResizeRight_DragDelta" DragCompleted="Resize_DragCompleted" PreviewMouseLeftButtonDown="ResizeWidthGrip_MouseLeftButtonDown"/>

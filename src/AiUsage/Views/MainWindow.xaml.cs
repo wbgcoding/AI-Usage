@@ -1687,9 +1687,8 @@ public partial class MainWindow : Window, IDisposable
         _heightIsAutomatic = automatic;
         var restoreHeight = WindowPlacementService.RestoreHeight(_uncollapsedHeight, Current.Height, automatic);
         // Never SizeToContent.Height alone: the ScrollViewer's desired height while its content was
-        // still hidden by the collapse is not the tiles' real height (measured 88, not 720), so WPF's
-        // own remeasure cannot be trusted here either. Both branches now assign a concrete height this
-        // program already knows how to compute, exactly like UpdateDensity() does for the same reason.
+        // still hidden by the collapse is not the tiles' real height, so WPF's own remeasure cannot
+        // be trusted here. Assign a concrete height computed by the app, like UpdateDensity() does.
         SizeToContent = SizeToContent.Manual;
         Height = restoreHeight ?? WindowPlacementService.ResolveAutomaticHeight(
             VisibleRows().Count, TileDensity.Full, CurrentArea().Height).WindowHeight;
