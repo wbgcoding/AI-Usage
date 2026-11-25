@@ -19,7 +19,6 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
     private readonly AppSettings _settings;
     private readonly Action<AppSettings> _save;
     private readonly Func<IUpdateHost> _createHost;
-    private bool _installing;
 
     public UpdateNoticeViewModel(AppSettings settings, Action<AppSettings> save, Func<IUpdateHost>? createHost = null)
     {
@@ -97,10 +96,9 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
     /// dialog for anything but <see cref="UpdateOutcome.Started"/>.</summary>
     public async Task<UpdateInstallResult> InstallAsync(CancellationToken ct)
     {
-        if (_installing)
+        if (IsInstalling)
             return new UpdateInstallResult(UpdateOutcome.DownloadFailed, ReleaseUrl);
 
-        _installing = true;
         IsInstalling = true;
         try
         {
@@ -122,7 +120,6 @@ public sealed partial class UpdateNoticeViewModel : ObservableObject
         }
         finally
         {
-            _installing = false;
             IsInstalling = false;
         }
     }

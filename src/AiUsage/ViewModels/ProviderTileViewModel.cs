@@ -1476,9 +1476,7 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
     /// and a missing one does not.</summary>
     private bool CanOpenUsagePage() => ProviderLinks.UsagePage(RealProviderId) is not null;
 
-    /// <summary>Opens the provider's own usage page in the system browser, best-effort - same
-    /// try/catch shape as <c>SettingsViewModel.OpenLogsFolder</c>, since both are "hand the OS a path
-    /// and move on" actions with nothing sensible to recover into on failure.</summary>
+    /// <summary>Opens the provider's own usage page in the system browser.</summary>
     [RelayCommand(CanExecute = nameof(CanOpenUsagePage))]
     private void OpenUsagePage()
     {
