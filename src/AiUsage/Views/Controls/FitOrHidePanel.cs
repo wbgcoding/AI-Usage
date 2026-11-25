@@ -11,7 +11,16 @@ namespace AiUsage.Views.Controls;
 /// forever, so nothing around it (such as a progress bar's fill) ever settles.</summary>
 public sealed class FitOrHidePanel : Panel
 {
-    private const double Gap = 6;
+    public static readonly DependencyProperty GapProperty = DependencyProperty.Register(
+        nameof(Gap), typeof(double), typeof(FitOrHidePanel),
+        new FrameworkPropertyMetadata(6.0, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
+    /// <summary>The space between two shown children.</summary>
+    public double Gap
+    {
+        get => (double)GetValue(GapProperty);
+        set => SetValue(GapProperty, value);
+    }
 
     // Each child's untrimmed width from the last measure pass, reused by arrange.
     private double[] _natural = [];
@@ -30,7 +39,7 @@ public sealed class FitOrHidePanel : Panel
         }
 
         _natural = desired;
-        var (shown, width) = Fit(desired, availableSize.Width);
+        var (shown, width) = Fit(desired, availableSize.Width, Gap);
         var height = 0.0;
         for (var i = 0; i < children.Count; i++)
         {
@@ -45,7 +54,7 @@ public sealed class FitOrHidePanel : Panel
             // formats its line for the width it is arranged at. Only when it really has to trim: a
             // child last measured at a fixed width keeps that width as its constraint, so a text that
             // grows later (an empty name filled in by its binding) would never tell this panel.
-            if (i == 0 && FirstWidth(desired, shown, width) is var first && first < desired[0])
+            if (i == 0 && FirstWidth(desired, shown, width, Gap) is var first && first < desired[0])
                 children[i].Measure(new Size(first, availableSize.Height));
             height = Math.Max(height, children[i].DesiredSize.Height);
         }
@@ -57,7 +66,7 @@ public sealed class FitOrHidePanel : Panel
     {
         var children = InternalChildren;
         var desired = _natural.Length == children.Count ? _natural : new double[children.Count];
-        var (shown, _) = Fit(desired, finalSize.Width);
+        var (shown, _) = Fit(desired, finalSize.Width, Gap);
         // A smaller text beside the label sits on the label's baseline, not on its bottom edge.
         double? labelBaseline = children.Count > 0 && children[0] is TextBlock label
             ? finalSize.Height - Math.Min(label.DesiredSize.Height, finalSize.Height) + TextBaseline.Of(label)
@@ -72,7 +81,7 @@ public sealed class FitOrHidePanel : Panel
                 continue;
             }
 
-            var width = i == 0 ? FirstWidth(desired, shown, finalSize.Width) : desired[i];
+            var width = i == 0 ? FirstWidth(desired, shown, finalSize.Width, Gap) : desired[i];
             // Centred when the child asks for it, like the tile header's balance beside the name; a later
             // text on the label's baseline; anything else bottom aligned.
             var height = Math.Min(child.DesiredSize.Height, finalSize.Height);
@@ -90,7 +99,7 @@ public sealed class FitOrHidePanel : Panel
     }
 
     /// <summary>Which children show, and the width the shown ones take together (gaps included).</summary>
-    private static (bool[] Shown, double Width) Fit(double[] desired, double available)
+    private static (bool[] Shown, double Width) Fit(double[] desired, double available, double gap)
     {
         var shown = new bool[desired.Length];
         if (desired.Length == 0)
@@ -103,7 +112,7 @@ public sealed class FitOrHidePanel : Panel
             // An empty (collapsed) child takes no gap either.
             if (desired[i] <= 0)
                 continue;
-            var needed = used + Gap + desired[i];
+            var needed = used + gap + desired[i];
             if (needed > available)
                 continue;
             shown[i] = true;
@@ -116,19 +125,19 @@ public sealed class FitOrHidePanel : Panel
     /// <summary>The first child's width: its own unless the others leave it less. Subtracting the
     /// others back out of a sum they were added to can land a hair below its own width, which would
     /// trim a text that fits, so a shortfall under a hundredth of a pixel counts as none.</summary>
-    private static double FirstWidth(double[] desired, bool[] shown, double total)
+    private static double FirstWidth(double[] desired, bool[] shown, double total, double gap)
     {
-        var room = Math.Max(0, total - OthersWidth(desired, shown));
+        var room = Math.Max(0, total - OthersWidth(desired, shown, gap));
         return room > desired[0] - 0.01 ? desired[0] : room;
     }
 
-    private static double OthersWidth(double[] desired, bool[] shown)
+    private static double OthersWidth(double[] desired, bool[] shown, double gap)
     {
         var sum = 0.0;
         for (var i = 1; i < desired.Length; i++)
         {
             if (shown[i])
-                sum += Gap + desired[i];
+                sum += gap + desired[i];
         }
 
         return sum;
