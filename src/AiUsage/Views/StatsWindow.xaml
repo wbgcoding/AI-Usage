@@ -1012,7 +1012,6 @@
                                                     <DockPanel>
                                                         <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" TextWrapping="NoWrap"/>
                                                         <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                                                    controls:TrimmedToolTip.Enabled="True"
                                                                    FontWeight="Normal" FontSize="{StaticResource Font.Size.Small}"
                                                                    Foreground="{DynamicResource Text.Secondary}"
                                                                    Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
@@ -1032,7 +1031,6 @@
                                                              views:AuditMark.OffTheme="dot in the provider's chart colour"/>
                                                     <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                                     <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                                                controls:TrimmedToolTip.Enabled="True"
                                                                FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Secondary}"
                                                                Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
                                                 </DockPanel>

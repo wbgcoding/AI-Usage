@@ -268,7 +268,8 @@ public sealed class StatsBarChart : FrameworkElement
     /// (e.g. "tokens"/"Token") - empty by default, which leaves the tooltip without a unit word.</summary>
     public static readonly DependencyProperty TokenWordProperty = DependencyProperty.Register(
         nameof(TokenWord), typeof(string), typeof(StatsBarChart),
-        new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender,
+            (d, e) => AutomationProperties.SetName(d, BuildAccessibleSummary(((StatsBarChart)d).Bars ?? [], (string)e.NewValue))));
 
     public string TokenWord
     {

@@ -52,6 +52,19 @@ public class ChartHoverTests
     }
 
     [Fact]
+    public void The_screen_reader_name_follows_a_unit_word_set_after_the_bars()
+    {
+        var name = RunOnSta(() =>
+        {
+            var chart = new StatsBarChart { Bars = [new StatsBarChart.Bar("a", [10])] };
+            chart.TokenWord = "tokens";
+            return System.Windows.Automation.AutomationProperties.GetName(chart);
+        });
+
+        Assert.EndsWith("tokens", name, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Replacing_the_rows_clears_the_hovered_row()
     {
         var hover = RunOnSta(() =>
