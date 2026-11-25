@@ -123,22 +123,9 @@ public class TileLayoutTests
     }
 
     [Fact]
-    public void ATileAtItsLimitShowsTheCriticalFrame()
+    public void ATileAtItsLimitKeepsTheQuietFrame()
     {
-        var (brush, thickness, expected) = RunOnSta(() => WithTile(() => Limit(100), (host, tile) =>
-        {
-            var root = (Border)tile.FindName("TileRoot");
-            return (root.BorderBrush, root.BorderThickness, (Brush)Application.Current!.Resources["Level.Crit"]);
-        }));
-
-        Assert.Equal(2, thickness.Left);
-        Assert.Equal(((SolidColorBrush)expected).Color, ((SolidColorBrush)brush).Color);
-    }
-
-    [Fact]
-    public void ATileBelowItsLimitKeepsTheQuietFrame()
-    {
-        var (brush, thickness, quiet) = RunOnSta(() => WithTile(() => Limit(60), (host, tile) =>
+        var (brush, thickness, quiet) = RunOnSta(() => WithTile(() => Limit(100), (host, tile) =>
         {
             var root = (Border)tile.FindName("TileRoot");
             return (root.BorderBrush, root.BorderThickness, (Brush)Application.Current!.Resources["Border"]);

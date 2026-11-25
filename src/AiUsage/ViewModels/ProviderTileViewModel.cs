@@ -1368,12 +1368,6 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
 
     public bool ShowMiniHeadline => !HasNumbers && IsMini;
 
-    /// <summary>True once any row is at (display-rounded) 100%, not merely Crit (which starts at
-    /// 85%) - the state that actually stops work needs to look different from the one that only
-    /// warns about it. Re-raised whenever rows are applied or updated, since it depends on the whole
-    /// collection rather than any single observable property.</summary>
-    public bool IsLimitReached => Rows.Any(r => r.UsedPercent >= 99.5);
-
     /// <summary>The highest color level among the windows this tile shows; what the "order by usage"
     /// mode sorts by. A tile without windows counts as normal.</summary>
     public UsageLevel UrgencyLevel => Rows.Select(r => r.Level).DefaultIfEmpty(UsageLevel.Ok).Max();
@@ -1816,7 +1810,6 @@ public partial class ProviderTileViewModel : ObservableObject, ITileRow
         foreach (var stale in _windowCosts.Keys.Where(key => !current.Contains(key)).ToList())
             _windowCosts.Remove(stale);
         PushWindowTokensToRows();
-        OnPropertyChanged(nameof(IsLimitReached));
         // Rebuilt rows start without a forecast: hand them the series the last history read produced.
         RefreshForecastsFromLastSeries();
     }

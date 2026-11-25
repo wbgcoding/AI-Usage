@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - unreleased
+
+### Changed
+- A tile whose limit is reached keeps its normal frame instead of a red one.
+
 ## [1.5.2] - 2026-11-21
 
 Clearer settings and statistics in narrow windows, better contrast and a set of fixes.

@@ -252,13 +252,6 @@
                     <DataTrigger Binding="{Binding IsSilent}" Value="True">
                         <Setter Property="Opacity" Value="0.55"/>
                     </DataTrigger>
-                    <!-- The one visual difference between "still climbing" (Crit, from 85%) and
-                         "actually stopped" (100%) - the existing padding already absorbs the extra
-                         pixel, so nothing else in the layout shifts. -->
-                    <DataTrigger Binding="{Binding IsLimitReached}" Value="True">
-                        <Setter Property="BorderBrush" Value="{DynamicResource Level.Crit}"/>
-                        <Setter Property="BorderThickness" Value="2"/>
-                    </DataTrigger>
                 </Style.Triggers>
             </Style>
         </Border.Style>

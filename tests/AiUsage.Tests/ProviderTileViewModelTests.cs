@@ -663,19 +663,6 @@ public class ProviderTileViewModelTests
     }
 
     [Theory]
-    [InlineData(95, false)]
-    [InlineData(99.4, false)]
-    [InlineData(99.5, true)]
-    [InlineData(100, true)]
-    public void IsLimitReachedOnlyOnceTheDisplayedPercentWouldReadOneHundred(double percent, bool expected)
-    {
-        var tile = new ProviderTileViewModel("claude", "Claude");
-        tile.Apply(Snapshot(ProviderStatus.Ok, percent), Now);
-
-        Assert.Equal(expected, tile.IsLimitReached);
-    }
-
-    [Theory]
     [InlineData(0, false)]
     [InlineData(1, false)]
     [InlineData(2, true)]
