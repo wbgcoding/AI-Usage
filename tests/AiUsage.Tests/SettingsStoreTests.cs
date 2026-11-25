@@ -648,6 +648,19 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Validate_replaces_unknown_zoom_and_statistics_choices_with_their_defaults()
+    {
+        var (settings, refusal) = SettingsStore.Validate(
+            """{"zoomPercent": 37, "statsOpenRange": "Decade", "statsWeekStart": "Friday", "statsHiddenSections": ["NoSuchSection"]}""");
+
+        Assert.Null(refusal);
+        Assert.Equal(WindowZoom.DefaultPercent, settings!.ZoomPercent);
+        Assert.Equal(StatsDisplayChoices.LastUsedRange, settings.StatsOpenRange);
+        Assert.Equal(StatsDisplayChoices.SystemWeekStart, settings.StatsWeekStart);
+        Assert.Empty(settings.StatsHiddenSections);
+    }
+
+    [Fact]
     public void Load_keeps_a_file_it_could_not_read_and_never_saves_over_it()
     {
         var directory = TempDirectory();

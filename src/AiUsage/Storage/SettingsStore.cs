@@ -6,6 +6,7 @@ using System.Text.Json;
 using AiUsage.Io;
 using AiUsage.Models;
 using AiUsage.Services;
+using AiUsage.Stats;
 using AiUsage.ViewModels;
 
 namespace AiUsage.Storage;
@@ -703,6 +704,10 @@ public sealed class SettingsStore : IDisposable
         settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(settings.ForecastLeadMinutes);
         settings.StatsWeeklyCsvDay = AppSettings.NormalizeWeeklyCsvDay(settings.StatsWeeklyCsvDay);
         settings.StatsWeeklyCsvHour = AppSettings.NormalizeWeeklyCsvHour(settings.StatsWeeklyCsvHour);
+        settings.StatsOpenRange = StatsDisplayChoices.NormalizeOpenRange(settings.StatsOpenRange);
+        settings.StatsWeekStart = StatsDisplayChoices.NormalizeWeekStart(settings.StatsWeekStart);
+        settings.StatsHiddenSections = StatsDisplayChoices.NormalizeHiddenSections(settings.StatsHiddenSections);
+        settings.ZoomPercent = WindowZoom.Normalize(settings.ZoomPercent);
 
         settings.TileOrderMode = string.Equals(settings.TileOrderMode, "ByUsage", StringComparison.OrdinalIgnoreCase)
             ? "ByUsage"
