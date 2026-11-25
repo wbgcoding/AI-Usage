@@ -204,6 +204,18 @@ public sealed class LocalizationService : INotifyPropertyChanged
     // format string follow the OS regional format, independent of which UI language is active.
     public string Format(string key, params object[] args) => string.Format(CultureInfo.CurrentCulture, this[key], args);
 
+    /// <summary>Formats a phrase whose noun depends on <paramref name="count"/>. A language that needs
+    /// a second plural form (<see cref="PluralRules"/>) keeps it under "<paramref name="key"/>.Few";
+    /// all other counts and languages use the key itself.</summary>
+    public string FormatCount(string key, double count, params object[] args)
+    {
+        var resources = s_scope.Value?.Resources ?? _active;
+        var template = PluralRules.UsesFewForm(ActiveCulture, count)
+            ? resources.GetString(key + ".Few", CultureInfo.InvariantCulture) ?? this[key]
+            : this[key];
+        return string.Format(CultureInfo.CurrentCulture, template, args);
+    }
+
     private static ResourceManager? Concrete(string code) =>
         Languages.FirstOrDefault(l => l.Resources is not null &&
             string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase))?.Resources;

@@ -16,7 +16,7 @@ public static class DurationFormatter
     public static string Describe(int days)
     {
         if (days < DaysPerYear)
-            return days == 1 ? Loc["Duration.Day"] : Loc.Format("Duration.Days", days);
+            return days == 1 ? Loc["Duration.Day"] : Loc.FormatCount("Duration.Days", days, days);
 
         var years = Math.Round(days / (double)DaysPerYear, 1, MidpointRounding.AwayFromZero);
         var isWholeYear = Math.Abs(years % 1) < 0.05;
@@ -24,10 +24,10 @@ public static class DurationFormatter
         if (isWholeYear)
         {
             var wholeYears = (int)Math.Round(years);
-            return wholeYears == 1 ? Loc["Duration.Year"] : Loc.Format("Duration.Years", wholeYears);
+            return wholeYears == 1 ? Loc["Duration.Year"] : Loc.FormatCount("Duration.Years", wholeYears, wholeYears);
         }
 
-        return Loc.Format("Duration.Years", years.ToString("0.0", CultureInfo.CurrentCulture));
+        return Loc.FormatCount("Duration.Years", years, years.ToString("0.0", CultureInfo.CurrentCulture));
     }
 
     /// <summary>A span as a short phrase: "&lt;1 min", "42 min", "3 h 5 min", then whole days.</summary>

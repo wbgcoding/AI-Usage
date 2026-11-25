@@ -311,7 +311,7 @@
   <data name="Settings.WindowOpacity" xml:space="preserve"><value>Deckkraft des Fensters</value></data>
   <data name="Settings.WindowOpacityValue" xml:space="preserve"><value>{0} %</value></data>
   <data name="Settings.RefreshInterval" xml:space="preserve"><value>Aktualisierungsintervall</value></data>
-  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Abrufe übers Netz höchstens alle {0} min</value></data>
+  <data name="Settings.RemoteInterval" xml:space="preserve"><value>Abrufe übers Netz höchstens alle {0} Min.</value></data>
   <data name="Settings.LastSuccessfulUpdate" xml:space="preserve"><value>Letzte erfolgreiche Aktualisierung</value></data>
   <data name="Settings.NeverUpdated" xml:space="preserve"><value>noch nie</value></data>
   <data name="Settings.On" xml:space="preserve"><value>Ein</value></data>
@@ -370,12 +370,12 @@
   <data name="SignIn.Blocked.Action" xml:space="preserve"><value>Verstanden</value></data>
   <data name="SignIn.Blocked.Allow" xml:space="preserve"><value>Seite trotzdem laden</value></data>
   <data name="SignIn.Blocked.PlainHttp" xml:space="preserve"><value>Unverschlüsselte http-Seiten lädt dieses Fenster nie.</value></data>
-  <data name="Duration.Seconds" xml:space="preserve"><value>{0} s</value></data>
-  <data name="Duration.Minutes" xml:space="preserve"><value>{0} min</value></data>
-  <data name="Duration.MinutesSeconds" xml:space="preserve"><value>{0} min {1} s</value></data>
-  <data name="Duration.LessThanMinute" xml:space="preserve"><value>&lt;1 Min</value></data>
-  <data name="Duration.Hours" xml:space="preserve"><value>{0} Std</value></data>
-  <data name="Duration.HoursMinutes" xml:space="preserve"><value>{0} Std {1} Min</value></data>
+  <data name="Duration.Seconds" xml:space="preserve"><value>{0} Sek.</value></data>
+  <data name="Duration.Minutes" xml:space="preserve"><value>{0} Min.</value></data>
+  <data name="Duration.MinutesSeconds" xml:space="preserve"><value>{0} Min. {1} Sek.</value></data>
+  <data name="Duration.LessThanMinute" xml:space="preserve"><value>&lt;1 Min.</value></data>
+  <data name="Duration.Hours" xml:space="preserve"><value>{0} Std.</value></data>
+  <data name="Duration.HoursMinutes" xml:space="preserve"><value>{0} Std. {1} Min.</value></data>
   <data name="Unit.Messages" xml:space="preserve"><value>Nachrichten</value></data>
   <data name="Unit.Requests" xml:space="preserve"><value>Anfragen</value></data>
   <data name="Welcome.Title" xml:space="preserve"><value>Willkommen bei AI-Usage</value></data>
@@ -556,8 +556,8 @@
   <data name="Update.RestoreNeeded" xml:space="preserve"><value>Das Update ließ sich nicht abschließen. Deine Programmdatei liegt jetzt unter {0}. Benenne sie wieder in AI-Usage.exe um, dann startet die App wieder.</value></data>
   <data name="Update.NotStarted" xml:space="preserve"><value>Das Setup ist nicht gestartet. Falls du die Admin-Abfrage geschlossen hast, versuche es noch einmal.</value></data>
   <data name="Settings.ForecastAlert" xml:space="preserve"><value>Frühwarnung vor einem Limit</value></data>
-  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} Std</value></data>
-  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Settings.ForecastLead.Hours" xml:space="preserve"><value>{0} Std.</value></data>
+  <data name="Settings.ForecastLead.Minutes" xml:space="preserve"><value>{0} Min.</value></data>
   <data name="Settings.ForecastLead" xml:space="preserve"><value>Vorlauf der Warnung</value></data>
   <data name="Notify.Forecast" xml:space="preserve"><value>{0}: {1} ist voraussichtlich in etwa {2} voll (jetzt {3} %)</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Meldungen an allen Tagen zulassen</value></data>
@@ -680,8 +680,8 @@
   <data name="Settings.DataFolder.Replace.Body" xml:space="preserve"><value>Dieser Ordner enthält eine ältere Kopie deiner AI-Usage-Daten. Durch die aktuellen Daten ersetzen?</value></data>
   <data name="Settings.DataFolder.Replace.Button" xml:space="preserve"><value>Ersetzen</value></data>
   <data name="Settings.ProviderRefresh" xml:space="preserve"><value>Höchstens abrufen alle</value></data>
-  <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Standard ({0} min)</value></data>
-  <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Settings.ProviderRefresh.Default" xml:space="preserve"><value>Standard ({0} Min.)</value></data>
+  <data name="Settings.ProviderRefresh.Minutes" xml:space="preserve"><value>{0} Min.</value></data>
   <data name="Tip.Settings.ProviderRefresh" xml:space="preserve"><value>Wie oft AI-Usage diesen Anbieter höchstens abfragt. Standard folgt dem Regler unter Abruf.</value></data>
   <data name="Tip.Settings.RemoteInterval" xml:space="preserve"><value>Gilt für jeden Abruf übers Internet; unter Anbieter lässt sich das je Anbieter ändern.</value></data>
   <data name="Toast.SignInNeeded.Title" xml:space="preserve"><value>{0}: Anmeldung nötig</value></data>

@@ -158,6 +158,7 @@
   <data name="Duration.Days" xml:space="preserve"><value>{0} dni</value></data>
   <data name="Duration.Year" xml:space="preserve"><value>1 rok</value></data>
   <data name="Duration.Years" xml:space="preserve"><value>{0} lat</value></data>
+  <data name="Duration.Years.Few" xml:space="preserve"><value>{0} lata</value></data>
   <data name="Age.Bare" xml:space="preserve"><value>{0} temu</value></data>
   <data name="Chart.Range.Day" xml:space="preserve"><value>24 godziny</value></data>
   <data name="Chart.Range.Week" xml:space="preserve"><value>7 dni</value></data>
@@ -438,7 +439,7 @@
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>Wykorzystane resety limitu: {0}, ostatni {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>Wykorzystane resety limitu: {0}, ostatni {1}</value></data>
   <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Reset limitu czyści okno przed czasem; statystyki rozpoczynają tam nowy okres.</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Szacunek z {0} godzin Twojego użycia. Odczyty z cache liczone są osobno: 1% ≈ {1} tokenów z cache.</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Szacunek z {0} godzin Twojego użycia. Odczyty z cache liczone są osobno: 1% ≈ {1} (tokeny z cache).</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Bez projektu</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Inne projekty</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projektów</value></data>

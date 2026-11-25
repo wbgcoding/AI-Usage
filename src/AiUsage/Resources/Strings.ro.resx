@@ -155,9 +155,11 @@
   <data name="Dialog.Filter.Csv" xml:space="preserve"><value>Fișiere CSV (*.csv)|*.csv</value></data>
   <data name="Error.StatusSuffix" xml:space="preserve"><value>stare {0}</value></data>
   <data name="Duration.Day" xml:space="preserve"><value>1 zi</value></data>
-  <data name="Duration.Days" xml:space="preserve"><value>{0} zile</value></data>
+  <data name="Duration.Days" xml:space="preserve"><value>{0} de zile</value></data>
+  <data name="Duration.Days.Few" xml:space="preserve"><value>{0} zile</value></data>
   <data name="Duration.Year" xml:space="preserve"><value>1 an</value></data>
-  <data name="Duration.Years" xml:space="preserve"><value>{0} ani</value></data>
+  <data name="Duration.Years" xml:space="preserve"><value>{0} de ani</value></data>
+  <data name="Duration.Years.Few" xml:space="preserve"><value>{0} ani</value></data>
   <data name="Age.Bare" xml:space="preserve"><value>acum {0}</value></data>
   <data name="Chart.Range.Day" xml:space="preserve"><value>24 de ore</value></data>
   <data name="Chart.Range.Week" xml:space="preserve"><value>7 zile</value></data>
@@ -412,7 +414,7 @@
   <data name="Stats.Chart.TopProjects" xml:space="preserve"><value>Cele mai mari proiecte</value></data>
   <data name="Stats.Limits" xml:space="preserve"><value>Limite</value></data>
   <data name="Stats.Forecast" xml:space="preserve"><value>Prognoza abonamentului</value></data>
-  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>{0} conturi</value></data>
+  <data name="Stats.Forecast.Accounts" xml:space="preserve"><value>Conturi: {0}</value></data>
   <data name="Stats.Forecast.Window.FiveHour" xml:space="preserve"><value>Fereastră de 5 ore</value></data>
   <data name="Stats.Forecast.Window.Week" xml:space="preserve"><value>Săptămână</value></data>
   <data name="Stats.Forecast.Capacity" xml:space="preserve"><value>{0} tokeni</value></data>
@@ -438,7 +440,7 @@
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
   <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>O resetare a limitei golește fereastra înainte de termen; statisticile încep atunci o nouă perioadă.</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din {0} ore de consum propriu. Citirile din cache se numără separat: 1% ≈ {1} tokeni din cache.</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din consumul propriu (ore: {0}). Citirile din cache se numără separat: 1% ≈ {1} (tokeni din cache).</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Fără proiect</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Alte proiecte</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} proiecte</value></data>
@@ -512,7 +514,7 @@
   <data name="Stats.TokenUnit" xml:space="preserve"><value>tokeni</value></data>
   <data name="Stats.PerActiveDay" xml:space="preserve"><value>Pe zi activă</value></data>
   <data name="Tip.Stats.PerActiveDay" xml:space="preserve"><value>Totalul împărțit la zilele în care au existat efectiv tokeni.</value></data>
-  <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>în {0} din {1} zile</value></data>
+  <data name="Stats.ActiveDaysOf" xml:space="preserve"><value>zile: {0} din {1}</value></data>
   <data name="Stats.ActiveDaysOf.One" xml:space="preserve"><value>în {0} din 1 zi</value></data>
   <data name="Stats.MonthGrid.Head" xml:space="preserve"><value>Consum pe zi</value></data>
   <data name="Stats.MonthGrid.Empty" xml:space="preserve"><value>Încă nu au fost numărate zile pentru această perioadă.</value></data>
@@ -664,7 +666,8 @@
   <data name="Settings.Stats.WeeklyCsvFolderChange" xml:space="preserve"><value>Schimbă folderul…</value></data>
   <data name="Settings.Stats.WeeklyCsvNoFolder" xml:space="preserve"><value>Niciun folder ales încă</value></data>
   <data name="Tip.Settings.Stats.ImportFolder" xml:space="preserve"><value>Importă o singură dată în statistici fișierele de sesiune Claude Code dintr-un folder, de exemplu o copie veche. Sesiunile deja numărate nu sunt numărate de două ori.</value></data>
-  <data name="Settings.Backup.Imported" xml:space="preserve"><value>Au fost importate {0} zile de istoric de tokeni de la {1}.</value></data>
+  <data name="Settings.Backup.Imported" xml:space="preserve"><value>Au fost importate {0} de zile de istoric de tokeni de la {1}.</value></data>
+  <data name="Settings.Backup.Imported.Few" xml:space="preserve"><value>Au fost importate {0} zile de istoric de tokeni de la {1}.</value></data>
   <data name="Settings.Backup.Imported.One" xml:space="preserve"><value>A fost importată 1 zi de istoric de tokeni de la {1}.</value></data>
   <data name="Settings.Backup.RemovePc" xml:space="preserve"><value>Elimină</value></data>
   <data name="Stats.ImportedFrom" xml:space="preserve"><value>Include istoric de la: {0}</value></data>
@@ -693,8 +696,9 @@
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(la {0})</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Fă copie de rezervă a indexului de tokeni săptămânal</value></data>
   <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Păstrează trei copii în folderul stats-backups. Un index deteriorat este restaurat din ele.</value></data>
-  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Se citesc jurnalele de sesiune: {0} din {1} fișiere</value></data>
-  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru {3} conturi.</value></data>
+  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Se citesc jurnalele de sesiune: {0} din {1}</value></data>
+  <data name="Settings.Backup.Preview" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru {3} de conturi.</value></data>
+  <data name="Settings.Backup.Preview.Few" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru {3} conturi.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>Copie de rezervă din {0}. Istoric de la {1} până la {2} pentru 1 cont.</value></data>
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>Copie de rezervă din {0}. Fără istoric.</value></data>
   <data name="Tile.ReadChange.Notice" xml:space="preserve"><value>Furnizorul a schimbat ceva; valorile pot fi incomplete.</value></data>
@@ -725,7 +729,7 @@
   <data name="Settings.Stats.AddFolder" xml:space="preserve"><value>Adaugă folder…</value></data>
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Elimină</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Citește fișierele de sesiune o singură dată…</value></data>
-  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fișiere de sesiune citite, {1} noi</value></data>
+  <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>Fișiere de sesiune citite: {0}, noi: {1}</value></data>
   <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Folderul nu a putut fi citit. Verifică dacă mai există și dacă îl poți deschide.</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Consum de tokeni</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Perioada la deschidere</value></data>

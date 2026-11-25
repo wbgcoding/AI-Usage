@@ -1925,7 +1925,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (summary is not { HistoryFrom: { } from, HistoryTo: { } to, AccountsWithHistory: > 0 and var accounts })
             return loc.Format("Settings.Backup.Preview.NoHistory", created);
 
-        return loc.Format(accounts == 1 ? "Settings.Backup.Preview.One" : "Settings.Backup.Preview",
+        if (accounts == 1)
+            return loc.Format("Settings.Backup.Preview.One", created, from.ToLocalTime().ToString("d", culture), to.ToLocalTime().ToString("d", culture));
+
+        return loc.FormatCount("Settings.Backup.Preview", accounts,
             created, from.ToLocalTime().ToString("d", culture), to.ToLocalTime().ToString("d", culture), accounts);
     }
 
@@ -2036,7 +2039,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                     _store.RequestSave(_settings);
                     await RebuildImportedPcsAsync();
                     Stats.StatsIndexerService.Shared?.RefreshSnapshotInBackground();
-                    _showMessage(loc.Format(days == 1 ? "Settings.Backup.Imported.One" : "Settings.Backup.Imported", days, name));
+                    _showMessage(days == 1 ? loc.Format("Settings.Backup.Imported.One", days, name) : loc.FormatCount("Settings.Backup.Imported", days, days, name));
                     break;
                 default:
                     _showMessage(loc["Settings.Backup.Refused"]);
@@ -2171,7 +2174,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.RefreshSeconds = source.RefreshSeconds;
         _settings.RemoteRefreshMinutes = source.RemoteRefreshMinutes;
-        _settings.WindowLayer = WindowLayers.Normalize(source.WindowLayer);
+        _settings.WindowLayer = source.WindowLayer;
         _settings.Layout = source.Layout;
         _settings.TileOrderMode = source.TileOrderMode;
         _settings.Theme = source.Theme;
@@ -2187,7 +2190,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.ShowCostEstimate = source.ShowCostEstimate;
         _settings.CostCurrency = Enum.IsDefined(source.CostCurrency) ? source.CostCurrency : CostCurrency.Usd;
         _settings.HideOnFullscreen = source.HideOnFullscreen;
-        _settings.ZoomPercent = WindowZoom.Normalize(source.ZoomPercent);
+        _settings.ZoomPercent = source.ZoomPercent;
         _settings.ShowTooltips = source.ShowTooltips;
         _settings.TileDensity = source.TileDensity;
         _settings.DayGridShownOnce = source.DayGridShownOnce;
@@ -2197,7 +2200,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.NotifyBeforeReset = source.NotifyBeforeReset;
         _settings.ShowTileTokenCost = source.ShowTileTokenCost;
         _settings.ForecastAlertEnabled = source.ForecastAlertEnabled;
-        _settings.ForecastLeadMinutes = AppSettings.NormalizeForecastLeadMinutes(source.ForecastLeadMinutes);
+        _settings.ForecastLeadMinutes = source.ForecastLeadMinutes;
         _settings.LimitReachedAlertEnabled = source.LimitReachedAlertEnabled;
         _settings.ShowAttentionMark = source.ShowAttentionMark;
         _settings.AttentionMaxAgeMinutes = source.AttentionMaxAgeMinutes;
@@ -2205,14 +2208,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _settings.SaveEnergyOnBattery = source.SaveEnergyOnBattery;
         _settings.StatsWeeklyCopy = source.StatsWeeklyCopy;
         _settings.StatsWeeklyCsv = source.StatsWeeklyCsv;
-        _settings.StatsWeeklyCsvDay = AppSettings.NormalizeWeeklyCsvDay(source.StatsWeeklyCsvDay);
-        _settings.StatsWeeklyCsvHour = AppSettings.NormalizeWeeklyCsvHour(source.StatsWeeklyCsvHour);
+        _settings.StatsWeeklyCsvDay = source.StatsWeeklyCsvDay;
+        _settings.StatsWeeklyCsvHour = source.StatsWeeklyCsvHour;
         _settings.StatsOpenRange = source.StatsOpenRange;
         _settings.StatsWeekStart = source.StatsWeekStart;
         _settings.StatsHiddenSections = [.. source.StatsHiddenSections];
         _settings.QuietHoursEnabled = source.QuietHoursEnabled;
         _settings.AllDaysAllowed = source.AllDaysAllowed;
-        _settings.QuietDays = QuietHours.NormalizeDays(source.QuietDays);
+        _settings.QuietDays = [.. source.QuietDays];
         _settings.QuietHoursStart = source.QuietHoursStart;
         _settings.QuietHoursEnd = source.QuietHoursEnd;
         _settings.HotkeyEnabled = source.HotkeyEnabled;

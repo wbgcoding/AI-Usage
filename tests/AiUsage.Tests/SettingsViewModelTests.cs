@@ -338,11 +338,11 @@ public class SettingsViewModelTests : IDisposable
     }
 
     [Theory]
-    [InlineData(45, "45 s")]
-    [InlineData(120, "2 min")]
-    [InlineData(300, "5 min")]
-    [InlineData(90, "1 min 30 s")]
-    [InlineData(195, "3 min 15 s")]
+    [InlineData(45, "45 Sek.")]
+    [InlineData(120, "2 Min.")]
+    [InlineData(300, "5 Min.")]
+    [InlineData(90, "1 Min. 30 Sek.")]
+    [InlineData(195, "3 Min. 15 Sek.")]
     public void RefreshSecondsLabelShowsSecondsUnderAMinuteOtherwiseMinutes(int seconds, string expected)
     {
         var (vm, _) = Build();
@@ -1152,10 +1152,10 @@ public class SettingsViewModelTests : IDisposable
 
         Assert.Equal([3, 5, 10, 15, 30, 45, 60, 90, 120], vm.ForecastLeadChoices.Select(choice => choice.Value));
         Assert.Equal(30, vm.SelectedForecastLeadChoice!.Value);
-        Assert.Equal("3 min", vm.ForecastLeadChoices[0].Label);
-        Assert.Equal("1 Std", vm.ForecastLeadChoices.Single(choice => choice.Value == 60).Label);
-        Assert.Equal("90 min", vm.ForecastLeadChoices.Single(choice => choice.Value == 90).Label);
-        Assert.Equal("2 Std", vm.ForecastLeadChoices.Single(choice => choice.Value == 120).Label);
+        Assert.Equal("3 Min.", vm.ForecastLeadChoices[0].Label);
+        Assert.Equal("1 Std.", vm.ForecastLeadChoices.Single(choice => choice.Value == 60).Label);
+        Assert.Equal("90 Min.", vm.ForecastLeadChoices.Single(choice => choice.Value == 90).Label);
+        Assert.Equal("2 Std.", vm.ForecastLeadChoices.Single(choice => choice.Value == 120).Label);
 
         vm.SelectedForecastLeadChoice = vm.ForecastLeadChoices.Single(choice => choice.Value == 120);
         Assert.Equal(120, settings.ForecastLeadMinutes);

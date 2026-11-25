@@ -41,10 +41,37 @@ public class LocalizationParityTests
         {
             var keys = LoadKeys(language.Resources!);
             var missing = englishKeys.Except(keys).OrderBy(k => k).ToList();
-            var orphaned = keys.Except(englishKeys).OrderBy(k => k).ToList();
+            var orphaned = keys.Except(englishKeys)
+                .Where(key => !IsFewForm(language.Code, key, englishKeys))
+                .OrderBy(k => k).ToList();
 
             Assert.True(missing.Count == 0, $"Keys in Strings.resx missing from the '{language.Code}' resx: " + string.Join(", ", missing));
             Assert.True(orphaned.Count == 0, $"Keys in the '{language.Code}' resx with no EN counterpart: " + string.Join(", ", orphaned));
+        }
+    }
+
+    // English has no second plural, so a "<key>.Few" form exists only in a language whose grammar
+    // has one, and only beside a key English has.
+    private static bool IsFewForm(string languageCode, string key, HashSet<string> englishKeys) =>
+        key.EndsWith(".Few", StringComparison.Ordinal)
+        && englishKeys.Contains(key[..^".Few".Length])
+        && Enumerable.Range(2, 3).Any(count => PluralRules.UsesFewForm(CultureInfo.GetCultureInfo(languageCode), count));
+
+    [Fact]
+    public void EveryFewFormUsesTheSamePlaceholdersAsItsKey()
+    {
+        foreach (var language in LocalizationService.Languages.Where(l => l.Resources is not null))
+        {
+            var set = language.Resources!.GetResourceSet(CultureInfo.InvariantCulture, createIfNotExists: true, tryParents: false)!;
+            var values = set.Cast<DictionaryEntry>().ToDictionary(e => (string)e.Key, e => (string)e.Value!);
+            foreach (var (key, few) in values.Where(pair => pair.Key.EndsWith(".Few", StringComparison.Ordinal)))
+            {
+                var baseKey = key[..^".Few".Length];
+                Assert.True(values.TryGetValue(baseKey, out var plain), $"{language.Code}: {key} has no {baseKey}");
+                Assert.Equal(
+                    Placeholder.Matches(plain!).Select(m => m.Value).Order(),
+                    Placeholder.Matches(few).Select(m => m.Value).Order());
+            }
         }
     }
 
