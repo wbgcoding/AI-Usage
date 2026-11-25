@@ -891,6 +891,29 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task Calls_started_together_after_a_suspend_all_wait_for_the_page_to_resume()
+    {
+        var fake = new FakeHiddenBrowserHost { SuspendNeverFinishes = true };
+        fake.CompleteNavigate(true);
+        var runner = new WebSessionScriptRunner(() => fake, suspendWait: TimeSpan.FromSeconds(30));
+
+        var first = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        fake.CompleteScript("first");
+        await first;
+
+        var second = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        var third = runner.ExecuteScriptAsync("script", CancellationToken.None);
+        await Task.Delay(300);
+
+        // Neither call may run its script while the suspend of the page is still unfinished.
+        Assert.Equal(1, fake.ExecuteCalls);
+
+        await runner.DisposeAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => third);
+    }
+
+    [Fact]
     public async Task An_idle_timer_that_fires_early_is_re_armed_for_the_remaining_time()
     {
         FakeHiddenBrowserHost? current = null;
