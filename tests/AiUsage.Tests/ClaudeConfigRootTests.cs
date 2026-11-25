@@ -28,6 +28,18 @@ public class ClaudeConfigRootTests
         }
     }
 
+    [Fact]
+    public void The_same_folder_with_and_without_a_trailing_separator_is_one_root()
+    {
+        using var profile = TestPaths.CreateDisposableDirectory("ccr-trailing");
+        var root = Path.Combine(profile, "cfg");
+        Directory.CreateDirectory(root);
+
+        var roots = ClaudeConfigRoot.ConfiguredRoots($"{root},{root}{Path.DirectorySeparatorChar}");
+
+        Assert.Equal([root], roots);
+    }
+
     private static bool TryCreateJunction(string link, string target)
     {
         try
