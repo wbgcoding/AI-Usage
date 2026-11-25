@@ -49,4 +49,16 @@ internal static class ChartTheme
     /// <summary>A <c>Font.Size.*</c> token of the theme, <paramref name="fallback"/> when it is not reachable.</summary>
     public static double FontSize(FrameworkElement owner, string key, double fallback) =>
         owner.TryFindResource(key) is double size ? size : fallback;
+
+    /// <summary>The theme's <c>Font.Size.Micro</c> (axis ticks, legends).</summary>
+    public static double MicroSize(FrameworkElement owner) => FontSize(owner, "Font.Size.Micro", 10);
+
+    /// <summary>The theme's <c>Font.Size.Small</c> (row names, figures).</summary>
+    public static double SmallSize(FrameworkElement owner) => FontSize(owner, "Font.Size.Small", 11);
+
+    /// <summary>The theme's <c>Font.Size.Body</c> (empty-state messages).</summary>
+    public static double BodySize(FrameworkElement owner) => FontSize(owner, "Font.Size.Body", 12);
+
+    /// <summary>The theme's <c>Font.Size.Strong</c> (the figure in a ring's centre).</summary>
+    public static double StrongSize(FrameworkElement owner) => FontSize(owner, "Font.Size.Strong", 13);
 }

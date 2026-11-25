@@ -282,7 +282,7 @@ public sealed class StatsHeatmap : FrameworkElement
         if (!HasData)
         {
             var empty = new FormattedText(
-                EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Body", 12), TextBrush, dpi)
+                EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.BodySize(this), TextBrush, dpi)
             {
                 MaxTextWidth = Math.Max(1, width),
                 TextAlignment = TextAlignment.Center,
@@ -306,7 +306,7 @@ public sealed class StatsHeatmap : FrameworkElement
 
             var x = LeftLabelWidth + column * (cellWidth + CellGap);
             var label = new FormattedText(
-                column.ToString(culture), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
+                column.ToString(culture), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, typeface, ChartTheme.MicroSize(this), TextBrush, dpi);
             drawingContext.DrawText(label, ChartDrawCache.Snap(x, (TopLabelHeight - label.Height) / 2, dpi));
         }
 
@@ -316,7 +316,7 @@ public sealed class StatsHeatmap : FrameworkElement
             var day = DayOfRow(FirstDay, row);
             var rowLabel = new FormattedText(
                 culture.DateTimeFormat.AbbreviatedDayNames[(int)day], LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight,
-                typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
+                typeface, ChartTheme.MicroSize(this), TextBrush, dpi);
             drawingContext.DrawText(rowLabel, ChartDrawCache.Snap(0, y + (cellHeight - rowLabel.Height) / 2, dpi));
 
             for (var column = 0; column < Columns; column++)

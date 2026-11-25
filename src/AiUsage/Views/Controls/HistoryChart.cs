@@ -530,7 +530,7 @@ public sealed class HistoryChart : FrameworkElement
         var textBrush = ChartTheme.Primary(this, null);
         var typeface = ChartFonts.UiTypeface(this);
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var formatted = new FormattedText(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), textBrush, dpi);
+        var formatted = new FormattedText(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, ChartTheme.MicroSize(this), textBrush, dpi);
 
         const double padding = 4;
         const double gap = 8;
@@ -620,7 +620,7 @@ public sealed class HistoryChart : FrameworkElement
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
 
         FormattedText MakeText(string text) =>
-            new(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), textBrush, dpi);
+            new(text, LocalizationService.Instance.DisplayCulture, System.Windows.FlowDirection.LeftToRight, typeface, ChartTheme.MicroSize(this), textBrush, dpi);
 
         double TextTop(FormattedText text) => plotHeight + (CaptionStripHeight - text.Height) / 2;
 
@@ -826,7 +826,7 @@ public sealed class HistoryChart : FrameworkElement
             LocalizationService.Instance.DisplayCulture,
             System.Windows.FlowDirection.LeftToRight,
             ChartFonts.UiTypeface(this),
-            ChartTheme.FontSize(this, "Font.Size.Small", 11),
+            ChartTheme.SmallSize(this),
             textBrush,
             VisualTreeHelper.GetDpi(this).PixelsPerDip)
         {

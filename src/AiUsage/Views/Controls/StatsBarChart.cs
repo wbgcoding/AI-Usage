@@ -66,12 +66,19 @@ public sealed class StatsBarChart : FrameworkElement
         }
 
         if (chart._focusedIndex < 0)
-            AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<Bar>)e.NewValue));
+            AutomationProperties.SetName(chart, BuildAccessibleSummary((IReadOnlyList<Bar>)e.NewValue, chart.TokenWord));
     }
 
-    /// <summary>Pure so the summary text is unit testable without a visual tree.</summary>
-    internal static string BuildAccessibleSummary(IReadOnlyList<Bar> bars) =>
-        string.Join("; ", bars.Select(bar => StatusTextMap.LabelValue(bar.Label, bar.StackedValues.Sum().ToString(LocalizationService.Instance.DisplayCulture))));
+    /// <summary>Each bar's total is written like the tooltip writes it: grouped digits, then the unit
+    /// word when there is one. Pure so the summary text is unit testable without a visual tree.</summary>
+    internal static string BuildAccessibleSummary(IReadOnlyList<Bar> bars, string tokenWord = "") =>
+        string.Join("; ", bars.Select(bar => StatusTextMap.LabelValue(bar.Label, FormatTotal(bar.StackedValues.Sum(), tokenWord))));
+
+    private static string FormatTotal(long value, string tokenWord)
+    {
+        var number = value.ToString("N0", LocalizationService.Instance.DisplayCulture);
+        return string.IsNullOrEmpty(tokenWord) ? number : TextCompose.NumberUnit(number, tokenWord);
+    }
 
     public static readonly DependencyProperty SeriesBrushesProperty = DependencyProperty.Register(
         nameof(SeriesBrushes), typeof(IReadOnlyList<Brush>), typeof(StatsBarChart),
@@ -602,7 +609,7 @@ public sealed class StatsBarChart : FrameworkElement
         _focusedIndex = -1;
         if (_hoverIndex < 0)
             _tooltipPopup?.Hide();
-        AutomationProperties.SetName(this, BuildAccessibleSummary(Bars));
+        AutomationProperties.SetName(this, BuildAccessibleSummary(Bars, TokenWord));
         InvalidateVisual();
     }
 
@@ -704,7 +711,7 @@ public sealed class StatsBarChart : FrameworkElement
             {
                 var formatted = new FormattedText(
                     EmptyText, LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight,
-                    ChartFonts.UiTypeface(this), ChartTheme.FontSize(this, "Font.Size.Body", 12), EmptyTextBrush, dpi);
+                    ChartFonts.UiTypeface(this), ChartTheme.BodySize(this), EmptyTextBrush, dpi);
                 drawingContext.DrawText(formatted, new Point((width - formatted.Width) / 2, (emptyChartHeight - formatted.Height) / 2));
             }
             return;
@@ -725,12 +732,12 @@ public sealed class StatsBarChart : FrameworkElement
         var tickTexts = yTicks
             .Select(tick => new FormattedText(
                 StatsAggregator.ShortenTokenCountAxis(tick, MillionSuffix, BillionSuffix), LocalizationService.Instance.DisplayCulture,
-                FlowDirection.LeftToRight, tickTypeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi))
+                FlowDirection.LeftToRight, tickTypeface, ChartTheme.MicroSize(this), TextBrush, dpi))
             .ToList();
         var widestTick = tickTexts.Select(text => text.Width).DefaultIfEmpty(0).Max();
         _leftMargin = ComputeLeftMargin(widestTick);
 
-        var axisLabelHeight = new FormattedText("0", LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi).Height;
+        var axisLabelHeight = new FormattedText("0", LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, ChartTheme.MicroSize(this), TextBrush, dpi).Height;
         _bottomMargin = ComputeBottomMargin(axisLabelHeight);
 
         var chartHeight = Math.Max(0, height - _bottomMargin);
@@ -800,7 +807,7 @@ public sealed class StatsBarChart : FrameworkElement
             : monthIndices is null ? FormatAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture)
             : FormatMonthAxisLabel(bars[index].Label, LocalizationService.Instance.DisplayCulture);
         FormattedText MakeLabel(int index) => new(
-            LabelString(index), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, ChartTheme.FontSize(this, "Font.Size.Micro", 10), TextBrush, dpi);
+            LabelString(index), LocalizationService.Instance.DisplayCulture, FlowDirection.LeftToRight, tickTypeface, ChartTheme.MicroSize(this), TextBrush, dpi);
 
         var labelIndices = hourIndices ?? monthIndices;
         var measured = new Dictionary<int, FormattedText>();
@@ -947,11 +954,7 @@ public sealed class StatsBarChart : FrameworkElement
     /// not empty.</summary>
     internal static IReadOnlyList<string> BuildTooltipLines(Bar bar, IReadOnlyList<string> seriesLabels, string tokenWord)
     {
-        string WithUnit(long value)
-        {
-            var number = value.ToString("N0", LocalizationService.Instance.DisplayCulture);
-            return string.IsNullOrEmpty(tokenWord) ? number : TextCompose.NumberUnit(number, tokenWord);
-        }
+        string WithUnit(long value) => FormatTotal(value, tokenWord);
 
         var lines = new List<string>
         {
