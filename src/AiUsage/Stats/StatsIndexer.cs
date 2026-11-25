@@ -246,13 +246,7 @@ public sealed class StatsIndexer
         // a response owns it, and a resumed session copies its parent's history. Once every file is
         // known only appended parts are read and the order no longer matters.
         if (claudeFiles.Any(file => !known.ContainsKey(file.FullName)))
-        {
-            claudeFiles.Sort((a, b) =>
-            {
-                var byAge = a.CreationTimeUtc.CompareTo(b.CreationTimeUtc);
-                return byAge != 0 ? byAge : string.CompareOrdinal(a.FullName, b.FullName);
-            });
-        }
+            claudeFiles.Sort(OldestFirst);
 
         var codexFiles = EnumerateNewestFirstWithInfo(_codexSessionsRoot, "rollout-*.jsonl", out var codexFoldersSkipped, cancellationToken);
         if (_codexArchivedRoot is not null)
@@ -273,18 +267,25 @@ public sealed class StatsIndexer
         var reportProgress = progress is not null && newFiles >= ProgressMinimumNewFiles;
         var newFilesDone = 0;
 
-        foreach (var listed in claudeFiles)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            claudeFilesSeen++;
-            var isNew = reportProgress && !known.ContainsKey(listed.FullName);
-            var (read, linesParsed, linesSkipped) = IndexClaudeFile(listed, known, cancellationToken);
-            if (read)
-                claudeFilesRead++;
-            claudeLinesParsed += linesParsed;
-            claudeLinesSkipped += linesSkipped;
-            if (isNew)
-                progress!(++newFilesDone, newFiles);
+            foreach (var listed in claudeFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                claudeFilesSeen++;
+                var isNew = reportProgress && !known.ContainsKey(listed.FullName);
+                var (read, linesParsed, linesSkipped) = IndexClaudeFile(listed, known, cancellationToken);
+                if (read)
+                    claudeFilesRead++;
+                claudeLinesParsed += linesParsed;
+                claudeLinesSkipped += linesSkipped;
+                if (isNew)
+                    progress!(++newFilesDone, newFiles);
+            }
+        }
+        finally
+        {
+            ReleaseWalkOwners();
         }
 
         var codexFilesSeen = 0;
@@ -410,26 +411,27 @@ public sealed class StatsIndexer
 
         var files = EnumerateNewestFirstWithInfo(folder, "*.jsonl", out _, cancellationToken);
         if (files.Any(file => !known.ContainsKey(file.FullName)))
-        {
-            files.Sort((a, b) =>
-            {
-                var byAge = a.CreationTimeUtc.CompareTo(b.CreationTimeUtc);
-                return byAge != 0 ? byAge : string.CompareOrdinal(a.FullName, b.FullName);
-            });
-        }
+            files.Sort(OldestFirst);
 
         var filesRead = 0;
         var filesAdded = 0;
-        foreach (var listed in files)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var (read, linesParsed, _) = IndexClaudeFile(listed, known, cancellationToken);
-            if (!read)
-                continue;
+            foreach (var listed in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var (read, linesParsed, _) = IndexClaudeFile(listed, known, cancellationToken);
+                if (!read)
+                    continue;
 
-            filesRead++;
-            if (linesParsed > 0)
-                filesAdded++;
+                filesRead++;
+                if (linesParsed > 0)
+                    filesAdded++;
+            }
+        }
+        finally
+        {
+            ReleaseWalkOwners();
         }
 
         if (_failedWrites > 0)
@@ -523,7 +525,39 @@ public sealed class StatsIndexer
         return stored;
     }
 
+    // The owner lookup is opened once per walk and shared by its Claude files; null outside a walk.
+    private StatsStore.ClaudeOwnerLookup? _walkOwners;
+
+    /// <summary>The walk's owner lookup, opened on first use. One that failed earlier is replaced, so a
+    /// file never starts with answers it cannot trust; null when the index cannot be read.</summary>
+    private StatsStore.ClaudeOwnerLookup? AcquireWalkOwners()
+    {
+        if (_walkOwners is { Failed: true })
+            ReleaseWalkOwners();
+        return _walkOwners ??= _store.OpenClaudeOwners();
+    }
+
+    private void ReleaseWalkOwners()
+    {
+        _walkOwners?.Dispose();
+        _walkOwners = null;
+    }
+
     private (bool Read, long LinesParsed, long LinesSkipped) IndexClaudeFile(
+        FileInfo listed, Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return IndexClaudeFileCore(listed, known, cancellationToken);
+        }
+        finally
+        {
+            // A read that stops early must not keep its transaction open into the next file's write.
+            _walkOwners?.EndRead();
+        }
+    }
+
+    private (bool Read, long LinesParsed, long LinesSkipped) IndexClaudeFileCore(
         FileInfo listed, Dictionary<string, StatsSourceFileState> known, CancellationToken cancellationToken)
     {
         var path = listed.FullName;
@@ -550,7 +584,7 @@ public sealed class StatsIndexer
         // A copy of a response that another transcript counted first (a resumed or forked session
         // repeats the history of its parent) adds nothing here. Without the lookup the file is left
         // for the next walk rather than counted blind.
-        using var owners = _claimsActive ? _store.OpenClaudeOwners() : null;
+        var owners = _claimsActive ? AcquireWalkOwners() : null;
         if (_claimsActive && owners is null)
             return (false, 0, 0);
 
@@ -787,8 +821,9 @@ public sealed class StatsIndexer
             // was ever needed. Re-reading one short line is cheap next to walking the rest of the file.
             if (ReadFirstLineCapped(path, CodexFirstLineBytes) is { } firstLine)
             {
-                project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
-                sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
+                var meta = CodexUsageLogParser.TryReadSessionMeta(firstLine);
+                project = meta.Project ?? "";
+                sessionId = meta.SessionId ?? sessionId;
             }
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -1038,11 +1073,7 @@ public sealed class StatsIndexer
                 usageEvent.Effort, subagent: true);
         }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
 
-        foreach (var record in buckets.Values)
-        {
-            var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort);
-            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
-        }
+        MergeInto(totals, buckets.Values, record => (record.Day, record.Hour, record.Model, record.Project, record.Effort));
     }
 
     /// <summary>The one-time pass for Claude responses that earlier builds counted by their first copy
@@ -1123,11 +1154,7 @@ public sealed class StatsIndexer
                 usageEvent.Timestamp, usageEvent.Model, subagent, add.Input, add.Output, add.CacheCreation, add.CacheRead);
         }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
 
-        foreach (var record in buckets.Values)
-        {
-            var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort, record.Subagent);
-            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
-        }
+        MergeInto(totals, buckets.Values, record => (record.Day, record.Hour, record.Model, record.Project, record.Effort, record.Subagent));
 
         if (state.LastMessageKey.Length > 0 && copies.CountedFor(state.LastMessageKey) is { } counted)
             lastMessages.Add((path, state.LastMessageKey, counted));
@@ -1172,11 +1199,7 @@ public sealed class StatsIndexer
                 files.Add((state, info.CreationTimeUtc, start));
         }
 
-        files.Sort((a, b) =>
-        {
-            var byAge = a.Created.CompareTo(b.Created);
-            return byAge != 0 ? byAge : string.CompareOrdinal(a.State.Path, b.State.Path);
-        });
+        files.Sort((a, b) => OldestFirst(a.Created, a.State.Path, b.Created, b.State.Path));
 
         var unreadable = false;
         var claims = new List<(string Path, IReadOnlyCollection<long> Hashes)>();
@@ -1330,11 +1353,7 @@ public sealed class StatsIndexer
                 usageEvent.Timestamp, usageEvent.Model, subagent, add.Input, add.Output, add.CacheCreation, add.CacheRead);
         }, cancellationToken, line => ClaudeUsageLogParser.MayContainUsage(line), endLimit: state.Offset);
 
-        foreach (var record in buckets.Values)
-        {
-            var key = (record.Day, record.Hour, record.Model, record.Project, record.Effort, record.Subagent);
-            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
-        }
+        MergeInto(totals, buckets.Values, record => (record.Day, record.Hour, record.Model, record.Project, record.Effort, record.Subagent));
     }
 
     private void BackfillClaudeFile(
@@ -1374,8 +1393,9 @@ public sealed class StatsIndexer
         var sessionId = Path.GetFileNameWithoutExtension(path);
         if (ReadFirstLineCapped(path, CodexFirstLineBytes) is { } firstLine)
         {
-            project = CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(firstLine) ?? "";
-            sessionId = CodexUsageLogParser.TryExtractSessionIdFromSessionMetaLine(firstLine) ?? sessionId;
+            var meta = CodexUsageLogParser.TryReadSessionMeta(firstLine);
+            project = meta.Project ?? "";
+            sessionId = meta.SessionId ?? sessionId;
         }
 
         var parser = new CodexUsageLogParser();
@@ -1499,6 +1519,18 @@ public sealed class StatsIndexer
         buckets[key] = buckets.TryGetValue(key, out var already) ? already.Add(record) : record;
     }
 
+    /// <summary>Adds each record to the total of its key, creating the total on first sight.</summary>
+    private static void MergeInto<TKey>(
+        Dictionary<TKey, StatsRecord> totals, IEnumerable<StatsRecord> records, Func<StatsRecord, TKey> keyOf)
+        where TKey : notnull
+    {
+        foreach (var record in records)
+        {
+            var key = keyOf(record);
+            totals[key] = totals.TryGetValue(key, out var already) ? already.Add(record) : record;
+        }
+    }
+
     /// <summary>What one file's lines are summed under: everything else of the usage key is the same
     /// for the whole file.</summary>
     private readonly record struct UsageBucketKey(DateOnly Day, int Hour, string Model, string Effort, bool Subagent);
@@ -1547,6 +1579,15 @@ public sealed class StatsIndexer
     /// open stream, since the file can change after it was listed.</summary>
     internal static bool IsShorterThanRead([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] StatsSourceFileState? existing, long openLength) =>
         existing is not null && openLength < existing.Offset;
+
+    /// <summary>The order a walk reads new files in: oldest creation time first, ties by path.</summary>
+    private static int OldestFirst(FileInfo a, FileInfo b) => OldestFirst(a.CreationTimeUtc, a.FullName, b.CreationTimeUtc, b.FullName);
+
+    private static int OldestFirst(DateTime createdA, string pathA, DateTime createdB, string pathB)
+    {
+        var byAge = createdA.CompareTo(createdB);
+        return byAge != 0 ? byAge : string.CompareOrdinal(pathA, pathB);
+    }
 
     private static FileInfo? TryStat(string path)
     {

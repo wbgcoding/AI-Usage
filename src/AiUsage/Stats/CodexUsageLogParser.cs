@@ -159,60 +159,36 @@ public sealed class CodexUsageLogParser
         }
     }
 
-    /// <summary>The project a rollout file belongs to: the full "cwd" path the file's own
-    /// "session_meta" line carries once, near the start, without trailing separators - the same form
-    /// Claude sessions use, so both land under one project. Null when the line is not a session_meta
-    /// line or carries no cwd.</summary>
-    public static string? TryExtractProjectFromSessionMetaLine(string line)
+    /// <summary>What a rollout file's own "session_meta" line (its first line, parsed once) names: the
+    /// project, as the full "cwd" path without trailing separators (the same form Claude sessions use, so
+    /// both land under one project), and the session id (<c>id</c>, or <c>session_id</c> in an older
+    /// shape). Each part is null when the line does not carry it; both are null when the line is not a
+    /// session_meta line.</summary>
+    public static (string? Project, string? SessionId) TryReadSessionMeta(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
-            return null;
-
-        try
-        {
-            using var document = JsonDocument.Parse(line);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-                return null;
-            if (JsonReading.TryGetString(root, "type") != "session_meta")
-                return null;
-            if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
-                return null;
-            if (!payload.TryGetProperty("cwd", out var cwdProperty) || cwdProperty.ValueKind != JsonValueKind.String)
-                return null;
-
-            var cwd = cwdProperty.GetString();
-            return cwd?.TrimEnd('\\', '/') is { Length: > 0 } project ? project : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>The session id the file's "session_meta" line carries (<c>id</c>, or <c>session_id</c>
-    /// in an older shape). Null when the line is not a session_meta line or names none.</summary>
-    public static string? TryExtractSessionIdFromSessionMetaLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line))
-            return null;
+            return (null, null);
 
         try
         {
             using var document = JsonDocument.Parse(line);
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object || JsonReading.TryGetString(root, "type") != "session_meta")
-                return null;
+                return (null, null);
             if (!root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
-                return null;
+                return (null, null);
 
-            return JsonReading.TryGetString(payload, "id") is { Length: > 0 } id ? id
+            var cwd = payload.TryGetProperty("cwd", out var cwdProperty) && cwdProperty.ValueKind == JsonValueKind.String
+                ? cwdProperty.GetString()?.TrimEnd('\\', '/')
+                : null;
+            var sessionId = JsonReading.TryGetString(payload, "id") is { Length: > 0 } id ? id
                 : JsonReading.TryGetString(payload, "session_id") is { Length: > 0 } legacy ? legacy
                 : null;
+            return (cwd is { Length: > 0 } ? cwd : null, sessionId);
         }
         catch (JsonException)
         {
-            return null;
+            return (null, null);
         }
     }
 

@@ -201,10 +201,10 @@ public class StatsIndexTests
         Assert.Equal("C--Projects-AI-Usage", ClaudeUsageLogParser.ExtractProjectFromFilePath(claudePath));
 
         const string sessionMeta = """{"type":"session_meta","payload":{"cwd":"C:\\Projects\\SampleTool"}}""";
-        Assert.Equal("C:\\Projects\\SampleTool", CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(sessionMeta));
+        Assert.Equal("C:\\Projects\\SampleTool", CodexUsageLogParser.TryReadSessionMeta(sessionMeta).Project);
         const string withTrailingSeparator = """{"type":"session_meta","payload":{"cwd":"C:\\Projects\\SampleTool\\"}}""";
-        Assert.Equal("C:\\Projects\\SampleTool", CodexUsageLogParser.TryExtractProjectFromSessionMetaLine(withTrailingSeparator));
-        Assert.Null(CodexUsageLogParser.TryExtractProjectFromSessionMetaLine("""{"type":"turn_context"}"""));
+        Assert.Equal("C:\\Projects\\SampleTool", CodexUsageLogParser.TryReadSessionMeta(withTrailingSeparator).Project);
+        Assert.Null(CodexUsageLogParser.TryReadSessionMeta("""{"type":"turn_context"}""").Project);
     }
 
     [Fact]
@@ -1040,7 +1040,7 @@ public class StatsIndexTests
     {
         var parser = new CodexUsageLogParser();
         Assert.False(parser.TryParseLine("[1,2,3]", out _));
-        Assert.Null(CodexUsageLogParser.TryExtractProjectFromSessionMetaLine("[1,2,3]"));
+        Assert.Null(CodexUsageLogParser.TryReadSessionMeta("[1,2,3]").Project);
     }
 
     [Fact]
