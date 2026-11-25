@@ -158,6 +158,22 @@ public class AppPathsTests : IDisposable
         Assert.Equal(Path.Combine(appDataRoot, "AI-Usage"), resolved);
     }
 
+    [Theory]
+    [InlineData(@"\\")]
+    [InlineData(@"\\server")]
+    [InlineData(@"C:\folder:stream")]
+    public void ResolveDataDirectory_ignores_a_pointer_file_naming_a_malformed_path(string pointer)
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        Directory.CreateDirectory(Path.Combine(appDataRoot, "AI-Usage"));
+        File.WriteAllText(Path.Combine(appDataRoot, "AI-Usage", "location.txt"), pointer);
+
+        var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot);
+
+        Assert.Equal(Path.Combine(appDataRoot, "AI-Usage"), resolved);
+    }
+
     [Fact]
     public void ResolveDataDirectory_ignores_a_pointer_file_naming_a_relative_path()
     {
@@ -189,6 +205,22 @@ public class AppPathsTests : IDisposable
         Assert.Contains("S-1-5-32-544", sids);
         Assert.DoesNotContain("S-1-5-32-545", sids);
         Assert.DoesNotContain("S-1-5-11", sids);
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_creates_a_missing_pointed_folder_closed_to_other_accounts()
+    {
+        var appDataRoot = TempDirectory();
+        var tempRoot = TempDirectory();
+        var pointed = Path.Combine(TempDirectory(), "moved-data");
+        Directory.CreateDirectory(Path.Combine(appDataRoot, "AI-Usage"));
+        File.WriteAllText(Path.Combine(appDataRoot, "AI-Usage", "location.txt"), pointed);
+
+        var resolved = AppPaths.ResolveDataDirectory(appDataRoot, tempRoot);
+
+        Assert.Equal(pointed, resolved);
+        var security = new DirectoryInfo(resolved).GetAccessControl();
+        Assert.True(security.AreAccessRulesProtected);
     }
 
     [Fact]
@@ -282,6 +314,7 @@ public class AppPathsTests : IDisposable
     [Theory]
     [InlineData(@"\\nas\share\AI-Usage", AppPaths.FolderRisk.Unc)]
     [InlineData(@"\\?\UNC\nas\share\AI-Usage", AppPaths.FolderRisk.Unc)]
+    [InlineData(@"\\.\UNC\nas\share\AI-Usage", AppPaths.FolderRisk.Unc)]
     [InlineData(@"N:\data\AI-Usage", AppPaths.FolderRisk.NetworkDrive)]
     [InlineData(@"R:\AI-Usage", AppPaths.FolderRisk.RemovableDrive)]
     [InlineData(@"C:\Profiles\sample\OneDrive\AI-Usage", AppPaths.FolderRisk.CloudSync)]
