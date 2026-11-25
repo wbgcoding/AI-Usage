@@ -29,10 +29,8 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     private static readonly TimeSpan StaleAfter = TimeSpan.FromDays(1);
 
-    // An update is a few megabytes, but a release must never become too large for older copies to
-    // fetch, so the cap stays generous. The overall limit is only the last resort against a link that
-    // trickles forever; the stall limit ends a dead connection, so a slow line still finishes.
-    private const long MaxUpdateBytes = 600L * 1024 * 1024;
+    // The overall limit is only the last resort against a link that trickles forever; the stall limit
+    // ends a dead connection, so a slow line still finishes.
     private static readonly TimeSpan UpdateOverallTimeout = TimeSpan.FromHours(2);
 
     public bool IsInstalled => AppInfo.IsInstalled;
@@ -116,19 +114,19 @@ public sealed class UpdateHost(Action exitApplication) : IUpdateHost
 
     public static string DefaultWorkFolder => Path.Combine(Path.GetTempPath(), AppInfo.ProductName, "update");
 
-    public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct) =>
-        DownloadAsync(url, destination, null, AllowListedDownloader.StallTimeout, UpdateOverallTimeout, ct);
+    public Task<bool> DownloadAsync(string url, string destination, long maxBytes, CancellationToken ct) =>
+        DownloadAsync(url, destination, null, AllowListedDownloader.StallTimeout, UpdateOverallTimeout, ct, maxBytes: maxBytes);
 
     /// <summary>The handler and the limits are parameters so a test can stall the body. A failed
     /// download is <c>false</c>; only the caller's own cancellation propagates.</summary>
     internal static async Task<bool> DownloadAsync(
         string url, string destination, HttpMessageHandler? handler, TimeSpan stallLimit, TimeSpan overallLimit, CancellationToken ct,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null, long maxBytes = UpdateInstaller.MaxAssetBytes)
     {
         try
         {
             await AllowListedDownloader.DownloadAsync(
-                url, destination, uri => UpdateInstaller.IsAllowedUrl(uri.AbsoluteUri), handler, stallLimit, overallLimit, MaxUpdateBytes, null, ct, timeProvider);
+                url, destination, uri => UpdateInstaller.IsAllowedUrl(uri.AbsoluteUri), handler, stallLimit, overallLimit, maxBytes, null, ct, timeProvider);
             return true;
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException

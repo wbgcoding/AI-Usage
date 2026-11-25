@@ -108,11 +108,14 @@ public static class UpdateCheck
     /// timeout, a 404 (no release has been published yet, which is simply "no newer version"), an
     /// unexpected response shape - becomes null, never an exception the caller has to guard against
     /// and never a tile-style error state.</summary>
-    public static async Task<Release?> FetchLatestAsync(CancellationToken ct)
+    public static Task<Release?> FetchLatestAsync(CancellationToken ct) =>
+        FetchLatestAsync(new SocketsHttpHandler { ConnectCallback = Ipv4FirstConnect.ConnectAsync }, ct);
+
+    internal static async Task<Release?> FetchLatestAsync(HttpMessageHandler handler, CancellationToken ct)
     {
         try
         {
-            using var client = new HttpClient(new SocketsHttpHandler { ConnectCallback = Ipv4FirstConnect.ConnectAsync }) { Timeout = RequestTimeout };
+            using var client = new HttpClient(handler) { Timeout = RequestTimeout };
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(AppInfo.ProductName, AppInfo.Version));
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
@@ -129,7 +132,7 @@ public static class UpdateCheck
                 return tagName is null || !IsReleasePageUrl(htmlUrl) ? null : new Release(tagName, htmlUrl!, ReadAssets(document.RootElement));
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or JsonException
             or InvalidOperationException or KeyNotFoundException)
         {
             return null;

@@ -35,7 +35,7 @@ public class UpdateNoticeTests
 
         public List<string> Ran { get; } = [];
 
-        public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct)
+        public Task<bool> DownloadAsync(string url, string destination, long maxBytes, CancellationToken ct)
         {
             File.WriteAllBytes(destination, url.EndsWith(".sig", StringComparison.Ordinal) ? System.Text.Encoding.ASCII.GetBytes(signature) : exe);
             return Task.FromResult(true);

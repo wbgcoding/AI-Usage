@@ -73,6 +73,8 @@ public class UpdateInstallerTests
 
         public List<string> Downloads { get; } = [];
 
+        public Dictionary<string, long> DownloadCaps { get; } = [];
+
         /// <summary>The folder each downloaded file was written into, in order.</summary>
         public List<string> DownloadFolders { get; } = [];
 
@@ -97,9 +99,10 @@ public class UpdateInstallerTests
 
         public byte[]? ReplacedWith { get; private set; }
 
-        public Task<bool> DownloadAsync(string url, string destination, CancellationToken ct)
+        public Task<bool> DownloadAsync(string url, string destination, long maxBytes, CancellationToken ct)
         {
             Downloads.Add(url);
+            DownloadCaps[url] = maxBytes;
             DownloadFolders.Add(Path.GetDirectoryName(destination)!);
             OnDownload?.Invoke(destination);
             if (!Files.TryGetValue(url, out var bytes))
@@ -176,6 +179,20 @@ public class UpdateInstallerTests
         Assert.Single(installed.CallThreads);
         Assert.DoesNotContain(ui.ThreadId, portable.CallThreads);
         Assert.DoesNotContain(ui.ThreadId, installed.CallThreads);
+    }
+
+    [Fact]
+    public async Task TheSignatureDownloadIsCappedFarBelowTheProgram()
+    {
+        var (publicKey, key) = NewKey();
+        var host = PortableHost(publicKey, Payload, Sign(key, Payload));
+
+        await new UpdateInstaller(host).InstallAsync(PortableRelease(), CancellationToken.None);
+
+        var signatureUrl = Assert.Single(host.DownloadCaps.Keys, url => url.EndsWith(".sig", StringComparison.Ordinal));
+        var programUrl = Assert.Single(host.DownloadCaps.Keys, url => !url.EndsWith(".sig", StringComparison.Ordinal));
+        Assert.Equal(16 * 1024, host.DownloadCaps[signatureUrl]);
+        Assert.Equal(600L * 1024 * 1024, host.DownloadCaps[programUrl]);
     }
 
     [Fact]

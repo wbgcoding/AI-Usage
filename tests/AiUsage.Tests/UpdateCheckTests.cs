@@ -1,3 +1,4 @@
+using System.Net.Http;
 using AiUsage.Models;
 using AiUsage.Services;
 using Xunit;
@@ -33,6 +34,30 @@ public class UpdateCheckTests
     }
 
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
+    private sealed class BrokenBodyHandler(Exception failure) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StreamContent(new FailingStream(failure)) });
+    }
+
+    private sealed class FailingStream(Exception failure) : MemoryStream
+    {
+        public override int Read(byte[] buffer, int offset, int count) => throw failure;
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default) => throw failure;
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct) => throw failure;
+    }
+
+    // A connection that breaks or is cut while the body is read is "no newer version", never an
+    // exception the About window or the startup check has to catch.
+    [Fact]
+    public async Task FetchLatestAsync_turns_a_broken_body_into_null()
+    {
+        Assert.Null(await UpdateCheck.FetchLatestAsync(new BrokenBodyHandler(new IOException("reset")), CancellationToken.None));
+        Assert.Null(await UpdateCheck.FetchLatestAsync(new BrokenBodyHandler(new OperationCanceledException()), CancellationToken.None));
+    }
 
     [Fact]
     public async Task CheckIfDueAsync_skips_the_fetch_and_returns_null_when_checking_is_turned_off()

@@ -67,8 +67,9 @@ public interface IUpdateHost
     /// null when the file is not a readable PE file.</summary>
     ushort? ReadPeMachine(string path);
 
-    /// <summary>Loads <paramref name="url"/> into <paramref name="destination"/>; false on any failure.</summary>
-    Task<bool> DownloadAsync(string url, string destination, CancellationToken ct);
+    /// <summary>Loads <paramref name="url"/> into <paramref name="destination"/>; false on any failure,
+    /// a body larger than <paramref name="maxBytes"/> included.</summary>
+    Task<bool> DownloadAsync(string url, string destination, long maxBytes, CancellationToken ct);
 
     /// <summary>Runs the verified setup silently and ends the running copy. The installer holds the file
     /// open without write or delete sharing for the whole call, so what starts is what was verified.</summary>
@@ -107,6 +108,13 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
     [
         "api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com",
     ];
+
+    /// <summary>An update is a few megabytes, but a release must never become too large for older
+    /// copies to fetch, so the cap stays generous.</summary>
+    internal const long MaxAssetBytes = 600L * 1024 * 1024;
+
+    /// <summary>A detached signature is one short Base64 line; anything larger is refused unread.</summary>
+    internal const long MaxSignatureBytes = 16 * 1024;
 
     private const string PortableX64Name = "AI-Usage.exe";
     private const string PortableArm64Name = "AI-Usage-arm64.exe";
@@ -172,8 +180,8 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
         byte[] verifiedBytes;
         try
         {
-            if (!await host.DownloadAsync(asset.DownloadUrl, filePath, ct)
-                || !await host.DownloadAsync(signatureAsset.DownloadUrl, signaturePath, ct))
+            if (!await host.DownloadAsync(asset.DownloadUrl, filePath, MaxAssetBytes, ct)
+                || !await host.DownloadAsync(signatureAsset.DownloadUrl, signaturePath, MaxSignatureBytes, ct))
             {
                 CleanUpRun(runFolder, filePath, signaturePath);
                 return UpdateOutcome.DownloadFailed;
