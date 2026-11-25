@@ -81,6 +81,43 @@ public class WebViewRuntimeInstallerTests
     }
 
     [Fact]
+    public async Task A_cancel_that_arrives_during_the_signature_check_never_reaches_the_installing_state()
+    {
+        var rig = new Rig();
+        using var cts = new CancellationTokenSource();
+        var installingSeen = false;
+        var ran = false;
+        var installer = new WebViewRuntimeInstaller(
+            (_, destination, _, _) => { File.WriteAllText(destination, "x"); return Task.CompletedTask; },
+            _ => { cts.Cancel(); return new SignatureCheckResult(true, ""); },
+            (_, _, _) => { ran = true; return Task.FromResult(0); },
+            () => true,
+            () => rig.Folder);
+
+        var result = await installer.InstallAsync(null, () => installingSeen = true, cts.Token);
+
+        Assert.Equal(WebViewInstallOutcome.Cancelled, result.Outcome);
+        Assert.False(installingSeen);
+        Assert.False(ran);
+    }
+
+    [Fact]
+    public async Task A_runtime_probe_that_throws_after_the_install_is_a_result_not_an_exception()
+    {
+        var rig = new Rig();
+        var installer = new WebViewRuntimeInstaller(
+            (_, destination, _, _) => { File.WriteAllText(destination, "x"); return Task.CompletedTask; },
+            _ => new SignatureCheckResult(true, ""),
+            (_, _, _) => Task.FromResult(0),
+            () => throw new InvalidOperationException("probe broke"),
+            () => rig.Folder);
+
+        var result = await installer.InstallAsync(null, null, CancellationToken.None);
+
+        Assert.Equal(WebViewInstallOutcome.StillMissing, result.Outcome);
+    }
+
+    [Fact]
     public async Task The_installer_runs_from_a_new_folder_of_its_own_with_nothing_beside_it()
     {
         var rig = new Rig { Installed = true };
