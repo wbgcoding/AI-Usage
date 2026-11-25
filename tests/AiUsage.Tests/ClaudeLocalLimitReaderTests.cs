@@ -103,6 +103,26 @@ public class ClaudeLocalLimitReaderTests : IDisposable
         """{"type":"user","timestamp":"{0}"}""".Replace("{0}", at.ToString("o"));
 
     [Fact]
+    public void FindActiveLimit_prefers_the_newer_rejection_over_a_newer_file()
+    {
+        var directory = TempDirectory();
+        var touchedLast = Path.Combine(directory, "a.jsonl");
+        var rejectedLast = Path.Combine(directory, "b.jsonl");
+        // a.jsonl holds an older rejection but was written to afterwards by plain chat activity.
+        File.WriteAllLines(touchedLast, [
+            RejectionLine("five_hour", Now.AddHours(1)).Replace("}}", $"}},\"timestamp\":\"{Now.AddHours(-5):o}\"}}"),
+            PlainLine(Now.AddMinutes(-1))]);
+        File.WriteAllLines(rejectedLast, [
+            RejectionLine("five_hour", Now.AddHours(4)).Replace("}}", $"}},\"timestamp\":\"{Now.AddHours(-1):o}\"}}")]);
+        File.SetLastWriteTimeUtc(touchedLast, Now.UtcDateTime);
+        File.SetLastWriteTimeUtc(rejectedLast, Now.AddMinutes(-30).UtcDateTime);
+
+        var limit = ClaudeLocalLimitReader.FindActiveLimit(directory, Now);
+
+        Assert.Equal(Now.AddHours(4).ToUnixTimeSeconds(), limit!.ResetsAt.ToUnixTimeSeconds());
+    }
+
+    [Fact]
     public void FindActiveLimit_stops_a_file_at_the_first_reverse_line_older_than_a_week()
     {
         var directory = TempDirectory();
