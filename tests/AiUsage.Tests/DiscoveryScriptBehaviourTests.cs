@@ -14,7 +14,7 @@ public class DiscoveryScriptBehaviourTests
     private const string Runner = """
         const fs = require('fs');
         const routes = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-        globalThis.location = {origin: 'https://site.test', hostname: 'site.test'};
+        globalThis.location = {origin: 'https://site.test', hostname: 'site.test', pathname: '/'};
         globalThis.navigator = {onLine: true};
         // The Gemini script reads its anti-forgery token, build label and language from the page itself.
         globalThis.window = {WIZ_global_data: JSON.parse(process.argv[4])};
@@ -213,6 +213,15 @@ public class DiscoveryScriptBehaviourTests
         };
         Assert.Equal("not_signed_in", Status_(RunInNode(GeminiDiscoveryScript.Discover(), routes, pageData: "{}")));
         Assert.Equal("not_signed_in", Status_(RunInNode(GeminiDiscoveryScript.Fetch(GeminiDiscoveryScript.CandidatePaths[0]), routes, pageData: """{"SNlM0e":""}""")));
+    }
+
+    [NodeFact]
+    public void Gemini_page_that_cannot_be_read_for_its_token_is_not_taken_for_a_signed_out_session()
+    {
+        var routes = new Dictionary<string, Route> { ["https://site.test/"] = Status(503) };
+        Assert.Equal("failed", Status_(RunInNode(GeminiDiscoveryScript.Discover(), routes, pageData: "{}")));
+        routes["https://site.test/"] = Status(429);
+        Assert.Equal("blocked", Status_(RunInNode(GeminiDiscoveryScript.Discover(), routes, pageData: "{}")));
     }
 
     [NodeFact]
