@@ -21,7 +21,8 @@ namespace AiUsage.Views.Controls;
 /// key <see cref="Views.StatsWindow"/> persists this section's own <see cref="IsExpanded"/> under
 /// (<c>AppSettings.StatsSectionsCollapsed</c>) - this control itself never reads or writes settings.
 /// </summary>
-[TemplatePart(Name = PartHeaderButton, Type = typeof(Button))]
+[TemplatePart(Name = PartHeaderButton, Type = typeof(SectionHeaderButton))]
+
 public class CollapsibleSection : ContentControl
 {
     private const string PartHeaderButton = "PART_HeaderButton";
@@ -126,7 +127,7 @@ public class CollapsibleSection : ContentControl
     /// set from code - <see cref="Views.StatsWindow"/> listens to persist the new state.</summary>
     public event EventHandler? IsExpandedChanged;
 
-    private Button? _headerButton;
+    private SectionHeaderButton? _headerButton;
 
     static CollapsibleSection()
     {
@@ -164,7 +165,7 @@ public class CollapsibleSection : ContentControl
         if (_headerButton is not null)
             _headerButton.Click -= HeaderButton_Click;
 
-        _headerButton = GetTemplateChild(PartHeaderButton) as Button;
+        _headerButton = GetTemplateChild(PartHeaderButton) as SectionHeaderButton;
 
         if (_headerButton is not null)
             _headerButton.Click += HeaderButton_Click;
@@ -174,10 +175,14 @@ public class CollapsibleSection : ContentControl
 
     private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (UIElementAutomationPeer.FromElement((CollapsibleSection)d) is CollapsibleSectionPeer peer)
+        var section = (CollapsibleSection)d;
+        if (UIElementAutomationPeer.FromElement(section) is CollapsibleSectionPeer peer)
             peer.RaiseStateChanged((bool)e.OldValue, (bool)e.NewValue);
 
-        ((CollapsibleSection)d).IsExpandedChanged?.Invoke(d, EventArgs.Empty);
+        if (section._headerButton is not null && UIElementAutomationPeer.FromElement(section._headerButton) is SectionHeaderButtonPeer headerPeer)
+            headerPeer.RaiseStateChanged((bool)e.OldValue, (bool)e.NewValue);
+
+        section.IsExpandedChanged?.Invoke(d, EventArgs.Empty);
     }
 
     protected override AutomationPeer OnCreateAutomationPeer() => new CollapsibleSectionPeer(this);
@@ -217,4 +222,41 @@ public sealed class NullIfEmptyStringConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
+}
+
+/// <summary>The focusable header of a <see cref="CollapsibleSection"/>. It is the element a keyboard
+/// or screen-reader user lands on, so it carries the section's expand/collapse state itself.</summary>
+public sealed class SectionHeaderButton : Button
+{
+    internal CollapsibleSection? Section => TemplatedParent as CollapsibleSection;
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new SectionHeaderButtonPeer(this);
+}
+
+/// <summary>Button peer that adds the expand/collapse pattern, reading and driving the owning
+/// section's <see cref="CollapsibleSection.IsExpanded"/>.</summary>
+internal sealed class SectionHeaderButtonPeer(SectionHeaderButton owner) : ButtonAutomationPeer(owner), IExpandCollapseProvider
+{
+    public override object? GetPattern(PatternInterface patternInterface) =>
+        patternInterface == PatternInterface.ExpandCollapse ? this : base.GetPattern(patternInterface);
+
+    public ExpandCollapseState ExpandCollapseState => StateOf(owner.Section?.IsExpanded == true);
+
+    public void Expand()
+    {
+        if (owner.Section is { } section)
+            section.IsExpanded = true;
+    }
+
+    public void Collapse()
+    {
+        if (owner.Section is { } section)
+            section.IsExpanded = false;
+    }
+
+    internal void RaiseStateChanged(bool wasExpanded, bool isExpanded) =>
+        RaisePropertyChangedEvent(ExpandCollapsePatternIdentifiers.ExpandCollapseStateProperty, StateOf(wasExpanded), StateOf(isExpanded));
+
+    private static ExpandCollapseState StateOf(bool expanded) =>
+        expanded ? System.Windows.Automation.ExpandCollapseState.Expanded : System.Windows.Automation.ExpandCollapseState.Collapsed;
 }
