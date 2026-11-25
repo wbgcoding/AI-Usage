@@ -30,6 +30,12 @@ public static class DesktopShortcutService
     /// down with it.</summary>
     public static bool Create(string exePath)
     {
+        // No desktop folder to write into: a relative target would drop the shortcut into whatever
+        // folder the process happens to run in.
+        var target = ResolveTargetPath();
+        if (!Path.IsPathRooted(target))
+            return false;
+
         object? link = null;
         try
         {
@@ -37,10 +43,10 @@ public static class DesktopShortcutService
             var shellLink = (IShellLinkW)link!;
             shellLink.SetDescription(AppInfo.ProductName);
             shellLink.SetPath(exePath);
-            ((IPersistFile)shellLink).Save(ResolveTargetPath(), false);
+            ((IPersistFile)shellLink).Save(target, false);
             return true;
         }
-        catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is COMException or InvalidCastException or UnauthorizedAccessException or IOException)
         {
             return false;
         }
