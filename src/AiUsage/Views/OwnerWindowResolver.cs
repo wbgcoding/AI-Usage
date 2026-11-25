@@ -33,9 +33,9 @@ internal static class OwnerWindowResolver
 
     /// <summary>
     /// Thin wrapper around <see cref="Resolve{T}"/> for real callers: a window counts as "shown"
-    /// once it has a live presentation source (set once WPF has actually shown it, cleared again once
-    /// it closes), never a flag a caller has to remember to set, and the fallback is whichever window
-    /// <see cref="Application.Current"/> currently reports as active.
+    /// while it is visible, not minimized and has a live presentation source, never a flag a caller
+    /// has to remember to set; the fallback is whichever window <see cref="Application.Current"/>
+    /// currently reports as active.
     /// </summary>
     public static Window? ResolveOwner(Window? preferred)
     {
@@ -44,7 +44,8 @@ internal static class OwnerWindowResolver
     }
 
     private static bool IsShown(Window? window) =>
-        window is not null && PresentationSource.FromVisual(window) is not null;
+        window is { IsVisible: true } && window.WindowState != WindowState.Minimized
+        && PresentationSource.FromVisual(window) is not null;
 
     /// <summary>
     /// The decision behind <see cref="ApplyOwner"/>, generic for the same test-without-a-real-window

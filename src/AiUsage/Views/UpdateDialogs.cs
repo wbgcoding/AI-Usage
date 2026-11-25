@@ -18,7 +18,7 @@ internal static class UpdateDialogs
         {
             result = await update.InstallAsync(CancellationToken.None);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             LogService.Shared.LogError($"Update install failed ({ex.GetType().Name}): {ex.Message}");
             result = new UpdateInstallResult(UpdateOutcome.DownloadFailed, update.ReleaseUrl);
