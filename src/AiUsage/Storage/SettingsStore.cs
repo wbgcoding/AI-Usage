@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -210,7 +211,8 @@ public sealed class SettingsStore : IDisposable
 
         try
         {
-            var text = ReadAllTextWithRetry(backupPath);
+            // The primary read already waited out a held file; the backup gets only the short retries.
+            var text = ReadAllTextWithRetry(backupPath, ShortRetryDelays, ShortRetryDelays, File.ReadAllText);
             var (loaded, refusal) = Validate(text, LogDroppedAccount);
 
             if (refusal == ImportRefusal.NewerVersion)
@@ -618,6 +620,8 @@ public sealed class SettingsStore : IDisposable
         settings.WebUsagePaths ??= [];
         settings.CopilotAccountLogins ??= [];
         settings.StatsSectionsCollapsed ??= [];
+        settings.StatsExtraFolders ??= [];
+        settings.StatsHiddenSections ??= [];
         // A hand-edited "someId": null for a key that is neither known nor an account would otherwise
         // survive to the clamping below and every later lookup.
         foreach (var nullKey in settings.Providers.Where(kv => kv.Value is null).Select(kv => kv.Key).ToList())
@@ -789,7 +793,7 @@ public sealed class SettingsStore : IDisposable
     {
         try
         {
-            File.Move(path, $"{path}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}", overwrite: true);
+            File.Move(path, $"{path}.corrupt-{DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}", overwrite: true);
             DeleteOlderCorruptCopies(path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

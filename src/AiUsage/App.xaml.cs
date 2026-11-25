@@ -222,7 +222,7 @@ public partial class App : Application, IDisposable
         _statsIndexerService = new StatsIndexerService(new StatsStore(), logService)
         {
             WeeklyCopyEnabled = settings.StatsWeeklyCopy,
-            ExtraClaudeRoots = settings.StatsExtraFolders ?? [],
+            ExtraClaudeRoots = settings.StatsExtraFolders,
             WeeklyCsvFolder = settings.StatsWeeklyCsv ? settings.StatsWeeklyCsvFolder : null,
             WeeklyCsvDay = settings.StatsWeeklyCsvDay,
             WeeklyCsvHour = settings.StatsWeeklyCsvHour,
