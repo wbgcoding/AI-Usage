@@ -222,12 +222,24 @@ public static class ClaudeLocalLimitReader
     {
         if (!line.Contains("quotaLimits", StringComparison.Ordinal))
             return;
-        foreach (var note in ChangeNotes(line))
-            ReadChangeLog.Report("Claude", note);
-        if (!TryParseQuotaLimit(line, out var limit, out var lineTime) || limit is null)
-            return; // the substring matched but the line did not parse as expected
 
-        newest[limit.RateLimitType] = (limit, lineTime); // later in the file = newer
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(line);
+        }
+        catch (JsonException)
+        {
+            return; // the substring matched but the line is no JSON
+        }
+
+        using (document)
+        {
+            foreach (var note in ChangeNotes(document.RootElement))
+                ReadChangeLog.Report("Claude", note);
+            if (TryParseQuotaLimit(document.RootElement, out var limit, out var lineTime) && limit is not null)
+                newest[limit.RateLimitType] = (limit, lineTime); // later in the file = newer
+        }
     }
 
     // The limit types this read maps onto a bar; any other type still shows, as a further window.
@@ -241,12 +253,24 @@ public static class ClaudeLocalLimitReader
     /// </summary>
     public static IReadOnlyList<string> ChangeNotes(string line)
     {
-        var notes = new List<string>();
         try
         {
             using var document = JsonDocument.Parse(line);
-            if (document.RootElement.ValueKind != JsonValueKind.Object
-                || !document.RootElement.TryGetProperty("quotaLimits", out var quotaLimits) || quotaLimits.ValueKind != JsonValueKind.Object
+            return ChangeNotes(document.RootElement);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static List<string> ChangeNotes(JsonElement root)
+    {
+        var notes = new List<string>();
+        try
+        {
+            if (root.ValueKind != JsonValueKind.Object
+                || !root.TryGetProperty("quotaLimits", out var quotaLimits) || quotaLimits.ValueKind != JsonValueKind.Object
                 || !quotaLimits.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String
                 || status.GetString() != "rejected")
                 return notes;
@@ -262,21 +286,20 @@ public static class ClaudeLocalLimitReader
             else if (!KnownRateLimitTypes.Contains(typeEl.GetString()))
                 notes.Add($"a rejected quota limit has the unknown rateLimitType '{ReadChangeLog.SafeName(typeEl.GetString())}'; it is shown as a generic window.");
         }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        catch (InvalidOperationException)
         {
         }
 
         return notes;
     }
 
-    private static bool TryParseQuotaLimit(string line, out ClaudeQuotaLimit? limit, out DateTimeOffset? lineTime)
+    private static bool TryParseQuotaLimit(JsonElement root, out ClaudeQuotaLimit? limit, out DateTimeOffset? lineTime)
     {
         limit = null;
         lineTime = null;
         try
         {
-            using var document = JsonDocument.Parse(line);
-            if (!document.RootElement.TryGetProperty("quotaLimits", out var quotaLimits) ||
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("quotaLimits", out var quotaLimits) ||
                 quotaLimits.ValueKind != JsonValueKind.Object)
                 return false;
             if (!quotaLimits.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String ||
@@ -297,14 +320,14 @@ public static class ClaudeLocalLimitReader
                     ? typeElement.GetString() ?? "unknown"
                     : "unknown";
 
-            if (document.RootElement.TryGetProperty("timestamp", out var stamp) && stamp.ValueKind == JsonValueKind.String &&
+            if (root.TryGetProperty("timestamp", out var stamp) && stamp.ValueKind == JsonValueKind.String &&
                 SessionLineAge.TryParse(stamp.GetString(), out var parsedTime))
                 lineTime = parsedTime;
 
             limit = new ClaudeQuotaLimit(resetsAt.Value, rateLimitType);
             return true;
         }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        catch (InvalidOperationException)
         {
             return false;
         }
