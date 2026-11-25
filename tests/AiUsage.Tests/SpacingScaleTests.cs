@@ -35,6 +35,8 @@ public class SpacingScaleTests
     // gap every card keeps to its right and below, so wrapped rows stay flush with the section
     // edges. The usage bar's "0,-3" lets the pace tick stick out 3 px above and below the
     // track. The plan forecast cards use "0,0,-8,0" for the same reason, on the right edge only.
+    // The wrapping update buttons keep a 4 px bottom margin each so a second row stays apart from the
+    // first; their panel's "0,8,0,-4" and "0,4,0,-4" take that margin back below the last row.
     // They are the only values this test excuses.
     private static readonly HashSet<(string Attribute, string Value)> AllowedExceptions =
     [
@@ -47,6 +49,8 @@ public class SpacingScaleTests
         ("Margin", "0,0,-8,-8"),
         ("Margin", "0,0,-8,0"),
         ("Margin", "0,-3"),
+        ("Margin", "0,8,0,-4"),
+        ("Margin", "0,4,0,-4"),
     ];
 
     // Plain attribute form: Margin="..." or Padding="..." directly on an element.
