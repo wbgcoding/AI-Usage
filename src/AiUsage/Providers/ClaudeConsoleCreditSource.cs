@@ -236,20 +236,25 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     internal async Task ReadNowAsync()
     {
         Task pending;
+        lock (_gate)
+            pending = _running;
+
+        // A read that began before the sign-in ends first: its not-signed-in answer must not set the
+        // back-off again after the sign-in cleared it.
+        await pending;
+
         bool expiredCleared;
         lock (_gate)
         {
             _consoleBlockedUntil = null;
             _consoleOff = false;
             _lastAttemptAt = null;
-            pending = _running;
             expiredCleared = _consoleSignInExpired;
             _consoleSignInExpired = false;
         }
 
         if (expiredCleared)
             Changed?.Invoke();
-        await pending;
         await RefreshIfDueAsync();
     }
 
