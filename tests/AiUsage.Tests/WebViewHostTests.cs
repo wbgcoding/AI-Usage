@@ -33,6 +33,24 @@ public class WebViewHostTests : IDisposable
     }
 
     [Fact]
+    public async Task A_factory_that_throws_at_once_does_not_fail_every_later_call_too()
+    {
+        var calls = 0;
+        var environment = (CoreWebView2Environment)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(CoreWebView2Environment));
+        var host = new WebViewHost(Track(TestPaths.GetPath("ai-usage-webview-env")), _ =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+                throw new InvalidOperationException("loader missing");
+            return Task.FromResult(environment);
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.EnsureEnvironmentAsync());
+
+        Assert.Same(environment, await host.EnsureEnvironmentAsync());
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
     public void SignOut_deletes_only_the_widgets_own_session_folder_and_reports_success()
     {
         var root = Track(TestPaths.GetPath("ai-usage-webview"));
