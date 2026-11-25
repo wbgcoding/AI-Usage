@@ -797,8 +797,9 @@ public sealed partial class StatsStore
     private static readonly string[] OwnTables = ["schema_version", "usage", "source_file", "session", "session_model", "meta", "claude_message", "claude_file"];
 
     /// <summary>Drops everything in the file's schema that this app did not create: triggers and views,
-    /// tables other than its own, and every explicit index (the app declares none; the indexes that
-    /// belong to its primary keys are internal and stay).</summary>
+    /// tables other than its own, and every explicit index (including the app's own lookup index, which
+    /// the next open creates again from a known definition; the indexes that belong to its primary keys
+    /// are internal and stay).</summary>
     private static void DropForeignSchemaObjects(SqliteConnection connection)
     {
         var objects = new List<(string Type, string Name)>();
@@ -2918,12 +2919,23 @@ public sealed partial class StatsStore
             if (oldPath is null)
                 return null;
 
-            var old = GetSourceFile(oldPath);
+            // The row is read inside the transaction that re-keys it, so nothing can change it in between.
+            using var transaction = connection.BeginTransaction();
+            StatsSourceFileState? old = null;
+            using (var lookup = connection.CreateCommand())
+            {
+                lookup.Transaction = transaction;
+                lookup.CommandText = SourceFileLookupSql;
+                lookup.Parameters.AddWithValue("$path", oldPath);
+                using var row = lookup.ExecuteReader();
+                if (row.Read())
+                    old = ReadSourceFileState(row, row.GetString(0), firstColumn: 1);
+            }
+
             if (old is null)
                 return null;
 
             var moved = old with { Path = newPath };
-            using var transaction = connection.BeginTransaction();
             using (var delete = connection.CreateCommand())
             {
                 delete.Transaction = transaction;
