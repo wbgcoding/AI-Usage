@@ -17,6 +17,21 @@ public class GlobalHotkeyTests
         Assert.Equal(Key.U, key);
     }
 
+    [Theory]
+    [InlineData("Ctrl+Alt+2", Key.D2)]
+    [InlineData("Ctrl+Alt+0", Key.D0)]
+    public void TryParse_reads_a_bare_digit_as_the_digit_key_not_as_an_enum_number(string text, Key expected)
+    {
+        Assert.True(GlobalHotkey.TryParse(text, out _, out var key));
+        Assert.Equal(expected, key);
+    }
+
+    [Fact]
+    public void TryParse_rejects_a_raw_enum_number()
+    {
+        Assert.False(GlobalHotkey.TryParse("Ctrl+Alt+44", out _, out _));
+    }
+
     [Fact]
     public void TryParse_rejects_an_unknown_key()
     {
