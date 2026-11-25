@@ -132,32 +132,12 @@ public class StatsAggregatorTests
     }
 
     [Fact]
-    public void An_empty_period_summarises_to_all_zeros_without_throwing()
+    public void An_empty_period_groups_to_no_rows_without_throwing()
     {
         IReadOnlyList<StatsRecord> empty = [];
 
         Assert.Empty(StatsAggregator.Group(empty, StatsGrouping.Day));
         Assert.Empty(StatsAggregator.Group(empty, StatsGrouping.Model));
-
-        var summary = StatsAggregator.Summarize(empty, empty);
-        Assert.Equal(0, summary.Total);
-        Assert.Equal(0, summary.PreviousTotal);
-        Assert.Equal(0, summary.InputTokens);
-    }
-
-    [Fact]
-    public void Summarize_reports_the_current_and_previous_period_totals_separately()
-    {
-        var current = new[] { new StatsRecord("claude", new DateOnly(2026, 1, 10), "modelA", "projA", 100, 50, 10, 5) };
-        var previous = new[] { new StatsRecord("claude", new DateOnly(2026, 1, 3), "modelA", "projA", 40, 20, 0, 0) };
-
-        var summary = StatsAggregator.Summarize(current, previous);
-
-        Assert.Equal(165, summary.Total); // 100 + 50 + 10 + 5
-        Assert.Equal(60, summary.PreviousTotal);
-        Assert.Equal(100, summary.InputTokens);
-        Assert.Equal(50, summary.OutputTokens);
-        Assert.Equal(15, summary.CacheTokens); // 10 + 5
     }
 
     // the figures bar's four cards, over a three-day fixture - one day per record, one of
@@ -551,14 +531,14 @@ public class StatsAggregatorTests
             .Append(Record("codex", new DateOnly(2026, 1, 2), "modelB", "", 5)) // Codex rollout, no project
             .ToArray();
 
-        var rows = StatsAggregator.TopProjects(records, limit: 10, noProjectLabel: "No project");
+        var rows = StatsAggregator.TopProjectsDetailed(records, limit: 10, noProjectLabel: "No project");
 
         Assert.Equal(10, rows.Count);
-        Assert.Equal("proj11", rows[0].Label); // largest (110) first
+        Assert.Equal("proj11", rows[0].FullPath); // largest (110) first
         Assert.Equal(110, rows[0].Total);
         Assert.True(rows.Zip(rows.Skip(1), (a, b) => a.Total >= b.Total).All(inOrder => inOrder)); // strictly descending
-        Assert.DoesNotContain(rows, row => row.Label == "proj1"); // smallest (10) - the eleventh row, capped out
-        Assert.DoesNotContain(rows, row => row.Label == "");
+        Assert.DoesNotContain(rows, row => row.FullPath == "proj1"); // smallest (10) - the eleventh row, capped out
+        Assert.DoesNotContain(rows, row => row.FullPath == "");
     }
 
     [Fact]
@@ -571,12 +551,12 @@ public class StatsAggregatorTests
             Record("claude", new DateOnly(2026, 1, 3), "modelC", "realProj", 5),
         };
 
-        var rows = StatsAggregator.TopProjects(records, limit: 10, noProjectLabel: "No project");
+        var rows = StatsAggregator.TopProjectsDetailed(records, limit: 10, noProjectLabel: "No project");
 
         Assert.Equal(2, rows.Count);
-        Assert.Equal("No project", rows[0].Label);
+        Assert.Equal("No project", rows[0].FullPath);
         Assert.Equal(30, rows[0].Total); // 10 + 20 pooled together
-        Assert.Equal("realProj", rows[1].Label);
+        Assert.Equal("realProj", rows[1].FullPath);
     }
 
     [Theory]
@@ -602,8 +582,8 @@ public class StatsAggregatorTests
             Record("claude", new DateOnly(2026, 1, 7), "m", @"C:\code\ai-usage\.worktrees\lane-1", 2),
         };
 
-        var rows = StatsAggregator.TopProjects(records, limit: 10, noProjectLabel: "No project")
-            .Select(row => (row.Label, row.Total))
+        var rows = StatsAggregator.TopProjectsDetailed(records, limit: 10, noProjectLabel: "No project")
+            .Select(row => (row.FullPath, row.Total))
             .ToArray();
 
         Assert.Equal([(@"C:\code\ai-usage", 82L), ("/c/code/other", 5L)], rows);
@@ -632,10 +612,10 @@ public class StatsAggregatorTests
             Record("claude", new DateOnly(2026, 1, 3), "m", @"C:\code\Sample Tool\.tmp\agents", 5),
         ]);
 
-        var rows = StatsAggregator.TopProjects(records, limit: 10, noProjectLabel: "No project");
+        var rows = StatsAggregator.TopProjectsDetailed(records, limit: 10, noProjectLabel: "No project");
 
         var row = Assert.Single(rows);
-        Assert.Equal((@"C:\code\Sample Tool", 35L), (row.Label, row.Total));
+        Assert.Equal((@"C:\code\Sample Tool", 35L), (row.FullPath, row.Total));
     }
 
     [Fact]
@@ -665,7 +645,7 @@ public class StatsAggregatorTests
         };
 
         var grouped = StatsAggregator.Group(records, StatsGrouping.Project);
-        var top = StatsAggregator.TopProjects(records, limit: 10, noProjectLabel: "No project");
+        var top = StatsAggregator.TopProjectsDetailed(records, limit: 10, noProjectLabel: "No project");
 
         Assert.Equal(30L, Assert.Single(grouped).Total);
         Assert.Equal(30L, Assert.Single(top).Total);
