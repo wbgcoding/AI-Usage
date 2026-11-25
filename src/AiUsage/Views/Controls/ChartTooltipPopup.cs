@@ -18,18 +18,21 @@ public sealed class ChartTooltipPopup
 
     public ChartTooltipPopup()
     {
-        _textBlock = new TextBlock();
+        // Same frame as the app's own ToolTip style (Themes/Controls.xaml): size, corner radius,
+        // padding and widest line, so a chart tooltip reads like every other tooltip.
+        _textBlock = new TextBlock { TextWrapping = TextWrapping.Wrap };
         // The popup sits outside every themed tree: the references resolve against the application
         // resources, so the text follows the theme's font like the rest of the app.
-        _textBlock.SetResourceReference(TextBlock.FontSizeProperty, "Font.Size.Micro");
+        _textBlock.SetResourceReference(TextBlock.FontSizeProperty, "Font.Size.Small");
         _textBlock.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Ui");
         _border = new Border
         {
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(4),
+            Padding = new Thickness(8, 4, 8, 4),
+            MaxWidth = 420,
             Child = _textBlock,
         };
+        _border.SetResourceReference(Border.CornerRadiusProperty, "Radius.Control");
         _popup = new Popup
         {
             AllowsTransparency = true,
