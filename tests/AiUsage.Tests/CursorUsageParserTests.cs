@@ -61,6 +61,20 @@ public class CursorUsageParserTests
     }
 
     [Fact]
+    public void A_usage_summary_whose_plan_block_counts_in_cents_reads_the_spend_against_the_allowance()
+    {
+        const string json = """
+            {"billingCycleEnd": "2026-10-05T10:00:00.000Z",
+             "individualUsage": {"plan": {"enabled": true, "usedIncludedUsageCents": 750, "includedUsageCents": 2000}}}
+            """;
+
+        var window = Assert.Single(CursorUsageParser.Parse(json));
+
+        Assert.Equal("Window_Month", window.Label);
+        Assert.Equal(37.5, window.UsedPercent, precision: 3);
+    }
+
+    [Fact]
     public void A_merged_in_grok_bot_object_becomes_a_third_weekly_window_after_the_split()
     {
         const string json = """

@@ -164,7 +164,8 @@ public static class CursorUsageParser
         }
         else
         {
-            var percent = TryGetDouble(plan, "totalPercentUsed") ?? PercentOf(plan, "used", "limit");
+            var percent = TryGetDouble(plan, "totalPercentUsed") ?? PercentOf(plan, "used", "limit")
+                ?? PercentOf(plan, "usedIncludedUsageCents", "includedUsageCents");
             if (percent is null && root.TryGetProperty("isUnlimited", out var unlimited) && unlimited.ValueKind == JsonValueKind.True)
                 percent = 0;
             if (percent is null)
