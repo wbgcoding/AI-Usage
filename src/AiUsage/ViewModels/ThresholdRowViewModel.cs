@@ -130,17 +130,21 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
         _save();
     }
 
-    partial void OnFiveHourChanged(double value)
+    // A value outside the range is put back clamped, which runs this again with the clamped value.
+    private void StoreClamped(double value, Action<double> setProperty, Action<double> store)
     {
         var clamped = SettingsRanges.ClampThreshold(value);
         if (Math.Abs(clamped - value) > 0.001)
         {
-            FiveHour = clamped;
+            setProperty(clamped);
             return;
         }
-        _thresholds.FiveHour = clamped;
+        store(clamped);
         _save();
     }
+
+    partial void OnFiveHourChanged(double value) =>
+        StoreClamped(value, clamped => FiveHour = clamped, clamped => _thresholds.FiveHour = clamped);
 
     partial void OnFiveHourEnabledChanged(bool value)
     {
@@ -148,17 +152,8 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
         _save();
     }
 
-    partial void OnWeeklyChanged(double value)
-    {
-        var clamped = SettingsRanges.ClampThreshold(value);
-        if (Math.Abs(clamped - value) > 0.001)
-        {
-            Weekly = clamped;
-            return;
-        }
-        _thresholds.Weekly = clamped;
-        _save();
-    }
+    partial void OnWeeklyChanged(double value) =>
+        StoreClamped(value, clamped => Weekly = clamped, clamped => _thresholds.Weekly = clamped);
 
     partial void OnWeeklyEnabledChanged(bool value)
     {
@@ -166,17 +161,8 @@ public sealed partial class ThresholdRowViewModel : ObservableObject
         _save();
     }
 
-    partial void OnOtherChanged(double value)
-    {
-        var clamped = SettingsRanges.ClampThreshold(value);
-        if (Math.Abs(clamped - value) > 0.001)
-        {
-            Other = clamped;
-            return;
-        }
-        _thresholds.Other = clamped;
-        _save();
-    }
+    partial void OnOtherChanged(double value) =>
+        StoreClamped(value, clamped => Other = clamped, clamped => _thresholds.Other = clamped);
 
     partial void OnOtherEnabledChanged(bool value)
     {
