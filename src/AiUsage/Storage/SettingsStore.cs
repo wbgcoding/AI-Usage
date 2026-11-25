@@ -476,6 +476,7 @@ public sealed class SettingsStore : IDisposable
                 _debounceTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             }
 
+            NonFiniteNumbers.Reset(settings);
             return WriteSnapshot(settings);
         }
     }

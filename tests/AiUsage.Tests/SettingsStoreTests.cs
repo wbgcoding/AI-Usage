@@ -1258,6 +1258,22 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SaveNow_resets_a_number_that_is_not_finite_instead_of_losing_the_save()
+    {
+        var directory = TempDirectory();
+        using var store = new SettingsStore(directory, debounceDelay: TimeSpan.FromMilliseconds(5));
+        var bad = new AppSettings { RefreshSeconds = 80 };
+        bad.Window.Vertical.Width = double.NaN;
+
+        Assert.True(store.SaveNow(bad));
+
+        var landed = SettingsStore.Validate(File.ReadAllText(Path.Combine(directory, "settings.json"))).Settings;
+        Assert.NotNull(landed);
+        Assert.Equal(80, landed!.RefreshSeconds);
+        Assert.Equal(new LayoutSizes().Width, landed.Window.Vertical.Width);
+    }
+
+    [Fact]
     public void RequestSave_debounces_a_burst_of_changes_into_one_write()
     {
         var directory = TempDirectory();
