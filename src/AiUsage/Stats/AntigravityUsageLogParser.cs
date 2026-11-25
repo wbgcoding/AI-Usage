@@ -228,12 +228,6 @@ public static class AntigravityUsageLogParser
                 }
 
                 rowsSeen++;
-                if (rows.IsDBNull(0))
-                {
-                    skipped++;
-                    continue;
-                }
-
                 var index = rows.GetInt64(0);
                 if (index < 0 || index > MaxRowIndex)
                 {

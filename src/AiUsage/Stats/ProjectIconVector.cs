@@ -22,7 +22,6 @@ internal static partial class ProjectIconLoader
     private static readonly Regex NumberPattern = new(@"[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?", RegexOptions.CultureInvariant);
     private static readonly Regex TransformPattern = new(@"(\w+)\s*\(([^)]*)\)", RegexOptions.CultureInvariant);
     private static readonly Regex AndroidResourcePattern = new(@"^@(?:drawable|mipmap)/([A-Za-z0-9_]+)$", RegexOptions.CultureInvariant);
-    private static readonly string[] Densities = ["xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi"];
 
     /// <summary>One drawing in its own square <see cref="Viewport"/>, with the hues it shows (each
     /// fill weighed by the share of the viewport its shape covers).</summary>
@@ -761,7 +760,7 @@ internal static partial class ProjectIconLoader
                     return (folderName.StartsWith("drawable", StringComparison.OrdinalIgnoreCase) || folderName.StartsWith("mipmap", StringComparison.OrdinalIgnoreCase))
                         && !GuardedRead.IsLink(folder);
                 })
-                .OrderBy(folder => DensityOrder(Path.GetFileName(folder)))
+                .OrderBy(folder => DensityRank(Path.GetFileName(folder)))
                 .ThenBy(folder => folder, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -781,11 +780,5 @@ internal static partial class ProjectIconLoader
         }
 
         return null;
-    }
-
-    private static int DensityOrder(string folderName)
-    {
-        var index = Array.FindIndex(Densities, density => folderName.EndsWith("-" + density, StringComparison.OrdinalIgnoreCase));
-        return index >= 0 ? index : Densities.Length;
     }
 }

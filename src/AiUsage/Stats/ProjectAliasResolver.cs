@@ -37,58 +37,39 @@ public sealed class ProjectAliases
         !string.IsNullOrEmpty(project) && _former.TryGetValue(StatsAggregator.ProjectKey(project), out var paths) ? paths : [];
 
     /// <summary>The records with every merged path replaced; the same list when nothing changes.</summary>
-    public IReadOnlyList<StatsRecord> Apply(IReadOnlyList<StatsRecord> records)
-    {
-        if (_target.Count == 0)
-            return records;
-
-        List<StatsRecord>? result = null;
-        for (var i = 0; i < records.Count; i++)
-        {
-            var record = records[i];
-            var resolved = Resolve(record.Project);
-            if (result is null && string.Equals(resolved, record.Project, StringComparison.Ordinal))
-                continue;
-
-            if (result is null)
-            {
-                result = new List<StatsRecord>(records.Count);
-                for (var j = 0; j < i; j++)
-                    result.Add(records[j]);
-            }
-
-            result.Add(string.Equals(resolved, record.Project, StringComparison.Ordinal) ? record : record with { Project = resolved });
-        }
-
-        return result ?? records;
-    }
+    public IReadOnlyList<StatsRecord> Apply(IReadOnlyList<StatsRecord> records) =>
+        Apply(records, record => record.Project, (record, project) => record with { Project = project });
 
     /// <summary>The sessions with every merged path replaced; the same list when nothing changes.</summary>
-    public IReadOnlyList<StatsSessionRecord> Apply(IReadOnlyList<StatsSessionRecord> sessions)
+    public IReadOnlyList<StatsSessionRecord> Apply(IReadOnlyList<StatsSessionRecord> sessions) =>
+        Apply(sessions, session => session.Project, (session, project) => session with { Project = project });
+
+    private IReadOnlyList<T> Apply<T>(IReadOnlyList<T> items, Func<T, string> projectOf, Func<T, string, T> withProject)
     {
         if (_target.Count == 0)
-            return sessions;
+            return items;
 
-        List<StatsSessionRecord>? result = null;
-        for (var i = 0; i < sessions.Count; i++)
+        List<T>? result = null;
+        for (var i = 0; i < items.Count; i++)
         {
-            var session = sessions[i];
-            var resolved = Resolve(session.Project);
-            var same = string.Equals(resolved, session.Project, StringComparison.Ordinal);
+            var item = items[i];
+            var project = projectOf(item);
+            var resolved = Resolve(project);
+            var same = string.Equals(resolved, project, StringComparison.Ordinal);
             if (result is null && same)
                 continue;
 
             if (result is null)
             {
-                result = new List<StatsSessionRecord>(sessions.Count);
+                result = new List<T>(items.Count);
                 for (var j = 0; j < i; j++)
-                    result.Add(sessions[j]);
+                    result.Add(items[j]);
             }
 
-            result.Add(same ? session : session with { Project = resolved });
+            result.Add(same ? item : withProject(item, resolved));
         }
 
-        return result ?? sessions;
+        return result ?? items;
     }
 }
 
@@ -117,13 +98,13 @@ public static class ProjectAliasResolver
         var lastUsed = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         foreach (var record in records)
         {
-            if (IsFullPath(record.Project))
+            if (ProjectLabels.IsFullPath(record.Project))
                 Touch(lastUsed, record.Project, record.Day.ToDateTime(new TimeOnly(Math.Clamp(record.Hour, 0, 23), 0)));
         }
 
         foreach (var session in sessions)
         {
-            if (IsFullPath(session.Project))
+            if (ProjectLabels.IsFullPath(session.Project))
                 Touch(lastUsed, session.Project, session.LastUtc.ToLocalTime().DateTime);
         }
 
@@ -201,13 +182,13 @@ public static class ProjectAliasResolver
         var bareNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var record in records)
         {
-            if (record.Project.Length > 0 && !IsFullPath(record.Project))
+            if (record.Project.Length > 0 && !ProjectLabels.IsFullPath(record.Project))
                 bareNames.Add(record.Project);
         }
 
         foreach (var session in sessions)
         {
-            if (session.Project.Length > 0 && !IsFullPath(session.Project))
+            if (session.Project.Length > 0 && !ProjectLabels.IsFullPath(session.Project))
                 bareNames.Add(session.Project);
         }
 
@@ -367,5 +348,4 @@ public static class ProjectAliasResolver
             HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(place.Name), StringComparer.OrdinalIgnoreCase.GetHashCode(place.Root));
     }
 
-    private static bool IsFullPath(string project) => project.AsSpan().IndexOfAny('\\', '/') >= 0;
 }
