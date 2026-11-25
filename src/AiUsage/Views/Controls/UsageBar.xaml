@@ -10,44 +10,22 @@
          level change both stay live without any converter. -->
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <controls:NullIfEmptyStringConverter x:Key="NullIfEmpty"/>
         <!-- The right side of the header: alert icons, the percent, and the detail text carried in the
              ContentControl's Tag (the full text or the short one, see HeaderRowPanel). -->
         <DataTemplate x:Key="HeaderRightSide">
             <controls:BaselineStackPanel>
-                <Path Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
-                      Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
+                <Path Style="{StaticResource LevelIcon.Alert}" Width="9" Height="9"
                       Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
-                <Path Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
-                      Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Level}" Value="Crit">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
+                <Path Style="{StaticResource LevelIcon.Warning}" Width="9" Height="9"/>
                 <!-- Never trimmed: this is the row's actual answer (percentage, state, time left and
                      the clock), and an ellipsis here hides exactly the part that matters at the limit.
                      The window label on the left gives way instead. The percentage leads; the
                      countdown and clock follow smaller and greyer. -->
-                <TextBlock Text="{Binding PercentText}" ToolTip="{Binding ForecastText}"
+                <TextBlock Text="{Binding PercentText}" ToolTip="{Binding ForecastText, Converter={StaticResource NullIfEmpty}}"
                            FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Strong}" FontWeight="SemiBold"
                            Typography.NumeralAlignment="Tabular"
-                           Foreground="{DynamicResource Text.Primary}">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ForecastText}" Value="">
-                                    <Setter Property="ToolTipService.IsEnabled" Value="False"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                           Foreground="{DynamicResource Text.Primary}"/>
                 <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=ContentControl}}" Margin="8,0,0,0"
                            FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Small}"
                            Typography.NumeralAlignment="Tabular"
@@ -67,7 +45,7 @@
         <controls:MarkerPositionConverter x:Key="MarkerPositionConverter"/>
         <Style x:Key="LevelFillStyle" TargetType="Rectangle">
             <Setter Property="Fill" Value="{DynamicResource Level.Ok.Fill}"/>
-            <Setter Property="MinWidth" Value="3"/>
+            <Setter Property="MinWidth" Value="{x:Static controls:BarGeometry.MinFilledWidth}"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Level}" Value="Warn">
                     <Setter Property="Fill" Value="{DynamicResource Level.Warn.Fill}"/>
@@ -164,19 +142,9 @@
             </Setter>
         </Style>
     </UserControl.Resources>
-    <!-- ToolTip is bound even though it is empty most of the time (no allowance and no pace) - the
-         style below turns ToolTipService off entirely in that case, rather than showing an empty
-         popup, since WPF only suppresses a tooltip for a null/missing binding, not an empty string. -->
-    <Grid ToolTip="{Binding BarTooltipText}">
-        <Grid.Style>
-            <Style TargetType="Grid">
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding BarTooltipText}" Value="">
-                        <Setter Property="ToolTipService.IsEnabled" Value="False"/>
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-        </Grid.Style>
+    <!-- The tooltip is empty most of the time (no allowance and no pace); NullIfEmpty turns that into
+         no tooltip at all, since WPF only suppresses a null value, not an empty string. -->
+    <Grid ToolTip="{Binding BarTooltipText, Converter={StaticResource NullIfEmpty}}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -190,7 +158,7 @@
                 <TextBlock Text="{Binding LabelText}" TextTrimming="CharacterEllipsis" controls:TrimmedToolTip.Enabled="True"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Body}"
                            Foreground="{DynamicResource Text.Primary}"/>
-                <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip}"
+                <TextBlock Text="{Binding InlineTokensText}" ToolTip="{Binding InlineTokensToolTip, Converter={StaticResource NullIfEmpty}}"
                            FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Small}"
                            Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
                     <TextBlock.Style>
@@ -198,9 +166,6 @@
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding InlineTokensText}" Value="">
                                     <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding InlineTokensToolTip}" Value="">
-                                    <Setter Property="ToolTipService.IsEnabled" Value="False"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>

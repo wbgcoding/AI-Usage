@@ -21,11 +21,11 @@ public partial class ProviderTile : UserControl
 
     /// <summary>The chart's own ClipToBounds is a square, so the weekly fill would poke out past the
     /// rounded frame around it. The clip follows the frame's inner corner instead: the card radius
-    /// less the frame's 1 px border.</summary>
+    /// less the frame's border.</summary>
     private void HistoryChart_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var card = TryFindResource("Radius.Card") is CornerRadius radius ? radius.TopLeft : 8;
-        var inner = Math.Max(0, card - 1);
+        var card = ((CornerRadius)FindResource("Radius.Card")).TopLeft;
+        var inner = Math.Max(0, card - DiagramPlaceholder.BorderThickness.Left);
         ((FrameworkElement)sender).Clip = new RectangleGeometry(new Rect(e.NewSize), inner, inner);
     }
 }

@@ -12,7 +12,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <controls:NullIfEmptyStringConverter x:Key="NullIfEmpty"/>
-        <controls:TileWidthToVisibilityConverter x:Key="TileWidthToVisibility"/>
+        <controls:AtLeastWidthConverter x:Key="AtLeastWidth"/>
 
         <!-- The provider name opens the tile's details: a borderless button, hand cursor, a quiet
              hover background, bound to ToggleDetailsCommand. While there are no details the same button
@@ -68,13 +68,9 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <!-- No details to open: the name is plain text. WPF only suppresses a tooltip for a null
-                     binding, not an empty string, hence the switch. -->
+                <!-- No details to open: the name is plain text. -->
                 <DataTrigger Binding="{Binding HasDiagnostics}" Value="False">
                     <Setter Property="Cursor" Value="Arrow"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding NameTooltipText}" Value="">
-                    <Setter Property="ToolTipService.IsEnabled" Value="False"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -95,16 +91,7 @@
         <!-- Mini's own compact row: no bar (too thin to read at a glance), just a large tabular
              number coloured by level, an alert glyph at Warn and a warning glyph at Crit, and a thin divider between windows. -->
         <DataTemplate x:Key="MiniRowTemplate">
-            <StackPanel Orientation="Horizontal" ToolTip="{Binding MiniTooltipText}">
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding MiniTooltipText}" Value="">
-                                <Setter Property="ToolTipService.IsEnabled" Value="False"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </StackPanel.Style>
+            <StackPanel Orientation="Horizontal" ToolTip="{Binding MiniTooltipText, Converter={StaticResource NullIfEmpty}}">
                 <!-- Hidden before the first window in the list (AlternationIndex 0) - shown before
                      every one after that, so N windows get exactly N-1 dividers between them. -->
                 <Border Width="1" Margin="4,4,4,4" Background="{DynamicResource Border}">
@@ -124,24 +111,11 @@
                 <!-- Purely decorative next to the number below, which already carries the window's
                      automation name - no AutomationProperties.Name of its own (WPF has no
                      AccessibilityView="Raw" the way UWP does; an unnamed Shape gets no automation
-                     peer at all here), so a screen reader no longer announces the label twice and
-                     never the percentage itself. -->
-                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
-                      Data="{StaticResource Icon.Alert}" Fill="{DynamicResource Level.Warn}"
+                     peer at all here), so a screen reader announces the label once and never the
+                     percentage itself. -->
+                <Path Style="{StaticResource LevelIcon.Alert}" Width="8" Height="8"
                       Visibility="{Binding ShowAlertIcon, Converter={StaticResource BoolToVis}}"/>
-                <Path Width="8" Height="8" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" Opacity="0.8"
-                      Data="{StaticResource Icon.Warning}" Fill="{DynamicResource Level.Crit}">
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Level}" Value="Crit">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
+                <Path Style="{StaticResource LevelIcon.Warning}" Width="8" Height="8"/>
                 <TextBlock Text="{Binding MiniPercentText}"
                            FontFamily="{DynamicResource Font.Numeric}" FontSize="{StaticResource Font.Size.Body}" FontWeight="SemiBold"
                            Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"
@@ -164,21 +138,18 @@
                     </TextBlock.Style>
                 </TextBlock>
                 <!-- The reset instant's wall-clock time, next to the percent value - only once the
-                     tile is wide enough to hold both (TileWidthToVisibilityConverter on the tile's
-                     own ActualWidth); the percent value above never moves for it either way. Empty
-                     whenever no reset instant is known, regardless of width. -->
+                     tile is wide enough to hold both (300 px, tested on the tile's own ActualWidth);
+                     the percent value above never moves for it either way. Empty whenever no reset
+                     instant is known, regardless of width. -->
                 <TextBlock Text="{Binding ClockText}" FontFamily="{DynamicResource Font.Ui}"
                            FontSize="{StaticResource Font.Size.Small}" Foreground="{DynamicResource Text.Muted}"
                            Typography.NumeralAlignment="Tabular" VerticalAlignment="Center" Margin="4,0,0,0">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <Setter Property="Visibility">
-                                <Setter.Value>
-                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=UserControl}"
-                                             Converter="{StaticResource TileWidthToVisibility}"/>
-                                </Setter.Value>
-                            </Setter>
                             <Style.Triggers>
+                                <DataTrigger Binding="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource AtLeastWidth}, ConverterParameter=300}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding ClockText}" Value="">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
@@ -193,10 +164,7 @@
     <!-- MinWidth is the narrowest width that still fits the narrowest main window: a row of tiles
          squeezed below it scrolls sideways instead of shredding every headline into two characters,
          while a stacked tile (no sideways scrolling) can never be wider than the window. -->
-    <Border x:Name="TileRoot" Background="{DynamicResource Bg.Surface}" CornerRadius="{StaticResource Radius.Card}" Padding="{StaticResource Space.S}"
-            MinWidth="{StaticResource Tile.MinWidth}"
-            TextElement.Foreground="{DynamicResource Text.Primary}"
-            Focusable="True">
+    <Border x:Name="TileRoot">
         <!-- The one entry point for the usage page, the diagnostic lines and sign-out - a deliberate
              choice to never add extra buttons on the tile itself for any of the three. Focusable="True"
              above plus this ContextMenu is all a FrameworkElement needs for WPF's own context-menu key
@@ -241,9 +209,7 @@
             </ContextMenu>
         </Border.ContextMenu>
         <Border.Style>
-            <Style TargetType="Border">
-                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
-                <Setter Property="BorderThickness" Value="1"/>
+            <Style TargetType="Border" BasedOn="{StaticResource TileFrame}">
                 <Style.Triggers>
                     <!-- Same dimming IsStale already uses on OkContent - one shared visual vocabulary
                          for "this is old", whether the tile still has bars or only a placeholder. -->
@@ -270,12 +236,12 @@
                      long provider name would simply run under the eye button instead of trimming. -->
                 <!-- The API credit beside the name shows only when it fits whole, never cut short;
                      the name button stays and trims first. -->
-                <controls:FitOrHidePanel VerticalAlignment="Center">
+                <controls:FitOrHidePanel VerticalAlignment="Center" Gap="2">
                     <!-- The account name (when known) lives in this button's own tooltip, after the
                          "click for details" line - see NameTooltipText - freeing this column's
                          width for the name instead of a second trimmed label next to the plan. -->
                     <Button Style="{StaticResource TileNameButtonStyle}" Command="{Binding ToggleDetailsCommand}"
-                            ToolTip="{Binding NameTooltipText}"
+                            ToolTip="{Binding NameTooltipText, Converter={StaticResource NullIfEmpty}}"
                             AutomationProperties.Name="{Binding HeaderDisplayName}">
 
                         <!-- The plan tier is a run of the same line, so it sits right after the name
@@ -287,7 +253,7 @@
                                  FontWeight="Normal" Foreground="{DynamicResource Text.Muted}"/>
                         </TextBlock>
                     </Button>
-                    <TextBlock Text="{Binding HeaderCreditText}" ToolTip="{Binding ApiCreditToolTip}" FontFamily="{DynamicResource Font.Ui}" Margin="-4,0,0,0"
+                    <TextBlock Text="{Binding HeaderCreditText}" ToolTip="{Binding ApiCreditToolTip}" FontFamily="{DynamicResource Font.Ui}"
                                FontSize="{StaticResource Font.Size.Title}" Foreground="{DynamicResource Text.Muted}" TextWrapping="NoWrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -312,18 +278,7 @@
                     <TextBlock Text="{Binding LastUpdatedText}" FontFamily="{DynamicResource Font.Ui}" FontSize="{StaticResource Font.Size.Micro}"
                                Foreground="{DynamicResource Text.Muted}" VerticalAlignment="Center" Margin="0,0,8,0"
                                Visibility="{Binding ShowLastUpdated, Converter={StaticResource BoolToVis}}"
-                               ToolTip="{Binding LastUpdatedToolTip}">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Style.Triggers>
-                                    <!-- WPF only suppresses a tooltip for a null binding, not an empty string. -->
-                                    <DataTrigger Binding="{Binding LastUpdatedToolTip}" Value="">
-                                        <Setter Property="ToolTipService.IsEnabled" Value="False"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
+                               ToolTip="{Binding LastUpdatedToolTip, Converter={StaticResource NullIfEmpty}}"/>
                     <!-- The waiting mark: a borderless button around one Ellipse, visible only while
                          IsWaitingForUser is true, that ticks the wait off on click (DismissWaitingCommand)
                          instead of only ever clearing itself once a fresher one arrives. The tooltip and
@@ -337,11 +292,10 @@
                             Command="{Binding DismissWaitingCommand}">
                         <Ellipse Width="8" Height="8" Fill="{DynamicResource Level.Warn}"/>
                     </Button>
-                    <!-- The sign-in button is the only one of the pair left here: sign-out moved into
-                         TileRoot's own context menu, since the usage page, the diagnostic lines and
-                         sign-out are all meant to be reachable only through that menu, never as extra
-                         buttons on the tile. ShowSignIn still comes from the same SignInState a
-                         provider with SupportsInAppSignIn sets once it knows either way. -->
+                    <!-- Sign-out lives in TileRoot's own context menu, next to the usage page and the
+                         diagnostic lines, never as an extra button on the tile; only sign-in is a
+                         button here. ShowSignIn comes from the SignInState a provider with
+                         SupportsInAppSignIn sets once it knows either way. -->
                     <Button Content="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[State.NotSignedIn.Action]}"
                             Style="{StaticResource AiUsageQuietButton}" Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"
                             FontSize="{StaticResource Font.Size.Small}"
