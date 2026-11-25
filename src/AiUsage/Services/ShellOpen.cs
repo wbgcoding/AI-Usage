@@ -11,7 +11,7 @@ internal static class ShellOpen
     {
         try
         {
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose();
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException)
         {
