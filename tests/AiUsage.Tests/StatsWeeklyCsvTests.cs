@@ -136,10 +136,30 @@ public class StatsWeeklyCsvTests
         var store = new StatsStore(dataDir);
         var today = new DateOnly(2026, 11, 18);
 
-        Assert.Equal(StatsWeeklyCsv.Outcome.Written, StatsWeeklyCsv.Write(target, today, store, cost: null));
+        Assert.Equal(StatsWeeklyCsv.Outcome.Written, StatsWeeklyCsv.Write(target, today, () => StatsDataSnapshot.Load(store), cost: null));
         Assert.Equal(["AI-Usage-2026-W46.csv"], Directory.GetFiles(target).Select(Path.GetFileName));
-        Assert.Equal(StatsWeeklyCsv.Outcome.AlreadyThere, StatsWeeklyCsv.Write(target, today, store, cost: null));
-        Assert.Equal(StatsWeeklyCsv.Outcome.FolderMissing, StatsWeeklyCsv.Write(Path.Combine(target, "gone"), today, store, cost: null));
+        Assert.Equal(StatsWeeklyCsv.Outcome.AlreadyThere, StatsWeeklyCsv.Write(target, today, () => StatsDataSnapshot.Load(store), cost: null));
+        Assert.Equal(StatsWeeklyCsv.Outcome.FolderMissing, StatsWeeklyCsv.Write(Path.Combine(target, "gone"), today, () => StatsDataSnapshot.Load(store), cost: null));
+    }
+
+    [Fact]
+    public void The_data_is_loaded_only_for_a_file_that_is_written()
+    {
+        using var dataDir = TestPaths.CreateDisposableDirectory("weekly-csv-load-data");
+        using var target = TestPaths.CreateDisposableDirectory("weekly-csv-load-target");
+        var store = new StatsStore(dataDir);
+        var loads = 0;
+        StatsDataSnapshot Counted()
+        {
+            loads++;
+            return StatsDataSnapshot.Load(store);
+        }
+
+        Assert.Equal(StatsWeeklyCsv.Outcome.FolderMissing, StatsWeeklyCsv.Write(Path.Combine(target, "gone"), new DateOnly(2026, 11, 18), Counted, cost: null));
+        Assert.Equal(0, loads);
+        Assert.Equal(StatsWeeklyCsv.Outcome.Written, StatsWeeklyCsv.Write(target, new DateOnly(2026, 11, 18), Counted, cost: null));
+        Assert.Equal(StatsWeeklyCsv.Outcome.AlreadyThere, StatsWeeklyCsv.Write(target, new DateOnly(2026, 11, 18), Counted, cost: null));
+        Assert.Equal(1, loads);
     }
 
     [Fact]
@@ -155,7 +175,7 @@ public class StatsWeeklyCsvTests
         var store = new StatsStore(dataDir);
         new StatsIndexer(store, claudeRoot, codexRoot).IndexOnce();
 
-        Assert.Equal(StatsWeeklyCsv.Outcome.Written, StatsWeeklyCsv.Write(target, new DateOnly(2026, 11, 18), store, cost: null));
+        Assert.Equal(StatsWeeklyCsv.Outcome.Written, StatsWeeklyCsv.Write(target, new DateOnly(2026, 11, 18), () => StatsDataSnapshot.Load(store), cost: null));
 
         var lines = File.ReadAllLines(Path.Combine(target, "AI-Usage-2026-W46.csv"));
         var previous = Assert.Single(lines, line => line.StartsWith("figures,previous_period,", StringComparison.Ordinal));
