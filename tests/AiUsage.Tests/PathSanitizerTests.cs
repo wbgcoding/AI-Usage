@@ -116,6 +116,18 @@ public class PathSanitizerTests
         Assert.Equal(@"body {\""access_token\"": \""{token}\"", \""scope\"": \""x\""}", escaped);
     }
 
+    [Theory]
+    [InlineData("password")]
+    [InlineData("passwd")]
+    [InlineData("credential")]
+    [InlineData("credentials")]
+    public void Sanitize_masks_a_password_field_in_json(string key)
+    {
+        var line = PathSanitizer.Sanitize($"{{\"{key}\":\"hunter2-x\",\"user\":\"ann\"}}", userProfile: @"C:\Profiles\SomePerson", userName: "SomePerson");
+
+        Assert.Equal($"{{\"{key}\":\"{{token}}\",\"user\":\"ann\"}}", line);
+    }
+
     [Fact]
     public void Sanitize_masks_a_token_value_with_escapes_and_the_refresh_and_id_tokens()
     {

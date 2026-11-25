@@ -36,7 +36,7 @@ public static class PathSanitizer
     // Also matches the JSON-escaped spelling (\"access_token\":\"...\") a nested payload has in a log line.
     // The value runs to the closing quote; an escape inside it (\/ or +) is part of the token.
     private static readonly Regex AccessTokenField = new(
-        @"(?<key>\\?""(?:(?:(?:access|refresh|id|session|api|client)_?)?(?:token|key|secret)|authorization|cookie)\\?""\s*:\s*\\?"")(?:[^""\\]|\\(?!""))*",
+        @"(?<key>\\?""(?:(?:(?:access|refresh|id|session|api|client)_?)?(?:token|key|secret)|authorization|cookie|password|passwd|credentials?)\\?""\s*:\s*\\?"")(?:[^""\\]|\\(?!""))*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     // A credential in a form-encoded body or a query string: the value runs to the next separator.
