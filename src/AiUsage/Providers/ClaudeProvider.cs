@@ -669,7 +669,21 @@ public sealed class ClaudeProvider : IUsageProvider
     /// as a second, less informative candidate.</summary>
     private async Task<ProviderSnapshot?> BuildWebSnapshot(DateTimeOffset fetchedAt, CancellationToken ct)
     {
-        var web = await _webSource!.FetchAsync(_settings!, _saveSettings!, ct);
+        WebUsageResult web;
+        try
+        {
+            web = await _webSource!.FetchAsync(_settings!, _saveSettings!, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // A failed settings save or a browser that broke mid-read must not take the local reading with it.
+            web = WebUsageResult.Failed;
+        }
+
         if (web.Outcome == WebUsageOutcome.Failed && web.SessionSignedIn && NetworkStatus.HasInternet())
             _webAnswerUnread = true;
         return web.Outcome switch
