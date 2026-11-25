@@ -153,6 +153,7 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
 
     public async Task<UpdateOutcome> InstallAsync(UpdateCheck.Release release, CancellationToken ct)
     {
+        RestoreNeededPath = null;
         var assets = release.Assets ?? [];
         var asset = PickAsset(assets, host.IsInstalled, host.Architecture);
         if (asset is null)
@@ -313,6 +314,13 @@ public sealed class UpdateInstaller(IUpdateHost host, Action<string>? log = null
             held.Dispose();
             CleanUpRun(runFolder, filePath);
             return UpdateOutcome.DownloadFailed;
+        }
+        catch (Exception)
+        {
+            // Anything else is not this method's to turn into an outcome, but the file lock goes first.
+            held.Dispose();
+            CleanUpRun(runFolder, filePath);
+            throw;
         }
 
         held.Dispose();
