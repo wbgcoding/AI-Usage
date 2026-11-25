@@ -23,6 +23,15 @@ public class JsonReadingTests
     }
 
     [Fact]
+    public void A_number_too_large_for_a_double_reads_as_missing()
+    {
+        using var document = JsonDocument.Parse("""{"a":1e999,"b":-1e999}""");
+
+        Assert.Null(JsonReading.TryGetDouble(document.RootElement, "a"));
+        Assert.Null(JsonReading.TryGetDouble(document.RootElement, "b"));
+    }
+
+    [Fact]
     public void An_object_parent_still_reads_its_properties()
     {
         using var document = JsonDocument.Parse("{\"s\":\"x\",\"d\":1.5,\"i\":2,\"l\":3,\"o\":{}}");

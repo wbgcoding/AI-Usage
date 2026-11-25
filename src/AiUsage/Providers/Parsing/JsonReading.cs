@@ -23,7 +23,7 @@ internal static class JsonReading
 
     internal static double? TryGetDouble(JsonElement? element, string propertyName) =>
         element is { ValueKind: JsonValueKind.Object } parent && parent.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
+        && property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value) && double.IsFinite(value)
             ? value
             : null;
 
