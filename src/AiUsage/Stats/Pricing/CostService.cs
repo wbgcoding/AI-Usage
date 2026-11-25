@@ -176,8 +176,8 @@ public sealed class CostService
             : loc["Stats.Cost.NoPrices"];
     }
 
-    /// <summary>A cost figure as dollars for the export: invariant, two to six decimals; empty when no
-    /// price is known.</summary>
+    /// <summary>A cost figure as dollars for the export: invariant, up to six decimals without trailing
+    /// zeros ("12" for twelve dollars); empty when no price is known.</summary>
     public static string UsdForExport(CostSummary summary) =>
         summary.AnyPriced ? summary.Usd.ToString("0.######", CultureInfo.InvariantCulture) : "";
 
