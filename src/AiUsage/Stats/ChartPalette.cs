@@ -58,7 +58,7 @@ public static class ChartPalette
 
     /// <summary>Every fixed provider hue, for <see cref="ProjectColorResolver"/> to keep its own
     /// stable-hash fallback away from - a project's color should never coincide with a provider's,
-    /// the same reasoning <see cref="BuildUnknownHueSlots"/> already applies to an unrecognised
+    /// the same reasoning <see cref="UnknownHue"/> already applies to an unrecognised
     /// provider or model.</summary>
     internal static IReadOnlyList<double> ProviderHueList => ProviderHues;
 
@@ -77,7 +77,7 @@ public static class ChartPalette
         if (!string.IsNullOrEmpty(providerId) && ProviderColors.TryGetValue(providerId, out var color))
             return surface.Fit(color);
 
-        return surface.Fit(AccentColors.FromHsl(UnknownHue(providerId ?? ""), 0.55, 0.55));
+        return surface.Fit(NormalizeToPaletteBand(UnknownHue(providerId ?? "")));
     }
 
     private static int HighContrastSlot(string? providerId)
@@ -175,27 +175,11 @@ public static class ChartPalette
     private const double MinHueDistanceFromProviders = 25.0;
     private const int CandidateSteps = 360;
 
-    private static readonly double[] UnknownHueSlots = BuildUnknownHueSlots();
+    private static readonly IReadOnlyList<double> UnknownHueSlots = HueSlotsAvoiding(ProviderHues, MinHueDistanceFromProviders);
 
-    private static double[] BuildUnknownHueSlots()
-    {
-        var slots = new List<double>();
-        for (var step = 0; step < CandidateSteps; step++)
-        {
-            var hue = step * GoldenAngle % 360.0;
-            if (ProviderHues.All(providerHue => HueDistance(hue, providerHue) >= MinHueDistanceFromProviders))
-                slots.Add(hue);
-        }
-        return [.. slots];
-    }
+    private static double UnknownHue(string name) => PickStableHue(name, UnknownHueSlots);
 
-    private static double UnknownHue(string name)
-    {
-        var seed = Fnv1a(name);
-        return UnknownHueSlots[(int)(seed % (uint)UnknownHueSlots.Length)];
-    }
-
-    /// <summary>The general form <see cref="BuildUnknownHueSlots"/> is one fixed call of - <see
+    /// <summary>The slots of an unknown provider or model are one fixed call of this - <see
     /// cref="ProjectColorResolver"/> reuses it with a growing exclusion set (every provider color
     /// plus every project already resolved earlier in the same batch), so two projects in one list
     /// never land on the same hue purely by hash coincidence, the same way no unknown provider or
@@ -218,8 +202,8 @@ public static class ChartPalette
     }
 
     /// <summary>Picks one of <paramref name="slots"/> by a stable checksum over <paramref
-    /// name="name"/> - the same deterministic-by-name selection <see cref="UnknownHue"/> already
-    /// uses, generalised to a caller-supplied slot list.</summary>
+    /// name="name"/> - the deterministic-by-name selection <see cref="UnknownHue"/> makes from its own
+    /// slot list, for any caller-supplied slot list.</summary>
     internal static double PickStableHue(string name, IReadOnlyList<double> slots) =>
         slots[(int)(Fnv1a(name) % (uint)slots.Count)];
 

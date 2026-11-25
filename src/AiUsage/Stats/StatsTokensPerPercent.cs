@@ -51,21 +51,12 @@ public static class StatsTokensPerPercent
     /// <summary>A quota reading further than this before a whole hour no longer stands for that hour.</summary>
     private static readonly TimeSpan MaxReadingAge = TimeSpan.FromMinutes(15);
 
-    /// <summary>Builds the hourly intervals of <paramref name="weeklyPoints"/> (one provider's quota
-    /// history of one window kind) against that provider's token <paramref name="records"/>. Hours
-    /// without tokens, or without a reading at both ends, are left out.</summary>
-    public static IReadOnlyList<PerPercentInterval> BuildIntervals(IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints) =>
-        BuildIntervals(records, weeklyPoints, TimeZoneInfo.Local);
-
-    /// <summary>The same for the clock hours of <paramref name="zone"/>. An hour that happens twice when
-    /// the clocks go back is left out: the index files both real hours under one bucket.</summary>
-    internal static IReadOnlyList<PerPercentInterval> BuildIntervals(
-        IReadOnlyList<StatsRecord> records, IReadOnlyList<HistoryPoint> weeklyPoints, TimeZoneInfo zone) =>
-        BuildPooledIntervals(records, [weeklyPoints], zone, null);
-
-    /// <summary>Intervals for several accounts of one provider whose usage is mixed in the logs: an
-    /// hour's movement is the SUM of the accounts' movements over it, so tokens per percent then mean
-    /// one account's percent. An account takes part in the hours between its own first and last reading;
+    /// <summary>The hourly intervals of one provider's quota history (one list of points per account, all of
+    /// one window kind) against that provider's token <paramref name="records"/>. The accounts' usage is
+    /// mixed in the logs: an hour's movement is the SUM of the accounts' movements over it, so tokens per
+    /// percent then mean one account's percent. Hours without tokens, or without a reading at both ends,
+    /// are left out, and so is an hour that happens twice when the clocks of <paramref name="zone"/> go back
+    /// (the index files both real hours under one bucket). An account takes part in the hours between its own first and last reading;
     /// an hour one of those accounts has no reading pair for is left out. With
     /// <paramref name="pricer"/>, each interval also carries the API cost of its tokens. With
     /// <paramref name="planAt"/> (one function per account: the plan it was on in a given hour) only the hours

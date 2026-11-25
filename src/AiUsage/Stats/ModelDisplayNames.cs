@@ -2,20 +2,14 @@ namespace AiUsage.Stats;
 
 /// <summary>
 /// Short, human display names for the raw model identifiers that show up in the token usage index
-/// (e.g. <c>claude-sonnet-5</c>, <c>gpt-5.6-sol</c>). A fixed lookup table first, then Claude's
-/// fixed id scheme, then one plain spelling rule that turns any other id into readable words.
+/// (e.g. <c>claude-sonnet-5</c>, <c>gpt-5.6-sol</c>). A fixed lookup table for the names no rule
+/// derives first, then Claude's fixed id scheme, then one plain spelling rule that turns any other id
+/// into readable words.
 /// </summary>
 public static class ModelDisplayNames
 {
     private static readonly Dictionary<string, string> Table = new()
     {
-        ["claude-opus-5"] = "Opus 5",
-        ["claude-opus-4-8"] = "Opus 4.8",
-        ["claude-opus-4-6-thinking"] = "Opus 4.6",
-        ["claude-sonnet-5"] = "Sonnet 5",
-        ["claude-haiku-4-5"] = "Haiku 4.5",
-        ["claude-fable-5"] = "Fable 5",
-        ["claude-fable-5-1"] = "Fable 5.1",
         ["claude-mythos-preview"] = "Mythos Preview",
         ["gpt-6-astra"] = "GPT-6 Astra",
         ["gpt-5.6-sol"] = "GPT-5.6 Sol",

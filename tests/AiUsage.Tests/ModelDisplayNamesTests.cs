@@ -5,6 +5,21 @@ namespace AiUsage.Tests;
 
 public class ModelDisplayNamesTests
 {
+    [Theory]
+    [InlineData("claude-opus-5", "Opus 5")]
+    [InlineData("claude-opus-4-8", "Opus 4.8")]
+    [InlineData("claude-opus-4-6-thinking", "Opus 4.6")]
+    [InlineData("claude-sonnet-5", "Sonnet 5")]
+    [InlineData("claude-haiku-4-5", "Haiku 4.5")]
+    [InlineData("claude-fable-5", "Fable 5")]
+    [InlineData("claude-fable-5-1", "Fable 5.1")]
+    public void A_claude_id_reads_the_same_with_a_prefix_a_date_or_alone(string model, string expected)
+    {
+        Assert.Equal(expected, ModelDisplayNames.Resolve(model));
+        Assert.Equal(expected, ModelDisplayNames.Resolve("anthropic/" + model));
+        Assert.Equal(expected, ModelDisplayNames.Resolve(model + "-20260101"));
+    }
+
     [Fact]
     public void A_name_is_resolved_once_and_the_same_text_comes_back()
     {

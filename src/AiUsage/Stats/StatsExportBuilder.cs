@@ -195,9 +195,9 @@ internal static class StatsExportBuilder
     {
         switch (key)
         {
-            case "Window_FiveHour":
+            case StatsLimitsAggregator.FiveHourKey:
                 return "5h";
-            case "Window_Weekly":
+            case StatsLimitsAggregator.WeeklyKey:
                 return "7d";
         }
 

@@ -141,19 +141,6 @@ public class StatsPlanForecastTests
     }
 
     [Fact]
-    public void One_account_gives_the_same_intervals_as_the_single_account_builder()
-    {
-        var records = Records(30);
-        var points = Points(30, 0.5);
-
-        var single = StatsTokensPerPercent.BuildIntervals(records, points);
-        var pooled = StatsTokensPerPercent.BuildPooledIntervals(records, [points], TimeZoneInfo.Local, null);
-
-        Assert.Equal(single.Count, pooled.Count);
-        Assert.Equal(single.Select(i => i.DeltaPercent), pooled.Select(i => i.DeltaPercent));
-    }
-
-    [Fact]
     public void An_interval_carries_the_api_cost_of_its_hours_and_names_unpriced_models()
     {
         var records = Records(25);
@@ -243,7 +230,7 @@ public class StatsPlanForecastTests
     }
 
     [Fact]
-    public void The_month_value_is_the_weekly_value_over_a_month_and_the_ratio_divides_by_the_plan_price()
+    public void The_month_value_is_the_weekly_value_over_a_month_and_the_plan_price_is_known()
     {
         var account = new ForecastAccount("claude", "Pro", Points(30, 0.5));
 
@@ -251,8 +238,7 @@ public class StatsPlanForecastTests
 
         // $0.6 per full week x 30.44 / 7 days.
         Assert.Equal(0.6 * 30.44 / 7, forecast.MonthlyApiUsd!.Value, 9);
-        Assert.Equal(20, forecast.MonthlyPlanUsd);
-        Assert.Equal(0.6 * 30.44 / 7 / 20, forecast.Ratio!.Value, 9);
+        Assert.Equal(20, forecast.PlanPrices!.Sum(price => price.Net));
     }
 
     [Fact]
@@ -265,7 +251,7 @@ public class StatsPlanForecastTests
 
         Assert.Equal(2, forecast.AccountCount);
         Assert.Equal(["Max", "Pro"], forecast.Plans);
-        Assert.Equal(120, forecast.MonthlyPlanUsd);
+        Assert.Equal(120, forecast.PlanPrices!.Sum(price => price.Net));
         // 30 000 tokens over 15 % of summed delta = 2000 per percent of one account.
         Assert.Equal(2000, forecast.Weekly!.Result.TotalPerPercent);
         Assert.Equal(2 * 0.6 * 30.44 / 7, forecast.MonthlyApiUsd!.Value, 9);
@@ -280,19 +266,18 @@ public class StatsPlanForecastTests
         var forecast = StatsPlanForecast.Build("claude", [one, two], Records(30), Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
         Assert.Equal(["Pro"], forecast.Plans);
-        Assert.Equal(40, forecast.MonthlyPlanUsd);
+        Assert.Equal(40, forecast.PlanPrices!.Sum(price => price.Net));
     }
 
     [Fact]
-    public void One_unknown_plan_means_no_price_and_no_ratio()
+    public void One_unknown_plan_means_no_price()
     {
         var one = new ForecastAccount("claude", "Pro", Points(30, 0.25));
         var two = new ForecastAccount("claude#2", null, Points(30, 0.25));
 
         var forecast = StatsPlanForecast.Build("claude", [one, two], Records(30), Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
-        Assert.Null(forecast.MonthlyPlanUsd);
-        Assert.Null(forecast.Ratio);
+        Assert.Null(forecast.PlanPrices);
         Assert.NotNull(forecast.MonthlyApiUsd);
     }
 
@@ -314,8 +299,8 @@ public class StatsPlanForecastTests
     {
         var account = new ForecastAccount("claude", "Ultra", TwoPlanPoints());
 
-        var max = StatsPlanForecast.Build("claude", [account], Records(61), Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Max")!;
-        var ultra = StatsPlanForecast.Build("claude", [account], Records(61), Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Ultra")!;
+        var max = StatsPlanForecast.BuildForPlan("claude", [account], "Max", Records(61), Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
+        var ultra = StatsPlanForecast.BuildForPlan("claude", [account], "Ultra", Records(61), Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
         // 1000 tokens an hour over 0.5 % an hour and over 0.125 % an hour.
         Assert.Equal(200_000, max.Weekly!.CapacityTokens);
@@ -324,8 +309,8 @@ public class StatsPlanForecastTests
         Assert.Equal(["Max"], max.Plans);
         Assert.Equal("claude|Max", max.Key);
         Assert.Equal("claude|Ultra", ultra.Key);
-        Assert.Equal(100, max.MonthlyPlanUsd);
-        Assert.Equal(200, ultra.MonthlyPlanUsd);
+        Assert.Equal(100, max.PlanPrices!.Sum(price => price.Net));
+        Assert.Equal(200, ultra.PlanPrices!.Sum(price => price.Net));
         Assert.Equal(new DateTimeOffset(Start).AddHours(30), max.LastReading);
         Assert.Equal(new DateTimeOffset(Start).AddHours(60), ultra.LastReading);
     }
@@ -338,8 +323,8 @@ public class StatsPlanForecastTests
         var pro = new ForecastAccount("claude#2", "Pro", Points(60, 0.5, fromHour: 25));
         var records = Enumerable.Range(0, 61).Select(hour => Record(hour, hour < 25 ? 1000 : 3000)).ToList();
 
-        var forecastMax = StatsPlanForecast.Build("claude", [max, pro], records, Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Max")!;
-        var forecastPro = StatsPlanForecast.Build("claude", [max, pro], records, Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Pro")!;
+        var forecastMax = StatsPlanForecast.BuildForPlan("claude", [max, pro], "Max", records, Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
+        var forecastPro = StatsPlanForecast.BuildForPlan("claude", [max, pro], "Pro", records, Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
         // Only the hours before B joined belong to Max alone; every hour of B is shared with A, so Pro has none of its own.
         Assert.Equal(200_000, forecastMax.Weekly!.CapacityTokens);
@@ -357,7 +342,7 @@ public class StatsPlanForecastTests
         var steady = new ForecastAccount("claude#2", "Max", Points(60, 0.5));
         var records = Enumerable.Range(0, 61).Select(hour => Record(hour, hour < 30 ? 1000 : 5000)).ToList();
 
-        var forecast = StatsPlanForecast.Build("claude", [switching, steady], records, Price, DateTimeOffset.Now, TimeZoneInfo.Local, plan: "Max")!;
+        var forecast = StatsPlanForecast.BuildForPlan("claude", [switching, steady], "Max", records, Price, DateTimeOffset.Now, TimeZoneInfo.Local)!;
 
         // Hours 0-29 have both accounts on Max: the percent is their sum (1.0 an hour) for 1000 tokens.
         Assert.Equal(100_000, forecast.Weekly!.CapacityTokens);

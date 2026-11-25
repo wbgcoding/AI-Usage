@@ -184,7 +184,7 @@ public class StatsTokensPerPercentTests
             .ToList();
         var records = Enumerable.Range(0, 30).Select(h => Record(start.AddHours(h), ModelA, 1000, cacheRead: 5000)).ToList();
 
-        var intervals = StatsTokensPerPercent.BuildIntervals(records, points);
+        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, [points], TimeZoneInfo.Local, null);
 
         Assert.Equal(30, intervals.Count);
         Assert.All(intervals, interval =>
@@ -208,7 +208,7 @@ public class StatsTokensPerPercentTests
             .ToList();
         var records = Enumerable.Range(0, 6).Select(h => Record(midnight.AddHours(h), ModelA, 1000)).ToList();
 
-        var intervals = StatsTokensPerPercent.BuildIntervals(records, points, berlin);
+        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, [points], berlin, null);
 
         Assert.Equal(5, intervals.Count);
         Assert.All(intervals, interval => Assert.Equal(0.5, interval.DeltaPercent, 6));
@@ -239,7 +239,7 @@ public class StatsTokensPerPercentTests
             .ToList();
         var records = Enumerable.Range(0, 3).Select(h => Record(start.AddHours(h), ModelB, 100)).ToList();
 
-        var intervals = StatsTokensPerPercent.BuildIntervals(records, points);
+        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, [points], TimeZoneInfo.Local, null);
 
         Assert.Single(intervals);
         Assert.Equal(1.0, intervals[0].DeltaPercent, 6);
@@ -262,7 +262,7 @@ public class StatsTokensPerPercentTests
         };
         var records = new[] { Record(start, ModelA, 100), Record(start.AddHours(1), ModelA, 100) };
 
-        var intervals = StatsTokensPerPercent.BuildIntervals(records, points);
+        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, [points], TimeZoneInfo.Local, null);
 
         var only = Assert.Single(intervals);
         Assert.Equal(5.0, only.DeltaPercent, 6);
@@ -281,7 +281,7 @@ public class StatsTokensPerPercentTests
         };
         var records = new[] { Record(start, ModelA, 100), Record(start.AddHours(1), ModelA, 100) };
 
-        var intervals = StatsTokensPerPercent.BuildIntervals(records, points);
+        var intervals = StatsTokensPerPercent.BuildPooledIntervals(records, [points], TimeZoneInfo.Local, null);
 
         Assert.Single(intervals);
         Assert.Equal(5, intervals[0].DeltaPercent, 6);

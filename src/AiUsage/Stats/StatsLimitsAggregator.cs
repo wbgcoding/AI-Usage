@@ -82,14 +82,18 @@ public static class StatsLimitsAggregator
         return total;
     }
 
+    /// <summary>The resource keys of the generic windows of a kind (a point without a label of its own).</summary>
+    internal const string FiveHourKey = "Window_FiveHour";
+    internal const string WeeklyKey = "Window_Weekly";
+
     /// <summary>The resource key naming a point's window: its own label, or the generic one for its kind.</summary>
     internal static string LabelKeyOf(HistoryPoint point) =>
         point.Label is { Length: > 0 } label
             ? label
             : point.Window switch
             {
-                WindowKind.FiveHour => "Window_FiveHour",
-                WindowKind.Weekly => "Window_Weekly",
+                WindowKind.FiveHour => FiveHourKey,
+                WindowKind.Weekly => WeeklyKey,
                 _ => "Window_Other",
             };
 
