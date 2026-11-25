@@ -65,6 +65,9 @@ if not exist "%BS%" goto :bs_start
 for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Check -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%"`) do set "BSFRESH=%%A"
 if defined BSFRESH goto :bs_uptodate
 :bs_start
+rem The sources as they are now; a change made while the build runs keeps the stamp from being saved.
+set "BSFP="
+if exist "%BS%" for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Fingerprint -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%"`) do set "BSFP=%%A"
 
 rem A test run that was interrupted (window closed, run cancelled) leaves its own testhost.exe
 rem behind, and that process keeps the test project's output files open - the next build then fails
@@ -293,7 +296,7 @@ echo.
 rem === build freshness: save (every final file in dist: exes, signatures, checksums) ===
 set "BSART=dist\AI-Usage.exe"
 for %%f in ("%DIST%\*.exe" "%DIST%\*.sig" "%DIST%\SHA256SUMS.txt") do if /i not "%%~nxf"=="AI-Usage.exe" set "BSART=!BSART!,dist\%%~nxf"
-if exist "%BS%" powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Save -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%" -Artifact "!BSART!" >nul 2>&1
+if exist "%BS%" powershell -NoProfile -ExecutionPolicy RemoteSigned -File "%BS%" -Save -Project "%~dp0." -Key "%BSKEY%" -Extra "%BSEXTRA%" -Artifact "!BSART!" -Expect "%BSFP%" >nul 2>&1
 echo BUILD OK - artifacts are in dist\.
 :finish
 if "%DOUBLECLICK%"=="1" timeout /t 10
