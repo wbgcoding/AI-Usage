@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Windows.Media;
 using AiUsage.Models;
 using AiUsage.Services;
 using AiUsage.Stats;
@@ -92,7 +93,7 @@ public class StatsForecastViewModelTests
 
     private static ProviderForecast Forecast(
         ForecastWindow? fiveHour, ForecastWindow? weekly = null, double? api = 4832, double? plan = 100, int accounts = 1, params string[] plans) =>
-        new("claude", fiveHour, weekly, plans, accounts, api, plan,
+        new("claude", fiveHour, weekly, plans, accounts, api,
             plan is { } usd ? [new PlanPrice(plans.Length > 0 ? plans[0] : "Max", usd, "USD", false, "https://example.com/pricing", new DateOnly(2026, 10, 31))] : null);
 
     [Fact]
@@ -112,6 +113,32 @@ public class StatsForecastViewModelTests
             Assert.False(viewModel.HasForecastChoice);
             Assert.All(provider.Windows, window => Assert.False(string.IsNullOrEmpty(window.ToolTip)));
             Assert.Same(provider, Assert.Single(viewModel.ShownForecast));
+        }
+    }
+
+    [Fact]
+    public async Task A_theme_switch_gives_the_forecast_buttons_and_cards_the_new_colors()
+    {
+        var (viewModel, directory) = await CreateAsync(100, plan: _ => "Max");
+        using (directory)
+        {
+            var before = Assert.IsType<SolidColorBrush>(Assert.Single(viewModel.ForecastButtons).Brush).Color;
+            // A surface of the provider's own color forces every swatch drawn on it to change.
+            var light = new ChartSurface([before]);
+            try
+            {
+                ChartPalette.UseSurface(light);
+                viewModel.RefreshForecastBrushes();
+
+                var expected = ChartPalette.ForProvider("claude", light);
+                Assert.NotEqual(before, expected);
+                Assert.Equal(expected, Assert.IsType<SolidColorBrush>(Assert.Single(viewModel.ForecastButtons).Brush).Color);
+                Assert.Equal(expected, Assert.IsType<SolidColorBrush>(Assert.Single(viewModel.ShownForecast).Brush).Color);
+            }
+            finally
+            {
+                ChartPalette.UseSurface(ChartSurface.None);
+            }
         }
     }
 
@@ -646,7 +673,7 @@ public class StatsForecastViewModelTests
     public void A_euro_price_with_vat_shows_as_advertised_and_compares_without_vat()
     {
         var price = new PlanPrice("Pro", 21.99, "EUR", true, "https://example.com/plans", new DateOnly(2026, 10, 31));
-        var forecast = new ProviderForecast("gemini", Window(Total(172_000)), null, ["Pro"], 1, 100, null, [price]);
+        var forecast = new ProviderForecast("gemini", Window(Total(172_000)), null, ["Pro"], 1, 100, [price]);
         var service = Prices(currency: CostCurrency.Eur);
         service.Rate.Set(1.2, DateTimeOffset.UtcNow, persist: false);
         var month = Assert.IsType<StatsForecastMonthViewModel>(

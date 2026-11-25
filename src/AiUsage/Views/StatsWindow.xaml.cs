@@ -370,6 +370,7 @@ public partial class StatsWindow : Window
         RefreshDayProviderBrushes();
         foreach (var option in _viewModel.ProviderChoices)
             option.RefreshBrush();
+        _viewModel.RefreshForecastBrushes();
     }
 
     /// <summary>Every collapsible section this window owns, in no particular order - the list
@@ -790,6 +791,7 @@ public partial class StatsWindow : Window
 
         _dragController.Cancel();
         _layoutPresenter.Detach();
+        _viewModel.Detach();
         ThemeService.Applied -= OnThemeApplied;
         LocalizationService.Instance.PropertyChanged -= OnLanguageChanged;
     }
