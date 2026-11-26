@@ -125,6 +125,7 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void A_file_that_stays_locked_is_never_overwritten_by_the_defaults_of_that_session()
     {
         var directory = TempDirectory();
@@ -146,6 +147,7 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void A_locked_backup_with_no_main_file_is_never_overwritten_by_defaults()
     {
         var directory = TempDirectory();
@@ -649,6 +651,7 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void Load_keeps_a_file_it_could_not_read_and_never_saves_over_it()
     {
         var directory = TempDirectory();

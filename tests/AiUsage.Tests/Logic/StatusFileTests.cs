@@ -319,6 +319,7 @@ public sealed class StatusFileTests : IDisposable
         Assert.Equal(expected, StatusCommand.FormatSpan(TimeSpan.FromSeconds(seconds)));
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void AReaderNeverSeesAHalfWrittenFile()
     {
         var path = StatusFileWriter.PathIn(_directory.Path);

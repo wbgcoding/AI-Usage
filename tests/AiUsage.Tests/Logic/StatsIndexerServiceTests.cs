@@ -370,6 +370,7 @@ public class StatsIndexerServiceTests
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public async Task Dispose_returns_within_the_bound_when_the_walk_ignores_cancellation()
     {
         var started = new ManualResetEventSlim(initialState: false);

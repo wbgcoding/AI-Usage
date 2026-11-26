@@ -92,7 +92,7 @@ public class ClaudeConsoleWiringTests
         var companion = new Counter();
 
         runner.AttachCompanion(companion);
-        await Task.Delay(100);
+        await TestWait.UntilAsync(() => companion.Disposed == 1);
 
         Assert.Equal(1, companion.Disposed);
     }

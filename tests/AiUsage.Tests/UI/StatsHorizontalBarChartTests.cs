@@ -208,6 +208,7 @@ public class StatsHorizontalBarChartTests
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void A_changed_icon_file_is_decoded_again_when_the_rows_change_and_an_unchanged_one_is_not()
     {
         using var dir = TestPaths.CreateDisposableDirectory("chart-icon-stale");

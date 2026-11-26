@@ -1204,8 +1204,12 @@ public class ProviderTileViewModelTests
         var raised = new List<string?>();
         tile.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
-        await Task.Delay(1100); // below a minute the age text shows seconds
-        tile.TickCountdowns(Now);
+        // Below a minute the age text shows seconds: tick until the shown second has turned over.
+        await TestWait.UntilAsync(() =>
+        {
+            tile.TickCountdowns(Now);
+            return raised.Contains(nameof(ProviderTileViewModel.LastSuccessAgeText));
+        });
 
         Assert.Contains(nameof(ProviderTileViewModel.LastSuccessAgeText), raised);
         var before = AgeText.Describe(tile.LastSuccessAt);

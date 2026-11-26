@@ -1045,6 +1045,7 @@ public class StatsIndexTests
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void Indexer_leaves_no_partial_credit_for_a_file_whose_read_is_cancelled_partway_through()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-cancel-claude");
@@ -2147,6 +2148,7 @@ public class StatsIndexTests
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void A_locked_newest_weekly_copy_is_waited_for_not_skipped_and_the_damaged_index_stays_put()
     {
         using var seedDir = TestPaths.CreateDisposableDirectory("stats-restore-locked-seed");

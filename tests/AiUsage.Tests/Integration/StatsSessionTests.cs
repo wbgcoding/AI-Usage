@@ -338,6 +338,7 @@ public class StatsSessionTests
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
     public void The_backfill_is_neither_run_nor_marked_done_from_a_snapshot_that_failed_to_load()
     {
         using var claudeRoot = TestPaths.CreateDisposableDirectory("stats-m1-claude");

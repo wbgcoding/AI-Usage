@@ -290,7 +290,7 @@ public class ClaudeConsoleRowTests : IDisposable
         Assert.Equal(0, Volatile.Read(ref calls));
 
         await claude.FetchAsync(CancellationToken.None);
-        await Task.Delay(200);
+        await TestWait.UntilAsync(() => Volatile.Read(ref calls) > 0);
         Assert.True(Volatile.Read(ref calls) > 0);
     }
 
