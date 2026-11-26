@@ -11,7 +11,7 @@ namespace AiUsage.Tests;
 /// WPF converts a literal attribute value ("8" to a Thickness) but never converts a resource
 /// value: a Double token behind Padding="{StaticResource Space.S}" compiles, ships, and then throws
 /// a XamlParseException while the first window loads. Nothing else in this suite can see that - the
-/// windows are not instantiated here (<see cref="ConfirmWindowTests"/>) - so every token use in the
+/// windows are not instantiated in this suite - so every token use in the
 /// shipped XAML is matched against the type Tokens.xaml declares for it.
 /// </summary>
 [Collection(SharedStateTestsCollection.Name)]
