@@ -4,7 +4,9 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.3] - unreleased
+## [1.5.3] - 2026-11-26
+
+More reliable Claude credit and limit reads, easier to read warning colours and a set of fixes.
 
 ### Changed
 - A tile whose limit is reached keeps its normal frame instead of a red one.
@@ -12,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - German durations read Std., Min. and Sek.; Polish and Romanian counts use their correct plural forms.
 - The settings export leaves out extra accounts and choices that only fit the PC it came from.
 - The sign-in bar, the chart tooltip and long forecast details match the look of the rest of the app.
+- The headers and update buttons in About wrap in a narrow window instead of being cut off.
+- Screen readers announce whether a settings section is open or closed.
 
 ### Fixed
 - The Claude credit is read right after a new Console sign-in, also after a plan change, and reads no longer stop when the clock is set back.
@@ -19,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session durations in the statistics are no longer cut off and keep a gap to the token count.
 - The loading bar in the sign-in window moves again when it is shown a second time.
 - Reading Claude, Cursor and Gemini usage, backups and the global hotkey cope better with rare errors.
+- Japanese and Chinese dates no longer show a stray year mark.
+- The forecast colours follow a theme switch right away.
+- A folder import in the statistics settings that fails now says so.
+- A reset that has already passed no longer shows a clock time.
 
 ## [1.5.2] - 2026-11-21
 
@@ -585,7 +593,7 @@ The first release of AI-Usage: everything below is new.
   fails the check is deleted and never run.
 - The release link of the update check must be an https page on github.com.
 
-[1.6.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.2...HEAD
+[1.5.3]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/wbgcoding/AI-Usage/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/wbgcoding/AI-Usage/compare/v1.4.0...v1.5.0
