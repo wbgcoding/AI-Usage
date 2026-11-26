@@ -39,7 +39,7 @@ public static class DateLabels
     public static string WeekdayDayMonthShort(DateOnly date, CultureInfo culture) =>
         TextCompose.List([culture.DateTimeFormat.AbbreviatedDayNames[(int)date.DayOfWeek], DayMonthShort(date, culture)]);
 
-    private static readonly Regex YearPart = new(@"(\s*'[^']*')?\s*y+(\s*'[^']*')?", RegexOptions.CultureInvariant);
+    private static readonly Regex YearPart = new(@"(\s*'[^']*')?\s*y+(\s*'[^']*')?[年년]?", RegexOptions.CultureInvariant);
 
     private static readonly Regex RepeatedSpace = new(@"\s{2,}", RegexOptions.CultureInvariant);
 

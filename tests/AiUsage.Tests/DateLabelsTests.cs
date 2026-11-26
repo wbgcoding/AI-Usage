@@ -95,6 +95,7 @@ public class DateLabelsTests
         var other = DateLabels.WeekdayDayMonthLong(date, culture, new DateOnly(2027, 1, 2));
 
         Assert.DoesNotContain("2026", same);
+        Assert.False(same.StartsWith('\u5E74') || same.StartsWith('\uB144'));
         Assert.Contains("2026", other);
         Assert.Contains("7", same);
         Assert.Equal(culture.DateTimeFormat.GetDayName(DayOfWeek.Saturday), culture.DateTimeFormat.GetDayName(date.DayOfWeek));
