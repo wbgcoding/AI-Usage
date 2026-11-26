@@ -377,45 +377,52 @@ public class ClaudeConsoleCreditSourceTests
     [Fact]
     public async Task ReadNowAsync_reads_the_console_even_when_a_plan_change_refresh_started_a_read_first()
     {
-        var time = new ManualTime();
-        var console = new FakeRunner();
-        var hangConsole = new TaskCompletionSource<string>();
-        var hangSite = new TaskCompletionSource<string>();
-        var consoleHangs = false;
-        var siteCalls = 0;
-        var runner = new ClaudeConsoleCreditSource.ConsoleRunner(
-            (script, ct) => consoleHangs && script.Contains("'/api/organizations'", StringComparison.Ordinal)
-                ? hangConsole.Task
-                : console.Run(script, ct),
-            console.AsConsole().Owner);
-        Task<string> Site(string script, CancellationToken ct) => Interlocked.Increment(ref siteCalls) == 3
-            ? hangSite.Task
-            : Task.FromResult(NotSignedIn);
-        var source = new ClaudeConsoleCreditSource(Site, () => runner, time);
+        // The source runs on the UI thread in the app; one loop thread keeps the order of the
+        // continuations below fixed, so the call count does not depend on thread pool timing.
+        using var ui = new SingleThreadContext();
+        await ui.RunAsync(async () =>
+        {
+            var time = new ManualTime();
+            var console = new FakeRunner();
+            var hangConsole = new TaskCompletionSource<string>();
+            var hangSite = new TaskCompletionSource<string>();
+            var consoleHangs = false;
+            var siteCalls = 0;
+            var runner = new ClaudeConsoleCreditSource.ConsoleRunner(
+                (script, ct) => consoleHangs && script.Contains("'/api/organizations'", StringComparison.Ordinal)
+                    ? hangConsole.Task
+                    : console.Run(script, ct),
+                console.AsConsole().Owner);
+            Task<string> Site(string script, CancellationToken ct) => Interlocked.Increment(ref siteCalls) == 3
+                ? hangSite.Task
+                : Task.FromResult(NotSignedIn);
+            var source = new ClaudeConsoleCreditSource(Site, () => runner, time);
 
-        // The console delivers once, so it is the route asked first from now on.
-        await source.RefreshIfDueAsync();
-        Assert.Equal(18.40m, source.Current!.Amount);
+            // The console delivers once, so it is the route asked first from now on.
+            await source.RefreshIfDueAsync();
+            Assert.Equal(18.40m, source.Current!.Amount);
 
-        time.Advance(TimeSpan.FromMinutes(31));
-        consoleHangs = true;
-        var inFlight = source.RefreshIfDueAsync();
-        var planChange = source.RefreshAfterPlanChangeAsync();
-        var readNow = source.ReadNowAsync();
+            time.Advance(TimeSpan.FromMinutes(31));
+            consoleHangs = true;
+            var inFlight = source.RefreshIfDueAsync();
+            var planChange = source.RefreshAfterPlanChangeAsync();
+            var readNow = source.ReadNowAsync();
 
-        // The running read ends with "not signed in" and sets the back-off; the plan change refresh then
-        // starts a read that skips the console behind it, which the sign-in must not be lost to.
-        console.Organizations = OrgsOk;
-        consoleHangs = false;
-        hangConsole.SetResult(NotSignedIn);
-        await inFlight;
-        hangSite.SetResult(NotSignedIn);
-        await planChange;
-        await readNow;
+            // The running read ends with "not signed in" and sets the back-off; the plan change refresh then
+            // starts a read that skips the console behind it, which the sign-in must not be lost to.
+            console.Organizations = OrgsOk;
+            consoleHangs = false;
+            hangConsole.SetResult(NotSignedIn);
+            await inFlight;
+            hangSite.SetResult(NotSignedIn);
+            await planChange;
+            await readNow;
 
-        Assert.Equal(18.40m, source.Current!.Amount);
-        Assert.False(source.ConsoleSignInExpired);
-        Assert.Equal(4, console.Calls);
+            Assert.Equal(18.40m, source.Current!.Amount);
+            Assert.False(source.ConsoleSignInExpired);
+            Assert.Equal(4, console.Calls);
+            return 0;
+        });
     }
 
     [Fact]
