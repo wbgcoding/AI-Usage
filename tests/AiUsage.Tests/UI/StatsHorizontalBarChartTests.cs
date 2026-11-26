@@ -1,0 +1,313 @@
+using System.Globalization;
+using System.Windows;
+using AiUsage.Stats;
+using AiUsage.Views.Controls;
+using Xunit;
+
+namespace AiUsage.Tests;
+
+/// <summary>The horizontal bar chart asks for exactly the height its rows need, so a panel with a
+/// single project is not a large block of empty space.</summary>
+[Trait("Layer", "UI")]
+public class StatsHorizontalBarChartTests
+{
+    [Theory]
+    [InlineData(2, 5, 2)]
+    [InlineData(4, 3, 2)]
+    [InlineData(0, 1, 0)]
+    [InlineData(1, 0, -1)]
+    [InlineData(-1, 5, -1)]
+    public void Rebuilt_rows_keep_the_keyboard_focus_on_a_row_that_still_exists(int focused, int rowCount, int expected) =>
+        Assert.Equal(expected, StatsHorizontalBarChart.KeptFocusIndex(focused, rowCount));
+
+    [Fact]
+    public void An_icon_is_decoded_small_and_frozen_and_a_damaged_file_gives_none()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("chart-icon");
+        var png = Path.Combine(dir.Path, "icon.png");
+        var pixels = new byte[64 * 64 * 4];
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(64, 64, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, pixels, 64 * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using (var stream = File.Create(png))
+            encoder.Save(stream);
+        var damaged = Path.Combine(dir.Path, "damaged.png");
+        File.WriteAllBytes(damaged, [1, 2, 3, 4, 5, 6, 7, 8]);
+
+        var decoded = ProjectIconLoader.LoadBitmap(png, 20);
+
+        Assert.NotNull(decoded);
+        Assert.Equal(20, decoded!.PixelWidth);
+        Assert.True(decoded.IsFrozen);
+        Assert.Null(ProjectIconLoader.LoadBitmap(damaged, 20));
+        Assert.Null(ProjectIconLoader.LoadBitmap(Path.Combine(dir.Path, "missing.png"), 20));
+    }
+
+    [Fact]
+    public void Project_icons_are_decoded_off_the_render_pass_and_arrive_later()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("chart-icon-async");
+        var png = Path.Combine(dir.Path, "icon.png");
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
+            32, 32, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[32 * 32 * 4], 32 * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using (var stream = File.Create(png))
+            encoder.Save(stream);
+
+        var (cachedAtOnce, cachedLater) = RunOnSta(() =>
+        {
+            var day = new DateOnly(2026, 9, 1);
+            var chart = new StatsHorizontalBarChart
+            {
+                ShowProjectDetails = true,
+                Rows = [new StatsProjectRow("p", "p", 10, 10, day, day, IconPath: png)],
+            };
+            chart.Measure(new Size(400, double.PositiveInfinity));
+            chart.Arrange(new Rect(chart.DesiredSize));
+            var atOnce = chart.HasCachedIcon(png);
+
+            var until = DateTime.UtcNow.AddSeconds(8);
+            while (!chart.HasCachedIcon(png) && DateTime.UtcNow < until)
+            {
+                var frame = new System.Windows.Threading.DispatcherFrame();
+                chart.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => frame.Continue = false);
+                System.Windows.Threading.Dispatcher.PushFrame(frame);
+                Thread.Sleep(10);
+            }
+
+            return (atOnce, chart.HasCachedIcon(png));
+        });
+
+        Assert.False(cachedAtOnce);
+        Assert.True(cachedLater);
+    }
+
+    [Fact]
+    public void Desired_height_follows_the_row_count()
+    {
+        var (one, three, none) = RunOnSta(() =>
+        {
+            var day = new DateOnly(2026, 9, 1);
+            double Measure(int rows)
+            {
+                var chart = new StatsHorizontalBarChart
+                {
+                    Rows = Enumerable.Range(0, rows)
+                        .Select(i => new StatsProjectRow($"p{i}", $"p{i}", 10, 10, day, day))
+                        .ToList(),
+                };
+                chart.Measure(new Size(400, double.PositiveInfinity));
+                return chart.DesiredSize.Height;
+            }
+            return (Measure(1), Measure(3), Measure(0));
+        });
+
+        Assert.Equal(3 * one, three, 3);
+        Assert.Equal(one, none, 3);
+        Assert.True(one < 40);
+    }
+
+    /// <summary>The hover tooltip's own text builder is pure, so every line - and the way an absent
+    /// optional field simply drops its own line rather than printing a blank one - is checked here
+    /// without a visual tree at all.</summary>
+    [Fact]
+    public void BuildProjectDetailTooltipLinesIncludesEveryLineWhenAllDataIsPresent()
+    {
+        var culture = CultureInfo.InvariantCulture;
+        var row = new StatsProjectRow(
+            "proj", @"C:\code\proj", Total: 1500, Percent: 42.5,
+            FirstActivity: new DateOnly(2026, 1, 1), LastActivity: new DateOnly(2026, 1, 3),
+            InputTokens: 900, OutputTokens: 500, CachedTokens: 100,
+            ProviderIds: ["claude", "codex"], MainModel: "claude-sonnet-5");
+        var providerDisplayNames = new Dictionary<string, string> { ["claude"] = "Claude", ["codex"] = "Codex" };
+
+        var lines = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
+            row, providerDisplayNames,
+            folderFormat: "Folder: {0}", tokensFormat: "Tokens: {0} ({1} %)",
+            inputOutputCacheFormat: "Input {0} \u00b7 Output {1} \u00b7 Cache {2}",
+            providersFormat: "Providers: {0}", mainModelFormat: "Main model: {0}",
+            activeFormat: "Active: {0}",
+            tokenWord: "tokens", culture);
+
+        Assert.Equal(
+        [
+            "proj",
+            @"Folder: C:\code\proj",
+            "Tokens: 1,500 tokens (42.5 %)",
+            "Input 900 \u00b7 Output 500 \u00b7 Cache 100",
+            "Providers: Claude, Codex",
+            "Main model: Sonnet 5",
+            "Active: 01/01-01/03/2026",
+        ], lines);
+    }
+
+    [Fact]
+    public void BuildProjectDetailTooltipLinesOmitsEveryLineWhoseDataIsMissing()
+    {
+        var culture = CultureInfo.InvariantCulture;
+        var row = new StatsProjectRow(
+            "proj", @"C:\code\proj", Total: 1500, Percent: 42.5,
+            FirstActivity: new DateOnly(2026, 1, 1), LastActivity: new DateOnly(2026, 1, 3));
+
+        var lines = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
+            row, providerDisplayNames: new Dictionary<string, string>(),
+            folderFormat: "Folder: {0}", tokensFormat: "Tokens: {0} ({1} %)",
+            inputOutputCacheFormat: "Input {0} \u00b7 Output {1} \u00b7 Cache {2}",
+            providersFormat: "Providers: {0}", mainModelFormat: "Main model: {0}",
+            activeFormat: "Active: {0}",
+            tokenWord: "tokens", culture);
+
+        Assert.Equal(
+        [
+            "proj",
+            @"Folder: C:\code\proj",
+            "Tokens: 1,500 tokens (42.5 %)",
+            "Input 0 \u00b7 Output 0 \u00b7 Cache 0",
+            "Active: 01/01-01/03/2026",
+        ], lines);
+    }
+
+    [Fact]
+    public void Cache_share_bar_accessible_name_follows_label_changes()
+    {
+        var name = RunOnSta(() =>
+        {
+            var bar = new StatsCacheShareBar { Values = [50L, 50L, 0L, 0L] };
+            bar.SegmentLabels = ["Input", "Write", "Read", "Output"];
+            return System.Windows.Automation.AutomationProperties.GetName(bar);
+        });
+
+        Assert.StartsWith("Input: 50", name);
+        Assert.DoesNotContain("?", name);
+    }
+
+    private static string WriteIcon(string path, int size)
+    {
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
+            size, size, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[size * size * 4], size * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+        return path;
+    }
+
+    private static void PumpUntil(StatsHorizontalBarChart chart, Func<bool> done)
+    {
+        var until = DateTime.UtcNow.AddSeconds(8);
+        while (!done() && DateTime.UtcNow < until)
+        {
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            chart.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => frame.Continue = false);
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            Thread.Sleep(10);
+        }
+    }
+
+    [Fact]
+    [Trait("Speed", "Slow")]
+    public void A_changed_icon_file_is_decoded_again_when_the_rows_change_and_an_unchanged_one_is_not()
+    {
+        using var dir = TestPaths.CreateDisposableDirectory("chart-icon-stale");
+        var png = WriteIcon(Path.Combine(dir.Path, "icon.png"), 32);
+
+        var (unchangedKept, changedReplaced) = RunOnSta(() =>
+        {
+            var day = new DateOnly(2026, 9, 1);
+            StatsProjectRow[] Rows() => [new StatsProjectRow("p", "p", 10, 10, day, day, IconPath: png)];
+            var chart = new StatsHorizontalBarChart { ShowProjectDetails = true, Rows = Rows() };
+            PumpUntil(chart, () => chart.HasCachedIcon(png));
+            var first = chart.CachedIconImage(png);
+            Assert.NotNull(first);
+
+            chart.Rows = Rows();
+            PumpUntil(chart, () => false);
+            var kept = ReferenceEquals(first, chart.CachedIconImage(png));
+
+            WriteIcon(png, 48);
+            File.SetLastWriteTimeUtc(png, DateTime.UtcNow.AddHours(1));
+            chart.Rows = Rows();
+            PumpUntil(chart, () => !ReferenceEquals(first, chart.CachedIconImage(png)));
+            return (kept, !ReferenceEquals(first, chart.CachedIconImage(png)));
+        });
+
+        Assert.True(unchangedKept);
+        Assert.True(changedReplaced);
+    }
+
+    [Fact]
+    public void A_rows_change_does_not_read_icon_file_times_on_the_calling_thread()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, ".git")) && !File.Exists(Path.Combine(dir.FullName, ".git")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+        var source = File.ReadAllText(Path.Combine(dir!.FullName, "src", "AiUsage", "Views", "Controls", "StatsHorizontalBarChart.cs"));
+        var start = source.IndexOf("private void ForgetStaleIcons", StringComparison.Ordinal);
+        var end = source.IndexOf("private static DateTime SafeWriteUtc", StringComparison.Ordinal);
+
+        Assert.True(start > 0 && end > start);
+        Assert.DoesNotContain("SafeWriteUtc", source[start..end], StringComparison.Ordinal);
+    }
+
+    private static T RunOnSta<T>(Func<T> action)
+    {
+        T? result = default;
+        Exception? failure = null;
+        var worker = new Thread(() =>
+        {
+            try { result = action(); }
+            catch (Exception ex) { failure = ex; }
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        Assert.True(worker.Join(TimeSpan.FromSeconds(20)), "measure did not finish");
+        if (failure is not null)
+            throw failure;
+        return result!;
+    }
+
+    [Fact]
+    public void DisplayNamesShowTheShortLabelAndOnlyAddTheParentFolderWhereTwoRowsReadTheSame()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        StatsProjectRow Row(string label, string path) => new(label, path, 100, 10, day, day);
+        var rows = new[]
+        {
+            Row("app", @"C:\work\app"),
+            Row("web", @"C:\work\web"),
+            Row("App", @"D:\clients\acme\App"),
+            Row("No project", "No project"),
+        };
+
+        var names = StatsHorizontalBarChart.DisplayNames(rows);
+
+        Assert.Equal(new[] { "app (work)", "web", "App (acme)", "No project" }, names.ToArray());
+    }
+
+    [Fact]
+    public void BuildProjectDetailTooltipLinesUsesTheGivenDisplayNameAsItsFirstLine()
+    {
+        var day = new DateOnly(2026, 1, 1);
+        var row = new StatsProjectRow("app", @"C:\work\app", 100, 10, day, day);
+
+        var lines = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
+            row, new Dictionary<string, string>(), "Folder: {0}", "", "", "", "", "", "tokens",
+            CultureInfo.InvariantCulture, displayName: "app (work)");
+
+        Assert.Equal("app (work)", lines[0]);
+        Assert.Equal(@"Folder: C:\work\app", lines[1]);
+    }
+
+    [Theory]
+    [InlineData(400, 60, 50, 40, 100, true)]
+    [InlineData(266, 60, 50, 40, 100, true)]
+    [InlineData(265, 60, 50, 40, 100, false)]
+    [InlineData(100, 60, 50, 40, 10, false)]
+    public void The_cost_is_drawn_only_where_the_full_name_still_fits(
+        double width, double textX, double figureWidth, double costWidth, double nameWidth, bool expected)
+    {
+        Assert.Equal(expected, StatsHorizontalBarChart.CostFits(width, textX, figureWidth, costWidth, nameWidth));
+    }
+}
