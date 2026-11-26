@@ -142,6 +142,10 @@ public sealed class WebViewRuntimeInstaller
             if (!FreshRunFolder.HoldsOnly(runFolder, file))
                 return new WebViewInstallResult(WebViewInstallOutcome.DownloadFailed, Services.LocalizationService.Instance["WebView2.Detail.ExtraFiles"]);
 
+            // A cancel that arrived during the check must not flip the caller into the installing state.
+            if (ct.IsCancellationRequested)
+                return new WebViewInstallResult(WebViewInstallOutcome.Cancelled);
+
             installing?.Invoke();
             int exitCode;
             try
@@ -160,7 +164,7 @@ public sealed class WebViewRuntimeInstaller
 
             // The runtime decides, not the exit code: a bootstrapper that reports an error while the
             // runtime is in fact there (already installed by a parallel update) is a success.
-            if (await Task.Run(_isInstalled))
+            if (await ProbeInstalledAsync())
                 return new WebViewInstallResult(WebViewInstallOutcome.Installed);
 
             return exitCode != 0
@@ -189,6 +193,20 @@ public sealed class WebViewRuntimeInstaller
 
             if (runFolder is not null)
                 FreshRunFolder.TryRemoveEmpty(runFolder);
+        }
+    }
+
+    /// <summary>The runtime probe, off the UI thread. A probe that fails for any reason counts as "not
+    /// there", so the result stays one of the outcomes and never an exception.</summary>
+    private async Task<bool> ProbeInstalledAsync()
+    {
+        try
+        {
+            return await Task.Run(_isInstalled);
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 
@@ -230,9 +248,10 @@ public sealed class WebViewRuntimeInstaller
             {
                 process.Kill(entireProcessTree: true);
             }
-            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception
+                or AggregateException or NotSupportedException)
             {
-                // Already gone.
+                // Already gone, or part of the process tree could not be ended.
             }
             throw new TimeoutException("the installer did not finish in time");
         }

@@ -99,12 +99,15 @@ public static class ClaudeLocalLimitReader
                 if (state is null)
                     continue;
 
-                // Files are walked newest-first, so the first record seen for a type is its newest.
+                // A file written to recently by plain chat can hold an older rejection than another
+                // file, so the record's own time decides, not the order the files are walked in.
                 foreach (var (type, (limit, lineTime)) in state.Newest)
                 {
                     if (lineTime is { } at && at < cutoff)
                         continue; // older than any live window
-                    newestPerType.TryAdd(type, limit with { LoggedAt = lineTime });
+                    var candidate = limit with { LoggedAt = lineTime };
+                    if (!newestPerType.TryGetValue(type, out var held) || IsNewer(candidate, held))
+                        newestPerType[type] = candidate;
                 }
             }
 
@@ -118,6 +121,11 @@ public static class ClaudeLocalLimitReader
             return null;
         }
     }
+
+    private static bool IsNewer(ClaudeQuotaLimit candidate, ClaudeQuotaLimit held) =>
+        candidate.LoggedAt is { } candidateAt && held.LoggedAt is { } heldAt
+            ? candidateAt > heldAt
+            : candidate.ResetsAt > held.ResetsAt;
 
     private static void PruneCache(string root, IReadOnlyList<FileInfo> current)
     {

@@ -137,6 +137,7 @@ public class ClaudeConsoleCreditParserTests
     [InlineData("not json")]
     [InlineData("{\"organizations\":[]}")]
     [InlineData("[{\"id\":\"x\",\"roles\":[\"api\"]}]")]
+    [InlineData("[{\"uuid\":\"org-1\",\"capabilities\":[\"api\"]}]")]
     public void PickOrganization_is_unreadable_for_a_changed_shape(string? json)
     {
         Assert.Equal(ClaudeConsoleOrgOutcome.Unreadable, ClaudeConsoleCreditParser.PickOrganization(json, null).Outcome);

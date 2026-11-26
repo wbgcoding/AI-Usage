@@ -74,8 +74,11 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
     private ITimer? _idleTimer;
 
     // The page suspend that follows a finished call. The next call waits for it before resuming, so
-    // a resume never races a suspend still in progress.
+    // a resume never races a suspend still in progress. Calls that start together all wait on the one
+    // resume that the first of them began.
+    private readonly object _suspendGate = new();
     private Task? _suspendTask;
+    private Task? _resumeTask;
     private bool _suspendFailureLogged;
 
     // Set once by DisposeAsync and never cleared: an owner that disposed this instance (sign-out,
@@ -357,7 +360,11 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
                 // The answer goes out first: the daily clear runs beside the page suspend, never inside the read.
                 if (succeeded)
                     _ = ClearDiskCacheWhenDueAsync(host);
-                _suspendTask = SuspendQuietlyAsync(host);
+                lock (_suspendGate)
+                {
+                    _suspendTask = SuspendQuietlyAsync(host);
+                    _resumeTask = null;
+                }
             }
         }
     }
@@ -519,12 +526,21 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
         }
     }
 
-    private async Task ResumeAsync(IHiddenBrowserHost host)
+    private Task ResumeAsync(IHiddenBrowserHost host)
     {
-        var pending = _suspendTask;
-        _suspendTask = null;
-        if (pending is null)
-            return; // a fresh page was never suspended
+        lock (_suspendGate)
+        {
+            var pending = _suspendTask;
+            _suspendTask = null;
+            if (pending is not null)
+                _resumeTask = ResumeAfterAsync(host, pending);
+            // A fresh page was never suspended; a call that starts beside the one resuming waits for it.
+            return _resumeTask ?? Task.CompletedTask;
+        }
+    }
+
+    private async Task ResumeAfterAsync(IHiddenBrowserHost host, Task pending)
+    {
         try
         {
             // Ends early when the runner is disposed meanwhile: nothing is left to resume.

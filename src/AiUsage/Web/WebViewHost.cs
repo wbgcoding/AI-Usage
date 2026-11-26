@@ -172,10 +172,25 @@ public sealed class WebViewHost : IAsyncDisposable
             // A creation that failed once is not kept for the host's lifetime - the next call retries.
             if (_environment is { IsValueCreated: true } existing && (existing.Value.IsFaulted || existing.Value.IsCanceled))
                 _environment = null;
-            _environment ??= new Lazy<Task<CoreWebView2Environment>>(() => _environmentFactory(_userDataFolder));
+            _environment ??= new Lazy<Task<CoreWebView2Environment>>(StartEnvironment);
             environment = _environment;
         }
         return environment.Value;
+    }
+
+    /// <summary>A factory that throws before it returns a task still ends up as a faulted task, so the
+    /// retry in <see cref="EnsureEnvironmentAsync"/> sees it and the exception is not cached for good
+    /// by the <see cref="Lazy{T}"/>.</summary>
+    private Task<CoreWebView2Environment> StartEnvironment()
+    {
+        try
+        {
+            return _environmentFactory(_userDataFolder);
+        }
+        catch (Exception ex)
+        {
+            return Task.FromException<CoreWebView2Environment>(ex);
+        }
     }
 
     /// <summary>
@@ -232,7 +247,8 @@ public sealed class WebViewHost : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        _environment = null;
+        lock (_environmentGate)
+            _environment = null;
         return ValueTask.CompletedTask;
     }
 }

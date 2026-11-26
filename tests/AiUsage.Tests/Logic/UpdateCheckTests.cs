@@ -73,6 +73,18 @@ public class UpdateCheckTests
     }
 
     [Fact]
+    public async Task CheckIfDueAsync_checks_again_when_the_clock_was_set_back_behind_the_last_stamp()
+    {
+        var settings = new AppSettings { LastUpdateCheckUtc = Now.AddDays(3) };
+        var calls = 0;
+
+        await UpdateCheck.CheckIfDueAsync(settings, _ => { },
+            _ => { calls++; return Task.FromResult<UpdateCheck.Release?>(null); }, Now, CancellationToken.None);
+
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
     public async Task CheckIfDueAsync_does_not_count_a_cancelled_check_as_done()
     {
         var settings = new AppSettings();

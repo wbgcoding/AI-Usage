@@ -80,7 +80,7 @@ public static class StatusCommand
                 return null;
 
             var ageNote = "";
-            if (root.TryGetProperty("updated", out var updated)
+            if (root.TryGetProperty("updated", out var updated) && updated.ValueKind == JsonValueKind.String
                 && DateTimeOffset.TryParse(updated.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var writtenAt)
                 && now - writtenAt > AgeNoteAfter)
                 ageNote = $" · data {FormatSpan(now - writtenAt)} old";

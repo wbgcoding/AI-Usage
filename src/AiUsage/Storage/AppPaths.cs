@@ -86,7 +86,8 @@ public static class AppPaths
             return FolderRisk.None;
         }
 
-        if (full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        if (full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)
+            || full.StartsWith(@"\\.\UNC\", StringComparison.OrdinalIgnoreCase))
             return FolderRisk.Unc;
         if (full.StartsWith(@"\\?\", StringComparison.Ordinal) || full.StartsWith(@"\\.\", StringComparison.Ordinal))
             full = full[4..];
@@ -372,7 +373,11 @@ public static class AppPaths
             return PointerUse.None;
         if (tempRoot is not null && IsUnderRoot(directory, tempRoot))
             return PointerUse.InTempRoot;
-        return probeWritable && !TryEnsureWritableDirectory(directory) ? PointerUse.Unwritable : PointerUse.Usable;
+        if (!probeWritable)
+            return PointerUse.Usable;
+        // A pointed folder that does not exist yet is made closed to other accounts, like the default one.
+        TryCreatePrivateDirectory(directory);
+        return TryEnsureWritableDirectory(directory) ? PointerUse.Usable : PointerUse.Unwritable;
     }
 
     private static bool TryReadPointer(string pointerPath, out string directory)
@@ -387,10 +392,13 @@ public static class AppPaths
             if (text.Length == 0 || text.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathFullyQualified(text))
                 return false;
 
-            directory = text;
+            // The full form is what the callers compare and create; a text that has none (a bare
+            // "\\", a stream suffix, too long) is no pointer.
+            directory = Path.GetFullPath(text);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+            or NotSupportedException)
         {
             return false;
         }

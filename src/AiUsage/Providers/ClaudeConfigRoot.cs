@@ -39,7 +39,7 @@ internal static class ClaudeConfigRoot
         {
             if (!Directory.Exists(entry))
                 continue;
-            var fullPath = Path.GetFullPath(entry);
+            var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(entry));
             if (seen.Add(ResolveLinks(fullPath)))
                 roots.Add(fullPath);
         }
@@ -52,7 +52,7 @@ internal static class ClaudeConfigRoot
     /// cannot be resolved stays as it is.</summary>
     internal static string ResolveLinks(string path)
     {
-        var current = Path.GetFullPath(path);
+        var current = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         // Each round replaces the deepest link found; a target can itself sit below another link.
         for (var round = 0; round < 8; round++)
         {

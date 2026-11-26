@@ -213,14 +213,15 @@ internal static class MicaBackdrop
         var cyclePending = false;
         void CycleOnScreen()
         {
-            if (cyclePending || !controller.IsActive)
+            if (cyclePending || source.IsDisposed || !controller.IsActive)
                 return;
             cyclePending = true;
             controller.Update(false, false);
             window.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
             {
                 cyclePending = false;
-                Update(controller, followsOpacity);
+                if (!source.IsDisposed)
+                    Update(controller, followsOpacity);
             });
         }
 

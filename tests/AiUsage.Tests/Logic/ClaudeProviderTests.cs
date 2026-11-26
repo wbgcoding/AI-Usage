@@ -320,6 +320,19 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_web_read_that_throws_does_not_discard_the_local_reading()
+    {
+        var directory = SeedDirectory("claude-no-limits.jsonl");
+        var webSource = new WebUsageSource(Descriptor, ClaudeEndpoint, (_, _) => Task.FromResult(WebOkEnvelope));
+        var provider = new ClaudeProvider(directory, () => Now, webSource, new AppSettings(),
+            _ => throw new IOException("settings file is locked"));
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.NotNull(snapshot);
+    }
+
+    [Fact]
     public async Task An_extra_account_without_a_web_session_names_the_browser_as_the_reason()
     {
         var directory = SeedDirectory("claude-no-limits.jsonl");

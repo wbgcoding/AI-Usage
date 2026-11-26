@@ -450,7 +450,7 @@ public static class BackupService
 
             if (entry.Length < 0 || entry.CompressedLength < 0 || entry.Length > MaxBytesFor(name))
                 throw new RefusedException(BackupRefusal.NotABackup);
-            if (entry.Length > RatioCheckFloorBytes && entry.CompressedLength * MaxCompressionRatio < entry.Length)
+            if (entry.Length > RatioCheckFloorBytes && entry.CompressedLength < (entry.Length + MaxCompressionRatio - 1) / MaxCompressionRatio)
                 throw new RefusedException(BackupRefusal.NotABackup);
 
             declaredTotal += entry.Length;

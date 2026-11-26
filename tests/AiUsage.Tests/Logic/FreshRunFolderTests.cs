@@ -118,4 +118,21 @@ public class FreshRunFolderTests
 
         Assert.False(FreshRunFolder.LeaseIsAt(lease, link));
     }
+
+    [Fact]
+    public void AFileInAFolderSwappedForAJunctionIsRefused()
+    {
+        var elsewhere = TestPaths.CreateDirectory("lease-junction-target");
+        File.WriteAllBytes(Path.Combine(elsewhere, "setup.exe"), Payload);
+        var parent = TestPaths.CreateDirectory("lease-junction-root");
+        var linked = Path.Combine(parent, "run");
+        if (!GuardedReadTests.TryMakeJunction(linked, elsewhere))
+            return; // junctions cannot be made here, so the case cannot be set up
+
+        var path = Path.Combine(linked, "setup.exe");
+        using var lease = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        Assert.False(FreshRunFolder.LeaseIsAt(lease, path));
+        Directory.Delete(linked);
+    }
 }

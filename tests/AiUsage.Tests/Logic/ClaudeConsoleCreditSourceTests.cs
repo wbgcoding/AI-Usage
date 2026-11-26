@@ -353,6 +353,28 @@ public class ClaudeConsoleCreditSourceTests
     }
 
     [Fact]
+    public async Task ReadNowAsync_is_not_undone_by_a_read_that_began_before_the_sign_in()
+    {
+        var time = new ManualTime();
+        var console = new FakeRunner();
+        var staleAnswer = new TaskCompletionSource<string>();
+        var calls = 0;
+        var runner = new ClaudeConsoleCreditSource.ConsoleRunner(
+            (script, ct) => Interlocked.Increment(ref calls) == 1 ? staleAnswer.Task : console.Run(script, ct),
+            console.AsConsole().Owner);
+        var source = new ClaudeConsoleCreditSource(null, () => runner, time);
+
+        var inFlight = source.RefreshIfDueAsync();
+        var readNow = source.ReadNowAsync();
+        staleAnswer.SetResult(NotSignedIn);
+        await inFlight;
+        await readNow;
+
+        Assert.Equal(18.40m, source.Current!.Amount);
+        Assert.False(source.ConsoleSignInExpired);
+    }
+
+    [Fact]
     public async Task Raises_changed_only_when_the_balance_differs()
     {
         var time = new ManualTime();

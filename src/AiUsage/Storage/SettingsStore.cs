@@ -490,6 +490,7 @@ public sealed class SettingsStore : IDisposable
         {
             BeforeWrite?.Invoke();
             Directory.CreateDirectory(_dataDirectory);
+            NonFiniteNumbers.Reset(settings);
             settings.SchemaVersion = AppSettings.CurrentSchemaVersion;
 
             var json = JsonSerializer.Serialize(settings, JsonOptions);

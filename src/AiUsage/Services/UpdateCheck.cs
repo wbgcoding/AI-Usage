@@ -67,7 +67,8 @@ public static class UpdateCheck
     {
         if (!settings.CheckForUpdates || networkAllowed is not null && !networkAllowed())
             return null;
-        if (settings.LastUpdateCheckUtc is { } last && now - last < MinCheckInterval)
+        // A stamp from a clock that has since been set back does not hold the check off.
+        if (settings.LastUpdateCheckUtc is { } last && now >= last && now - last < MinCheckInterval)
             return null;
 
         var release = await fetchRelease(ct);

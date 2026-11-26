@@ -542,6 +542,14 @@ public sealed class RefreshScheduler
         // end before the linked cancellation has been passed on - a "using" disposal at that point
         // unregistered the link, and the provider's own token was never cancelled at all.
         var runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        // Published at once: a cancel from the owner that lands while the fetch is still being announced
+        // must find this run.
+        lock (_gate)
+        {
+            state.RunCancellation = runCts;
+            state.CancelledByOwner = false;
+        }
+
         // True between FetchStarted and the event that ends it (SnapshotReady or FetchEnded), so a
         // run the caller's token cuts short still ends what it started.
         var fetchOpen = false;
@@ -569,12 +577,6 @@ public sealed class RefreshScheduler
             lock (_gate)
                 baseForTimeout = ResolveIntervalLocked(provider);
             var timeout = Clamp(baseForTimeout * 2, _minFetchTimeout, _maxFetchTimeout);
-
-            lock (_gate)
-            {
-                state.RunCancellation = runCts;
-                state.CancelledByOwner = false;
-            }
 
             // Watches this read, retry included, for change notes, up to and including ReportReadChanges.
             using var readScope = ReadChangeLog.BeginReadScope();

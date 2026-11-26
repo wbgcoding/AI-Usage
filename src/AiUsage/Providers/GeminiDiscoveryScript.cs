@@ -67,18 +67,22 @@ internal static class GeminiDiscoveryScript
             // read this same page once more, on this origin only, and take them from there.
             try {
                 const res = await fetch(location.origin + location.pathname, {method: 'GET', credentials: 'include'});
+                // A page that did not answer is no sign-out: only one that answered without a token is.
+                if (res.status === 429) return {status: 'blocked', code: String(res.status)};
+                if (res.status >= 500) return {status: 'failed', code: String(res.status), reason: 'page_http_' + res.status};
                 if (!res.ok || new URL(res.url).origin !== location.origin) return null;
                 const html = await res.text();
                 const at = (html.match(/"SNlM0e":"([^"]+)"/) || [])[1];
                 const bl = (html.match(/"cfb2h":"([^"]+)"/) || [])[1];
                 return at ? {at: at, bl: bl || ''} : null;
             } catch (e) {
-                return null;
+                return await reachable() ? null : {status: 'failed', code: '000', reason: 'page_unreachable'};
             }
         };
         const readUsage = async (path) => {
             const values = await pageValues();
             if (!values) return {status: 'not_signed_in', code: '000', reason: 'no_page_token'};
+            if (values.status) return values;
             const url = path + '&source-path=%2Fusage&bl=' + encodeURIComponent(values.bl)
                 + '&hl=' + encodeURIComponent(document.documentElement.lang || 'en') + '&rt=c';
             const form = new URLSearchParams({'f.req': '[[["jSf9Qc","[]",null,"generic"]]]', 'at': values.at});

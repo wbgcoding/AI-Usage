@@ -7,6 +7,35 @@ public class CompleteLineReaderTests
 {
     private const int Mib = 1024 * 1024;
 
+    private sealed class ShrunkStream(byte[] content, long claimedLength) : MemoryStream(content)
+    {
+        public override long Length => claimedLength;
+    }
+
+    // A file that shrinks between the length check and the read: the offset handed back covers
+    // only what was actually read, so bytes appended later are not skipped.
+    [Fact]
+    public void A_stream_that_shrank_mid_read_is_consumed_only_as_far_as_it_was_read()
+    {
+        using var stream = new ShrunkStream("ab\ncd"u8.ToArray(), 12);
+        var lines = new List<string>();
+
+        var consumed = CompleteLineReader.Read(stream, 0, true, Mib, () => { }, lines.Add, CancellationToken.None);
+
+        Assert.Equal(["ab", "cd"], lines);
+        Assert.Equal(5, consumed);
+    }
+
+    [Fact]
+    public void A_discarded_tail_of_a_stream_that_shrank_is_consumed_only_as_far_as_it_was_read()
+    {
+        using var stream = new ShrunkStream(new byte[3 * Mib], 4 * Mib);
+
+        var consumed = CompleteLineReader.Read(stream, 0, true, Mib, () => { }, _ => { }, CancellationToken.None);
+
+        Assert.Equal(3 * Mib, consumed);
+    }
+
     [Fact]
     public void An_unterminated_line_past_the_cap_is_discarded_while_it_streams_in()
     {

@@ -217,6 +217,15 @@ public class CountdownFormatterTests
     }
 
     [Fact]
+    public void AResetThatIsAlreadyPastHasNoClockTime()
+    {
+        var now = new DateTimeOffset(2026, 3, 29, 12, 0, 0, TimeSpan.Zero);
+
+        Assert.Equal("", CountdownFormatter.FormatClock(now, now));
+        Assert.Equal("", CountdownFormatter.FormatClock(now.AddDays(-3), now));
+    }
+
+    [Fact]
     public void AResetInsideTheSpringForwardSkippedHourStillRendersAClockTimeThatExists()
     {
         // 2026-03-29 02:00-03:00 never exists as a local Europe/Berlin wall-clock reading - clocks

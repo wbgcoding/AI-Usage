@@ -200,7 +200,7 @@ public sealed class GlobalHotkey : IDisposable
                     modifiers |= ModifierKeys.Windows;
                     break;
                 default:
-                    if (parsedKey is not null || !Enum.TryParse(part, ignoreCase: true, out Key candidate) || !Enum.IsDefined(candidate))
+                    if (parsedKey is not null || !TryParseKey(part, out var candidate))
                         return false;
                     parsedKey = candidate;
                     break;
@@ -212,6 +212,20 @@ public sealed class GlobalHotkey : IDisposable
 
         key = parsedKey.Value;
         return true;
+    }
+
+    /// <summary>A key name, or a single digit for the digit key. Enum.TryParse would take a number as
+    /// the key's underlying value (so "2" would be the Backspace key), which no name stands for.</summary>
+    private static bool TryParseKey(string part, out Key key)
+    {
+        key = Key.None;
+        if (part.Length == 1 && char.IsAsciiDigit(part[0]))
+        {
+            key = Key.D0 + (part[0] - '0');
+            return true;
+        }
+
+        return !char.IsAsciiDigit(part[0]) && Enum.TryParse(part, ignoreCase: true, out key) && Enum.IsDefined(key);
     }
 
     /// <summary>Not a key by itself (none, or a modifier key) and not one of the four window snap

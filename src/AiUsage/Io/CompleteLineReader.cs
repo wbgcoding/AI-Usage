@@ -121,13 +121,13 @@ internal static class CompleteLineReader
         {
             cancellationToken.ThrowIfCancellationRequested();
             Deliver(carry.AsSpan(0, carryLength));
-            consumedOffset = endOffset;
+            consumedOffset += carryLength;
         }
 
         // An unterminated final record past the cap was counted but never delivered; once its writer
         // has stopped, the whole tail is consumed so the next run does not meet it again.
         if (acceptTrailingLineWithoutNewline && discarding)
-            consumedOffset = endOffset;
+            consumedOffset += discardedBytes;
 
         return consumedOffset;
     }

@@ -57,6 +57,8 @@ public static class CountdownFormatter
         var culture = LocalizationService.Instance.DisplayCulture;
         var local = TimeZoneInfo.ConvertTime(reset, zone);
         var remaining = reset - now;
+        if (remaining <= TimeSpan.Zero)
+            return "";
         if (remaining < TimeSpan.FromHours(24))
             return local.ToString("t", culture);
 

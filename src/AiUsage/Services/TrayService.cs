@@ -353,8 +353,9 @@ public sealed class TrayService : IDisposable
 
     private void ShowContextMenu(TrayEvent callback)
     {
-        // A second request while the menu is open must not reopen it.
-        if (_menu.IsOpen)
+        // A second request while the menu is open must not reopen it; a request that outlives the
+        // window has nothing left to anchor to.
+        if (_menu.IsOpen || _disposed)
             return;
 
         var anchor = ResolveAnchor(callback);
@@ -621,6 +622,8 @@ public sealed class TrayService : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
         _disposed = true;
         LocalizationService.Instance.PropertyChanged -= _localizationChanged;
         StopAddRetries();

@@ -69,9 +69,13 @@ internal static class ClaudeConsoleCreditParser
                     || !org.TryGetProperty("capabilities", out var capabilities) || capabilities.ValueKind != JsonValueKind.Array)
                     continue;
 
-                readable = true;
+                // An id of another format is a changed answer, not an account without the API.
                 var id = uuid.GetString();
-                if (IsOrganizationId(id) && capabilities.EnumerateArray().Any(c => c.ValueKind == JsonValueKind.String && c.GetString() == "api"))
+                if (!IsOrganizationId(id))
+                    continue;
+
+                readable = true;
+                if (capabilities.EnumerateArray().Any(c => c.ValueKind == JsonValueKind.String && c.GetString() == "api"))
                     apiIds.Add(id!);
             }
 

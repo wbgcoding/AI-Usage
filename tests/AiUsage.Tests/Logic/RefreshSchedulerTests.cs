@@ -438,6 +438,22 @@ public class RefreshSchedulerTests
     }
 
     [Fact]
+    public async Task A_cancel_that_arrives_while_the_fetch_is_being_announced_still_stops_it()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));
+        var provider = new FakeProvider("claude", _ => Task.FromResult(Ok("claude")));
+        var scheduler = new RefreshScheduler([provider], BaseInterval, clock,
+            minFetchTimeout: TimeSpan.FromSeconds(30), maxFetchTimeout: TimeSpan.FromSeconds(30), retryDelay: TimeSpan.Zero);
+        var reported = new List<ProviderSnapshot>();
+        scheduler.SnapshotReady += reported.Add;
+        scheduler.FetchStarted += id => _ = scheduler.CancelProvider(id);
+
+        await Task.WhenAll(scheduler.Tick());
+
+        Assert.Empty(reported);
+    }
+
+    [Fact]
     public async Task An_owner_cancel_raises_FetchEnded_for_the_provider_instead_of_a_snapshot()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-09-05T12:00:00Z"));

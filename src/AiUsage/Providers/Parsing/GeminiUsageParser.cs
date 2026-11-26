@@ -288,7 +288,9 @@ public static class GeminiUsageParser
     // The fraction the change check compares: the number itself, 0 for an exhausted bucket that names
     // its reset, otherwise nothing.
     private static double? ModelFraction(ModelBucket bucket) =>
-        bucket.Kind == FractionKind.Number ? bucket.Fraction : bucket.HasResetTime ? 0 : null;
+        bucket.Kind == FractionKind.Number
+            ? bucket.Fraction is >= 0 and <= 1 ? bucket.Fraction : null
+            : bucket.Kind != FractionKind.Invalid && bucket.HasResetTime ? 0 : null;
 
     /// <summary>
     /// True when both answers are intact but Antigravity simply has no Gemini quota for this account:
