@@ -286,8 +286,8 @@ public sealed partial class SettingsViewModel
             StatsIndexSizeText = FormatStatsIndexSize(_statsIndexInfo);
     }
 
-    private static string FormatStatsIndexSize((long Entries, long Bytes)? info) =>
+    internal static string FormatStatsIndexSize((long Entries, long Bytes)? info) =>
         info is { } known
-            ? LocalizationService.Instance.Format("Settings.Stats.IndexSize", known.Entries.ToString("N0", CultureInfo.CurrentCulture), FormatHistorySize(known.Bytes))
+            ? LocalizationService.Instance.FormatCount("Settings.Stats.IndexSize", known.Entries, known.Entries.ToString("N0", CultureInfo.CurrentCulture), FormatHistorySize(known.Bytes))
             : "";
 }

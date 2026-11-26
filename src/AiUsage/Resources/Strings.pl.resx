@@ -739,6 +739,7 @@
   <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Kolejność wierszy dni tygodnia i siatek miesięcy. Sumy tygodniowe nadal liczą się od poniedziałku do niedzieli.</value></data>
   <data name="Settings.Stats.Sections" xml:space="preserve"><value>Wyświetlane sekcje</value></data>
   <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Indeks: {0} wpisów, {1}</value></data>
+  <data name="Settings.Stats.IndexSize.Few" xml:space="preserve"><value>Indeks: {0} wpisy, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (środki API)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Zalogowano</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Zalogowano przez logowanie do Claude</value></data>

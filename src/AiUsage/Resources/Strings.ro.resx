@@ -740,7 +740,8 @@
   <data name="Settings.Stats.WeekStart.Sunday" xml:space="preserve"><value>Duminică</value></data>
   <data name="Tip.Settings.Stats.WeekStart" xml:space="preserve"><value>Ordinea rândurilor cu zilele săptămânii și a grilelor lunare. Totalurile săptămânale rămân de luni până duminică.</value></data>
   <data name="Settings.Stats.Sections" xml:space="preserve"><value>Secțiuni afișate</value></data>
-  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Index: {0} intrări, {1}</value></data>
+  <data name="Settings.Stats.IndexSize" xml:space="preserve"><value>Index: {0} de intrări, {1}</value></data>
+  <data name="Settings.Stats.IndexSize.Few" xml:space="preserve"><value>Index: {0} intrări, {1}</value></data>
   <data name="Settings.ConsoleRow.Title" xml:space="preserve"><value>Claude Console (credit API)</value></data>
   <data name="Settings.ConsoleStatus.SignedIn" xml:space="preserve"><value>Conectat</value></data>
   <data name="Settings.ConsoleStatus.ViaClaude" xml:space="preserve"><value>Conectat prin conectarea la Claude</value></data>
