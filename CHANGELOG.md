@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - A tile whose limit is reached keeps its normal frame instead of a red one.
+- The Light and Nebula themes use stronger warning and critical colours that are easier to read.
+- German durations read Std., Min. and Sek.; Polish and Romanian counts use their correct plural forms.
+- The settings export leaves out extra accounts and choices that only fit the PC it came from.
+- The sign-in bar, the chart tooltip and long forecast details match the look of the rest of the app.
+
+### Fixed
+- The Claude credit is read right after a new Console sign-in, also after a plan change, and reads no longer stop when the clock is set back.
+- A fresh five-hour Claude limit is no longer hidden behind a weekly limit that was lifted early.
+- Session durations in the statistics are no longer cut off and keep a gap to the token count.
+- The loading bar in the sign-in window moves again when it is shown a second time.
+- Reading Claude, Cursor and Gemini usage, backups and the global hotkey cope better with rare errors.
 
 ## [1.5.2] - 2026-11-21
 
