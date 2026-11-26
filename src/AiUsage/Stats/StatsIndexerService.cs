@@ -390,10 +390,12 @@ public sealed class StatsIndexerService : IDisposable
             {
                 if (_latest is not null || generation != _snapshotGeneration)
                     return;
+                // Marked as persisted in the same step it is published, so a save in between never
+                // writes the file it was just loaded from, nor marks an older snapshot over a newer one.
+                lock (_persistGate)
+                    _persisted = snapshot;
                 _latest = snapshot;
             }
-            lock (_persistGate)
-                _persisted = snapshot;
         });
     }
 
@@ -580,6 +582,8 @@ public sealed class StatsIndexerService : IDisposable
         try
         {
             var now = Clock().LocalDateTime;
+            // A failure before the first due week (the folder cannot be listed) counts for this week.
+            week = StatsWeeklyCsv.PreviousWeek(DateOnly.FromDateTime(now)).FileName;
             var existing = Directory.Exists(folder)
                 ? Directory.EnumerateFiles(folder, "AI-Usage-*.csv").Select(path => Path.GetFileName(path))
                 : [];
