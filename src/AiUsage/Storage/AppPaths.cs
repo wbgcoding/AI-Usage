@@ -178,11 +178,20 @@ public static class AppPaths
     /// (<c>C:\Temp2</c> against root <c>C:\Temp</c>) is never mistaken for being under it.</summary>
     internal static bool IsUnderRoot(string path, string root)
     {
-        var fullPath = Path.GetFullPath(path);
-        var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fullPath = StripDevicePrefix(Path.GetFullPath(path));
+        var fullRoot = StripDevicePrefix(Path.GetFullPath(root)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return fullPath.Equals(fullRoot, StringComparison.OrdinalIgnoreCase) ||
             fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>Drops the <c>\\?\</c> or <c>\\.\</c> device prefix of a full path so it compares like the
+    /// plain drive path it names; a UNC path under either prefix is left alone.</summary>
+    private static string StripDevicePrefix(string full) =>
+        (full.StartsWith(@"\\?\", StringComparison.Ordinal) || full.StartsWith(@"\\.\", StringComparison.Ordinal))
+        && !full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)
+        && !full.StartsWith(@"\\.\UNC\", StringComparison.OrdinalIgnoreCase)
+            ? full[4..]
+            : full;
 
     /// <summary>Test seam only: redirects <see cref="LocationPointerFile"/> under a fake root instead
     /// of the real ApplicationData folder, so a test never writes the real

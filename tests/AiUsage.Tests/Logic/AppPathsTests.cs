@@ -329,6 +329,16 @@ public class AppPathsTests : IDisposable
     public void ClassifyFolderRisk_tells_the_five_kinds_of_folder_apart(string path, AppPaths.FolderRisk expected) =>
         Assert.Equal(expected, AppPaths.ClassifyFolderRisk(path, DriveOf, [@"C:\Profiles\sample\OneDrive"]));
 
+    [Theory]
+    [InlineData(@"\\?\C:\Profiles\sample\Scratch\d", @"C:\Profiles\sample\Scratch", true)]
+    [InlineData(@"\\.\C:\Profiles\sample\Scratch\d", @"C:\Profiles\sample\Scratch", true)]
+    [InlineData(@"C:\Profiles\sample\Scratch\d", @"\\?\C:\Profiles\sample\Scratch", true)]
+    [InlineData(@"\\?\C:\Profiles\sample\Scratch", @"C:\Profiles\sample\Scratch\", true)]
+    [InlineData(@"\\?\C:\Profiles\sample\Scratch2\d", @"C:\Profiles\sample\Scratch", false)]
+    [InlineData(@"\\?\D:\Profiles\sample\Scratch\d", @"C:\Profiles\sample\Scratch", false)]
+    public void IsUnderRoot_sees_through_a_device_prefix_on_either_side(string path, string root, bool expected) =>
+        Assert.Equal(expected, AppPaths.IsUnderRoot(path, root));
+
     [Fact]
     public void ClassifyFolderRisk_follows_the_configured_cloud_roots()
     {
