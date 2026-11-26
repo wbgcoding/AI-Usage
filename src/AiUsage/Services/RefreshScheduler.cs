@@ -281,8 +281,12 @@ public sealed class RefreshScheduler
             }
         }
 
-        string? holdReason = null;
-        if (!ignoreNetworkSkip && NetworkIsOffLocked(now)
+        // A manual refresh reads past the hold, and a tick with nothing due says nothing about it: the
+        // hold only counts as over once the network is no longer held back.
+        var holdReason = _lastHoldReason;
+        if (!NetworkIsOffLocked(now))
+            holdReason = null;
+        else if (!ignoreNetworkSkip
             && _providers.Any(p => !due.Contains(p) && !_state[p.AccountKey].InFlight && now >= _state[p.AccountKey].NextDueAt))
             holdReason = PausedUntilLocked(now) is not null ? "paused" : "energy saver";
 

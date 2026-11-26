@@ -83,4 +83,29 @@ public class RefreshSchedulerDiagnosticsTests
         Assert.Equal("Refresh: network reads are no longer held", lines[^1]);
         Assert.Equal(2, lines.Count);
     }
+
+    [Fact]
+    public async Task A_manual_refresh_or_a_quiet_tick_during_a_hold_does_not_log_the_hold_as_over()
+    {
+        var clock = new FakeClock();
+        List<string> lines = [];
+        var scheduler = new RefreshScheduler([new Provider("web", SourceKind.WebSession)], BaseInterval, clock, logInfo: lines.Add);
+        await Task.WhenAll(scheduler.Tick());
+
+        scheduler.PauseFor(TimeSpan.FromHours(1));
+        clock.Advance(TimeSpan.FromMinutes(2));
+        scheduler.Tick();
+        Assert.Equal(["Refresh: network reads are held while due (paused)"], lines);
+
+        // The manual refresh reads past the pause; afterwards nothing is due while the pause still holds.
+        await Task.WhenAll(scheduler.RefreshNow());
+        clock.Advance(TimeSpan.FromSeconds(1));
+        scheduler.Tick();
+        Assert.Equal(["Refresh: network reads are held while due (paused)"], lines);
+
+        scheduler.Resume();
+        scheduler.Tick();
+        Assert.Equal("Refresh: network reads are no longer held", lines[^1]);
+        Assert.Equal(2, lines.Count);
+    }
 }
