@@ -89,7 +89,6 @@ public static class ClaudeUsageParser
             MinorToMajor(TryGetDouble(node, "monthly_limit")), currency);
     }
 
-
     // Largest minor-unit figure that still converts to a decimal; anything beyond it, or not finite, reads as absent.
     private const double MaxMinorUnits = 7.9e28;
 

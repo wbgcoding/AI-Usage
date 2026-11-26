@@ -88,6 +88,8 @@ public class ClaudeCreditGrantTests
     [InlineData("{\"granted_amount_minor_units\":\"100\",\"remaining_amount_minor_units\":50}")]
     [InlineData("{\"remaining_amount_minor_units\":50}")]
     [InlineData("{\"granted_amount_minor_units\":100,\"remaining_amount_minor_units\":50,\"expires_at\":\"soon\"}")]
+    [InlineData("{\"granted_amount_minor_units\":100,\"remaining_amount_minor_units\":50,\"expires_at\":1700000000}")]
+    [InlineData("{\"granted_amount_minor_units\":100,\"remaining_amount_minor_units\":50,\"expires_at\":true}")]
     public void A_grant_that_does_not_hold_together_shows_nothing_and_is_reported(string tranche)
     {
         var body = Credits("[" + Tranche(10000, 5000, "2026-12-01T00:00:00Z") + "," + tranche + "]");

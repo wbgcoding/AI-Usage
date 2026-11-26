@@ -165,9 +165,12 @@ internal static class ClaudeConsoleCreditParser
             }
 
             DateTimeOffset? expires = null;
-            if (tranche.TryGetProperty("expires_at", out var expiresEl) && expiresEl.ValueKind == JsonValueKind.String)
+            // Present but not text (a number, say) is a changed shape, not "no expiry": a grant that has
+            // ended would count.
+            if (tranche.TryGetProperty("expires_at", out var expiresEl) && expiresEl.ValueKind != JsonValueKind.Null)
             {
-                if (!DateTimeOffset.TryParse(expiresEl.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+                if (expiresEl.ValueKind != JsonValueKind.String
+                    || !DateTimeOffset.TryParse(expiresEl.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
                 {
                     unreadable = true;
                     return null;
