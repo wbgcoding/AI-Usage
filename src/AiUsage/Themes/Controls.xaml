@@ -1130,21 +1130,27 @@
                         <Trigger Property="IsIndeterminate" Value="True">
                             <Setter TargetName="PART_Indicator" Property="Visibility" Value="Hidden"/>
                             <Setter TargetName="MovingBlock" Property="Visibility" Value="Visible"/>
-                            <Trigger.EnterActions>
+                        </Trigger>
+                        <!-- A collapsed element's clock keeps ticking, so the sweep runs only while the bar is
+                             both indeterminate and visible: it stops when the bar is hidden and starts again
+                             when the same bar is shown a second time. -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsIndeterminate" Value="True"/>
+                                <Condition Property="IsVisible" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
                                 <BeginStoryboard x:Name="MovingAnimation">
                                     <Storyboard Timeline.DesiredFrameRate="60">
                                         <DoubleAnimation Storyboard.TargetName="MovingTransform" Storyboard.TargetProperty="X"
                                                          From="-0.5" To="0.75" Duration="0:0:1.2" RepeatBehavior="Forever"/>
                                     </Storyboard>
                                 </BeginStoryboard>
-                            </Trigger.EnterActions>
-                        </Trigger>
-                        <!-- A collapsed element's clock keeps ticking: stop it once the bar is hidden. -->
-                        <Trigger Property="IsVisible" Value="False">
-                            <Trigger.EnterActions>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
                                 <StopStoryboard BeginStoryboardName="MovingAnimation"/>
-                            </Trigger.EnterActions>
-                        </Trigger>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

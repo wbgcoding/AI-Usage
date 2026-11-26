@@ -120,7 +120,32 @@ public class SignInWindowTests
         Assert.Contains("AiUsageProgressBar", window, StringComparison.Ordinal);
         var xaml = File.ReadAllText(Path.Combine(root, "src", "AiUsage", "Themes", "Controls.xaml"));
         Assert.Contains("<StopStoryboard BeginStoryboardName=\"MovingAnimation\"/>", xaml, StringComparison.Ordinal);
-        Assert.Contains("Property=\"IsVisible\" Value=\"False\"", xaml, StringComparison.Ordinal);
+    }
+
+    /// <summary>The loading panel is shown again for every sign-in, so the sweep must begin each time
+    /// the bar turns visible, not only when it first becomes indeterminate: the begin action sits on a
+    /// trigger that needs both IsIndeterminate and IsVisible, and its exit action stops the clock.
+    /// A real animation clock needs a shown window, which a unit test does not open on the host, so
+    /// this reads the template.</summary>
+    [Fact]
+    public void TheLoadingBarSweepRestartsWhenTheBarIsShownAgain()
+    {
+        var xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "AiUsage", "Themes", "Controls.xaml"));
+        var start = xaml.IndexOf("<Style x:Key=\"AiUsageProgressBar\"", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var style = xaml[start..];
+
+        var multi = style.IndexOf("<MultiTrigger>", StringComparison.Ordinal);
+        Assert.True(multi >= 0, "The sweep needs a trigger on indeterminate and visible together.");
+        var multiEnd = style.IndexOf("</MultiTrigger>", multi, StringComparison.Ordinal);
+        var trigger = style[multi..multiEnd];
+
+        Assert.Contains("<Condition Property=\"IsIndeterminate\" Value=\"True\"/>", trigger, StringComparison.Ordinal);
+        Assert.Contains("<Condition Property=\"IsVisible\" Value=\"True\"/>", trigger, StringComparison.Ordinal);
+        Assert.Contains("<BeginStoryboard x:Name=\"MovingAnimation\">", trigger, StringComparison.Ordinal);
+        Assert.Contains("<MultiTrigger.ExitActions>", trigger, StringComparison.Ordinal);
+        Assert.Contains("<StopStoryboard BeginStoryboardName=\"MovingAnimation\"/>", trigger, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(style, "<BeginStoryboard "));
     }
 
     /// <summary>A subdomain of the provider's own site is still the provider's own site - otherwise
