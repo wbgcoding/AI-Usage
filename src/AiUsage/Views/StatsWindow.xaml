@@ -661,7 +661,7 @@
                                         <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Start]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Duration]}"
+                                        <TextBlock Grid.Column="2" Margin="0,0,8,0" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Duration]}"
                                                    Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Grid.Column="3" Text="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Col.Tokens]}"
@@ -703,7 +703,7 @@
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1" Text="{Binding Start}" Foreground="{DynamicResource Text.Secondary}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding Duration}" Foreground="{DynamicResource Text.Secondary}"
+                                                    <TextBlock Grid.Column="2" Margin="0,0,8,0" Text="{Binding Duration}" Foreground="{DynamicResource Text.Secondary}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                                     <!-- The cost sits under the token figure, so it never takes width from the project name. -->
                                                     <StackPanel Grid.Column="3" Margin="0,0,8,0">
