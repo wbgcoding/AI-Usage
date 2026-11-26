@@ -276,7 +276,7 @@
   <data name="WindowLayer.Normal" xml:space="preserve"><value>Normalnie</value></data>
   <data name="WindowLayer.Desktop" xml:space="preserve"><value>Na pulpicie</value></data>
   <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Zostaje za wszystkimi oknami, widoczne po spojrzeniu na pulpit.</value></data>
-  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Ukryj, gdy działa aplikacja pełnoekranowa</value></data>
+  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Ukryj przy aplikacji pełnoekranowej</value></data>
   <data name="Settings.Zoom" xml:space="preserve"><value>Rozmiar</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Obszar powiadomień</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Motyw</value></data>

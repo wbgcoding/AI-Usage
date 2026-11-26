@@ -274,7 +274,7 @@
   <data name="WindowLayer.Normal" xml:space="preserve"><value>Normal</value></data>
   <data name="WindowLayer.Desktop" xml:space="preserve"><value>Sur le bureau</value></data>
   <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Reste derrière toutes les fenêtres, visible quand tu regardes le bureau.</value></data>
-  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Masquer pendant une application en plein écran</value></data>
+  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Masquer en mode plein écran</value></data>
   <data name="Settings.Zoom" xml:space="preserve"><value>Taille</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Zone de notification</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Thème</value></data>
@@ -562,7 +562,7 @@
   <data name="Notify.Forecast" xml:space="preserve"><value>{0} : {1} sera probablement plein dans environ {2} (actuellement {3} %)</value></data>
   <data name="Settings.AllDays" xml:space="preserve"><value>Autoriser les notifications tous les jours</value></data>
   <data name="Tip.Settings.AllDays" xml:space="preserve"><value>Désactive pour choisir des jours sans notifications : les jours décochés restent totalement silencieux.</value></data>
-  <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Afficher le repère de temps dans les barres</value></data>
+  <data name="Settings.ShowPaceMarker" xml:space="preserve"><value>Afficher le repère temporel</value></data>
   <data name="Tip.Settings.ShowPaceMarker" xml:space="preserve"><value>Un petit trait dans chaque barre indique quelle part de la fenêtre de temps s'est écoulée. Si le remplissage le dépasse, l'utilisation va plus vite que le temps.</value></data>
   <data name="Settings.ShowPaceBelowHint" xml:space="preserve"><value>Indice si sous la part de temps</value></data>
   <data name="Tip.Settings.ShowPaceBelowHint" xml:space="preserve"><value>L'infobulle de la barre précise quand l'utilisation est sous la part de fenêtre écoulée. Désactivé, seule cette phrase disparaît ; en avance et dans le rythme restent.</value></data>
@@ -690,7 +690,7 @@
   <data name="Toast.MuteToday" xml:space="preserve"><value>Plus aujourd'hui</value></data>
   <data name="Tray.Note.SignIn" xml:space="preserve"><value>Connexion requise</value></data>
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>(au {0})</value></data>
-  <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Sauvegarder l'index des tokens chaque semaine</value></data>
+  <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Sauvegarde hebdomadaire de l'index</value></data>
   <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Conserve trois copies dans le dossier stats-backups. Un index endommagé est restauré à partir d'elles.</value></data>
   <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Lecture des journaux de session : {0} fichiers sur {1}</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>Sauvegarde du {0}. Historique du {1} au {2} pour {3} comptes.</value></data>
@@ -726,7 +726,7 @@
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Lire les fichiers de session une fois…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} fichiers de session lus, {1} nouveaux</value></data>
   <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Le dossier n'a pas pu être lu. Vérifie qu'il existe toujours et que tu peux l'ouvrir.</value></data>
-  <data name="Settings.Section.Stats" xml:space="preserve"><value>Consommation de tokens</value></data>
+  <data name="Settings.Section.Stats" xml:space="preserve"><value>Usage des tokens</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Période à l'ouverture</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Dernière utilisée</value></data>
   <data name="Settings.Stats.WeekStart" xml:space="preserve"><value>La semaine commence le</value></data>

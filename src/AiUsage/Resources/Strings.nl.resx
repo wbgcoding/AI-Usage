@@ -274,7 +274,7 @@
   <data name="WindowLayer.Normal" xml:space="preserve"><value>Normaal</value></data>
   <data name="WindowLayer.Desktop" xml:space="preserve"><value>Op het bureaublad</value></data>
   <data name="WindowLayer.Desktop.Hint" xml:space="preserve"><value>Blijft achter alle vensters, zichtbaar als je naar het bureaublad kijkt.</value></data>
-  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Verbergen tijdens een app op volledig scherm</value></data>
+  <data name="Settings.HideOnFullscreen" xml:space="preserve"><value>Verbergen bij volledig scherm</value></data>
   <data name="Settings.Zoom" xml:space="preserve"><value>Grootte</value></data>
   <data name="Settings.Group.Tray" xml:space="preserve"><value>Systeemvak</value></data>
   <data name="Settings.Theme" xml:space="preserve"><value>Thema</value></data>

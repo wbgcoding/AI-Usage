@@ -16,6 +16,7 @@ More reliable Claude credit and limit reads, easier to read warning colours and 
 - The sign-in bar, the chart tooltip and long forecast details match the look of the rest of the app.
 - The headers and update buttons in About wrap in a narrow window instead of being cut off.
 - Screen readers announce whether a settings section is open or closed.
+- A few long setting labels in French, Italian, Dutch, Polish, Romanian and Turkish are shorter, so they are no longer cut off.
 
 ### Fixed
 - The Claude credit is read right after a new Console sign-in, also after a plan change, and reads no longer stop when the clock is set back.
