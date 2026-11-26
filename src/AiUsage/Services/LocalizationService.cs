@@ -206,13 +206,15 @@ public sealed class LocalizationService : INotifyPropertyChanged
 
     /// <summary>Formats a phrase whose noun depends on <paramref name="count"/>. A language that needs
     /// a second plural form (<see cref="PluralRules"/>) keeps it under "<paramref name="key"/>.Few";
-    /// all other counts and languages use the key itself.</summary>
+    /// a fraction in Polish uses "<paramref name="key"/>.Fraction"; all other counts and languages
+    /// use the key itself.</summary>
     public string FormatCount(string key, double count, params object[] args)
     {
         var resources = s_scope.Value?.Resources ?? _active;
-        var template = PluralRules.UsesFewForm(ActiveCulture, count)
-            ? resources.GetString(key + ".Few", CultureInfo.InvariantCulture) ?? this[key]
-            : this[key];
+        var suffix = PluralRules.UsesFractionForm(ActiveCulture, count) ? ".Fraction"
+            : PluralRules.UsesFewForm(ActiveCulture, count) ? ".Few"
+            : null;
+        var template = (suffix is null ? null : resources.GetString(key + suffix, CultureInfo.InvariantCulture)) ?? this[key];
         return string.Format(CultureInfo.CurrentCulture, template, args);
     }
 

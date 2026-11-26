@@ -10,6 +10,11 @@ namespace AiUsage.Services;
 /// </summary>
 internal static class PluralRules
 {
+    /// <summary>Polish puts a fraction in the genitive singular: "1,5 roku", not "1,5 lat". Only
+    /// a language with such a rule keeps a "&lt;key&gt;.Fraction" text.</summary>
+    public static bool UsesFractionForm(CultureInfo language, double count) =>
+        language.TwoLetterISOLanguageName == "pl" && Math.Abs(count) % 1 != 0;
+
     public static bool UsesFewForm(CultureInfo language, double count)
     {
         var magnitude = Math.Abs(count);

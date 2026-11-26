@@ -52,11 +52,21 @@ public class LocalizationParityTests
     }
 
     // English has no second plural, so a "<key>.Few" form exists only in a language whose grammar
-    // has one, and only beside a key English has.
-    private static bool IsFewForm(string languageCode, string key, HashSet<string> englishKeys) =>
-        key.EndsWith(".Few", StringComparison.Ordinal)
-        && englishKeys.Contains(key[..^".Few".Length])
-        && Enumerable.Range(2, 3).Any(count => PluralRules.UsesFewForm(CultureInfo.GetCultureInfo(languageCode), count));
+    // has one, and only beside a key English has. A "<key>.Fraction" form likewise needs a language
+    // with a separate noun form for fractions.
+    private static bool IsFewForm(string languageCode, string key, HashSet<string> englishKeys)
+    {
+        var language = CultureInfo.GetCultureInfo(languageCode);
+        if (key.EndsWith(".Few", StringComparison.Ordinal))
+            return englishKeys.Contains(key[..^".Few".Length])
+                && Enumerable.Range(2, 3).Any(count => PluralRules.UsesFewForm(language, count));
+        return key.EndsWith(".Fraction", StringComparison.Ordinal)
+            && englishKeys.Contains(key[..^".Fraction".Length])
+            && PluralRules.UsesFractionForm(language, 1.5);
+    }
+
+    private static bool IsPluralVariant(string key) =>
+        key.EndsWith(".Few", StringComparison.Ordinal) || key.EndsWith(".Fraction", StringComparison.Ordinal);
 
     [Fact]
     public void EveryFewFormUsesTheSamePlaceholdersAsItsKey()
@@ -65,9 +75,9 @@ public class LocalizationParityTests
         {
             var set = language.Resources!.GetResourceSet(CultureInfo.InvariantCulture, createIfNotExists: true, tryParents: false)!;
             var values = set.Cast<DictionaryEntry>().ToDictionary(e => (string)e.Key, e => (string)e.Value!);
-            foreach (var (key, few) in values.Where(pair => pair.Key.EndsWith(".Few", StringComparison.Ordinal)))
+            foreach (var (key, few) in values.Where(pair => IsPluralVariant(pair.Key)))
             {
-                var baseKey = key[..^".Few".Length];
+                var baseKey = key[..key.LastIndexOf('.')];
                 Assert.True(values.TryGetValue(baseKey, out var plain), $"{language.Code}: {key} has no {baseKey}");
                 Assert.Equal(
                     Placeholder.Matches(plain!).Select(m => m.Value).Order(),

@@ -32,6 +32,41 @@ public class PluralRulesTests
     }
 
     [Theory]
+    [InlineData("pl", 1.5, true)]
+    [InlineData("pl", -0.5, true)]
+    [InlineData("pl", 2, false)]
+    [InlineData("ro", 1.5, false)]
+    [InlineData("de", 1.5, false)]
+    public void UsesFractionForm_is_a_polish_rule_for_non_integer_counts(string language, double count, bool expected)
+    {
+        Assert.Equal(expected, PluralRules.UsesFractionForm(CultureInfo.GetCultureInfo(language), count));
+    }
+
+    [Theory]
+    [InlineData("pl", 600, "1,6 roku")]
+    [InlineData("pl", 547, "1,5 roku")]
+    [InlineData("pl", 365, "1 rok")]
+    [InlineData("pl", 3650, "10 lat")]
+    [InlineData("pl", 1095, "3 lata")]
+    [InlineData("ro", 547, "1,5 ani")]
+    [InlineData("de", 547, "1,5 Jahre")]
+    public void A_fractional_year_takes_the_form_its_language_needs(string language, int days, string expected)
+    {
+        var previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+        LocalizationService.Instance.SetLanguage(language);
+        try
+        {
+            Assert.Equal(expected, DurationFormatter.Describe(days));
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage("de");
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Theory]
     [InlineData("ro", 3, "3 zile")]
     [InlineData("ro", 30, "30 de zile")]
     [InlineData("ro", 730, "2 ani")]

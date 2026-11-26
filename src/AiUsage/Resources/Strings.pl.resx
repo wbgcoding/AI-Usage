@@ -159,6 +159,7 @@
   <data name="Duration.Year" xml:space="preserve"><value>1 rok</value></data>
   <data name="Duration.Years" xml:space="preserve"><value>{0} lat</value></data>
   <data name="Duration.Years.Few" xml:space="preserve"><value>{0} lata</value></data>
+  <data name="Duration.Years.Fraction" xml:space="preserve"><value>{0} roku</value></data>
   <data name="Age.Bare" xml:space="preserve"><value>{0} temu</value></data>
   <data name="Chart.Range.Day" xml:space="preserve"><value>24 godziny</value></data>
   <data name="Chart.Range.Week" xml:space="preserve"><value>7 dni</value></data>
