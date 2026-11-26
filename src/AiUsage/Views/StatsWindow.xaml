@@ -72,7 +72,6 @@
             <Setter Property="AutomationProperties.Name" Value="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Filter.Remove]}"/>
         </Style>
         <!-- The session table's fixed columns: the header row and every row use the same widths. -->
-        <GridLength x:Key="SessionDurationWidth">96</GridLength>
         <GridLength x:Key="SessionTokensWidth">88</GridLength>
         <!-- The name before each of the breakdown section's two pickers. -->
         <Style x:Key="PickerLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -652,7 +651,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
-                                            <ColumnDefinition Width="{StaticResource SessionDurationWidth}"/>
+                                            <ColumnDefinition Width="Auto" MinWidth="96" SharedSizeGroup="SessionDuration"/>
                                             <ColumnDefinition Width="{StaticResource SessionTokensWidth}"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="{DynamicResource Text.Secondary}" FontSize="{StaticResource Font.Size.Micro}"
@@ -694,7 +693,7 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto" MinWidth="120" SharedSizeGroup="SessionStart"/>
-                                                        <ColumnDefinition Width="{StaticResource SessionDurationWidth}"/>
+                                                        <ColumnDefinition Width="Auto" MinWidth="96" SharedSizeGroup="SessionDuration"/>
                                                         <ColumnDefinition Width="{StaticResource SessionTokensWidth}"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Grid.Column="0">
