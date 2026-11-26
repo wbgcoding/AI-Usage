@@ -208,7 +208,9 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         {
             if (_disposed || !_running.IsCompleted)
                 return _running;
-            if (_lastAttemptAt is { } last && _time.GetUtcNow() - last < ReadInterval)
+            // A clock set back leaves the stamp in the future: that never holds a read off.
+            var now = _time.GetUtcNow();
+            if (_lastAttemptAt is { } last && now >= last && now - last < ReadInterval)
                 return Task.CompletedTask;
             if (!_hasProfile())
                 return Task.CompletedTask;
@@ -223,12 +225,13 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     {
         Task pending;
         lock (_gate)
-        {
-            _lastAttemptAt = null;
             pending = _running;
-        }
 
+        // Cleared after the wait: the read that just ended stamped its own start, and a stamp cleared
+        // before the wait would let the read started in between count as the due one.
         await pending;
+        lock (_gate)
+            _lastAttemptAt = null;
         await RefreshIfDueAsync();
     }
 
@@ -243,19 +246,36 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
         // back-off again after the sign-in cleared it.
         await pending;
 
-        bool expiredCleared;
+        var expiredCleared = ForgetConsoleHold(out var started);
+        if (expiredCleared)
+            Changed?.Invoke();
+
+        // A read that started between the wait above and the clearing saw the back-off and skipped the
+        // console. It ends first, then the clearing is repeated, so the sign-in is read by a read that
+        // really asks the console.
+        if (!started.IsCompleted)
+        {
+            await started;
+            ForgetConsoleHold(out _);
+        }
+
+        await RefreshIfDueAsync();
+    }
+
+    /// <summary>Drops the console back-off, the sign-out mark and the read stamp; <paramref name="running"/>
+    /// is the read that was running at that moment.</summary>
+    private bool ForgetConsoleHold(out Task running)
+    {
         lock (_gate)
         {
             _consoleBlockedUntil = null;
             _consoleOff = false;
             _lastAttemptAt = null;
-            expiredCleared = _consoleSignInExpired;
+            var expiredCleared = _consoleSignInExpired;
             _consoleSignInExpired = false;
+            running = _running;
+            return expiredCleared;
         }
-
-        if (expiredCleared)
-            Changed?.Invoke();
-        await RefreshIfDueAsync();
     }
 
     private async Task ReadAsync()
@@ -400,7 +420,12 @@ internal sealed class ClaudeConsoleCreditSource : IShutdownDisposable
     private bool ConsoleIsPaused()
     {
         lock (_gate)
-            return _consoleBlockedUntil is { } until && _time.GetUtcNow() < until;
+        {
+            // A pause that lies further ahead than the pause is long was stamped by a clock that has
+            // been set back since: it is over.
+            var now = _time.GetUtcNow();
+            return _consoleBlockedUntil is { } until && now < until && until <= now + ConsoleBackoff;
+        }
     }
 
     /// <summary>One route's answer, and for a failure which of its two requests it came from (" at

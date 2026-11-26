@@ -375,6 +375,82 @@ public class ClaudeConsoleCreditSourceTests
     }
 
     [Fact]
+    public async Task ReadNowAsync_reads_the_console_even_when_a_plan_change_refresh_started_a_read_first()
+    {
+        var time = new ManualTime();
+        var console = new FakeRunner();
+        var hangConsole = new TaskCompletionSource<string>();
+        var hangSite = new TaskCompletionSource<string>();
+        var consoleHangs = false;
+        var siteCalls = 0;
+        var runner = new ClaudeConsoleCreditSource.ConsoleRunner(
+            (script, ct) => consoleHangs && script.Contains("'/api/organizations'", StringComparison.Ordinal)
+                ? hangConsole.Task
+                : console.Run(script, ct),
+            console.AsConsole().Owner);
+        Task<string> Site(string script, CancellationToken ct) => Interlocked.Increment(ref siteCalls) == 3
+            ? hangSite.Task
+            : Task.FromResult(NotSignedIn);
+        var source = new ClaudeConsoleCreditSource(Site, () => runner, time);
+
+        // The console delivers once, so it is the route asked first from now on.
+        await source.RefreshIfDueAsync();
+        Assert.Equal(18.40m, source.Current!.Amount);
+
+        time.Advance(TimeSpan.FromMinutes(31));
+        consoleHangs = true;
+        var inFlight = source.RefreshIfDueAsync();
+        var planChange = source.RefreshAfterPlanChangeAsync();
+        var readNow = source.ReadNowAsync();
+
+        // The running read ends with "not signed in" and sets the back-off; the plan change refresh then
+        // starts a read that skips the console behind it, which the sign-in must not be lost to.
+        console.Organizations = OrgsOk;
+        consoleHangs = false;
+        hangConsole.SetResult(NotSignedIn);
+        await inFlight;
+        hangSite.SetResult(NotSignedIn);
+        await planChange;
+        await readNow;
+
+        Assert.Equal(18.40m, source.Current!.Amount);
+        Assert.False(source.ConsoleSignInExpired);
+        Assert.Equal(4, console.Calls);
+    }
+
+    [Fact]
+    public async Task A_clock_set_back_does_not_stop_the_credit_reads_until_it_catches_up()
+    {
+        var time = new ManualTime();
+        var site = new FakeRunner();
+        var source = new ClaudeConsoleCreditSource(site.Run, null, time);
+
+        await source.RefreshIfDueAsync();
+        time.Advance(TimeSpan.FromHours(-3));
+        site.Credits = CreditsOk(900);
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(9.00m, source.Current!.Amount);
+    }
+
+    [Fact]
+    public async Task A_clock_set_back_ends_the_console_pause_after_not_signed_in()
+    {
+        var time = new ManualTime();
+        var console = new FakeRunner { Organizations = NotSignedIn };
+        var source = new ClaudeConsoleCreditSource(null, console.AsConsole, time);
+        await source.RefreshIfDueAsync();
+        Assert.Null(source.Current);
+
+        // The pause (six hours) now lies further ahead than the pause is long.
+        console.Organizations = OrgsOk;
+        time.Advance(TimeSpan.FromHours(-7));
+        await source.RefreshIfDueAsync();
+
+        Assert.Equal(18.40m, source.Current!.Amount);
+    }
+
+    [Fact]
     public async Task Raises_changed_only_when_the_balance_differs()
     {
         var time = new ManualTime();
