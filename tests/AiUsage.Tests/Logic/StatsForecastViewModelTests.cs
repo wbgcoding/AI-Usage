@@ -620,6 +620,31 @@ public class StatsForecastViewModelTests
         Assert.Equal(Loc["Stats.Forecast.AllModels"], window.ModelsCaption);
     }
 
+    [Theory]
+    [InlineData("pl", 2, "Szacunek z 2 godziny ")]
+    [InlineData("pl", 5, "Szacunek z 5 godzin ")]
+    [InlineData("pl", 12, "Szacunek z 12 godzin ")]
+    [InlineData("pl", 22, "Szacunek z 22 godziny ")]
+    [InlineData("en", 22, "Estimate from 22 hours ")]
+    public void The_per_percent_tip_names_the_interval_count_in_the_form_its_language_needs(string language, int intervals, string expectedStart)
+    {
+        var previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        Loc.SetLanguage(language);
+        try
+        {
+            var result = new PerPercentResult(PerPercentStatus.Total, intervals, [], 5_000, 172_000);
+            var window = Assert.Single(StatsViewModel.BuildForecastProvider(
+                Forecast(null, Window(result)), new StatsCostView(Prices()), Loc).Windows);
+            Assert.StartsWith(expectedStart, window.ToolTip);
+        }
+        finally
+        {
+            Loc.SetLanguage("de");
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     [Fact]
     public void A_window_with_too_few_intervals_shows_only_the_message()
     {

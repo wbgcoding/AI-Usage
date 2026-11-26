@@ -349,7 +349,7 @@ public sealed partial class StatsViewModel
         }
 
         var cached = window.Result.CacheReadPerPercent > 0 ? ShortenTokens(window.Result.CacheReadPerPercent, loc) : "–";
-        var lines = new List<string> { loc.Format("Stats.PerPercent.Tip", window.Result.IntervalCount, cached) };
+        var lines = new List<string> { loc.FormatCount("Stats.PerPercent.Tip", window.Result.IntervalCount, window.Result.IntervalCount, cached) };
         if (window.UnpricedModels.Count > 0 && CostService.UnpricedLine(new CostSummary(0, true, window.UnpricedModels)) is { } unpriced)
             lines.Add(unpriced);
         lines.Add(rangeNote);
