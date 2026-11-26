@@ -437,7 +437,7 @@
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} Limit-Reset genutzt, zuletzt {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} Limit-Resets genutzt, zuletzt {1}</value></data>
   <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Ein Limit-Reset setzt das Fenster vorzeitig zurück; die Statistik beginnt dann einen neuen Zeitraum.</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schätzung aus {0} Stunden deiner Nutzung. Gelesener Cache zählt getrennt: 1 % ≈ {1} Token aus dem Cache.</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Schätzung aus {0} Stunden deiner Nutzung. Cache-Lesezugriffe zählen getrennt: 1 % ≈ {1} Token aus dem Cache.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Ohne Projekt</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Weitere Projekte</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} Projekte</value></data>

@@ -440,7 +440,7 @@
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>Resetări de limită folosite: {0}, ultima {1}</value></data>
   <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>O resetare a limitei golește fereastra înainte de termen; statisticile încep atunci o nouă perioadă.</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din consumul propriu (ore: {0}). Citirile din cache se numără separat: 1% ≈ {1} (tokeni din cache).</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare pe baza a {0} h de utilizare. Citirile din cache se calculează separat. Număr estimat de tokeni din cache pentru 1% din cotă: {1}.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Fără proiect</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Alte proiecte</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} de proiecte</value></data>

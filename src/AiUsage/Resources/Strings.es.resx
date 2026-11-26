@@ -438,7 +438,7 @@
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} reinicio de límite usado, el último {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} reinicios de límite usados, el último {1}</value></data>
   <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Un reinicio de límite restablece la ventana antes de tiempo; las estadísticas comienzan entonces un nuevo período.</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimación a partir de {0} horas de tu propio uso. Las lecturas de caché se cuentan aparte: 1% ≈ {1} tokens en caché.</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimación a partir de {0} horas de tu propio uso. Las lecturas de caché se cuentan aparte: 1 % ≈ {1} tokens en caché.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Sin proyecto</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Otros proyectos</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} proyectos</value></data>

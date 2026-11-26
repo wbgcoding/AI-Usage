@@ -438,7 +438,7 @@
   <data name="Stats.Limits.ResetUsed.One" xml:space="preserve"><value>{0} sınır sıfırlaması kullanıldı, son {1}</value></data>
   <data name="Stats.Limits.ResetUsed.Many" xml:space="preserve"><value>{0} sınır sıfırlaması kullanıldı, son {1}</value></data>
   <data name="Tip.Stats.Limits.ResetUsed" xml:space="preserve"><value>Sınır sıfırlaması, pencereyi vaktinden önce sıfırlar; istatistikler orada yeni bir dönem başlatır.</value></data>
-  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Kendi kullanımının {0} saatinden yapılan tahmin. Önbellek okumaları ayrı sayılır: %1 ≈ {1} önbellek tokeni.</value></data>
+  <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Tahmin, {0} saatlik kullanımına dayanır. Önbellek okumaları ayrı hesaplanır: kotanın %1’i ≈ {1} önbellek tokeni.</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Proje yok</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Diğer projeler</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} proje</value></data>
@@ -692,7 +692,7 @@
   <data name="Tray.Note.AsOf" xml:space="preserve"><value>({0} itibarıyla)</value></data>
   <data name="Settings.Backup.WeeklyCopy" xml:space="preserve"><value>Token dizinini haftalık yedekle</value></data>
   <data name="Tip.Settings.Backup.WeeklyCopy" xml:space="preserve"><value>stats-backups klasöründe üç kopya tutar. Bozulan bir dizin bunlardan geri yüklenir.</value></data>
-  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Oturum günlükleri okunuyor: {1} dosyadan {0}</value></data>
+  <data name="Stats.Indexing.Progress" xml:space="preserve"><value>Okunan oturum günlüğü dosyaları: {0}/{1}</value></data>
   <data name="Settings.Backup.Preview" xml:space="preserve"><value>{0} tarihli yedek. {3} hesap için {1} ile {2} arası geçmiş.</value></data>
   <data name="Settings.Backup.Preview.One" xml:space="preserve"><value>{0} tarihli yedek. 1 hesap için {1} ile {2} arası geçmiş.</value></data>
   <data name="Settings.Backup.Preview.NoHistory" xml:space="preserve"><value>{0} tarihli yedek. Geçmiş yok.</value></data>
@@ -725,7 +725,7 @@
   <data name="Settings.Stats.RemoveFolder" xml:space="preserve"><value>Kaldır</value></data>
   <data name="Settings.Stats.ImportFolder" xml:space="preserve"><value>Oturum dosyalarını bir kez oku…</value></data>
   <data name="Settings.Stats.ImportFolderDone" xml:space="preserve"><value>{0} oturum dosyası okundu, {1} yeni</value></data>
-  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Klasör okunamadı. Hâlâ var olduğunu ve açma iznin olduğunu kontrol et.</value></data>
+  <data name="Settings.Stats.ImportFolderFailed" xml:space="preserve"><value>Klasör okunamadı. Klasörün hâlâ var olup olmadığını ve klasörü açma iznin olup olmadığını kontrol et.</value></data>
   <data name="Settings.Section.Stats" xml:space="preserve"><value>Token kullanımı</value></data>
   <data name="Settings.Stats.OpenRange" xml:space="preserve"><value>Açılışta dönem</value></data>
   <data name="Settings.Stats.OpenRange.Last" xml:space="preserve"><value>Son kullanılan</value></data>
