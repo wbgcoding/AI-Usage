@@ -451,7 +451,6 @@
   <data name="Stats.Project.Tip.Providers" xml:space="preserve"><value>服务商:{0}</value></data>
   <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>主要模型:{0}</value></data>
   <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>活跃:{0}</value></data>
-  <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>会话:{0}</value></data>
   <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>此前也位于:{0}</value></data>
   <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0时</value></data>
   <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6时</value></data>

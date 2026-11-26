@@ -118,8 +118,7 @@ public class StatsHorizontalBarChartTests
             "proj", @"C:\code\proj", Total: 1500, Percent: 42.5,
             FirstActivity: new DateOnly(2026, 1, 1), LastActivity: new DateOnly(2026, 1, 3),
             InputTokens: 900, OutputTokens: 500, CachedTokens: 100,
-            ProviderIds: ["claude", "codex"], MainModel: "claude-sonnet-5",
-            SessionCount: 7);
+            ProviderIds: ["claude", "codex"], MainModel: "claude-sonnet-5");
         var providerDisplayNames = new Dictionary<string, string> { ["claude"] = "Claude", ["codex"] = "Codex" };
 
         var lines = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
@@ -127,7 +126,7 @@ public class StatsHorizontalBarChartTests
             folderFormat: "Folder: {0}", tokensFormat: "Tokens: {0} ({1} %)",
             inputOutputCacheFormat: "Input {0} \u00b7 Output {1} \u00b7 Cache {2}",
             providersFormat: "Providers: {0}", mainModelFormat: "Main model: {0}",
-            activeFormat: "Active: {0}", sessionsFormat: "Sessions: {0}",
+            activeFormat: "Active: {0}",
             tokenWord: "tokens", culture);
 
         Assert.Equal(
@@ -139,7 +138,6 @@ public class StatsHorizontalBarChartTests
             "Providers: Claude, Codex",
             "Main model: Sonnet 5",
             "Active: 01/01-01/03/2026",
-            "Sessions: 7",
         ], lines);
     }
 
@@ -156,7 +154,7 @@ public class StatsHorizontalBarChartTests
             folderFormat: "Folder: {0}", tokensFormat: "Tokens: {0} ({1} %)",
             inputOutputCacheFormat: "Input {0} \u00b7 Output {1} \u00b7 Cache {2}",
             providersFormat: "Providers: {0}", mainModelFormat: "Main model: {0}",
-            activeFormat: "Active: {0}", sessionsFormat: "Sessions: {0}",
+            activeFormat: "Active: {0}",
             tokenWord: "tokens", culture);
 
         Assert.Equal(
@@ -293,7 +291,7 @@ public class StatsHorizontalBarChartTests
         var row = new StatsProjectRow("app", @"C:\work\app", 100, 10, day, day);
 
         var lines = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
-            row, new Dictionary<string, string>(), "Folder: {0}", "", "", "", "", "", "", "tokens",
+            row, new Dictionary<string, string>(), "Folder: {0}", "", "", "", "", "", "tokens",
             CultureInfo.InvariantCulture, displayName: "app (work)");
 
         Assert.Equal("app (work)", lines[0]);

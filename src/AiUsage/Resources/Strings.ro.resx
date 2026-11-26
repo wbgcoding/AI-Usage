@@ -453,7 +453,6 @@
   <data name="Stats.Project.Tip.Providers" xml:space="preserve"><value>Furnizori: {0}</value></data>
   <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Model principal: {0}</value></data>
   <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Activ: {0}</value></data>
-  <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Sesiuni: {0}</value></data>
   <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>Anterior și la: {0}</value></data>
   <data name="Stats.Hour.Axis0" xml:space="preserve"><value>0h</value></data>
   <data name="Stats.Hour.Axis6" xml:space="preserve"><value>6h</value></data>

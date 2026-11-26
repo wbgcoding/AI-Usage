@@ -146,8 +146,6 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
     public static readonly DependencyProperty ActiveFormatProperty = RegisterTipFormat(nameof(ActiveFormat));
     public string ActiveFormat { get => (string)GetValue(ActiveFormatProperty); set => SetValue(ActiveFormatProperty, value); }
 
-    public static readonly DependencyProperty SessionsFormatProperty = RegisterTipFormat(nameof(SessionsFormat));
-    public string SessionsFormat { get => (string)GetValue(SessionsFormatProperty); set => SetValue(SessionsFormatProperty, value); }
 
     /// <summary>The rich row's own hover/keyboard-focus tooltip: the project's own bare name first
     /// (no path, no trimming - <see cref="ShortLabel"/> is what the row itself draws, already
@@ -160,7 +158,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         StatsProjectRow row,
         IReadOnlyDictionary<string, string> providerDisplayNames,
         string folderFormat, string tokensFormat, string inputOutputCacheFormat,
-        string providersFormat, string mainModelFormat, string activeFormat, string sessionsFormat,
+        string providersFormat, string mainModelFormat, string activeFormat,
         string tokenWord, CultureInfo culture, string? displayName = null)
     {
         var projectName = displayName ?? ProjectName(row);
@@ -197,8 +195,6 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var activeText = StatsTooltipDateFormatter.FormatRange(row.FirstActivity, row.LastActivity, culture);
         lines.Add(string.IsNullOrEmpty(activeFormat) ? activeText : string.Format(culture, activeFormat, activeText));
 
-        if (row.SessionCount is { } sessionCount)
-            lines.Add(string.IsNullOrEmpty(sessionsFormat) ? sessionCount.ToString(culture) : string.Format(culture, sessionsFormat, sessionCount));
 
         if (!string.IsNullOrEmpty(row.FormerPathsLine))
             lines.Add(row.FormerPathsLine);
@@ -643,7 +639,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
         var anchorRect = new Rect(0, _hoverIndex * RichRowHeight, ActualWidth, RichRowHeight);
         var lines = BuildProjectDetailTooltipLines(
             rows[_hoverIndex], ProviderDisplayNames, FolderFormat, TokensFormat, InputOutputCacheFormat,
-            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, LocalizationService.Instance.DisplayCulture,
+            ProvidersFormat, MainModelFormat, ActiveFormat, TokenWord, LocalizationService.Instance.DisplayCulture,
             DisplayNames(rows)[_hoverIndex]);
         _tooltipPopup ??= new ChartTooltipPopup();
         _tooltipPopup.Show(this, anchorRect, lines, TooltipBackground, TextBrush, TooltipBorderBrush, mouse);
@@ -714,7 +710,7 @@ public sealed class StatsHorizontalBarChart : FrameworkElement
 
         var lines = BuildProjectDetailTooltipLines(
             rows[_focusedRowIndex], ProviderDisplayNames, FolderFormat, TokensFormat, InputOutputCacheFormat,
-            ProvidersFormat, MainModelFormat, ActiveFormat, SessionsFormat, TokenWord, LocalizationService.Instance.DisplayCulture,
+            ProvidersFormat, MainModelFormat, ActiveFormat, TokenWord, LocalizationService.Instance.DisplayCulture,
             DisplayNames(rows)[_focusedRowIndex]);
         AutomationProperties.SetName(this, string.Join(". ", lines));
     }

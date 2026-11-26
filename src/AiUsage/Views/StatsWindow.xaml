@@ -1241,8 +1241,7 @@
                                                                        InputOutputCacheFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.InputOutputCache]}"
                                                                        ProvidersFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.Providers]}"
                                                                        MainModelFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.MainModel]}"
-                                                                       ActiveFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.Active]}"
-                                                                       SessionsFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.Sessions]}"/>
+                                                                       ActiveFormat="{Binding Source={x:Static services:LocalizationService.Instance}, Path=[Stats.Project.Tip.Active]}"/>
                                 </Border>
                             </controls:CollapsibleSection>
                         </StackPanel>

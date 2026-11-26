@@ -110,12 +110,6 @@ public readonly record struct StatsProjectRow(
     long InputTokens = 0, long OutputTokens = 0, long CachedTokens = 0,
     IReadOnlyList<string>? ProviderIds = null, string MainModel = "",
     Color Color = default, string? IconPath = null,
-    // Null forever in practice today: nothing this app reads counts individual sessions per
-    // project. Kept as its own nullable field, not just left off, so the hover tooltip's own
-    // "Sessions: {0}" line already has somewhere to read a real count from the day this app (or a
-    // test standing in for it) gains one, without another StatsProjectRow field ever needing to
-    // change again.
-    int? SessionCount = null,
     // A row that brings its own hover text (a session) shows it instead of the project lines.
     string? TooltipText = null,
     // The row that pools the records without a project; its FullPath is the display label.

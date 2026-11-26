@@ -151,7 +151,7 @@ public class StatsChartTests
             Assert.Equal("1,234tokens", StatsHorizontalBarChart.BuildTooltipLines(row, "tokens", "", "Active", culture)[1]);
 
             var detail = StatsHorizontalBarChart.BuildProjectDetailTooltipLines(
-                row, new Dictionary<string, string>(), "", "T: {0} ({1})", "", "", "", "", "", "tokens", culture);
+                row, new Dictionary<string, string>(), "", "T: {0} ({1})", "", "", "", "", "tokens", culture);
             Assert.Contains("T: 1,234tokens (42.5)", detail);
 
             var hover = new StatsMonthGrid.CellHit(

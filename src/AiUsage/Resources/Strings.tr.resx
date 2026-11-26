@@ -451,7 +451,6 @@
   <data name="Stats.Project.Tip.Providers" xml:space="preserve"><value>Sağlayıcılar: {0}</value></data>
   <data name="Stats.Project.Tip.MainModel" xml:space="preserve"><value>Ana model: {0}</value></data>
   <data name="Stats.Project.Tip.Active" xml:space="preserve"><value>Etkin: {0}</value></data>
-  <data name="Stats.Project.Tip.Sessions" xml:space="preserve"><value>Oturumlar: {0}</value></data>
   <data name="Stats.Project.Tip.FormerPaths" xml:space="preserve"><value>Daha önce şurada da: {0}</value></data>
   <data name="Stats.Hour.Axis0" xml:space="preserve"><value>00</value></data>
   <data name="Stats.Hour.Axis6" xml:space="preserve"><value>06</value></data>
