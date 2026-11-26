@@ -20,7 +20,7 @@ public sealed class ThrottledWebReaderTests : IDisposable
 
     private readonly List<IDisposable> _directories = [];
 
-    private ThrottledWebReader NewReader(Func<string> answer, out List<string> scriptRuns, bool profileFolderExists = true, AppSettings? settings = null)
+    private ThrottledWebReader NewReader(Func<string> answer, out List<string> scriptRuns, bool profileFolderExists = true, AppSettings? settings = null, bool pausesAfterFailedDiscovery = false)
     {
         var profileRoot = TestPaths.CreateDisposableDirectory("ai-usage-throttled-webview");
         _directories.Add(profileRoot);
@@ -40,7 +40,7 @@ public sealed class ThrottledWebReaderTests : IDisposable
             runs.Add(script);
             return Task.FromResult(answer());
         });
-        return new ThrottledWebReader("codex", source, settings ?? new AppSettings(), _ => { }, showsReportedPlan: true, pausesAfterFailedDiscovery: false);
+        return new ThrottledWebReader("codex", source, settings ?? new AppSettings(), _ => { }, showsReportedPlan: true, pausesAfterFailedDiscovery: pausesAfterFailedDiscovery);
     }
 
     [Fact]
@@ -89,6 +89,41 @@ public sealed class ThrottledWebReaderTests : IDisposable
         await reader.ReadAsync(Start.AddMinutes(minutesLater), CancellationToken.None);
 
         Assert.Equal(readsAgain, runs.Count > afterFirst);
+    }
+
+    [Fact]
+    public async Task A_clock_set_back_does_not_hold_back_reads_until_it_catches_up()
+    {
+        var reader = NewReader(() => OkEnvelope, out var runs);
+
+        await reader.ReadAsync(Start, CancellationToken.None);
+        var afterFirst = runs.Count;
+        await reader.ReadAsync(Start.AddHours(-2), CancellationToken.None);
+
+        Assert.True(runs.Count > afterFirst);
+    }
+
+    [Fact]
+    public async Task A_clock_set_back_ends_the_pause_after_a_failed_discovery()
+    {
+        var previousProbe = NetworkStatus.Probe;
+        NetworkStatus.Probe = () => true;
+        try
+        {
+            var reader = NewReader(() => FailedEnvelope, out var runs, pausesAfterFailedDiscovery: true);
+
+            await reader.ReadAsync(Start, CancellationToken.None);
+            var afterFirst = runs.Count;
+            await reader.ReadAsync(Start.AddMinutes(10), CancellationToken.None);
+            Assert.Equal(afterFirst, runs.Count);
+
+            await reader.ReadAsync(Start.AddHours(-2), CancellationToken.None);
+            Assert.True(runs.Count > afterFirst);
+        }
+        finally
+        {
+            NetworkStatus.Probe = previousProbe;
+        }
     }
 
     [Fact]

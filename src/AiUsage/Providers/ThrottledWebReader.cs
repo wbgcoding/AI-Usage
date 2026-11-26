@@ -80,9 +80,12 @@ internal sealed class ThrottledWebReader
         var signInJustCompleted = Interlocked.Exchange(ref _signInCompleted, 0) == 1;
         if (signInJustCompleted)
             _discoveryPausedUntil = null;
-        if (_discoveryPausedUntil is { } pausedUntil && fetchedAt < pausedUntil)
+        // A clock set back since the stamps were taken puts them in the future: they hold nothing back
+        // then, or reads would stop until the clock caught up again.
+        if (_discoveryPausedUntil is { } pausedUntil && fetchedAt < pausedUntil && pausedUntil <= fetchedAt + FailedDiscoveryPause)
             return HeldSnapshot(fetchedAt);
-        if (!signInJustCompleted && _lastReadAt is { } lastReadAt && fetchedAt - lastReadAt < ProviderRegistry.ReadInterval(_settings, _accountKey))
+        if (!signInJustCompleted && _lastReadAt is { } lastReadAt && fetchedAt >= lastReadAt
+            && fetchedAt - lastReadAt < ProviderRegistry.ReadInterval(_settings, _accountKey))
             // A window that reset since that read is over, the same as for a session file.
             return _lastSnapshot is { } cached
                 ? ProviderSnapshots.ExpirePastWindows(cached, fetchedAt) with { FetchedAt = fetchedAt, HeldOver = true }
