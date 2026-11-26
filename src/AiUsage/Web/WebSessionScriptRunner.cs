@@ -657,6 +657,10 @@ public sealed class WebSessionScriptRunner : IShutdownDisposable
             _hostContext = context;
             _lastActivityAt = _timeProvider.GetUtcNow();
             host.ProcessFailed += () => _ = DropHostAsync(host);
+            // The caller that asked for this start may have given up while it ran, so no call is left to
+            // arm the idle timer when it ends: do it here, or the browser stays until the next read.
+            if (Volatile.Read(ref _inFlight) == 0)
+                ArmIdleTimer();
         }
         catch
         {

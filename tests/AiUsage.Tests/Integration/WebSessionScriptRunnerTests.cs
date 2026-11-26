@@ -803,6 +803,36 @@ public class WebSessionScriptRunnerTests
     }
 
     [Fact]
+    public async Task A_host_whose_first_start_outlived_a_cancelled_call_is_still_closed_when_idle()
+    {
+        FakeHiddenBrowserHost? current = null;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineSynchronizationContext());
+        try
+        {
+            var runner = new WebSessionScriptRunner(() => current = new FakeHiddenBrowserHost(), timeProvider: clock);
+            using var cancel = new CancellationTokenSource();
+
+            var call = runner.ExecuteScriptAsync("script", cancel.Token);
+            cancel.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+
+            // The shared start goes on without that caller and finishes with nobody in flight.
+            current!.CompleteNavigate(true);
+            Assert.False(current.Disposed);
+
+            clock.Advance(TimeSpan.FromMinutes(16));
+
+            Assert.True(current.Disposed);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    [Fact]
     public async Task The_idle_timer_never_disposes_the_host_during_a_call()
     {
         FakeHiddenBrowserHost? current = null;
