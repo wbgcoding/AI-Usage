@@ -30,18 +30,25 @@ public static class ClaudeLocalLimitReader
     /// expired record of one kind must not hide a still-active record of another - every line within
     /// the existing file/line bounds is looked at, the newest record per <see
     /// cref="ClaudeQuotaLimit.RateLimitType"/> is kept (files and lines are walked newest-first, so
-    /// the first record seen for a given type is already its newest one), and the newest of those
-    /// that is still active wins.
+    /// the first record seen for a given type is already its newest one), and the one logged last
+    /// of those that are still active wins (a fresh five-hour rejection over an older weekly one that
+    /// resets later). <see cref="FindActiveLimits(string, DateTimeOffset, CancellationToken)"/> lists all of them.
     /// </summary>
     public static ClaudeQuotaLimit? FindActiveLimit(string projectsRoot, DateTimeOffset now, CancellationToken ct = default) =>
         FindActiveLimit(projectsRoot, now, out _, ct);
+
+    /// <summary>Every kind of rejection still active, the one logged last first (a record without a
+    /// time after those with one, ties by the later reset), so a caller whose live reading overrules
+    /// the first can fall back to the next.</summary>
+    public static IReadOnlyList<ClaudeQuotaLimit> FindActiveLimits(string projectsRoot, DateTimeOffset now, CancellationToken ct = default) =>
+        FindActiveLimits(projectsRoot, now, out _, null, ct);
 
     /// <summary>Same lookup, plus the newest session file this scan already touched (null when none
     /// exists) - so a caller that also wants <see cref="SessionTurnReader"/>'s answer for "the file
     /// already found" gets it from this one directory walk, never a second one.</summary>
     public static ClaudeQuotaLimit? FindActiveLimit(
         string projectsRoot, DateTimeOffset now, out string? newestFilePath, CancellationToken ct = default) =>
-        FindActiveLimit(projectsRoot, now, out newestFilePath, null, ct);
+        First(FindActiveLimits(projectsRoot, now, out newestFilePath, null, ct));
 
     /// <summary>Counts what a lookup actually read from disk, so a test can prove an unchanged file
     /// costs nothing.</summary>
@@ -70,11 +77,18 @@ public static class ClaudeLocalLimitReader
     private const int FingerprintBytes = 4096;
 
     internal static ClaudeQuotaLimit? FindActiveLimit(
+        string projectsRoot, DateTimeOffset now, out string? newestFilePath, ReadStats? stats, CancellationToken ct = default) =>
+        First(FindActiveLimits(projectsRoot, now, out newestFilePath, stats, ct));
+
+    private static ClaudeQuotaLimit? First(IReadOnlyList<ClaudeQuotaLimit> limits) => limits.Count > 0 ? limits[0] : null;
+
+    /// <summary>The active rejections, newest logged first, plus the newest session file as above.</summary>
+    internal static IReadOnlyList<ClaudeQuotaLimit> FindActiveLimits(
         string projectsRoot, DateTimeOffset now, out string? newestFilePath, ReadStats? stats, CancellationToken ct = default)
     {
         newestFilePath = null;
         if (!Directory.Exists(projectsRoot))
-            return null;
+            return [];
 
         try
         {
@@ -111,16 +125,21 @@ public static class ClaudeLocalLimitReader
                 }
             }
 
-            return newestPerType.Values
-                .Where(limit => limit.ResetsAt > now)
-                .OrderByDescending(limit => limit.ResetsAt)
-                .FirstOrDefault();
+            return OrderNewestFirst(newestPerType.Values.Where(limit => limit.ResetsAt > now));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return null;
+            return [];
         }
     }
+
+    /// <summary>Newest logged first; a record without a time comes after those with one, and the later
+    /// reset breaks a tie.</summary>
+    internal static IReadOnlyList<ClaudeQuotaLimit> OrderNewestFirst(IEnumerable<ClaudeQuotaLimit> limits) =>
+        [.. limits
+            .OrderByDescending(limit => limit.LoggedAt.HasValue)
+            .ThenByDescending(limit => limit.LoggedAt)
+            .ThenByDescending(limit => limit.ResetsAt)];
 
     private static bool IsNewer(ClaudeQuotaLimit candidate, ClaudeQuotaLimit held) =>
         candidate.LoggedAt is { } candidateAt && held.LoggedAt is { } heldAt

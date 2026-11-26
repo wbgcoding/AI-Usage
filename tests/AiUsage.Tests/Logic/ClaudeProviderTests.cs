@@ -807,6 +807,41 @@ public class ClaudeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_fresh_five_hour_rejection_shows_even_when_an_older_weekly_one_was_lifted_early()
+    {
+        var directory = TestPaths.CreateDisposableDirectory("ai-usage-claude-provider-limits");
+        _tempDirectories.Add(directory);
+        var clock = Now;
+        var login = new ExpiringLogin
+        {
+            Next = new ClaudeCodeUsage(LocalLoginOutcome.Ok,
+            [
+                new UsageWindow("Window_FiveHour", WindowKind.FiveHour, 42, Now.AddHours(4), 300),
+                new UsageWindow("Window_Weekly", WindowKind.Weekly, 10, Now.AddDays(3), 10080),
+            ]),
+        };
+        var provider = new ClaudeProvider(
+            directory, () => clock, webSource: null, settings: null, saveSettings: null, localLogin: login.Read);
+        await provider.FetchAsync(CancellationToken.None);
+
+        // The weekly rejection was logged before that reading and the reading shows it lifted; the
+        // five-hour rejection came after the reading, so only that one still holds.
+        static string Rejection(string type, DateTimeOffset resetsAt, DateTimeOffset loggedAt) =>
+            "{\"quotaLimits\":{\"status\":\"rejected\",\"resetsAt\":" + resetsAt.ToUnixTimeSeconds()
+            + ",\"rateLimitType\":\"" + type + "\"},\"timestamp\":\"" + loggedAt.ToString("o") + "\"}";
+        File.WriteAllLines(Path.Combine(directory, "session.jsonl"), [
+            Rejection("seven_day", Now.AddDays(3), Now.AddHours(-2)),
+            Rejection("five_hour", Now.AddHours(5), Now.AddHours(1))]);
+        login.Expire();
+        clock = Now.AddHours(2);
+
+        var snapshot = await provider.FetchAsync(CancellationToken.None);
+
+        Assert.Equal(100, snapshot.Windows.Single(w => w.Kind == WindowKind.FiveHour).UsedPercent);
+        Assert.Equal(10, snapshot.Windows.Single(w => w.Kind == WindowKind.Weekly).UsedPercent);
+    }
+
+    [Fact]
     public async Task A_rotated_session_file_keeps_the_limit_found_in_it()
     {
         var directory = SeedDirectory("claude-429-with-tokens.jsonl");

@@ -172,6 +172,32 @@ public class ClaudeLocalLimitReaderTests : IDisposable
         $"{{\"quotaLimits\":{{\"status\":\"rejected\",\"resetsAt\":{resetsAt.ToUnixTimeSeconds()},\"rateLimitType\":\"{type}\"}}}}";
 
     [Fact]
+    public void FindActiveLimit_takes_the_newest_logged_rejection_not_the_one_resetting_last()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "session.jsonl"), [
+            RejectionLine("seven_day", Now.AddDays(3)).Replace("}}", $"}},\"timestamp\":\"{Now.AddHours(-2):o}\"}}"),
+            RejectionLine("five_hour", Now.AddHours(3)).Replace("}}", $"}},\"timestamp\":\"{Now.AddMinutes(-10):o}\"}}")]);
+
+        var limit = ClaudeLocalLimitReader.FindActiveLimit(directory, Now);
+
+        Assert.Equal("five_hour", limit!.RateLimitType);
+    }
+
+    [Fact]
+    public void FindActiveLimits_lists_every_active_kind_newest_logged_first()
+    {
+        var directory = TempDirectory();
+        File.WriteAllLines(Path.Combine(directory, "session.jsonl"), [
+            RejectionLine("seven_day", Now.AddDays(3)).Replace("}}", $"}},\"timestamp\":\"{Now.AddHours(-2):o}\"}}"),
+            RejectionLine("five_hour", Now.AddHours(3)).Replace("}}", $"}},\"timestamp\":\"{Now.AddMinutes(-10):o}\"}}")]);
+
+        var limits = ClaudeLocalLimitReader.FindActiveLimits(directory, Now);
+
+        Assert.Equal(["five_hour", "seven_day"], limits.Select(l => l.RateLimitType));
+    }
+
+    [Fact]
     public void FindActiveLimit_reads_nothing_from_an_unchanged_file_on_the_second_call()
     {
         var directory = ProjectsDirectoryWith("claude-429.jsonl");

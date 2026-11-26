@@ -315,7 +315,7 @@ public sealed class ClaudeProvider : IUsageProvider
     {
         var fetchedAt = _now();
 
-        ClaudeQuotaLimit? limit = null;
+        IReadOnlyList<ClaudeQuotaLimit> limits = [];
         var isWaitingForUser = false;
         DateTimeOffset? waitingSince = null;
         long? sessionTokens = null;
@@ -329,7 +329,7 @@ public sealed class ClaudeProvider : IUsageProvider
             // just this call (and the attention read and token sum below, on the same file) to the
             // thread pool keeps the UI thread free without touching the web path.
             if (_projectsRoots.Count > 0)
-            (limit, isWaitingForUser, waitingSince, sessionTokens, sessionLastEventAt, anyRootExists) = await Task.Run(() =>
+            (limits, isWaitingForUser, waitingSince, sessionTokens, sessionLastEventAt, anyRootExists) = await Task.Run(() =>
             {
                 var rootExists = _projectsRoots.Any(Directory.Exists);
                 var (found, newestFile) = ScanRoots(fetchedAt, ct);
@@ -355,7 +355,7 @@ public sealed class ClaudeProvider : IUsageProvider
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            limit = null;
+            limits = [];
             isWaitingForUser = false;
             waitingSince = null;
             sessionTokens = null;
@@ -364,15 +364,8 @@ public sealed class ClaudeProvider : IUsageProvider
             anyRootExists = true;
         }
 
-        UsageWindow? limitWindow = limit is null
-            ? null
-            : new UsageWindow(
-                label: "Window_LimitReached",
-                kind: MapWindowKind(limit.RateLimitType),
-                usedPercent: 100,
-                resetsAt: limit.ResetsAt,
-                windowMinutes: null,
-                tokens: sessionTokens is { } total ? new TokenUsage(total) : null);
+        // Without a live reading to check against, the limit logged last is the one to show.
+        UsageWindow? limitWindow = limits.Count == 0 ? null : LimitWindowOf(limits[0], sessionTokens);
 
         // Every configured source builds its own candidate; SnapshotChooser picks between them
         // instead of the first source winning, so a signed-out local login never hides a perfectly
@@ -415,9 +408,18 @@ public sealed class ClaudeProvider : IUsageProvider
             {
                 if (chosen is not { Status: ProviderStatus.Ok, Windows.Count: > 0 })
                     return await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct);
-                var reading = chosen.Windows.FirstOrDefault(w => w.Kind == limitWindow.Kind && limitWindow.Kind != WindowKind.Other);
-                if (!LimitIsOverByReading(chosen.DataTimestamp, reading?.UsedPercent, limit!.LoggedAt))
-                    chosen = chosen with { Windows = WithLimitApplied(chosen.Windows, limitWindow) };
+                // The reading may show the logged limit lifted early: the next one logged is then the
+                // one that still holds, if any does.
+                foreach (var candidate in limits)
+                {
+                    var candidateWindow = LimitWindowOf(candidate, sessionTokens);
+                    var reading = chosen.Windows.FirstOrDefault(w => w.Kind == candidateWindow.Kind && candidateWindow.Kind != WindowKind.Other);
+                    if (LimitIsOverByReading(chosen.DataTimestamp, reading?.UsedPercent, candidate.LoggedAt))
+                        continue;
+
+                    chosen = chosen with { Windows = WithLimitApplied(chosen.Windows, candidateWindow) };
+                    break;
+                }
             }
 
             return AttachSessionTokens(chosen, sessionTokens, sessionLastEventAt, fetchedAt);
@@ -427,6 +429,15 @@ public sealed class ClaudeProvider : IUsageProvider
             ? await LimitOnlySnapshot(limitWindow, fetchedAt, isWaitingForUser, waitingSince, ct)
             : NoLocalDataSnapshot(fetchedAt, isWaitingForUser, waitingSince, anyRootExists);
     }
+
+    private static UsageWindow LimitWindowOf(ClaudeQuotaLimit limit, long? sessionTokens) =>
+        new(
+            label: "Window_LimitReached",
+            kind: MapWindowKind(limit.RateLimitType),
+            usedPercent: 100,
+            resetsAt: limit.ResetsAt,
+            windowMinutes: null,
+            tokens: sessionTokens is { } total ? new TokenUsage(total) : null);
 
     /// <summary>A usage reading taken after Claude Code logged the rejection already knows whether the
     /// limit still holds: a reset used early (or one that came sooner than logged) shows there as a
@@ -499,18 +510,17 @@ public sealed class ClaudeProvider : IUsageProvider
             WaitingSince: waitingSince);
     }
 
-    /// <summary>Walks every projects folder: the limit that resets last wins (the same rule as inside one
-    /// folder), and the newest transcript across all folders is the session the other reads describe.</summary>
-    private (ClaudeQuotaLimit? Limit, string? NewestFile) ScanRoots(DateTimeOffset now, CancellationToken ct)
+    /// <summary>Walks every projects folder: the active limits of all folders merge newest logged first
+    /// (the same rule as inside one folder), and the newest transcript across all folders is the session
+    /// the other reads describe.</summary>
+    private (IReadOnlyList<ClaudeQuotaLimit> Limits, string? NewestFile) ScanRoots(DateTimeOffset now, CancellationToken ct)
     {
-        ClaudeQuotaLimit? best = null;
+        List<ClaudeQuotaLimit> all = [];
         string? newest = null;
         var newestWrite = DateTime.MinValue;
         foreach (var root in _projectsRoots)
         {
-            var found = ClaudeLocalLimitReader.FindActiveLimit(root, now, out var file, ct);
-            if (found is not null && (best is null || found.ResetsAt > best.ResetsAt))
-                best = found;
+            all.AddRange(ClaudeLocalLimitReader.FindActiveLimits(root, now, out var file, null, ct));
             if (file is null)
                 continue;
 
@@ -522,7 +532,7 @@ public sealed class ClaudeProvider : IUsageProvider
             }
         }
 
-        return (best, newest);
+        return (ClaudeLocalLimitReader.OrderNewestFirst(all), newest);
     }
 
     /// <summary>The local sign-in read has no token figure of its own; the newest session file does. The
