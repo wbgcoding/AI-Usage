@@ -60,9 +60,9 @@ public sealed class ModelPriceList
         _gate = source._gate;
         _reported = source._reported;
         Fallback = source.Fallback;
-        _fallbackFrozen = source._fallbackFrozen ?? source.Fallback.Current;
         lock (_gate)
         {
+            _fallbackFrozen = source._fallbackFrozen ?? source.Fallback.Current;
             _prices = source._prices;
             FetchedAt = source.FetchedAt;
             // The answers found so far belong to these same tables, so a rebuild does not search the
@@ -83,9 +83,16 @@ public sealed class ModelPriceList
     /// <summary>Swaps in a new second table; remembered answers are dropped so the models it prices are found.</summary>
     internal void ReplaceFallback(IReadOnlyList<FallbackPriceList.Entry> entries, DateTimeOffset fetchedAt, bool persist = true)
     {
-        Fallback.Replace(entries, fetchedAt, persist);
+        // Table swap and cleared answers happen under one lock, so a snapshot never pairs the new table
+        // with answers found in the old one. The file write stays outside the lock.
         lock (_gate)
+        {
+            Fallback.Replace(entries, fetchedAt, persist: false);
             _found.Clear();
+        }
+
+        if (persist)
+            Fallback.Save(entries, fetchedAt);
     }
 
     /// <summary>When the prices were last downloaded; null while there are none.</summary>

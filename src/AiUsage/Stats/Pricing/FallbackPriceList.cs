@@ -150,7 +150,7 @@ internal sealed class FallbackPriceList
 
     private static string LastSegment(string name) => name[(name.LastIndexOf('/') + 1)..];
 
-    private void Save(IReadOnlyList<Entry> entries, DateTimeOffset fetchedAt)
+    internal void Save(IReadOnlyList<Entry> entries, DateTimeOffset fetchedAt)
     {
         try
         {
