@@ -443,6 +443,7 @@
   <data name="Stats.NoProject" xml:space="preserve"><value>Bez projektu</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Inne projekty</value></data>
   <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} projektów</value></data>
+  <data name="Stats.OtherProjects.Count.Few" xml:space="preserve"><value>{0} projekty</value></data>
   <data name="Stats.Ring.SliceTooltip" xml:space="preserve"><value>{0}: {1} tokenów ({2})</value></data>
   <data name="Stats.Ring.MoreCount" xml:space="preserve"><value>+{0} więcej</value></data>
   <data name="Stats.Project.Active" xml:space="preserve"><value>Aktywny</value></data>

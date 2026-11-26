@@ -443,7 +443,8 @@
   <data name="Stats.PerPercent.Tip" xml:space="preserve"><value>Estimare din consumul propriu (ore: {0}). Citirile din cache se numără separat: 1% ≈ {1} (tokeni din cache).</value></data>
   <data name="Stats.NoProject" xml:space="preserve"><value>Fără proiect</value></data>
   <data name="Stats.OtherProjects" xml:space="preserve"><value>Alte proiecte</value></data>
-  <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} proiecte</value></data>
+  <data name="Stats.OtherProjects.Count" xml:space="preserve"><value>{0} de proiecte</value></data>
+  <data name="Stats.OtherProjects.Count.Few" xml:space="preserve"><value>{0} proiecte</value></data>
   <data name="Stats.Ring.SliceTooltip" xml:space="preserve"><value>{0}: {1} tokeni ({2})</value></data>
   <data name="Stats.Ring.MoreCount" xml:space="preserve"><value>încă {0}</value></data>
   <data name="Stats.Project.Active" xml:space="preserve"><value>Activ</value></data>

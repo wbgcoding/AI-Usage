@@ -2346,12 +2346,12 @@ public sealed partial class StatsViewModel : ObservableObject
 
     /// <summary>The hover text of the pooled bar: how many projects it holds, then the largest of
     /// them with their totals, and how many more there are.</summary>
-    private static string BuildOtherProjectsTooltip(List<StatsGroupedRow> pooled, Func<StatsGroupedRow, string>? costOf = null)
+    internal static string BuildOtherProjectsTooltip(List<StatsGroupedRow> pooled, Func<StatsGroupedRow, string>? costOf = null)
     {
         var loc = LocalizationService.Instance;
         var lines = new List<string>
         {
-            string.Format(CultureInfo.CurrentCulture, loc["Stats.OtherProjects.Count"], pooled.Count),
+            loc.FormatCount("Stats.OtherProjects.Count", pooled.Count, pooled.Count),
         };
         foreach (var row in pooled.Take(OtherProjectsTooltipNames))
         {
